@@ -4,11 +4,14 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	orchestratorcommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -165,6 +168,770 @@ func TestV1betaCreateQuotaRule(t *testing.T) {
 	})
 }
 
+func TestV1betaUpdateQuotaRule(t *testing.T) {
+	t.Run("WhenUpdateQuotaRuleSucceeds", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			DiskLimitInMib: gcpgenserver.NewOptInt64(2048),
+			Description:    gcpgenserver.NewOptString("updated description"),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		expQuota := &models.QuotaRule{
+			BaseModel:      models.BaseModel{UUID: "quota-rule-uuid-1"},
+			Name:           "quota-name",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			DiskLimitInMib: 2048,
+			QuotaTarget:    "user:alice",
+			Description:    "updated description",
+		}
+		mockOrch.On("UpdateQuotaRule", mock.Anything, mock.Anything).Return(expQuota, "op-1", nil)
+
+		res, err := handler.V1betaUpdateQuotaRule(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+
+		op, ok := res.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok, "expected OperationV1beta, got %T", res)
+		assert.NotNil(tt, op.Name)
+		assert.Equal(tt, "/v1beta/projects/project-1/locations/us-central1/operations/op-1", op.Name.Value)
+		assert.NotNil(tt, op.Done)
+		assert.False(tt, op.Done.Value)
+		mockOrch.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateQuotaRuleSucceedsWithoutOperationID", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			DiskLimitInMib: gcpgenserver.NewOptInt64(2048),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		expQuota := &models.QuotaRule{
+			BaseModel:      models.BaseModel{UUID: "quota-rule-uuid-1"},
+			Name:           "quota-name",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			DiskLimitInMib: 2048,
+		}
+		mockOrch.On("UpdateQuotaRule", mock.Anything, mock.Anything).Return(expQuota, "", nil)
+
+		res, err := handler.V1betaUpdateQuotaRule(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+
+		op, ok := res.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok, "expected OperationV1beta, got %T", res)
+		assert.NotNil(tt, op.Name)
+		assert.Equal(tt, "", op.Name.Value, "operation name should be empty when operationID is empty")
+		assert.NotNil(tt, op.Done)
+		assert.False(tt, op.Done.Value)
+		mockOrch.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateQuotaRuleSucceedsWithOnlyDiskLimit", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			DiskLimitInMib: gcpgenserver.NewOptInt64(4096),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		expQuota := &models.QuotaRule{
+			BaseModel:      models.BaseModel{UUID: "quota-rule-uuid-1"},
+			Name:           "quota-name",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			DiskLimitInMib: 4096,
+		}
+		mockOrch.On("UpdateQuotaRule", mock.Anything, mock.MatchedBy(func(p *orchestratorcommon.UpdateQuotaRulesParam) bool {
+			return p.DiskLimitInMib == 4096 && p.Description == ""
+		})).Return(expQuota, "op-2", nil)
+
+		res, err := handler.V1betaUpdateQuotaRule(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		mockOrch.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateQuotaRuleSucceedsWithOnlyDescription", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			Description: gcpgenserver.NewOptString("new description only"),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		expQuota := &models.QuotaRule{
+			BaseModel:   models.BaseModel{UUID: "quota-rule-uuid-1"},
+			Name:        "quota-name",
+			QuotaType:   "INDIVIDUAL_USER_QUOTA",
+			Description: "new description only",
+		}
+		mockOrch.On("UpdateQuotaRule", mock.Anything, mock.MatchedBy(func(p *orchestratorcommon.UpdateQuotaRulesParam) bool {
+			return p.Description == "new description only" && p.DiskLimitInMib == 0
+		})).Return(expQuota, "op-3", nil)
+
+		res, err := handler.V1betaUpdateQuotaRule(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		mockOrch.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateQuotaRuleSucceedsWithBothFields", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			DiskLimitInMib: gcpgenserver.NewOptInt64(8192),
+			Description:    gcpgenserver.NewOptString("updated both fields"),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		expQuota := &models.QuotaRule{
+			BaseModel:      models.BaseModel{UUID: "quota-rule-uuid-1"},
+			Name:           "quota-name",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			DiskLimitInMib: 8192,
+			Description:    "updated both fields",
+		}
+		mockOrch.On("UpdateQuotaRule", mock.Anything, mock.MatchedBy(func(p *orchestratorcommon.UpdateQuotaRulesParam) bool {
+			return p.DiskLimitInMib == 8192 && p.Description == "updated both fields"
+		})).Return(expQuota, "op-4", nil)
+
+		res, err := handler.V1betaUpdateQuotaRule(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		mockOrch.AssertExpectations(tt)
+	})
+
+	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleParams{
+			ProjectNumber: "project-1",
+			LocationId:    "invalid-location",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			DiskLimitInMib: gcpgenserver.NewOptInt64(2048),
+		}
+
+		res, err := handler.V1betaUpdateQuotaRule(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+
+		bad, ok := res.(*gcpgenserver.V1betaUpdateQuotaRuleBadRequest)
+		assert.True(tt, ok, "expected V1betaUpdateQuotaRuleBadRequest, got %T", res)
+		assert.Equal(tt, float64(http.StatusBadRequest), bad.Code)
+		assert.NotEmpty(tt, bad.Message)
+	})
+
+	t.Run("WhenUpdateQuotaRuleFailsWithBadRequest", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			DiskLimitInMib: gcpgenserver.NewOptInt64(2048),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrch.On("UpdateQuotaRule", mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("invalid request"))
+
+		res, err := handler.V1betaUpdateQuotaRule(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+
+		bad, ok := res.(*gcpgenserver.V1betaUpdateQuotaRuleBadRequest)
+		assert.True(tt, ok, "expected V1betaUpdateQuotaRuleBadRequest, got %T", res)
+		assert.Equal(tt, float64(http.StatusBadRequest), bad.Code)
+		assert.NotEmpty(tt, bad.Message)
+		mockOrch.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateQuotaRuleFailsWithNotFound", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			DiskLimitInMib: gcpgenserver.NewOptInt64(2048),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrch.On("UpdateQuotaRule", mock.Anything, mock.Anything).Return(nil, "", errors.NewNotFoundErr("quota rule not found", nil))
+
+		res, err := handler.V1betaUpdateQuotaRule(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+
+		bad, ok := res.(*gcpgenserver.V1betaUpdateQuotaRuleBadRequest)
+		assert.True(tt, ok, "expected V1betaUpdateQuotaRuleBadRequest, got %T", res)
+		assert.Equal(tt, float64(http.StatusBadRequest), bad.Code)
+		assert.NotEmpty(tt, bad.Message)
+		mockOrch.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateQuotaRuleFailsWithConflict", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			DiskLimitInMib: gcpgenserver.NewOptInt64(2048),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrch.On("UpdateQuotaRule", mock.Anything, mock.Anything).Return(nil, "", errors.NewConflictErr("quota rule is in transition state"))
+
+		res, err := handler.V1betaUpdateQuotaRule(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+
+		conflict, ok := res.(*gcpgenserver.V1betaUpdateQuotaRuleConflict)
+		assert.True(tt, ok, "expected V1betaUpdateQuotaRuleConflict, got %T", res)
+		assert.Equal(tt, float64(http.StatusConflict), conflict.Code)
+		assert.NotEmpty(tt, conflict.Message)
+		mockOrch.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateQuotaRuleFailsWithInternalError", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			DiskLimitInMib: gcpgenserver.NewOptInt64(2048),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrch.On("UpdateQuotaRule", mock.Anything, mock.Anything).Return(nil, "", errors.New("something bad"))
+
+		res, err := handler.V1betaUpdateQuotaRule(context.Background(), req, params)
+
+		assert.Error(tt, err)
+		assert.NotNil(tt, res)
+
+		internal, ok := res.(*gcpgenserver.V1betaUpdateQuotaRuleInternalServerError)
+		assert.True(tt, ok, "expected V1betaUpdateQuotaRuleInternalServerError, got %T", res)
+		assert.Equal(tt, float64(http.StatusInternalServerError), internal.Code)
+		mockOrch.AssertExpectations(tt)
+	})
+}
+
+func TestV1betaUpdateQuotaRuleVCP(t *testing.T) {
+	t.Run("WhenUpdateQuotaRuleInternalSucceeds", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleVCPParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			DiskLimitInMib: gcpgenserver.NewOptInt64(2048),
+			Description:    gcpgenserver.NewOptString("updated description"),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		expQuota := &models.QuotaRule{
+			BaseModel:             models.BaseModel{UUID: "quota-rule-uuid-1"},
+			Name:                  "quota-name",
+			QuotaType:             "INDIVIDUAL_USER_QUOTA",
+			DiskLimitInMib:        2048,
+			QuotaTarget:           "user:alice",
+			Description:           "updated description",
+			LifeCycleState:        models.LifeCycleStateUpdating,
+			LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		}
+
+		expJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "job-uuid-1",
+				CreatedAt: time.Now(),
+			},
+			WorkflowID: "workflow-id-1",
+			State:      string(models.JobsStateNEW),
+		}
+
+		mockOrch.On("UpdateQuotaRuleInternal", mock.Anything, mock.Anything).Return(expQuota, expJob, nil)
+
+		res, err := handler.V1betaUpdateQuotaRuleVCP(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+
+		quotaRuleVCP, ok := res.(*gcpgenserver.QuotaRulesVCPV1beta)
+		assert.True(tt, ok, "expected QuotaRulesVCPV1beta, got %T", res)
+		assert.Equal(tt, "quota-rule-uuid-1", quotaRuleVCP.QuotaId.Value)
+		assert.Equal(tt, "quota-name", quotaRuleVCP.ResourceId)
+		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaQuotaTypeINDIVIDUALUSERQUOTA, quotaRuleVCP.QuotaType)
+		assert.Equal(tt, int64(2048), quotaRuleVCP.DiskLimitInMib)
+		assert.Equal(tt, "user:alice", quotaRuleVCP.QuotaTarget.Value)
+		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaStateUPDATING, quotaRuleVCP.State.Value)
+		assert.Equal(tt, models.LifeCycleStateUpdatingDetails, quotaRuleVCP.StateDetails.Value)
+		assert.Equal(tt, "updated description", quotaRuleVCP.Description.Value)
+		assert.Len(tt, quotaRuleVCP.Jobs, 1, "Expected 1 job in response")
+		assert.Equal(tt, "job-uuid-1", quotaRuleVCP.Jobs[0].JobId.Value)
+		mockOrch.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateQuotaRuleInternalSucceedsWithoutJob", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleVCPParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			DiskLimitInMib: gcpgenserver.NewOptInt64(2048),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		expQuota := &models.QuotaRule{
+			BaseModel:             models.BaseModel{UUID: "quota-rule-uuid-1"},
+			Name:                  "quota-name",
+			QuotaType:             "INDIVIDUAL_USER_QUOTA",
+			DiskLimitInMib:        2048,
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+		}
+
+		mockOrch.On("UpdateQuotaRuleInternal", mock.Anything, mock.Anything).Return(expQuota, nil, nil)
+
+		res, err := handler.V1betaUpdateQuotaRuleVCP(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+
+		quotaRuleVCP, ok := res.(*gcpgenserver.QuotaRulesVCPV1beta)
+		assert.True(tt, ok, "expected QuotaRulesVCPV1beta, got %T", res)
+		assert.Equal(tt, "quota-rule-uuid-1", quotaRuleVCP.QuotaId.Value)
+		assert.Empty(tt, quotaRuleVCP.Jobs, "Expected empty jobs array when job is nil")
+		mockOrch.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateQuotaRuleInternalSucceedsWithOnlyDiskLimit", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleVCPParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			DiskLimitInMib: gcpgenserver.NewOptInt64(4096),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		expQuota := &models.QuotaRule{
+			BaseModel:      models.BaseModel{UUID: "quota-rule-uuid-1"},
+			Name:           "quota-name",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			DiskLimitInMib: 4096,
+		}
+
+		mockOrch.On("UpdateQuotaRuleInternal", mock.Anything, mock.MatchedBy(func(p *orchestratorcommon.UpdateQuotaRulesParam) bool {
+			return p.DiskLimitInMib == 4096 && p.Description == ""
+		})).Return(expQuota, nil, nil)
+
+		res, err := handler.V1betaUpdateQuotaRuleVCP(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		mockOrch.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateQuotaRuleInternalSucceedsWithOnlyDescription", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleVCPParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			Description: gcpgenserver.NewOptString("new description only"),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		expQuota := &models.QuotaRule{
+			BaseModel:   models.BaseModel{UUID: "quota-rule-uuid-1"},
+			Name:        "quota-name",
+			QuotaType:   "INDIVIDUAL_USER_QUOTA",
+			Description: "new description only",
+		}
+
+		mockOrch.On("UpdateQuotaRuleInternal", mock.Anything, mock.MatchedBy(func(p *orchestratorcommon.UpdateQuotaRulesParam) bool {
+			return p.Description == "new description only" && p.DiskLimitInMib == 0
+		})).Return(expQuota, nil, nil)
+
+		res, err := handler.V1betaUpdateQuotaRuleVCP(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		mockOrch.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateQuotaRuleInternalSucceedsWithBothFields", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleVCPParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			DiskLimitInMib: gcpgenserver.NewOptInt64(8192),
+			Description:    gcpgenserver.NewOptString("updated both fields"),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		expQuota := &models.QuotaRule{
+			BaseModel:      models.BaseModel{UUID: "quota-rule-uuid-1"},
+			Name:           "quota-name",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			DiskLimitInMib: 8192,
+			Description:    "updated both fields",
+		}
+
+		mockOrch.On("UpdateQuotaRuleInternal", mock.Anything, mock.MatchedBy(func(p *orchestratorcommon.UpdateQuotaRulesParam) bool {
+			return p.DiskLimitInMib == 8192 && p.Description == "updated both fields"
+		})).Return(expQuota, nil, nil)
+
+		res, err := handler.V1betaUpdateQuotaRuleVCP(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		mockOrch.AssertExpectations(tt)
+	})
+
+	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleVCPParams{
+			ProjectNumber: "project-1",
+			LocationId:    "invalid-location",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			DiskLimitInMib: gcpgenserver.NewOptInt64(2048),
+		}
+
+		res, err := handler.V1betaUpdateQuotaRuleVCP(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+
+		bad, ok := res.(*gcpgenserver.V1betaUpdateQuotaRuleVCPBadRequest)
+		assert.True(tt, ok, "expected V1betaUpdateQuotaRuleVCPBadRequest, got %T", res)
+		assert.Equal(tt, float64(http.StatusBadRequest), bad.Code)
+		assert.NotEmpty(tt, bad.Message)
+	})
+
+	t.Run("WhenUpdateQuotaRuleInternalFailsWithBadRequest", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleVCPParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			DiskLimitInMib: gcpgenserver.NewOptInt64(2048),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrch.On("UpdateQuotaRuleInternal", mock.Anything, mock.Anything).Return(nil, nil, errors.NewUserInputValidationErr("invalid request"))
+
+		res, err := handler.V1betaUpdateQuotaRuleVCP(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+
+		bad, ok := res.(*gcpgenserver.V1betaUpdateQuotaRuleVCPBadRequest)
+		assert.True(tt, ok, "expected V1betaUpdateQuotaRuleVCPBadRequest, got %T", res)
+		assert.Equal(tt, float64(http.StatusBadRequest), bad.Code)
+		assert.NotEmpty(tt, bad.Message)
+		mockOrch.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateQuotaRuleInternalFailsWithNotFound", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleVCPParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			DiskLimitInMib: gcpgenserver.NewOptInt64(2048),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrch.On("UpdateQuotaRuleInternal", mock.Anything, mock.Anything).Return(nil, nil, errors.NewNotFoundErr("quota rule not found", nil))
+
+		res, err := handler.V1betaUpdateQuotaRuleVCP(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+
+		bad, ok := res.(*gcpgenserver.V1betaUpdateQuotaRuleVCPBadRequest)
+		assert.True(tt, ok, "expected V1betaUpdateQuotaRuleVCPBadRequest, got %T", res)
+		assert.Equal(tt, float64(http.StatusBadRequest), bad.Code)
+		assert.NotEmpty(tt, bad.Message)
+		mockOrch.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateQuotaRuleInternalFailsWithConflict", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleVCPParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			DiskLimitInMib: gcpgenserver.NewOptInt64(2048),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrch.On("UpdateQuotaRuleInternal", mock.Anything, mock.Anything).Return(nil, nil, errors.NewConflictErr("quota rule is in transition state"))
+
+		res, err := handler.V1betaUpdateQuotaRuleVCP(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+
+		conflict, ok := res.(*gcpgenserver.V1betaUpdateQuotaRuleVCPConflict)
+		assert.True(tt, ok, "expected V1betaUpdateQuotaRuleVCPConflict, got %T", res)
+		assert.Equal(tt, float64(http.StatusConflict), conflict.Code)
+		assert.NotEmpty(tt, conflict.Message)
+		mockOrch.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateQuotaRuleInternalFailsWithInternalError", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateQuotaRuleVCPParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			QuotaRuleId:   "quota-rule-uuid-1",
+		}
+
+		req := &gcpgenserver.QuotaRulesUpdateV1beta{
+			DiskLimitInMib: gcpgenserver.NewOptInt64(2048),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrch.On("UpdateQuotaRuleInternal", mock.Anything, mock.Anything).Return(nil, nil, errors.New("something bad"))
+
+		res, err := handler.V1betaUpdateQuotaRuleVCP(context.Background(), req, params)
+
+		assert.Error(tt, err)
+		assert.NotNil(tt, res)
+
+		internal, ok := res.(*gcpgenserver.V1betaUpdateQuotaRuleVCPInternalServerError)
+		assert.True(tt, ok, "expected V1betaUpdateQuotaRuleVCPInternalServerError, got %T", res)
+		assert.Equal(tt, float64(http.StatusInternalServerError), internal.Code)
+		mockOrch.AssertExpectations(tt)
+	})
+}
+
 func TestV1betaCreateQuotaRuleVCP(t *testing.T) {
 	t.Run("WhenCreateQuotaRuleInternalSucceeds", func(tt *testing.T) {
 		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
@@ -202,14 +969,13 @@ func TestV1betaCreateQuotaRuleVCP(t *testing.T) {
 			Description:           "desc",
 		}
 
-		expJob := &models.Job{
-			BaseModel:  models.BaseModel{UUID: "job-uuid-1"},
+		expJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid-1"},
 			WorkflowID: "workflow-id-1",
-			State:      models.JobsStateNEW,
+			State:      string(models.JobsStateNEW),
 		}
 
-		mockOrch.On("CreateQuotaRuleInternal", mock.Anything, mock.Anything).Return(expQuota, "", nil)
-		mockOrch.On("GetJobByResourceUUID", mock.Anything, "uuid-1", string(models.JobTypeCreateQuotaRule)).Return(expJob, nil)
+		mockOrch.On("CreateQuotaRuleInternal", mock.Anything, mock.Anything).Return(expQuota, expJob, nil)
 
 		res, err := handler.V1betaCreateQuotaRuleVCP(context.Background(), req, params)
 
@@ -267,8 +1033,7 @@ func TestV1betaCreateQuotaRuleVCP(t *testing.T) {
 			Description:           "default quota",
 		}
 
-		mockOrch.On("CreateQuotaRuleInternal", mock.Anything, mock.Anything).Return(expQuota, "", nil)
-		mockOrch.On("GetJobByResourceUUID", mock.Anything, "uuid-2", string(models.JobTypeCreateQuotaRule)).Return(nil, errors.New("job not found"))
+		mockOrch.On("CreateQuotaRuleInternal", mock.Anything, mock.Anything).Return(expQuota, nil, nil)
 
 		res, err := handler.V1betaCreateQuotaRuleVCP(context.Background(), req, params)
 
@@ -338,7 +1103,7 @@ func TestV1betaCreateQuotaRuleVCP(t *testing.T) {
 			return "us-central1", "us-central1", nil
 		}
 
-		mockOrch.On("CreateQuotaRuleInternal", mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("invalid request"))
+		mockOrch.On("CreateQuotaRuleInternal", mock.Anything, mock.Anything).Return(nil, nil, errors.NewUserInputValidationErr("invalid request"))
 
 		res, err := handler.V1betaCreateQuotaRuleVCP(context.Background(), req, params)
 
@@ -377,7 +1142,7 @@ func TestV1betaCreateQuotaRuleVCP(t *testing.T) {
 			return "us-central1", "us-central1", nil
 		}
 
-		mockOrch.On("CreateQuotaRuleInternal", mock.Anything, mock.Anything).Return(nil, "", errors.NewConflictErr("quota rule already exists"))
+		mockOrch.On("CreateQuotaRuleInternal", mock.Anything, mock.Anything).Return(nil, nil, errors.NewConflictErr("quota rule already exists"))
 
 		res, err := handler.V1betaCreateQuotaRuleVCP(context.Background(), req, params)
 
@@ -416,7 +1181,7 @@ func TestV1betaCreateQuotaRuleVCP(t *testing.T) {
 			return "us-central1", "us-central1", nil
 		}
 
-		mockOrch.On("CreateQuotaRuleInternal", mock.Anything, mock.Anything).Return(nil, "", errors.New("something bad"))
+		mockOrch.On("CreateQuotaRuleInternal", mock.Anything, mock.Anything).Return(nil, nil, errors.New("something bad"))
 
 		res, err := handler.V1betaCreateQuotaRuleVCP(context.Background(), req, params)
 
@@ -568,5 +1333,271 @@ func TestConvertQuotaRuleToV1beta(t *testing.T) {
 
 		assert.NotNil(tt, result)
 		assert.Equal(tt, gcpgenserver.QuotaRulesV1betaQuotaType("UNKNOWN_QUOTA_TYPE"), result.QuotaType)
+	})
+}
+
+func TestConvertToVCPQuotaRulesV1Beta(t *testing.T) {
+	t.Run("WhenConvertingMultipleQuotaRules", func(tt *testing.T) {
+		quotaRules := []*models.QuotaRule{
+			{
+				BaseModel:             models.BaseModel{UUID: "uuid-1"},
+				Name:                  "quota-rule-1",
+				QuotaType:             "INDIVIDUAL_USER_QUOTA",
+				DiskLimitInMib:        1024,
+				QuotaTarget:           "user:alice",
+				LifeCycleState:        models.LifeCycleStateAvailable,
+				LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+			},
+			{
+				BaseModel:             models.BaseModel{UUID: "uuid-2"},
+				Name:                  "quota-rule-2",
+				QuotaType:             "INDIVIDUAL_GROUP_QUOTA",
+				DiskLimitInMib:        2048,
+				QuotaTarget:           "group:developers",
+				LifeCycleState:        models.LifeCycleStateCreating,
+				LifeCycleStateDetails: models.LifeCycleStateCreatingDetails,
+			},
+		}
+
+		result := convertToVCPQuotaRulesV1Beta(quotaRules)
+
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 2)
+		assert.Equal(tt, "uuid-1", result[0].QuotaId.Value)
+		assert.Equal(tt, "quota-rule-1", result[0].ResourceId)
+		assert.Equal(tt, "uuid-2", result[1].QuotaId.Value)
+		assert.Equal(tt, "quota-rule-2", result[1].ResourceId)
+	})
+
+	t.Run("WhenConvertingEmptyQuotaRulesList", func(tt *testing.T) {
+		quotaRules := []*models.QuotaRule{}
+
+		result := convertToVCPQuotaRulesV1Beta(quotaRules)
+
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 0)
+	})
+}
+
+func TestQuotaRuleQuotaTypeVCPV1Beta(t *testing.T) {
+	t.Run("WhenConvertingIndividualUserQuota", func(tt *testing.T) {
+		result := QuotaRuleQuotaTypeVCPV1Beta("INDIVIDUAL_USER_QUOTA")
+		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaQuotaTypeINDIVIDUALUSERQUOTA, result)
+	})
+
+	t.Run("WhenConvertingIndividualGroupQuota", func(tt *testing.T) {
+		result := QuotaRuleQuotaTypeVCPV1Beta("INDIVIDUAL_GROUP_QUOTA")
+		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaQuotaTypeINDIVIDUALGROUPQUOTA, result)
+	})
+
+	t.Run("WhenConvertingDefaultUserQuota", func(tt *testing.T) {
+		result := QuotaRuleQuotaTypeVCPV1Beta("DEFAULT_USER_QUOTA")
+		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaQuotaTypeDEFAULTUSERQUOTA, result)
+	})
+
+	t.Run("WhenConvertingDefaultGroupQuota", func(tt *testing.T) {
+		result := QuotaRuleQuotaTypeVCPV1Beta("DEFAULT_GROUP_QUOTA")
+		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaQuotaTypeDEFAULTGROUPQUOTA, result)
+	})
+
+	t.Run("WhenConvertingUnknownQuotaType", func(tt *testing.T) {
+		result := QuotaRuleQuotaTypeVCPV1Beta("UNKNOWN_QUOTA_TYPE")
+		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaQuotaType("UNKNOWN_QUOTA_TYPE"), result)
+	})
+}
+
+func TestQuotaRuleLifeCycleVCPV1Beta(t *testing.T) {
+	t.Run("WhenConvertingCreatingState", func(tt *testing.T) {
+		result := QuotaRuleLifeCycleVCPV1Beta(models.LifeCycleStateCreating)
+		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaStateCREATING, result.Value)
+	})
+
+	t.Run("WhenConvertingAvailableState", func(tt *testing.T) {
+		result := QuotaRuleLifeCycleVCPV1Beta(models.LifeCycleStateAvailable)
+		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaStateREADY, result.Value)
+	})
+
+	t.Run("WhenConvertingUpdatingState", func(tt *testing.T) {
+		result := QuotaRuleLifeCycleVCPV1Beta(models.LifeCycleStateUpdating)
+		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaStateUPDATING, result.Value)
+	})
+
+	t.Run("WhenConvertingDeletingState", func(tt *testing.T) {
+		result := QuotaRuleLifeCycleVCPV1Beta(models.LifeCycleStateDeleting)
+		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaStateDELETING, result.Value)
+	})
+
+	t.Run("WhenConvertingErrorState", func(tt *testing.T) {
+		result := QuotaRuleLifeCycleVCPV1Beta(models.LifeCycleStateError)
+		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaStateERROR, result.Value)
+	})
+
+	t.Run("WhenConvertingUnknownState", func(tt *testing.T) {
+		result := QuotaRuleLifeCycleVCPV1Beta("UNKNOWN_STATE")
+		assert.Equal(tt, gcpgenserver.QuotaRulesVCPV1betaStateSTATEUNSPECIFIED, result.Value)
+	})
+}
+
+func TestJobStateToVCPV1Beta(t *testing.T) {
+	t.Run("WhenConvertingNewJobState", func(tt *testing.T) {
+		result := JobStateToVCPV1Beta(models.JobsStateNEW)
+		assert.Equal(tt, gcpgenserver.JobV1betaStateOngoing, result.Value)
+	})
+
+	t.Run("WhenConvertingProcessingJobState", func(tt *testing.T) {
+		result := JobStateToVCPV1Beta(models.JobsStatePROCESSING)
+		assert.Equal(tt, gcpgenserver.JobV1betaStateOngoing, result.Value)
+	})
+
+	t.Run("WhenConvertingDoneJobState", func(tt *testing.T) {
+		result := JobStateToVCPV1Beta(models.JobsStateDONE)
+		assert.Equal(tt, gcpgenserver.JobV1betaStateDone, result.Value)
+	})
+
+	t.Run("WhenConvertingErrorJobState", func(tt *testing.T) {
+		result := JobStateToVCPV1Beta(models.JobsStateERROR)
+		assert.Equal(tt, gcpgenserver.JobV1betaStateError, result.Value)
+	})
+
+	t.Run("WhenConvertingUnknownJobState", func(tt *testing.T) {
+		result := JobStateToVCPV1Beta(models.JobState("UNKNOWN_STATE"))
+		assert.Equal(tt, gcpgenserver.JobV1betaStateOngoing, result.Value)
+	})
+}
+
+func TestV1betaListAllQuotaRules(t *testing.T) {
+	t.Run("WhenListAllQuotaRulesSucceeds", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaListAllQuotaRulesParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			VolumeId:      "vol-1",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		quotaRuleList := []*models.QuotaRule{
+			{
+				BaseModel:      models.BaseModel{UUID: "quota-rule-uuid-1"},
+				Name:           "quota-rule-1",
+				QuotaType:      "INDIVIDUAL_USER_QUOTA",
+				DiskLimitInMib: 1024,
+				QuotaTarget:    "user:alice",
+			},
+			{
+				BaseModel:      models.BaseModel{UUID: "quota-rule-uuid-2"},
+				Name:           "quota-rule-2",
+				QuotaType:      "INDIVIDUAL_GROUP_QUOTA",
+				DiskLimitInMib: 2048,
+				QuotaTarget:    "group:developers",
+			},
+		}
+
+		mockOrch.On("ListQuotaRules", mock.Anything, mock.Anything).Return(quotaRuleList, nil)
+
+		res, err := handler.V1betaListAllQuotaRules(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+
+		ok, okType := res.(*gcpgenserver.V1betaListAllQuotaRulesOK)
+		assert.True(tt, okType, "expected V1betaListAllQuotaRulesOK, got %T", res)
+		assert.NotNil(tt, ok.QuotaRules)
+		assert.Len(tt, ok.QuotaRules, 2)
+		assert.Equal(tt, "quota-rule-uuid-1", ok.QuotaRules[0].QuotaId.Value)
+		assert.Equal(tt, "quota-rule-1", ok.QuotaRules[0].ResourceId)
+		assert.Equal(tt, "quota-rule-uuid-2", ok.QuotaRules[1].QuotaId.Value)
+		assert.Equal(tt, "quota-rule-2", ok.QuotaRules[1].ResourceId)
+		mockOrch.AssertExpectations(tt)
+	})
+
+	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+
+		params := gcpgenserver.V1betaListAllQuotaRulesParams{
+			ProjectNumber: "project-1",
+			LocationId:    "invalid-location",
+			VolumeId:      "vol-1",
+		}
+
+		res, err := handler.V1betaListAllQuotaRules(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+
+		bad, ok := res.(*gcpgenserver.V1betaListAllQuotaRulesBadRequest)
+		assert.True(tt, ok, "expected V1betaListAllQuotaRulesBadRequest, got %T", res)
+		assert.Equal(tt, float64(http.StatusBadRequest), bad.Code)
+		assert.NotEmpty(tt, bad.Message)
+	})
+
+	t.Run("WhenListQuotaRulesFailsWithNotFound", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaListAllQuotaRulesParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			VolumeId:      "vol-1",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrch.On("ListQuotaRules", mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("volume not found", nil))
+
+		res, err := handler.V1betaListAllQuotaRules(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+
+		notFound, ok := res.(*gcpgenserver.V1betaListAllQuotaRulesNotFound)
+		assert.True(tt, ok, "expected V1betaListAllQuotaRulesNotFound, got %T", res)
+		assert.Equal(tt, float64(http.StatusNotFound), notFound.Code)
+		assert.NotEmpty(tt, notFound.Message)
+		mockOrch.AssertExpectations(tt)
+	})
+
+	t.Run("WhenListQuotaRulesFailsWithInternalError", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaListAllQuotaRulesParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			VolumeId:      "vol-1",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrch.On("ListQuotaRules", mock.Anything, mock.Anything).Return(nil, errors.New("internal server error"))
+
+		res, err := handler.V1betaListAllQuotaRules(context.Background(), params)
+
+		assert.Error(tt, err)
+		assert.NotNil(tt, res)
+
+		internal, ok := res.(*gcpgenserver.V1betaListAllQuotaRulesInternalServerError)
+		assert.True(tt, ok, "expected V1betaListAllQuotaRulesInternalServerError, got %T", res)
+		assert.Equal(tt, float64(http.StatusInternalServerError), internal.Code)
+		assert.Equal(tt, "Internal server error", internal.Message)
+		mockOrch.AssertExpectations(tt)
 	})
 }

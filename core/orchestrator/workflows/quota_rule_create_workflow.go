@@ -1,7 +1,9 @@
 package workflows
 
 import (
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -12,6 +14,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -33,6 +36,11 @@ func CreateQuotaRuleWorkflow(ctx workflow.Context, params *common.CreateQuotaRul
 	if err != nil {
 		logger.Infof("Quota rule workflow setup executed with error: %v", err)
 		return nil, err
+	}
+	// Ensure job is available before updating status
+	if err := quotaRuleWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		logger.Infof("Quota rule workflow job state check executed with error: %v", err)
+		return nil, ConvertToVSAError(err)
 	}
 	quotaRuleWf.Status = WorkflowStatusRunning
 	err = quotaRuleWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
@@ -86,12 +94,13 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	locationId := args[1].(string)
 	logger := util.GetLogger(ctx)
 	quotaRuleActivity := &activities.QuotaRuleCreateActivity{}
+	commonActivity := &activities.QuotaRuleCommonActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: 5 * time.Minute,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -108,7 +117,7 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 			// On error, mark quota rule in error state
 			quotaRule.State = models.LifeCycleStateError
 			quotaRule.StateDetails = models.LifeCycleStateCreationErrorDetails
-			err2 := workflow.ExecuteActivity(ctx, quotaRuleActivity.UpdateQuotaRuleState, *quotaRule).Get(ctx, nil)
+			err2 := workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *quotaRule).Get(ctx, nil)
 			if err2 != nil {
 				logger.Errorf("Failed to update quota rule state in DB to error: %v", err2)
 			}
@@ -118,7 +127,7 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 	// Fetch volume details as the first activity and perform DP check
 	var volumeDetails *datamodel.Volume
-	err = workflow.ExecuteActivity(ctx, quotaRuleActivity.GetVolumeByID, dbQuotaRule.VolumeID).Get(ctx, &volumeDetails)
+	err = workflow.ExecuteActivity(ctx, commonActivity.GetVolumeByID, dbQuotaRule.VolumeID, dbQuotaRule.AccountID).Get(ctx, &volumeDetails)
 	if err != nil {
 		logger.Errorf("Failed to fetch volume details for DP validation: %v", err)
 		returnErr = ConvertToVSAError(err)
@@ -131,6 +140,8 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}
 
 	if isDataProtection {
+		dbQuotaRule.State = models.LifeCycleStateREADY
+		dbQuotaRule.StateDetails = models.LifeCycleStateReadyDetails
 		err = workflow.ExecuteActivity(ctx, quotaRuleActivity.CreateQuotaRuleForDataProtectionVolume, dbQuotaRule).Get(ctx, nil)
 		if err != nil {
 			logger.Errorf("Failed to create quota rule for DP volume: %v", err)
@@ -205,7 +216,6 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 	// Skip creation if default quota was successfully updated
 	var quotaRuleCreateResponse *vsa.QuotaRuleProviderResponse
-	var externalUUID string
 	isNotFoundForCreation := customerrors.IsNotFoundErr(defaultQuotaUpdateErr) ||
 		(defaultQuotaUpdateErr != nil && strings.Contains(strings.ToLower(defaultQuotaUpdateErr.Error()), "not found"))
 	if dbQuotaRule.QuotaTarget != "" || isNotFoundForCreation {
@@ -218,9 +228,8 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		}
 
 		if quotaRuleCreateResponse != nil {
-			externalUUID = quotaRuleCreateResponse.ExternalUUID
-			logger.Infof("CreateQuotaRuleOnONTAP response: State=%s, Message=%s, ExternalUUID=%s",
-				quotaRuleCreateResponse.State, quotaRuleCreateResponse.Message, externalUUID)
+			logger.Infof("CreateQuotaRuleOnONTAP response: State=%s, Message=%s",
+				quotaRuleCreateResponse.State, quotaRuleCreateResponse.Message)
 		}
 
 		// According to user requirements, we always perform quota enable (no isQuotaEnableRequired check)
@@ -293,53 +302,96 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 			}
 		}
 	}
-	// For default quota update case (else branch), externalUUID remains empty string
-	// and quota status check/enable is skipped (matching sample code behavior)
+	// For default quota update case (else branch), quota status check/enable is skipped (matching sample code behavior)
 
 	// Fetch volume replication details and verify replication state for destination sync
 	// These activities are used to sync quota rules to destination volumes in replication scenarios
 	var replications []*datamodel.VolumeReplication
-	err = workflow.ExecuteActivity(ctx, quotaRuleActivity.GetVolumeReplication, volumeDetails.ID).Get(ctx, &replications)
+	err = workflow.ExecuteActivity(ctx, commonActivity.GetVolumeReplication, volumeDetails.ID).Get(ctx, &replications)
 	if err != nil {
 		logger.Errorf("Failed to fetch volume replication details for destination sync: %v", err)
 		returnErr = ConvertToVSAError(err)
 		return
 	}
 
-	// Verify replication state and get list of eligible replications for destination sync
-	// This activity validates that replications don't block quota operations AND
-	// returns list of replications eligible for sync (MIRRORED or UNINITIALIZED state)
-	// Pass LocationId directly - activity will parse region internally
-	var eligibleReplications []*activities.ReplicationSyncEligibility
-	err = workflow.ExecuteActivity(ctx, quotaRuleActivity.VerifyReplicationState,
-		replications, locationId).Get(ctx, &eligibleReplications)
-	if err != nil {
-		logger.Errorf("Replication state validation failed for destination sync: %v", err)
-		returnErr = ConvertToVSAError(err)
-		return
-	}
+	// Check if there are any replications
+	if len(replications) == 0 {
+		logger.Debugf("No replications found for volume, skipping destination sync")
+	} else {
+		// At present we can have only 1 replication for a region, so use the first replication
+		replication := replications[0]
+		if replication == nil || replication.ReplicationAttributes == nil {
+			logger.Debugf("Replication is nil or has no attributes, skipping destination sync")
+		} else {
+			// Verify if this replication is eligible for destination sync
+			// This activity validates that replication is eligible for quota sync (MIRRORED or UNINITIALIZED state)
+			// Pass LocationId directly - activity will parse region internally
+			var isEligible bool
+			err = workflow.ExecuteActivity(ctx, commonActivity.VerifyReplicationState,
+				replication, locationId).Get(ctx, &isEligible)
+			if err != nil {
+				logger.Errorf("Replication state validation failed for destination sync: %v", err)
+				returnErr = ConvertToVSAError(err)
+				return
+			}
 
-	for _, eligibility := range eligibleReplications {
-		// Create quota rule on destination via internal API
-		// Pass destination volume UUID directly instead of fetching full volume details
-		err = workflow.ExecuteActivity(ctx, quotaRuleActivity.CreateQuotaRuleOnDestination,
-			eligibility.DestinationVolumeUUID, dbQuotaRule, eligibility.DestinationLocation, eligibility.DestinationProjectNum).Get(ctx, nil)
-		if err != nil {
-			logger.Errorf("Failed to create quota rule on destination: destinationVolumeUUID=%s, error=%v",
-				eligibility.DestinationVolumeUUID, err)
-			returnErr = ConvertToVSAError(err)
-			return
+			// Sync quota rule only if replication is eligible
+			if isEligible {
+				// Parse destination project number from RemoteUri for API calls
+				destProjectNumber, err := utils.ParseProjectNumberFromURI(replication.RemoteUri)
+				if err != nil {
+					logger.Errorf("Failed to parse destination project number from RemoteUri: %v, remoteUri: %s", err, replication.RemoteUri)
+					returnErr = ConvertToVSAError(vsaerrors.New(fmt.Sprintf("failed to parse destination project number: %v", err)))
+					return
+				}
+
+				// Create JWT token once for reuse across all destination API calls
+				var jwtToken *string
+				err = workflow.ExecuteActivity(ctx, commonActivity.GetSignedDstTokenForQuotaRule, destProjectNumber).Get(ctx, &jwtToken)
+				if err != nil {
+					logger.Errorf("Failed to get JWT token for destination project %s: %v", destProjectNumber, err)
+					returnErr = ConvertToVSAError(err)
+					return
+				}
+
+				// Create quota rule on destination via internal API
+				// Pass destination volume UUID directly instead of fetching full volume details
+				var createOperationResult *activities.QuotaRuleOperationResult
+				err = workflow.ExecuteActivity(ctx, quotaRuleActivity.CreateQuotaRuleOnDestination,
+					replication.ReplicationAttributes.DestinationVolumeUUID, dbQuotaRule, replication.ReplicationAttributes.DestinationLocation, destProjectNumber, jwtToken).Get(ctx, &createOperationResult)
+				if err != nil {
+					logger.Errorf("Failed to create quota rule on destination: destinationVolumeUUID=%s, error=%v",
+						replication.ReplicationAttributes.DestinationVolumeUUID, err)
+					returnErr = ConvertToVSAError(err)
+					return
+				}
+
+				// Poll for operation completion if async operation was started
+				if createOperationResult != nil && createOperationResult.OperationName != "" && !createOperationResult.IsDone {
+					logger.Infof("Polling for quota rule creation operation completion on destination: operationName=%s", createOperationResult.OperationName)
+					err = workflow.ExecuteActivity(ctx, commonActivity.DescribeQuotaRuleRemoteJob,
+						createOperationResult.OperationName, replication.ReplicationAttributes.DestinationLocation, destProjectNumber, jwtToken).Get(ctx, nil)
+					if err != nil {
+						logger.Errorf("Failed to wait for quota rule creation on destination: operationName=%s, error=%v",
+							createOperationResult.OperationName, err)
+						returnErr = ConvertToVSAError(err)
+						return
+					}
+				}
+
+				logger.Infof("Successfully synced quota rule to destination: location=%s, volumeUUID=%s",
+					replication.ReplicationAttributes.DestinationLocation, replication.ReplicationAttributes.DestinationVolumeUUID)
+			} else {
+				logger.Debugf("Replication is not eligible for sync: destinationLocation=%s, destinationVolumeUUID=%s",
+					replication.ReplicationAttributes.DestinationLocation, replication.ReplicationAttributes.DestinationVolumeUUID)
+			}
 		}
-
-		logger.Infof("Successfully synced quota rule to destination: location=%s, volumeUUID=%s",
-			eligibility.DestinationLocation, eligibility.DestinationVolumeUUID)
 	}
 
-	// Finalize the job in the database
-	err = workflow.ExecuteActivity(ctx, quotaRuleActivity.FinishQuotaRuleJob,
-		dbQuotaRule.UUID, wf.ID, externalUUID, dbQuotaRule.Description).Get(ctx, nil)
+	// Update quota rule state (will transition from CREATING to READY if applicable)
+	err = workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *dbQuotaRule).Get(ctx, nil)
 	if err != nil {
-		logger.Errorf("Failed to finalize quota rule job: %v", err)
+		logger.Errorf("Failed to update quota rule state: %v", err)
 		returnErr = ConvertToVSAError(err)
 		return
 	}

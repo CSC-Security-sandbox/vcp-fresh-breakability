@@ -6517,7 +6517,149 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
+  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules:
+    post:
+      operationId: v1beta_getMultipleQuotaRules
+      summary: List specified quota rules
+      description: Returns descriptions of quota rules that are listed in request body and belong to specified volume.
+      tags:
+        - quota-rules
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: A list of quota rule Uuids to return.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuotaRuleIdList_v1beta'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      quotaRules:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/QuotaRules_v1beta'
+              example:
+                quotaRules:
+                  - quotaId: 3ef2db24-ad4f-05d7-98cc-d242c17bcc94
+                    resourceId: quotarule1
+                    diskLimitInMib: 10240
+                    quotaType: INDIVIDUAL_USER_QUOTA
+                    quotaTarget: "1001"
+                    state: READY
+                    stateDetails: Available for use
+                    description: Quota rule for user john - 10GB limit
+                    createdAt: "2016-11-28T19:30:23.123Z"
+                    updatedAt: "2016-11-28T19:30:23.123Z"
+                  - quotaId: 4ef2db24-ad4f-05d7-98cc-d242c17bcc95
+                    resourceId: group-developers-quota
+                    diskLimitInMib: 51200
+                    quotaType: INDIVIDUAL_GROUP_QUOTA
+                    quotaTarget: "2001"
+                    state: READY
+                    stateDetails: Available for use
+                    description: Quota rule for developers group - 50GB limit
+                    createdAt: "2016-11-28T19:30:23.123Z"
+                    updatedAt: "2016-11-28T19:30:23.123Z"
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
   /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules:
+    get:
+      operationId: v1beta_listAllQuotaRules
+      summary: Lists all quota rules for a volume
+      description: Lists all quota rules for the specified volume
+      tags:
+        - quota-rules
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      quotaRules:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/QuotaRules_v1beta'
+              example:
+                quotaRules:
+                  - quotaId: 3ef2db24-ad4f-05d7-98cc-d242c17bcc94
+                    resourceId: quotarule1
+                    diskLimitInMib: 10000612
+                    quotaType: INDIVIDUAL_USER_QUOTA
+                    quotaTarget: "1221"
+                    state: READY
+                    stateDetails: Ready for use
+                    description: Sample quota rule
+                    createdAt: "2016-11-28T19:30:23.123Z"
+                    updatedAt: "2016-11-28T19:30:23.123Z"
+                  - quotaId: 4ef2db24-ad4f-05d7-98cc-d242c17bcc95
+                    resourceId: quotarule2
+                    diskLimitInMib: 5120
+                    quotaType: DEFAULT_USER_QUOTA
+                    state: READY
+                    stateDetails: Ready for use
+                    description: Default user quota
+                    createdAt: "2016-11-28T19:30:23.123Z"
+                    updatedAt: "2016-11-28T19:30:23.123Z"
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       operationId: v1beta_createQuotaRule
       summary: Create a quota rule for a volume
@@ -6623,6 +6765,186 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
+  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}:
+    get:
+      operationId: v1beta_describeQuotaRule
+      summary: Describe a quota rule for a volume
+      description: Returns the description of the specified quota rule by quota rule Id.
+      tags:
+        - quota-rules
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeIdPathParameter'
+        - $ref: '#/components/parameters/quotaRuleIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: Quota rule details fetched 
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaRules_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '408':
+          $ref: '#/components/responses/StandardError-408'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '503':
+          $ref: '#/components/responses/StandardError-503'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      operationId: v1beta_updateQuotaRule
+      summary: Update a quota rule for a volume
+      description: Updates an existing quota rule for the specified volume.
+      tags:
+        - quota-rules
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeIdPathParameter'
+        - $ref: '#/components/parameters/quotaRuleIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The parameters that can be updated for the quota rule
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuotaRulesUpdate_v1beta'
+            examples:
+              updateDiskLimit:
+                summary: Update Disk Limit
+                value:
+                  diskLimitInMib: 20480
+                  description: Updated quota rule - 20GB limit
+              updateDescription:
+                summary: Update Description Only
+                value:
+                  description: Updated description for the quota rule
+      responses:
+        '202':
+          description: Updating quota rule for volume
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: false
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                response:
+                  quotaId: 3ef2db24-ad4f-05d7-98cc-d242c17bcc94
+                  resourceId: quotarule1
+                  diskLimitInMib: 20480
+                  quotaType: INDIVIDUAL_USER_QUOTA
+                  quotaTarget: "1221"
+                  state: UPDATING
+                  stateDetails: Update in progress
+                  description: Updated quota rule - 20GB limit
+                  createdAt: "2016-11-28T19:30:23.123Z"
+                  updatedAt: "2016-11-28T19:35:45.678Z"
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '408':
+          $ref: '#/components/responses/StandardError-408'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '503':
+          $ref: '#/components/responses/StandardError-503'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+    delete:
+      operationId: v1beta_deleteQuotaRule
+      summary: Delete a quota rule for a volume
+      description: This operation will delete the quota rule
+      tags:
+        - quota-rules
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeIdPathParameter'
+        - $ref: '#/components/parameters/quotaRuleIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '202':
+          description: Deleting quota rule for volume
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: false
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+        '204':
+          description: No content
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '408':
+          $ref: '#/components/responses/StandardError-408'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '503':
+          $ref: '#/components/responses/StandardError-503'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
   /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRule:
     post:
       operationId: v1beta_createQuotaRuleVCP
@@ -6692,6 +7014,190 @@ paths:
                 updatedAt: "2016-11-29T20:32:50.459Z"
                 description: My quota Rules description
                 jobs: []
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '408':
+          $ref: '#/components/responses/StandardError-408'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '503':
+          $ref: '#/components/responses/StandardError-503'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}:
+    get:
+      operationId: v1beta_describeQuotaRuleVCP
+      summary: Describe a quota rule for a volume (Internal VCP API)
+      description: Returns the description of the specified quota rule by quota rule Id.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeIdPathParameter'
+        - $ref: '#/components/parameters/quotaRuleIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '200':
+          description: Quota rule details fetched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaRulesVCP_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '408':
+          $ref: '#/components/responses/StandardError-408'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '503':
+          $ref: '#/components/responses/StandardError-503'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      operationId: v1beta_updateQuotaRuleVCP
+      summary: Update a quota rule for a volume (Internal VCP API)
+      description: Updates an existing quota rule for the specified volume. Only the disk limit and description can be modified. This is an internal endpoint for VCP-to-VCP communication.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeIdPathParameter'
+        - $ref: '#/components/parameters/quotaRuleIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The parameters that can be updated for the quota rule
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuotaRulesUpdate_v1beta'
+            examples:
+              updateDiskLimit:
+                summary: Update Disk Limit
+                value:
+                  diskLimitInMib: 20480
+                  description: Updated quota rule - 20GB limit
+              updateDescription:
+                summary: Update Description Only
+                value:
+                  description: Updated description for the quota rule
+      responses:
+        '200':
+          description: Quota rule updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaRulesVCP_v1beta'
+        '202':
+          description: Updating quota rule for volume
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: false
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                response:
+                  quotaId: 3ef2db24-ad4f-05d7-98cc-d242c17bcc94
+                  resourceId: quotarule1
+                  diskLimitInMib: 20480
+                  quotaType: INDIVIDUAL_USER_QUOTA
+                  quotaTarget: "1221"
+                  state: UPDATING
+                  stateDetails: Update in progress
+                  description: Updated quota rule - 20GB limit
+                  createdAt: "2016-11-28T19:30:23.123Z"
+                  updatedAt: "2016-11-28T19:35:45.678Z"
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '408':
+          $ref: '#/components/responses/StandardError-408'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '503':
+          $ref: '#/components/responses/StandardError-503'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+    delete:
+      operationId: v1beta_deleteQuotaRuleVCP
+      summary: Delete a quota rule for a volume (Internal VCP API)
+      description: Warning! This operation will permanently delete the quota rule. This is an internal endpoint for VCP-to-VCP communication. This operation will never return resource not found, since that could be interpreted as resource already deleted, and therefore will return operation done instead.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeIdPathParameter'
+        - $ref: '#/components/parameters/quotaRuleIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '202':
+          description: Deleting quota rule for volume
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaRulesVCP_v1beta'
+              example:
+                done: false
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -12744,12 +13250,46 @@ components:
           description: Uuid v4 of the volume
           readOnly: true
           example: 9760acf5-4638-11e7-9bdb-020073ca0001
+    QuotaRuleIdList_v1beta:
+      title: QuotaRuleIdList
+      required:
+        - quotaRuleUuids
+      type: object
+      properties:
+        quotaRuleUuids:
+          title: quotaRuleUuids
+          type: array
+          minItems: 1
+          items:
+            type: string
+            description: Uuid v4 used to identify the quota rule
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            example: 3ef2db24-ad4f-05d7-98cc-d242c17bcc94
     QuotaRuleCreate_v1beta:
       title: QuotaRuleCreate
       type: object
       description: Request object for creating a quota rule for a volume
       allOf:
         - $ref: '#/components/schemas/QuotaRules_v1beta'
+    QuotaRulesUpdate_v1beta:
+      title: QuotaRules
+      type: object
+      properties:
+        diskLimitInMib:
+          title: diskLimitInMib
+          type: integer
+          format: int64
+          description: Total size limit in mebibytes (MiB) for the user or group
+          example: 2048
+          x-nullable: true
+        description:
+          title: description
+          type: string
+          description: Human-readable description of the quota rule
+          maxLength: 2048
+          example: Updated quota rule description
+          x-nullable: true
+      additionalProperties: false
     QuotaRules_v1beta:
       type: object
       title: QuotaRules
@@ -12760,6 +13300,7 @@ components:
         - quotaType
       properties:
         quotaId:
+          title: quotaId
           type: string
           description: UUID v4 identifier for the quota rule (system generated)
           pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -12768,6 +13309,7 @@ components:
           example: 3ef2db24-ad4f-05d7-98cc-d242c17bcc94
           readOnly: true
         resourceId:
+          title: resourceId
           type: string
           description: Human-readable name of the quota rule
           pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
@@ -12789,11 +13331,10 @@ components:
           format: int64
           description: Total size limit in mebibytes (MiB) for the user or group
           example: 1024
-          x-nullable: false
         quotaTarget:
           title: quotaTarget
           type: string
-          description: Identifier for the quota target (UID, GID, or SID)
+          description: This parameter is required in POST only and can take either one of the UNIX user ID (UID) , UNIX group ID (GID ) or a Windows security identifier (SID) based on the quota type.
           maxLength: 255
           example: "1001"
           x-nullable: true
@@ -12810,21 +13351,18 @@ components:
             - ERROR
           example: READY
           readOnly: true
-          x-nullable: false
         stateDetails:
           title: stateDetails
           type: string
           description: Details about the current state
           example: Available for use
           readOnly: true
-          x-nullable: true
         description:
           title: description
           type: string
           description: Human-readable description of the quota rule
           maxLength: 2048
           example: My quota rule description
-          x-nullable: true
         createdAt:
           title: createdAt
           type: string
@@ -12832,7 +13370,6 @@ components:
           description: Timestamp when the quota rule was created
           example: "2016-11-28T19:30:23.123Z"
           readOnly: true
-          x-nullable: false
         updatedAt:
           title: updatedAt
           type: string
@@ -12840,20 +13377,19 @@ components:
           description: Timestamp when the quota rule was last updated
           example: "2016-11-28T19:30:23.123Z"
           readOnly: true
-          x-nullable: false
-        jobs:
-          type: array
-          description: List of ongoing jobs for the quota rule
-          readOnly: true
-          items:
-            $ref: '#/components/schemas/Job_v1beta'
-          x-nullable: false
     QuotaRulesVCP_v1beta:
       title: QuotaRulesVCP
       type: object
-      description: Quota rule response object for VCP internal API with job tracking
       allOf:
         - $ref: '#/components/schemas/QuotaRules_v1beta'
+        - properties:
+            jobs:
+              title: jobs
+              description: Jobs currently ongoing for quota rule
+              type: array
+              readOnly: true
+              items:
+                $ref: '#/components/schemas/Job_v1beta'
     CloneDetails_v1beta:
       title: Clone Parent Info
       type: object
@@ -13148,6 +13684,16 @@ components:
       name: volumeId
       in: path
       description: UUID v4 used to identify the volume
+      required: true
+      schema:
+        pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+        maxLength: 36
+        minLength: 36
+        type: string
+    quotaRuleIdPathParameter:
+      name: quotaRuleId
+      in: path
+      description: UUID v4 used to identify the quota rule
       required: true
       schema:
         pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$

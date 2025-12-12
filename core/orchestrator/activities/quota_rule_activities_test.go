@@ -13,12 +13,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	gormWrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/gorm"
@@ -399,83 +398,6 @@ func Test_ValidateQuotaTargetByProtocol(t *testing.T) {
 	})
 }
 
-// Test_GetVolumeForQuotaRule tests the GetVolumeForQuotaRule activity
-// following the pattern from existing activity tests
-func Test_GetVolumeForQuotaRule(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-
-	t.Run("GetVolumeForQuotaRule_Success", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		volumeUUID := "test-volume-uuid"
-		expectedVolume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{
-				UUID: volumeUUID,
-			},
-			Name:        "test-volume",
-			Description: "Test volume for quota rules",
-			State:       "AVAILABLE",
-			SizeInBytes: 1073741824, // 1GB
-		}
-
-		mockStorage.On("GetVolume", ctx, volumeUUID).Return(expectedVolume, nil)
-
-		result, err := activity.GetVolumeForQuotaRule(ctx, volumeUUID)
-
-		assert.NoError(t, err)
-		assert.Equal(t, expectedVolume, result)
-		mockStorage.AssertExpectations(t)
-	})
-
-	t.Run("GetVolumeForQuotaRule_VolumeNotFound_Failure", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		volumeUUID := "non-existent-volume-uuid"
-		expectedError := errors.New("volume not found")
-
-		mockStorage.On("GetVolume", ctx, volumeUUID).Return(nil, expectedError)
-
-		result, err := activity.GetVolumeForQuotaRule(ctx, volumeUUID)
-
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "volume not found")
-		mockStorage.AssertExpectations(t)
-	})
-
-	t.Run("GetVolumeForQuotaRule_DatabaseError_Failure", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		volumeUUID := "test-volume-uuid"
-		expectedError := errors.New("database connection failed")
-
-		mockStorage.On("GetVolume", ctx, volumeUUID).Return(nil, expectedError)
-
-		result, err := activity.GetVolumeForQuotaRule(ctx, volumeUUID)
-
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "database connection failed")
-		mockStorage.AssertExpectations(t)
-	})
-
-	t.Run("GetVolumeForQuotaRule_EmptyVolumeUUID_Failure", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		volumeUUID := ""
-		expectedError := errors.New("invalid volume UUID")
-
-		mockStorage.On("GetVolume", ctx, volumeUUID).Return(nil, expectedError)
-
-		result, err := activity.GetVolumeForQuotaRule(ctx, volumeUUID)
-
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "invalid volume UUID")
-		mockStorage.AssertExpectations(t)
-	})
-}
-
 // Test_GetVolumeByID tests the GetVolumeByID activity
 // following the pattern from existing activity tests
 func Test_GetVolumeByID(t *testing.T) {
@@ -483,8 +405,9 @@ func Test_GetVolumeByID(t *testing.T) {
 
 	t.Run("GetVolumeByID_Success", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		volumeID := int64(123)
+		accountID := int64(1)
 		expectedVolume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{
 				ID:   volumeID,
@@ -495,12 +418,10 @@ func Test_GetVolumeByID(t *testing.T) {
 			State:       "AVAILABLE",
 			SizeInBytes: 2147483648, // 2GB
 		}
-		expectedConditions := [][]interface{}{{"id = ?", volumeID}}
-		expectedVolumes := []*datamodel.Volume{expectedVolume}
 
-		mockStorage.On("ListVolumes", ctx, expectedConditions).Return(expectedVolumes, nil)
+		mockStorage.On("GetVolumeByIDAndAccountID", ctx, volumeID, accountID).Return(expectedVolume, nil)
 
-		result, err := activity.GetVolumeByID(ctx, volumeID)
+		result, err := activity.GetVolumeByID(ctx, volumeID, accountID)
 
 		assert.NoError(t, err)
 		assert.Equal(t, expectedVolume, result)
@@ -509,14 +430,14 @@ func Test_GetVolumeByID(t *testing.T) {
 
 	t.Run("GetVolumeByID_VolumeNotFound_Failure", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		volumeID := int64(999)
-		expectedConditions := [][]interface{}{{"id = ?", volumeID}}
-		emptyVolumes := []*datamodel.Volume{} // No volumes returned
+		accountID := int64(1)
+		expectedError := customerrors.NewNotFoundErr("volume not found for ID 999", nil)
 
-		mockStorage.On("ListVolumes", ctx, expectedConditions).Return(emptyVolumes, nil)
+		mockStorage.On("GetVolumeByIDAndAccountID", ctx, volumeID, accountID).Return(nil, expectedError)
 
-		result, err := activity.GetVolumeByID(ctx, volumeID)
+		result, err := activity.GetVolumeByID(ctx, volumeID, accountID)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -526,14 +447,14 @@ func Test_GetVolumeByID(t *testing.T) {
 
 	t.Run("GetVolumeByID_DatabaseError_Failure", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		volumeID := int64(456)
-		expectedConditions := [][]interface{}{{"id = ?", volumeID}}
+		accountID := int64(1)
 		expectedError := errors.New("database query failed")
 
-		mockStorage.On("ListVolumes", ctx, expectedConditions).Return(nil, expectedError)
+		mockStorage.On("GetVolumeByIDAndAccountID", ctx, volumeID, accountID).Return(nil, expectedError)
 
-		result, err := activity.GetVolumeByID(ctx, volumeID)
+		result, err := activity.GetVolumeByID(ctx, volumeID, accountID)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -543,14 +464,14 @@ func Test_GetVolumeByID(t *testing.T) {
 
 	t.Run("GetVolumeByID_NegativeID_Failure", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		volumeID := int64(-1)
-		expectedConditions := [][]interface{}{{"id = ?", volumeID}}
-		emptyVolumes := []*datamodel.Volume{}
+		accountID := int64(1)
+		expectedError := customerrors.NewNotFoundErr("volume not found for ID -1", nil)
 
-		mockStorage.On("ListVolumes", ctx, expectedConditions).Return(emptyVolumes, nil)
+		mockStorage.On("GetVolumeByIDAndAccountID", ctx, volumeID, accountID).Return(nil, expectedError)
 
-		result, err := activity.GetVolumeByID(ctx, volumeID)
+		result, err := activity.GetVolumeByID(ctx, volumeID, accountID)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -560,14 +481,14 @@ func Test_GetVolumeByID(t *testing.T) {
 
 	t.Run("GetVolumeByID_ZeroID_Failure", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		volumeID := int64(0)
-		expectedConditions := [][]interface{}{{"id = ?", volumeID}}
-		emptyVolumes := []*datamodel.Volume{}
+		accountID := int64(1)
+		expectedError := customerrors.NewNotFoundErr("volume not found for ID 0", nil)
 
-		mockStorage.On("ListVolumes", ctx, expectedConditions).Return(emptyVolumes, nil)
+		mockStorage.On("GetVolumeByIDAndAccountID", ctx, volumeID, accountID).Return(nil, expectedError)
 
-		result, err := activity.GetVolumeByID(ctx, volumeID)
+		result, err := activity.GetVolumeByID(ctx, volumeID, accountID)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -576,35 +497,26 @@ func Test_GetVolumeByID(t *testing.T) {
 	})
 
 	t.Run("GetVolumeByID_MultipleVolumesReturned_Success", func(t *testing.T) {
-		// Edge case: ListVolumes returns multiple volumes, but we take the first one
+		// GetVolumeByIDAndAccountID returns a single volume
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		volumeID := int64(789)
-		firstVolume := &datamodel.Volume{
+		accountID := int64(1)
+		expectedVolume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{
 				ID:   volumeID,
-				UUID: "first-volume-uuid",
+				UUID: "volume-uuid",
 			},
-			Name: "first-volume",
+			Name: "test-volume",
 		}
-		secondVolume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{
-				ID:   volumeID,
-				UUID: "second-volume-uuid",
-			},
-			Name: "second-volume",
-		}
-		expectedConditions := [][]interface{}{{"id = ?", volumeID}}
-		multipleVolumes := []*datamodel.Volume{firstVolume, secondVolume}
 
-		mockStorage.On("ListVolumes", ctx, expectedConditions).Return(multipleVolumes, nil)
+		mockStorage.On("GetVolumeByIDAndAccountID", ctx, volumeID, accountID).Return(expectedVolume, nil)
 
-		result, err := activity.GetVolumeByID(ctx, volumeID)
+		result, err := activity.GetVolumeByID(ctx, volumeID, accountID)
 
-		// Should return the first volume without error
 		assert.NoError(t, err)
-		assert.Equal(t, firstVolume, result)
-		assert.Equal(t, "first-volume", result.Name)
+		assert.Equal(t, expectedVolume, result)
+		assert.Equal(t, "test-volume", result.Name)
 		mockStorage.AssertExpectations(t)
 	})
 }
@@ -844,205 +756,6 @@ func Test_CreateQuotaRuleForDataProtectionVolume(t *testing.T) {
 	})
 }
 
-// Test_UpdateQuotaRuleDetails tests the UpdateQuotaRuleDetails activity
-// following the pattern from existing activity tests
-func Test_UpdateQuotaRuleDetails(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-
-	t.Run("UpdateQuotaRuleDetails_WithResponse_Success", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		dbQuotaRule := &datamodel.QuotaRule{
-			BaseModel: datamodel.BaseModel{
-				UUID: "quota-rule-uuid",
-			},
-			Name:                "test-quota-rule",
-			QuotaType:           "INDIVIDUAL_USER_QUOTA",
-			QuotaTarget:         "1000",
-			DiskLimitInKib:      1048576,
-			State:               models.LifeCycleStateCreating,
-			QuotaRuleAttributes: &datamodel.QuotaRuleAttributes{},
-		}
-		quotaRuleCreateResponse := &vsa.QuotaRuleProviderResponse{
-			ExternalUUID: "external-quota-uuid-123",
-		}
-		updatedQuotaRule := &datamodel.QuotaRule{
-			BaseModel: datamodel.BaseModel{
-				UUID: "quota-rule-uuid",
-			},
-			Name:           "test-quota-rule",
-			QuotaType:      "INDIVIDUAL_USER_QUOTA",
-			QuotaTarget:    "1000",
-			DiskLimitInKib: 1048576,
-			State:          models.LifeCycleStateAvailable,
-			StateDetails:   models.LifeCycleStateAvailableDetails,
-			QuotaRuleAttributes: &datamodel.QuotaRuleAttributes{
-				ExternalUUID: "external-quota-uuid-123",
-			},
-		}
-
-		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
-			return qr.State == models.LifeCycleStateAvailable &&
-				qr.StateDetails == models.LifeCycleStateAvailableDetails &&
-				qr.QuotaRuleAttributes.ExternalUUID == "external-quota-uuid-123"
-		})).Return(updatedQuotaRule, nil)
-
-		err := activity.UpdateQuotaRuleDetails(ctx, dbQuotaRule, quotaRuleCreateResponse)
-
-		assert.NoError(t, err)
-		assert.Equal(t, models.LifeCycleStateAvailable, dbQuotaRule.State)
-		assert.Equal(t, models.LifeCycleStateAvailableDetails, dbQuotaRule.StateDetails)
-		assert.Equal(t, "external-quota-uuid-123", dbQuotaRule.QuotaRuleAttributes.ExternalUUID)
-		mockStorage.AssertExpectations(t)
-	})
-	t.Run("UpdateQuotaRuleDetails_NilResponse_DefaultQuota_Success", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		dbQuotaRule := &datamodel.QuotaRule{
-			BaseModel: datamodel.BaseModel{
-				UUID: "default-quota-rule-uuid",
-			},
-			Name:           "default-quota-rule",
-			QuotaType:      "DEFAULT_USER_QUOTA",
-			QuotaTarget:    "", // Empty target for default quota
-			DiskLimitInKib: 1048576,
-			State:          models.LifeCycleStateCreating,
-		}
-		updatedQuotaRule := &datamodel.QuotaRule{
-			BaseModel: datamodel.BaseModel{
-				UUID: "default-quota-rule-uuid",
-			},
-			Name:           "default-quota-rule",
-			QuotaType:      "DEFAULT_USER_QUOTA",
-			QuotaTarget:    "",
-			DiskLimitInKib: 1048576,
-			State:          models.LifeCycleStateAvailable,
-			StateDetails:   models.LifeCycleStateAvailableDetails,
-		}
-
-		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
-			return qr.State == models.LifeCycleStateAvailable &&
-				qr.StateDetails == models.LifeCycleStateAvailableDetails &&
-				qr.QuotaTarget == ""
-		})).Return(updatedQuotaRule, nil)
-
-		err := activity.UpdateQuotaRuleDetails(ctx, dbQuotaRule, nil)
-
-		assert.NoError(t, err)
-		assert.Equal(t, models.LifeCycleStateAvailable, dbQuotaRule.State)
-		assert.Equal(t, models.LifeCycleStateAvailableDetails, dbQuotaRule.StateDetails)
-		mockStorage.AssertExpectations(t)
-	})
-	t.Run("UpdateQuotaRuleDetails_NilResponse_NonDefaultQuota_Error", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		dbQuotaRule := &datamodel.QuotaRule{
-			BaseModel: datamodel.BaseModel{
-				UUID: "quota-rule-uuid",
-			},
-			Name:           "test-quota-rule",
-			QuotaType:      "INDIVIDUAL_USER_QUOTA",
-			QuotaTarget:    "1000", // Non-empty target
-			DiskLimitInKib: 1048576,
-			State:          models.LifeCycleStateCreating,
-		}
-		updatedQuotaRule := &datamodel.QuotaRule{
-			BaseModel: datamodel.BaseModel{
-				UUID:      "quota-rule-uuid",
-				DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true},
-			},
-			Name:           "test-quota-rule",
-			QuotaType:      "INDIVIDUAL_USER_QUOTA",
-			QuotaTarget:    "1000",
-			DiskLimitInKib: 1048576,
-			State:          models.LifeCycleStateError,
-			StateDetails:   models.LifeCycleStateCreationErrorDetails,
-		}
-
-		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
-			return qr.State == models.LifeCycleStateError &&
-				qr.StateDetails == models.LifeCycleStateCreationErrorDetails &&
-				qr.DeletedAt != nil &&
-				qr.DeletedAt.Valid == true
-		})).Return(updatedQuotaRule, nil)
-
-		err := activity.UpdateQuotaRuleDetails(ctx, dbQuotaRule, nil)
-
-		assert.NoError(t, err)
-		assert.Equal(t, models.LifeCycleStateError, dbQuotaRule.State)
-		assert.Equal(t, models.LifeCycleStateCreationErrorDetails, dbQuotaRule.StateDetails)
-		assert.NotNil(t, dbQuotaRule.DeletedAt)
-		assert.True(t, dbQuotaRule.DeletedAt.Valid)
-		mockStorage.AssertExpectations(t)
-	})
-	t.Run("UpdateQuotaRuleDetails_NilResponse_NonCreatingState_Error", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		dbQuotaRule := &datamodel.QuotaRule{
-			BaseModel: datamodel.BaseModel{
-				UUID: "quota-rule-uuid",
-			},
-			Name:           "test-quota-rule",
-			QuotaType:      "DEFAULT_USER_QUOTA",
-			QuotaTarget:    "", // Empty but state is not CREATING
-			DiskLimitInKib: 1048576,
-			State:          models.LifeCycleStateAvailable, // Not CREATING
-		}
-		updatedQuotaRule := &datamodel.QuotaRule{
-			BaseModel: datamodel.BaseModel{
-				UUID:      "quota-rule-uuid",
-				DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true},
-			},
-			Name:           "test-quota-rule",
-			QuotaType:      "DEFAULT_USER_QUOTA",
-			QuotaTarget:    "",
-			DiskLimitInKib: 1048576,
-			State:          models.LifeCycleStateError,
-			StateDetails:   models.LifeCycleStateCreationErrorDetails,
-		}
-
-		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
-			return qr.State == models.LifeCycleStateError &&
-				qr.DeletedAt != nil &&
-				qr.DeletedAt.Valid == true
-		})).Return(updatedQuotaRule, nil)
-
-		err := activity.UpdateQuotaRuleDetails(ctx, dbQuotaRule, nil)
-
-		assert.NoError(t, err)
-		assert.Equal(t, models.LifeCycleStateError, dbQuotaRule.State)
-		assert.NotNil(t, dbQuotaRule.DeletedAt)
-		mockStorage.AssertExpectations(t)
-	})
-	t.Run("UpdateQuotaRuleDetails_DatabaseError_Failure", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		dbQuotaRule := &datamodel.QuotaRule{
-			BaseModel: datamodel.BaseModel{
-				UUID: "quota-rule-uuid",
-			},
-			Name:                "test-quota-rule",
-			QuotaType:           "INDIVIDUAL_USER_QUOTA",
-			QuotaTarget:         "1000",
-			DiskLimitInKib:      1048576,
-			State:               models.LifeCycleStateCreating,
-			QuotaRuleAttributes: &datamodel.QuotaRuleAttributes{},
-		}
-		quotaRuleCreateResponse := &vsa.QuotaRuleProviderResponse{
-			ExternalUUID: "external-quota-uuid-123",
-		}
-		expectedError := errors.New("database update failed")
-
-		mockStorage.On("UpdateQuotaRule", ctx, mock.Anything).Return(nil, expectedError)
-
-		err := activity.UpdateQuotaRuleDetails(ctx, dbQuotaRule, quotaRuleCreateResponse)
-
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "database update failed")
-		mockStorage.AssertExpectations(t)
-	})
-}
-
 // Test_GetVolumeReplication tests the GetVolumeReplication activity
 // following the pattern from existing activity tests
 func Test_GetVolumeReplication(t *testing.T) {
@@ -1050,7 +763,7 @@ func Test_GetVolumeReplication(t *testing.T) {
 
 	t.Run("GetVolumeReplication_Success_WithReplications", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		volumeID := int64(123)
 
 		expectedReplications := []*datamodel.VolumeReplication{
@@ -1093,7 +806,7 @@ func Test_GetVolumeReplication(t *testing.T) {
 	})
 	t.Run("GetVolumeReplication_Success_EmptyList", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		volumeID := int64(456)
 
 		emptyReplications := []*datamodel.VolumeReplication{}
@@ -1109,7 +822,7 @@ func Test_GetVolumeReplication(t *testing.T) {
 	})
 	t.Run("GetVolumeReplication_DatabaseError_Failure", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		volumeID := int64(789)
 		expectedError := errors.New("database query failed")
 
@@ -1124,7 +837,7 @@ func Test_GetVolumeReplication(t *testing.T) {
 	})
 	t.Run("GetVolumeReplication_SingleReplication_Success", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		volumeID := int64(999)
 
 		singleReplication := []*datamodel.VolumeReplication{
@@ -1158,7 +871,7 @@ func Test_GetVolumeReplication(t *testing.T) {
 	})
 	t.Run("GetVolumeReplication_ZeroVolumeID_Success", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		volumeID := int64(0)
 
 		emptyReplications := []*datamodel.VolumeReplication{}
@@ -1179,119 +892,471 @@ func Test_GetVolumeReplication(t *testing.T) {
 func Test_VerifyReplicationState(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
-	t.Run("VerifyReplicationState_EmptyReplications_Success", func(t *testing.T) {
+	t.Run("VerifyReplicationState_NilReplication_ReturnsFalse", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		locationId := "us-central1-a"
-
-		result, err := activity.VerifyReplicationState(ctx, []*datamodel.VolumeReplication{}, locationId)
-
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.Len(t, result, 0)
-	})
-	t.Run("VerifyReplicationState_NilReplications_Success", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		locationId := "us-central1-a"
 
 		result, err := activity.VerifyReplicationState(ctx, nil, locationId)
 
 		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.Len(t, result, 0)
+		assert.False(t, result)
+	})
+	t.Run("VerifyReplicationState_ReplicationWithoutAttributes_ReturnsFalse", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		locationId := "us-central1-a"
+
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid-1",
+			},
+			ReplicationAttributes: nil, // Nil attributes
+		}
+
+		result, err := activity.VerifyReplicationState(ctx, replication, locationId)
+
+		assert.NoError(t, err)
+		assert.False(t, result)
 	})
 	t.Run("VerifyReplicationState_InvalidLocationId_Failure", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		invalidLocationId := "invalid-location"
 
-		replications := []*datamodel.VolumeReplication{
-			{
-				BaseModel: datamodel.BaseModel{
-					UUID: "replication-uuid-1",
-				},
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid-1",
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation: "us-east1-a",
 			},
 		}
 
-		result, err := activity.VerifyReplicationState(ctx, replications, invalidLocationId)
+		result, err := activity.VerifyReplicationState(ctx, replication, invalidLocationId)
 
 		assert.Error(t, err)
-		assert.Nil(t, result)
+		assert.False(t, result)
 		assert.Contains(t, err.Error(), "failed to parse region from locationId")
 	})
-	t.Run("VerifyReplicationState_NilReplicationAttributes_Skips", func(t *testing.T) {
+	t.Run("VerifyReplicationState_NilReplicationAttributes_ReturnsFalse", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		locationId := "us-central1-a"
 
-		replications := []*datamodel.VolumeReplication{
-			{
-				BaseModel: datamodel.BaseModel{
-					UUID: "replication-uuid-1",
-				},
-				ReplicationAttributes: nil, // Nil attributes should be skipped
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid-1",
 			},
+			ReplicationAttributes: nil, // Nil attributes should return false
 		}
 
-		result, err := activity.VerifyReplicationState(ctx, replications, locationId)
+		result, err := activity.VerifyReplicationState(ctx, replication, locationId)
 
 		assert.NoError(t, err)
-		// When all replications are skipped, result can be nil (uninitialized slice)
-		// or empty slice, both are acceptable
-		if result != nil {
-			assert.Len(t, result, 0)
-		}
+		assert.False(t, result)
 	})
-	t.Run("VerifyReplicationState_SameRegion_Skips", func(t *testing.T) {
+	t.Run("VerifyReplicationState_SameRegion_ReturnsFalse", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		locationId := "us-central1-a" // Same region as destination
 
-		replications := []*datamodel.VolumeReplication{
-			{
-				BaseModel: datamodel.BaseModel{
-					UUID: "replication-uuid-1",
-				},
-				ReplicationAttributes: &datamodel.ReplicationDetails{
-					DestinationLocation: "us-central1-b", // Same region, different zone
-				},
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid-1",
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation: "us-central1-b", // Same region, different zone
 			},
 		}
 
-		result, err := activity.VerifyReplicationState(ctx, replications, locationId)
+		result, err := activity.VerifyReplicationState(ctx, replication, locationId)
 
 		assert.NoError(t, err)
-		// When on destination side (same region), it should skip and return nil or empty list
-		// Note: This depends on ParseRegionAndZone working correctly
-		if result != nil {
-			assert.Len(t, result, 0)
-		}
+		// When on destination side (same region), it should return false
+		assert.False(t, result)
 	})
-	t.Run("VerifyReplicationState_InvalidDestinationLocation_Skips", func(t *testing.T) {
+	t.Run("VerifyReplicationState_InvalidDestinationLocation_ReturnsFalse", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		locationId := "us-central1-a"
 
-		replications := []*datamodel.VolumeReplication{
-			{
-				BaseModel: datamodel.BaseModel{
-					UUID: "replication-uuid-1",
-				},
-				ReplicationAttributes: &datamodel.ReplicationDetails{
-					DestinationLocation: "invalid-destination-location", // Invalid location
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid-1",
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation: "invalid-destination-location", // Invalid location
+			},
+		}
+
+		result, err := activity.VerifyReplicationState(ctx, replication, locationId)
+
+		assert.NoError(t, err)
+		// Should return false when destination location parsing fails
+		assert.False(t, result)
+	})
+
+	t.Run("VerifyReplicationState_ParseProjectNumberError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		locationId := "us-central1-a"
+
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid-1",
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation: "us-east1-a",
+			},
+			RemoteUri: "invalid-uri-without-project-number",
+		}
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalParseProjectNumberFromURI := utils.ParseProjectNumberFromURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			utils.ParseProjectNumberFromURI = originalParseProjectNumberFromURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			// Parse correctly based on input location
+			if locationID == "us-central1-a" {
+				return "us-central1", "us-central1-a", nil
+			} else if locationID == "us-east1-a" {
+				return "us-east1", "us-east1-a", nil
+			}
+			return "", "", errors.New("invalid location")
+		}
+
+		utils.ParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "", errors.New("failed to parse project number")
+		}
+
+		result, err := activity.VerifyReplicationState(ctx, replication, locationId)
+
+		assert.Error(t, err)
+		assert.False(t, result)
+		assert.Contains(t, err.Error(), "failed to parse destination project number")
+	})
+
+	t.Run("VerifyReplicationState_GetPairedRegionURIError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		locationId := "us-central1-a"
+
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid-1",
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation: "us-east1-a",
+			},
+			RemoteUri: "https://us-east1.example.com/projects/123456789/locations/us-east1/volumes/vol-1",
+		}
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalParseProjectNumberFromURI := utils.ParseProjectNumberFromURI
+		originalGetPairedRegionURI := utils.GetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			utils.ParseProjectNumberFromURI = originalParseProjectNumberFromURI
+			utils.GetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			if locationID == "us-central1-a" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "us-east1", "us-east1-a", nil
+		}
+
+		utils.ParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+
+		utils.GetPairedRegionURI = func(region string) (string, error) {
+			return "", errors.New("failed to get paired region URI")
+		}
+
+		result, err := activity.VerifyReplicationState(ctx, replication, locationId)
+
+		assert.Error(t, err)
+		assert.False(t, result)
+		assert.Contains(t, err.Error(), "failed to get destination base path")
+	})
+
+	t.Run("VerifyReplicationState_GetSignedJwtTokenError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		locationId := "us-central1-a"
+
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid-1",
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation:        "us-east1-a",
+				DestinationReplicationUUID: "dest-replication-uuid",
+				DestinationVolumeUUID:      "dest-volume-uuid",
+			},
+			RemoteUri: "https://us-east1.example.com/projects/123456789/locations/us-east1/volumes/vol-1",
+		}
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalParseProjectNumberFromURI := utils.ParseProjectNumberFromURI
+		originalGetPairedRegionURI := utils.GetPairedRegionURI
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			utils.ParseProjectNumberFromURI = originalParseProjectNumberFromURI
+			utils.GetPairedRegionURI = originalGetPairedRegionURI
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			if locationID == "us-central1-a" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "us-east1", "us-east1-a", nil
+		}
+
+		utils.ParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+
+		utils.GetPairedRegionURI = func(region string) (string, error) {
+			return "https://us-east1.example.com", nil
+		}
+
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return "", errors.New("failed to get signed token")
+		}
+
+		result, err := activity.VerifyReplicationState(ctx, replication, locationId)
+
+		assert.Error(t, err)
+		assert.False(t, result)
+		assert.Contains(t, err.Error(), "failed to get signed token")
+	})
+
+	t.Run("VerifyReplicationState_GetReplicationDetailsError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		locationId := "us-central1-a"
+
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid-1",
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation:        "us-east1-a",
+				DestinationReplicationUUID: "dest-replication-uuid",
+				DestinationVolumeUUID:      "dest-volume-uuid",
+			},
+			RemoteUri: "https://us-east1.example.com/projects/123456789/locations/us-east1/volumes/vol-1",
+		}
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalParseProjectNumberFromURI := utils.ParseProjectNumberFromURI
+		originalGetPairedRegionURI := utils.GetPairedRegionURI
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			utils.ParseProjectNumberFromURI = originalParseProjectNumberFromURI
+			utils.GetPairedRegionURI = originalGetPairedRegionURI
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			if locationID == "us-central1-a" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "us-east1", "us-east1-a", nil
+		}
+
+		utils.ParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+
+		utils.GetPairedRegionURI = func(region string) (string, error) {
+			return "https://us-east1.example.com", nil
+		}
+
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		expectedError := errors.New("failed to fetch destination replication")
+		mockInvoker.On("V1betaGetMultipleReplicationsInternal", ctx, mock.Anything, mock.Anything).Return(nil, expectedError)
+
+		result, err := activity.VerifyReplicationState(ctx, replication, locationId)
+
+		assert.Error(t, err)
+		assert.False(t, result)
+		assert.Contains(t, err.Error(), "failed to fetch destination replication")
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("VerifyReplicationState_MirrorStateMirrored_ReturnsTrue", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		locationId := "us-central1-a"
+
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid-1",
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation:        "us-east1-a",
+				DestinationReplicationUUID: "dest-replication-uuid",
+				DestinationVolumeUUID:      "dest-volume-uuid",
+			},
+			RemoteUri: "https://us-east1.example.com/projects/123456789/locations/us-east1/volumes/vol-1",
+		}
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalParseProjectNumberFromURI := utils.ParseProjectNumberFromURI
+		originalGetPairedRegionURI := utils.GetPairedRegionURI
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			utils.ParseProjectNumberFromURI = originalParseProjectNumberFromURI
+			utils.GetPairedRegionURI = originalGetPairedRegionURI
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			if locationID == "us-central1-a" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "us-east1", "us-east1-a", nil
+		}
+
+		utils.ParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+
+		utils.GetPairedRegionURI = func(region string) (string, error) {
+			return "https://us-east1.example.com", nil
+		}
+
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		expectedResponse := &googleproxyclient.V1betaGetMultipleReplicationsInternalOK{
+			Replications: []googleproxyclient.VolumeReplicationInternalV1beta{
+				{
+					MirrorState: googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
 				},
 			},
 		}
 
-		result, err := activity.VerifyReplicationState(ctx, replications, locationId)
+		mockInvoker.On("V1betaGetMultipleReplicationsInternal", ctx, mock.Anything, mock.Anything).Return(expectedResponse, nil)
+
+		result, err := activity.VerifyReplicationState(ctx, replication, locationId)
 
 		assert.NoError(t, err)
-		// Should skip with warning when destination location parsing fails
-		// Result can be nil (uninitialized) or empty slice
-		if result != nil {
-			assert.Len(t, result, 0)
+		assert.True(t, result)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("VerifyReplicationState_MirrorStateUninitialized_ReturnsTrue", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		locationId := "us-central1-a"
+
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid-1",
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationLocation:        "us-east1-a",
+				DestinationReplicationUUID: "dest-replication-uuid",
+				DestinationVolumeUUID:      "dest-volume-uuid",
+			},
+			RemoteUri: "https://us-east1.example.com/projects/123456789/locations/us-east1/volumes/vol-1",
 		}
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalParseProjectNumberFromURI := utils.ParseProjectNumberFromURI
+		originalGetPairedRegionURI := utils.GetPairedRegionURI
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			utils.ParseProjectNumberFromURI = originalParseProjectNumberFromURI
+			utils.GetPairedRegionURI = originalGetPairedRegionURI
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			if locationID == "us-central1-a" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "us-east1", "us-east1-a", nil
+		}
+
+		utils.ParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "123456789", nil
+		}
+
+		utils.GetPairedRegionURI = func(region string) (string, error) {
+			return "https://us-east1.example.com", nil
+		}
+
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		expectedResponse := &googleproxyclient.V1betaGetMultipleReplicationsInternalOK{
+			Replications: []googleproxyclient.VolumeReplicationInternalV1beta{
+				{
+					MirrorState: googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED),
+				},
+			},
+		}
+
+		mockInvoker.On("V1betaGetMultipleReplicationsInternal", ctx, mock.Anything, mock.Anything).Return(expectedResponse, nil)
+
+		result, err := activity.VerifyReplicationState(ctx, replication, locationId)
+
+		assert.NoError(t, err)
+		assert.True(t, result)
+		mockInvoker.AssertExpectations(t)
 	})
 }
 
@@ -2453,243 +2518,13 @@ func Test_HandleQuotaEnableDisable(t *testing.T) {
 	})
 }
 
-// Test_QuotaEnableDisable tests the QuotaEnableDisable activity
-func Test_QuotaEnableDisable(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-
-	t.Run("QuotaEnableDisable_Enable_Success", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		volumeDetails := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{
-				UUID: "volume-uuid",
-			},
-			VolumeAttributes: &datamodel.VolumeAttributes{
-				ExternalUUID: "volume-external-uuid",
-			},
-			Svm: &datamodel.Svm{
-				Name: "test-svm",
-			},
-		}
-		mockProvider := new(vsa.MockProvider)
-
-		jobStatus := &vsa.JobStatus{
-			State:   vsa.JobRespSuccess,
-			Message: "Quota enabled",
-		}
-		mockProvider.On("QuotaEnableDisable", ctx, "volume-external-uuid", "test-svm", true).Return(jobStatus, nil)
-
-		result, err := activity.QuotaEnableDisable(ctx, mockProvider, volumeDetails, true)
-
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, vsa.JobRespSuccess, result.State)
-		assert.Equal(t, "Quota enabled", result.Message)
-		mockProvider.AssertExpectations(t)
-	})
-
-	t.Run("QuotaEnableDisable_Disable_Success", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		volumeDetails := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{
-				UUID: "volume-uuid",
-			},
-			VolumeAttributes: &datamodel.VolumeAttributes{
-				ExternalUUID: "volume-external-uuid",
-			},
-			Svm: &datamodel.Svm{
-				Name: "test-svm",
-			},
-		}
-		mockProvider := new(vsa.MockProvider)
-
-		jobStatus := &vsa.JobStatus{
-			State:   vsa.JobRespSuccess,
-			Message: "Quota disabled",
-		}
-		mockProvider.On("QuotaEnableDisable", ctx, "volume-external-uuid", "test-svm", false).Return(jobStatus, nil)
-
-		result, err := activity.QuotaEnableDisable(ctx, mockProvider, volumeDetails, false)
-
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, vsa.JobRespSuccess, result.State)
-		assert.Equal(t, "Quota disabled", result.Message)
-		mockProvider.AssertExpectations(t)
-	})
-
-	t.Run("QuotaEnableDisable_NoExternalUUID_Failure", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		volumeDetails := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{
-				UUID: "volume-uuid",
-			},
-			VolumeAttributes: nil,
-		}
-		mockProvider := new(vsa.MockProvider)
-
-		result, err := activity.QuotaEnableDisable(ctx, mockProvider, volumeDetails, true)
-
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "Volume has no ExternalUUID")
-	})
-
-	t.Run("QuotaEnableDisable_QuotaEnableDisableError_Failure", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		volumeDetails := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{
-				UUID: "volume-uuid",
-			},
-			VolumeAttributes: &datamodel.VolumeAttributes{
-				ExternalUUID: "volume-external-uuid",
-			},
-			Svm: &datamodel.Svm{
-				Name: "test-svm",
-			},
-		}
-		mockProvider := new(vsa.MockProvider)
-		expectedError := errors.New("failed to enable quota")
-
-		mockProvider.On("QuotaEnableDisable", ctx, "volume-external-uuid", "test-svm", true).Return(nil, expectedError)
-
-		result, err := activity.QuotaEnableDisable(ctx, mockProvider, volumeDetails, true)
-
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "failed to enable quota")
-		mockProvider.AssertExpectations(t)
-	})
-}
-
-// Test_CheckQuotaRuleCreationFailure tests the CheckQuotaRuleCreationFailure activity
-func Test_CheckQuotaRuleCreationFailure(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-
-	t.Run("CheckQuotaRuleCreationFailure_Success", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		quotaRuleResponse := &vsa.QuotaRuleProviderResponse{
-			State:   vsa.JobRespSuccess,
-			Message: "",
-		}
-		volumeDetails := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{
-				UUID: "volume-uuid",
-			},
-		}
-		mockProvider := new(vsa.MockProvider)
-
-		err := activity.CheckQuotaRuleCreationFailure(ctx, quotaRuleResponse, mockProvider, volumeDetails)
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("CheckQuotaRuleCreationFailure_ResizeFailure_Reinitializes", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		quotaRuleResponse := &vsa.QuotaRuleProviderResponse{
-			State:   vsa.JobRespFailure,
-			Message: vsa.ResizeOperationFailed,
-		}
-		volumeDetails := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{
-				UUID: "volume-uuid",
-			},
-			VolumeAttributes: &datamodel.VolumeAttributes{
-				ExternalUUID: "volume-external-uuid",
-			},
-			Svm: &datamodel.Svm{
-				Name: "test-svm",
-			},
-		}
-		mockProvider := new(vsa.MockProvider)
-
-		disableResp := &vsa.JobStatus{
-			State:   vsa.JobRespSuccess,
-			Message: "Quota disabled",
-		}
-		enableResp := &vsa.JobStatus{
-			State:   vsa.JobRespSuccess,
-			Message: "Quota enabled",
-		}
-		mockProvider.On("QuotaEnableDisable", mock.Anything, "volume-external-uuid", "test-svm", false).Return(disableResp, nil)
-		mockProvider.On("QuotaEnableDisable", mock.Anything, "volume-external-uuid", "test-svm", true).Return(enableResp, nil)
-
-		err := activity.CheckQuotaRuleCreationFailure(ctx, quotaRuleResponse, mockProvider, volumeDetails)
-
-		assert.NoError(t, err)
-		mockProvider.AssertExpectations(t)
-	})
-
-	t.Run("CheckQuotaRuleCreationFailure_ActivationFailure_Reinitializes", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		quotaRuleResponse := &vsa.QuotaRuleProviderResponse{
-			State:   vsa.JobRespFailure,
-			Message: vsa.ActivationOperationFailed,
-		}
-		volumeDetails := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{
-				UUID: "volume-uuid",
-			},
-			VolumeAttributes: &datamodel.VolumeAttributes{
-				ExternalUUID: "volume-external-uuid",
-			},
-			Svm: &datamodel.Svm{
-				Name: "test-svm",
-			},
-		}
-		mockProvider := new(vsa.MockProvider)
-
-		disableResp := &vsa.JobStatus{
-			State:   vsa.JobRespSuccess,
-			Message: "Quota disabled",
-		}
-		enableResp := &vsa.JobStatus{
-			State:   vsa.JobRespSuccess,
-			Message: "Quota enabled",
-		}
-		mockProvider.On("QuotaEnableDisable", mock.Anything, "volume-external-uuid", "test-svm", false).Return(disableResp, nil)
-		mockProvider.On("QuotaEnableDisable", mock.Anything, "volume-external-uuid", "test-svm", true).Return(enableResp, nil)
-
-		err := activity.CheckQuotaRuleCreationFailure(ctx, quotaRuleResponse, mockProvider, volumeDetails)
-
-		assert.NoError(t, err)
-		mockProvider.AssertExpectations(t)
-	})
-
-	t.Run("CheckQuotaRuleCreationFailure_OtherFailure_ReturnsError", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		quotaRuleResponse := &vsa.QuotaRuleProviderResponse{
-			State:   vsa.JobRespFailure,
-			Message: "Some other error occurred",
-		}
-		volumeDetails := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{
-				UUID: "volume-uuid",
-			},
-		}
-		mockProvider := new(vsa.MockProvider)
-
-		err := activity.CheckQuotaRuleCreationFailure(ctx, quotaRuleResponse, mockProvider, volumeDetails)
-
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Some other error occurred")
-	})
-}
-
 // Test_UpdateQuotaRuleState tests the UpdateQuotaRuleState activity
 func Test_UpdateQuotaRuleState(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	t.Run("UpdateQuotaRuleState_Success", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		quotaRule := datamodel.QuotaRule{
 			BaseModel: datamodel.BaseModel{
 				UUID: "quota-rule-uuid",
@@ -2698,16 +2533,24 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 			State:        models.LifeCycleStateAvailable,
 			StateDetails: models.LifeCycleStateAvailableDetails,
 		}
-		updatedQuotaRule := &datamodel.QuotaRule{
+
+		// Mock GetQuotaRuleByUUID to return current state (CREATING)
+		currentQuotaRule := &datamodel.QuotaRule{
 			BaseModel: datamodel.BaseModel{
 				UUID: "quota-rule-uuid",
 			},
 			Name:         "test-quota-rule",
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        models.LifeCycleStateCreating,
+			StateDetails: models.LifeCycleStateCreatingDetails,
 		}
+		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid", int64(0)).Return(currentQuotaRule, nil)
 
-		mockStorage.On("UpdateQuotaRule", ctx, &quotaRule).Return(updatedQuotaRule, nil)
+		// Mock UpdateQuotaRule with the updated state (transitions to READY)
+		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
+			return qr.UUID == "quota-rule-uuid" &&
+				qr.State == models.LifeCycleStateREADY &&
+				qr.StateDetails == models.LifeCycleStateReadyDetails
+		})).Return(currentQuotaRule, nil)
 
 		err := activity.UpdateQuotaRuleState(ctx, quotaRule)
 
@@ -2717,16 +2560,28 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 
 	t.Run("UpdateQuotaRuleState_DatabaseError_Failure", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		quotaRule := datamodel.QuotaRule{
 			BaseModel: datamodel.BaseModel{
 				UUID: "quota-rule-uuid",
 			},
 			Name: "test-quota-rule",
 		}
-		expectedError := errors.New("database update failed")
 
-		mockStorage.On("UpdateQuotaRule", ctx, &quotaRule).Return(nil, expectedError)
+		// Mock GetQuotaRuleByUUID to return current state
+		currentQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid",
+			},
+			Name:         "test-quota-rule",
+			State:        models.LifeCycleStateCreating,
+			StateDetails: models.LifeCycleStateCreatingDetails,
+		}
+		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid", int64(0)).Return(currentQuotaRule, nil)
+
+		// Mock UpdateQuotaRule to return error
+		expectedError := errors.New("database update failed")
+		mockStorage.On("UpdateQuotaRule", ctx, mock.Anything).Return(nil, expectedError)
 
 		err := activity.UpdateQuotaRuleState(ctx, quotaRule)
 
@@ -2734,64 +2589,176 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 		assert.Contains(t, err.Error(), "database update failed")
 		mockStorage.AssertExpectations(t)
 	})
-}
 
-// Test_GetDestinationVolume tests the GetDestinationVolume activity
-func Test_GetDestinationVolume(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-
-	t.Run("GetDestinationVolume_Success", func(t *testing.T) {
+	t.Run("UpdateQuotaRuleState_GetQuotaRuleByUUIDError_Failure", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		destinationVolumeUUID := "destination-volume-uuid"
-		expectedVolume := &datamodel.Volume{
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		quotaRule := datamodel.QuotaRule{
 			BaseModel: datamodel.BaseModel{
-				UUID: destinationVolumeUUID,
+				UUID: "quota-rule-uuid",
 			},
-			Name:        "destination-volume",
-			Description: "Destination volume for quota sync",
+			Name:         "test-quota-rule",
+			AccountID:    int64(1),
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
 		}
 
-		mockStorage.On("GetVolume", ctx, destinationVolumeUUID).Return(expectedVolume, nil)
+		expectedError := errors.New("failed to fetch quota rule")
+		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid", int64(1)).Return(nil, expectedError)
 
-		result, err := activity.GetDestinationVolume(ctx, destinationVolumeUUID)
+		err := activity.UpdateQuotaRuleState(ctx, quotaRule)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to fetch quota rule")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleState_QuotaRuleStateError_Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		quotaRule := datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid",
+			},
+			Name:         "test-quota-rule",
+			AccountID:    int64(1),
+			State:        models.LifeCycleStateError,
+			StateDetails: models.LifeCycleStateCreationErrorDetails,
+		}
+
+		currentQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid",
+			},
+			Name:         "test-quota-rule",
+			AccountID:    int64(1),
+			State:        models.LifeCycleStateCreating,
+			StateDetails: models.LifeCycleStateCreatingDetails,
+		}
+
+		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid", int64(1)).Return(currentQuotaRule, nil)
+
+		updatedQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid",
+			},
+			Name:         "test-quota-rule",
+			AccountID:    int64(1),
+			State:        models.LifeCycleStateError,
+			StateDetails: models.LifeCycleStateCreationErrorDetails,
+		}
+
+		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
+			return qr.State == models.LifeCycleStateError &&
+				qr.StateDetails == models.LifeCycleStateCreationErrorDetails
+		})).Return(updatedQuotaRule, nil)
+
+		err := activity.UpdateQuotaRuleState(ctx, quotaRule)
 
 		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, destinationVolumeUUID, result.UUID)
-		assert.Equal(t, "destination-volume", result.Name)
 		mockStorage.AssertExpectations(t)
 	})
 
-	t.Run("GetDestinationVolume_VolumeNotFound_Failure", func(t *testing.T) {
+	t.Run("UpdateQuotaRuleState_StateUpdating_Success", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		destinationVolumeUUID := "non-existent-uuid"
-		expectedError := errors.New("volume not found")
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		quotaRule := datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid",
+			},
+			Name:           "test-quota-rule",
+			AccountID:      int64(1),
+			DiskLimitInKib: 2097152,
+			Description:    "updated description",
+			State:          models.LifeCycleStateAvailable,
+			StateDetails:   models.LifeCycleStateAvailableDetails,
+		}
 
-		mockStorage.On("GetVolume", ctx, destinationVolumeUUID).Return(nil, expectedError)
+		currentQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid",
+			},
+			Name:           "test-quota-rule",
+			AccountID:      int64(1),
+			DiskLimitInKib: 1048576,
+			Description:    "old description",
+			State:          models.LifeCycleStateUpdating,
+			StateDetails:   models.LifeCycleStateUpdatingDetails,
+		}
 
-		result, err := activity.GetDestinationVolume(ctx, destinationVolumeUUID)
+		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid", int64(1)).Return(currentQuotaRule, nil)
 
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "volume not found")
+		updatedQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid",
+			},
+			Name:           "test-quota-rule",
+			AccountID:      int64(1),
+			DiskLimitInKib: 2097152,
+			Description:    "updated description",
+			State:          models.LifeCycleStateREADY,
+			StateDetails:   models.LifeCycleStateReadyDetails,
+		}
+
+		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
+			return qr.State == models.LifeCycleStateREADY &&
+				qr.StateDetails == models.LifeCycleStateReadyDetails &&
+				qr.DiskLimitInKib == 2097152 &&
+				qr.Description == "updated description"
+		})).Return(updatedQuotaRule, nil)
+
+		err := activity.UpdateQuotaRuleState(ctx, quotaRule)
+
+		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
 
-	t.Run("GetDestinationVolume_DatabaseError_Failure", func(t *testing.T) {
+	t.Run("UpdateQuotaRuleState_StateDeleting_Success", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		destinationVolumeUUID := "destination-volume-uuid"
-		expectedError := errors.New("database connection failed")
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		quotaRule := datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid",
+			},
+			Name:         "test-quota-rule",
+			AccountID:    int64(1),
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		}
 
-		mockStorage.On("GetVolume", ctx, destinationVolumeUUID).Return(nil, expectedError)
+		currentQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid",
+			},
+			Name:         "test-quota-rule",
+			AccountID:    int64(1),
+			State:        models.LifeCycleStateDeleting,
+			StateDetails: models.LifeCycleStateDeletingDetails,
+		}
 
-		result, err := activity.GetDestinationVolume(ctx, destinationVolumeUUID)
+		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid", int64(1)).Return(currentQuotaRule, nil)
 
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "database connection failed")
+		updatedQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "quota-rule-uuid",
+				DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true},
+			},
+			Name:         "test-quota-rule",
+			AccountID:    int64(1),
+			State:        models.LifeCycleStateDeleted,
+			StateDetails: models.LifeCycleStateDeletedDetails,
+		}
+
+		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
+			return qr.State == models.LifeCycleStateDeleted &&
+				qr.StateDetails == models.LifeCycleStateDeletedDetails &&
+				qr.DeletedAt != nil &&
+				qr.DeletedAt.Valid == true
+		})).Return(updatedQuotaRule, nil)
+
+		err := activity.UpdateQuotaRuleState(ctx, quotaRule)
+
+		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
 }
@@ -3152,203 +3119,6 @@ func Test_GetReplicationDetails(t *testing.T) {
 	})
 }
 
-// Test_FinishQuotaRuleJob tests the FinishQuotaRuleJob activity
-func Test_FinishQuotaRuleJob(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-
-	t.Run("FinishQuotaRuleJob_Success", func(t *testing.T) {
-		db, err := database.SetupTestDB()
-		assert.NoError(t, err)
-
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		quotaRuleUUID := "quota-rule-uuid-123"
-		jobUUID := "job-uuid-456"
-		externalUUID := "external-uuid-789"
-
-		// Create test quota rule and job in database
-		quotaRule := &datamodel.QuotaRule{
-			BaseModel: datamodel.BaseModel{
-				UUID: quotaRuleUUID,
-			},
-			Name:                "test-quota-rule",
-			QuotaRuleAttributes: &datamodel.QuotaRuleAttributes{},
-		}
-		err = db.Create(quotaRule).Error
-		assert.NoError(t, err)
-
-		job := &datamodel.Job{
-			BaseModel: datamodel.BaseModel{
-				UUID: jobUUID,
-			},
-			Type:  "CREATE_QUOTA_RULE",
-			State: string(models.JobsStatePROCESSING),
-		}
-		err = db.Create(job).Error
-		assert.NoError(t, err)
-
-		// Mock WithTransaction to use real DB
-		mockStorage.On("WithTransaction", ctx, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-			txFunc := args.Get(1).(func(dbutils.Transaction) error)
-			tx := db.Begin()
-			defer tx.Rollback()
-			wrapper := gormWrapper.New(tx)
-			err := txFunc(wrapper)
-			if err == nil {
-				tx.Commit()
-			}
-		})
-
-		err = activity.FinishQuotaRuleJob(ctx, quotaRuleUUID, jobUUID, externalUUID, "")
-		assert.NoError(t, err)
-
-		// Verify quota rule was updated
-		var updatedQuotaRule datamodel.QuotaRule
-		err = db.Where("uuid = ?", quotaRuleUUID).First(&updatedQuotaRule).Error
-		assert.NoError(t, err)
-		assert.Equal(t, models.LifeCycleStateREADY, updatedQuotaRule.State)
-		assert.Equal(t, models.LifeCycleStateReadyDetails, updatedQuotaRule.StateDetails)
-		assert.Equal(t, externalUUID, updatedQuotaRule.QuotaRuleAttributes.ExternalUUID)
-
-		// Verify job was updated
-		var updatedJob datamodel.Job
-		err = db.Where("uuid = ?", jobUUID).First(&updatedJob).Error
-		assert.NoError(t, err)
-		assert.Equal(t, string(models.JobsStateDONE), updatedJob.State)
-
-		mockStorage.AssertExpectations(t)
-	})
-
-	t.Run("FinishQuotaRuleJob_QuotaRuleNotFound_ReturnsError", func(t *testing.T) {
-		db, err := database.SetupTestDB()
-		assert.NoError(t, err)
-
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		quotaRuleUUID := "non-existent-uuid"
-		jobUUID := "job-uuid-456"
-
-		mockStorage.On("WithTransaction", ctx, mock.Anything).Return(errors.New("not found")).Run(func(args mock.Arguments) {
-			txFunc := args.Get(1).(func(dbutils.Transaction) error)
-			tx := db.Begin()
-			defer tx.Rollback()
-			wrapper := gormWrapper.New(tx)
-			err := txFunc(wrapper)
-			if err != nil {
-				// Return the error from the transaction function
-				return
-			}
-		})
-
-		err = activity.FinishQuotaRuleJob(ctx, quotaRuleUUID, jobUUID, "", "")
-		assert.Error(t, err)
-		mockStorage.AssertExpectations(t)
-	})
-
-	t.Run("FinishQuotaRuleJob_EmptyExternalUUID_Success", func(t *testing.T) {
-		db, err := database.SetupTestDB()
-		assert.NoError(t, err)
-
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		quotaRuleUUID := "quota-rule-uuid-456"
-		jobUUID := "job-uuid-789"
-
-		quotaRule := &datamodel.QuotaRule{
-			BaseModel: datamodel.BaseModel{
-				UUID: quotaRuleUUID,
-			},
-			Name: "test-quota-rule-2",
-		}
-		err = db.Create(quotaRule).Error
-		assert.NoError(t, err)
-
-		job := &datamodel.Job{
-			BaseModel: datamodel.BaseModel{
-				UUID: jobUUID,
-			},
-			Type:  "CREATE_QUOTA_RULE",
-			State: string(models.JobsStatePROCESSING),
-		}
-		err = db.Create(job).Error
-		assert.NoError(t, err)
-
-		mockStorage.On("WithTransaction", ctx, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-			txFunc := args.Get(1).(func(dbutils.Transaction) error)
-			tx := db.Begin()
-			defer tx.Rollback()
-			wrapper := gormWrapper.New(tx)
-			err := txFunc(wrapper)
-			if err == nil {
-				tx.Commit()
-			}
-		})
-
-		err = activity.FinishQuotaRuleJob(ctx, quotaRuleUUID, jobUUID, "", "")
-		assert.NoError(t, err)
-
-		var updatedQuotaRule datamodel.QuotaRule
-		err = db.Where("uuid = ?", quotaRuleUUID).First(&updatedQuotaRule).Error
-		assert.NoError(t, err)
-		assert.Equal(t, models.LifeCycleStateREADY, updatedQuotaRule.State)
-
-		mockStorage.AssertExpectations(t)
-	})
-
-	t.Run("FinishQuotaRuleJob_WithExternalUUIDAndNilAttributes_CreatesAttributes", func(t *testing.T) {
-		db, err := database.SetupTestDB()
-		assert.NoError(t, err)
-
-		mockStorage := database.NewMockStorage(t)
-		activity := QuotaRuleCreateActivity{SE: mockStorage}
-		quotaRuleUUID := "quota-rule-uuid-789"
-		jobUUID := "job-uuid-999"
-		externalUUID := "external-uuid-111"
-
-		quotaRule := &datamodel.QuotaRule{
-			BaseModel: datamodel.BaseModel{
-				UUID: quotaRuleUUID,
-			},
-			Name:                "test-quota-rule-3",
-			QuotaRuleAttributes: nil, // Nil attributes
-		}
-		err = db.Create(quotaRule).Error
-		assert.NoError(t, err)
-
-		job := &datamodel.Job{
-			BaseModel: datamodel.BaseModel{
-				UUID: jobUUID,
-			},
-			Type:  "CREATE_QUOTA_RULE",
-			State: string(models.JobsStatePROCESSING),
-		}
-		err = db.Create(job).Error
-		assert.NoError(t, err)
-
-		mockStorage.On("WithTransaction", ctx, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
-			txFunc := args.Get(1).(func(dbutils.Transaction) error)
-			tx := db.Begin()
-			defer tx.Rollback()
-			wrapper := gormWrapper.New(tx)
-			err := txFunc(wrapper)
-			if err == nil {
-				tx.Commit()
-			}
-		})
-
-		err = activity.FinishQuotaRuleJob(ctx, quotaRuleUUID, jobUUID, externalUUID, "")
-		assert.NoError(t, err)
-
-		var updatedQuotaRule datamodel.QuotaRule
-		err = db.Where("uuid = ?", quotaRuleUUID).First(&updatedQuotaRule).Error
-		assert.NoError(t, err)
-		assert.NotNil(t, updatedQuotaRule.QuotaRuleAttributes)
-		assert.Equal(t, externalUUID, updatedQuotaRule.QuotaRuleAttributes.ExternalUUID)
-
-		mockStorage.AssertExpectations(t)
-	})
-}
-
 // Test_HandleDefaultQuotaRuleUpdate_QuotaTypeMismatch tests the quota type mismatch scenario
 func Test_HandleDefaultQuotaRuleUpdate_QuotaTypeMismatch(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -3515,19 +3285,159 @@ func Test_CreateQuotaRuleOnDestination(t *testing.T) {
 			return mockProxyClient
 		}
 
-		// Mock successful response
+		// Mock successful response with READY state (synchronous completion)
+		quotaID := "quota-id-123"
+		expectedResponse := &googleproxyclient.QuotaRulesVCPV1beta{
+			QuotaId:    googleproxyclient.NewOptString(quotaID),
+			ResourceId: "test-quota-rule",
+			State:      googleproxyclient.NewOptQuotaRulesVCPV1betaState(googleproxyclient.QuotaRulesVCPV1betaStateREADY),
+		}
+
+		mockInvoker.On("V1betaCreateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(expectedResponse, nil)
+
+		result, err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber, &jwtToken)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.IsDone)
+		assert.Empty(t, result.OperationName)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("CreateQuotaRuleOnDestination_CreatingStateWithJobId_ReturnsJobIdForPolling", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		quotaRule := &datamodel.QuotaRule{
+			Name:           "test-quota-rule",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			QuotaTarget:    "1000",
+			DiskLimitInKib: 1048576,
+			Description:    "Test description",
+		}
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock response with CREATING state and Jobs array containing JobId
+		quotaID := "quota-id-123"
+		jobID := "job-uuid-456"
+		expectedResponse := &googleproxyclient.QuotaRulesVCPV1beta{
+			QuotaId:    googleproxyclient.NewOptString(quotaID),
+			ResourceId: "test-quota-rule",
+			State:      googleproxyclient.NewOptQuotaRulesVCPV1betaState(googleproxyclient.QuotaRulesVCPV1betaStateCREATING),
+			Jobs: []googleproxyclient.JobV1beta{
+				{
+					JobId: googleproxyclient.NewOptString(jobID),
+				},
+			},
+		}
+
+		mockInvoker.On("V1betaCreateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(expectedResponse, nil)
+
+		result, err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber, &jwtToken)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, result.IsDone)
+		assert.Equal(t, jobID, result.OperationName)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("CreateQuotaRuleOnDestination_CreatingStateWithoutJobId_ReturnsSuccess", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		quotaRule := &datamodel.QuotaRule{
+			Name:           "test-quota-rule",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			QuotaTarget:    "1000",
+			DiskLimitInKib: 1048576,
+			Description:    "Test description",
+		}
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock response with CREATING state but no Jobs array (edge case - assume success)
 		quotaID := "quota-id-123"
 		expectedResponse := &googleproxyclient.QuotaRulesVCPV1beta{
 			QuotaId:    googleproxyclient.NewOptString(quotaID),
 			ResourceId: "test-quota-rule",
 			State:      googleproxyclient.NewOptQuotaRulesVCPV1betaState(googleproxyclient.QuotaRulesVCPV1betaStateCREATING),
+			Jobs:       []googleproxyclient.JobV1beta{}, // Empty Jobs array
 		}
 
 		mockInvoker.On("V1betaCreateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(expectedResponse, nil)
 
-		err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber)
+		result, err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber, &jwtToken)
 
 		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.IsDone) // Assume success when no JobId available
+		assert.Empty(t, result.OperationName)
 		mockInvoker.AssertExpectations(t)
 	})
 
@@ -3551,13 +3461,14 @@ func Test_CreateQuotaRuleOnDestination(t *testing.T) {
 			return "", errors.New("failed to get base path")
 		}
 
-		err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber)
+		jwtToken := "test-jwt-token"
+		_, err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber, &jwtToken)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to get destination base path")
 	})
 
-	t.Run("CreateQuotaRuleOnDestination_GetJWTTokenError_Failure", func(t *testing.T) {
+	t.Run("CreateQuotaRuleOnDestination_EmptyJWTTokenError_Failure", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		activity := QuotaRuleCreateActivity{SE: mockStorage}
 		destinationVolumeUUID := "destination-volume-uuid"
@@ -3578,18 +3489,40 @@ func Test_CreateQuotaRuleOnDestination(t *testing.T) {
 			return basePath, nil
 		}
 
-		originalGetSignedJwtToken := auth.GetSignedJwtToken
-		defer func() {
-			auth.GetSignedJwtToken = originalGetSignedJwtToken
-		}()
-		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
-			return "", errors.New("failed to get JWT token")
-		}
-
-		err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber)
+		// Test with empty JWT token
+		emptyJwtToken := ""
+		_, err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber, &emptyJwtToken)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to get JWT token")
+		assert.Contains(t, err.Error(), "JWT token is required")
+	})
+
+	t.Run("CreateQuotaRuleOnDestination_NilJWTTokenError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCreateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		quotaRule := &datamodel.QuotaRule{
+			Name:           "test-quota-rule",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			DiskLimitInKib: 1048576,
+		}
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+			return basePath, nil
+		}
+
+		// Test with nil JWT token
+		_, err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber, nil)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "JWT token is required")
 	})
 
 	t.Run("CreateQuotaRuleOnDestination_APIError_Failure", func(t *testing.T) {
@@ -3639,7 +3572,7 @@ func Test_CreateQuotaRuleOnDestination(t *testing.T) {
 		expectedError := errors.New("API call failed")
 		mockInvoker.On("V1betaCreateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(nil, expectedError)
 
-		err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber)
+		_, err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber, &jwtToken)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to create quota rule on destination")
@@ -3695,7 +3628,7 @@ func Test_CreateQuotaRuleOnDestination(t *testing.T) {
 		}
 		mockInvoker.On("V1betaCreateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(badRequestResponse, nil)
 
-		err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber)
+		_, err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber, &jwtToken)
 
 		assert.Error(t, err)
 		mockInvoker.AssertExpectations(t)
@@ -3750,7 +3683,7 @@ func Test_CreateQuotaRuleOnDestination(t *testing.T) {
 		}
 		mockInvoker.On("V1betaCreateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(notFoundResponse, nil)
 
-		err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber)
+		_, err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber, &jwtToken)
 
 		assert.Error(t, err)
 		mockInvoker.AssertExpectations(t)
@@ -3805,7 +3738,7 @@ func Test_CreateQuotaRuleOnDestination(t *testing.T) {
 		}
 		mockInvoker.On("V1betaCreateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(conflictResponse, nil)
 
-		err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber)
+		_, err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber, &jwtToken)
 
 		assert.Error(t, err)
 		mockInvoker.AssertExpectations(t)
@@ -3861,7 +3794,2591 @@ func Test_CreateQuotaRuleOnDestination(t *testing.T) {
 		}
 		mockInvoker.On("V1betaCreateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(unexpectedResponse, nil)
 
-		err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber)
+		_, err := activity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber, &jwtToken)
+
+		assert.Error(t, err)
+		mockInvoker.AssertExpectations(t)
+	})
+}
+
+// Test_GetOntapQuotaUUID tests the GetOntapQuotaUUID activity
+// following the pattern from existing activity tests
+func Test_GetOntapQuotaUUID(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	t.Run("GetOntapQuotaUUID_Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+		node := &models.Node{Name: "test-node"}
+		quotaType := "INDIVIDUAL_USER_QUOTA"
+		target := "1000"
+		expectedQuotaUUID := "quota-uuid-123"
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("GetOntapQuotaUUIDAndType", ctx, "volume-external-uuid", "test-svm", quotaType, target).
+			Return(expectedQuotaUUID, "user", nil)
+
+		result, err := activity.GetOntapQuotaUUID(ctx, volumeDetails, node, quotaType, target)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedQuotaUUID, result)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("GetOntapQuotaUUID_GetProviderByNodeError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+		}
+		node := &models.Node{Name: "test-node"}
+		quotaType := "INDIVIDUAL_USER_QUOTA"
+		target := "1000"
+		expectedError := errors.New("failed to create provider")
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return nil, expectedError
+		}
+
+		result, err := activity.GetOntapQuotaUUID(ctx, volumeDetails, node, quotaType, target)
+
+		assert.Error(t, err)
+		assert.Empty(t, result)
+		assert.Contains(t, err.Error(), "failed to create provider")
+	})
+
+	t.Run("GetOntapQuotaUUID_NoExternalUUID_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: nil, // No VolumeAttributes
+		}
+		node := &models.Node{Name: "test-node"}
+		quotaType := "INDIVIDUAL_USER_QUOTA"
+		target := "1000"
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		result, err := activity.GetOntapQuotaUUID(ctx, volumeDetails, node, quotaType, target)
+
+		assert.Error(t, err)
+		assert.Empty(t, result)
+		assert.Contains(t, err.Error(), "Volume has no ExternalUUID")
+	})
+
+	t.Run("GetOntapQuotaUUID_NoSVMDetails_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: nil, // No SVM
+		}
+		node := &models.Node{Name: "test-node"}
+		quotaType := "INDIVIDUAL_USER_QUOTA"
+		target := "1000"
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		result, err := activity.GetOntapQuotaUUID(ctx, volumeDetails, node, quotaType, target)
+
+		assert.Error(t, err)
+		assert.Empty(t, result)
+		assert.Contains(t, err.Error(), "Volume has no SVM details")
+	})
+
+	t.Run("GetOntapQuotaUUID_GetQuotaUUIDError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+		node := &models.Node{Name: "test-node"}
+		quotaType := "INDIVIDUAL_USER_QUOTA"
+		target := "1000"
+		expectedError := errors.New("failed to get quota UUID")
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("GetOntapQuotaUUIDAndType", ctx, "volume-external-uuid", "test-svm", quotaType, target).
+			Return("", "", expectedError)
+
+		result, err := activity.GetOntapQuotaUUID(ctx, volumeDetails, node, quotaType, target)
+
+		assert.Error(t, err)
+		assert.Empty(t, result)
+		assert.Contains(t, err.Error(), "failed to get quota UUID")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("GetOntapQuotaUUID_QuotaNotFound_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+		node := &models.Node{Name: "test-node"}
+		quotaType := "INDIVIDUAL_USER_QUOTA"
+		target := "1000"
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Return empty UUID (quota not found)
+		mockProvider.On("GetOntapQuotaUUIDAndType", ctx, "volume-external-uuid", "test-svm", quotaType, target).
+			Return("", "", nil)
+
+		result, err := activity.GetOntapQuotaUUID(ctx, volumeDetails, node, quotaType, target)
+
+		assert.Error(t, err)
+		assert.Empty(t, result)
+		assert.Contains(t, err.Error(), "Quota")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("GetOntapQuotaUUID_DefaultQuotaType_Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+		node := &models.Node{Name: "test-node"}
+		quotaType := "DEFAULT_USER_QUOTA"
+		target := "" // Empty target for default quota
+		expectedQuotaUUID := "default-quota-uuid-456"
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("GetOntapQuotaUUIDAndType", ctx, "volume-external-uuid", "test-svm", quotaType, target).
+			Return(expectedQuotaUUID, "user", nil)
+
+		result, err := activity.GetOntapQuotaUUID(ctx, volumeDetails, node, quotaType, target)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedQuotaUUID, result)
+		mockProvider.AssertExpectations(t)
+	})
+}
+
+// Test_UpdateQuotaRulesOnOntap tests the UpdateQuotaRulesOnOntap activity
+// following the pattern from existing activity tests
+func Test_UpdateQuotaRulesOnOntap(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	t.Run("UpdateQuotaRulesOnOntap_Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		externalQuotaUUID := "quota-uuid-123"
+		node := &models.Node{Name: "test-node"}
+		diskLimitInKibs := int64(2097152) // 2GB in KiB
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		updateResponse := &vsa.JobStatus{
+			State:   vsa.JobRespSuccess,
+			Message: "Quota rule updated successfully",
+		}
+		mockProvider.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(params *vsa.UpdateQuotaRuleParams) bool {
+			return params.ExternalQuotaRuleUUID == externalQuotaUUID && params.DiskLimitInKibs == diskLimitInKibs
+		})).Return(updateResponse, nil)
+
+		err := activity.UpdateQuotaRulesOnOntap(ctx, externalQuotaUUID, node, diskLimitInKibs)
+
+		assert.NoError(t, err)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRulesOnOntap_GetProviderByNodeError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		externalQuotaUUID := "quota-uuid-123"
+		node := &models.Node{Name: "test-node"}
+		diskLimitInKibs := int64(2097152)
+		expectedError := errors.New("failed to create provider")
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return nil, expectedError
+		}
+
+		err := activity.UpdateQuotaRulesOnOntap(ctx, externalQuotaUUID, node, diskLimitInKibs)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to create provider")
+	})
+
+	t.Run("UpdateQuotaRulesOnOntap_UpdateQuotaRuleError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		externalQuotaUUID := "quota-uuid-123"
+		node := &models.Node{Name: "test-node"}
+		diskLimitInKibs := int64(2097152)
+		expectedError := errors.New("failed to update quota rule")
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("UpdateQuotaRule", ctx, mock.Anything).Return(nil, expectedError)
+
+		err := activity.UpdateQuotaRulesOnOntap(ctx, externalQuotaUUID, node, diskLimitInKibs)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to update quota rule")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRulesOnOntap_UpdateQuotaRuleFailure_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		externalQuotaUUID := "quota-uuid-123"
+		node := &models.Node{Name: "test-node"}
+		diskLimitInKibs := int64(2097152)
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		updateResponse := &vsa.JobStatus{
+			State:   vsa.JobRespFailure,
+			Message: "Quota update failed",
+		}
+		mockProvider.On("UpdateQuotaRule", ctx, mock.Anything).Return(updateResponse, nil)
+
+		err := activity.UpdateQuotaRulesOnOntap(ctx, externalQuotaUUID, node, diskLimitInKibs)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Quota update failed")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRulesOnOntap_ZeroDiskLimit_Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		externalQuotaUUID := "quota-uuid-123"
+		node := &models.Node{Name: "test-node"}
+		diskLimitInKibs := int64(0) // Zero disk limit (should still work)
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		updateResponse := &vsa.JobStatus{
+			State:   vsa.JobRespSuccess,
+			Message: "Quota rule updated successfully",
+		}
+		mockProvider.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(params *vsa.UpdateQuotaRuleParams) bool {
+			return params.ExternalQuotaRuleUUID == externalQuotaUUID && params.DiskLimitInKibs == diskLimitInKibs
+		})).Return(updateResponse, nil)
+
+		err := activity.UpdateQuotaRulesOnOntap(ctx, externalQuotaUUID, node, diskLimitInKibs)
+
+		assert.NoError(t, err)
+		mockProvider.AssertExpectations(t)
+	})
+}
+
+// Test_RevertQuotaRulesOnSource tests the RevertQuotaRulesOnSource activity
+// following the pattern from existing activity tests
+func Test_RevertQuotaRulesOnSource(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	t.Run("RevertQuotaRulesOnSource_Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		externalQuotaUUID := "quota-uuid-123"
+		node := &models.Node{Name: "test-node"}
+		originalDiskLimitInKib := int64(1048576) // 1GB in KiB (original value)
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		updateResponse := &vsa.JobStatus{
+			State:   vsa.JobRespSuccess,
+			Message: "Quota rule reverted successfully",
+		}
+		mockProvider.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(params *vsa.UpdateQuotaRuleParams) bool {
+			return params.ExternalQuotaRuleUUID == externalQuotaUUID && params.DiskLimitInKibs == originalDiskLimitInKib
+		})).Return(updateResponse, nil)
+
+		err := activity.RevertQuotaRulesOnSource(ctx, externalQuotaUUID, node, originalDiskLimitInKib)
+
+		assert.NoError(t, err)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("RevertQuotaRulesOnSource_GetProviderByNodeError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		externalQuotaUUID := "quota-uuid-123"
+		node := &models.Node{Name: "test-node"}
+		originalDiskLimitInKib := int64(1048576)
+		expectedError := errors.New("failed to create provider")
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return nil, expectedError
+		}
+
+		err := activity.RevertQuotaRulesOnSource(ctx, externalQuotaUUID, node, originalDiskLimitInKib)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to create provider")
+	})
+
+	t.Run("RevertQuotaRulesOnSource_UpdateQuotaRuleError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		externalQuotaUUID := "quota-uuid-123"
+		node := &models.Node{Name: "test-node"}
+		originalDiskLimitInKib := int64(1048576)
+		expectedError := errors.New("failed to revert quota rule")
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("UpdateQuotaRule", ctx, mock.Anything).Return(nil, expectedError)
+
+		err := activity.RevertQuotaRulesOnSource(ctx, externalQuotaUUID, node, originalDiskLimitInKib)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to revert quota rule")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("RevertQuotaRulesOnSource_UpdateQuotaRuleFailure_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		externalQuotaUUID := "quota-uuid-123"
+		node := &models.Node{Name: "test-node"}
+		originalDiskLimitInKib := int64(1048576)
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		updateResponse := &vsa.JobStatus{
+			State:   vsa.JobRespFailure,
+			Message: "Failed to revert quota rule",
+		}
+		mockProvider.On("UpdateQuotaRule", ctx, mock.Anything).Return(updateResponse, nil)
+
+		err := activity.RevertQuotaRulesOnSource(ctx, externalQuotaUUID, node, originalDiskLimitInKib)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Failed to revert quota rule")
+		mockProvider.AssertExpectations(t)
+	})
+}
+
+// Test_GetMatchingQuotaRuleOnDestination tests the GetMatchingQuotaRuleOnDestination activity
+// following the pattern from existing activity tests
+func Test_GetMatchingQuotaRuleOnDestination(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	t.Run("GetMatchingQuotaRuleOnDestination_Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		quotaRuleName := "test-quota-rule"
+		expectedQuotaRuleId := "destination-quota-id-123"
+
+		// Mock getBasePathForQuotaRule (via ParseRegionAndZone and InternalUtilGetPairedRegionURI)
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		// Mock auth.GetSignedJwtToken
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		// Mock Google Proxy client
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock successful response with matching quota rule
+		expectedResponse := &googleproxyclient.V1betaListAllQuotaRulesOK{
+			QuotaRules: []googleproxyclient.QuotaRulesV1beta{
+				{
+					ResourceId: quotaRuleName,
+					QuotaId:    googleproxyclient.NewOptString(expectedQuotaRuleId),
+				},
+			},
+		}
+
+		mockInvoker.On("V1betaListAllQuotaRules", ctx, mock.Anything).Return(expectedResponse, nil)
+
+		result, err := activity.GetMatchingQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationRegion, projectNumber, quotaRuleName, &jwtToken)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, expectedQuotaRuleId, *result)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("GetMatchingQuotaRuleOnDestination_GetBasePathError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationRegion := "invalid-region"
+		projectNumber := "123456789"
+		quotaRuleName := "test-quota-rule"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "", "", errors.New("failed to parse region")
+		}
+
+		jwtToken := "test-jwt-token"
+		result, err := activity.GetMatchingQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationRegion, projectNumber, quotaRuleName, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to get destination base path")
+	})
+
+	t.Run("GetMatchingQuotaRuleOnDestination_EmptyJWTTokenError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		quotaRuleName := "test-quota-rule"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		// Test with empty JWT token
+		emptyJwtToken := ""
+		result, err := activity.GetMatchingQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationRegion, projectNumber, quotaRuleName, &emptyJwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "JWT token is required")
+	})
+
+	t.Run("GetMatchingQuotaRuleOnDestination_NilJWTTokenError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		quotaRuleName := "test-quota-rule"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		// Test with nil JWT token
+		result, err := activity.GetMatchingQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationRegion, projectNumber, quotaRuleName, nil)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "JWT token is required")
+	})
+
+	t.Run("GetMatchingQuotaRuleOnDestination_APIError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		quotaRuleName := "test-quota-rule"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		expectedError := errors.New("API call failed")
+		mockInvoker.On("V1betaListAllQuotaRules", ctx, mock.Anything).Return(nil, expectedError)
+
+		result, err := activity.GetMatchingQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationRegion, projectNumber, quotaRuleName, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to list quota rules on destination")
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("GetMatchingQuotaRuleOnDestination_NoMatchingQuotaRule_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		quotaRuleName := "non-existent-quota-rule"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Response with different quota rule name
+		response := &googleproxyclient.V1betaListAllQuotaRulesOK{
+			QuotaRules: []googleproxyclient.QuotaRulesV1beta{
+				{
+					ResourceId: "different-quota-rule",
+					QuotaId:    googleproxyclient.NewOptString("different-quota-id"),
+				},
+			},
+		}
+		mockInvoker.On("V1betaListAllQuotaRules", ctx, mock.Anything).Return(response, nil)
+
+		result, err := activity.GetMatchingQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationRegion, projectNumber, quotaRuleName, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "Quota rule")
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("GetMatchingQuotaRuleOnDestination_QuotaRuleWithoutQuotaId_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		quotaRuleName := "test-quota-rule"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Response with matching quota rule but no QuotaId
+		response := &googleproxyclient.V1betaListAllQuotaRulesOK{
+			QuotaRules: []googleproxyclient.QuotaRulesV1beta{
+				{
+					ResourceId: quotaRuleName,
+					QuotaId:    googleproxyclient.OptString{}, // Empty QuotaId
+				},
+			},
+		}
+		mockInvoker.On("V1betaListAllQuotaRules", ctx, mock.Anything).Return(response, nil)
+
+		result, err := activity.GetMatchingQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationRegion, projectNumber, quotaRuleName, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "Quota rule")
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("GetMatchingQuotaRuleOnDestination_BadRequest_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		quotaRuleName := "test-quota-rule"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		badRequestResponse := &googleproxyclient.V1betaListAllQuotaRulesBadRequest{
+			Message: "Invalid request",
+		}
+		mockInvoker.On("V1betaListAllQuotaRules", ctx, mock.Anything).Return(badRequestResponse, nil)
+
+		result, err := activity.GetMatchingQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationRegion, projectNumber, quotaRuleName, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("GetMatchingQuotaRuleOnDestination_NotFound_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		quotaRuleName := "test-quota-rule"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		notFoundResponse := &googleproxyclient.V1betaListAllQuotaRulesNotFound{
+			Message: "Volume not found",
+		}
+		mockInvoker.On("V1betaListAllQuotaRules", ctx, mock.Anything).Return(notFoundResponse, nil)
+
+		result, err := activity.GetMatchingQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationRegion, projectNumber, quotaRuleName, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("GetMatchingQuotaRuleOnDestination_EmptyQuotaRulesList_Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		quotaRuleName := "test-quota-rule"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Response with empty quota rules list
+		response := &googleproxyclient.V1betaListAllQuotaRulesOK{
+			QuotaRules: []googleproxyclient.QuotaRulesV1beta{},
+		}
+		mockInvoker.On("V1betaListAllQuotaRules", ctx, mock.Anything).Return(response, nil)
+
+		result, err := activity.GetMatchingQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationRegion, projectNumber, quotaRuleName, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "Quota rule")
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("GetMatchingQuotaRuleOnDestination_Unauthorized_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		quotaRuleName := "test-quota-rule"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		unauthorizedResponse := &googleproxyclient.V1betaListAllQuotaRulesUnauthorized{
+			Message: "Unauthorized",
+		}
+		mockInvoker.On("V1betaListAllQuotaRules", ctx, mock.Anything).Return(unauthorizedResponse, nil)
+
+		result, err := activity.GetMatchingQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationRegion, projectNumber, quotaRuleName, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("GetMatchingQuotaRuleOnDestination_Forbidden_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		quotaRuleName := "test-quota-rule"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		forbiddenResponse := &googleproxyclient.V1betaListAllQuotaRulesForbidden{
+			Message: "Forbidden",
+		}
+		mockInvoker.On("V1betaListAllQuotaRules", ctx, mock.Anything).Return(forbiddenResponse, nil)
+
+		result, err := activity.GetMatchingQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationRegion, projectNumber, quotaRuleName, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("GetMatchingQuotaRuleOnDestination_Conflict_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		quotaRuleName := "test-quota-rule"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		conflictResponse := &googleproxyclient.V1betaListAllQuotaRulesConflict{
+			Message: "Conflict",
+		}
+		mockInvoker.On("V1betaListAllQuotaRules", ctx, mock.Anything).Return(conflictResponse, nil)
+
+		result, err := activity.GetMatchingQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationRegion, projectNumber, quotaRuleName, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("GetMatchingQuotaRuleOnDestination_UnprocessableEntity_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		quotaRuleName := "test-quota-rule"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		unprocessableEntityResponse := &googleproxyclient.V1betaListAllQuotaRulesUnprocessableEntity{
+			Message: "Unprocessable Entity",
+		}
+		mockInvoker.On("V1betaListAllQuotaRules", ctx, mock.Anything).Return(unprocessableEntityResponse, nil)
+
+		result, err := activity.GetMatchingQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationRegion, projectNumber, quotaRuleName, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("GetMatchingQuotaRuleOnDestination_TooManyRequests_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		quotaRuleName := "test-quota-rule"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		tooManyRequestsResponse := &googleproxyclient.V1betaListAllQuotaRulesTooManyRequests{
+			Message: "Too Many Requests",
+		}
+		mockInvoker.On("V1betaListAllQuotaRules", ctx, mock.Anything).Return(tooManyRequestsResponse, nil)
+
+		result, err := activity.GetMatchingQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationRegion, projectNumber, quotaRuleName, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("GetMatchingQuotaRuleOnDestination_InternalServerError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		quotaRuleName := "test-quota-rule"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		internalServerErrorResponse := &googleproxyclient.V1betaListAllQuotaRulesInternalServerError{
+			Message: "Internal Server Error",
+		}
+		mockInvoker.On("V1betaListAllQuotaRules", ctx, mock.Anything).Return(internalServerErrorResponse, nil)
+
+		result, err := activity.GetMatchingQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationRegion, projectNumber, quotaRuleName, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("GetMatchingQuotaRuleOnDestination_UnexpectedResponseType_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		quotaRuleName := "test-quota-rule"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Return an error to simulate unexpected response handling
+		mockInvoker.On("V1betaListAllQuotaRules", ctx, mock.Anything).Return(nil, errors.New("unexpected response type error"))
+
+		result, err := activity.GetMatchingQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationRegion, projectNumber, quotaRuleName, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "unexpected response type error")
+		mockInvoker.AssertExpectations(t)
+	})
+}
+
+// Test_UpdateQuotaRuleOnDestination tests the UpdateQuotaRuleOnDestination activity
+// following the pattern from existing activity tests
+func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	t.Run("UpdateQuotaRuleOnDestination_Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152) // 2GB in KiB
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		// Mock getBasePathForQuotaRule
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		// Mock auth.GetSignedJwtToken
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		// Mock Google Proxy client
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock successful response with READY state (synchronous completion)
+		expectedResponse := &googleproxyclient.QuotaRulesVCPV1beta{
+			QuotaId:    googleproxyclient.NewOptString(destinationQuotaRuleId),
+			ResourceId: "test-quota-rule",
+			State:      googleproxyclient.NewOptQuotaRulesVCPV1betaState(googleproxyclient.QuotaRulesVCPV1betaStateREADY),
+		}
+
+		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(expectedResponse, nil)
+
+		result, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.IsDone)
+		assert.Empty(t, result.OperationName)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_UpdatingStateWithJobId_ReturnsJobIdForPolling", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock response with UPDATING state and Jobs array containing JobId
+		jobID := "job-uuid-789"
+		expectedResponse := &googleproxyclient.QuotaRulesVCPV1beta{
+			QuotaId:    googleproxyclient.NewOptString(destinationQuotaRuleId),
+			ResourceId: "test-quota-rule",
+			State:      googleproxyclient.NewOptQuotaRulesVCPV1betaState(googleproxyclient.QuotaRulesVCPV1betaStateUPDATING),
+			Jobs: []googleproxyclient.JobV1beta{
+				{
+					JobId: googleproxyclient.NewOptString(jobID),
+				},
+			},
+		}
+
+		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(expectedResponse, nil)
+
+		result, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, result.IsDone)
+		assert.Equal(t, jobID, result.OperationName)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_UpdatingStateWithoutJobId_ReturnsSuccess", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock response with UPDATING state but no Jobs array (edge case - assume success)
+		expectedResponse := &googleproxyclient.QuotaRulesVCPV1beta{
+			QuotaId:    googleproxyclient.NewOptString(destinationQuotaRuleId),
+			ResourceId: "test-quota-rule",
+			State:      googleproxyclient.NewOptQuotaRulesVCPV1betaState(googleproxyclient.QuotaRulesVCPV1betaStateUPDATING),
+			Jobs:       []googleproxyclient.JobV1beta{}, // Empty Jobs array
+		}
+
+		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(expectedResponse, nil)
+
+		result, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.IsDone) // Assume success when no JobId available
+		assert.Empty(t, result.OperationName)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_GetBasePathError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152)
+		destinationRegion := "invalid-region"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "", "", errors.New("failed to parse region")
+		}
+
+		jwtToken := "test-jwt-token"
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get destination base path")
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_EmptyJWTTokenError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		// Test with empty JWT token
+		emptyJwtToken := ""
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &emptyJwtToken)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "JWT token is required")
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_NilJWTTokenError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		// Test with nil JWT token
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, nil)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "JWT token is required")
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_APIError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		expectedError := errors.New("API call failed")
+		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(nil, expectedError)
+
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to update quota rule on destination")
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_BadRequest_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		badRequestResponse := &googleproxyclient.V1betaUpdateQuotaRuleVCPBadRequest{
+			Message: "Invalid request",
+		}
+		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(badRequestResponse, nil)
+
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+
+		assert.Error(t, err)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_NotFound_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		notFoundResponse := &googleproxyclient.V1betaUpdateQuotaRuleVCPNotFound{
+			Message: "Quota rule not found",
+		}
+		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(notFoundResponse, nil)
+
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+
+		assert.Error(t, err)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_Conflict_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		conflictResponse := &googleproxyclient.V1betaUpdateQuotaRuleVCPConflict{
+			Message: "Quota rule is in transition state",
+		}
+		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(conflictResponse, nil)
+
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+
+		assert.Error(t, err)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_OperationResponse_Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Operation response (async operation)
+		operationResponse := &googleproxyclient.OperationV1beta{
+			Name: googleproxyclient.NewOptString("/v1beta/projects/123456789/locations/us-east1/operations/op-123"),
+		}
+		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(operationResponse, nil)
+
+		result, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, result.IsDone)
+		assert.Equal(t, "/v1beta/projects/123456789/locations/us-east1/operations/op-123", result.OperationName)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_ZeroDiskLimit_Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(0) // Zero disk limit (only description update)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		expectedResponse := &googleproxyclient.QuotaRulesVCPV1beta{
+			QuotaId:    googleproxyclient.NewOptString(destinationQuotaRuleId),
+			ResourceId: "test-quota-rule",
+			State:      googleproxyclient.NewOptQuotaRulesVCPV1betaState(googleproxyclient.QuotaRulesVCPV1betaStateUPDATING),
+		}
+
+		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(expectedResponse, nil)
+
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+
+		assert.NoError(t, err)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_UnexpectedResponseType_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Return an unexpected response type
+		unexpectedResponse := &googleproxyclient.V1betaUpdateQuotaRuleVCPInternalServerError{
+			Message: "Internal server error",
+		}
+		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(unexpectedResponse, nil)
+
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+
+		assert.Error(t, err)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_Unauthorized_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		unauthorizedResponse := &googleproxyclient.V1betaUpdateQuotaRuleVCPUnauthorized{
+			Message: "Unauthorized",
+		}
+		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(unauthorizedResponse, nil)
+
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+
+		assert.Error(t, err)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_Forbidden_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		forbiddenResponse := &googleproxyclient.V1betaUpdateQuotaRuleVCPForbidden{
+			Message: "Forbidden",
+		}
+		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(forbiddenResponse, nil)
+
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+
+		assert.Error(t, err)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_MethodNotAllowed_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		methodNotAllowedResponse := &googleproxyclient.V1betaUpdateQuotaRuleVCPMethodNotAllowed{
+			Message: "Method Not Allowed",
+		}
+		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(methodNotAllowedResponse, nil)
+
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+
+		assert.Error(t, err)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_RequestTimeout_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		requestTimeoutResponse := &googleproxyclient.V1betaUpdateQuotaRuleVCPRequestTimeout{
+			Message: "Request Timeout",
+		}
+		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(requestTimeoutResponse, nil)
+
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+
+		assert.Error(t, err)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_UnprocessableEntity_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		unprocessableEntityResponse := &googleproxyclient.V1betaUpdateQuotaRuleVCPUnprocessableEntity{
+			Message: "Unprocessable Entity",
+		}
+		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(unprocessableEntityResponse, nil)
+
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+
+		assert.Error(t, err)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_TooManyRequests_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		tooManyRequestsResponse := &googleproxyclient.V1betaUpdateQuotaRuleVCPTooManyRequests{
+			Message: "Too Many Requests",
+		}
+		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(tooManyRequestsResponse, nil)
+
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+
+		assert.Error(t, err)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_ServiceUnavailable_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(2097152)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		serviceUnavailableResponse := &googleproxyclient.V1betaUpdateQuotaRuleVCPServiceUnavailable{
+			Message: "Service Unavailable",
+		}
+		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(serviceUnavailableResponse, nil)
+
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
 
 		assert.Error(t, err)
 		mockInvoker.AssertExpectations(t)

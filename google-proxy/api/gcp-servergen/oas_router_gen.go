@@ -881,7 +881,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											}
 
 											if len(elem) == 0 {
-												// Leaf node.
 												switch r.Method {
 												case "POST":
 													s.handleV1betaCreateQuotaRuleVCPRequest([3]string{
@@ -894,6 +893,56 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												}
 
 												return
+											}
+											switch elem[0] {
+											case 's': // Prefix: "s/"
+
+												if l := len("s/"); len(elem) >= l && elem[0:l] == "s/" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												// Param: "quotaRuleId"
+												// Leaf parameter, slashes are prohibited
+												idx := strings.IndexByte(elem, '/')
+												if idx >= 0 {
+													break
+												}
+												args[3] = elem
+												elem = ""
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch r.Method {
+													case "DELETE":
+														s.handleV1betaDeleteQuotaRuleVCPRequest([4]string{
+															args[0],
+															args[1],
+															args[2],
+															args[3],
+														}, elemIsEscaped, w, r)
+													case "GET":
+														s.handleV1betaDescribeQuotaRuleVCPRequest([4]string{
+															args[0],
+															args[1],
+															args[2],
+															args[3],
+														}, elemIsEscaped, w, r)
+													case "PUT":
+														s.handleV1betaUpdateQuotaRuleVCPRequest([4]string{
+															args[0],
+															args[1],
+															args[2],
+															args[3],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "DELETE,GET,PUT")
+													}
+
+													return
+												}
+
 											}
 
 										case 's': // Prefix: "snapmirrorSnapshots"
@@ -2178,6 +2227,30 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												break
 											}
 											switch elem[0] {
+											case 'Q': // Prefix: "QuotaRules"
+
+												if l := len("QuotaRules"); len(elem) >= l && elem[0:l] == "QuotaRules" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch r.Method {
+													case "POST":
+														s.handleV1betaGetMultipleQuotaRulesRequest([3]string{
+															args[0],
+															args[1],
+															args[2],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "POST")
+													}
+
+													return
+												}
+
 											case 'R': // Prefix: "Replications"
 
 												if l := len("Replications"); len(elem) >= l && elem[0:l] == "Replications" {
@@ -2237,8 +2310,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											}
 
 											if len(elem) == 0 {
-												// Leaf node.
 												switch r.Method {
+												case "GET":
+													s.handleV1betaListAllQuotaRulesRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
 												case "POST":
 													s.handleV1betaCreateQuotaRuleRequest([3]string{
 														args[0],
@@ -2246,10 +2324,60 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 														args[2],
 													}, elemIsEscaped, w, r)
 												default:
-													s.notAllowed(w, r, "POST")
+													s.notAllowed(w, r, "GET,POST")
 												}
 
 												return
+											}
+											switch elem[0] {
+											case '/': // Prefix: "/"
+
+												if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												// Param: "quotaRuleId"
+												// Leaf parameter, slashes are prohibited
+												idx := strings.IndexByte(elem, '/')
+												if idx >= 0 {
+													break
+												}
+												args[3] = elem
+												elem = ""
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch r.Method {
+													case "DELETE":
+														s.handleV1betaDeleteQuotaRuleRequest([4]string{
+															args[0],
+															args[1],
+															args[2],
+															args[3],
+														}, elemIsEscaped, w, r)
+													case "GET":
+														s.handleV1betaDescribeQuotaRuleRequest([4]string{
+															args[0],
+															args[1],
+															args[2],
+															args[3],
+														}, elemIsEscaped, w, r)
+													case "PUT":
+														s.handleV1betaUpdateQuotaRuleRequest([4]string{
+															args[0],
+															args[1],
+															args[2],
+															args[3],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "DELETE,GET,PUT")
+													}
+
+													return
+												}
+
 											}
 
 										case 'r': // Prefix: "re"
@@ -3554,7 +3682,6 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											}
 
 											if len(elem) == 0 {
-												// Leaf node.
 												switch method {
 												case "POST":
 													r.name = V1betaCreateQuotaRuleVCPOperation
@@ -3567,6 +3694,57 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 												default:
 													return
 												}
+											}
+											switch elem[0] {
+											case 's': // Prefix: "s/"
+
+												if l := len("s/"); len(elem) >= l && elem[0:l] == "s/" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												// Param: "quotaRuleId"
+												// Leaf parameter, slashes are prohibited
+												idx := strings.IndexByte(elem, '/')
+												if idx >= 0 {
+													break
+												}
+												args[3] = elem
+												elem = ""
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch method {
+													case "DELETE":
+														r.name = V1betaDeleteQuotaRuleVCPOperation
+														r.summary = "Delete a quota rule for a volume (Internal VCP API)"
+														r.operationID = "v1beta_deleteQuotaRuleVCP"
+														r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}"
+														r.args = args
+														r.count = 4
+														return r, true
+													case "GET":
+														r.name = V1betaDescribeQuotaRuleVCPOperation
+														r.summary = "Describe a quota rule for a volume (Internal VCP API)"
+														r.operationID = "v1beta_describeQuotaRuleVCP"
+														r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}"
+														r.args = args
+														r.count = 4
+														return r, true
+													case "PUT":
+														r.name = V1betaUpdateQuotaRuleVCPOperation
+														r.summary = "Update a quota rule for a volume (Internal VCP API)"
+														r.operationID = "v1beta_updateQuotaRuleVCP"
+														r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}"
+														r.args = args
+														r.count = 4
+														return r, true
+													default:
+														return
+													}
+												}
+
 											}
 
 										case 's': // Prefix: "snapmirrorSnapshots"
@@ -4921,6 +5099,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 												break
 											}
 											switch elem[0] {
+											case 'Q': // Prefix: "QuotaRules"
+
+												if l := len("QuotaRules"); len(elem) >= l && elem[0:l] == "QuotaRules" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch method {
+													case "POST":
+														r.name = V1betaGetMultipleQuotaRulesOperation
+														r.summary = "List specified quota rules"
+														r.operationID = "v1beta_getMultipleQuotaRules"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules"
+														r.args = args
+														r.count = 3
+														return r, true
+													default:
+														return
+													}
+												}
+
 											case 'R': // Prefix: "Replications"
 
 												if l := len("Replications"); len(elem) >= l && elem[0:l] == "Replications" {
@@ -4980,8 +5182,15 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											}
 
 											if len(elem) == 0 {
-												// Leaf node.
 												switch method {
+												case "GET":
+													r.name = V1betaListAllQuotaRulesOperation
+													r.summary = "Lists all quota rules for a volume"
+													r.operationID = "v1beta_listAllQuotaRules"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules"
+													r.args = args
+													r.count = 3
+													return r, true
 												case "POST":
 													r.name = V1betaCreateQuotaRuleOperation
 													r.summary = "Create a quota rule for a volume"
@@ -4993,6 +5202,57 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 												default:
 													return
 												}
+											}
+											switch elem[0] {
+											case '/': // Prefix: "/"
+
+												if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												// Param: "quotaRuleId"
+												// Leaf parameter, slashes are prohibited
+												idx := strings.IndexByte(elem, '/')
+												if idx >= 0 {
+													break
+												}
+												args[3] = elem
+												elem = ""
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch method {
+													case "DELETE":
+														r.name = V1betaDeleteQuotaRuleOperation
+														r.summary = "Delete a quota rule for a volume"
+														r.operationID = "v1beta_deleteQuotaRule"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}"
+														r.args = args
+														r.count = 4
+														return r, true
+													case "GET":
+														r.name = V1betaDescribeQuotaRuleOperation
+														r.summary = "Describe a quota rule for a volume"
+														r.operationID = "v1beta_describeQuotaRule"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}"
+														r.args = args
+														r.count = 4
+														return r, true
+													case "PUT":
+														r.name = V1betaUpdateQuotaRuleOperation
+														r.summary = "Update a quota rule for a volume"
+														r.operationID = "v1beta_updateQuotaRule"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}"
+														r.args = args
+														r.count = 4
+														return r, true
+													default:
+														return
+													}
+												}
+
 											}
 
 										case 'r': // Prefix: "re"

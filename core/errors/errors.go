@@ -320,6 +320,15 @@ const (
 	ErrCreateInternalQuotaRule                     = 12003
 	ErrSFRFilesMissing                             = 12004
 	ErrNoSFRFilesFound                             = 12005
+
+	ErrMatchingQuotaRuleNotFoundOnDestination = 12006
+	ErrQuotaRuleNotFound                      = 12007
+	ErrQuotaRuleBadRequest                    = 12008
+	ErrQuotaRuleUnauthorized                  = 12009
+	ErrQuotaRuleForbidden                     = 12010
+	ErrQuotaRuleConflict                      = 12011
+	ErrQuotaRuleTooManyRequests               = 12012
+	ErrQuotaRuleInternalServerError           = 12013
 )
 
 // ErrorMessage struct represents the structure of each error message in the JSON file.

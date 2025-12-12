@@ -232,6 +232,34 @@ type V1betaDeletePoolParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaDeleteQuotaRuleParams is parameters of v1beta_deleteQuotaRule operation.
+type V1betaDeleteQuotaRuleParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
+	// UUID v4 used to identify the quota rule.
+	QuotaRuleId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+// V1betaDeleteQuotaRuleVCPParams is parameters of v1beta_deleteQuotaRuleVCP operation.
+type V1betaDeleteQuotaRuleVCPParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
+	// UUID v4 used to identify the quota rule.
+	QuotaRuleId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaDeleteReplicationParams is parameters of v1beta_deleteReplication operation.
 type V1betaDeleteReplicationParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -370,6 +398,34 @@ type V1betaDescribePoolParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+// V1betaDescribeQuotaRuleParams is parameters of v1beta_describeQuotaRule operation.
+type V1betaDescribeQuotaRuleParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
+	// UUID v4 used to identify the quota rule.
+	QuotaRuleId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+// V1betaDescribeQuotaRuleVCPParams is parameters of v1beta_describeQuotaRuleVCP operation.
+type V1betaDescribeQuotaRuleVCPParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
+	// UUID v4 used to identify the quota rule.
+	QuotaRuleId string
 	// Correlation identifier.
 	XCorrelationID OptString
 }
@@ -516,6 +572,18 @@ type V1betaGetMultiplePoolsParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+// V1betaGetMultipleQuotaRulesParams is parameters of v1beta_getMultipleQuotaRules operation.
+type V1betaGetMultipleQuotaRulesParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
 	// Correlation identifier.
 	XCorrelationID OptString
 }
@@ -929,6 +997,18 @@ type V1betaListActiveDirectoriesParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaListAllQuotaRulesParams is parameters of v1beta_listAllQuotaRules operation.
+type V1betaListAllQuotaRulesParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaListBackupPoliciesParams is parameters of v1beta_listBackupPolicies operation.
 type V1betaListBackupPoliciesParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -1246,6 +1326,34 @@ type V1betaUpdatePoolParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+// V1betaUpdateQuotaRuleParams is parameters of v1beta_updateQuotaRule operation.
+type V1betaUpdateQuotaRuleParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
+	// UUID v4 used to identify the quota rule.
+	QuotaRuleId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+// V1betaUpdateQuotaRuleVCPParams is parameters of v1beta_updateQuotaRuleVCP operation.
+type V1betaUpdateQuotaRuleVCPParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
+	// UUID v4 used to identify the quota rule.
+	QuotaRuleId string
 	// Correlation identifier.
 	XCorrelationID OptString
 }

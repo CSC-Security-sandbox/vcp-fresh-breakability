@@ -142,6 +142,20 @@ type Handler interface {
 	//
 	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 	V1betaDeletePool(ctx context.Context, params V1betaDeletePoolParams) (V1betaDeletePoolRes, error)
+	// V1betaDeleteQuotaRule implements v1beta_deleteQuotaRule operation.
+	//
+	// This operation will delete the quota rule.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+	V1betaDeleteQuotaRule(ctx context.Context, params V1betaDeleteQuotaRuleParams) (V1betaDeleteQuotaRuleRes, error)
+	// V1betaDeleteQuotaRuleVCP implements v1beta_deleteQuotaRuleVCP operation.
+	//
+	// Warning! This operation will permanently delete the quota rule. This is an internal endpoint for
+	// VCP-to-VCP communication. This operation will never return resource not found, since that could be
+	// interpreted as resource already deleted, and therefore will return operation done instead.
+	//
+	// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+	V1betaDeleteQuotaRuleVCP(ctx context.Context, params V1betaDeleteQuotaRuleVCPParams) (V1betaDeleteQuotaRuleVCPRes, error)
 	// V1betaDeleteReplication implements v1beta_deleteReplication operation.
 	//
 	// Delete replication.
@@ -212,6 +226,18 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 	V1betaDescribePool(ctx context.Context, params V1betaDescribePoolParams) (V1betaDescribePoolRes, error)
+	// V1betaDescribeQuotaRule implements v1beta_describeQuotaRule operation.
+	//
+	// Returns the description of the specified quota rule by quota rule Id.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+	V1betaDescribeQuotaRule(ctx context.Context, params V1betaDescribeQuotaRuleParams) (V1betaDescribeQuotaRuleRes, error)
+	// V1betaDescribeQuotaRuleVCP implements v1beta_describeQuotaRuleVCP operation.
+	//
+	// Returns the description of the specified quota rule by quota rule Id.
+	//
+	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+	V1betaDescribeQuotaRuleVCP(ctx context.Context, params V1betaDescribeQuotaRuleVCPParams) (V1betaDescribeQuotaRuleVCPRes, error)
 	// V1betaDescribeSnapshot implements v1beta_describeSnapshot operation.
 	//
 	// Get descriptions of the requested snapshot.
@@ -290,6 +316,12 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools
 	V1betaGetMultiplePools(ctx context.Context, req *PoolIdListV1beta, params V1betaGetMultiplePoolsParams) (V1betaGetMultiplePoolsRes, error)
+	// V1betaGetMultipleQuotaRules implements v1beta_getMultipleQuotaRules operation.
+	//
+	// Returns descriptions of quota rules that are listed in request body and belong to specified volume.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules
+	V1betaGetMultipleQuotaRules(ctx context.Context, req *QuotaRuleIdListV1beta, params V1betaGetMultipleQuotaRulesParams) (V1betaGetMultipleQuotaRulesRes, error)
 	// V1betaGetMultipleReplications implements v1beta_getMultipleReplications operation.
 	//
 	// Returns selected replication objects.
@@ -508,6 +540,12 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory
 	V1betaListActiveDirectories(ctx context.Context, params V1betaListActiveDirectoriesParams) (V1betaListActiveDirectoriesRes, error)
+	// V1betaListAllQuotaRules implements v1beta_listAllQuotaRules operation.
+	//
+	// Lists all quota rules for the specified volume.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules
+	V1betaListAllQuotaRules(ctx context.Context, params V1betaListAllQuotaRulesParams) (V1betaListAllQuotaRulesRes, error)
 	// V1betaListBackupPolicies implements v1beta_listBackupPolicies operation.
 	//
 	// Returns list of all available backup policies.
@@ -664,6 +702,19 @@ type Handler interface {
 	//
 	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 	V1betaUpdatePool(ctx context.Context, req *PoolUpdateV1beta, params V1betaUpdatePoolParams) (V1betaUpdatePoolRes, error)
+	// V1betaUpdateQuotaRule implements v1beta_updateQuotaRule operation.
+	//
+	// Updates an existing quota rule for the specified volume.
+	//
+	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+	V1betaUpdateQuotaRule(ctx context.Context, req *QuotaRulesUpdateV1beta, params V1betaUpdateQuotaRuleParams) (V1betaUpdateQuotaRuleRes, error)
+	// V1betaUpdateQuotaRuleVCP implements v1beta_updateQuotaRuleVCP operation.
+	//
+	// Updates an existing quota rule for the specified volume. Only the disk limit and description can
+	// be modified. This is an internal endpoint for VCP-to-VCP communication.
+	//
+	// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+	V1betaUpdateQuotaRuleVCP(ctx context.Context, req *QuotaRulesUpdateV1beta, params V1betaUpdateQuotaRuleVCPParams) (V1betaUpdateQuotaRuleVCPRes, error)
 	// V1betaUpdateReplication implements v1beta_updateReplication operation.
 	//
 	// Update the replication.

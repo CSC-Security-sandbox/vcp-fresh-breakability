@@ -210,6 +210,26 @@ func (UnimplementedHandler) V1betaDeletePool(ctx context.Context, params V1betaD
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaDeleteQuotaRule implements v1beta_deleteQuotaRule operation.
+//
+// This operation will delete the quota rule.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+func (UnimplementedHandler) V1betaDeleteQuotaRule(ctx context.Context, params V1betaDeleteQuotaRuleParams) (r V1betaDeleteQuotaRuleRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaDeleteQuotaRuleVCP implements v1beta_deleteQuotaRuleVCP operation.
+//
+// Warning! This operation will permanently delete the quota rule. This is an internal endpoint for
+// VCP-to-VCP communication. This operation will never return resource not found, since that could be
+// interpreted as resource already deleted, and therefore will return operation done instead.
+//
+// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+func (UnimplementedHandler) V1betaDeleteQuotaRuleVCP(ctx context.Context, params V1betaDeleteQuotaRuleVCPParams) (r V1betaDeleteQuotaRuleVCPRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaDeleteReplication implements v1beta_deleteReplication operation.
 //
 // Delete replication.
@@ -310,6 +330,24 @@ func (UnimplementedHandler) V1betaDescribeOperation(ctx context.Context, params 
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 func (UnimplementedHandler) V1betaDescribePool(ctx context.Context, params V1betaDescribePoolParams) (r V1betaDescribePoolRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaDescribeQuotaRule implements v1beta_describeQuotaRule operation.
+//
+// Returns the description of the specified quota rule by quota rule Id.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+func (UnimplementedHandler) V1betaDescribeQuotaRule(ctx context.Context, params V1betaDescribeQuotaRuleParams) (r V1betaDescribeQuotaRuleRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaDescribeQuotaRuleVCP implements v1beta_describeQuotaRuleVCP operation.
+//
+// Returns the description of the specified quota rule by quota rule Id.
+//
+// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+func (UnimplementedHandler) V1betaDescribeQuotaRuleVCP(ctx context.Context, params V1betaDescribeQuotaRuleVCPParams) (r V1betaDescribeQuotaRuleVCPRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -427,6 +465,15 @@ func (UnimplementedHandler) V1betaGetMultipleKmsConfigs(ctx context.Context, req
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools
 func (UnimplementedHandler) V1betaGetMultiplePools(ctx context.Context, req *PoolIdListV1beta, params V1betaGetMultiplePoolsParams) (r V1betaGetMultiplePoolsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaGetMultipleQuotaRules implements v1beta_getMultipleQuotaRules operation.
+//
+// Returns descriptions of quota rules that are listed in request body and belong to specified volume.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules
+func (UnimplementedHandler) V1betaGetMultipleQuotaRules(ctx context.Context, req *QuotaRuleIdListV1beta, params V1betaGetMultipleQuotaRulesParams) (r V1betaGetMultipleQuotaRulesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -750,6 +797,15 @@ func (UnimplementedHandler) V1betaListActiveDirectories(ctx context.Context, par
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaListAllQuotaRules implements v1beta_listAllQuotaRules operation.
+//
+// Lists all quota rules for the specified volume.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules
+func (UnimplementedHandler) V1betaListAllQuotaRules(ctx context.Context, params V1betaListAllQuotaRulesParams) (r V1betaListAllQuotaRulesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaListBackupPolicies implements v1beta_listBackupPolicies operation.
 //
 // Returns list of all available backup policies.
@@ -981,6 +1037,25 @@ func (UnimplementedHandler) V1betaUpdateKmsConfiguration(ctx context.Context, re
 //
 // PUT /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 func (UnimplementedHandler) V1betaUpdatePool(ctx context.Context, req *PoolUpdateV1beta, params V1betaUpdatePoolParams) (r V1betaUpdatePoolRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaUpdateQuotaRule implements v1beta_updateQuotaRule operation.
+//
+// Updates an existing quota rule for the specified volume.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+func (UnimplementedHandler) V1betaUpdateQuotaRule(ctx context.Context, req *QuotaRulesUpdateV1beta, params V1betaUpdateQuotaRuleParams) (r V1betaUpdateQuotaRuleRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaUpdateQuotaRuleVCP implements v1beta_updateQuotaRuleVCP operation.
+//
+// Updates an existing quota rule for the specified volume. Only the disk limit and description can
+// be modified. This is an internal endpoint for VCP-to-VCP communication.
+//
+// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+func (UnimplementedHandler) V1betaUpdateQuotaRuleVCP(ctx context.Context, req *QuotaRulesUpdateV1beta, params V1betaUpdateQuotaRuleVCPParams) (r V1betaUpdateQuotaRuleVCPRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

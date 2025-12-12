@@ -260,8 +260,6 @@ func (rc *OntapRestProvider) UpdateQuotaRule(ctx context.Context, params *Update
 		return nil, err
 	}
 
-	// Return response per spec (lines 196-200)
-	// JobStatus with Code, State, and Message using nillable.FromPointer
 	jobStatus := &JobStatus{
 		Code:    nillable.FromPointer(jobResp.Payload.Code),
 		State:   nillable.FromPointer(jobResp.Payload.State),

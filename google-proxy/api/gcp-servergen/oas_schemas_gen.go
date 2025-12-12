@@ -3923,6 +3923,8 @@ func (*ErrorStatusCode) v1betaDeleteBackupVaultRes()                         {}
 func (*ErrorStatusCode) v1betaDeleteHostGroupRes()                           {}
 func (*ErrorStatusCode) v1betaDeleteKmsConfigurationRes()                    {}
 func (*ErrorStatusCode) v1betaDeletePoolRes()                                {}
+func (*ErrorStatusCode) v1betaDeleteQuotaRuleRes()                           {}
+func (*ErrorStatusCode) v1betaDeleteQuotaRuleVCPRes()                        {}
 func (*ErrorStatusCode) v1betaDeleteReplicationRes()                         {}
 func (*ErrorStatusCode) v1betaDeleteSnapshotRes()                            {}
 func (*ErrorStatusCode) v1betaDeleteVolumeRes()                              {}
@@ -3934,6 +3936,8 @@ func (*ErrorStatusCode) v1betaDescribeHostGroupRes()                         {}
 func (*ErrorStatusCode) v1betaDescribeKmsConfigurationRes()                  {}
 func (*ErrorStatusCode) v1betaDescribeOperationRes()                         {}
 func (*ErrorStatusCode) v1betaDescribePoolRes()                              {}
+func (*ErrorStatusCode) v1betaDescribeQuotaRuleRes()                         {}
+func (*ErrorStatusCode) v1betaDescribeQuotaRuleVCPRes()                      {}
 func (*ErrorStatusCode) v1betaDescribeSnapshotRes()                          {}
 func (*ErrorStatusCode) v1betaDescribeVolumeRes()                            {}
 func (*ErrorStatusCode) v1betaEncryptVolumesRes()                            {}
@@ -3947,6 +3951,7 @@ func (*ErrorStatusCode) v1betaGetMultipleBackupsRes()                        {}
 func (*ErrorStatusCode) v1betaGetMultipleHostGroupsRes()                     {}
 func (*ErrorStatusCode) v1betaGetMultipleKmsConfigsRes()                     {}
 func (*ErrorStatusCode) v1betaGetMultiplePoolsRes()                          {}
+func (*ErrorStatusCode) v1betaGetMultipleQuotaRulesRes()                     {}
 func (*ErrorStatusCode) v1betaGetMultipleReplicationsInternalRes()           {}
 func (*ErrorStatusCode) v1betaGetMultipleReplicationsRes()                   {}
 func (*ErrorStatusCode) v1betaGetMultipleSnapshotsRes()                      {}
@@ -3980,6 +3985,7 @@ func (*ErrorStatusCode) v1betaInternalUpdateVolumeReplicationAttributesRes() {}
 func (*ErrorStatusCode) v1betaInternalUpdateVolumeReplicationRes()           {}
 func (*ErrorStatusCode) v1betaInternalUpdateVolumeRes()                      {}
 func (*ErrorStatusCode) v1betaListActiveDirectoriesRes()                     {}
+func (*ErrorStatusCode) v1betaListAllQuotaRulesRes()                         {}
 func (*ErrorStatusCode) v1betaListBackupPoliciesRes()                        {}
 func (*ErrorStatusCode) v1betaListBackupVaultsRes()                          {}
 func (*ErrorStatusCode) v1betaListBackupsRes()                               {}
@@ -4006,6 +4012,8 @@ func (*ErrorStatusCode) v1betaUpdateBackupVaultRes()                         {}
 func (*ErrorStatusCode) v1betaUpdateHostGroupRes()                           {}
 func (*ErrorStatusCode) v1betaUpdateKmsConfigurationRes()                    {}
 func (*ErrorStatusCode) v1betaUpdatePoolRes()                                {}
+func (*ErrorStatusCode) v1betaUpdateQuotaRuleRes()                           {}
+func (*ErrorStatusCode) v1betaUpdateQuotaRuleVCPRes()                        {}
 func (*ErrorStatusCode) v1betaUpdateReplicationRes()                         {}
 func (*ErrorStatusCode) v1betaUpdateSnapshotRes()                            {}
 func (*ErrorStatusCode) v1betaUpdateVolumeRes()                              {}
@@ -7939,6 +7947,7 @@ func (*OperationV1beta) v1betaDeleteBackupVaultRes()                         {}
 func (*OperationV1beta) v1betaDeleteHostGroupRes()                           {}
 func (*OperationV1beta) v1betaDeleteKmsConfigurationRes()                    {}
 func (*OperationV1beta) v1betaDeletePoolRes()                                {}
+func (*OperationV1beta) v1betaDeleteQuotaRuleRes()                           {}
 func (*OperationV1beta) v1betaDeleteReplicationRes()                         {}
 func (*OperationV1beta) v1betaDeleteSnapshotRes()                            {}
 func (*OperationV1beta) v1betaDeleteVolumeRes()                              {}
@@ -7970,6 +7979,8 @@ func (*OperationV1beta) v1betaUpdateBackupVaultRes()                         {}
 func (*OperationV1beta) v1betaUpdateHostGroupRes()                           {}
 func (*OperationV1beta) v1betaUpdateKmsConfigurationRes()                    {}
 func (*OperationV1beta) v1betaUpdatePoolRes()                                {}
+func (*OperationV1beta) v1betaUpdateQuotaRuleRes()                           {}
+func (*OperationV1beta) v1betaUpdateQuotaRuleVCPRes()                        {}
 func (*OperationV1beta) v1betaUpdateReplicationRes()                         {}
 func (*OperationV1beta) v1betaUpdateSnapshotRes()                            {}
 func (*OperationV1beta) v1betaUpdateVolumeRes()                              {}
@@ -16205,7 +16216,8 @@ type QuotaRuleCreateV1beta struct {
 	QuotaType QuotaRuleCreateV1betaQuotaType `json:"quotaType"`
 	// Total size limit in mebibytes (MiB) for the user or group.
 	DiskLimitInMib int64 `json:"diskLimitInMib"`
-	// Identifier for the quota target (UID, GID, or SID).
+	// This parameter is required in POST only and can take either one of the UNIX user ID (UID) , UNIX
+	// group ID (GID ) or a Windows security identifier (SID) based on the quota type.
 	QuotaTarget OptString `json:"quotaTarget"`
 	// Current lifecycle state of the quota rule.
 	State OptQuotaRuleCreateV1betaState `json:"state"`
@@ -16217,8 +16229,6 @@ type QuotaRuleCreateV1beta struct {
 	CreatedAt OptDateTime `json:"createdAt"`
 	// Timestamp when the quota rule was last updated.
 	UpdatedAt OptDateTime `json:"updatedAt"`
-	// List of ongoing jobs for the quota rule.
-	Jobs []JobV1beta `json:"jobs"`
 }
 
 // GetQuotaId returns the value of QuotaId.
@@ -16271,11 +16281,6 @@ func (s *QuotaRuleCreateV1beta) GetUpdatedAt() OptDateTime {
 	return s.UpdatedAt
 }
 
-// GetJobs returns the value of Jobs.
-func (s *QuotaRuleCreateV1beta) GetJobs() []JobV1beta {
-	return s.Jobs
-}
-
 // SetQuotaId sets the value of QuotaId.
 func (s *QuotaRuleCreateV1beta) SetQuotaId(val OptString) {
 	s.QuotaId = val
@@ -16324,11 +16329,6 @@ func (s *QuotaRuleCreateV1beta) SetCreatedAt(val OptDateTime) {
 // SetUpdatedAt sets the value of UpdatedAt.
 func (s *QuotaRuleCreateV1beta) SetUpdatedAt(val OptDateTime) {
 	s.UpdatedAt = val
-}
-
-// SetJobs sets the value of Jobs.
-func (s *QuotaRuleCreateV1beta) SetJobs(val []JobV1beta) {
-	s.Jobs = val
 }
 
 // Type of quota rule.
@@ -16457,6 +16457,49 @@ func (s *QuotaRuleCreateV1betaState) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/QuotaRuleIdList_v1beta
+type QuotaRuleIdListV1beta struct {
+	QuotaRuleUuids []string `json:"quotaRuleUuids"`
+}
+
+// GetQuotaRuleUuids returns the value of QuotaRuleUuids.
+func (s *QuotaRuleIdListV1beta) GetQuotaRuleUuids() []string {
+	return s.QuotaRuleUuids
+}
+
+// SetQuotaRuleUuids sets the value of QuotaRuleUuids.
+func (s *QuotaRuleIdListV1beta) SetQuotaRuleUuids(val []string) {
+	s.QuotaRuleUuids = val
+}
+
+// Ref: #/components/schemas/QuotaRulesUpdate_v1beta
+type QuotaRulesUpdateV1beta struct {
+	// Total size limit in mebibytes (MiB) for the user or group.
+	DiskLimitInMib OptInt64 `json:"diskLimitInMib"`
+	// Human-readable description of the quota rule.
+	Description OptString `json:"description"`
+}
+
+// GetDiskLimitInMib returns the value of DiskLimitInMib.
+func (s *QuotaRulesUpdateV1beta) GetDiskLimitInMib() OptInt64 {
+	return s.DiskLimitInMib
+}
+
+// GetDescription returns the value of Description.
+func (s *QuotaRulesUpdateV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// SetDiskLimitInMib sets the value of DiskLimitInMib.
+func (s *QuotaRulesUpdateV1beta) SetDiskLimitInMib(val OptInt64) {
+	s.DiskLimitInMib = val
+}
+
+// SetDescription sets the value of Description.
+func (s *QuotaRulesUpdateV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
 // Quota rule object representing a quota policy for a volume.
 // Ref: #/components/schemas/QuotaRules_v1beta
 type QuotaRulesV1beta struct {
@@ -16468,7 +16511,8 @@ type QuotaRulesV1beta struct {
 	QuotaType QuotaRulesV1betaQuotaType `json:"quotaType"`
 	// Total size limit in mebibytes (MiB) for the user or group.
 	DiskLimitInMib int64 `json:"diskLimitInMib"`
-	// Identifier for the quota target (UID, GID, or SID).
+	// This parameter is required in POST only and can take either one of the UNIX user ID (UID) , UNIX
+	// group ID (GID ) or a Windows security identifier (SID) based on the quota type.
 	QuotaTarget OptString `json:"quotaTarget"`
 	// Current lifecycle state of the quota rule.
 	State OptQuotaRulesV1betaState `json:"state"`
@@ -16480,8 +16524,6 @@ type QuotaRulesV1beta struct {
 	CreatedAt OptDateTime `json:"createdAt"`
 	// Timestamp when the quota rule was last updated.
 	UpdatedAt OptDateTime `json:"updatedAt"`
-	// List of ongoing jobs for the quota rule.
-	Jobs []JobV1beta `json:"jobs"`
 }
 
 // GetQuotaId returns the value of QuotaId.
@@ -16534,11 +16576,6 @@ func (s *QuotaRulesV1beta) GetUpdatedAt() OptDateTime {
 	return s.UpdatedAt
 }
 
-// GetJobs returns the value of Jobs.
-func (s *QuotaRulesV1beta) GetJobs() []JobV1beta {
-	return s.Jobs
-}
-
 // SetQuotaId sets the value of QuotaId.
 func (s *QuotaRulesV1beta) SetQuotaId(val OptString) {
 	s.QuotaId = val
@@ -16589,12 +16626,8 @@ func (s *QuotaRulesV1beta) SetUpdatedAt(val OptDateTime) {
 	s.UpdatedAt = val
 }
 
-// SetJobs sets the value of Jobs.
-func (s *QuotaRulesV1beta) SetJobs(val []JobV1beta) {
-	s.Jobs = val
-}
-
-func (*QuotaRulesV1beta) v1betaCreateQuotaRuleRes() {}
+func (*QuotaRulesV1beta) v1betaCreateQuotaRuleRes()   {}
+func (*QuotaRulesV1beta) v1betaDescribeQuotaRuleRes() {}
 
 // Type of quota rule.
 type QuotaRulesV1betaQuotaType string
@@ -16722,7 +16755,7 @@ func (s *QuotaRulesV1betaState) UnmarshalText(data []byte) error {
 	}
 }
 
-// Quota rule object representing a quota policy for a volume.
+// Merged schema.
 // Ref: #/components/schemas/QuotaRulesVCP_v1beta
 type QuotaRulesVCPV1beta struct {
 	// UUID v4 identifier for the quota rule (system generated).
@@ -16733,7 +16766,8 @@ type QuotaRulesVCPV1beta struct {
 	QuotaType QuotaRulesVCPV1betaQuotaType `json:"quotaType"`
 	// Total size limit in mebibytes (MiB) for the user or group.
 	DiskLimitInMib int64 `json:"diskLimitInMib"`
-	// Identifier for the quota target (UID, GID, or SID).
+	// This parameter is required in POST only and can take either one of the UNIX user ID (UID) , UNIX
+	// group ID (GID ) or a Windows security identifier (SID) based on the quota type.
 	QuotaTarget OptString `json:"quotaTarget"`
 	// Current lifecycle state of the quota rule.
 	State OptQuotaRulesVCPV1betaState `json:"state"`
@@ -16745,7 +16779,7 @@ type QuotaRulesVCPV1beta struct {
 	CreatedAt OptDateTime `json:"createdAt"`
 	// Timestamp when the quota rule was last updated.
 	UpdatedAt OptDateTime `json:"updatedAt"`
-	// List of ongoing jobs for the quota rule.
+	// Jobs currently ongoing for quota rule.
 	Jobs []JobV1beta `json:"jobs"`
 }
 
@@ -16859,7 +16893,10 @@ func (s *QuotaRulesVCPV1beta) SetJobs(val []JobV1beta) {
 	s.Jobs = val
 }
 
-func (*QuotaRulesVCPV1beta) v1betaCreateQuotaRuleVCPRes() {}
+func (*QuotaRulesVCPV1beta) v1betaCreateQuotaRuleVCPRes()   {}
+func (*QuotaRulesVCPV1beta) v1betaDeleteQuotaRuleVCPRes()   {}
+func (*QuotaRulesVCPV1beta) v1betaDescribeQuotaRuleVCPRes() {}
+func (*QuotaRulesVCPV1beta) v1betaUpdateQuotaRuleVCPRes()   {}
 
 // Type of quota rule.
 type QuotaRulesVCPV1betaQuotaType string
@@ -19918,6 +19955,99 @@ type V1betaDeletePoolUnprocessableEntity Error
 
 func (*V1betaDeletePoolUnprocessableEntity) v1betaDeletePoolRes() {}
 
+type V1betaDeleteQuotaRuleBadRequest Error
+
+func (*V1betaDeleteQuotaRuleBadRequest) v1betaDeleteQuotaRuleRes() {}
+
+type V1betaDeleteQuotaRuleConflict Error
+
+func (*V1betaDeleteQuotaRuleConflict) v1betaDeleteQuotaRuleRes() {}
+
+type V1betaDeleteQuotaRuleForbidden Error
+
+func (*V1betaDeleteQuotaRuleForbidden) v1betaDeleteQuotaRuleRes() {}
+
+type V1betaDeleteQuotaRuleInternalServerError Error
+
+func (*V1betaDeleteQuotaRuleInternalServerError) v1betaDeleteQuotaRuleRes() {}
+
+type V1betaDeleteQuotaRuleMethodNotAllowed Error
+
+func (*V1betaDeleteQuotaRuleMethodNotAllowed) v1betaDeleteQuotaRuleRes() {}
+
+// V1betaDeleteQuotaRuleNoContent is response for V1betaDeleteQuotaRule operation.
+type V1betaDeleteQuotaRuleNoContent struct{}
+
+func (*V1betaDeleteQuotaRuleNoContent) v1betaDeleteQuotaRuleRes() {}
+
+type V1betaDeleteQuotaRuleNotFound Error
+
+func (*V1betaDeleteQuotaRuleNotFound) v1betaDeleteQuotaRuleRes() {}
+
+type V1betaDeleteQuotaRuleRequestTimeout Error
+
+func (*V1betaDeleteQuotaRuleRequestTimeout) v1betaDeleteQuotaRuleRes() {}
+
+type V1betaDeleteQuotaRuleServiceUnavailable Error
+
+func (*V1betaDeleteQuotaRuleServiceUnavailable) v1betaDeleteQuotaRuleRes() {}
+
+type V1betaDeleteQuotaRuleTooManyRequests Error
+
+func (*V1betaDeleteQuotaRuleTooManyRequests) v1betaDeleteQuotaRuleRes() {}
+
+type V1betaDeleteQuotaRuleUnauthorized Error
+
+func (*V1betaDeleteQuotaRuleUnauthorized) v1betaDeleteQuotaRuleRes() {}
+
+type V1betaDeleteQuotaRuleUnprocessableEntity Error
+
+func (*V1betaDeleteQuotaRuleUnprocessableEntity) v1betaDeleteQuotaRuleRes() {}
+
+type V1betaDeleteQuotaRuleVCPBadRequest Error
+
+func (*V1betaDeleteQuotaRuleVCPBadRequest) v1betaDeleteQuotaRuleVCPRes() {}
+
+type V1betaDeleteQuotaRuleVCPConflict Error
+
+func (*V1betaDeleteQuotaRuleVCPConflict) v1betaDeleteQuotaRuleVCPRes() {}
+
+type V1betaDeleteQuotaRuleVCPForbidden Error
+
+func (*V1betaDeleteQuotaRuleVCPForbidden) v1betaDeleteQuotaRuleVCPRes() {}
+
+type V1betaDeleteQuotaRuleVCPInternalServerError Error
+
+func (*V1betaDeleteQuotaRuleVCPInternalServerError) v1betaDeleteQuotaRuleVCPRes() {}
+
+type V1betaDeleteQuotaRuleVCPMethodNotAllowed Error
+
+func (*V1betaDeleteQuotaRuleVCPMethodNotAllowed) v1betaDeleteQuotaRuleVCPRes() {}
+
+type V1betaDeleteQuotaRuleVCPNotFound Error
+
+func (*V1betaDeleteQuotaRuleVCPNotFound) v1betaDeleteQuotaRuleVCPRes() {}
+
+type V1betaDeleteQuotaRuleVCPRequestTimeout Error
+
+func (*V1betaDeleteQuotaRuleVCPRequestTimeout) v1betaDeleteQuotaRuleVCPRes() {}
+
+type V1betaDeleteQuotaRuleVCPServiceUnavailable Error
+
+func (*V1betaDeleteQuotaRuleVCPServiceUnavailable) v1betaDeleteQuotaRuleVCPRes() {}
+
+type V1betaDeleteQuotaRuleVCPTooManyRequests Error
+
+func (*V1betaDeleteQuotaRuleVCPTooManyRequests) v1betaDeleteQuotaRuleVCPRes() {}
+
+type V1betaDeleteQuotaRuleVCPUnauthorized Error
+
+func (*V1betaDeleteQuotaRuleVCPUnauthorized) v1betaDeleteQuotaRuleVCPRes() {}
+
+type V1betaDeleteQuotaRuleVCPUnprocessableEntity Error
+
+func (*V1betaDeleteQuotaRuleVCPUnprocessableEntity) v1betaDeleteQuotaRuleVCPRes() {}
+
 type V1betaDeleteReplicationBadRequest Error
 
 func (*V1betaDeleteReplicationBadRequest) v1betaDeleteReplicationRes() {}
@@ -20290,6 +20420,94 @@ func (*V1betaDescribePoolUnauthorized) v1betaDescribePoolRes() {}
 type V1betaDescribePoolUnprocessableEntity Error
 
 func (*V1betaDescribePoolUnprocessableEntity) v1betaDescribePoolRes() {}
+
+type V1betaDescribeQuotaRuleBadRequest Error
+
+func (*V1betaDescribeQuotaRuleBadRequest) v1betaDescribeQuotaRuleRes() {}
+
+type V1betaDescribeQuotaRuleConflict Error
+
+func (*V1betaDescribeQuotaRuleConflict) v1betaDescribeQuotaRuleRes() {}
+
+type V1betaDescribeQuotaRuleForbidden Error
+
+func (*V1betaDescribeQuotaRuleForbidden) v1betaDescribeQuotaRuleRes() {}
+
+type V1betaDescribeQuotaRuleInternalServerError Error
+
+func (*V1betaDescribeQuotaRuleInternalServerError) v1betaDescribeQuotaRuleRes() {}
+
+type V1betaDescribeQuotaRuleMethodNotAllowed Error
+
+func (*V1betaDescribeQuotaRuleMethodNotAllowed) v1betaDescribeQuotaRuleRes() {}
+
+type V1betaDescribeQuotaRuleNotFound Error
+
+func (*V1betaDescribeQuotaRuleNotFound) v1betaDescribeQuotaRuleRes() {}
+
+type V1betaDescribeQuotaRuleRequestTimeout Error
+
+func (*V1betaDescribeQuotaRuleRequestTimeout) v1betaDescribeQuotaRuleRes() {}
+
+type V1betaDescribeQuotaRuleServiceUnavailable Error
+
+func (*V1betaDescribeQuotaRuleServiceUnavailable) v1betaDescribeQuotaRuleRes() {}
+
+type V1betaDescribeQuotaRuleTooManyRequests Error
+
+func (*V1betaDescribeQuotaRuleTooManyRequests) v1betaDescribeQuotaRuleRes() {}
+
+type V1betaDescribeQuotaRuleUnauthorized Error
+
+func (*V1betaDescribeQuotaRuleUnauthorized) v1betaDescribeQuotaRuleRes() {}
+
+type V1betaDescribeQuotaRuleUnprocessableEntity Error
+
+func (*V1betaDescribeQuotaRuleUnprocessableEntity) v1betaDescribeQuotaRuleRes() {}
+
+type V1betaDescribeQuotaRuleVCPBadRequest Error
+
+func (*V1betaDescribeQuotaRuleVCPBadRequest) v1betaDescribeQuotaRuleVCPRes() {}
+
+type V1betaDescribeQuotaRuleVCPConflict Error
+
+func (*V1betaDescribeQuotaRuleVCPConflict) v1betaDescribeQuotaRuleVCPRes() {}
+
+type V1betaDescribeQuotaRuleVCPForbidden Error
+
+func (*V1betaDescribeQuotaRuleVCPForbidden) v1betaDescribeQuotaRuleVCPRes() {}
+
+type V1betaDescribeQuotaRuleVCPInternalServerError Error
+
+func (*V1betaDescribeQuotaRuleVCPInternalServerError) v1betaDescribeQuotaRuleVCPRes() {}
+
+type V1betaDescribeQuotaRuleVCPMethodNotAllowed Error
+
+func (*V1betaDescribeQuotaRuleVCPMethodNotAllowed) v1betaDescribeQuotaRuleVCPRes() {}
+
+type V1betaDescribeQuotaRuleVCPNotFound Error
+
+func (*V1betaDescribeQuotaRuleVCPNotFound) v1betaDescribeQuotaRuleVCPRes() {}
+
+type V1betaDescribeQuotaRuleVCPRequestTimeout Error
+
+func (*V1betaDescribeQuotaRuleVCPRequestTimeout) v1betaDescribeQuotaRuleVCPRes() {}
+
+type V1betaDescribeQuotaRuleVCPServiceUnavailable Error
+
+func (*V1betaDescribeQuotaRuleVCPServiceUnavailable) v1betaDescribeQuotaRuleVCPRes() {}
+
+type V1betaDescribeQuotaRuleVCPTooManyRequests Error
+
+func (*V1betaDescribeQuotaRuleVCPTooManyRequests) v1betaDescribeQuotaRuleVCPRes() {}
+
+type V1betaDescribeQuotaRuleVCPUnauthorized Error
+
+func (*V1betaDescribeQuotaRuleVCPUnauthorized) v1betaDescribeQuotaRuleVCPRes() {}
+
+type V1betaDescribeQuotaRuleVCPUnprocessableEntity Error
+
+func (*V1betaDescribeQuotaRuleVCPUnprocessableEntity) v1betaDescribeQuotaRuleVCPRes() {}
 
 type V1betaDescribeSnapshotBadRequest Error
 
@@ -20784,6 +21002,50 @@ func (*V1betaGetMultiplePoolsUnauthorized) v1betaGetMultiplePoolsRes() {}
 type V1betaGetMultiplePoolsUnprocessableEntity Error
 
 func (*V1betaGetMultiplePoolsUnprocessableEntity) v1betaGetMultiplePoolsRes() {}
+
+type V1betaGetMultipleQuotaRulesBadRequest Error
+
+func (*V1betaGetMultipleQuotaRulesBadRequest) v1betaGetMultipleQuotaRulesRes() {}
+
+type V1betaGetMultipleQuotaRulesForbidden Error
+
+func (*V1betaGetMultipleQuotaRulesForbidden) v1betaGetMultipleQuotaRulesRes() {}
+
+type V1betaGetMultipleQuotaRulesInternalServerError Error
+
+func (*V1betaGetMultipleQuotaRulesInternalServerError) v1betaGetMultipleQuotaRulesRes() {}
+
+type V1betaGetMultipleQuotaRulesNotFound Error
+
+func (*V1betaGetMultipleQuotaRulesNotFound) v1betaGetMultipleQuotaRulesRes() {}
+
+type V1betaGetMultipleQuotaRulesOK struct {
+	QuotaRules []QuotaRulesV1beta `json:"quotaRules"`
+}
+
+// GetQuotaRules returns the value of QuotaRules.
+func (s *V1betaGetMultipleQuotaRulesOK) GetQuotaRules() []QuotaRulesV1beta {
+	return s.QuotaRules
+}
+
+// SetQuotaRules sets the value of QuotaRules.
+func (s *V1betaGetMultipleQuotaRulesOK) SetQuotaRules(val []QuotaRulesV1beta) {
+	s.QuotaRules = val
+}
+
+func (*V1betaGetMultipleQuotaRulesOK) v1betaGetMultipleQuotaRulesRes() {}
+
+type V1betaGetMultipleQuotaRulesTooManyRequests Error
+
+func (*V1betaGetMultipleQuotaRulesTooManyRequests) v1betaGetMultipleQuotaRulesRes() {}
+
+type V1betaGetMultipleQuotaRulesUnauthorized Error
+
+func (*V1betaGetMultipleQuotaRulesUnauthorized) v1betaGetMultipleQuotaRulesRes() {}
+
+type V1betaGetMultipleQuotaRulesUnprocessableEntity Error
+
+func (*V1betaGetMultipleQuotaRulesUnprocessableEntity) v1betaGetMultipleQuotaRulesRes() {}
 
 type V1betaGetMultipleReplicationsBadRequest Error
 
@@ -22084,6 +22346,54 @@ type V1betaListActiveDirectoriesUnauthorized Error
 
 func (*V1betaListActiveDirectoriesUnauthorized) v1betaListActiveDirectoriesRes() {}
 
+type V1betaListAllQuotaRulesBadRequest Error
+
+func (*V1betaListAllQuotaRulesBadRequest) v1betaListAllQuotaRulesRes() {}
+
+type V1betaListAllQuotaRulesConflict Error
+
+func (*V1betaListAllQuotaRulesConflict) v1betaListAllQuotaRulesRes() {}
+
+type V1betaListAllQuotaRulesForbidden Error
+
+func (*V1betaListAllQuotaRulesForbidden) v1betaListAllQuotaRulesRes() {}
+
+type V1betaListAllQuotaRulesInternalServerError Error
+
+func (*V1betaListAllQuotaRulesInternalServerError) v1betaListAllQuotaRulesRes() {}
+
+type V1betaListAllQuotaRulesNotFound Error
+
+func (*V1betaListAllQuotaRulesNotFound) v1betaListAllQuotaRulesRes() {}
+
+type V1betaListAllQuotaRulesOK struct {
+	QuotaRules []QuotaRulesV1beta `json:"quotaRules"`
+}
+
+// GetQuotaRules returns the value of QuotaRules.
+func (s *V1betaListAllQuotaRulesOK) GetQuotaRules() []QuotaRulesV1beta {
+	return s.QuotaRules
+}
+
+// SetQuotaRules sets the value of QuotaRules.
+func (s *V1betaListAllQuotaRulesOK) SetQuotaRules(val []QuotaRulesV1beta) {
+	s.QuotaRules = val
+}
+
+func (*V1betaListAllQuotaRulesOK) v1betaListAllQuotaRulesRes() {}
+
+type V1betaListAllQuotaRulesTooManyRequests Error
+
+func (*V1betaListAllQuotaRulesTooManyRequests) v1betaListAllQuotaRulesRes() {}
+
+type V1betaListAllQuotaRulesUnauthorized Error
+
+func (*V1betaListAllQuotaRulesUnauthorized) v1betaListAllQuotaRulesRes() {}
+
+type V1betaListAllQuotaRulesUnprocessableEntity Error
+
+func (*V1betaListAllQuotaRulesUnprocessableEntity) v1betaListAllQuotaRulesRes() {}
+
 type V1betaListBackupPoliciesBadRequest Error
 
 func (*V1betaListBackupPoliciesBadRequest) v1betaListBackupPoliciesRes() {}
@@ -23058,6 +23368,94 @@ func (*V1betaUpdatePoolUnauthorized) v1betaUpdatePoolRes() {}
 type V1betaUpdatePoolUnprocessableEntity Error
 
 func (*V1betaUpdatePoolUnprocessableEntity) v1betaUpdatePoolRes() {}
+
+type V1betaUpdateQuotaRuleBadRequest Error
+
+func (*V1betaUpdateQuotaRuleBadRequest) v1betaUpdateQuotaRuleRes() {}
+
+type V1betaUpdateQuotaRuleConflict Error
+
+func (*V1betaUpdateQuotaRuleConflict) v1betaUpdateQuotaRuleRes() {}
+
+type V1betaUpdateQuotaRuleForbidden Error
+
+func (*V1betaUpdateQuotaRuleForbidden) v1betaUpdateQuotaRuleRes() {}
+
+type V1betaUpdateQuotaRuleInternalServerError Error
+
+func (*V1betaUpdateQuotaRuleInternalServerError) v1betaUpdateQuotaRuleRes() {}
+
+type V1betaUpdateQuotaRuleMethodNotAllowed Error
+
+func (*V1betaUpdateQuotaRuleMethodNotAllowed) v1betaUpdateQuotaRuleRes() {}
+
+type V1betaUpdateQuotaRuleNotFound Error
+
+func (*V1betaUpdateQuotaRuleNotFound) v1betaUpdateQuotaRuleRes() {}
+
+type V1betaUpdateQuotaRuleRequestTimeout Error
+
+func (*V1betaUpdateQuotaRuleRequestTimeout) v1betaUpdateQuotaRuleRes() {}
+
+type V1betaUpdateQuotaRuleServiceUnavailable Error
+
+func (*V1betaUpdateQuotaRuleServiceUnavailable) v1betaUpdateQuotaRuleRes() {}
+
+type V1betaUpdateQuotaRuleTooManyRequests Error
+
+func (*V1betaUpdateQuotaRuleTooManyRequests) v1betaUpdateQuotaRuleRes() {}
+
+type V1betaUpdateQuotaRuleUnauthorized Error
+
+func (*V1betaUpdateQuotaRuleUnauthorized) v1betaUpdateQuotaRuleRes() {}
+
+type V1betaUpdateQuotaRuleUnprocessableEntity Error
+
+func (*V1betaUpdateQuotaRuleUnprocessableEntity) v1betaUpdateQuotaRuleRes() {}
+
+type V1betaUpdateQuotaRuleVCPBadRequest Error
+
+func (*V1betaUpdateQuotaRuleVCPBadRequest) v1betaUpdateQuotaRuleVCPRes() {}
+
+type V1betaUpdateQuotaRuleVCPConflict Error
+
+func (*V1betaUpdateQuotaRuleVCPConflict) v1betaUpdateQuotaRuleVCPRes() {}
+
+type V1betaUpdateQuotaRuleVCPForbidden Error
+
+func (*V1betaUpdateQuotaRuleVCPForbidden) v1betaUpdateQuotaRuleVCPRes() {}
+
+type V1betaUpdateQuotaRuleVCPInternalServerError Error
+
+func (*V1betaUpdateQuotaRuleVCPInternalServerError) v1betaUpdateQuotaRuleVCPRes() {}
+
+type V1betaUpdateQuotaRuleVCPMethodNotAllowed Error
+
+func (*V1betaUpdateQuotaRuleVCPMethodNotAllowed) v1betaUpdateQuotaRuleVCPRes() {}
+
+type V1betaUpdateQuotaRuleVCPNotFound Error
+
+func (*V1betaUpdateQuotaRuleVCPNotFound) v1betaUpdateQuotaRuleVCPRes() {}
+
+type V1betaUpdateQuotaRuleVCPRequestTimeout Error
+
+func (*V1betaUpdateQuotaRuleVCPRequestTimeout) v1betaUpdateQuotaRuleVCPRes() {}
+
+type V1betaUpdateQuotaRuleVCPServiceUnavailable Error
+
+func (*V1betaUpdateQuotaRuleVCPServiceUnavailable) v1betaUpdateQuotaRuleVCPRes() {}
+
+type V1betaUpdateQuotaRuleVCPTooManyRequests Error
+
+func (*V1betaUpdateQuotaRuleVCPTooManyRequests) v1betaUpdateQuotaRuleVCPRes() {}
+
+type V1betaUpdateQuotaRuleVCPUnauthorized Error
+
+func (*V1betaUpdateQuotaRuleVCPUnauthorized) v1betaUpdateQuotaRuleVCPRes() {}
+
+type V1betaUpdateQuotaRuleVCPUnprocessableEntity Error
+
+func (*V1betaUpdateQuotaRuleVCPUnprocessableEntity) v1betaUpdateQuotaRuleVCPRes() {}
 
 type V1betaUpdateReplicationBadRequest Error
 

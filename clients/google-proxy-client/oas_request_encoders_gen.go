@@ -353,6 +353,20 @@ func encodeV1betaGetMultiplePoolsRequest(
 	return nil
 }
 
+func encodeV1betaGetMultipleQuotaRulesRequest(
+	req *QuotaRuleIdListV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeV1betaGetMultipleReplicationsRequest(
 	req *ReplicationURIListV1beta,
 	r *http.Request,
@@ -747,6 +761,34 @@ func encodeV1betaUpdateKmsConfigurationRequest(
 
 func encodeV1betaUpdatePoolRequest(
 	req *PoolUpdateV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeV1betaUpdateQuotaRuleRequest(
+	req *QuotaRulesUpdateV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeV1betaUpdateQuotaRuleVCPRequest(
+	req *QuotaRulesUpdateV1beta,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"

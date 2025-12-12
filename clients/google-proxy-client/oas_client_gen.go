@@ -155,6 +155,20 @@ type Invoker interface {
 	//
 	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 	V1betaDeletePool(ctx context.Context, params V1betaDeletePoolParams) (V1betaDeletePoolRes, error)
+	// V1betaDeleteQuotaRule invokes v1beta_deleteQuotaRule operation.
+	//
+	// This operation will delete the quota rule.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+	V1betaDeleteQuotaRule(ctx context.Context, params V1betaDeleteQuotaRuleParams) (V1betaDeleteQuotaRuleRes, error)
+	// V1betaDeleteQuotaRuleVCP invokes v1beta_deleteQuotaRuleVCP operation.
+	//
+	// Warning! This operation will permanently delete the quota rule. This is an internal endpoint for
+	// VCP-to-VCP communication. This operation will never return resource not found, since that could be
+	// interpreted as resource already deleted, and therefore will return operation done instead.
+	//
+	// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+	V1betaDeleteQuotaRuleVCP(ctx context.Context, params V1betaDeleteQuotaRuleVCPParams) (V1betaDeleteQuotaRuleVCPRes, error)
 	// V1betaDeleteReplication invokes v1beta_deleteReplication operation.
 	//
 	// Delete replication.
@@ -225,6 +239,18 @@ type Invoker interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 	V1betaDescribePool(ctx context.Context, params V1betaDescribePoolParams) (V1betaDescribePoolRes, error)
+	// V1betaDescribeQuotaRule invokes v1beta_describeQuotaRule operation.
+	//
+	// Returns the description of the specified quota rule by quota rule Id.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+	V1betaDescribeQuotaRule(ctx context.Context, params V1betaDescribeQuotaRuleParams) (V1betaDescribeQuotaRuleRes, error)
+	// V1betaDescribeQuotaRuleVCP invokes v1beta_describeQuotaRuleVCP operation.
+	//
+	// Returns the description of the specified quota rule by quota rule Id.
+	//
+	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+	V1betaDescribeQuotaRuleVCP(ctx context.Context, params V1betaDescribeQuotaRuleVCPParams) (V1betaDescribeQuotaRuleVCPRes, error)
 	// V1betaDescribeSnapshot invokes v1beta_describeSnapshot operation.
 	//
 	// Get descriptions of the requested snapshot.
@@ -303,6 +329,12 @@ type Invoker interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultiplePools
 	V1betaGetMultiplePools(ctx context.Context, request *PoolIdListV1beta, params V1betaGetMultiplePoolsParams) (V1betaGetMultiplePoolsRes, error)
+	// V1betaGetMultipleQuotaRules invokes v1beta_getMultipleQuotaRules operation.
+	//
+	// Returns descriptions of quota rules that are listed in request body and belong to specified volume.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules
+	V1betaGetMultipleQuotaRules(ctx context.Context, request *QuotaRuleIdListV1beta, params V1betaGetMultipleQuotaRulesParams) (V1betaGetMultipleQuotaRulesRes, error)
 	// V1betaGetMultipleReplications invokes v1beta_getMultipleReplications operation.
 	//
 	// Returns selected replication objects.
@@ -521,6 +553,12 @@ type Invoker interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory
 	V1betaListActiveDirectories(ctx context.Context, params V1betaListActiveDirectoriesParams) (V1betaListActiveDirectoriesRes, error)
+	// V1betaListAllQuotaRules invokes v1beta_listAllQuotaRules operation.
+	//
+	// Lists all quota rules for the specified volume.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules
+	V1betaListAllQuotaRules(ctx context.Context, params V1betaListAllQuotaRulesParams) (V1betaListAllQuotaRulesRes, error)
 	// V1betaListBackupPolicies invokes v1beta_listBackupPolicies operation.
 	//
 	// Returns list of all available backup policies.
@@ -677,6 +715,19 @@ type Invoker interface {
 	//
 	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}
 	V1betaUpdatePool(ctx context.Context, request *PoolUpdateV1beta, params V1betaUpdatePoolParams) (V1betaUpdatePoolRes, error)
+	// V1betaUpdateQuotaRule invokes v1beta_updateQuotaRule operation.
+	//
+	// Updates an existing quota rule for the specified volume.
+	//
+	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+	V1betaUpdateQuotaRule(ctx context.Context, request *QuotaRulesUpdateV1beta, params V1betaUpdateQuotaRuleParams) (V1betaUpdateQuotaRuleRes, error)
+	// V1betaUpdateQuotaRuleVCP invokes v1beta_updateQuotaRuleVCP operation.
+	//
+	// Updates an existing quota rule for the specified volume. Only the disk limit and description can
+	// be modified. This is an internal endpoint for VCP-to-VCP communication.
+	//
+	// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+	V1betaUpdateQuotaRuleVCP(ctx context.Context, request *QuotaRulesUpdateV1beta, params V1betaUpdateQuotaRuleVCPParams) (V1betaUpdateQuotaRuleVCPRes, error)
 	// V1betaUpdateReplication invokes v1beta_updateReplication operation.
 	//
 	// Update the replication.
@@ -2997,6 +3048,262 @@ func (c *Client) sendV1betaDeletePool(ctx context.Context, params V1betaDeletePo
 	return result, nil
 }
 
+// V1betaDeleteQuotaRule invokes v1beta_deleteQuotaRule operation.
+//
+// This operation will delete the quota rule.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+func (c *Client) V1betaDeleteQuotaRule(ctx context.Context, params V1betaDeleteQuotaRuleParams) (V1betaDeleteQuotaRuleRes, error) {
+	res, err := c.sendV1betaDeleteQuotaRule(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaDeleteQuotaRule(ctx context.Context, params V1betaDeleteQuotaRuleParams) (res V1betaDeleteQuotaRuleRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [8]string
+	pathParts[0] = "/v1beta/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumes/"
+	{
+		// Encode "volumeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/quotaRules/"
+	{
+		// Encode "quotaRuleId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "quotaRuleId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.QuotaRuleId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[7] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaDeleteQuotaRuleResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaDeleteQuotaRuleVCP invokes v1beta_deleteQuotaRuleVCP operation.
+//
+// Warning! This operation will permanently delete the quota rule. This is an internal endpoint for
+// VCP-to-VCP communication. This operation will never return resource not found, since that could be
+// interpreted as resource already deleted, and therefore will return operation done instead.
+//
+// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+func (c *Client) V1betaDeleteQuotaRuleVCP(ctx context.Context, params V1betaDeleteQuotaRuleVCPParams) (V1betaDeleteQuotaRuleVCPRes, error) {
+	res, err := c.sendV1betaDeleteQuotaRuleVCP(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaDeleteQuotaRuleVCP(ctx context.Context, params V1betaDeleteQuotaRuleVCPParams) (res V1betaDeleteQuotaRuleVCPRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [8]string
+	pathParts[0] = "/v1beta/internal/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumes/"
+	{
+		// Encode "volumeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/quotaRules/"
+	{
+		// Encode "quotaRuleId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "quotaRuleId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.QuotaRuleId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[7] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaDeleteQuotaRuleVCPResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // V1betaDeleteReplication invokes v1beta_deleteReplication operation.
 //
 // Delete replication.
@@ -4294,6 +4601,260 @@ func (c *Client) sendV1betaDescribePool(ctx context.Context, params V1betaDescri
 	defer resp.Body.Close()
 
 	result, err := decodeV1betaDescribePoolResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaDescribeQuotaRule invokes v1beta_describeQuotaRule operation.
+//
+// Returns the description of the specified quota rule by quota rule Id.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+func (c *Client) V1betaDescribeQuotaRule(ctx context.Context, params V1betaDescribeQuotaRuleParams) (V1betaDescribeQuotaRuleRes, error) {
+	res, err := c.sendV1betaDescribeQuotaRule(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaDescribeQuotaRule(ctx context.Context, params V1betaDescribeQuotaRuleParams) (res V1betaDescribeQuotaRuleRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [8]string
+	pathParts[0] = "/v1beta/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumes/"
+	{
+		// Encode "volumeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/quotaRules/"
+	{
+		// Encode "quotaRuleId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "quotaRuleId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.QuotaRuleId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[7] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaDescribeQuotaRuleResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaDescribeQuotaRuleVCP invokes v1beta_describeQuotaRuleVCP operation.
+//
+// Returns the description of the specified quota rule by quota rule Id.
+//
+// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+func (c *Client) V1betaDescribeQuotaRuleVCP(ctx context.Context, params V1betaDescribeQuotaRuleVCPParams) (V1betaDescribeQuotaRuleVCPRes, error) {
+	res, err := c.sendV1betaDescribeQuotaRuleVCP(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaDescribeQuotaRuleVCP(ctx context.Context, params V1betaDescribeQuotaRuleVCPParams) (res V1betaDescribeQuotaRuleVCPRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [8]string
+	pathParts[0] = "/v1beta/internal/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumes/"
+	{
+		// Encode "volumeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/quotaRules/"
+	{
+		// Encode "quotaRuleId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "quotaRuleId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.QuotaRuleId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[7] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaDescribeQuotaRuleVCPResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -5734,6 +6295,127 @@ func (c *Client) sendV1betaGetMultiplePools(ctx context.Context, request *PoolId
 	defer resp.Body.Close()
 
 	result, err := decodeV1betaGetMultiplePoolsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaGetMultipleQuotaRules invokes v1beta_getMultipleQuotaRules operation.
+//
+// Returns descriptions of quota rules that are listed in request body and belong to specified volume.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules
+func (c *Client) V1betaGetMultipleQuotaRules(ctx context.Context, request *QuotaRuleIdListV1beta, params V1betaGetMultipleQuotaRulesParams) (V1betaGetMultipleQuotaRulesRes, error) {
+	res, err := c.sendV1betaGetMultipleQuotaRules(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaGetMultipleQuotaRules(ctx context.Context, request *QuotaRuleIdListV1beta, params V1betaGetMultipleQuotaRulesParams) (res V1betaGetMultipleQuotaRulesRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [7]string
+	pathParts[0] = "/v1beta/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumes/"
+	{
+		// Encode "volumeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/getMultipleQuotaRules"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1betaGetMultipleQuotaRulesRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaGetMultipleQuotaRulesResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -9746,6 +10428,115 @@ func (c *Client) sendV1betaListActiveDirectories(ctx context.Context, params V1b
 	return result, nil
 }
 
+// V1betaListAllQuotaRules invokes v1beta_listAllQuotaRules operation.
+//
+// Lists all quota rules for the specified volume.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules
+func (c *Client) V1betaListAllQuotaRules(ctx context.Context, params V1betaListAllQuotaRulesParams) (V1betaListAllQuotaRulesRes, error) {
+	res, err := c.sendV1betaListAllQuotaRules(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaListAllQuotaRules(ctx context.Context, params V1betaListAllQuotaRulesParams) (res V1betaListAllQuotaRulesRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [7]string
+	pathParts[0] = "/v1beta/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumes/"
+	{
+		// Encode "volumeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/quotaRules"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaListAllQuotaRulesResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // V1betaListBackupPolicies invokes v1beta_listBackupPolicies operation.
 //
 // Returns list of all available backup policies.
@@ -12784,6 +13575,285 @@ func (c *Client) sendV1betaUpdatePool(ctx context.Context, request *PoolUpdateV1
 	defer resp.Body.Close()
 
 	result, err := decodeV1betaUpdatePoolResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaUpdateQuotaRule invokes v1beta_updateQuotaRule operation.
+//
+// Updates an existing quota rule for the specified volume.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+func (c *Client) V1betaUpdateQuotaRule(ctx context.Context, request *QuotaRulesUpdateV1beta, params V1betaUpdateQuotaRuleParams) (V1betaUpdateQuotaRuleRes, error) {
+	res, err := c.sendV1betaUpdateQuotaRule(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaUpdateQuotaRule(ctx context.Context, request *QuotaRulesUpdateV1beta, params V1betaUpdateQuotaRuleParams) (res V1betaUpdateQuotaRuleRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [8]string
+	pathParts[0] = "/v1beta/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumes/"
+	{
+		// Encode "volumeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/quotaRules/"
+	{
+		// Encode "quotaRuleId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "quotaRuleId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.QuotaRuleId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[7] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1betaUpdateQuotaRuleRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaUpdateQuotaRuleResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaUpdateQuotaRuleVCP invokes v1beta_updateQuotaRuleVCP operation.
+//
+// Updates an existing quota rule for the specified volume. Only the disk limit and description can
+// be modified. This is an internal endpoint for VCP-to-VCP communication.
+//
+// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+func (c *Client) V1betaUpdateQuotaRuleVCP(ctx context.Context, request *QuotaRulesUpdateV1beta, params V1betaUpdateQuotaRuleVCPParams) (V1betaUpdateQuotaRuleVCPRes, error) {
+	res, err := c.sendV1betaUpdateQuotaRuleVCP(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaUpdateQuotaRuleVCP(ctx context.Context, request *QuotaRulesUpdateV1beta, params V1betaUpdateQuotaRuleVCPParams) (res V1betaUpdateQuotaRuleVCPRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [8]string
+	pathParts[0] = "/v1beta/internal/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumes/"
+	{
+		// Encode "volumeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/quotaRules/"
+	{
+		// Encode "quotaRuleId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "quotaRuleId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.QuotaRuleId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[7] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1betaUpdateQuotaRuleVCPRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaUpdateQuotaRuleVCPResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

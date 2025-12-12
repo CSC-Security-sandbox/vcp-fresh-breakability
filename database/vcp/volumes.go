@@ -91,6 +91,11 @@ func (d *DataStoreRepository) GetVolumeWithAccountID(ctx context.Context, volUUI
 	return getVolumeWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volUUID}, AccountID: accountID})
 }
 
+// GetVolumeByIDAndAccountID retrieves a volume by its database ID and account ID
+func (d *DataStoreRepository) GetVolumeByIDAndAccountID(ctx context.Context, volumeID int64, accountID int64) (*datamodel.Volume, error) {
+	return getVolumeWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Volume{BaseModel: datamodel.BaseModel{ID: volumeID}, AccountID: accountID})
+}
+
 func (d *DataStoreRepository) GetVolumeByNameAndAccountID(ctx context.Context, name string, accountID int64) (*datamodel.Volume, error) {
 	return getVolumeWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Volume{Name: name, AccountID: accountID})
 }

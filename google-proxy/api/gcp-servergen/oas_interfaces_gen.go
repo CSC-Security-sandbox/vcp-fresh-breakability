@@ -85,6 +85,14 @@ type V1betaDeletePoolRes interface {
 	v1betaDeletePoolRes()
 }
 
+type V1betaDeleteQuotaRuleRes interface {
+	v1betaDeleteQuotaRuleRes()
+}
+
+type V1betaDeleteQuotaRuleVCPRes interface {
+	v1betaDeleteQuotaRuleVCPRes()
+}
+
 type V1betaDeleteReplicationRes interface {
 	v1betaDeleteReplicationRes()
 }
@@ -127,6 +135,14 @@ type V1betaDescribeOperationRes interface {
 
 type V1betaDescribePoolRes interface {
 	v1betaDescribePoolRes()
+}
+
+type V1betaDescribeQuotaRuleRes interface {
+	v1betaDescribeQuotaRuleRes()
+}
+
+type V1betaDescribeQuotaRuleVCPRes interface {
+	v1betaDescribeQuotaRuleVCPRes()
 }
 
 type V1betaDescribeSnapshotRes interface {
@@ -179,6 +195,10 @@ type V1betaGetMultipleKmsConfigsRes interface {
 
 type V1betaGetMultiplePoolsRes interface {
 	v1betaGetMultiplePoolsRes()
+}
+
+type V1betaGetMultipleQuotaRulesRes interface {
+	v1betaGetMultipleQuotaRulesRes()
 }
 
 type V1betaGetMultipleReplicationsInternalRes interface {
@@ -317,6 +337,10 @@ type V1betaListActiveDirectoriesRes interface {
 	v1betaListActiveDirectoriesRes()
 }
 
+type V1betaListAllQuotaRulesRes interface {
+	v1betaListAllQuotaRulesRes()
+}
+
 type V1betaListBackupPoliciesRes interface {
 	v1betaListBackupPoliciesRes()
 }
@@ -419,6 +443,14 @@ type V1betaUpdateKmsConfigurationRes interface {
 
 type V1betaUpdatePoolRes interface {
 	v1betaUpdatePoolRes()
+}
+
+type V1betaUpdateQuotaRuleRes interface {
+	v1betaUpdateQuotaRuleRes()
+}
+
+type V1betaUpdateQuotaRuleVCPRes interface {
+	v1betaUpdateQuotaRuleVCPRes()
 }
 
 type V1betaUpdateReplicationRes interface {

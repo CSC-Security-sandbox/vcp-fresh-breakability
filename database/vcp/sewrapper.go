@@ -535,6 +535,22 @@ func (re *retryEngine) GetVolumeWithAccountID(ctx context.Context, id string, ac
 	return var0, err
 }
 
+func (re *retryEngine) GetVolumeByIDAndAccountID(ctx context.Context, volumeID int64, accountID int64) (*datamodel.Volume, error) {
+	var var0 *datamodel.Volume
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetVolumeByIDAndAccountID(ctx, volumeID, accountID)
+		if err != nil {
+			re.logError("GetVolumeByIDAndAccountID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetVolumeByNameAndAccountID(ctx context.Context, name string, accountID int64) (*datamodel.Volume, error) {
 	var var0 *datamodel.Volume
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -2266,6 +2282,22 @@ func (re *retryEngine) CreatingQuotaRule(ctx context.Context, quotaRule *datamod
 	return var0, err
 }
 
+func (re *retryEngine) UpdatingQuotaRule(ctx context.Context, quotaRule *datamodel.QuotaRule) (*datamodel.QuotaRule, error) {
+	var var0 *datamodel.QuotaRule
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdatingQuotaRule(ctx, quotaRule)
+		if err != nil {
+			re.logError("UpdatingQuotaRule", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) UpdateQuotaRule(ctx context.Context, quotaRule *datamodel.QuotaRule) (*datamodel.QuotaRule, error) {
 	var var0 *datamodel.QuotaRule
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -2282,11 +2314,11 @@ func (re *retryEngine) UpdateQuotaRule(ctx context.Context, quotaRule *datamodel
 	return var0, err
 }
 
-func (re *retryEngine) GetQuotaRuleByUUID(ctx context.Context, uuid string, accountID int64, volumeID int64) (*datamodel.QuotaRule, error) {
+func (re *retryEngine) GetQuotaRuleByUUID(ctx context.Context, uuid string, accountID int64) (*datamodel.QuotaRule, error) {
 	var var0 *datamodel.QuotaRule
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.GetQuotaRuleByUUID(ctx, uuid, accountID, volumeID)
+		var0, err = re.dataStore.GetQuotaRuleByUUID(ctx, uuid, accountID)
 		if err != nil {
 			re.logError("GetQuotaRuleByUUID", err)
 			if !dbutils.IsTransientErr(err) {

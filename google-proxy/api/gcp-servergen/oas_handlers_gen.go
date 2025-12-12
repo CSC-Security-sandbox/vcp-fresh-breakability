@@ -3317,6 +3317,316 @@ func (s *Server) handleV1betaDeletePoolRequest(args [3]string, argsEscaped bool,
 	}
 }
 
+// handleV1betaDeleteQuotaRuleRequest handles v1beta_deleteQuotaRule operation.
+//
+// This operation will delete the quota rule.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+func (s *Server) handleV1betaDeleteQuotaRuleRequest(args [4]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_deleteQuotaRule"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaDeleteQuotaRuleOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaDeleteQuotaRuleOperation,
+			ID:   "v1beta_deleteQuotaRule",
+		}
+	)
+	params, err := decodeV1betaDeleteQuotaRuleParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var response V1betaDeleteQuotaRuleRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaDeleteQuotaRuleOperation,
+			OperationSummary: "Delete a quota rule for a volume",
+			OperationID:      "v1beta_deleteQuotaRule",
+			Body:             nil,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "volumeId",
+					In:   "path",
+				}: params.VolumeId,
+				{
+					Name: "quotaRuleId",
+					In:   "path",
+				}: params.QuotaRuleId,
+				{
+					Name: "X-Correlation-ID",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = V1betaDeleteQuotaRuleParams
+			Response = V1betaDeleteQuotaRuleRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaDeleteQuotaRuleParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaDeleteQuotaRule(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaDeleteQuotaRule(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeV1betaDeleteQuotaRuleResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleV1betaDeleteQuotaRuleVCPRequest handles v1beta_deleteQuotaRuleVCP operation.
+//
+// Warning! This operation will permanently delete the quota rule. This is an internal endpoint for
+// VCP-to-VCP communication. This operation will never return resource not found, since that could be
+// interpreted as resource already deleted, and therefore will return operation done instead.
+//
+// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+func (s *Server) handleV1betaDeleteQuotaRuleVCPRequest(args [4]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_deleteQuotaRuleVCP"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaDeleteQuotaRuleVCPOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaDeleteQuotaRuleVCPOperation,
+			ID:   "v1beta_deleteQuotaRuleVCP",
+		}
+	)
+	params, err := decodeV1betaDeleteQuotaRuleVCPParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var response V1betaDeleteQuotaRuleVCPRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaDeleteQuotaRuleVCPOperation,
+			OperationSummary: "Delete a quota rule for a volume (Internal VCP API)",
+			OperationID:      "v1beta_deleteQuotaRuleVCP",
+			Body:             nil,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "volumeId",
+					In:   "path",
+				}: params.VolumeId,
+				{
+					Name: "quotaRuleId",
+					In:   "path",
+				}: params.QuotaRuleId,
+				{
+					Name: "X-Correlation-ID",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = V1betaDeleteQuotaRuleVCPParams
+			Response = V1betaDeleteQuotaRuleVCPRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaDeleteQuotaRuleVCPParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaDeleteQuotaRuleVCP(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaDeleteQuotaRuleVCP(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeV1betaDeleteQuotaRuleVCPResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleV1betaDeleteReplicationRequest handles v1beta_deleteReplication operation.
 //
 // Delete replication.
@@ -5013,6 +5323,314 @@ func (s *Server) handleV1betaDescribePoolRequest(args [3]string, argsEscaped boo
 	}
 
 	if err := encodeV1betaDescribePoolResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleV1betaDescribeQuotaRuleRequest handles v1beta_describeQuotaRule operation.
+//
+// Returns the description of the specified quota rule by quota rule Id.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+func (s *Server) handleV1betaDescribeQuotaRuleRequest(args [4]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_describeQuotaRule"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaDescribeQuotaRuleOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaDescribeQuotaRuleOperation,
+			ID:   "v1beta_describeQuotaRule",
+		}
+	)
+	params, err := decodeV1betaDescribeQuotaRuleParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var response V1betaDescribeQuotaRuleRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaDescribeQuotaRuleOperation,
+			OperationSummary: "Describe a quota rule for a volume",
+			OperationID:      "v1beta_describeQuotaRule",
+			Body:             nil,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "volumeId",
+					In:   "path",
+				}: params.VolumeId,
+				{
+					Name: "quotaRuleId",
+					In:   "path",
+				}: params.QuotaRuleId,
+				{
+					Name: "X-Correlation-ID",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = V1betaDescribeQuotaRuleParams
+			Response = V1betaDescribeQuotaRuleRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaDescribeQuotaRuleParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaDescribeQuotaRule(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaDescribeQuotaRule(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeV1betaDescribeQuotaRuleResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleV1betaDescribeQuotaRuleVCPRequest handles v1beta_describeQuotaRuleVCP operation.
+//
+// Returns the description of the specified quota rule by quota rule Id.
+//
+// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+func (s *Server) handleV1betaDescribeQuotaRuleVCPRequest(args [4]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_describeQuotaRuleVCP"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaDescribeQuotaRuleVCPOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaDescribeQuotaRuleVCPOperation,
+			ID:   "v1beta_describeQuotaRuleVCP",
+		}
+	)
+	params, err := decodeV1betaDescribeQuotaRuleVCPParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var response V1betaDescribeQuotaRuleVCPRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaDescribeQuotaRuleVCPOperation,
+			OperationSummary: "Describe a quota rule for a volume (Internal VCP API)",
+			OperationID:      "v1beta_describeQuotaRuleVCP",
+			Body:             nil,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "volumeId",
+					In:   "path",
+				}: params.VolumeId,
+				{
+					Name: "quotaRuleId",
+					In:   "path",
+				}: params.QuotaRuleId,
+				{
+					Name: "X-Correlation-ID",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = V1betaDescribeQuotaRuleVCPParams
+			Response = V1betaDescribeQuotaRuleVCPRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaDescribeQuotaRuleVCPParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaDescribeQuotaRuleVCP(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaDescribeQuotaRuleVCP(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeV1betaDescribeQuotaRuleVCPResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -7093,6 +7711,171 @@ func (s *Server) handleV1betaGetMultiplePoolsRequest(args [2]string, argsEscaped
 	}
 
 	if err := encodeV1betaGetMultiplePoolsResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleV1betaGetMultipleQuotaRulesRequest handles v1beta_getMultipleQuotaRules operation.
+//
+// Returns descriptions of quota rules that are listed in request body and belong to specified volume.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules
+func (s *Server) handleV1betaGetMultipleQuotaRulesRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_getMultipleQuotaRules"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/getMultipleQuotaRules"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaGetMultipleQuotaRulesOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaGetMultipleQuotaRulesOperation,
+			ID:   "v1beta_getMultipleQuotaRules",
+		}
+	)
+	params, err := decodeV1betaGetMultipleQuotaRulesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	request, close, err := s.decodeV1betaGetMultipleQuotaRulesRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response V1betaGetMultipleQuotaRulesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaGetMultipleQuotaRulesOperation,
+			OperationSummary: "List specified quota rules",
+			OperationID:      "v1beta_getMultipleQuotaRules",
+			Body:             request,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "volumeId",
+					In:   "path",
+				}: params.VolumeId,
+				{
+					Name: "X-Correlation-ID",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *QuotaRuleIdListV1beta
+			Params   = V1betaGetMultipleQuotaRulesParams
+			Response = V1betaGetMultipleQuotaRulesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaGetMultipleQuotaRulesParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaGetMultipleQuotaRules(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaGetMultipleQuotaRules(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeV1betaGetMultipleQuotaRulesResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -12479,6 +13262,156 @@ func (s *Server) handleV1betaListActiveDirectoriesRequest(args [2]string, argsEs
 	}
 }
 
+// handleV1betaListAllQuotaRulesRequest handles v1beta_listAllQuotaRules operation.
+//
+// Lists all quota rules for the specified volume.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules
+func (s *Server) handleV1betaListAllQuotaRulesRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_listAllQuotaRules"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaListAllQuotaRulesOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaListAllQuotaRulesOperation,
+			ID:   "v1beta_listAllQuotaRules",
+		}
+	)
+	params, err := decodeV1betaListAllQuotaRulesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var response V1betaListAllQuotaRulesRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaListAllQuotaRulesOperation,
+			OperationSummary: "Lists all quota rules for a volume",
+			OperationID:      "v1beta_listAllQuotaRules",
+			Body:             nil,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "volumeId",
+					In:   "path",
+				}: params.VolumeId,
+				{
+					Name: "X-Correlation-ID",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = V1betaListAllQuotaRulesParams
+			Response = V1betaListAllQuotaRulesRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaListAllQuotaRulesParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaListAllQuotaRules(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaListAllQuotaRules(ctx, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeV1betaListAllQuotaRulesResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleV1betaListBackupPoliciesRequest handles v1beta_listBackupPolicies operation.
 //
 // Returns list of all available backup policies.
@@ -16586,6 +17519,345 @@ func (s *Server) handleV1betaUpdatePoolRequest(args [3]string, argsEscaped bool,
 	}
 
 	if err := encodeV1betaUpdatePoolResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleV1betaUpdateQuotaRuleRequest handles v1beta_updateQuotaRule operation.
+//
+// Updates an existing quota rule for the specified volume.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+func (s *Server) handleV1betaUpdateQuotaRuleRequest(args [4]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_updateQuotaRule"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaUpdateQuotaRuleOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaUpdateQuotaRuleOperation,
+			ID:   "v1beta_updateQuotaRule",
+		}
+	)
+	params, err := decodeV1betaUpdateQuotaRuleParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	request, close, err := s.decodeV1betaUpdateQuotaRuleRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response V1betaUpdateQuotaRuleRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaUpdateQuotaRuleOperation,
+			OperationSummary: "Update a quota rule for a volume",
+			OperationID:      "v1beta_updateQuotaRule",
+			Body:             request,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "volumeId",
+					In:   "path",
+				}: params.VolumeId,
+				{
+					Name: "quotaRuleId",
+					In:   "path",
+				}: params.QuotaRuleId,
+				{
+					Name: "X-Correlation-ID",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *QuotaRulesUpdateV1beta
+			Params   = V1betaUpdateQuotaRuleParams
+			Response = V1betaUpdateQuotaRuleRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaUpdateQuotaRuleParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaUpdateQuotaRule(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaUpdateQuotaRule(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeV1betaUpdateQuotaRuleResponse(response, w, span); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleV1betaUpdateQuotaRuleVCPRequest handles v1beta_updateQuotaRuleVCP operation.
+//
+// Updates an existing quota rule for the specified volume. Only the disk limit and description can
+// be modified. This is an internal endpoint for VCP-to-VCP communication.
+//
+// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}
+func (s *Server) handleV1betaUpdateQuotaRuleVCPRequest(args [4]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("v1beta_updateQuotaRuleVCP"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.HTTPRouteKey.String("/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules/{quotaRuleId}"),
+	}
+
+	// Start a span for this request.
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaUpdateQuotaRuleVCPOperation,
+		trace.WithAttributes(otelAttrs...),
+		serverSpanKind,
+	)
+	defer span.End()
+
+	// Add Labeler to context.
+	labeler := &Labeler{attrs: otelAttrs}
+	ctx = contextWithLabeler(ctx, labeler)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		elapsedDuration := time.Since(startTime)
+
+		attrSet := labeler.AttributeSet()
+		attrs := attrSet.ToSlice()
+		code := statusWriter.status
+		if code != 0 {
+			codeAttr := semconv.HTTPResponseStatusCode(code)
+			attrs = append(attrs, codeAttr)
+			span.SetAttributes(codeAttr)
+		}
+		attrOpt := metric.WithAttributes(attrs...)
+
+		// Increment request counter.
+		s.requests.Add(ctx, 1, attrOpt)
+
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		s.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), attrOpt)
+	}()
+
+	var (
+		recordError = func(stage string, err error) {
+			span.RecordError(err)
+
+			// https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+			// Span Status MUST be left unset if HTTP status code was in the 1xx, 2xx or 3xx ranges,
+			// unless there was another error (e.g., network error receiving the response body; or 3xx codes with
+			// max redirects exceeded), in which case status MUST be set to Error.
+			code := statusWriter.status
+			if code >= 100 && code < 500 {
+				span.SetStatus(codes.Error, stage)
+			}
+
+			attrSet := labeler.AttributeSet()
+			attrs := attrSet.ToSlice()
+			if code != 0 {
+				attrs = append(attrs, semconv.HTTPResponseStatusCode(code))
+			}
+
+			s.errors.Add(ctx, 1, metric.WithAttributes(attrs...))
+		}
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: V1betaUpdateQuotaRuleVCPOperation,
+			ID:   "v1beta_updateQuotaRuleVCP",
+		}
+	)
+	params, err := decodeV1betaUpdateQuotaRuleVCPParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	request, close, err := s.decodeV1betaUpdateQuotaRuleVCPRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response V1betaUpdateQuotaRuleVCPRes
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    V1betaUpdateQuotaRuleVCPOperation,
+			OperationSummary: "Update a quota rule for a volume (Internal VCP API)",
+			OperationID:      "v1beta_updateQuotaRuleVCP",
+			Body:             request,
+			Params: middleware.Parameters{
+				{
+					Name: "projectNumber",
+					In:   "path",
+				}: params.ProjectNumber,
+				{
+					Name: "locationId",
+					In:   "path",
+				}: params.LocationId,
+				{
+					Name: "volumeId",
+					In:   "path",
+				}: params.VolumeId,
+				{
+					Name: "quotaRuleId",
+					In:   "path",
+				}: params.QuotaRuleId,
+				{
+					Name: "X-Correlation-ID",
+					In:   "header",
+				}: params.XCorrelationID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *QuotaRulesUpdateV1beta
+			Params   = V1betaUpdateQuotaRuleVCPParams
+			Response = V1betaUpdateQuotaRuleVCPRes
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackV1betaUpdateQuotaRuleVCPParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.V1betaUpdateQuotaRuleVCP(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.V1betaUpdateQuotaRuleVCP(ctx, request, params)
+	}
+	if err != nil {
+		defer recordError("Internal", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	if err := encodeV1betaUpdateQuotaRuleVCPResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

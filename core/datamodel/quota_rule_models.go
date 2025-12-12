@@ -14,7 +14,6 @@ type QuotaRule struct {
 	StateDetails        string               `gorm:"column:state_details"`
 	AccountID           int64                `gorm:"column:account_id"`
 	VolumeID            int64                `gorm:"column:volume_id"`
-	Volume              *Volume              `gorm:"foreignKey:VolumeID"`
 	QuotaType           string               `gorm:"column:quota_type"`
 	QuotaTarget         string               `gorm:"column:quota_target"`
 	DiskLimitInKib      int64                `gorm:"column:disk_limit_in_kib"`

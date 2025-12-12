@@ -1130,7 +1130,7 @@ func (_c *MockOrchestratorFactory_CreateQuotaRule_Call) RunAndReturn(run func(co
 }
 
 // CreateQuotaRuleInternal provides a mock function with given fields: ctx, params
-func (_m *MockOrchestratorFactory) CreateQuotaRuleInternal(ctx context.Context, params *common.CreateQuotaRulesParam) (*models.QuotaRule, string, error) {
+func (_m *MockOrchestratorFactory) CreateQuotaRuleInternal(ctx context.Context, params *common.CreateQuotaRulesParam) (*models.QuotaRule, *datamodel.Job, error) {
 	ret := _m.Called(ctx, params)
 
 	if len(ret) == 0 {
@@ -1138,9 +1138,9 @@ func (_m *MockOrchestratorFactory) CreateQuotaRuleInternal(ctx context.Context, 
 	}
 
 	var r0 *models.QuotaRule
-	var r1 string
+	var r1 *datamodel.Job
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateQuotaRulesParam) (*models.QuotaRule, string, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateQuotaRulesParam) (*models.QuotaRule, *datamodel.Job, error)); ok {
 		return rf(ctx, params)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateQuotaRulesParam) *models.QuotaRule); ok {
@@ -1151,10 +1151,12 @@ func (_m *MockOrchestratorFactory) CreateQuotaRuleInternal(ctx context.Context, 
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *common.CreateQuotaRulesParam) string); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *common.CreateQuotaRulesParam) *datamodel.Job); ok {
 		r1 = rf(ctx, params)
 	} else {
-		r1 = ret.Get(1).(string)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*datamodel.Job)
+		}
 	}
 
 	if rf, ok := ret.Get(2).(func(context.Context, *common.CreateQuotaRulesParam) error); ok {
@@ -1185,12 +1187,12 @@ func (_c *MockOrchestratorFactory_CreateQuotaRuleInternal_Call) Run(run func(ctx
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_CreateQuotaRuleInternal_Call) Return(_a0 *models.QuotaRule, _a1 string, _a2 error) *MockOrchestratorFactory_CreateQuotaRuleInternal_Call {
+func (_c *MockOrchestratorFactory_CreateQuotaRuleInternal_Call) Return(_a0 *models.QuotaRule, _a1 *datamodel.Job, _a2 error) *MockOrchestratorFactory_CreateQuotaRuleInternal_Call {
 	_c.Call.Return(_a0, _a1, _a2)
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_CreateQuotaRuleInternal_Call) RunAndReturn(run func(context.Context, *common.CreateQuotaRulesParam) (*models.QuotaRule, string, error)) *MockOrchestratorFactory_CreateQuotaRuleInternal_Call {
+func (_c *MockOrchestratorFactory_CreateQuotaRuleInternal_Call) RunAndReturn(run func(context.Context, *common.CreateQuotaRulesParam) (*models.QuotaRule, *datamodel.Job, error)) *MockOrchestratorFactory_CreateQuotaRuleInternal_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -5450,6 +5452,65 @@ func (_c *MockOrchestratorFactory_ListPools_Call) RunAndReturn(run func(context.
 	return _c
 }
 
+// ListQuotaRules provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) ListQuotaRules(ctx context.Context, params *common.ListQuotaRulesParams) ([]*models.QuotaRule, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListQuotaRules")
+	}
+
+	var r0 []*models.QuotaRule
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.ListQuotaRulesParams) ([]*models.QuotaRule, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.ListQuotaRulesParams) []*models.QuotaRule); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.QuotaRule)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.ListQuotaRulesParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_ListQuotaRules_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListQuotaRules'
+type MockOrchestratorFactory_ListQuotaRules_Call struct {
+	*mock.Call
+}
+
+// ListQuotaRules is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.ListQuotaRulesParams
+func (_e *MockOrchestratorFactory_Expecter) ListQuotaRules(ctx interface{}, params interface{}) *MockOrchestratorFactory_ListQuotaRules_Call {
+	return &MockOrchestratorFactory_ListQuotaRules_Call{Call: _e.mock.On("ListQuotaRules", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_ListQuotaRules_Call) Run(run func(ctx context.Context, params *common.ListQuotaRulesParams)) *MockOrchestratorFactory_ListQuotaRules_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.ListQuotaRulesParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ListQuotaRules_Call) Return(_a0 []*models.QuotaRule, _a1 error) *MockOrchestratorFactory_ListQuotaRules_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ListQuotaRules_Call) RunAndReturn(run func(context.Context, *common.ListQuotaRulesParams) ([]*models.QuotaRule, error)) *MockOrchestratorFactory_ListQuotaRules_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListSnapshots provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) ListSnapshots(ctx context.Context, params *common.ListSnapshotsParams) ([]*models.Snapshot, error) {
 	ret := _m.Called(ctx, params)
@@ -7214,6 +7275,140 @@ func (_c *MockOrchestratorFactory_UpdatePool_Call) Return(_a0 *models.Pool, _a1 
 }
 
 func (_c *MockOrchestratorFactory_UpdatePool_Call) RunAndReturn(run func(context.Context, *common.UpdatePoolParams) (*models.Pool, string, error)) *MockOrchestratorFactory_UpdatePool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateQuotaRule provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) UpdateQuotaRule(ctx context.Context, params *common.UpdateQuotaRulesParam) (*models.QuotaRule, string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateQuotaRule")
+	}
+
+	var r0 *models.QuotaRule
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateQuotaRulesParam) (*models.QuotaRule, string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateQuotaRulesParam) *models.QuotaRule); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.QuotaRule)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.UpdateQuotaRulesParam) string); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.UpdateQuotaRulesParam) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_UpdateQuotaRule_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateQuotaRule'
+type MockOrchestratorFactory_UpdateQuotaRule_Call struct {
+	*mock.Call
+}
+
+// UpdateQuotaRule is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.UpdateQuotaRulesParam
+func (_e *MockOrchestratorFactory_Expecter) UpdateQuotaRule(ctx interface{}, params interface{}) *MockOrchestratorFactory_UpdateQuotaRule_Call {
+	return &MockOrchestratorFactory_UpdateQuotaRule_Call{Call: _e.mock.On("UpdateQuotaRule", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateQuotaRule_Call) Run(run func(ctx context.Context, params *common.UpdateQuotaRulesParam)) *MockOrchestratorFactory_UpdateQuotaRule_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.UpdateQuotaRulesParam))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateQuotaRule_Call) Return(_a0 *models.QuotaRule, _a1 string, _a2 error) *MockOrchestratorFactory_UpdateQuotaRule_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateQuotaRule_Call) RunAndReturn(run func(context.Context, *common.UpdateQuotaRulesParam) (*models.QuotaRule, string, error)) *MockOrchestratorFactory_UpdateQuotaRule_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateQuotaRuleInternal provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) UpdateQuotaRuleInternal(ctx context.Context, params *common.UpdateQuotaRulesParam) (*models.QuotaRule, *datamodel.Job, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateQuotaRuleInternal")
+	}
+
+	var r0 *models.QuotaRule
+	var r1 *datamodel.Job
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateQuotaRulesParam) (*models.QuotaRule, *datamodel.Job, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateQuotaRulesParam) *models.QuotaRule); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.QuotaRule)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.UpdateQuotaRulesParam) *datamodel.Job); ok {
+		r1 = rf(ctx, params)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*datamodel.Job)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.UpdateQuotaRulesParam) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_UpdateQuotaRuleInternal_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateQuotaRuleInternal'
+type MockOrchestratorFactory_UpdateQuotaRuleInternal_Call struct {
+	*mock.Call
+}
+
+// UpdateQuotaRuleInternal is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.UpdateQuotaRulesParam
+func (_e *MockOrchestratorFactory_Expecter) UpdateQuotaRuleInternal(ctx interface{}, params interface{}) *MockOrchestratorFactory_UpdateQuotaRuleInternal_Call {
+	return &MockOrchestratorFactory_UpdateQuotaRuleInternal_Call{Call: _e.mock.On("UpdateQuotaRuleInternal", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateQuotaRuleInternal_Call) Run(run func(ctx context.Context, params *common.UpdateQuotaRulesParam)) *MockOrchestratorFactory_UpdateQuotaRuleInternal_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.UpdateQuotaRulesParam))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateQuotaRuleInternal_Call) Return(_a0 *models.QuotaRule, _a1 *datamodel.Job, _a2 error) *MockOrchestratorFactory_UpdateQuotaRuleInternal_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateQuotaRuleInternal_Call) RunAndReturn(run func(context.Context, *common.UpdateQuotaRulesParam) (*models.QuotaRule, *datamodel.Job, error)) *MockOrchestratorFactory_UpdateQuotaRuleInternal_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -40,6 +40,9 @@ const (
 var (
 	createQuotaRule                  = _createQuotaRule
 	createQuotaRuleInternal          = _createQuotaRuleInternal
+	updateQuotaRule                  = _updateQuotaRule
+	updateQuotaRuleInternal          = _updateQuotaRuleInternal
+	listQuotaRules                   = _listQuotaRules
 	validateQuotaRuleCreateParams    = _validateQuotaRuleCreateParams
 	convertDatastoreQuotaRuleToModel = _convertDatastoreQuotaRuleToModel
 	getDestinationReplication        = _getDestinationReplication
@@ -47,6 +50,15 @@ var (
 	internalUtilGetPairedRegionURI   = utils.GetPairedRegionURI
 	internalParseRegionAndZone       = utils.ParseRegionAndZone
 )
+
+// isTransitionState checks if state is in a transitioning state
+// (CREATING, UPDATING, or DELETING). These states indicate the resource is currently
+// undergoing an operation and should not be modified.
+func isTransitionState(state string) bool {
+	return state == models.LifeCycleStateCreating ||
+		state == models.LifeCycleStateUpdating ||
+		state == models.LifeCycleStateDeleting
+}
 
 // validateQuotaRuleCreateParams validates quota rule creation parameters
 func _validateQuotaRuleCreateParams(params *common.CreateQuotaRulesParam) error {
@@ -77,7 +89,6 @@ func _getDestinationReplication(ctx context.Context, basePath string, projectNum
 }
 
 // validateReplicationState validates that quota rules are not created on destination volumes with active replication
-// Reference: validateQuotaEvent in specification, following pattern from _verifyDstReplicationResume
 func validateReplicationState(ctx context.Context, se database.Storage, volume *datamodel.Volume, locationID string) error {
 	logger := util.GetLogger(ctx)
 
@@ -101,8 +112,10 @@ func validateReplicationState(ctx context.Context, se database.Storage, volume *
 		if replication.ReplicationAttributes == nil {
 			continue
 		}
-		// TODO : Add hybrid replicaion check
-		// replication.ClusterPeer.Valid
+
+		if replication.HybridReplicationAttributes != nil {
+			return customerrors.NewUserInputValidationErr("Quota creation not allowed on hybrid replication volumes")
+		}
 
 		// Determine which replication to validate based on destination location
 		var destinationReplication *models.VolumeReplication
@@ -176,12 +189,10 @@ func validateReplicationState(ctx context.Context, se database.Storage, volume *
 		// Common validation logic for destination replication state
 		// Check lifecycle state: Cannot modify quotas during replication state transitions
 		// This check must come BEFORE mirror state checks
-		if destinationReplication.State == models.LifeCycleStateCreating ||
-			destinationReplication.State == models.LifeCycleStateUpdating ||
-			destinationReplication.State == models.LifeCycleStateDeleting {
+		if isTransitionState(destinationReplication.State) {
 			logger.Errorf("Destination replication is in transitioning state: %s", destinationReplication.State)
 			return customerrors.NewUserInputValidationErr(
-				"User/Group Quota operations not allowed when destination replication is in transitioning state (CREATING, UPDATING, or DELETING)")
+				"Quota update not allowed on destination volume when in active replication")
 		}
 
 		// Check mirror state: MIRRORED or UNINITIALIZED indicates active replication
@@ -208,8 +219,25 @@ func (o *Orchestrator) CreateQuotaRule(ctx context.Context, params *common.Creat
 // CreateQuotaRuleInternal creates a new quota rule for a volume via internal VCP API
 // This function is similar to CreateQuotaRule but skips replication state validation
 // as it's intended for VCP-to-VCP communication where replication validation is handled separately
-func (o *Orchestrator) CreateQuotaRuleInternal(ctx context.Context, params *common.CreateQuotaRulesParam) (*models.QuotaRule, string, error) {
+func (o *Orchestrator) CreateQuotaRuleInternal(ctx context.Context, params *common.CreateQuotaRulesParam) (*models.QuotaRule, *datamodel.Job, error) {
 	return createQuotaRuleInternal(ctx, o.storage, o.temporal, params)
+}
+
+// UpdateQuotaRule updates an existing quota rule for a volume
+func (o *Orchestrator) UpdateQuotaRule(ctx context.Context, params *common.UpdateQuotaRulesParam) (*models.QuotaRule, string, error) {
+	return updateQuotaRule(ctx, o.storage, o.temporal, params)
+}
+
+// UpdateQuotaRuleInternal updates an existing quota rule for a volume via internal VCP API
+// This function is similar to UpdateQuotaRule but skips replication state validation
+// as it's intended for VCP-to-VCP communication where replication validation is handled separately
+func (o *Orchestrator) UpdateQuotaRuleInternal(ctx context.Context, params *common.UpdateQuotaRulesParam) (*models.QuotaRule, *datamodel.Job, error) {
+	return updateQuotaRuleInternal(ctx, o.storage, o.temporal, params)
+}
+
+// ListQuotaRules lists all quota rules for a volume
+func (o *Orchestrator) ListQuotaRules(ctx context.Context, params *common.ListQuotaRulesParams) ([]*models.QuotaRule, error) {
+	return listQuotaRules(ctx, o.storage, params)
 }
 
 func _createQuotaRule(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateQuotaRulesParam) (*models.QuotaRule, string, error) {
@@ -356,24 +384,18 @@ func _createQuotaRule(ctx context.Context, se database.Storage, temporal client.
 // _createQuotaRuleInternal creates a new quota rule for a volume via internal VCP API
 // This function is similar to _createQuotaRule but skips replication state validation
 // as it's intended for VCP-to-VCP communication where replication validation is handled separately
-func _createQuotaRuleInternal(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateQuotaRulesParam) (*models.QuotaRule, string, error) {
+func _createQuotaRuleInternal(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateQuotaRulesParam) (*models.QuotaRule, *datamodel.Job, error) {
 	logger := util.GetLogger(ctx)
 
 	if err := validateQuotaRuleCreateParams(params); err != nil {
 		logger.Errorf("Quota rule validation failed: %v", err)
-		return nil, "", err
+		return nil, nil, err
 	}
 
 	volumeDataModel, err := se.GetVolume(ctx, params.VolumeUUID)
 	if err != nil {
 		logger.Errorf("Failed to retrieve volume: %v", err)
-		return nil, "", err
-	}
-
-	// Set LocationId from volume's pool primary zone if not already set
-	if params.LocationId == "" && volumeDataModel.Pool != nil && volumeDataModel.Pool.PoolAttributes != nil {
-		params.LocationId = volumeDataModel.Pool.PoolAttributes.PrimaryZone
-		logger.Debugf("Set LocationId from volume pool's primary zone: %s", params.LocationId)
+		return nil, nil, err
 	}
 
 	// Note: Replication state validation is skipped for internal VCP API calls
@@ -383,26 +405,26 @@ func _createQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 	existingQuotaRulesData, err := se.GetQuotaRulesByVolumeID(ctx, volumeDataModel.ID)
 	if err != nil {
 		logger.Errorf("Failed to fetch existing quota rules: %v", err)
-		return nil, "", err
+		return nil, nil, err
 	}
 	// Validate Quota Rules Limit as early quota-rule related check
 	if len(existingQuotaRulesData) >= VolumeQuotaRulesDefaultLimit {
 		logger.Errorf("Quota rules limit validation failed: volume has %d quota rules, limit is %d",
 			len(existingQuotaRulesData), VolumeQuotaRulesDefaultLimit)
-		return nil, "", customerrors.NewUserInputValidationErr(
+		return nil, nil, customerrors.NewUserInputValidationErr(
 			"Volume quota rules limit reached, please contact support to request for higher limit.")
 	}
 
 	// Validate the volume type and size for quota rule creation (SAN, FlexCache, and size checks)
 	if err := validateVolumeType(ctx, volumeDataModel, params); err != nil {
 		logger.Errorf("Volume type/size validation failed: %v", err)
-		return nil, "", err
+		return nil, nil, err
 	}
 
 	// Validate name and (type,target) uniqueness using in-memory existing rules
 	if err := validateQuotaRuleUniqueness(ctx, existingQuotaRulesData, params); err != nil {
 		logger.Errorf("Quota rule uniqueness validation failed: %v", err)
-		return nil, "", err
+		return nil, nil, err
 	}
 
 	// Determine if RQuota is required for this quota rule
@@ -410,7 +432,7 @@ func _createQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 	rquotaRequired, err := determineRQuota(ctx, se, volumeDataModel, existingQuotaRulesData)
 	if err != nil {
 		logger.Errorf("RQuota determination failed: %v", err)
-		return nil, "", err
+		return nil, nil, err
 	}
 	logger.Debugf("RQuota determination for volume %s: required=%t", volumeDataModel.UUID, rquotaRequired)
 
@@ -450,7 +472,7 @@ func _createQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 	job, err = se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Errorf("Failed to create job in database. Error: %v", err)
-		return nil, "", err
+		return nil, nil, err
 	}
 
 	// Convert disk limit from MiB (input param) to KiB (database storage and ONTAP API)
@@ -474,7 +496,7 @@ func _createQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 	dbQuotaRule, err = se.CreatingQuotaRule(ctx, quotaRuleDataModel)
 	if err != nil {
 		logger.Errorf("Failed to create quota rule in database. Error: %v", err)
-		return nil, "", err
+		return nil, nil, err
 	}
 
 	// Start Temporal workflow for quota rule creation
@@ -492,11 +514,298 @@ func _createQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 
 	if err != nil {
 		logger.Errorf("Failed to start create quota rule workflow. Error: %v ", err)
-		return nil, "", err
+		return nil, nil, err
 	}
 
 	dataStoreQuotaRule := convertDatastoreQuotaRuleToModel(dbQuotaRule)
+	return dataStoreQuotaRule, job, nil
+}
+
+func _updateQuotaRule(ctx context.Context, se database.Storage, temporal client.Client, params *common.UpdateQuotaRulesParam) (*models.QuotaRule, string, error) {
+	logger := util.GetLogger(ctx)
+
+	// Get account for validation
+	account, err := getAccountWithName(ctx, se, params.ProjectId)
+	if err != nil {
+		logger.Errorf("Failed to get account: %s. Error: %v", params.ProjectId, err)
+		return nil, "", err
+	}
+
+	// Get quota rule by UUID
+	quotaRuleDataModel, err := se.GetQuotaRuleByUUID(ctx, params.QuotaRuleUUID, account.ID)
+	if err != nil {
+		logger.Errorf("Failed to get quota rule: %s. Error: %v", params.QuotaRuleUUID, err)
+		return nil, "", err
+	}
+
+	// Validate that at least one field is being updated
+	if params.DiskLimitInMib == 0 && params.Description == "" {
+		logger.Errorf("No fields provided for update")
+		return nil, "", customerrors.NewUserInputValidationErr("At least one field (diskLimitInMib or description) must be provided for update")
+	}
+
+	// Validate quota rule is not in transitioning state
+	if isTransitionState(quotaRuleDataModel.State) {
+		logger.Errorf("Quota rule %s cannot be updated while in transitioning state: %s", params.QuotaRuleUUID, quotaRuleDataModel.State)
+		return nil, "", customerrors.NewConflictErr("Quota rule is in transition state and cannot be updated, state: " + quotaRuleDataModel.State)
+	}
+
+	// Validate disk limit if provided (independent condition check)
+	var diskLimitInKiB int64
+	if params.DiskLimitInMib > 0 {
+		diskLimitInKiB = params.DiskLimitInMib * mibToKibMultiplier
+		if diskLimitInKiB < DiskQuotaLowerLimit || diskLimitInKiB > DiskQuotaUpperLimit {
+			logger.Errorf("DiskLimit validation failed: %d KiB is outside the permissible range", diskLimitInKiB)
+			return nil, "", customerrors.NewUserInputValidationErr("DiskLimit is outside the permissible range")
+		}
+	}
+
+	// Get volume to access pool for provider and replication validation
+	volume, err := se.GetVolumeByIDAndAccountID(ctx, quotaRuleDataModel.VolumeID, account.ID)
+	if err != nil {
+		logger.Errorf("Failed to get volume: %v", err)
+		return nil, "", customerrors.NewUserInputValidationErr("Failed to get volume")
+	}
+
+	// Validate volume size: quota rule disk limit cannot exceed volume size (only if disk limit is being updated)
+	if params.DiskLimitInMib > 0 {
+		diskLimitInBytes := uint64(params.DiskLimitInMib) * mibToBytesMultiplier
+		if uint64(volume.SizeInBytes) < diskLimitInBytes {
+			logger.Errorf("Volume size validation failed: quota rule size (%d bytes) exceeds volume size (%d bytes)", diskLimitInBytes, volume.SizeInBytes)
+			return nil, "", customerrors.NewUserInputValidationErr(
+				"quota rule size can not be greater than volume size, please pass quota rule size less than volume size")
+		}
+	}
+
+	// Validate replication state: quota rules are not allowed on destination volumes with active replication.
+	if err := validateReplicationState(ctx, se, volume, params.LocationId); err != nil {
+		logger.Errorf("replication state validation failed: %v", err)
+		return nil, "", err
+	}
+
+	// Create job entry in database
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeUpdateQuotaRule),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  quotaRuleDataModel.Name,
+		AccountID:     sql.NullInt64{Int64: volume.AccountID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	// Cleanup in case of error
+	defer func() {
+		if err != nil {
+			if job != nil && job.UUID != "" {
+				logger.Warnf("Error occurred, marking job entry in DB as deleted. Job UUID: %s", job.UUID)
+				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
+					logger.Errorf("Failed to delete job: %v", delErr)
+				}
+			}
+			// Mark quota rule as available after cleanup
+			if quotaRuleDataModel != nil {
+				quotaRuleDataModel.State = models.LifeCycleStateAvailable
+				quotaRuleDataModel.StateDetails = models.LifeCycleStateReadyDetails
+				if _, updateErr := se.UpdateQuotaRule(ctx, quotaRuleDataModel); updateErr != nil {
+					logger.Errorf("Failed to mark quota rule as available after error: %v", updateErr)
+				}
+			}
+		}
+	}()
+
+	job, err = se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Errorf("Failed to create job in database. Error: %v", err)
+		return nil, "", err
+	}
+
+	quotaRuleDataModel.State = models.LifeCycleStateUpdating
+	quotaRuleDataModel.StateDetails = models.LifeCycleStateUpdatingDetails
+
+	// Mark quota rule as UPDATING state in database
+	updatedQuotaRule, err := se.UpdatingQuotaRule(ctx, quotaRuleDataModel)
+	if err != nil {
+		logger.Errorf("Failed to mark quota rule as updating: %v", err)
+		return nil, "", err
+	}
+
+	// Start Temporal workflow for quota rule update
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    job.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+		},
+		workflows.UpdateQuotaRuleWorkflow,
+		params,
+		updatedQuotaRule,
+	)
+
+	if err != nil {
+		logger.Errorf("Failed to start update quota rule workflow. Error: %v ", err)
+		return nil, "", err
+	}
+
+	dataStoreQuotaRule := convertDatastoreQuotaRuleToModel(updatedQuotaRule)
 	return dataStoreQuotaRule, job.UUID, nil
+}
+
+// _updateQuotaRuleInternal updates an existing quota rule for a volume via internal VCP API
+// This function is similar to _updateQuotaRule but skips replication state validation
+// as it's intended for VCP-to-VCP communication where replication validation is handled separately
+func _updateQuotaRuleInternal(ctx context.Context, se database.Storage, temporal client.Client, params *common.UpdateQuotaRulesParam) (*models.QuotaRule, *datamodel.Job, error) {
+	logger := util.GetLogger(ctx)
+
+	// Get account for validation
+	account, err := getAccountWithName(ctx, se, params.ProjectId)
+	if err != nil {
+		logger.Errorf("Failed to get account: %s. Error: %v", params.ProjectId, err)
+		return nil, nil, err
+	}
+
+	// Get quota rule by UUID
+	quotaRuleDataModel, err := se.GetQuotaRuleByUUID(ctx, params.QuotaRuleUUID, account.ID)
+	if err != nil {
+		logger.Errorf("Failed to get quota rule: %s. Error: %v", params.QuotaRuleUUID, err)
+		return nil, nil, err
+	}
+
+	// Validate quota rule is not in transitioning state
+	if isTransitionState(quotaRuleDataModel.State) {
+		logger.Errorf("Quota rule %s cannot be updated while in transitioning state: %s", params.QuotaRuleUUID, quotaRuleDataModel.State)
+		return nil, nil, customerrors.NewConflictErr("Quota rule is in transition state and cannot be updated, state: " + quotaRuleDataModel.State)
+	}
+
+	// Validate that at least one field is being updated
+	if params.DiskLimitInMib == 0 && params.Description == "" {
+		logger.Errorf("No fields provided for update")
+		return nil, nil, customerrors.NewUserInputValidationErr("At least one field (diskLimitInMib or description) must be provided for update")
+	}
+
+	// Validate disk limit if provided (independent condition check)
+	var diskLimitInKiB int64
+	if params.DiskLimitInMib > 0 {
+		diskLimitInKiB = params.DiskLimitInMib * mibToKibMultiplier
+		if diskLimitInKiB < DiskQuotaLowerLimit || diskLimitInKiB > DiskQuotaUpperLimit {
+			logger.Errorf("DiskLimit validation failed: %d KiB is outside the permissible range", diskLimitInKiB)
+			return nil, nil, customerrors.NewUserInputValidationErr("DiskLimit is outside the permissible range")
+		}
+	}
+
+	// Get volume to access pool for provider and volume size validation
+	volume, err := se.GetVolumeByIDAndAccountID(ctx, quotaRuleDataModel.VolumeID, account.ID)
+	if err != nil {
+		logger.Errorf("Failed to get volume: %v", err)
+		return nil, nil, err
+	}
+
+	// Validate volume size: quota rule disk limit cannot exceed volume size (only if disk limit is being updated)
+	if params.DiskLimitInMib > 0 {
+		diskLimitInBytes := uint64(params.DiskLimitInMib) * mibToBytesMultiplier
+		if uint64(volume.SizeInBytes) < diskLimitInBytes {
+			logger.Errorf("Volume size validation failed: quota rule size (%d bytes) exceeds volume size (%d bytes)", diskLimitInBytes, volume.SizeInBytes)
+			return nil, nil, customerrors.NewUserInputValidationErr(
+				"quota rule size can not be greater than volume size, please pass quota rule size less than volume size")
+		}
+	}
+
+	// Note: Replication state validation is skipped for internal VCP API calls
+	// Replication validation is handled separately in the calling VCP instance
+
+	// Create job entry in database
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeUpdateQuotaRule),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  quotaRuleDataModel.Name,
+		AccountID:     sql.NullInt64{Int64: volume.AccountID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	// Cleanup in case of error
+	defer func() {
+		if err != nil {
+			if job != nil && job.UUID != "" {
+				logger.Warnf("Error occurred, marking job entry in DB as deleted. Job UUID: %s", job.UUID)
+				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
+					logger.Errorf("Failed to delete job: %v", delErr)
+				}
+			}
+			// Mark quota rule as available after cleanup
+			if quotaRuleDataModel != nil {
+				quotaRuleDataModel.State = models.LifeCycleStateAvailable
+				quotaRuleDataModel.StateDetails = models.LifeCycleStateReadyDetails
+				if _, updateErr := se.UpdateQuotaRule(ctx, quotaRuleDataModel); updateErr != nil {
+					logger.Errorf("Failed to mark quota rule as available after error: %v", updateErr)
+				}
+			}
+		}
+	}()
+
+	job, err = se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Errorf("Failed to create job in database. Error: %v", err)
+		return nil, nil, err
+	}
+
+	// Update state to UPDATING
+	quotaRuleDataModel.State = models.LifeCycleStateUpdating
+	quotaRuleDataModel.StateDetails = models.LifeCycleStateUpdatingDetails
+
+	// Mark quota rule as UPDATING state in database
+	updatedQuotaRule, err := se.UpdatingQuotaRule(ctx, quotaRuleDataModel)
+	if err != nil {
+		logger.Errorf("Failed to mark quota rule as updating: %v", err)
+		return nil, nil, err
+	}
+
+	// Start Temporal workflow for quota rule update
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    job.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+		},
+		workflows.UpdateQuotaRuleWorkflow,
+		params,
+		updatedQuotaRule,
+	)
+
+	if err != nil {
+		logger.Errorf("Failed to start update quota rule workflow. Error: %v ", err)
+		return nil, nil, err
+	}
+
+	dataStoreQuotaRule := convertDatastoreQuotaRuleToModel(updatedQuotaRule)
+	return dataStoreQuotaRule, job, nil
+}
+
+// _listQuotaRules lists all quota rules for a volume
+func _listQuotaRules(ctx context.Context, se database.Storage, params *common.ListQuotaRulesParams) ([]*models.QuotaRule, error) {
+	logger := util.GetLogger(ctx)
+
+	// Get volume to get volume ID
+	volume, err := se.GetVolume(ctx, params.VolumeID)
+	if err != nil {
+		logger.Errorf("Failed to get volume: %s. Error: %v", params.VolumeID, err)
+		return nil, err
+	}
+
+	// Fetch quota rules from database
+	quotaRules, err := se.GetQuotaRulesByVolumeID(ctx, volume.ID)
+	if err != nil {
+		logger.Errorf("Failed to get quota rules for volume: %s. Error: %v", params.VolumeID, err)
+		return nil, err
+	}
+
+	// Convert datamodel quota rules to models
+	var quotaRulesToReturn []*models.QuotaRule
+	for _, quotaRule := range quotaRules {
+		quotaRulesToReturn = append(quotaRulesToReturn, convertDatastoreQuotaRuleToModel(quotaRule))
+	}
+	return quotaRulesToReturn, nil
 }
 
 // _convertDatastoreQuotaRuleToModel converts a datamodel.QuotaRule to models.QuotaRule
@@ -507,12 +816,6 @@ func _convertDatastoreQuotaRuleToModel(quotaRule *datamodel.QuotaRule) *models.Q
 
 	// Convert disk limit from KiB (database storage) back to MiB (API response)
 	diskLimitInMib := quotaRule.DiskLimitInKib / kibToMibDivisor
-
-	// Get VolumeUUID from preloaded Volume
-	volumeUUID := ""
-	if quotaRule.Volume != nil {
-		volumeUUID = quotaRule.Volume.UUID
-	}
 
 	result := &models.QuotaRule{
 		BaseModel: models.BaseModel{
@@ -525,7 +828,6 @@ func _convertDatastoreQuotaRuleToModel(quotaRule *datamodel.QuotaRule) *models.Q
 		Description:           quotaRule.Description,
 		LifeCycleState:        quotaRule.State,
 		LifeCycleStateDetails: quotaRule.StateDetails,
-		VolumeUUID:            volumeUUID,
 		QuotaType:             quotaRule.QuotaType,
 		QuotaTarget:           quotaRule.QuotaTarget,
 		DiskLimitInMib:        diskLimitInMib,

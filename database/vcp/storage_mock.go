@@ -8690,9 +8690,9 @@ func (_c *MockStorage_GetPoolsCount_Call) RunAndReturn(run func(context.Context,
 	return _c
 }
 
-// GetQuotaRuleByUUID provides a mock function with given fields: ctx, uuid, accountID, volumeID
-func (_m *MockStorage) GetQuotaRuleByUUID(ctx context.Context, uuid string, accountID int64, volumeID int64) (*datamodel.QuotaRule, error) {
-	ret := _m.Called(ctx, uuid, accountID, volumeID)
+// GetQuotaRuleByUUID provides a mock function with given fields: ctx, uuid, accountID
+func (_m *MockStorage) GetQuotaRuleByUUID(ctx context.Context, uuid string, accountID int64) (*datamodel.QuotaRule, error) {
+	ret := _m.Called(ctx, uuid, accountID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetQuotaRuleByUUID")
@@ -8700,19 +8700,19 @@ func (_m *MockStorage) GetQuotaRuleByUUID(ctx context.Context, uuid string, acco
 
 	var r0 *datamodel.QuotaRule
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, int64, int64) (*datamodel.QuotaRule, error)); ok {
-		return rf(ctx, uuid, accountID, volumeID)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.QuotaRule, error)); ok {
+		return rf(ctx, uuid, accountID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, int64, int64) *datamodel.QuotaRule); ok {
-		r0 = rf(ctx, uuid, accountID, volumeID)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.QuotaRule); ok {
+		r0 = rf(ctx, uuid, accountID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.QuotaRule)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, int64, int64) error); ok {
-		r1 = rf(ctx, uuid, accountID, volumeID)
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, uuid, accountID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -8729,14 +8729,13 @@ type MockStorage_GetQuotaRuleByUUID_Call struct {
 //   - ctx context.Context
 //   - uuid string
 //   - accountID int64
-//   - volumeID int64
-func (_e *MockStorage_Expecter) GetQuotaRuleByUUID(ctx interface{}, uuid interface{}, accountID interface{}, volumeID interface{}) *MockStorage_GetQuotaRuleByUUID_Call {
-	return &MockStorage_GetQuotaRuleByUUID_Call{Call: _e.mock.On("GetQuotaRuleByUUID", ctx, uuid, accountID, volumeID)}
+func (_e *MockStorage_Expecter) GetQuotaRuleByUUID(ctx interface{}, uuid interface{}, accountID interface{}) *MockStorage_GetQuotaRuleByUUID_Call {
+	return &MockStorage_GetQuotaRuleByUUID_Call{Call: _e.mock.On("GetQuotaRuleByUUID", ctx, uuid, accountID)}
 }
 
-func (_c *MockStorage_GetQuotaRuleByUUID_Call) Run(run func(ctx context.Context, uuid string, accountID int64, volumeID int64)) *MockStorage_GetQuotaRuleByUUID_Call {
+func (_c *MockStorage_GetQuotaRuleByUUID_Call) Run(run func(ctx context.Context, uuid string, accountID int64)) *MockStorage_GetQuotaRuleByUUID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(int64))
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
 	})
 	return _c
 }
@@ -8746,7 +8745,7 @@ func (_c *MockStorage_GetQuotaRuleByUUID_Call) Return(_a0 *datamodel.QuotaRule, 
 	return _c
 }
 
-func (_c *MockStorage_GetQuotaRuleByUUID_Call) RunAndReturn(run func(context.Context, string, int64, int64) (*datamodel.QuotaRule, error)) *MockStorage_GetQuotaRuleByUUID_Call {
+func (_c *MockStorage_GetQuotaRuleByUUID_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.QuotaRule, error)) *MockStorage_GetQuotaRuleByUUID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -9992,6 +9991,66 @@ func (_c *MockStorage_GetVolume_Call) Return(_a0 *datamodel.Volume, _a1 error) *
 }
 
 func (_c *MockStorage_GetVolume_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Volume, error)) *MockStorage_GetVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetVolumeByIDAndAccountID provides a mock function with given fields: ctx, volumeID, accountID
+func (_m *MockStorage) GetVolumeByIDAndAccountID(ctx context.Context, volumeID int64, accountID int64) (*datamodel.Volume, error) {
+	ret := _m.Called(ctx, volumeID, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumeByIDAndAccountID")
+	}
+
+	var r0 *datamodel.Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64, int64) (*datamodel.Volume, error)); ok {
+		return rf(ctx, volumeID, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64, int64) *datamodel.Volume); ok {
+		r0 = rf(ctx, volumeID, accountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64, int64) error); ok {
+		r1 = rf(ctx, volumeID, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetVolumeByIDAndAccountID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeByIDAndAccountID'
+type MockStorage_GetVolumeByIDAndAccountID_Call struct {
+	*mock.Call
+}
+
+// GetVolumeByIDAndAccountID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeID int64
+//   - accountID int64
+func (_e *MockStorage_Expecter) GetVolumeByIDAndAccountID(ctx interface{}, volumeID interface{}, accountID interface{}) *MockStorage_GetVolumeByIDAndAccountID_Call {
+	return &MockStorage_GetVolumeByIDAndAccountID_Call{Call: _e.mock.On("GetVolumeByIDAndAccountID", ctx, volumeID, accountID)}
+}
+
+func (_c *MockStorage_GetVolumeByIDAndAccountID_Call) Run(run func(ctx context.Context, volumeID int64, accountID int64)) *MockStorage_GetVolumeByIDAndAccountID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetVolumeByIDAndAccountID_Call) Return(_a0 *datamodel.Volume, _a1 error) *MockStorage_GetVolumeByIDAndAccountID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetVolumeByIDAndAccountID_Call) RunAndReturn(run func(context.Context, int64, int64) (*datamodel.Volume, error)) *MockStorage_GetVolumeByIDAndAccountID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -16202,6 +16261,65 @@ func (_c *MockStorage_UpdatingPool_Call) Return(_a0 *datamodel.Pool, _a1 error) 
 }
 
 func (_c *MockStorage_UpdatingPool_Call) RunAndReturn(run func(context.Context, *datamodel.Pool) (*datamodel.Pool, error)) *MockStorage_UpdatingPool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdatingQuotaRule provides a mock function with given fields: ctx, quotaRule
+func (_m *MockStorage) UpdatingQuotaRule(ctx context.Context, quotaRule *datamodel.QuotaRule) (*datamodel.QuotaRule, error) {
+	ret := _m.Called(ctx, quotaRule)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdatingQuotaRule")
+	}
+
+	var r0 *datamodel.QuotaRule
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.QuotaRule) (*datamodel.QuotaRule, error)); ok {
+		return rf(ctx, quotaRule)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.QuotaRule) *datamodel.QuotaRule); ok {
+		r0 = rf(ctx, quotaRule)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.QuotaRule)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.QuotaRule) error); ok {
+		r1 = rf(ctx, quotaRule)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_UpdatingQuotaRule_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdatingQuotaRule'
+type MockStorage_UpdatingQuotaRule_Call struct {
+	*mock.Call
+}
+
+// UpdatingQuotaRule is a helper method to define mock.On call
+//   - ctx context.Context
+//   - quotaRule *datamodel.QuotaRule
+func (_e *MockStorage_Expecter) UpdatingQuotaRule(ctx interface{}, quotaRule interface{}) *MockStorage_UpdatingQuotaRule_Call {
+	return &MockStorage_UpdatingQuotaRule_Call{Call: _e.mock.On("UpdatingQuotaRule", ctx, quotaRule)}
+}
+
+func (_c *MockStorage_UpdatingQuotaRule_Call) Run(run func(ctx context.Context, quotaRule *datamodel.QuotaRule)) *MockStorage_UpdatingQuotaRule_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.QuotaRule))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdatingQuotaRule_Call) Return(_a0 *datamodel.QuotaRule, _a1 error) *MockStorage_UpdatingQuotaRule_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_UpdatingQuotaRule_Call) RunAndReturn(run func(context.Context, *datamodel.QuotaRule) (*datamodel.QuotaRule, error)) *MockStorage_UpdatingQuotaRule_Call {
 	_c.Call.Return(run)
 	return _c
 }

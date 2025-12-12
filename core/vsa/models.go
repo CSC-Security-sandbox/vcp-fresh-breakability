@@ -738,7 +738,7 @@ type SnapshotProviderResponse struct {
 }
 
 // QuotaRuleProviderResponse contains the response from ONTAP quota rule operations.
-// It includes the operation state, any error messages, and the ONTAP quota rule UUID.
+// It includes the operation state and any error messages.
 //
 // The State field should use the JobRespSuccess or JobRespFailure constants defined
 // in quota_rule.go for consistency across the codebase.
@@ -754,9 +754,8 @@ type SnapshotProviderResponse struct {
 //	}
 type QuotaRuleProviderResponse struct {
 	ProviderResponse
-	ExternalUUID string // ONTAP quota rule UUID (assigned by ONTAP after creation)
-	State        string // Operation state: "success" or "failure" (use JobRespSuccess/JobRespFailure constants)
-	Message      string // Error message if State is "failure", empty on success
+	State   string // Operation state: "success" or "failure" (use JobRespSuccess/JobRespFailure constants)
+	Message string // Error message if State is "failure", empty on success
 }
 
 // IsSuccess returns true if the quota rule operation completed successfully.

@@ -7,7 +7,6 @@ type QuotaRule struct {
 	QuotaType             string
 	DiskLimitInMib        int64
 	QuotaTarget           string
-	VolumeUUID            string
 	LifeCycleState        string
 	LifeCycleStateDetails string
 	Description           string

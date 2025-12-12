@@ -269,6 +269,12 @@ type ListSnapshotsParams struct {
 	SnapshotBaseParams
 }
 
+// ListQuotaRulesParams describes parameters for listing quota rules
+type ListQuotaRulesParams struct {
+	AccountName string
+	VolumeID    string
+}
+
 type UpdateSnapshotParams struct {
 	SnapshotBaseParams
 	SnapshotUUID string
@@ -814,4 +820,13 @@ type CreateQuotaRulesParam struct {
 	ProjectId      string
 	Description    string
 	LocationId     string // Region where the quota rule is being created
+}
+
+// UpdateQuotaRulesParam describes parameters supplied to update a quota rule
+type UpdateQuotaRulesParam struct {
+	QuotaRuleUUID  string // UUID of the quota rule to update
+	DiskLimitInMib int64  // New disk limit (optional, can be 0 if not updating)
+	Description    string // New description (optional, can be empty if not updating)
+	ProjectId      string // Project number for validation
+	LocationId     string // Location/region for validation
 }

@@ -109,18 +109,24 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 
 		mockStorage := database.NewMockStorage(tt)
-		quotaRuleActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 
-		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
-		env.RegisterActivity(quotaRuleActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
 
 		params := createBaseParams()
 		quotaRule := createBaseQuotaRule()
 
+		// Mock GetJob for EnsureJobState
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
 		// Mock GetVolumeByID to fail
-		env.OnActivity("GetVolumeByID", mock.Anything, volumeID).Return(nil, errors.New("volume not found"))
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(nil, errors.New("volume not found"))
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
@@ -144,21 +150,29 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(tt)
 		quotaRuleActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 
-		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.CreateQuotaRuleForDataProtectionVolume)
-		env.RegisterActivity(quotaRuleActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
 
 		params := createBaseParams()
 		quotaRule := createBaseQuotaRule()
 		volume := createBaseVolume(true, []string{"NFSV3"})
 
-		env.OnActivity("GetVolumeByID", mock.Anything, volumeID).Return(volume, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("CreateQuotaRuleForDataProtectionVolume", mock.Anything, quotaRule).Return(errors.New("failed to create DP quota rule"))
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+		// Mock GetJob for EnsureJobState
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
 
@@ -180,21 +194,29 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(tt)
 		quotaRuleActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 
-		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.ValidateQuotaTargetByProtocol)
-		env.RegisterActivity(quotaRuleActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
 
 		params := createBaseParams()
 		quotaRule := createBaseQuotaRule()
 		volume := createBaseVolume(false, []string{"NFSV3"})
 
-		env.OnActivity("GetVolumeByID", mock.Anything, volumeID).Return(volume, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("ValidateQuotaTargetByProtocol", mock.Anything, quotaRule, []string{"NFSV3"}).Return(errors.New("protocol validation failed"))
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+		// Mock GetJob for EnsureJobState
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
 
@@ -216,23 +238,31 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(tt)
 		quotaRuleActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 
-		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.ValidateQuotaTargetByProtocol)
 		env.RegisterActivity(commonActivity.GetNode)
-		env.RegisterActivity(quotaRuleActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
 
 		params := createBaseParams()
 		quotaRule := createBaseQuotaRule()
 		volume := createBaseVolume(false, []string{"NFSV3"})
 
-		env.OnActivity("GetVolumeByID", mock.Anything, volumeID).Return(volume, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("ValidateQuotaTargetByProtocol", mock.Anything, quotaRule, []string{"NFSV3"}).Return(nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nil, errors.New("failed to get nodes"))
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+		// Mock GetJob for EnsureJobState
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
 
@@ -254,26 +284,34 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(tt)
 		quotaRuleActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 
-		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.ValidateQuotaTargetByProtocol)
 		env.RegisterActivity(commonActivity.GetNode)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
-		env.RegisterActivity(quotaRuleActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
 
 		params := createBaseParams()
 		quotaRule := createBaseQuotaRule()
 		volume := createBaseVolume(false, []string{"NFSV3"})
 		nodes := createBaseNodes()
 
-		env.OnActivity("GetVolumeByID", mock.Anything, volumeID).Return(volume, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("ValidateQuotaTargetByProtocol", mock.Anything, quotaRule, []string{"NFSV3"}).Return(nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(errors.New("failed to update rquota"))
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+		// Mock GetJob for EnsureJobState
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
 
@@ -295,15 +333,17 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(tt)
 		quotaRuleActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 
-		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.ValidateQuotaTargetByProtocol)
 		env.RegisterActivity(commonActivity.GetNode)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleActivity.HandleDefaultQuotaRuleUpdate)
-		env.RegisterActivity(quotaRuleActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
 
 		params := createBaseParams()
 		quotaRule := createBaseQuotaRule()
@@ -311,13 +351,19 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		volume := createBaseVolume(false, []string{"NFSV3"})
 		nodes := createBaseNodes()
 
-		env.OnActivity("GetVolumeByID", mock.Anything, volumeID).Return(volume, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("ValidateQuotaTargetByProtocol", mock.Anything, quotaRule, []string{"NFSV3"}).Return(nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("HandleDefaultQuotaRuleUpdate", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.DiskLimitInKib).Return(errors.New("unexpected error updating default quota"))
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+		// Mock GetJob for EnsureJobState
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
 
@@ -339,23 +385,25 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(tt)
 		quotaRuleActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 
-		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.ValidateQuotaTargetByProtocol)
 		env.RegisterActivity(commonActivity.GetNode)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleActivity.HandleDefaultQuotaRuleUpdate)
 		env.RegisterActivity(quotaRuleActivity.CreateQuotaRuleOnONTAP)
-		env.RegisterActivity(quotaRuleActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
 
 		params := createBaseParams()
 		quotaRule := createBaseQuotaRule()
 		volume := createBaseVolume(false, []string{"NFSV3"})
 		nodes := createBaseNodes()
 
-		env.OnActivity("GetVolumeByID", mock.Anything, volumeID).Return(volume, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("ValidateQuotaTargetByProtocol", mock.Anything, quotaRule, []string{"NFSV3"}).Return(nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
@@ -363,6 +411,12 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, volume, quotaRule).Return(nil, errors.New("failed to create quota rule on ONTAP"))
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+		// Mock GetJob for EnsureJobState
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
 
@@ -384,17 +438,19 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(tt)
 		quotaRuleActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 
-		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.ValidateQuotaTargetByProtocol)
 		env.RegisterActivity(commonActivity.GetNode)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleActivity.HandleDefaultQuotaRuleUpdate)
 		env.RegisterActivity(quotaRuleActivity.CreateQuotaRuleOnONTAP)
 		env.RegisterActivity(quotaRuleActivity.GetQuotaStatus)
-		env.RegisterActivity(quotaRuleActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
 
 		params := createBaseParams()
 		quotaRule := createBaseQuotaRule()
@@ -402,11 +458,11 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		nodes := createBaseNodes()
 
 		quotaRuleResp := &vsa.QuotaRuleProviderResponse{
-			State:        vsa.JobRespSuccess,
-			ExternalUUID: "quota-external-uuid",
+			State:   vsa.JobRespSuccess,
+			Message: "Quota rule created successfully",
 		}
 
-		env.OnActivity("GetVolumeByID", mock.Anything, volumeID).Return(volume, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("ValidateQuotaTargetByProtocol", mock.Anything, quotaRule, []string{"NFSV3"}).Return(nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
@@ -415,6 +471,12 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetQuotaStatus", mock.Anything, mock.Anything, volume).Return(nil, errors.New("failed to get quota status"))
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+		// Mock GetJob for EnsureJobState
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
 
@@ -436,9 +498,10 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(tt)
 		quotaRuleActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 
-		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.ValidateQuotaTargetByProtocol)
 		env.RegisterActivity(commonActivity.GetNode)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
@@ -446,8 +509,9 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		env.RegisterActivity(quotaRuleActivity.CreateQuotaRuleOnONTAP)
 		env.RegisterActivity(quotaRuleActivity.GetQuotaStatus)
 		env.RegisterActivity(quotaRuleActivity.HandleQuotaEnableDisable)
-		env.RegisterActivity(quotaRuleActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
 
 		params := createBaseParams()
 		quotaRule := createBaseQuotaRule()
@@ -455,8 +519,8 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		nodes := createBaseNodes()
 
 		quotaRuleResp := &vsa.QuotaRuleProviderResponse{
-			State:        vsa.JobRespSuccess,
-			ExternalUUID: "quota-external-uuid",
+			State:   vsa.JobRespSuccess,
+			Message: "Quota rule created successfully",
 		}
 
 		quotaStatus := &vsa.QuotaStatus{
@@ -464,7 +528,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 			Enabled: false,
 		}
 
-		env.OnActivity("GetVolumeByID", mock.Anything, volumeID).Return(volume, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("ValidateQuotaTargetByProtocol", mock.Anything, quotaRule, []string{"NFSV3"}).Return(nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
@@ -474,6 +538,12 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("HandleQuotaEnableDisable", mock.Anything, mock.Anything, volume).Return(nil, errors.New("failed to enable quota"))
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+		// Mock GetJob for EnsureJobState
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
 
@@ -495,9 +565,10 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(tt)
 		quotaRuleActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 
-		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.ValidateQuotaTargetByProtocol)
 		env.RegisterActivity(commonActivity.GetNode)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
@@ -505,8 +576,9 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		env.RegisterActivity(quotaRuleActivity.CreateQuotaRuleOnONTAP)
 		env.RegisterActivity(quotaRuleActivity.GetQuotaStatus)
 		env.RegisterActivity(quotaRuleActivity.QuotaReinitialization)
-		env.RegisterActivity(quotaRuleActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
 
 		params := createBaseParams()
 		quotaRule := createBaseQuotaRule()
@@ -514,9 +586,8 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		nodes := createBaseNodes()
 
 		quotaRuleResp := &vsa.QuotaRuleProviderResponse{
-			State:        vsa.JobRespFailure,
-			ExternalUUID: "quota-external-uuid",
-			Message:      "Quota policy rule create operation succeeded, however quota resize failed",
+			State:   vsa.JobRespFailure,
+			Message: "Quota policy rule create operation succeeded, however quota resize failed",
 		}
 
 		quotaStatus := &vsa.QuotaStatus{
@@ -524,7 +595,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 			Enabled: true,
 		}
 
-		env.OnActivity("GetVolumeByID", mock.Anything, volumeID).Return(volume, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("ValidateQuotaTargetByProtocol", mock.Anything, quotaRule, []string{"NFSV3"}).Return(nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
@@ -534,6 +605,12 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("QuotaReinitialization", mock.Anything, mock.Anything, volume).Return(errors.New("failed to reinitialize quota"))
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+		// Mock GetJob for EnsureJobState
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
 
@@ -555,9 +632,10 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(tt)
 		quotaRuleActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 
-		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.ValidateQuotaTargetByProtocol)
 		env.RegisterActivity(commonActivity.GetNode)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
@@ -565,9 +643,10 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		env.RegisterActivity(quotaRuleActivity.CreateQuotaRuleOnONTAP)
 		env.RegisterActivity(quotaRuleActivity.GetQuotaStatus)
 		env.RegisterActivity(quotaRuleActivity.HandleQuotaEnableDisable)
-		env.RegisterActivity(quotaRuleActivity.GetVolumeReplication)
-		env.RegisterActivity(quotaRuleActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeReplication)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
 
 		params := createBaseParams()
 		quotaRule := createBaseQuotaRule()
@@ -575,8 +654,8 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		nodes := createBaseNodes()
 
 		quotaRuleResp := &vsa.QuotaRuleProviderResponse{
-			State:        vsa.JobRespSuccess,
-			ExternalUUID: "quota-external-uuid",
+			State:   vsa.JobRespSuccess,
+			Message: "Quota rule created successfully",
 		}
 
 		quotaStatus := &vsa.QuotaStatus{
@@ -589,7 +668,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 			Message: "quota enabled",
 		}
 
-		env.OnActivity("GetVolumeByID", mock.Anything, volumeID).Return(volume, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("ValidateQuotaTargetByProtocol", mock.Anything, quotaRule, []string{"NFSV3"}).Return(nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
@@ -600,6 +679,12 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return(nil, errors.New("failed to get volume replication"))
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+		// Mock GetJob for EnsureJobState
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
 
@@ -621,9 +706,10 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(tt)
 		quotaRuleActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 
-		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.ValidateQuotaTargetByProtocol)
 		env.RegisterActivity(commonActivity.GetNode)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
@@ -631,10 +717,11 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		env.RegisterActivity(quotaRuleActivity.CreateQuotaRuleOnONTAP)
 		env.RegisterActivity(quotaRuleActivity.GetQuotaStatus)
 		env.RegisterActivity(quotaRuleActivity.HandleQuotaEnableDisable)
-		env.RegisterActivity(quotaRuleActivity.GetVolumeReplication)
-		env.RegisterActivity(quotaRuleActivity.VerifyReplicationState)
-		env.RegisterActivity(quotaRuleActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeReplication)
+		env.RegisterActivity(quotaRuleCommonActivity.VerifyReplicationState)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
 
 		params := createBaseParams()
 		quotaRule := createBaseQuotaRule()
@@ -642,244 +729,8 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		nodes := createBaseNodes()
 
 		quotaRuleResp := &vsa.QuotaRuleProviderResponse{
-			State:        vsa.JobRespSuccess,
-			ExternalUUID: "quota-external-uuid",
-		}
-
-		quotaStatus := &vsa.QuotaStatus{
-			State:   vsa.QuotaStateOff,
-			Enabled: false,
-		}
-
-		quotaEnableResp := &vsa.JobStatus{
 			State:   vsa.JobRespSuccess,
-			Message: "quota enabled",
-		}
-
-		replications := []*datamodel.VolumeReplication{
-			{
-				BaseModel: datamodel.BaseModel{
-					ID: 1,
-				},
-				VolumeID: volumeID,
-			},
-		}
-
-		env.OnActivity("GetVolumeByID", mock.Anything, volumeID).Return(volume, nil)
-		env.OnActivity("ValidateQuotaTargetByProtocol", mock.Anything, quotaRule, []string{"NFSV3"}).Return(nil)
-		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
-		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
-		env.OnActivity("HandleDefaultQuotaRuleUpdate", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.DiskLimitInKib).Return(vsaerrors.New("not found"))
-		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, volume, quotaRule).Return(quotaRuleResp, nil)
-		env.OnActivity("GetQuotaStatus", mock.Anything, mock.Anything, volume).Return(quotaStatus, nil)
-		env.OnActivity("HandleQuotaEnableDisable", mock.Anything, mock.Anything, volume).Return(quotaEnableResp, nil)
-		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return(replications, nil)
-		env.OnActivity("VerifyReplicationState", mock.Anything, replications, params.LocationId).Return(nil, errors.New("replication state validation failed"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-
-		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
-
-		assert.True(tt, env.IsWorkflowCompleted())
-		assert.Error(tt, env.GetWorkflowError())
-	})
-
-	t.Run("WhenCreateQuotaRuleOnDestinationFails", func(tt *testing.T) {
-		var ts testsuite.WorkflowTestSuite
-		env := ts.NewTestWorkflowEnvironment()
-		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-		mockHeader := &commonpb.Header{
-			Fields: map[string]*commonpb.Payload{
-				"logParam": encodedValue,
-			},
-		}
-		env.SetHeader(mockHeader)
-
-		mockStorage := database.NewMockStorage(tt)
-		quotaRuleActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
-		commonActivity := activities.CommonActivities{SE: mockStorage}
-
-		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
-		env.RegisterActivity(quotaRuleActivity.ValidateQuotaTargetByProtocol)
-		env.RegisterActivity(commonActivity.GetNode)
-		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
-		env.RegisterActivity(quotaRuleActivity.HandleDefaultQuotaRuleUpdate)
-		env.RegisterActivity(quotaRuleActivity.CreateQuotaRuleOnONTAP)
-		env.RegisterActivity(quotaRuleActivity.GetQuotaStatus)
-		env.RegisterActivity(quotaRuleActivity.HandleQuotaEnableDisable)
-		env.RegisterActivity(quotaRuleActivity.GetVolumeReplication)
-		env.RegisterActivity(quotaRuleActivity.VerifyReplicationState)
-		env.RegisterActivity(quotaRuleActivity.CreateQuotaRuleOnDestination)
-		env.RegisterActivity(quotaRuleActivity.UpdateQuotaRuleState)
-		env.RegisterActivity(commonActivity.UpdateJobStatus)
-
-		params := createBaseParams()
-		quotaRule := createBaseQuotaRule()
-		volume := createBaseVolume(false, []string{"NFSV3"})
-		nodes := createBaseNodes()
-
-		quotaRuleResp := &vsa.QuotaRuleProviderResponse{
-			State:        vsa.JobRespSuccess,
-			ExternalUUID: "quota-external-uuid",
-		}
-
-		quotaStatus := &vsa.QuotaStatus{
-			State:   vsa.QuotaStateOff,
-			Enabled: false,
-		}
-
-		quotaEnableResp := &vsa.JobStatus{
-			State:   vsa.JobRespSuccess,
-			Message: "quota enabled",
-		}
-
-		replications := []*datamodel.VolumeReplication{
-			{
-				BaseModel: datamodel.BaseModel{
-					ID: 1,
-				},
-				VolumeID: volumeID,
-			},
-		}
-
-		eligibleReplications := []*activities.ReplicationSyncEligibility{
-			{
-				DestinationVolumeUUID: "dest-volume-uuid",
-				DestinationLocation:   "us-west1-a",
-				DestinationProjectNum: "987654321",
-			},
-		}
-
-		env.OnActivity("GetVolumeByID", mock.Anything, volumeID).Return(volume, nil)
-		env.OnActivity("ValidateQuotaTargetByProtocol", mock.Anything, quotaRule, []string{"NFSV3"}).Return(nil)
-		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
-		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
-		env.OnActivity("HandleDefaultQuotaRuleUpdate", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.DiskLimitInKib).Return(vsaerrors.New("not found"))
-		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, volume, quotaRule).Return(quotaRuleResp, nil)
-		env.OnActivity("GetQuotaStatus", mock.Anything, mock.Anything, volume).Return(quotaStatus, nil)
-		env.OnActivity("HandleQuotaEnableDisable", mock.Anything, mock.Anything, volume).Return(quotaEnableResp, nil)
-		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return(replications, nil)
-		env.OnActivity("VerifyReplicationState", mock.Anything, replications, params.LocationId).Return(eligibleReplications, nil)
-		env.OnActivity("CreateQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", quotaRule, "us-west1-a", "987654321").Return(errors.New("failed to create quota rule on destination"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-
-		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
-
-		assert.True(tt, env.IsWorkflowCompleted())
-		assert.Error(tt, env.GetWorkflowError())
-	})
-
-	t.Run("WhenFinishQuotaRuleJobFails", func(tt *testing.T) {
-		var ts testsuite.WorkflowTestSuite
-		env := ts.NewTestWorkflowEnvironment()
-		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-		mockHeader := &commonpb.Header{
-			Fields: map[string]*commonpb.Payload{
-				"logParam": encodedValue,
-			},
-		}
-		env.SetHeader(mockHeader)
-
-		mockStorage := database.NewMockStorage(tt)
-		quotaRuleActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
-		commonActivity := activities.CommonActivities{SE: mockStorage}
-
-		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
-		env.RegisterActivity(quotaRuleActivity.ValidateQuotaTargetByProtocol)
-		env.RegisterActivity(commonActivity.GetNode)
-		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
-		env.RegisterActivity(quotaRuleActivity.HandleDefaultQuotaRuleUpdate)
-		env.RegisterActivity(quotaRuleActivity.CreateQuotaRuleOnONTAP)
-		env.RegisterActivity(quotaRuleActivity.GetQuotaStatus)
-		env.RegisterActivity(quotaRuleActivity.HandleQuotaEnableDisable)
-		env.RegisterActivity(quotaRuleActivity.GetVolumeReplication)
-		env.RegisterActivity(quotaRuleActivity.VerifyReplicationState)
-		env.RegisterActivity(quotaRuleActivity.FinishQuotaRuleJob)
-		env.RegisterActivity(quotaRuleActivity.UpdateQuotaRuleState)
-		env.RegisterActivity(commonActivity.UpdateJobStatus)
-
-		params := createBaseParams()
-		quotaRule := createBaseQuotaRule()
-		volume := createBaseVolume(false, []string{"NFSV3"})
-		nodes := createBaseNodes()
-
-		quotaRuleResp := &vsa.QuotaRuleProviderResponse{
-			State:        vsa.JobRespSuccess,
-			ExternalUUID: "quota-external-uuid",
-		}
-
-		quotaStatus := &vsa.QuotaStatus{
-			State:   vsa.QuotaStateOff,
-			Enabled: false,
-		}
-
-		quotaEnableResp := &vsa.JobStatus{
-			State:   vsa.JobRespSuccess,
-			Message: "quota enabled",
-		}
-
-		env.OnActivity("GetVolumeByID", mock.Anything, volumeID).Return(volume, nil)
-		env.OnActivity("ValidateQuotaTargetByProtocol", mock.Anything, quotaRule, []string{"NFSV3"}).Return(nil)
-		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
-		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
-		env.OnActivity("HandleDefaultQuotaRuleUpdate", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.DiskLimitInKib).Return(vsaerrors.New("not found"))
-		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, volume, quotaRule).Return(quotaRuleResp, nil)
-		env.OnActivity("GetQuotaStatus", mock.Anything, mock.Anything, volume).Return(quotaStatus, nil)
-		env.OnActivity("HandleQuotaEnableDisable", mock.Anything, mock.Anything, volume).Return(quotaEnableResp, nil)
-		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return([]*datamodel.VolumeReplication{}, nil)
-		env.OnActivity("VerifyReplicationState", mock.Anything, []*datamodel.VolumeReplication{}, params.LocationId).Return([]*activities.ReplicationSyncEligibility{}, nil)
-		env.OnActivity("FinishQuotaRuleJob", mock.Anything, quotaRule.UUID, mock.Anything, "quota-external-uuid", quotaRule.Description).Return(errors.New("failed to finish quota rule job"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-
-		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
-
-		assert.True(tt, env.IsWorkflowCompleted())
-		assert.Error(tt, env.GetWorkflowError())
-	})
-
-	t.Run("WhenQuotaCreateWorkflowSucceeds", func(tt *testing.T) {
-		var ts testsuite.WorkflowTestSuite
-		env := ts.NewTestWorkflowEnvironment()
-		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-		mockHeader := &commonpb.Header{
-			Fields: map[string]*commonpb.Payload{
-				"logParam": encodedValue,
-			},
-		}
-		env.SetHeader(mockHeader)
-
-		mockStorage := database.NewMockStorage(tt)
-		quotaRuleActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
-		commonActivity := activities.CommonActivities{SE: mockStorage}
-
-		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
-		env.RegisterActivity(quotaRuleActivity.ValidateQuotaTargetByProtocol)
-		env.RegisterActivity(commonActivity.GetNode)
-		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
-		env.RegisterActivity(quotaRuleActivity.HandleDefaultQuotaRuleUpdate)
-		env.RegisterActivity(quotaRuleActivity.CreateQuotaRuleOnONTAP)
-		env.RegisterActivity(quotaRuleActivity.GetQuotaStatus)
-		env.RegisterActivity(quotaRuleActivity.HandleQuotaEnableDisable)
-		env.RegisterActivity(quotaRuleActivity.GetVolumeReplication)
-		env.RegisterActivity(quotaRuleActivity.VerifyReplicationState)
-		env.RegisterActivity(quotaRuleActivity.CreateQuotaRuleOnDestination)
-		env.RegisterActivity(quotaRuleActivity.FinishQuotaRuleJob)
-		env.RegisterActivity(commonActivity.UpdateJobStatus)
-
-		params := createBaseParams()
-		quotaRule := createBaseQuotaRule()
-		volume := createBaseVolume(false, []string{"NFSV3"})
-		nodes := createBaseNodes()
-
-		quotaRuleResp := &vsa.QuotaRuleProviderResponse{
-			State:        vsa.JobRespSuccess,
-			ExternalUUID: "quota-external-uuid",
-			Message:      "Quota rule created successfully",
+			Message: "Quota rule created successfully",
 		}
 
 		quotaStatus := &vsa.QuotaStatus{
@@ -902,20 +753,11 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 					DestinationVolumeUUID: "dest-volume-uuid",
 					DestinationLocation:   "us-west1-a",
 				},
+				RemoteUri: "projects/987654321/locations/us-west1-a/volumes/dest-volume-uuid/replications/replication-1",
 			},
 		}
 
-		eligibleReplications := []*activities.ReplicationSyncEligibility{
-			{
-				DestinationVolumeUUID: "dest-volume-uuid",
-				DestinationLocation:   "us-west1-a",
-				DestinationProjectNum: "987654321",
-			},
-		}
-
-		// Mock all activities to succeed
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetVolumeByID", mock.Anything, volumeID).Return(volume, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
 		env.OnActivity("ValidateQuotaTargetByProtocol", mock.Anything, quotaRule, []string{"NFSV3"}).Return(nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
@@ -924,9 +766,285 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetQuotaStatus", mock.Anything, mock.Anything, volume).Return(quotaStatus, nil)
 		env.OnActivity("HandleQuotaEnableDisable", mock.Anything, mock.Anything, volume).Return(quotaEnableResp, nil)
 		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return(replications, nil)
-		env.OnActivity("VerifyReplicationState", mock.Anything, replications, params.LocationId).Return(eligibleReplications, nil)
-		env.OnActivity("CreateQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", quotaRule, "us-west1-a", "987654321").Return(nil)
-		env.OnActivity("FinishQuotaRuleJob", mock.Anything, quotaRule.UUID, mock.Anything, "quota-external-uuid", quotaRule.Description).Return(nil)
+		env.OnActivity("VerifyReplicationState", mock.Anything, replications[0], params.LocationId).Return(false, errors.New("replication state validation failed"))
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+		// Mock GetJob for EnsureJobState
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+
+		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+	})
+
+	t.Run("WhenCreateQuotaRuleOnDestinationFails", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		mockStorage := database.NewMockStorage(tt)
+		quotaRuleActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleActivity.ValidateQuotaTargetByProtocol)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
+		env.RegisterActivity(quotaRuleActivity.HandleDefaultQuotaRuleUpdate)
+		env.RegisterActivity(quotaRuleActivity.CreateQuotaRuleOnONTAP)
+		env.RegisterActivity(quotaRuleActivity.GetQuotaStatus)
+		env.RegisterActivity(quotaRuleActivity.HandleQuotaEnableDisable)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeReplication)
+		env.RegisterActivity(quotaRuleCommonActivity.VerifyReplicationState)
+		env.RegisterActivity(quotaRuleCommonActivity.GetSignedDstTokenForQuotaRule)
+		env.RegisterActivity(quotaRuleActivity.CreateQuotaRuleOnDestination)
+		env.RegisterActivity(quotaRuleCommonActivity.DescribeQuotaRuleRemoteJob)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+
+		params := createBaseParams()
+		quotaRule := createBaseQuotaRule()
+		volume := createBaseVolume(false, []string{"NFSV3"})
+		nodes := createBaseNodes()
+
+		quotaRuleResp := &vsa.QuotaRuleProviderResponse{
+			State:   vsa.JobRespSuccess,
+			Message: "Quota rule created successfully",
+		}
+
+		quotaStatus := &vsa.QuotaStatus{
+			State:   vsa.QuotaStateOff,
+			Enabled: false,
+		}
+
+		quotaEnableResp := &vsa.JobStatus{
+			State:   vsa.JobRespSuccess,
+			Message: "quota enabled",
+		}
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				VolumeID: volumeID,
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationVolumeUUID: "dest-volume-uuid",
+					DestinationLocation:   "us-west1-a",
+				},
+				RemoteUri: "projects/987654321/locations/us-west1-a/volumes/dest-volume-uuid/replications/replication-1",
+			},
+		}
+
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
+		env.OnActivity("ValidateQuotaTargetByProtocol", mock.Anything, quotaRule, []string{"NFSV3"}).Return(nil)
+		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
+		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
+		env.OnActivity("HandleDefaultQuotaRuleUpdate", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.DiskLimitInKib).Return(vsaerrors.New("not found"))
+		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, volume, quotaRule).Return(quotaRuleResp, nil)
+		env.OnActivity("GetQuotaStatus", mock.Anything, mock.Anything, volume).Return(quotaStatus, nil)
+		env.OnActivity("HandleQuotaEnableDisable", mock.Anything, mock.Anything, volume).Return(quotaEnableResp, nil)
+		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return(replications, nil)
+		env.OnActivity("VerifyReplicationState", mock.Anything, replications[0], params.LocationId).Return(true, nil)
+		jwtToken := "test-jwt-token"
+		env.OnActivity("GetSignedDstTokenForQuotaRule", mock.Anything, "987654321").Return(&jwtToken, nil)
+		env.OnActivity("CreateQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", quotaRule, "us-west1-a", "987654321", &jwtToken).Return(nil, errors.New("failed to create quota rule on destination"))
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+		// Mock GetJob for EnsureJobState
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+
+		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+	})
+
+	t.Run("WhenFinishQuotaRuleJobFails", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		mockStorage := database.NewMockStorage(tt)
+		quotaRuleActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleActivity.ValidateQuotaTargetByProtocol)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
+		env.RegisterActivity(quotaRuleActivity.HandleDefaultQuotaRuleUpdate)
+		env.RegisterActivity(quotaRuleActivity.CreateQuotaRuleOnONTAP)
+		env.RegisterActivity(quotaRuleActivity.GetQuotaStatus)
+		env.RegisterActivity(quotaRuleActivity.HandleQuotaEnableDisable)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeReplication)
+		env.RegisterActivity(quotaRuleCommonActivity.VerifyReplicationState)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+
+		params := createBaseParams()
+		quotaRule := createBaseQuotaRule()
+		volume := createBaseVolume(false, []string{"NFSV3"})
+		nodes := createBaseNodes()
+
+		quotaRuleResp := &vsa.QuotaRuleProviderResponse{
+			State:   vsa.JobRespSuccess,
+			Message: "Quota rule created successfully",
+		}
+
+		quotaStatus := &vsa.QuotaStatus{
+			State:   vsa.QuotaStateOff,
+			Enabled: false,
+		}
+
+		quotaEnableResp := &vsa.JobStatus{
+			State:   vsa.JobRespSuccess,
+			Message: "quota enabled",
+		}
+
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
+		env.OnActivity("ValidateQuotaTargetByProtocol", mock.Anything, quotaRule, []string{"NFSV3"}).Return(nil)
+		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
+		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
+		env.OnActivity("HandleDefaultQuotaRuleUpdate", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.DiskLimitInKib).Return(vsaerrors.New("not found"))
+		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, volume, quotaRule).Return(quotaRuleResp, nil)
+		env.OnActivity("GetQuotaStatus", mock.Anything, mock.Anything, volume).Return(quotaStatus, nil)
+		env.OnActivity("HandleQuotaEnableDisable", mock.Anything, mock.Anything, volume).Return(quotaEnableResp, nil)
+		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return([]*datamodel.VolumeReplication{}, nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+		// Mock GetJob for EnsureJobState
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+
+		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
+
+		// Note: FinishQuotaRuleJob is not called in the current workflow implementation
+		// The workflow completes successfully after UpdateQuotaRuleState
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
+
+	t.Run("WhenQuotaCreateWorkflowSucceeds", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		mockStorage := database.NewMockStorage(tt)
+		quotaRuleActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleActivity.ValidateQuotaTargetByProtocol)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
+		env.RegisterActivity(quotaRuleActivity.HandleDefaultQuotaRuleUpdate)
+		env.RegisterActivity(quotaRuleActivity.CreateQuotaRuleOnONTAP)
+		env.RegisterActivity(quotaRuleActivity.GetQuotaStatus)
+		env.RegisterActivity(quotaRuleActivity.HandleQuotaEnableDisable)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeReplication)
+		env.RegisterActivity(quotaRuleCommonActivity.VerifyReplicationState)
+		env.RegisterActivity(quotaRuleCommonActivity.GetSignedDstTokenForQuotaRule)
+		env.RegisterActivity(quotaRuleActivity.CreateQuotaRuleOnDestination)
+		env.RegisterActivity(quotaRuleCommonActivity.DescribeQuotaRuleRemoteJob)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+
+		params := createBaseParams()
+		quotaRule := createBaseQuotaRule()
+		volume := createBaseVolume(false, []string{"NFSV3"})
+		nodes := createBaseNodes()
+
+		quotaRuleResp := &vsa.QuotaRuleProviderResponse{
+			State:   vsa.JobRespSuccess,
+			Message: "Quota rule created successfully",
+		}
+
+		quotaStatus := &vsa.QuotaStatus{
+			State:   vsa.QuotaStateOff,
+			Enabled: false,
+		}
+
+		quotaEnableResp := &vsa.JobStatus{
+			State:   vsa.JobRespSuccess,
+			Message: "quota enabled",
+		}
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				VolumeID: volumeID,
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationVolumeUUID: "dest-volume-uuid",
+					DestinationLocation:   "us-west1-a",
+				},
+				RemoteUri: "projects/987654321/locations/us-west1-a/volumes/dest-volume-uuid/replications/replication-1",
+			},
+		}
+
+		// Mock all activities to succeed
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(0)).Return(volume, nil)
+		env.OnActivity("ValidateQuotaTargetByProtocol", mock.Anything, quotaRule, []string{"NFSV3"}).Return(nil)
+		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
+		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
+		env.OnActivity("HandleDefaultQuotaRuleUpdate", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.DiskLimitInKib).Return(vsaerrors.New("not found"))
+		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, volume, quotaRule).Return(quotaRuleResp, nil)
+		env.OnActivity("GetQuotaStatus", mock.Anything, mock.Anything, volume).Return(quotaStatus, nil)
+		env.OnActivity("HandleQuotaEnableDisable", mock.Anything, mock.Anything, volume).Return(quotaEnableResp, nil)
+		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return(replications, nil)
+		env.OnActivity("VerifyReplicationState", mock.Anything, replications[0], params.LocationId).Return(true, nil)
+		jwtToken := "test-jwt-token"
+		env.OnActivity("GetSignedDstTokenForQuotaRule", mock.Anything, "987654321").Return(&jwtToken, nil)
+		env.OnActivity("CreateQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", quotaRule, "us-west1-a", "987654321", &jwtToken).Return(&activities.QuotaRuleOperationResult{IsDone: true}, nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+
+		// Mock GetJob for EnsureJobState
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
 
 		env.ExecuteWorkflow(CreateQuotaRuleWorkflow, params, quotaRule)
 

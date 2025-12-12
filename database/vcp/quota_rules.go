@@ -5,11 +5,16 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
+)
+
+var (
+	getQuotaRule = _getQuotaRule
 )
 
 // GetQuotaRulesByVolumeID fetches all quota rules for a given volume
@@ -79,13 +84,40 @@ func (d *DataStoreRepository) CreatingQuotaRule(ctx context.Context, quotaRule *
 		return nil, err
 	}
 
-	// Preload Volume details for the quota rule
-	if err := tx.Preload("Volume").First(quotaRule, quotaRule.ID).Error; err != nil {
-		logger.Error("Failed to preload volume details for quota rule", "error", err)
+	return quotaRule, nil
+}
+
+func (d *DataStoreRepository) UpdatingQuotaRule(ctx context.Context, quotaRule *datamodel.QuotaRule) (*datamodel.QuotaRule, error) {
+	logger := util.GetLogger(ctx)
+	db := d.db.GORM().WithContext(ctx)
+
+	// Start transaction
+	tx, err := startTransaction(db)
+	if err != nil {
+		logger.Error("Failed to start transaction for quota rule update", "error", err)
+		return nil, err
+	}
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	// Update timestamp
+	quotaRule.UpdatedAt = time.Now()
+
+	// Save the updated quota rule
+	if err = tx.Updates(quotaRule).Error; err != nil {
+		logger.Error("Failed to update quota rule in database", "error", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+
+	// Reload to get the updated quota rule
+	updatedQuotaRule, err := getQuotaRule(tx, &datamodel.QuotaRule{
+		BaseModel: datamodel.BaseModel{UUID: quotaRule.UUID},
+	})
+	if err != nil {
+		logger.Error("Failed to reload updated quota rule", "error", err)
 		return nil, err
 	}
 
-	return quotaRule, nil
+	return updatedQuotaRule, nil
 }
 
 // UpdateQuotaRule updates an existing quota rule in the database
@@ -103,7 +135,7 @@ func (d *DataStoreRepository) UpdateQuotaRule(ctx context.Context, quotaRule *da
 
 	// Verify quota rule exists before updating
 	// Use UUID, VolumeID, QuotaTarget, and QuotaType for verification
-	_, err = _getQuotaRule(tx, &datamodel.QuotaRule{
+	_, err = getQuotaRule(tx, &datamodel.QuotaRule{
 		BaseModel:   datamodel.BaseModel{UUID: quotaRule.UUID},
 		VolumeID:    quotaRule.VolumeID,
 		QuotaTarget: quotaRule.QuotaTarget,
@@ -114,13 +146,7 @@ func (d *DataStoreRepository) UpdateQuotaRule(ctx context.Context, quotaRule *da
 		return nil, err
 	}
 
-	// For DP volumes, set the quota rule directly to AVAILABLE state
-	// No ONTAP operations are needed since quotas are managed by the source volume
-	// Update timestamp
-	quotaRule.State = models.LifeCycleStateREADY
-	quotaRule.StateDetails = models.LifeCycleStateReadyDetails
 	quotaRule.UpdatedAt = time.Now()
-
 	// Update the quota rule
 	err = tx.Updates(quotaRule).Error
 	if err != nil {
@@ -132,7 +158,7 @@ func (d *DataStoreRepository) UpdateQuotaRule(ctx context.Context, quotaRule *da
 }
 
 // GetQuotaRuleByUUID retrieves a specific quota rule by UUID with ownership validation
-func (d *DataStoreRepository) GetQuotaRuleByUUID(ctx context.Context, uuid string, accountID int64, volumeID int64) (*datamodel.QuotaRule, error) {
+func (d *DataStoreRepository) GetQuotaRuleByUUID(ctx context.Context, uuid string, accountID int64) (*datamodel.QuotaRule, error) {
 	logger := util.GetLogger(ctx)
 	db := d.db.GORM().WithContext(ctx)
 
@@ -145,11 +171,7 @@ func (d *DataStoreRepository) GetQuotaRuleByUUID(ctx context.Context, uuid strin
 		query = query.Where("account_id = ?", accountID)
 	}
 
-	if volumeID > 0 {
-		query = query.Where("volume_id = ?", volumeID)
-	}
-
-	err := query.Preload("Volume").Preload("Volume.Pool").First(&quotaRule).Error
+	err := query.First(&quotaRule).Error
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

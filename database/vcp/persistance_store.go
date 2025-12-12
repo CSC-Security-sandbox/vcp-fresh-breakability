@@ -528,6 +528,10 @@ func (s *PersistenceStore) GetVolumeWithAccountID(ctx context.Context, id string
 	return s.dataStore.GetVolumeWithAccountID(ctx, id, accountID)
 }
 
+func (s *PersistenceStore) GetVolumeByIDAndAccountID(ctx context.Context, volumeID int64, accountID int64) (*datamodel.Volume, error) {
+	return s.dataStore.GetVolumeByIDAndAccountID(ctx, volumeID, accountID)
+}
+
 func (s *PersistenceStore) GetVolumeByNameAndAccountID(ctx context.Context, id string, accountID int64) (*datamodel.Volume, error) {
 	return s.dataStore.GetVolumeByNameAndAccountID(ctx, id, accountID)
 }
@@ -1450,12 +1454,16 @@ func (s *PersistenceStore) CreatingQuotaRule(ctx context.Context, quotaRule *dat
 	return s.dataStore.CreatingQuotaRule(ctx, quotaRule)
 }
 
+func (s *PersistenceStore) UpdatingQuotaRule(ctx context.Context, quotaRule *datamodel.QuotaRule) (*datamodel.QuotaRule, error) {
+	return s.dataStore.UpdatingQuotaRule(ctx, quotaRule)
+}
+
 func (s *PersistenceStore) UpdateQuotaRule(ctx context.Context, quotaRule *datamodel.QuotaRule) (*datamodel.QuotaRule, error) {
 	return s.dataStore.UpdateQuotaRule(ctx, quotaRule)
 }
 
-func (s *PersistenceStore) GetQuotaRuleByUUID(ctx context.Context, uuid string, accountID int64, volumeID int64) (*datamodel.QuotaRule, error) {
-	return s.dataStore.GetQuotaRuleByUUID(ctx, uuid, accountID, volumeID)
+func (s *PersistenceStore) GetQuotaRuleByUUID(ctx context.Context, uuid string, accountID int64) (*datamodel.QuotaRule, error) {
+	return s.dataStore.GetQuotaRuleByUUID(ctx, uuid, accountID)
 }
 
 func (s *PersistenceStore) GetQuotaRulesByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.QuotaRule, error) {
