@@ -15,14 +15,10 @@ func (s *AnyV1) SetFake() {
 		}
 	}
 	{
-		{ // Keep pointer nil to prevent infinite recursion.
-			s.AnyValue = nil
+		{
+			s.AnyValue = []byte("null")
 		}
 	}
-}
-
-// SetFake set fake values.
-func (s *AnyV1AnyValue) SetFake() {
 }
 
 // SetFake set fake values.
@@ -611,14 +607,10 @@ func (s *OperationV1) SetFake() {
 		}
 	}
 	{
-		{ // Keep pointer nil to prevent infinite recursion.
-			s.Response = nil
+		{
+			s.Response = []byte("null")
 		}
 	}
-}
-
-// SetFake set fake values.
-func (s *OperationV1Response) SetFake() {
 }
 
 // SetFake set fake values.
@@ -1504,6 +1496,78 @@ func (s *V1CreatePoolUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1CreateSnapshotBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateSnapshotBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateSnapshotConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateSnapshotConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateSnapshotForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateSnapshotForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateSnapshotInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateSnapshotInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateSnapshotNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateSnapshotNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateSnapshotTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateSnapshotTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateSnapshotUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateSnapshotUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateSnapshotUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateSnapshotUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1DeleteImageVersionBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -2262,4 +2326,23 @@ func (s *V1UpgradeClusterUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1UpgradeClusterUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *VolumeSnapshotCreateV1) SetFake() {
+	{
+		{
+			s.ResourceId = "string"
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.IsAppConsistent.SetFake()
+		}
+	}
 }

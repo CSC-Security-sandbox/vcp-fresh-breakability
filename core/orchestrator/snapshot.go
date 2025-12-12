@@ -148,19 +148,25 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 
 	var dbSnapshot *datamodel.Snapshot
 	var job *datamodel.Job
+	snapshotAPISyncMode := env.GetBool("SNAPSHOT_API_SYNC_MODE", false)
 	// Cleanup in case of error
 	defer func() {
 		if err != nil {
-			if job != nil && job.UUID != "" {
+			if dbSnapshot != nil && dbSnapshot.UUID != "" {
+				logger.Warnf("Error occurred, marking snapshot as ERROR. Snapshot UUID: %s", dbSnapshot.UUID)
+				now := time.Now()
+				dbSnapshot.DeletedAt = &gorm.DeletedAt{Time: now, Valid: true}
+				dbSnapshot.State = models.LifeCycleStateError
+				dbSnapshot.StateDetails = models.LifeCycleStateCreationErrorDetails
+				if _, updateErr := se.UpdateSnapshot(ctx, dbSnapshot); updateErr != nil {
+					logger.Errorf("Failed to mark snapshot as ERROR: %v", updateErr)
+				}
+			}
+			// For async mode only, delete the job
+			if !snapshotAPISyncMode && job != nil && job.UUID != "" {
 				logger.Warnf("Error occurred, marking job entry in DB as deleted. Job UUID: %s", job.UUID)
 				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
 					logger.Errorf("Failed to delete job: %v", delErr)
-				}
-			}
-			if dbSnapshot != nil && dbSnapshot.UUID != "" {
-				logger.Warnf("Error occurred, marking snapshot in DB as deleted. Snapshot UUID: %s", dbSnapshot.UUID)
-				if _, delErr := se.DeleteSnapshot(ctx, dbSnapshot.UUID); delErr != nil {
-					logger.Errorf("Failed to delete snapshot: %v", delErr)
 				}
 			}
 		}
@@ -184,6 +190,15 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
+	if snapshotAPISyncMode {
+		var asyncSnapshot *models.Snapshot
+		asyncSnapshot, err = createSnapshotSync(ctx, se, dbSnapshot, params, logger)
+		if err != nil {
+			return nil, "", err
+		}
+		return asyncSnapshot, "", nil
+	}
+
 	job = &datamodel.Job{
 		Type:          string(models.JobTypeCreateSnapshot),
 		State:         string(models.JobsStateNEW),
@@ -201,12 +216,6 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	if err != nil {
 		logger.Errorf("Failed to create job in database. Error: %v", err)
 		return nil, "", err
-	}
-
-	// Check feature flag to determine sync or async mode
-	snapshotAPISyncMode := env.GetBool("SNAPSHOT_API_SYNC_MODE", false)
-	if snapshotAPISyncMode {
-		return createSnapshotSync(ctx, se, job, dbSnapshot, params, logger)
 	}
 
 	// Async mode - use workflow
@@ -316,64 +325,39 @@ func (o *Orchestrator) GetMultipleSnapshots(ctx context.Context, volumeUuid stri
 }
 
 // createSnapshotSync creates snapshot synchronously without using workflow
-func createSnapshotSync(ctx context.Context, se database.Storage, job *datamodel.Job, dbSnapshot *datamodel.Snapshot, params *common.CreateSnapshotParams, logger log.Logger) (*models.Snapshot, string, error) {
+func createSnapshotSync(ctx context.Context, se database.Storage, dbSnapshot *datamodel.Snapshot, params *common.CreateSnapshotParams, logger log.Logger) (*models.Snapshot, error) {
 	logger.Infof("Starting snapshot sync for volume %s", params.VolumeID)
-
-	// Update job status to PROCESSING
-	err := se.UpdateJob(ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "")
-	if err != nil {
-		logger.Errorf("Failed to update job status to PROCESSING: %v", err)
-		return nil, "", err
-	}
-
-	var errorMsg string
-
-	// Defer to handle error logging and job status update (only if PROCESSING update succeeded)
-	defer func() {
-		if err != nil {
-			logger.Errorf("%s: %v", errorMsg, err)
-			if updateErr := se.UpdateJob(ctx, job.UUID, string(models.JobsStateERROR), 0, err.Error()); updateErr != nil {
-				logger.Errorf("Failed to update job status to ERROR: %v", updateErr)
-			}
-		}
-	}()
-
-	// Store original description and set job UUID in description for ONTAP
 	snapshotDescription := dbSnapshot.Description
-	dbSnapshot.Description = job.UUID
 
 	// Get provider using fast connection
 	provider, err := backgroundactivities.GetOntapRestProviderForPoolFastConn(ctx, se, dbSnapshot.Volume.Pool)
 	if err != nil {
-		errorMsg = "Failed to get ONTAP REST provider"
-		return nil, "", err
+		logger.Errorf("Failed to get ONTAP REST provider: %v", err)
+		return nil, err
 	}
 
 	// Create snapshot synchronously with direct polling
 	snapshotCreateResponse, err := createSnapshotSyncWithDirectPolling(ctx, provider, dbSnapshot, logger)
 	if err != nil {
-		errorMsg = "Failed to create snapshot in ONTAP"
-		return nil, "", err
+		logger.Errorf("Failed to create snapshot in ONTAP: %v", err)
+		return nil, err
 	}
 
 	// Restore original description
 	dbSnapshot.Description = snapshotDescription
 
 	// Update snapshot details in database
-	if snapshotCreateResponse != nil {
-		dbSnapshot.State = models.LifeCycleStateREADY
-		dbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
-		dbSnapshot.SnapshotAttributes.SizeInBytes = snapshotCreateResponse.SizeInBytes
-		dbSnapshot.SnapshotAttributes.ExternalUUID = snapshotCreateResponse.ExternalUUID
-		dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes = snapshotCreateResponse.LogicalSizeInBytes
-	} else {
-		now := time.Now()
-		dbSnapshot.DeletedAt = &gorm.DeletedAt{Time: now, Valid: true}
-		dbSnapshot.State = models.LifeCycleStateError
-		dbSnapshot.StateDetails = models.LifeCycleStateCreationErrorDetails
+	if snapshotCreateResponse == nil {
+		logger.Errorf("Snapshot create response is nil")
+		return nil, fmt.Errorf("snapshot create response is nil")
 	}
 
-	// Update both snapshot and job in a single transaction for better performance
+	dbSnapshot.State = models.LifeCycleStateREADY
+	dbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
+	dbSnapshot.SnapshotAttributes.SizeInBytes = snapshotCreateResponse.SizeInBytes
+	dbSnapshot.SnapshotAttributes.ExternalUUID = snapshotCreateResponse.ExternalUUID
+	dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes = snapshotCreateResponse.LogicalSizeInBytes
+
 	var updatedSnapshot *datamodel.Snapshot
 	err = se.WithTransaction(ctx, func(tx utils2.Transaction) error {
 		txDB := tx.GORM().WithContext(ctx)
@@ -405,34 +389,16 @@ func createSnapshotSync(ctx context.Context, se database.Storage, job *datamodel
 		}
 		updatedSnapshot = dbSnapshotFromDB
 
-		// Update job status to DONE
-		jobFromDB := &datamodel.Job{}
-		err = txDB.First(jobFromDB, &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: job.UUID}}).Error
-		if err != nil {
-			if vsaerrors.Is(err, gorm.ErrRecordNotFound) {
-				return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, customerrors.NewNotFoundErr("job", &job.UUID))
-			}
-			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
-		}
-
-		jobFromDB.UpdatedAt = time.Now()
-		jobFromDB.State = string(models.JobsStateDONE)
-		jobFromDB.TrackingID = 0
-		jobFromDB.ErrorDetails = ""
-		if err = txDB.Updates(jobFromDB).Error; err != nil {
-			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
-		}
-
 		return nil
 	})
 
 	if err != nil {
-		errorMsg = "Failed to update snapshot and job in transaction"
-		return nil, "", err
+		logger.Errorf("Failed to update snapshot in transaction: %v", err)
+		return nil, err
 	}
 
 	dataStoreSnap := ConvertDatastoreSnapshotToModel(updatedSnapshot)
-	return dataStoreSnap, job.UUID, nil
+	return dataStoreSnap, nil
 }
 
 // createSnapshotSyncWithDirectPolling creates snapshot and polls job directly without workflow

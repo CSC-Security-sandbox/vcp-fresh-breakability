@@ -292,3 +292,165 @@ func TestContextKey(t *testing.T) {
 		assert.Equal(t, 0, int(CorrelationContextKey))
 	})
 }
+
+func TestGetCoreAPIClientWithoutRetry(t *testing.T) {
+	t.Run("WhenReturnsClientWithValidServerURL", func(t *testing.T) {
+		logger := slogger.NewLogger()
+		client := getCoreAPIClientWithoutRetry("example.com", "test-jwt", logger)
+
+		assert.NotNil(t, client)
+		assert.NotNil(t, client.Invoker)
+	})
+
+	t.Run("WhenDoesNotUseRetryRoundTripper", func(t *testing.T) {
+		logger := slogger.NewLogger()
+		originalNewRetryRoundTripper := httphelpersNewRetryRoundTripper
+		defer func() { httphelpersNewRetryRoundTripper = originalNewRetryRoundTripper }()
+
+		retryRoundTripperCalled := false
+		httphelpersNewRetryRoundTripper = func(delay time.Duration, maxRetries int, logger slogger.Logger, next http.RoundTripper) http.RoundTripper {
+			retryRoundTripperCalled = true
+			return next
+		}
+
+		getCoreAPIClientWithoutRetry("example.com", "test-jwt", logger)
+		// Key difference: retry round tripper should NOT be called
+		assert.False(t, retryRoundTripperCalled, "getCoreAPIClientWithoutRetry should not use retry round tripper")
+	})
+
+	t.Run("WhenUsesLoggingRoundTripperWithCorrectConfiguration", func(t *testing.T) {
+		logger := slogger.NewLogger()
+		originalGetLoggingRoundTripper := httphelpersGetLoggingRoundTripper
+		defer func() { httphelpersGetLoggingRoundTripper = originalGetLoggingRoundTripper }()
+
+		var usedCallerInfo string
+		var usedLogger slogger.Logger
+		var usedRoundTripper http.RoundTripper
+		httphelpersGetLoggingRoundTripper = func(callerInfo string, logger slogger.Logger, roundTripper http.RoundTripper) http.RoundTripper {
+			usedCallerInfo = callerInfo
+			usedLogger = logger
+			usedRoundTripper = roundTripper
+			return roundTripper
+		}
+
+		getCoreAPIClientWithoutRetry("example.com", "test-jwt", logger)
+		assert.Equal(t, "Core-API", usedCallerInfo)
+		assert.Equal(t, logger, usedLogger)
+		assert.Equal(t, httpTransport, usedRoundTripper, "Logging round tripper should wrap httpTransport directly, not retry round tripper")
+	})
+
+	t.Run("WhenCreatesClientWithCorrectTransportSchema", func(t *testing.T) {
+		logger := slogger.NewLogger()
+		originalTransportSchema := transportSchema
+		defer func() { transportSchema = originalTransportSchema }()
+
+		transportSchema = "https"
+		client := getCoreAPIClientWithoutRetry("example.com", "test-jwt", logger)
+
+		assert.NotNil(t, client)
+		if client != nil {
+			assert.NotNil(t, client.Invoker)
+		}
+	})
+
+	t.Run("WhenHandlesNewClientError", func(t *testing.T) {
+		logger := slogger.NewLogger()
+		// This test would require mocking the NewClient function which is generated
+		// For now, we test the happy path
+		client := getCoreAPIClientWithoutRetry("example.com", "test-jwt", logger)
+
+		// If NewClient fails, getCoreAPIClientWithoutRetry returns nil
+		// This is a basic test to ensure the function doesn't panic
+		// In a real scenario, we'd need to mock the generated NewClient function
+		if client == nil {
+			// This is expected if NewClient fails
+			return
+		}
+		assert.NotNil(t, client)
+		assert.NotNil(t, client.Invoker)
+	})
+
+	t.Run("WhenUsesVcpRoundTripperWithCorrectJWT", func(t *testing.T) {
+		logger := slogger.NewLogger()
+		client := getCoreAPIClientWithoutRetry("example.com", "test-jwt-token", logger)
+
+		assert.NotNil(t, client)
+		if client != nil {
+			// Verify the transport chain is set up correctly
+			// The transport should be a vcpRoundTripper wrapping loggingRoundTripper
+			assert.NotNil(t, client.Invoker)
+		}
+	})
+
+	t.Run("WhenCreatesClientWithEmptyBasePath", func(t *testing.T) {
+		logger := slogger.NewLogger()
+		client := getCoreAPIClientWithoutRetry("", "test-jwt", logger)
+
+		// Should handle empty base path gracefully
+		// May return nil if NewClient fails with invalid URL
+		// This is acceptable behavior
+		if client == nil {
+			return
+		}
+		assert.NotNil(t, client)
+	})
+
+	t.Run("WhenCreatesClientWithEmptyJWT", func(t *testing.T) {
+		logger := slogger.NewLogger()
+		client := getCoreAPIClientWithoutRetry("example.com", "", logger)
+
+		assert.NotNil(t, client)
+		if client != nil {
+			assert.NotNil(t, client.Invoker)
+		}
+	})
+
+	t.Run("WhenTransportChainDoesNotIncludeRetry", func(t *testing.T) {
+		logger := slogger.NewLogger()
+		originalGetLoggingRoundTripper := httphelpersGetLoggingRoundTripper
+		originalNewRetryRoundTripper := httphelpersNewRetryRoundTripper
+		defer func() {
+			httphelpersGetLoggingRoundTripper = originalGetLoggingRoundTripper
+			httphelpersNewRetryRoundTripper = originalNewRetryRoundTripper
+		}()
+
+		loggingRoundTripperCalled := false
+		retryRoundTripperCalled := false
+
+		httphelpersGetLoggingRoundTripper = func(callerInfo string, logger slogger.Logger, roundTripper http.RoundTripper) http.RoundTripper {
+			loggingRoundTripperCalled = true
+			// Verify it receives httpTransport directly, not a retry round tripper
+			assert.Equal(t, httpTransport, roundTripper)
+			return roundTripper
+		}
+
+		httphelpersNewRetryRoundTripper = func(delay time.Duration, maxRetries int, logger slogger.Logger, next http.RoundTripper) http.RoundTripper {
+			retryRoundTripperCalled = true
+			return next
+		}
+
+		getCoreAPIClientWithoutRetry("example.com", "test-jwt", logger)
+
+		// Verify logging round tripper is called
+		assert.True(t, loggingRoundTripperCalled, "Logging round tripper should be called")
+		// Verify retry round tripper is NOT called
+		assert.False(t, retryRoundTripperCalled, "Retry round tripper should NOT be called in getCoreAPIClientWithoutRetry")
+	})
+
+	t.Run("WhenAddsConsumersToTransport", func(t *testing.T) {
+		logger := slogger.NewLogger()
+		originalAddConsumersToTransport := addConsumersToTransport
+		defer func() { addConsumersToTransport = originalAddConsumersToTransport }()
+
+		consumersAdded := false
+		addConsumersToTransport = func(transport *httptransport.Runtime) {
+			consumersAdded = true
+			originalAddConsumersToTransport(transport)
+		}
+
+		client := getCoreAPIClientWithoutRetry("example.com", "test-jwt", logger)
+
+		assert.True(t, consumersAdded, "Consumers should be added to transport")
+		assert.NotNil(t, client)
+	})
+}

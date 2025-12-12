@@ -1056,6 +1056,69 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots:
+    post:
+      operationId: v1_createSnapshot
+      summary: Create a snapshot
+      description: Create a new snapshot in the specified volume.
+      tags:
+        - snapshots
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: Create a new snapshot in the specified volume
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VolumeSnapshotCreate_v1'
+      responses:
+        '202':
+          description: Creating Snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1'
+              example:
+                application/json:
+                  done: false
+                  name: /v1/projects/123456789/locations/some-location1/operations/6bed33e1-cc9c-e0b5-ac63-24e9410e64c1
+                  response:
+                    created: '0001-01-01T00:00:00.000Z'
+                    resourceId: my-resource
+                    description: My Resource Description
+                    snapshotId: 1829d6e1-fbe0-87cb-150d-a32290162f0c
+                    snapshotState: CREATING
+                    snapshotStateDetails: Creation in progress
+                    storageClass: SOFTWARE
+                    usedBytes: 0
+                    volumeId: b78e8675-7e6f-64ec-3ec2-163753add2d5
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
 components:
   schemas:
     Error:
@@ -1110,39 +1173,6 @@ components:
           enum:
             - medium
             - high
-    Any_v1:
-      title: Any
-      required:
-        - '@type'
-      type: object
-      properties:
-        '@type':
-          title: '@type'
-          type: string
-          description: The URL of the type
-          example: type.googleapis.com/google.protobuf.Struct
-        AnyValue:
-          type: object
-          properties: {}
-    Status_v1:
-      title: Status
-      type: object
-      properties:
-        code:
-          title: code
-          type: number
-          description: The status code
-          format: double
-          example: 7.0
-        message:
-          title: message
-          type: string
-          description: A developer-facing error message
-        details:
-          title: details
-          type: array
-          items:
-            $ref: '#/components/schemas/Any_v1'
     Operation_v1:
       title: Operation
       type: object
@@ -1163,8 +1193,8 @@ components:
           $ref: '#/components/schemas/Status_v1'
         response:
           title: response
-          type: object
-          properties: {}
+          additionalProperties:
+            type: object
     PoolUpdate_v1:
       title: Pool
       type: object
@@ -1674,6 +1704,80 @@ components:
           description: Details about the current job state
           readOnly: true
           example: Error creating snapshot - operation timed out
+    VolumeSnapshotCreate_v1:
+      title: VolumeSnapshotCreate
+      type: object
+      description: Request object for creating snapshots from a volume
+      allOf:
+        - $ref: '#/components/schemas/ResourceName_v1'
+        - $ref: '#/components/schemas/Description_v1'
+        - properties:
+            isAppConsistent:
+              title: isAppConsistent
+              description: Whether the snapshot should be application consistent or not.
+              type: boolean
+              example: false
+              default: false
+    ResourceName_v1:
+      title: ResourceName
+      type: object
+      description: A required string describing the name of a resource
+      required:
+        - resourceId
+      properties:
+        resourceId:
+          type: string
+          description: A human readable label for the resource which is restricted to
+            letters, numbers, and hyphen, with the first character a letter, the last
+            a letter or a number, and a 63 character maximum
+          minLength: 1
+          pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+          maxLength: 63
+          example: my-resource
+    Description_v1:
+      title: Description
+      type: object
+      description: An optional string describing the resource
+      properties:
+        description:
+          type: string
+          example: My Resource Description
+          x-nullable: true
+          maxLength: 2048
+    Any_v1:
+      title: Any
+      required:
+        - '@type'
+      type: object
+      properties:
+        '@type':
+          title: '@type'
+          type: string
+          description: The URL of the type
+          example: type.googleapis.com/google.protobuf.Struct
+        AnyValue:
+          title: response
+          additionalProperties:
+            type: object
+    Status_v1:
+      title: Status
+      type: object
+      properties:
+        code:
+          title: code
+          type: number
+          description: The status code
+          format: double
+          example: 7.0
+        message:
+          title: message
+          type: string
+          description: A developer-facing error message
+        details:
+          title: details
+          type: array
+          items:
+            $ref: '#/components/schemas/Any_v1'
     GcpKmsKeyRotate_v1:
       type: object
       title: GcpKms Key Rotate
@@ -2301,6 +2405,107 @@ components:
           type: string
           description: Volume UUID (for update/delete actions)
           example: "9760acf5-4638-11e7-9bdb-020073ca8888"
+    SnapshotCreate_v1:
+      title: SnapshotCreate
+      type: object
+      required:
+        - resourceId
+      properties:
+        resourceId:
+          title: resourceId
+          type: string
+          description: A human readable label for the snapshot
+          example: "my-snapshot"
+        description:
+          title: description
+          type: string
+          description: Description of the snapshot
+          nullable: true
+          example: "My snapshot description"
+        isAppConsistent:
+          title: isAppConsistent
+          type: boolean
+          description: Is the snapshot application consistent (maximum of only 1 can exist at a time)
+          nullable: true
+          default: false
+          example: false
+    Snapshot_v1:
+      title: Snapshot
+      type: object
+      properties:
+        snapshotId:
+          title: snapshotId
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: UUID v4 used to identify the snapshot
+          readOnly: true
+          example: "9760acf5-4638-11e7-9bdb-020073ca7773"
+        resourceId:
+          title: resourceId
+          type: string
+          description: A human readable label for the snapshot
+          readOnly: true
+          example: "my-snapshot"
+        volumeId:
+          title: volumeId
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: UUID v4 used to identify the volume
+          readOnly: true
+          example: "9760acf5-4638-11e7-9bdb-020073ca7773"
+        volumeResourceId:
+          title: volumeResourceId
+          type: string
+          description: A human readable label for the volume
+          readOnly: true
+          example: "my-volume"
+        description:
+          title: description
+          type: string
+          description: Description of the snapshot
+          nullable: true
+          readOnly: true
+          example: "My snapshot description"
+        snapshotState:
+          title: snapshotState
+          type: string
+          description: The current lifecycle state of the snapshot
+          readOnly: true
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - READY
+            - UPDATING
+            - DELETING
+            - ERROR
+          example: "READY"
+        snapshotStateDetails:
+          title: snapshotStateDetails
+          type: string
+          description: Details about the current lifecycle state
+          readOnly: true
+          example: "Available for use"
+        created:
+          title: created
+          type: string
+          format: date-time
+          description: Creation date of the snapshot
+          readOnly: true
+          example: "2016-11-28T19:30:23.123Z"
+        usedBytes:
+          title: usedBytes
+          type: number
+          format: double
+          description: Size of the snapshot in bytes
+          readOnly: true
+          nullable: true
+          example: 1099511627776
+        storageClass:
+          $ref: '#/components/schemas/StorageClass_v1'
     Replication_v1:
       title: Replication
       type: object
@@ -2538,3 +2743,13 @@ components:
       schema:
         type: string
         example: "user123"
+    volumeIdPathParameter:
+      name: volumeId
+      in: path
+      description: UUID v4 used to identify the volume
+      required: true
+      schema:
+        pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+        maxLength: 36
+        minLength: 36
+        type: string

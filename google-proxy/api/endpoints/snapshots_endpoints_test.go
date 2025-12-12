@@ -2,12 +2,15 @@ package api
 
 import (
 	"context"
+	stderrors "errors"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	coreapi "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/core-api"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/snapshots"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -1507,5 +1510,830 @@ func Test_getMultipleSnapshotsFromCVP(t *testing.T) {
 		assert.Len(tt, ok.Snapshots, 2)
 		assert.Equal(tt, "cvp-snap-id", ok.Snapshots[0].SnapshotId.Value)
 		assert.Equal(tt, "vcp-snap-id", ok.Snapshots[1].SnapshotId.Value)
+	})
+}
+
+// mockInvoker is a minimal mock implementation of Invoker for testing
+// It only implements V1CreateSnapshot which is what we need for these tests
+// Other methods return nil/empty to satisfy the interface
+type mockInvoker struct {
+	mock.Mock
+}
+
+// Implement all required Invoker methods with minimal stubs
+func (m *mockInvoker) GetHealth(ctx context.Context) (coreapi.GetHealthRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1CreateExpertModeVolume(ctx context.Context, request *coreapi.ExpertModeVolumeV1, params coreapi.V1CreateExpertModeVolumeParams) (coreapi.V1CreateExpertModeVolumeRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1CreateImageVersion(ctx context.Context, request *coreapi.ImageVersionCreateRequestV1, params coreapi.V1CreateImageVersionParams) (coreapi.V1CreateImageVersionRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1CreatePool(ctx context.Context, request *coreapi.PoolV1, params coreapi.V1CreatePoolParams) (coreapi.V1CreatePoolRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1CreateSnapshot(ctx context.Context, req *coreapi.VolumeSnapshotCreateV1, params coreapi.V1CreateSnapshotParams) (coreapi.V1CreateSnapshotRes, error) {
+	args := m.Called(ctx, req, params)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(coreapi.V1CreateSnapshotRes), args.Error(1)
+}
+
+func (m *mockInvoker) V1DeleteImageVersion(ctx context.Context, params coreapi.V1DeleteImageVersionParams) (coreapi.V1DeleteImageVersionRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1DeletePool(ctx context.Context, params coreapi.V1DeletePoolParams) (coreapi.V1DeletePoolRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1GetClusterUpgradeStatus(ctx context.Context, params coreapi.V1GetClusterUpgradeStatusParams) (coreapi.V1GetClusterUpgradeStatusRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1GetMultipleReplicationsByExternalUUID(ctx context.Context, params coreapi.V1GetMultipleReplicationsByExternalUUIDParams) (coreapi.V1GetMultipleReplicationsByExternalUUIDRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1GetOntapCredentials(ctx context.Context, params coreapi.V1GetOntapCredentialsParams) (coreapi.V1GetOntapCredentialsRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1GetPool(ctx context.Context, params coreapi.V1GetPoolParams) (coreapi.V1GetPoolRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1ListImageVersions(ctx context.Context, params coreapi.V1ListImageVersionsParams) (coreapi.V1ListImageVersionsRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1ListPools(ctx context.Context, params coreapi.V1ListPoolsParams) (coreapi.V1ListPoolsRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1RotateGcpKmsConfig(ctx context.Context, request *coreapi.GcpKmsKeyRotateV1, params coreapi.V1RotateGcpKmsConfigParams) (coreapi.V1RotateGcpKmsConfigRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1UpdatePool(ctx context.Context, request *coreapi.PoolUpdateV1, params coreapi.V1UpdatePoolParams) (coreapi.V1UpdatePoolRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1UpgradeCluster(ctx context.Context, request *coreapi.ClusterUpgradeRequestV1, params coreapi.V1UpgradeClusterParams) (coreapi.V1UpgradeClusterRes, error) {
+	return nil, nil
+}
+
+func TestV1betaCreateSnapshot_WithSyncModeEnabled(t *testing.T) {
+	t.Run("WhenSyncModeEnabled_ForwardsToCoreAPI", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaCreateSnapshotParams{
+			LocationId:    "us-east1",
+			ProjectNumber: "123456789",
+			VolumeId:      "test-volume-id",
+		}
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId:      "test-snapshot-id",
+			Description:     gcpserver.NewOptString("test-description"),
+			IsAppConsistent: gcpserver.NewOptBool(false),
+		}
+
+		// Mock environment variable to enable sync mode
+		originalEnv := os.Getenv("SNAPSHOT_API_SYNC_MODE")
+		defer func() {
+			if originalEnv != "" {
+				_ = os.Setenv("SNAPSHOT_API_SYNC_MODE", originalEnv)
+			} else {
+				_ = os.Unsetenv("SNAPSHOT_API_SYNC_MODE")
+			}
+		}()
+		_ = os.Setenv("SNAPSHOT_API_SYNC_MODE", "true")
+
+		// Mock core API host
+		originalCoreAPIHost := coreAPIHost
+		defer func() {
+			coreAPIHost = originalCoreAPIHost
+		}()
+		coreAPIHost = "http://core-api:8080"
+
+		// Mock parseAndValidateRegionAndZone
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		// Mock core API client creation
+		originalCreateCoreAPIClient := createCoreAPIClient
+		defer func() {
+			createCoreAPIClient = originalCreateCoreAPIClient
+		}()
+
+		mockInvoker := &mockInvoker{}
+
+		// Mock successful response from core API (sync mode completed)
+		operationID := "/v1beta/projects/123456789/locations/us-east1/operations/job-uuid-123"
+		mockOperationV1 := &coreapi.OperationV1{
+			Name:     coreapi.NewOptString(operationID),
+			Done:     coreapi.NewOptBool(true), // Snapshot is ready
+			Response: nil,                      // Response field contains snapshot JSON (jx.Raw)
+		}
+
+		mockInvoker.On("V1CreateSnapshot", mock.Anything, mock.Anything, mock.Anything).Return(mockOperationV1, nil)
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: mockInvoker}
+		}
+
+		// Mock JWT token - use the same approach as the actual code
+		ctx := context.Background()
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		result, err := handler.V1betaCreateSnapshot(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+
+		// Should return OperationV1beta with done=true (sync completed)
+		operation, ok := result.(*gcpserver.OperationV1beta)
+		assert.True(tt, ok, "Expected OperationV1beta response")
+		assert.True(tt, operation.Done.Or(false), "Operation should be done when sync mode completes")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSyncModeEnabledButCoreAPIHostNotSet", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaCreateSnapshotParams{
+			LocationId:    "us-east1",
+			ProjectNumber: "123456789",
+			VolumeId:      "test-volume-id",
+		}
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId: "test-snapshot-id",
+		}
+
+		// Mock environment variable to enable sync mode
+		originalEnv := os.Getenv("SNAPSHOT_API_SYNC_MODE")
+		defer func() {
+			if originalEnv != "" {
+				_ = os.Setenv("SNAPSHOT_API_SYNC_MODE", originalEnv)
+			} else {
+				_ = os.Unsetenv("SNAPSHOT_API_SYNC_MODE")
+			}
+		}()
+		_ = os.Setenv("SNAPSHOT_API_SYNC_MODE", "true")
+
+		// Mock core API host as empty
+		originalCoreAPIHost := coreAPIHost
+		defer func() {
+			coreAPIHost = originalCoreAPIHost
+		}()
+		coreAPIHost = ""
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		result, err := handler.V1betaCreateSnapshot(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+
+		// Should return internal server error
+		internalError, ok := result.(*gcpserver.V1betaCreateSnapshotInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalError.Code)
+		assert.Contains(tt, internalError.Message, "Core API host not configured")
+	})
+
+	t.Run("WhenSyncModeDisabled_UsesLocalOrchestrator", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaCreateSnapshotParams{
+			LocationId:    "us-east1",
+			ProjectNumber: "123456789",
+			VolumeId:      "test-volume-id",
+		}
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId: "test-snapshot-id",
+		}
+
+		// Mock environment variable to disable sync mode
+		originalEnv := os.Getenv("SNAPSHOT_API_SYNC_MODE")
+		defer func() {
+			if originalEnv != "" {
+				_ = os.Setenv("SNAPSHOT_API_SYNC_MODE", originalEnv)
+			} else {
+				_ = os.Unsetenv("SNAPSHOT_API_SYNC_MODE")
+			}
+		}()
+		_ = os.Unsetenv("SNAPSHOT_API_SYNC_MODE")
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		mockSnapshot := &coremodels.Snapshot{
+			BaseModel: coremodels.BaseModel{
+				UUID: "snapshot-uuid",
+			},
+			Name:           "test-snapshot-id",
+			VolumeUUID:     "test-volume-id",
+			LifeCycleState: coremodels.LifeCycleStateREADY,
+		}
+
+		mockOrchestrator.EXPECT().CreateSnapshot(mock.Anything, mock.Anything).Return(mockSnapshot, "job-uuid", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		result, err := handler.V1betaCreateSnapshot(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Should use local orchestrator (workflow mode)
+		mockOrchestrator.AssertExpectations(tt)
+	})
+}
+
+func TestCreateSnapshotViaCoreAPI(t *testing.T) {
+	t.Run("WhenCoreAPIClientCreationFails", func(tt *testing.T) {
+		handler := Handler{}
+
+		// Mock core API host
+		originalCoreAPIHost := coreAPIHost
+		defer func() {
+			coreAPIHost = originalCoreAPIHost
+		}()
+		coreAPIHost = "http://core-api:8080"
+
+		// Mock core API client creation to return nil
+		originalCreateCoreAPIClient := createCoreAPIClient
+		defer func() {
+			createCoreAPIClient = originalCreateCoreAPIClient
+		}()
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return nil
+		}
+
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId: "test-snapshot",
+		}
+		params := gcpserver.V1betaCreateSnapshotParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			VolumeId:      "volume-uuid",
+		}
+
+		ctx := context.Background()
+
+		result, err := handler.createSnapshotViaCoreAPI(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+
+		internalError, ok := result.(*gcpserver.V1betaCreateSnapshotInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalError.Code)
+		assert.Contains(tt, internalError.Message, "Failed to create core API client")
+	})
+
+	t.Run("WhenCoreAPICallReturnsOperationV1WithDoneTrue", func(tt *testing.T) {
+		handler := Handler{}
+
+		// Mock core API host
+		originalCoreAPIHost := coreAPIHost
+		defer func() {
+			coreAPIHost = originalCoreAPIHost
+		}()
+		coreAPIHost = "http://core-api:8080"
+
+		// Mock core API client
+		originalCreateCoreAPIClient := createCoreAPIClient
+		defer func() {
+			createCoreAPIClient = originalCreateCoreAPIClient
+		}()
+
+		mockInvoker := &mockInvoker{}
+
+		// Core API now always returns OperationV1, even when snapshot is READY
+		operationID := "/v1beta/projects/123456789/locations/us-east1/operations/job-uuid-123"
+		// Response field is jx.Raw (JSON bytes), but current implementation doesn't extract it
+		// So we just need to provide a valid OperationV1 structure
+		mockOperationV1 := &coreapi.OperationV1{
+			Name:     coreapi.NewOptString(operationID),
+			Done:     coreapi.NewOptBool(true), // Snapshot is ready
+			Response: nil,                      // Current implementation doesn't use this field
+		}
+
+		mockInvoker.On("V1CreateSnapshot", mock.Anything, mock.Anything, mock.Anything).Return(mockOperationV1, nil)
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: mockInvoker}
+		}
+
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId:  "test-snapshot",
+			Description: gcpserver.NewOptString("test-description"),
+		}
+		params := gcpserver.V1betaCreateSnapshotParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			VolumeId:      "volume-uuid",
+		}
+
+		ctx := context.Background()
+
+		result, err := handler.createSnapshotViaCoreAPI(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+
+		operation, ok := result.(*gcpserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.True(tt, operation.Done.Or(false), "Should be done when snapshot is ready")
+		assert.Equal(tt, operationID, operation.Name.Or(""))
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCoreAPICallReturnsOperationV1", func(tt *testing.T) {
+		handler := Handler{}
+
+		// Mock core API host
+		originalCoreAPIHost := coreAPIHost
+		defer func() {
+			coreAPIHost = originalCoreAPIHost
+		}()
+		coreAPIHost = "http://core-api:8080"
+
+		// Mock core API client
+		originalCreateCoreAPIClient := createCoreAPIClient
+		defer func() {
+			createCoreAPIClient = originalCreateCoreAPIClient
+		}()
+
+		mockInvoker := &mockInvoker{}
+
+		operationID := "/v1beta/projects/123456789/locations/us-east1/operations/job-uuid-123"
+		mockOperationV1 := &coreapi.OperationV1{
+			Name:     coreapi.NewOptString(operationID),
+			Done:     coreapi.NewOptBool(false),
+			Response: nil, // Response is jx.Raw, but current implementation doesn't use it
+		}
+
+		mockInvoker.On("V1CreateSnapshot", mock.Anything, mock.Anything, mock.Anything).Return(mockOperationV1, nil)
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: mockInvoker}
+		}
+
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId: "test-snapshot",
+		}
+		params := gcpserver.V1betaCreateSnapshotParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			VolumeId:      "volume-uuid",
+		}
+
+		ctx := context.Background()
+
+		result, err := handler.createSnapshotViaCoreAPI(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+
+		operation, ok := result.(*gcpserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.False(tt, operation.Done.Or(true), "Should not be done when operation is in progress")
+		assert.Equal(tt, operationID, operation.Name.Or(""))
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCoreAPICallReturnsOperationV1WithEmptyName", func(tt *testing.T) {
+		handler := Handler{}
+
+		// Mock core API host
+		originalCoreAPIHost := coreAPIHost
+		defer func() {
+			coreAPIHost = originalCoreAPIHost
+		}()
+		coreAPIHost = "http://core-api:8080"
+
+		// Mock core API client
+		originalCreateCoreAPIClient := createCoreAPIClient
+		defer func() {
+			createCoreAPIClient = originalCreateCoreAPIClient
+		}()
+
+		mockInvoker := &mockInvoker{}
+
+		mockOperationV1 := &coreapi.OperationV1{
+			Name:     coreapi.OptString{}, // Empty name
+			Done:     coreapi.NewOptBool(false),
+			Response: nil, // Response is jx.Raw, but current implementation doesn't use it
+		}
+
+		mockInvoker.On("V1CreateSnapshot", mock.Anything, mock.Anything, mock.Anything).Return(mockOperationV1, nil)
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: mockInvoker}
+		}
+
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId: "test-snapshot",
+		}
+		params := gcpserver.V1betaCreateSnapshotParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			VolumeId:      "volume-uuid",
+		}
+
+		ctx := context.Background()
+
+		result, err := handler.createSnapshotViaCoreAPI(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+
+		operation, ok := result.(*gcpserver.OperationV1beta)
+		assert.True(tt, ok)
+		// Should generate a new operation ID
+		assert.NotEmpty(tt, operation.Name.Or(""))
+		assert.Contains(tt, operation.Name.Or(""), "/v1beta/projects/123456789/locations/us-east1/operations/")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCoreAPICallReturnsBadRequest", func(tt *testing.T) {
+		handler := Handler{}
+
+		// Mock core API host
+		originalCoreAPIHost := coreAPIHost
+		defer func() {
+			coreAPIHost = originalCoreAPIHost
+		}()
+		coreAPIHost = "http://core-api:8080"
+
+		// Mock core API client
+		originalCreateCoreAPIClient := createCoreAPIClient
+		defer func() {
+			createCoreAPIClient = originalCreateCoreAPIClient
+		}()
+
+		mockInvoker := &mockInvoker{}
+
+		badRequest := &coreapi.V1CreateSnapshotBadRequest{
+			Code:    400,
+			Message: "Invalid snapshot name",
+		}
+
+		mockInvoker.On("V1CreateSnapshot", mock.Anything, mock.Anything, mock.Anything).Return(badRequest, nil)
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: mockInvoker}
+		}
+
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId: "test-snapshot",
+		}
+		params := gcpserver.V1betaCreateSnapshotParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			VolumeId:      "volume-uuid",
+		}
+
+		ctx := context.Background()
+
+		result, err := handler.createSnapshotViaCoreAPI(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+
+		badRequestResponse, ok := result.(*gcpserver.V1betaCreateSnapshotBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badRequestResponse.Code)
+		assert.Equal(tt, "Invalid snapshot name", badRequestResponse.Message)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCoreAPICallReturnsConflict", func(tt *testing.T) {
+		handler := Handler{}
+
+		// Mock core API host
+		originalCoreAPIHost := coreAPIHost
+		defer func() {
+			coreAPIHost = originalCoreAPIHost
+		}()
+		coreAPIHost = "http://core-api:8080"
+
+		// Mock core API client
+		originalCreateCoreAPIClient := createCoreAPIClient
+		defer func() {
+			createCoreAPIClient = originalCreateCoreAPIClient
+		}()
+
+		mockInvoker := &mockInvoker{}
+
+		conflict := &coreapi.V1CreateSnapshotConflict{
+			Code:    409,
+			Message: "Snapshot already exists",
+		}
+
+		mockInvoker.On("V1CreateSnapshot", mock.Anything, mock.Anything, mock.Anything).Return(conflict, nil)
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: mockInvoker}
+		}
+
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId: "test-snapshot",
+		}
+		params := gcpserver.V1betaCreateSnapshotParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			VolumeId:      "volume-uuid",
+		}
+
+		ctx := context.Background()
+
+		result, err := handler.createSnapshotViaCoreAPI(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+
+		conflictResponse, ok := result.(*gcpserver.V1betaCreateSnapshotConflict)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(409), conflictResponse.Code)
+		assert.Equal(tt, "Snapshot already exists", conflictResponse.Message)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCoreAPICallReturnsInternalServerError", func(tt *testing.T) {
+		handler := Handler{}
+
+		// Mock core API host
+		originalCoreAPIHost := coreAPIHost
+		defer func() {
+			coreAPIHost = originalCoreAPIHost
+		}()
+		coreAPIHost = "http://core-api:8080"
+
+		// Mock core API client
+		originalCreateCoreAPIClient := createCoreAPIClient
+		defer func() {
+			createCoreAPIClient = originalCreateCoreAPIClient
+		}()
+
+		mockInvoker := &mockInvoker{}
+
+		internalError := &coreapi.V1CreateSnapshotInternalServerError{
+			Code:    500,
+			Message: "Internal server error",
+		}
+
+		mockInvoker.On("V1CreateSnapshot", mock.Anything, mock.Anything, mock.Anything).Return(internalError, nil)
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: mockInvoker}
+		}
+
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId: "test-snapshot",
+		}
+		params := gcpserver.V1betaCreateSnapshotParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			VolumeId:      "volume-uuid",
+		}
+
+		ctx := context.Background()
+
+		result, err := handler.createSnapshotViaCoreAPI(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+
+		internalErrorResponse, ok := result.(*gcpserver.V1betaCreateSnapshotInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErrorResponse.Code)
+		assert.Equal(tt, "Internal server error", internalErrorResponse.Message)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCoreAPICallReturnsError", func(tt *testing.T) {
+		handler := Handler{}
+
+		// Mock core API host
+		originalCoreAPIHost := coreAPIHost
+		defer func() {
+			coreAPIHost = originalCoreAPIHost
+		}()
+		coreAPIHost = "http://core-api:8080"
+
+		// Mock core API client
+		originalCreateCoreAPIClient := createCoreAPIClient
+		defer func() {
+			createCoreAPIClient = originalCreateCoreAPIClient
+		}()
+
+		mockInvoker := &mockInvoker{}
+
+		apiError := stderrors.New("network error")
+
+		mockInvoker.On("V1CreateSnapshot", mock.Anything, mock.Anything, mock.Anything).Return(nil, apiError)
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: mockInvoker}
+		}
+
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId: "test-snapshot",
+		}
+		params := gcpserver.V1betaCreateSnapshotParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			VolumeId:      "volume-uuid",
+		}
+
+		ctx := context.Background()
+
+		result, err := handler.createSnapshotViaCoreAPI(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+
+		internalErrorResponse, ok := result.(*gcpserver.V1betaCreateSnapshotInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErrorResponse.Code)
+		assert.Contains(tt, internalErrorResponse.Message, "network error")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCoreAPICallReturnsUnexpectedResponseType", func(tt *testing.T) {
+		handler := Handler{}
+
+		// Mock core API host
+		originalCoreAPIHost := coreAPIHost
+		defer func() {
+			coreAPIHost = originalCoreAPIHost
+		}()
+		coreAPIHost = "http://core-api:8080"
+
+		// Mock core API client
+		originalCreateCoreAPIClient := createCoreAPIClient
+		defer func() {
+			createCoreAPIClient = originalCreateCoreAPIClient
+		}()
+
+		mockInvoker := &mockInvoker{}
+
+		unexpectedResponse := &coreapi.V1CreateSnapshotBadRequest{
+			Code:    999,
+			Message: "unexpected error message",
+		}
+
+		mockInvoker.On("V1CreateSnapshot", mock.Anything, mock.Anything, mock.Anything).Return(unexpectedResponse, nil)
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: mockInvoker}
+		}
+
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId: "test-snapshot",
+		}
+		params := gcpserver.V1betaCreateSnapshotParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			VolumeId:      "volume-uuid",
+		}
+
+		ctx := context.Background()
+
+		result, err := handler.createSnapshotViaCoreAPI(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+
+		// BadRequest is a valid response type, so it should be handled correctly
+		badRequestResponse, ok := result.(*gcpserver.V1betaCreateSnapshotBadRequest)
+		assert.True(tt, ok, "BadRequest should be handled correctly even with unusual values")
+		assert.Equal(tt, float64(999), badRequestResponse.Code)
+		assert.Equal(tt, "unexpected error message", badRequestResponse.Message)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenRequestHasDescriptionAndIsAppConsistent", func(tt *testing.T) {
+		handler := Handler{}
+
+		// Mock core API host
+		originalCoreAPIHost := coreAPIHost
+		defer func() {
+			coreAPIHost = originalCoreAPIHost
+		}()
+		coreAPIHost = "http://core-api:8080"
+
+		// Mock core API client
+		originalCreateCoreAPIClient := createCoreAPIClient
+		defer func() {
+			createCoreAPIClient = originalCreateCoreAPIClient
+		}()
+
+		mockInvoker := &mockInvoker{}
+
+		operationID := "/v1beta/projects/123456789/locations/us-east1/operations/job-uuid-123"
+		mockOperationV1 := &coreapi.OperationV1{
+			Name:     coreapi.NewOptString(operationID),
+			Done:     coreapi.NewOptBool(true),
+			Response: nil,
+		}
+
+		mockInvoker.On("V1CreateSnapshot", mock.Anything, mock.MatchedBy(func(req *coreapi.VolumeSnapshotCreateV1) bool {
+			return req.ResourceId == "test-snapshot" &&
+				req.Description.Or("") == "test-description" &&
+				req.IsAppConsistent.Or(false) == true
+		}), mock.Anything).Return(mockOperationV1, nil)
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: mockInvoker}
+		}
+
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId:      "test-snapshot",
+			Description:     gcpserver.NewOptString("test-description"),
+			IsAppConsistent: gcpserver.NewOptBool(true),
+		}
+		params := gcpserver.V1betaCreateSnapshotParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			VolumeId:      "volume-uuid",
+		}
+
+		ctx := context.Background()
+
+		result, err := handler.createSnapshotViaCoreAPI(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenRequestHasXCorrelationID", func(tt *testing.T) {
+		handler := Handler{}
+
+		// Mock core API host
+		originalCoreAPIHost := coreAPIHost
+		defer func() {
+			coreAPIHost = originalCoreAPIHost
+		}()
+		coreAPIHost = "http://core-api:8080"
+
+		// Mock core API client
+		originalCreateCoreAPIClient := createCoreAPIClient
+		defer func() {
+			createCoreAPIClient = originalCreateCoreAPIClient
+		}()
+
+		mockInvoker := &mockInvoker{}
+
+		operationID := "/v1beta/projects/123456789/locations/us-east1/operations/job-uuid-123"
+		mockOperationV1 := &coreapi.OperationV1{
+			Name:     coreapi.NewOptString(operationID),
+			Done:     coreapi.NewOptBool(true),
+			Response: nil,
+		}
+
+		mockInvoker.On("V1CreateSnapshot", mock.Anything, mock.Anything, mock.MatchedBy(func(params coreapi.V1CreateSnapshotParams) bool {
+			return params.XCorrelationID.Or("") == "test-correlation-id"
+		})).Return(mockOperationV1, nil)
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: mockInvoker}
+		}
+
+		req := &gcpserver.VolumeSnapshotCreateV1beta{
+			ResourceId: "test-snapshot",
+		}
+		params := gcpserver.V1betaCreateSnapshotParams{
+			ProjectNumber:  "123456789",
+			LocationId:     "us-east1",
+			VolumeId:       "volume-uuid",
+			XCorrelationID: gcpserver.NewOptString("test-correlation-id"),
+		}
+
+		ctx := context.Background()
+
+		result, err := handler.createSnapshotViaCoreAPI(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		mockInvoker.AssertExpectations(tt)
 	})
 }

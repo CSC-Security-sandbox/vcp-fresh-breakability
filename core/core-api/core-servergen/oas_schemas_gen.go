@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-faster/errors"
+	"github.com/go-faster/jx"
 )
 
 func (s *ErrorStatusCode) Error() string {
@@ -16,8 +17,8 @@ func (s *ErrorStatusCode) Error() string {
 // Ref: #/components/schemas/Any_v1
 type AnyV1 struct {
 	// The URL of the type.
-	Type     string         `json:"@type"`
-	AnyValue *AnyV1AnyValue `json:"AnyValue"`
+	Type     string `json:"@type"`
+	AnyValue jx.Raw `json:"AnyValue"`
 }
 
 // GetType returns the value of Type.
@@ -26,7 +27,7 @@ func (s *AnyV1) GetType() string {
 }
 
 // GetAnyValue returns the value of AnyValue.
-func (s *AnyV1) GetAnyValue() *AnyV1AnyValue {
+func (s *AnyV1) GetAnyValue() jx.Raw {
 	return s.AnyValue
 }
 
@@ -36,11 +37,9 @@ func (s *AnyV1) SetType(val string) {
 }
 
 // SetAnyValue sets the value of AnyValue.
-func (s *AnyV1) SetAnyValue(val *AnyV1AnyValue) {
+func (s *AnyV1) SetAnyValue(val jx.Raw) {
 	s.AnyValue = val
 }
-
-type AnyV1AnyValue struct{}
 
 // An available ONTAP version for cluster upgrades.
 // Ref: #/components/schemas/AvailableVersion_v1
@@ -1620,9 +1619,9 @@ type OperationV1 struct {
 	Name     OptString `json:"name"`
 	Metadata OptAnyV1  `json:"metadata"`
 	// Is the operation done yet.
-	Done     OptBool              `json:"done"`
-	Error    OptStatusV1          `json:"error"`
-	Response *OperationV1Response `json:"response"`
+	Done     OptBool     `json:"done"`
+	Error    OptStatusV1 `json:"error"`
+	Response jx.Raw      `json:"response"`
 }
 
 // GetName returns the value of Name.
@@ -1646,7 +1645,7 @@ func (s *OperationV1) GetError() OptStatusV1 {
 }
 
 // GetResponse returns the value of Response.
-func (s *OperationV1) GetResponse() *OperationV1Response {
+func (s *OperationV1) GetResponse() jx.Raw {
 	return s.Response
 }
 
@@ -1671,15 +1670,14 @@ func (s *OperationV1) SetError(val OptStatusV1) {
 }
 
 // SetResponse sets the value of Response.
-func (s *OperationV1) SetResponse(val *OperationV1Response) {
+func (s *OperationV1) SetResponse(val jx.Raw) {
 	s.Response = val
 }
 
-func (*OperationV1) v1CreatePoolRes() {}
-func (*OperationV1) v1DeletePoolRes() {}
-func (*OperationV1) v1UpdatePoolRes() {}
-
-type OperationV1Response struct{}
+func (*OperationV1) v1CreatePoolRes()     {}
+func (*OperationV1) v1CreateSnapshotRes() {}
+func (*OperationV1) v1DeletePoolRes()     {}
+func (*OperationV1) v1UpdatePoolRes()     {}
 
 // NewOptAnyV1 returns new OptAnyV1 with value set to v.
 func NewOptAnyV1(v AnyV1) OptAnyV1 {
@@ -4530,6 +4528,38 @@ type V1CreatePoolUnprocessableEntity Error
 
 func (*V1CreatePoolUnprocessableEntity) v1CreatePoolRes() {}
 
+type V1CreateSnapshotBadRequest Error
+
+func (*V1CreateSnapshotBadRequest) v1CreateSnapshotRes() {}
+
+type V1CreateSnapshotConflict Error
+
+func (*V1CreateSnapshotConflict) v1CreateSnapshotRes() {}
+
+type V1CreateSnapshotForbidden Error
+
+func (*V1CreateSnapshotForbidden) v1CreateSnapshotRes() {}
+
+type V1CreateSnapshotInternalServerError Error
+
+func (*V1CreateSnapshotInternalServerError) v1CreateSnapshotRes() {}
+
+type V1CreateSnapshotNotFound Error
+
+func (*V1CreateSnapshotNotFound) v1CreateSnapshotRes() {}
+
+type V1CreateSnapshotTooManyRequests Error
+
+func (*V1CreateSnapshotTooManyRequests) v1CreateSnapshotRes() {}
+
+type V1CreateSnapshotUnauthorized Error
+
+func (*V1CreateSnapshotUnauthorized) v1CreateSnapshotRes() {}
+
+type V1CreateSnapshotUnprocessableEntity Error
+
+func (*V1CreateSnapshotUnprocessableEntity) v1CreateSnapshotRes() {}
+
 type V1DeleteImageVersionBadRequest Error
 
 func (*V1DeleteImageVersionBadRequest) v1DeleteImageVersionRes() {}
@@ -4908,3 +4938,44 @@ func (*V1UpgradeClusterUnauthorized) v1UpgradeClusterRes() {}
 type V1UpgradeClusterUnprocessableEntity Error
 
 func (*V1UpgradeClusterUnprocessableEntity) v1UpgradeClusterRes() {}
+
+// Merged schema.
+// Ref: #/components/schemas/VolumeSnapshotCreate_v1
+type VolumeSnapshotCreateV1 struct {
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId  string    `json:"resourceId"`
+	Description OptString `json:"description"`
+	// Whether the snapshot should be application consistent or not.
+	IsAppConsistent OptBool `json:"isAppConsistent"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *VolumeSnapshotCreateV1) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetDescription returns the value of Description.
+func (s *VolumeSnapshotCreateV1) GetDescription() OptString {
+	return s.Description
+}
+
+// GetIsAppConsistent returns the value of IsAppConsistent.
+func (s *VolumeSnapshotCreateV1) GetIsAppConsistent() OptBool {
+	return s.IsAppConsistent
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *VolumeSnapshotCreateV1) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetDescription sets the value of Description.
+func (s *VolumeSnapshotCreateV1) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetIsAppConsistent sets the value of IsAppConsistent.
+func (s *VolumeSnapshotCreateV1) SetIsAppConsistent(val OptBool) {
+	s.IsAppConsistent = val
+}

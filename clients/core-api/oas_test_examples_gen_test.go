@@ -28,18 +28,6 @@ func TestAnyV1_EncodeDecode(t *testing.T) {
 	var typ2 AnyV1
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
-func TestAnyV1AnyValue_EncodeDecode(t *testing.T) {
-	var typ AnyV1AnyValue
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 AnyV1AnyValue
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
 func TestAvailableVersionV1_EncodeDecode(t *testing.T) {
 	var typ AvailableVersionV1
 	typ.SetFake()
@@ -784,6 +772,7 @@ func TestOperationV1_Examples(t *testing.T) {
 	for i, tc := range []struct {
 		Input string
 	}{
+		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1/projects/123456789/locations/some-location1/operations/6bed33e1-cc9c-e0b5-ac63-24e9410e64c1\",\"response\":{\"created\":\"0001-01-01T00:00:00.000Z\",\"description\":\"My Resource Description\",\"resourceId\":\"my-resource\",\"snapshotId\":\"1829d6e1-fbe0-87cb-150d-a32290162f0c\",\"snapshotState\":\"CREATING\",\"snapshotStateDetails\":\"Creation in progress\",\"storageClass\":\"SOFTWARE\",\"usedBytes\":0,\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\"}}}"},
 		{Input: "{\"done\":true,\"name\":\"/v1/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"activeDirectoryConfigId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryResourceId\":\"projects/123456789/locations/some-location1/activeDirectories/active-directory\",\"allocatedBytes\":10995116277760,\"allowAutoTiering\":false,\"createdAt\":\"2024-01-24T13:54:14.374Z\",\"description\":\"My Pool description\",\"encryptionType\":\"SERVICE_MANAGED\",\"globalAccessAllowed\":true,\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"ldapEnabled\":false,\"network\":\"projects/123456789/global/networks/systemic-qa-vpc\",\"numberOfVolumes\":2,\"poolId\":\"bfa46013-1a1e-587b-ef9a-619bae6ba25d\",\"resourceId\":\"my-pool\",\"serviceLevel\":\"PREMIUM\",\"sizeInBytes\":12094627905536,\"storageClass\":\"HARDWARE\",\"storagePoolState\":\"READY\",\"storagePoolStateDetails\":\"Available for use\",\"updatedAt\":\"2024-01-24T13:54:14.374Z\",\"zone\":\"us-east1-b\"}}"},
 		{Input: "{\"done\":true,\"name\":\"/v1/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"activeDirectoryConfigId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryResourceId\":\"projects/123456789/locations/some-location1/activeDirectories/my-active-directory\",\"allocatedBytes\":0,\"allowAutoTiering\":false,\"createdAt\":\"2024-01-24T13:54:14.374Z\",\"description\":\"My Pool description\",\"encryptionType\":\"SERVICE_MANAGED\",\"globalAccessAllowed\":true,\"kmsConfigId\":\"6aae31f1-f685-4fda-b875-db0ea99235fc\",\"kmsConfigResourceId\":\"projects/123456789/locations/some-location1/kmsConfigs/my-resource\",\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"ldapEnabled\":false,\"network\":\"projects/123456789/global/networks/network-to-netapp2\",\"numberOfVolumes\":0,\"poolId\":\"bfa46013-1a1e-587b-ef9a-619bae6ba25d\",\"resourceId\":\"some-pool-name\",\"secondaryZone\":\"us-east1-c\",\"serviceLevel\":\"PREMIUM\",\"sizeInBytes\":2199023255552,\"storageClass\":\"HARDWARE\",\"storagePoolState\":\"READY\",\"storagePoolStateDetails\":\"Available for use\",\"updatedAt\":\"2024-01-24T13:54:14.374Z\",\"zone\":\"us-east1-b\"}}"},
 		{Input: "{\"done\":true,\"name\":\"/v1/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\"}"},
@@ -808,18 +797,6 @@ func TestOperationV1_Examples(t *testing.T) {
 			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
 		})
 	}
-}
-func TestOperationV1Response_EncodeDecode(t *testing.T) {
-	var typ OperationV1Response
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 OperationV1Response
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestPoolUpdateV1_EncodeDecode(t *testing.T) {
 	var typ PoolUpdateV1
@@ -1556,6 +1533,102 @@ func TestV1CreatePoolUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1CreatePoolUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateSnapshotBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1CreateSnapshotBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateSnapshotBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateSnapshotConflict_EncodeDecode(t *testing.T) {
+	var typ V1CreateSnapshotConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateSnapshotConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateSnapshotForbidden_EncodeDecode(t *testing.T) {
+	var typ V1CreateSnapshotForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateSnapshotForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateSnapshotInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1CreateSnapshotInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateSnapshotInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateSnapshotNotFound_EncodeDecode(t *testing.T) {
+	var typ V1CreateSnapshotNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateSnapshotNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateSnapshotTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1CreateSnapshotTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateSnapshotTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateSnapshotUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1CreateSnapshotUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateSnapshotUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateSnapshotUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1CreateSnapshotUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateSnapshotUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1DeleteImageVersionBadRequest_EncodeDecode(t *testing.T) {
@@ -2552,5 +2625,17 @@ func TestV1UpgradeClusterUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1UpgradeClusterUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestVolumeSnapshotCreateV1_EncodeDecode(t *testing.T) {
+	var typ VolumeSnapshotCreateV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 VolumeSnapshotCreateV1
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }

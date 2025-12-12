@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
+	coreapi "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/core-api"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/snapshots"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -15,6 +16,7 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -22,6 +24,8 @@ import (
 
 var (
 	getMultipleSnapshotsFromCVP = _getMultipleSnapshotsFromCVP
+	coreAPIHost                 = env.GetString("CORE_API_HOST", "")
+	createCoreAPIClient         = coreapi.GetCoreAPIClientWithoutRetry
 )
 
 func (h Handler) V1betaGetMultipleSnapshots(ctx context.Context, req *gcpgenserver.SnapshotIdListV1beta, params gcpgenserver.V1betaGetMultipleSnapshotsParams) (gcpgenserver.V1betaGetMultipleSnapshotsRes, error) {
@@ -144,6 +148,10 @@ func _getMultipleSnapshotsFromCVP(ctx context.Context, req *gcpgenserver.Snapsho
 
 func (h Handler) V1betaCreateSnapshot(ctx context.Context, req *gcpgenserver.VolumeSnapshotCreateV1beta, params gcpgenserver.V1betaCreateSnapshotParams) (gcpgenserver.V1betaCreateSnapshotRes, error) {
 	logger := util.GetLogger(ctx)
+	snapshotAPISyncMode := env.GetBool("SNAPSHOT_API_SYNC_MODE", false)
+	if snapshotAPISyncMode {
+		return h.createSnapshotViaCoreAPI(ctx, req, params)
+	}
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	volumeId := params.VolumeId
 	region, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
@@ -450,5 +458,92 @@ func convertModelToVCPSnapshot(snapshot *coremodels.Snapshot) *gcpgenserver.Snap
 		Description:          gcpgenserver.NewOptString(snapshot.Description),
 		UsedBytes:            gcpgenserver.NewOptFloat64(float64(snapshot.SizeInBytes)),
 		StorageClass:         gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1betaSOFTWARE),
+	}
+}
+
+// createSnapshotViaCoreAPI forwards snapshot creation request to core API
+func (h Handler) createSnapshotViaCoreAPI(ctx context.Context, req *gcpgenserver.VolumeSnapshotCreateV1beta, params gcpgenserver.V1betaCreateSnapshotParams) (gcpgenserver.V1betaCreateSnapshotRes, error) {
+	logger := util.GetLogger(ctx)
+	if coreAPIHost == "" {
+		logger.Error("CORE_API_HOST is not set, cannot forward snapshot creation to core API")
+		return &gcpgenserver.V1betaCreateSnapshotInternalServerError{
+			Code:    500,
+			Message: "Core API host not configured",
+		}, nil
+	}
+
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	client := createCoreAPIClient(coreAPIHost, jwtToken, logger)
+	if client == nil {
+		logger.Error("Failed to create core API client")
+		return &gcpgenserver.V1betaCreateSnapshotInternalServerError{
+			Code:    500,
+			Message: "Failed to create core API client",
+		}, nil
+	}
+
+	coreReq := &coreapi.VolumeSnapshotCreateV1{
+		ResourceId: req.ResourceId,
+	}
+	if req.Description.IsSet() {
+		coreReq.Description = coreapi.NewOptString(req.GetDescription().Value)
+	}
+	if req.IsAppConsistent.IsSet() {
+		coreReq.IsAppConsistent = coreapi.NewOptBool(req.IsAppConsistent.Value)
+	}
+
+	coreParams := coreapi.V1CreateSnapshotParams{
+		ProjectNumber: params.ProjectNumber,
+		LocationId:    params.LocationId,
+		VolumeId:      params.VolumeId,
+		XCorrelationID: func() coreapi.OptString {
+			if params.XCorrelationID.IsSet() {
+				return coreapi.NewOptString(params.XCorrelationID.Value)
+			}
+			return coreapi.OptString{}
+		}(),
+	}
+
+	response, err := client.Invoker.V1CreateSnapshot(ctx, coreReq, coreParams)
+	if err != nil {
+		logger.Errorf("Core API call failed: %v", err)
+		return &gcpgenserver.V1betaCreateSnapshotInternalServerError{
+			Code:    500,
+			Message: fmt.Sprintf("Core API call failed: %v", err),
+		}, nil
+	}
+
+	switch resp := response.(type) {
+	case *coreapi.OperationV1:
+		operationID := resp.Name.Or("")
+		if operationID == "" {
+			operationID = fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, uuid.New().String())
+		}
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp.Response,
+			Done:     gcpgenserver.NewOptBool(resp.Done.Or(false)),
+		}, nil
+	case *coreapi.V1CreateSnapshotBadRequest:
+		return &gcpgenserver.V1betaCreateSnapshotBadRequest{
+			Code:    resp.Code,
+			Message: resp.Message,
+		}, nil
+	case *coreapi.V1CreateSnapshotConflict:
+		return &gcpgenserver.V1betaCreateSnapshotConflict{
+			Code:    resp.Code,
+			Message: resp.Message,
+		}, nil
+	case *coreapi.V1CreateSnapshotInternalServerError:
+		return &gcpgenserver.V1betaCreateSnapshotInternalServerError{
+			Code:    resp.Code,
+			Message: resp.Message,
+		}, nil
+	default:
+		logger.Errorf("Unexpected response type from core API: %T", response)
+		return &gcpgenserver.V1betaCreateSnapshotInternalServerError{
+			Code:    500,
+			Message: "An internal error occurred",
+		}, nil
 	}
 }

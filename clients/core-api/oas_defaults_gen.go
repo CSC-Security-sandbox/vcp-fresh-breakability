@@ -49,3 +49,11 @@ func (s *PoolV1) setDefaults() {
 		s.CustomPerformanceEnabled.SetTo(val)
 	}
 }
+
+// setDefaults set default value of fields.
+func (s *VolumeSnapshotCreateV1) setDefaults() {
+	{
+		val := bool(false)
+		s.IsAppConsistent.SetTo(val)
+	}
+}

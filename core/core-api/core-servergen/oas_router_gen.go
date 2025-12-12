@@ -40,7 +40,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	args := [1]string{}
+	args := [3]string{}
 
 	// Static code generated router with unwrapped path search.
 	switch {
@@ -373,64 +373,171 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 					}
 
-				case 'p': // Prefix: "pools"
+				case 'p': // Prefix: "p"
 
-					if l := len("pools"); len(elem) >= l && elem[0:l] == "pools" {
+					if l := len("p"); len(elem) >= l && elem[0:l] == "p" {
 						elem = elem[l:]
 					} else {
 						break
 					}
 
 					if len(elem) == 0 {
-						switch r.Method {
-						case "GET":
-							s.handleV1ListPoolsRequest([0]string{}, elemIsEscaped, w, r)
-						case "POST":
-							s.handleV1CreatePoolRequest([0]string{}, elemIsEscaped, w, r)
-						default:
-							s.notAllowed(w, r, "GET,POST")
-						}
-
-						return
+						break
 					}
 					switch elem[0] {
-					case '/': // Prefix: "/"
+					case 'o': // Prefix: "ools"
 
-						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						if l := len("ools"); len(elem) >= l && elem[0:l] == "ools" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
-						// Param: "poolId"
-						// Leaf parameter, slashes are prohibited
-						idx := strings.IndexByte(elem, '/')
-						if idx >= 0 {
-							break
-						}
-						args[0] = elem
-						elem = ""
-
 						if len(elem) == 0 {
-							// Leaf node.
 							switch r.Method {
-							case "DELETE":
-								s.handleV1DeletePoolRequest([1]string{
-									args[0],
-								}, elemIsEscaped, w, r)
 							case "GET":
-								s.handleV1GetPoolRequest([1]string{
-									args[0],
-								}, elemIsEscaped, w, r)
-							case "PUT":
-								s.handleV1UpdatePoolRequest([1]string{
-									args[0],
-								}, elemIsEscaped, w, r)
+								s.handleV1ListPoolsRequest([0]string{}, elemIsEscaped, w, r)
+							case "POST":
+								s.handleV1CreatePoolRequest([0]string{}, elemIsEscaped, w, r)
 							default:
-								s.notAllowed(w, r, "DELETE,GET,PUT")
+								s.notAllowed(w, r, "GET,POST")
 							}
 
 							return
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/"
+
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							// Param: "poolId"
+							// Leaf parameter, slashes are prohibited
+							idx := strings.IndexByte(elem, '/')
+							if idx >= 0 {
+								break
+							}
+							args[0] = elem
+							elem = ""
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "DELETE":
+									s.handleV1DeletePoolRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								case "GET":
+									s.handleV1GetPoolRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								case "PUT":
+									s.handleV1UpdatePoolRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "DELETE,GET,PUT")
+								}
+
+								return
+							}
+
+						}
+
+					case 'r': // Prefix: "rojects/"
+
+						if l := len("rojects/"); len(elem) >= l && elem[0:l] == "rojects/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "projectNumber"
+						// Match until "/"
+						idx := strings.IndexByte(elem, '/')
+						if idx < 0 {
+							idx = len(elem)
+						}
+						args[0] = elem[:idx]
+						elem = elem[idx:]
+
+						if len(elem) == 0 {
+							break
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/locations/"
+
+							if l := len("/locations/"); len(elem) >= l && elem[0:l] == "/locations/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							// Param: "locationId"
+							// Match until "/"
+							idx := strings.IndexByte(elem, '/')
+							if idx < 0 {
+								idx = len(elem)
+							}
+							args[1] = elem[:idx]
+							elem = elem[idx:]
+
+							if len(elem) == 0 {
+								break
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/volumes/"
+
+								if l := len("/volumes/"); len(elem) >= l && elem[0:l] == "/volumes/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "volumeId"
+								// Match until "/"
+								idx := strings.IndexByte(elem, '/')
+								if idx < 0 {
+									idx = len(elem)
+								}
+								args[2] = elem[:idx]
+								elem = elem[idx:]
+
+								if len(elem) == 0 {
+									break
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/snapshots"
+
+									if l := len("/snapshots"); len(elem) >= l && elem[0:l] == "/snapshots" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "POST":
+											s.handleV1CreateSnapshotRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "POST")
+										}
+
+										return
+									}
+
+								}
+
+							}
+
 						}
 
 					}
@@ -451,7 +558,7 @@ type Route struct {
 	operationID string
 	pathPattern string
 	count       int
-	args        [1]string
+	args        [3]string
 }
 
 // Name returns ogen operation name.
@@ -875,84 +982,191 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 					}
 
-				case 'p': // Prefix: "pools"
+				case 'p': // Prefix: "p"
 
-					if l := len("pools"); len(elem) >= l && elem[0:l] == "pools" {
+					if l := len("p"); len(elem) >= l && elem[0:l] == "p" {
 						elem = elem[l:]
 					} else {
 						break
 					}
 
 					if len(elem) == 0 {
-						switch method {
-						case "GET":
-							r.name = V1ListPoolsOperation
-							r.summary = "List all pools"
-							r.operationID = "v1_listPools"
-							r.pathPattern = "/v1/pools"
-							r.args = args
-							r.count = 0
-							return r, true
-						case "POST":
-							r.name = V1CreatePoolOperation
-							r.summary = "Create a new pool"
-							r.operationID = "v1_createPool"
-							r.pathPattern = "/v1/pools"
-							r.args = args
-							r.count = 0
-							return r, true
-						default:
-							return
-						}
+						break
 					}
 					switch elem[0] {
-					case '/': // Prefix: "/"
+					case 'o': // Prefix: "ools"
 
-						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						if l := len("ools"); len(elem) >= l && elem[0:l] == "ools" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
-						// Param: "poolId"
-						// Leaf parameter, slashes are prohibited
-						idx := strings.IndexByte(elem, '/')
-						if idx >= 0 {
-							break
-						}
-						args[0] = elem
-						elem = ""
-
 						if len(elem) == 0 {
-							// Leaf node.
 							switch method {
-							case "DELETE":
-								r.name = V1DeletePoolOperation
-								r.summary = "Delete a storage pool"
-								r.operationID = "v1_deletePool"
-								r.pathPattern = "/v1/pools/{poolId}"
-								r.args = args
-								r.count = 1
-								return r, true
 							case "GET":
-								r.name = V1GetPoolOperation
-								r.summary = "Describe a pool"
-								r.operationID = "v1_getPool"
-								r.pathPattern = "/v1/pools/{poolId}"
+								r.name = V1ListPoolsOperation
+								r.summary = "List all pools"
+								r.operationID = "v1_listPools"
+								r.pathPattern = "/v1/pools"
 								r.args = args
-								r.count = 1
+								r.count = 0
 								return r, true
-							case "PUT":
-								r.name = V1UpdatePoolOperation
-								r.summary = "Update a pool"
-								r.operationID = "v1_updatePool"
-								r.pathPattern = "/v1/pools/{poolId}"
+							case "POST":
+								r.name = V1CreatePoolOperation
+								r.summary = "Create a new pool"
+								r.operationID = "v1_createPool"
+								r.pathPattern = "/v1/pools"
 								r.args = args
-								r.count = 1
+								r.count = 0
 								return r, true
 							default:
 								return
 							}
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/"
+
+							if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							// Param: "poolId"
+							// Leaf parameter, slashes are prohibited
+							idx := strings.IndexByte(elem, '/')
+							if idx >= 0 {
+								break
+							}
+							args[0] = elem
+							elem = ""
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "DELETE":
+									r.name = V1DeletePoolOperation
+									r.summary = "Delete a storage pool"
+									r.operationID = "v1_deletePool"
+									r.pathPattern = "/v1/pools/{poolId}"
+									r.args = args
+									r.count = 1
+									return r, true
+								case "GET":
+									r.name = V1GetPoolOperation
+									r.summary = "Describe a pool"
+									r.operationID = "v1_getPool"
+									r.pathPattern = "/v1/pools/{poolId}"
+									r.args = args
+									r.count = 1
+									return r, true
+								case "PUT":
+									r.name = V1UpdatePoolOperation
+									r.summary = "Update a pool"
+									r.operationID = "v1_updatePool"
+									r.pathPattern = "/v1/pools/{poolId}"
+									r.args = args
+									r.count = 1
+									return r, true
+								default:
+									return
+								}
+							}
+
+						}
+
+					case 'r': // Prefix: "rojects/"
+
+						if l := len("rojects/"); len(elem) >= l && elem[0:l] == "rojects/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "projectNumber"
+						// Match until "/"
+						idx := strings.IndexByte(elem, '/')
+						if idx < 0 {
+							idx = len(elem)
+						}
+						args[0] = elem[:idx]
+						elem = elem[idx:]
+
+						if len(elem) == 0 {
+							break
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/locations/"
+
+							if l := len("/locations/"); len(elem) >= l && elem[0:l] == "/locations/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							// Param: "locationId"
+							// Match until "/"
+							idx := strings.IndexByte(elem, '/')
+							if idx < 0 {
+								idx = len(elem)
+							}
+							args[1] = elem[:idx]
+							elem = elem[idx:]
+
+							if len(elem) == 0 {
+								break
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/volumes/"
+
+								if l := len("/volumes/"); len(elem) >= l && elem[0:l] == "/volumes/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "volumeId"
+								// Match until "/"
+								idx := strings.IndexByte(elem, '/')
+								if idx < 0 {
+									idx = len(elem)
+								}
+								args[2] = elem[:idx]
+								elem = elem[idx:]
+
+								if len(elem) == 0 {
+									break
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/snapshots"
+
+									if l := len("/snapshots"); len(elem) >= l && elem[0:l] == "/snapshots" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "POST":
+											r.name = V1CreateSnapshotOperation
+											r.summary = "Create a snapshot"
+											r.operationID = "v1_createSnapshot"
+											r.pathPattern = "/v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots"
+											r.args = args
+											r.count = 3
+											return r, true
+										default:
+											return
+										}
+									}
+
+								}
+
+							}
+
 						}
 
 					}

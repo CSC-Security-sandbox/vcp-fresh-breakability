@@ -33,6 +33,12 @@ type Handler interface {
 	//
 	// POST /v1/pools
 	V1CreatePool(ctx context.Context, req *PoolV1, params V1CreatePoolParams) (V1CreatePoolRes, error)
+	// V1CreateSnapshot implements v1_createSnapshot operation.
+	//
+	// Create a new snapshot in the specified volume.
+	//
+	// POST /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots
+	V1CreateSnapshot(ctx context.Context, req *VolumeSnapshotCreateV1, params V1CreateSnapshotParams) (V1CreateSnapshotRes, error)
 	// V1DeleteImageVersion implements v1_deleteImageVersion operation.
 	//
 	// Deletes an image version entry from the database by ONTAP version.

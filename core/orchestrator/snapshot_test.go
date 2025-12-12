@@ -3021,13 +3021,20 @@ func TestCreateSnapshotSync_ErrorPaths(t *testing.T) {
 			Name: "test_snapshot",
 		}
 
-		// Mock storage to return error on UpdateJob
+		// Mock storage - no UpdateJob calls in sync mode
 		mockStorage := database.NewMockStorage(tt)
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(errors.New("update job error"))
 
-		// We can't directly call createSnapshotSync, but we can test through CreateSnapshot with sync mode
-		// This test verifies the error path when UpdateJob fails
-		_, _, err = createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		// Mock GetOntapRestProviderForPoolFastConn to return error
+		originalGetOntapRestProviderForPoolFastConn := backgroundactivities.GetOntapRestProviderForPoolFastConn
+		defer func() {
+			backgroundactivities.GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn
+		}()
+		backgroundactivities.GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return nil, errors.New("provider error")
+		}
+
+		// This test verifies the error path when GetOntapRestProviderForPoolFastConn fails
+		_, err = createSnapshotSync(ctx, mockStorage, dbSnapshot, params, mockLogger)
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -3114,10 +3121,8 @@ func TestCreateSnapshotSync_ErrorPaths(t *testing.T) {
 			Name: "test_snapshot",
 		}
 
-		// Mock storage - UpdateJob ERROR should fail to test line 338
+		// Mock storage - no UpdateJob calls in sync mode
 		mockStorage := database.NewMockStorage(tt)
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(nil)
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, mock.Anything).Return(errors.New("update job error"))
 
 		// Mock GetOntapRestProviderForPoolFastConn to return error
 		originalGetOntapRestProviderForPoolFastConn := backgroundactivities.GetOntapRestProviderForPoolFastConn
@@ -3128,7 +3133,7 @@ func TestCreateSnapshotSync_ErrorPaths(t *testing.T) {
 			return nil, errors.New("provider error")
 		}
 
-		_, _, err = createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		_, err = createSnapshotSync(ctx, mockStorage, dbSnapshot, params, mockLogger)
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -3215,10 +3220,8 @@ func TestCreateSnapshotSync_ErrorPaths(t *testing.T) {
 			Name: "test_snapshot",
 		}
 
-		// Mock storage - UpdateJob ERROR should succeed (line 338 is the error logging path)
+		// Mock storage - no UpdateJob calls in sync mode
 		mockStorage := database.NewMockStorage(tt)
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(nil)
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
 
 		// Mock GetOntapRestProviderForPoolFastConn to return error
 		originalGetOntapRestProviderForPoolFastConn := backgroundactivities.GetOntapRestProviderForPoolFastConn
@@ -3229,7 +3232,7 @@ func TestCreateSnapshotSync_ErrorPaths(t *testing.T) {
 			return nil, errors.New("provider error")
 		}
 
-		_, _, err = createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		_, err = createSnapshotSync(ctx, mockStorage, dbSnapshot, params, mockLogger)
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -3316,10 +3319,8 @@ func TestCreateSnapshotSync_ErrorPaths(t *testing.T) {
 			Name: "test_snapshot",
 		}
 
-		// Mock storage
+		// Mock storage - no UpdateJob calls in sync mode
 		mockStorage := database.NewMockStorage(tt)
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(nil)
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
 
 		// Mock provider and REST client
 		mockProvider := new(vsa.MockProvider)
@@ -3353,7 +3354,7 @@ func TestCreateSnapshotSync_ErrorPaths(t *testing.T) {
 			return mockProvider, nil
 		}
 
-		_, _, err = createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		_, err = createSnapshotSync(ctx, mockStorage, dbSnapshot, params, mockLogger)
 		assert.Error(tt, err) // Will fail because mockProvider is not *vsa.OntapRestProvider
 		mockStorage.AssertExpectations(tt)
 	})
@@ -3450,10 +3451,8 @@ func TestCreateSnapshotSync_SuccessPaths(t *testing.T) {
 			Name: "test_snapshot",
 		}
 
-		// Mock storage - UpdateSnapshot won't be called because createSnapshotSyncWithDirectPolling fails early
+		// Mock storage - no UpdateJob calls in sync mode
 		mockStorage := database.NewMockStorage(tt)
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(nil)
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
 
 		// Mock provider - will fail type assertion in createSnapshotSyncWithDirectPolling
 		mockProvider := new(vsa.MockProvider)
@@ -3468,8 +3467,8 @@ func TestCreateSnapshotSync_SuccessPaths(t *testing.T) {
 
 		// This test verifies error path when createSnapshotSyncWithDirectPolling fails
 		// createSnapshotSyncWithDirectPolling will fail because mockProvider is not *vsa.OntapRestProvider
-		// This tests the error handling path (lines 345-350)
-		_, _, err = createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		// This tests the error handling path
+		_, err = createSnapshotSync(ctx, mockStorage, dbSnapshot, params, mockLogger)
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -3556,10 +3555,8 @@ func TestCreateSnapshotSync_SuccessPaths(t *testing.T) {
 			Name: "test_snapshot",
 		}
 
-		// Mock storage - UpdateSnapshot and UpdateJob DONE won't be called because createSnapshotSyncWithDirectPolling fails early
+		// Mock storage - no UpdateJob calls in sync mode
 		mockStorage := database.NewMockStorage(tt)
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(nil)
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
 
 		// Mock provider - will fail type assertion in createSnapshotSyncWithDirectPolling
 		mockProvider := new(vsa.MockProvider)
@@ -3575,8 +3572,8 @@ func TestCreateSnapshotSync_SuccessPaths(t *testing.T) {
 		// This test verifies that when createSnapshotSyncWithDirectPolling fails,
 		// the error path is taken. Since we can't easily mock createSnapshotSyncWithDirectPolling,
 		// it will fail because mockProvider is not *vsa.OntapRestProvider
-		// This tests the error handling path (lines 345-350)
-		_, _, err = createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		// This tests the error handling path
+		_, err = createSnapshotSync(ctx, mockStorage, dbSnapshot, params, mockLogger)
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -4175,9 +4172,8 @@ func TestCreateSnapshotSync_AdditionalPaths(t *testing.T) {
 		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(mockSnapshot, nil, nil)
 		// SnapshotGet is no longer called - we use snapshot directly from SnapshotCreate response
 
-		// Use real storage but mock UpdateJob for calls outside transaction
+		// Use real storage but mock WithTransaction
 		mockStorage := database.NewMockStorage(tt)
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(nil)
 		// Mock WithTransaction to use real storage's transaction
 		mockStorage.On("WithTransaction", ctx, mock.Anything).Run(func(args mock.Arguments) {
 			fn := args[1].(func(utils2.Transaction) error)
@@ -4197,11 +4193,10 @@ func TestCreateSnapshotSync_AdditionalPaths(t *testing.T) {
 			return provider, nil
 		}
 
-		// This test covers lines 354, 363-367, 380-382, 386-387
-		result, jobUUID, err := createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		// This test covers success path in sync mode
+		result, err := createSnapshotSync(ctx, mockStorage, dbSnapshot, params, mockLogger)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, job.UUID, jobUUID)
 		// Verify description was restored (line 354)
 		assert.Equal(tt, originalDescription, dbSnapshot.Description)
 		// Verify snapshot state was set (lines 363-367)
@@ -4323,11 +4318,9 @@ func TestCreateSnapshotSync_AdditionalPaths(t *testing.T) {
 		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(mockSnapshot, nil, nil)
 		// SnapshotGet is no longer called - we use snapshot directly from SnapshotCreate response
 
-		// Mock storage - WithTransaction should fail (lines 370-376)
+		// Mock storage - WithTransaction should fail
 		mockStorage := database.NewMockStorage(tt)
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(nil)
 		mockStorage.On("WithTransaction", ctx, mock.Anything).Return(errors.New("update snapshot error"))
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
 
 		// Create real OntapRestProvider
 		provider := &vsa.OntapRestProvider{
@@ -4342,14 +4335,14 @@ func TestCreateSnapshotSync_AdditionalPaths(t *testing.T) {
 			return provider, nil
 		}
 
-		_, _, err = createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		_, err = createSnapshotSync(ctx, mockStorage, dbSnapshot, params, mockLogger)
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 		mockRESTClient.AssertExpectations(tt)
 		mockStorageClient.AssertExpectations(tt)
 	})
 
-	t.Run("UpdateJobDoneError", func(tt *testing.T) {
+	t.Run("UpdateSnapshotError", func(tt *testing.T) {
 		store, err := database.SetupStorageForTest(mockLogger)
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
@@ -4459,9 +4452,8 @@ func TestCreateSnapshotSync_AdditionalPaths(t *testing.T) {
 		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(mockSnapshot, nil, nil)
 		// SnapshotGet is no longer called - we use snapshot directly from SnapshotCreate response
 
-		// Mock storage - WithTransaction should succeed (lines 380-382)
+		// Mock storage - WithTransaction should succeed
 		mockStorage := database.NewMockStorage(tt)
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(nil)
 		// Mock WithTransaction to use real storage's transaction
 		mockStorage.On("WithTransaction", ctx, mock.Anything).Run(func(args mock.Arguments) {
 			fn := args[1].(func(utils2.Transaction) error)
@@ -4481,11 +4473,10 @@ func TestCreateSnapshotSync_AdditionalPaths(t *testing.T) {
 			return provider, nil
 		}
 
-		// This test covers lines 380-382 - WithTransaction succeeds
-		result, jobUUID, err := createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		// This test covers success path - WithTransaction succeeds
+		result, err := createSnapshotSync(ctx, mockStorage, dbSnapshot, params, mockLogger)
 		assert.NoError(tt, err) // Should succeed
 		assert.NotNil(tt, result)
-		assert.Equal(tt, job.UUID, jobUUID)
 		mockStorage.AssertExpectations(tt)
 		mockRESTClient.AssertExpectations(tt)
 		mockStorageClient.AssertExpectations(tt)
@@ -4592,10 +4583,8 @@ func TestCreateSnapshotSync_AdditionalPaths(t *testing.T) {
 		mockRESTClient.On("Storage").Return(mockStorageClient)
 		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(nil, nil, errors.New("snapshot create error"))
 
-		// Mock storage - UpdateJob ERROR should fail (line 348)
+		// Mock storage - no UpdateJob calls in sync mode
 		mockStorage := database.NewMockStorage(tt)
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStatePROCESSING), 0, "").Return(nil)
-		mockStorage.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, mock.Anything).Return(errors.New("update job error"))
 
 		// Create real OntapRestProvider
 		provider := &vsa.OntapRestProvider{
@@ -4610,8 +4599,8 @@ func TestCreateSnapshotSync_AdditionalPaths(t *testing.T) {
 			return provider, nil
 		}
 
-		// This test covers line 348 - UpdateJob ERROR error path
-		_, _, err = createSnapshotSync(ctx, mockStorage, job, dbSnapshot, params, mockLogger)
+		// This test covers error path when snapshot creation fails - cleanup handled by defer in _createSnapshot
+		_, err = createSnapshotSync(ctx, mockStorage, dbSnapshot, params, mockLogger)
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 		mockRESTClient.AssertExpectations(tt)

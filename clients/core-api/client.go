@@ -22,6 +22,7 @@ const (
 
 var (
 	GetCoreAPIClient                  = getCoreAPIClient
+	GetCoreAPIClientWithoutRetry      = getCoreAPIClientWithoutRetry
 	addConsumersToTransport           = _addConsumersToTransport
 	httpTransport                     http.RoundTripper
 	httphelpersGetLoggingRoundTripper = httphelpers.GetLoggingRoundTripper
@@ -68,6 +69,35 @@ func getCoreAPIClient(basePath string, jwt string, logger slogger.Logger) *CoreA
 	rr := &vcpRoundTripper{
 		JWT:          jwt,
 		RoundTripper: retryRoundTripper,
+	}
+	transport.Transport = rr
+	addConsumersToTransport(transport)
+
+	httpClient := &http.Client{
+		Transport: transport.Transport,
+	}
+
+	serverURL := fmt.Sprintf("%s://%s", transportSchema, basePath)
+
+	client := new(CoreAPIClient)
+	var err error
+	client.Invoker, err = NewClient(serverURL, WithClient(httpClient))
+	if err != nil {
+		return nil
+	}
+
+	return client
+}
+
+// getCoreAPIClientWithoutRetry creates a new Core API client without retry logic
+func getCoreAPIClientWithoutRetry(basePath string, jwt string, logger slogger.Logger) *CoreAPIClient {
+	transport := httptransport.New(basePath, "", []string{transportSchema})
+
+	// Skip retry round tripper, use logging round tripper directly
+	loggingRoundTripper := httphelpersGetLoggingRoundTripper("Core-API", logger, httpTransport)
+	rr := &vcpRoundTripper{
+		JWT:          jwt,
+		RoundTripper: loggingRoundTripper,
 	}
 	transport.Transport = rr
 	addConsumersToTransport(transport)

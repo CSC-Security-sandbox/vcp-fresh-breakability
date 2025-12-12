@@ -24,6 +24,18 @@ type V1CreatePoolParams struct {
 	XCorrelationID OptString
 }
 
+// V1CreateSnapshotParams is parameters of v1_createSnapshot operation.
+type V1CreateSnapshotParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1DeleteImageVersionParams is parameters of v1_deleteImageVersion operation.
 type V1DeleteImageVersionParams struct {
 	// The ONTAP version to delete.

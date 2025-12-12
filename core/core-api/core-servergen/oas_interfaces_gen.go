@@ -17,6 +17,10 @@ type V1CreatePoolRes interface {
 	v1CreatePoolRes()
 }
 
+type V1CreateSnapshotRes interface {
+	v1CreateSnapshotRes()
+}
+
 type V1DeleteImageVersionRes interface {
 	v1DeleteImageVersionRes()
 }
