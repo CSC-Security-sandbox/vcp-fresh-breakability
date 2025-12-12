@@ -12403,7 +12403,20 @@ func TestListVolumes(t *testing.T) {
 			},
 		}
 
+		// Mock nodes for the pool
+		node := &datamodel.Node{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			AccountID: account.ID,
+		}
+
+		// Mock LIF with IP address
+		lif := &datamodel.Lif{
+			IPAddress: "10.0.0.1",
+		}
+
 		mockStorage.On("ListVolumes", ctx, conditions).Return([]*datamodel.Volume{volumeObj}, nil)
+		mockStorage.On("GetNodesByPoolID", ctx, int64(1)).Return([]*datamodel.Node{node}, nil)
+		mockStorage.On("GetLifForNode", ctx, int64(1), account.ID).Return(lif, nil)
 
 		volumes, err := mockOrchestrator.ListVolumes(ctx, projectNumber)
 		assert.NoError(tt, err)
@@ -12447,6 +12460,66 @@ func TestListVolumes(t *testing.T) {
 		volumes, err := orch.ListVolumes(ctx, account.Name)
 		assert.NoError(tt, err, "Failed to list volumes")
 		assert.Len(tt, volumes, 0)
+	})
+
+	t.Run("WhenGetIPAddressForVolumeFails_ShouldContinueWithNilIPAddresses", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		assert.NoError(tt, err, "Failed to create test storage")
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		assert.NoError(tt, err, "Failed to clear in-memory database")
+
+		account := &datamodel.Account{
+			Name: "test-account",
+		}
+		err = store.DB().Create(account).Error
+		assert.NoError(tt, err, "Failed to create account")
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(tt, err, "Failed to create pool")
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test-volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"iscsi"},
+			},
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Mock getIPAddressForVolume to return an error
+		getIPAddressForVolume = func(ctx context.Context, se database.Storage, vol *datamodel.Volume) ([]string, error) {
+			return nil, errors.New("failed to get IP addresses")
+		}
+		defer func() {
+			getIPAddressForVolume = _getIPAddressForVolume
+		}()
+
+		orch := Orchestrator{storage: store}
+
+		volumes, err := orch.ListVolumes(ctx, account.Name)
+		// Should not fail even when getIPAddressForVolume fails
+		assert.NoError(tt, err, "Expected no error even when IP address lookup fails")
+		assert.Len(tt, volumes, 1, "Expected one volume to be returned")
+		assert.Equal(tt, "test-volume", volumes[0].DisplayName)
+		// IP addresses should be nil when lookup fails
+		assert.Nil(tt, volumes[0].IPAddresses, "Expected nil IP addresses when lookup fails")
 	})
 }
 

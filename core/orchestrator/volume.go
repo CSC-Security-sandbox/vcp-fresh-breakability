@@ -654,14 +654,23 @@ func (o *Orchestrator) ListVolumes(ctx context.Context, accountName string) ([]*
 		return nil, err
 	}
 
-	return convertDatastoreVolumesToModel(volumes), nil
+	return convertDatastoreVolumesToModel(ctx, se, volumes), nil
 }
 
-func convertDatastoreVolumesToModel(volumes []*datamodel.Volume) []*models.Volume {
+func convertDatastoreVolumesToModel(ctx context.Context, se database.Storage, volumes []*datamodel.Volume) []*models.Volume {
 	var volumesList []*models.Volume
 	for _, volume := range volumes {
-		p := convertDatastoreVolumeToModel(volume, nil)
-		volumesList = append(volumesList, p)
+		ipAddresses, err := getIPAddressForVolume(ctx, se, volume)
+		if err != nil {
+			// If we can't get IP addresses, continue with nil (for backward compatibility)
+			// Log the error but don't fail the entire list operation
+			util.GetLogger(ctx).Warnf("Failed to get IP addresses for volume %s: %v", volume.UUID, err)
+			p := convertDatastoreVolumeToModel(volume, nil)
+			volumesList = append(volumesList, p)
+		} else {
+			p := convertDatastoreVolumeToModel(volume, &ipAddresses)
+			volumesList = append(volumesList, p)
+		}
 	}
 	return volumesList
 }
