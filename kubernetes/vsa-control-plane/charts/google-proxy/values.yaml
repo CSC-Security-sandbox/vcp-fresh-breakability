@@ -31,6 +31,8 @@ proxyClientTransportSchema: "https"
 vcpPairedRegions: ""
 loggerLevel: "info"
 cvpHost: ""
+coreApi:
+  host: "core-service.vcp.svc.cluster.local:8080"
 crrEnabled: false
 cpcrrEnabled: false
 czcrrEnabled: false

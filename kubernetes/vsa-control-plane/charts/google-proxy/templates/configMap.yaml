@@ -38,6 +38,7 @@ data:
   DELETE_RESOURCES_CRON_EXPRESSION: "{{ index .Values "deleteResourcesCronExpression" }}"
   LOGGER_LEVEL: "{{ index .Values "loggerLevel" }}"
   CVP_HOST: "{{ index .Values "cvpHost" }}"
+  CORE_API_HOST: "{{ index .Values "coreApi" "host" }}"
   VSA_AUTH_TYPE: "{{ index .Values "vsaAuthType" }}" #0 for username/password, 1 for username/password in secret manager and 2 for certificate authentication
   BACKUP_ENABLED: "{{ index .Values "backupEnabled" }}"
   SFR_ENABLED: "{{ index .Values "sfrEnabled" }}"
