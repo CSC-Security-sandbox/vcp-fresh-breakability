@@ -607,8 +607,11 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			ClusterLocation:     clusterLocation,
 			ReplicationSchedule: replicationSchedule,
 		}
-		if hybridReplicationParameters.LargeVolumeConstituentCount.IsSet() {
-			param.HybridReplicationParameters.LargeVolumeConstituentCount = &hybridReplicationParameters.LargeVolumeConstituentCount.Value
+		if req.Volume.LargeCapacity.IsSet() && req.Volume.LargeCapacity.Value == true {
+			if !hybridReplicationParameters.LargeVolumeConstituentCount.IsSet() {
+				return nil, errors.NewUserInputValidationErr("LargeVolumeConstituentCount must be set for Large Volumes in hybrid replication parameters.")
+			}
+			param.LargeVolumeConstituentCount = hybridReplicationParameters.LargeVolumeConstituentCount.Value
 		}
 	}
 

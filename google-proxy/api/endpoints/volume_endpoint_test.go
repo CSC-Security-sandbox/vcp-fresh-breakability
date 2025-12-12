@@ -1162,6 +1162,93 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Equal(tt, "test-snapshot-id", result.SnapshotID)
 	})
+
+	t.Run("LargeCapacityTrueWithoutLargeVolumeConstituentCountInHybridReplication_ReturnsError", func(tt *testing.T) {
+		// Mock hybridReplicationEnabled to be true
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				LargeCapacity: gcpgenserver.NewOptNilBool(true),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaISCSI,
+				},
+			},
+			HybridReplicationParameters: gcpgenserver.OptHybridReplicationParametersV1beta{
+				Value: gcpgenserver.HybridReplicationParametersV1beta{
+					HybridReplicationType:       gcpgenserver.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION,
+					ReplicationSchedule:         gcpgenserver.NewOptHybridReplicationParametersV1betaReplicationSchedule("daily"),
+					LargeVolumeConstituentCount: gcpgenserver.OptNilInt32{Set: false}, // Not set
+					PeerClusterName:             "peer-cluster",
+					PeerVolumeName:              "peer-volume",
+					PeerSvmName:                 "peer-svm",
+					PeerIpAddresses:             []string{"192.168.1.1"},
+				},
+				Set: true,
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "LargeVolumeConstituentCount must be set for Large Volumes in hybrid replication parameters.")
+	})
+
+	t.Run("LargeCapacityTrueWithLargeVolumeConstituentCountInHybridReplication_Succeeds", func(tt *testing.T) {
+		// Mock hybridReplicationEnabled to be true
+		originalHybridReplicationEnabled := hybridReplicationEnabled
+		hybridReplicationEnabled = true
+		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				LargeCapacity: gcpgenserver.NewOptNilBool(true),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaISCSI,
+				},
+			},
+			HybridReplicationParameters: gcpgenserver.OptHybridReplicationParametersV1beta{
+				Value: gcpgenserver.HybridReplicationParametersV1beta{
+					HybridReplicationType:       gcpgenserver.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION,
+					ReplicationSchedule:         gcpgenserver.NewOptHybridReplicationParametersV1betaReplicationSchedule("daily"),
+					LargeVolumeConstituentCount: gcpgenserver.OptNilInt32{Value: 5, Set: true},
+					PeerClusterName:             "peer-cluster",
+					PeerVolumeName:              "peer-volume",
+					PeerSvmName:                 "peer-svm",
+					PeerIpAddresses:             []string{"192.168.1.1"},
+				},
+				Set: true,
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, int32(5), result.LargeVolumeConstituentCount)
+		assert.True(tt, result.LargeCapacity)
+	})
 }
 
 func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {
