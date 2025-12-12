@@ -158,3 +158,34 @@ jobs:
       pr_title: ${{ needs.obtain_pr_details.outputs.pr_title }}
       pr_base_branch: ${{ needs.obtain_pr_details.outputs.pr_base_branch }}
       component_update: true
+
+  trigger_sanity_tests:
+    needs: [obtain_pr_details, generate_tag, create_pre_release_vsa_control_plane]
+    runs-on: [self-hosted, linux]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: --user root
+
+    steps:
+      - name: Determine build type
+        id: build_type
+        run: |
+          TAG="${{ needs.generate_tag.outputs.newTag }}"
+          BASE_BRANCH="${{ needs.obtain_pr_details.outputs.pr_base_branch }}"
+          
+          # RC builds come from release branches, DEV builds from main
+          if [[ "$BASE_BRANCH" =~ ^release/ ]] || [[ "$TAG" =~ -RC\.[0-9]+$ ]]; then
+            echo "jenkins_job=nkdev_rc_deployment_pipeline" >> $GITHUB_OUTPUT
+          else
+            echo "jenkins_job=nkdev_deployment_pipeline" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
+      - name: Trigger Jenkins Job
+        continue-on-error: true
+        run: |
+          curl -X POST "https://vcp-cicd-jenkins.daas.netapp.com/job/${{ steps.build_type.outputs.jenkins_job }}/buildWithParameters" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "vcp_release_number=${{ needs.generate_tag.outputs.newTag }}" \
+            --user "${{ secrets.JENKINS_PAT }}" || echo "Warning: Failed to trigger Jenkins job"
+        shell: bash
