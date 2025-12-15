@@ -11,8 +11,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	snapPriv "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/snapmirror"
 	privModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	utilsErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestSnapmirrorRelationshipDelete(t *testing.T) {
@@ -338,7 +338,7 @@ func TestSnapmirrorGetPriv(t *testing.T) {
 		privClient := snapPriv.New(transport, nil)
 		client := &snapmirrorClient{apiPriv: privClient}
 
-		relationshipGroupType := "flexgroup"
+		relationshipGroupType := VolumeStyleFlexGroup
 		ctx := context.Background()
 
 		result, err := client.SnapmirrorGetPriv(ctx, "dest-path", "rel-id", &relationshipGroupType)

@@ -2371,6 +2371,8 @@ type VolumeCreateParams struct {
 	RestoreFromSnapshot            *RestoreFromSnapshotParams
 	TieringPolicy                  *TieringPolicy
 	TieringSupported               *bool
+	GranularData                   *bool   // Enable granular data on the volume (auto-set for FlexGroup)
+	GranularDataMode               *string // Mode of granular data: "disabled", "basic", "advanced" (auto-set for FlexGroup)
 }
 
 type FlexCacheVolumeCreateParams struct {
@@ -2431,8 +2433,10 @@ type TieringPolicy struct {
 }
 
 const (
-	VolumeStateOnline = "online"
-	GuaranteeTypeNone = "none"
+	VolumeStateOnline        = "online"
+	GuaranteeTypeNone        = "none"
+	GranularDataModeAdvanced = "advanced"
+	VolumeStyleFlexGroup     = "flexgroup"
 )
 
 func volumeCreateFromSnapshotParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreateParams {
@@ -2559,6 +2563,14 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 			Supported: params.TieringSupported,
 		}
 	}
+
+	// Set granular data to advanced mode automatically for FlexGroup volumes
+	if params.Style != nil && *params.Style == VolumeStyleFlexGroup {
+		otParams.Info.GranularData = nillable.ToPointer(true)
+		advancedMode := GranularDataModeAdvanced
+		otParams.Info.GranularDataMode = &advancedMode
+	}
+
 	return otParams
 }
 

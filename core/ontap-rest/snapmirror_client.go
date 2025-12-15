@@ -229,8 +229,7 @@ func (s *snapmirrorClient) SnapmirrorGetPriv(ctx context.Context, destinationPat
 	expand := true
 	if relationshipGroupType != nil {
 		params.WithRelationshipGroupType(relationshipGroupType)
-		// Todo: Temporarily using string, use const when flexgroup support is added
-		if *relationshipGroupType == "flexgroup" {
+		if *relationshipGroupType == VolumeStyleFlexGroup {
 			// Todo: Check if diag mode is needed for flexgroup
 			params.WithExpand(&expand)
 			params.WithFields([]string{"total_transfer_bytes", "total_progress", "last_transfer_error"})

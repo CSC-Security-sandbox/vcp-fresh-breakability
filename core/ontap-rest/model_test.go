@@ -1178,6 +1178,63 @@ func TestVolumeCreateParamsToONTAPWithTieringPolicy(t *testing.T) {
 	})
 }
 
+func TestVolumeCreateParamsToONTAPWithGranularDataMode(t *testing.T) {
+	t.Run("WhenStyleIsFlexGroup_ThenGranularDataAndModeAreSet", func(tt *testing.T) {
+		flexgroupStyle := VolumeStyleFlexGroup
+		params := &VolumeCreateParams{
+			Name:       "vol1",
+			Type:       "rw",
+			Size:       1024,
+			Svm:        "svm1",
+			Aggregates: []string{"aggr1"},
+			Style:      &flexgroupStyle,
+		}
+		result := volumeCreateParamsToONTAP(params)
+
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.NotNil(tt, result.Info.GranularData, "GranularData should be set for FlexGroup volumes")
+		assert.True(tt, *result.Info.GranularData, "GranularData should be true for FlexGroup volumes")
+		assert.NotNil(tt, result.Info.GranularDataMode, "GranularDataMode should be set for FlexGroup volumes")
+		assert.Equal(tt, GranularDataModeAdvanced, *result.Info.GranularDataMode, "GranularDataMode should be set to GranularDataModeAdvanced constant")
+	})
+
+	t.Run("WhenStyleIsNotFlexGroup_ThenGranularDataAndModeAreNotSet", func(tt *testing.T) {
+		regularStyle := "flexvol"
+		params := &VolumeCreateParams{
+			Name:       "vol1",
+			Type:       "rw",
+			Size:       1024,
+			Svm:        "svm1",
+			Aggregates: []string{"aggr1"},
+			Style:      &regularStyle,
+		}
+		result := volumeCreateParamsToONTAP(params)
+
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.Nil(tt, result.Info.GranularData, "GranularData should not be set for non-FlexGroup volumes")
+		assert.Nil(tt, result.Info.GranularDataMode, "GranularDataMode should not be set for non-FlexGroup volumes")
+	})
+
+	t.Run("WhenStyleIsNil_ThenGranularDataAndModeAreNotSet", func(tt *testing.T) {
+		params := &VolumeCreateParams{
+			Name:       "vol1",
+			Type:       "rw",
+			Size:       1024,
+			Svm:        "svm1",
+			Aggregates: []string{"aggr1"},
+			Style:      nil,
+		}
+		result := volumeCreateParamsToONTAP(params)
+
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.Nil(tt, result.Info.GranularData, "GranularData should not be set when Style is nil")
+		assert.Nil(tt, result.Info.GranularDataMode, "GranularDataMode should not be set when Style is nil")
+	})
+}
+
 func Test_flexCacheVolumeCreateParamsToONTAP(t *testing.T) {
 	t.Run("AllParamsProvided", func(tt *testing.T) {
 		dir1 := "dir1"
