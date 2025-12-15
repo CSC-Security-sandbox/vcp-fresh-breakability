@@ -777,6 +777,7 @@ func _getInternalVSANetworkForFirewalls(vpcName, firewallName string, sourceRang
 
 // CreateOnTapCredentials creates ONTAP admin credentials for the pool based on the authentication type
 func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.OntapCredentials, error) {
+	activity.RecordHeartbeat(ctx, "Starting CreateOnTapCredentials activity")
 	credentials := &vlm.OntapCredentials{}
 	gcpService, getGcpServiceErr := hyperscaler2.GetGCPService(ctx)
 	if getGcpServiceErr != nil {
@@ -785,27 +786,34 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 
 	switch pool.PoolCredentials.AuthType {
 	case env.USER_CERTIFICATE:
+		activity.RecordHeartbeat(ctx, "Generating and creating certificate for ONTAP credentials")
 		// Generate and create a certificate for the VSA cluster in CAS and fallthrough to generate and create the password for VSA cluster in Secret Manager as well
 		certificate, err := hyperscaler2.GenerateAndCreateCertificateForVSACluster(gcpService, pool.DeploymentName, pool.PoolCredentials.Username, pool.PoolCredentials, EnableServerAuthInCSR)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 		credentials = setPoolCredentials(certificate)
+		activity.RecordHeartbeat(ctx, "Certificate generated and created successfully")
 		fallthrough
 	case env.USERNAME_PWD_SEC_MGR:
+		activity.RecordHeartbeat(ctx, "Generating password for ONTAP credentials in Secret Manager")
 		secret, err := hyperscaler2.GeneratePasswordForVSACluster(gcpService, pool.PoolCredentials.SecretID)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 		credentials.AdminPassword = secret.SecretVersion.Value
+		activity.RecordHeartbeat(ctx, "Password generated successfully")
 	default:
+		activity.RecordHeartbeat(ctx, "Using default password for ONTAP credentials")
 		credentials.AdminPassword = pool.PoolCredentials.Password
 	}
+	activity.RecordHeartbeat(ctx, "Finished CreateOnTapCredentials activity")
 	return credentials, nil
 }
 
 // CreateExpertModeCredentials creates ONTAP expert mode credentials based on the authentication type
 func (j *PoolActivity) CreateExpertModeCredentials(ctx context.Context, pool *datamodel.Pool, clusterName, username string) (*vlm.OntapCredentials, error) {
+	activity.RecordHeartbeat(ctx, "Starting CreateExpertModeCredentials activity")
 	credentials := &vlm.OntapCredentials{}
 	gcpService, getGcpServiceErr := hyperscaler2.GetGCPService(ctx)
 	if getGcpServiceErr != nil {
@@ -817,6 +825,7 @@ func (j *PoolActivity) CreateExpertModeCredentials(ctx context.Context, pool *da
 	}
 	switch pool.ExpertModeCredentials.ExpertModeCredential[0].AuthType {
 	case env.USER_CERTIFICATE:
+		activity.RecordHeartbeat(ctx, "Generating and creating certificate for expert mode credentials")
 		// Generate and create a certificate for the VSA cluster in CAS and fallthrough to generate and create the password for VSA cluster in Secret Manager as well
 		expertPoolCredentials := &datamodel.PoolCredentials{
 			CertificateID: pool.ExpertModeCredentials.ExpertModeCredential[0].CertificateID,
@@ -832,15 +841,20 @@ func (j *PoolActivity) CreateExpertModeCredentials(ctx context.Context, pool *da
 		}
 		credentials = setPoolCredentials(certificate)
 		credentials.AdminPassword = "" // Setting empty password as certificate is used for authentication
+		activity.RecordHeartbeat(ctx, "Certificate generated and created successfully")
 	case env.USERNAME_PWD_SEC_MGR:
+		activity.RecordHeartbeat(ctx, "Generating password for expert mode credentials in Secret Manager")
 		secret, err := hyperscaler2.GeneratePasswordForVSACluster(gcpService, pool.ExpertModeCredentials.ExpertModeCredential[0].SecretID)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 		credentials.AdminPassword = secret.SecretVersion.Value
+		activity.RecordHeartbeat(ctx, "Password generated successfully")
 	default:
+		activity.RecordHeartbeat(ctx, "Using default password for expert mode credentials")
 		credentials.AdminPassword = pool.ExpertModeCredentials.ExpertModeCredential[0].Password
 	}
+	activity.RecordHeartbeat(ctx, "Finished CreateExpertModeCredentials activity")
 	return credentials, nil
 }
 
@@ -855,31 +869,39 @@ func setPoolCredentials(certificate *hyperscaler_models.CustomCertificateRespons
 
 // DeleteOnTapCredentials deletes ONTAP admin credentials for the pool based on the authentication type
 func (j *PoolActivity) DeleteOnTapCredentials(ctx context.Context, pool *datamodel.Pool) error {
+	activity.RecordHeartbeat(ctx, "Starting DeleteOnTapCredentials activity")
 	gcpService, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err))
 	}
 	switch pool.PoolCredentials.AuthType {
 	case env.USER_CERTIFICATE:
+		activity.RecordHeartbeat(ctx, "Revoking certificate and deleting from Secret Manager")
 		// Revoke the certificates and delete the private key from secret manager and cache then fallthrough to delete the password from secret manager and cache
 		err = hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager(gcpService, pool.PoolCredentials)
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
+		activity.RecordHeartbeat(ctx, "Certificate revoked and deleted successfully")
 		fallthrough
 	case env.USERNAME_PWD_SEC_MGR:
+		activity.RecordHeartbeat(ctx, "Deleting password from Secret Manager")
 		err = hyperscaler2.DeletePasswordFromCacheAndSecretManager(gcpService, pool.PoolCredentials.SecretID)
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
+		activity.RecordHeartbeat(ctx, "Password deleted successfully")
 	default:
+		activity.RecordHeartbeat(ctx, "No deletion needed for default password type")
 		return nil
 	}
+	activity.RecordHeartbeat(ctx, "Finished DeleteOnTapCredentials activity")
 	return nil
 }
 
 // DeleteExpertModeCredentials DeleteOnTapCredentials deletes ONTAP expert mode credentials for the pool based on the authentication type
 func (j *PoolActivity) DeleteExpertModeCredentials(ctx context.Context, pool *datamodel.Pool) error {
+	activity.RecordHeartbeat(ctx, "Starting DeleteExpertModeCredentials activity")
 	gcpService, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err))
@@ -889,6 +911,7 @@ func (j *PoolActivity) DeleteExpertModeCredentials(ctx context.Context, pool *da
 	}
 	switch pool.ExpertModeCredentials.ExpertModeCredential[0].AuthType {
 	case env.USER_CERTIFICATE:
+		activity.RecordHeartbeat(ctx, "Revoking certificate and deleting from Secret Manager for expert mode")
 		// Revoke the certificates and delete the private key from secret manager and cache then fallthrough to delete the password from secret manager and cache
 		// Create PoolCredentials from ExpertModeCredential, using pool's PoolCredentials for CaURI if available
 		expertPoolCredentials := &datamodel.PoolCredentials{
@@ -901,32 +924,41 @@ func (j *PoolActivity) DeleteExpertModeCredentials(ctx context.Context, pool *da
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
+		activity.RecordHeartbeat(ctx, "Certificate revoked and deleted successfully")
 	case env.USERNAME_PWD_SEC_MGR:
+		activity.RecordHeartbeat(ctx, "Deleting password from Secret Manager for expert mode")
 		err = hyperscaler2.DeletePasswordFromCacheAndSecretManager(gcpService, pool.ExpertModeCredentials.ExpertModeCredential[0].SecretID)
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
+		activity.RecordHeartbeat(ctx, "Password deleted successfully")
 	default:
+		activity.RecordHeartbeat(ctx, "No deletion needed for default password type")
 		return nil
 	}
+	activity.RecordHeartbeat(ctx, "Finished DeleteExpertModeCredentials activity")
 	return nil
 }
 
 // GetOnTapCredentials fetches ONTAP admin credentials for the pool based on the authentication type
 func (j *PoolActivity) GetOnTapCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.OntapCredentials, error) {
+	activity.RecordHeartbeat(ctx, "Starting GetOnTapCredentials activity")
 	credentials, err := fetchOnTapCredentials(ctx, pool)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, "Finished GetOnTapCredentials activity")
 	return credentials, nil
 }
 
 // GetExpertModeCredentials fetches ONTAP expert mode credentials based on the authentication type
 func (j *PoolActivity) GetExpertModeCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.OntapCredentials, error) {
+	activity.RecordHeartbeat(ctx, "Starting GetExpertModeCredentials activity")
 	credentials, err := fetchExpertModeCredentials(ctx, pool)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, "Finished GetExpertModeCredentials activity")
 	return credentials, nil
 }
 
@@ -1025,6 +1057,7 @@ func (j *PoolActivity) SavePoolWithClusterDetails(ctx context.Context, dbPool *d
 }
 
 func (j *PoolActivity) GetIPsConsumedForSubnet(ctx context.Context, pool datamodel.Pool, tenancyDetails *commonparams.TenancyInfo, region string) (*[]datamodel.SubnetToIPs, error) {
+	activity.RecordHeartbeat(ctx, "Starting GetIPsConsumedForSubnet activity")
 	logger := util.GetLogger(ctx)
 	gcpService, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
@@ -1033,14 +1066,22 @@ func (j *PoolActivity) GetIPsConsumedForSubnet(ctx context.Context, pool datamod
 
 	// Fetch all addresses with deployment ID filter only (no subnet filter)
 	// This avoids the issue with incomplete subnet information in the API response
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetching addresses for deployment: %s", pool.DeploymentName))
 	addresses, err := ListAddressesByDeployment(gcpService, tenancyDetails.RegionalTenantProject, region, pool.DeploymentName)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	addressCount := 0
+	if addresses != nil {
+		addressCount = len(*addresses)
+	}
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetched %d addresses, filtering by subnet", addressCount))
+
 	// If no subnetworkNAme
 	if len(tenancyDetails.SubnetworkNames) == 0 {
 		logger.Debugf("No subnetwork found for the pool: %s", pool.Name)
+		activity.RecordHeartbeat(ctx, "No subnetwork names provided, returning nil")
 		return nil, nil
 	}
 
@@ -1049,6 +1090,7 @@ func (j *PoolActivity) GetIPsConsumedForSubnet(ctx context.Context, pool datamod
 	// Iterate through addresses and filter by the specific subnetwork
 	if addresses != nil {
 		for _, targetSubnetName := range tenancyDetails.SubnetworkNames {
+			activity.RecordHeartbeat(ctx, fmt.Sprintf("Filtering addresses for subnet: %s", targetSubnetName))
 			logger.Debugf("Filtering addresses for target subnet: %s", targetSubnetName)
 			totalIPs := int64(0)
 			for _, address := range *addresses {
@@ -1068,6 +1110,7 @@ func (j *PoolActivity) GetIPsConsumedForSubnet(ctx context.Context, pool datamod
 			logger.Infof("Target subnet %s has %d reserved IPs", targetSubnetName, totalIPs)
 		}
 	}
+	activity.RecordHeartbeat(ctx, "Finished GetIPsConsumedForSubnet activity")
 	return &subnetToIps, nil
 }
 
@@ -2696,6 +2739,7 @@ func fetchExpertModeCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm
 
 // GetInterClusterLifsFromVLMConfig retrieves intercluster LIF IP addresses from VLM config
 func (j *PoolActivity) GetInterClusterLifsFromVLMConfig(ctx context.Context, vlmConfig *vlm.VLMConfig) ([]string, error) {
+	activity.RecordHeartbeat(ctx, "Starting GetInterClusterLifsFromVLMConfig activity")
 	logger := util.GetLogger(ctx)
 
 	logger.Info("Getting intercluster LIFs from VLM config")
@@ -2705,6 +2749,7 @@ func (j *PoolActivity) GetInterClusterLifsFromVLMConfig(ctx context.Context, vlm
 
 	// Iterate through all HA pairs to find intercluster LIFs
 	if vlmConfig != nil && len(vlmConfig.Cloud.HAPairs) > 0 {
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Processing %d HA pairs to extract intercluster LIFs", len(vlmConfig.Cloud.HAPairs)))
 		for _, haPair := range vlmConfig.Cloud.HAPairs {
 			// Check VM1 for intercluster LIFs
 			if vm1Lif, exists := haPair.VM1.SystemLIFs[vlm.LIFTypeInterCluster]; exists {
@@ -2721,6 +2766,7 @@ func (j *PoolActivity) GetInterClusterLifsFromVLMConfig(ctx context.Context, vlm
 	}
 
 	logger.Info("Extracted intercluster LIF IPs from VLM config", "lifCount", len(lifIPs))
+	activity.RecordHeartbeat(ctx, "Finished GetInterClusterLifsFromVLMConfig activity")
 	return lifIPs, nil
 }
 
@@ -3004,6 +3050,7 @@ type CalculateBatchPlanActivityOutput struct {
 
 // CalculateBatchPlanForUpdate calculates the batch plan for HA pair updates
 func (a *PoolActivity) CalculateBatchPlanForUpdate(ctx context.Context, input CalculateBatchPlanActivityInput) (*CalculateBatchPlanActivityOutput, error) {
+	activity.RecordHeartbeat(ctx, "Starting CalculateBatchPlanForUpdate activity")
 	logger := util.GetLogger(ctx)
 	logger.Info("Calculating update batch plan as per the parallel number of nodes for ITC", "numHAPairs", input.NumHAPairs, "parallelNumberOfNodesForITC", input.ParallelNumberOfNodesForITC)
 
@@ -3023,12 +3070,14 @@ func (a *PoolActivity) CalculateBatchPlanForUpdate(ctx context.Context, input Ca
 	// - For 4+ HA pairs: batch size = floor(numHAPairs / 2)
 
 	// floor((numHAPairs * 2) / parallelNumberOfNodesForITC) for integer division
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Calculating batch size for %d HA pairs with %d parallel nodes", numHAPairs, parallelNumberOfNodesForITC))
 	batchSize := max(1, (numHAPairs*2)/parallelNumberOfNodesForITC)
 
 	// Calculate number of workflow calls needed: ceil(numHAPairs / batchSize)
 	numWorkflowCalls := (numHAPairs + batchSize - 1) / batchSize
 
 	// Generate batch indices for all batches
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Generating batch indices for %d workflow calls with batch size %d", numWorkflowCalls, batchSize))
 	batchIndices := make([][]int, 0, numWorkflowCalls)
 	for batchNum := 0; batchNum < numWorkflowCalls; batchNum++ {
 		startIdx := batchNum * batchSize
@@ -3046,6 +3095,7 @@ func (a *PoolActivity) CalculateBatchPlanForUpdate(ctx context.Context, input Ca
 	}
 
 	logger.Info("Batch plan calculated", "numHAPairs", numHAPairs, "batchSize", batchSize, "numWorkflowCalls", numWorkflowCalls)
+	activity.RecordHeartbeat(ctx, "Finished CalculateBatchPlanForUpdate activity")
 
 	return &CalculateBatchPlanActivityOutput{
 		NumHAPairs:       numHAPairs,

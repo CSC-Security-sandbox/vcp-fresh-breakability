@@ -4410,7 +4410,6 @@ func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 
 func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 	activity := &activities.PoolActivity{}
-	ctx := context.Background()
 
 	origGetGCPService := hyperscaler2.GetGCPService
 	origRevokeCert := hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager
@@ -4426,6 +4425,11 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 	}
 
 	t.Run("USER_CERTIFICATE success", func(t *testing.T) {
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.DeleteOnTapCredentials)
+
 		pool := &datamodel.Pool{
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-id",
@@ -4442,11 +4446,16 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 			assert.Equal(t, "secret-id", secretID)
 			return nil
 		}
-		err := activity.DeleteOnTapCredentials(ctx, pool)
+		_, err := testEnv.ExecuteActivity(activity.DeleteOnTapCredentials, pool)
 		assert.NoError(t, err)
 	})
 
 	t.Run("USER_CERTIFICATE failure due to secret error ", func(t *testing.T) {
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.DeleteOnTapCredentials)
+
 		pool := &datamodel.Pool{
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-id",
@@ -4462,12 +4471,17 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 		hyperscaler2.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
 			return errors.New("delete error")
 		}
-		err := activity.DeleteOnTapCredentials(ctx, pool)
+		_, err := testEnv.ExecuteActivity(activity.DeleteOnTapCredentials, pool)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "delete error")
 	})
 
 	t.Run("USER_CERTIFICATE error", func(t *testing.T) {
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.DeleteOnTapCredentials)
+
 		pool := &datamodel.Pool{
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-id",
@@ -4479,12 +4493,17 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
 			return errors.New("revoke error")
 		}
-		err := activity.DeleteOnTapCredentials(ctx, pool)
+		_, err := testEnv.ExecuteActivity(activity.DeleteOnTapCredentials, pool)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "revoke error")
 	})
 
 	t.Run("USERNAME_PWD_SEC_MGR success", func(t *testing.T) {
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.DeleteOnTapCredentials)
+
 		pool := &datamodel.Pool{
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-id",
@@ -4497,11 +4516,16 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 			assert.Equal(t, "secret-id", secretID)
 			return nil
 		}
-		err := activity.DeleteOnTapCredentials(ctx, pool)
+		_, err := testEnv.ExecuteActivity(activity.DeleteOnTapCredentials, pool)
 		assert.NoError(t, err)
 	})
 
 	t.Run("USERNAME_PWD_SEC_MGR error", func(t *testing.T) {
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.DeleteOnTapCredentials)
+
 		pool := &datamodel.Pool{
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-id",
@@ -4513,12 +4537,17 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 		hyperscaler2.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
 			return errors.New("delete error")
 		}
-		err := activity.DeleteOnTapCredentials(ctx, pool)
+		_, err := testEnv.ExecuteActivity(activity.DeleteOnTapCredentials, pool)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "delete error")
 	})
 
 	t.Run("default password - no cert no secret-manager", func(t *testing.T) {
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.DeleteOnTapCredentials)
+
 		pool := &datamodel.Pool{
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-id",
@@ -4527,11 +4556,16 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 				AuthType:      env.USERNAME_PWD,
 			},
 		}
-		err := activity.DeleteOnTapCredentials(ctx, pool)
+		_, err := testEnv.ExecuteActivity(activity.DeleteOnTapCredentials, pool)
 		assert.NoError(t, err)
 	})
 
 	t.Run("GetGCPService error", func(t *testing.T) {
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.DeleteOnTapCredentials)
+
 		pool := &datamodel.Pool{
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "cert-id",
@@ -4543,7 +4577,7 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return nil, errors.New("gcp error")
 		}
-		err := activity.DeleteOnTapCredentials(ctx, pool)
+		_, err := testEnv.ExecuteActivity(activity.DeleteOnTapCredentials, pool)
 		assert.Error(t, err)
 		assertTemporalApplicationError(t, err, "gcp error", "CustomError", false)
 	})
@@ -4551,7 +4585,6 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 
 func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 	activity := &activities.PoolActivity{}
-	ctx := context.Background()
 	clusterName := "test-cluster"
 	username := "admin"
 
@@ -4569,6 +4602,11 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 	}
 
 	t.Run("USER_CERTIFICATE success", func(t *testing.T) {
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.CreateOnTapCredentials)
+
 		pool := &datamodel.Pool{
 			DeploymentName: clusterName,
 			PoolCredentials: &datamodel.PoolCredentials{
@@ -4596,7 +4634,10 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "pwd"},
 			}, nil
 		}
-		creds, err := activity.CreateOnTapCredentials(ctx, pool)
+		encodedValue, err := testEnv.ExecuteActivity(activity.CreateOnTapCredentials, pool)
+		assert.NoError(t, err)
+		var creds *vlm.OntapCredentials
+		err = encodedValue.Get(&creds)
 		assert.NoError(t, err)
 		assert.Equal(t, "CN", creds.Certificate.CommonName)
 		assert.Equal(t, "cert", creds.Certificate.Certificate)
@@ -4606,6 +4647,11 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 	})
 
 	t.Run("USER_CERTIFICATE error due to secret failure", func(t *testing.T) {
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.CreateOnTapCredentials)
+
 		pool := &datamodel.Pool{
 			DeploymentName: clusterName,
 			PoolCredentials: &datamodel.PoolCredentials{
@@ -4631,12 +4677,16 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("pwd error"))
 		}
-		creds, err := activity.CreateOnTapCredentials(ctx, pool)
+		_, err := testEnv.ExecuteActivity(activity.CreateOnTapCredentials, pool)
 		assert.Error(t, err)
-		assert.Nil(t, creds)
 	})
 
 	t.Run("USER_CERTIFICATE error", func(t *testing.T) {
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.CreateOnTapCredentials)
+
 		pool := &datamodel.Pool{
 			DeploymentName: clusterName,
 			PoolCredentials: &datamodel.PoolCredentials{
@@ -4650,12 +4700,16 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("cert error"))
 		}
-		creds, err := activity.CreateOnTapCredentials(ctx, pool)
+		_, err := testEnv.ExecuteActivity(activity.CreateOnTapCredentials, pool)
 		assert.Error(t, err)
-		assert.Nil(t, creds)
 	})
 
 	t.Run("USERNAME_PWD_SEC_MGR success", func(t *testing.T) {
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.CreateOnTapCredentials)
+
 		pool := &datamodel.Pool{
 			DeploymentName: clusterName,
 			PoolCredentials: &datamodel.PoolCredentials{
@@ -4671,12 +4725,20 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "pwd"},
 			}, nil
 		}
-		creds, err := activity.CreateOnTapCredentials(ctx, pool)
+		encodedValue, err := testEnv.ExecuteActivity(activity.CreateOnTapCredentials, pool)
+		assert.NoError(t, err)
+		var creds *vlm.OntapCredentials
+		err = encodedValue.Get(&creds)
 		assert.NoError(t, err)
 		assert.Equal(t, "pwd", creds.AdminPassword)
 	})
 
 	t.Run("USERNAME_PWD_SEC_MGR error", func(t *testing.T) {
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.CreateOnTapCredentials)
+
 		pool := &datamodel.Pool{
 			DeploymentName: clusterName,
 			PoolCredentials: &datamodel.PoolCredentials{
@@ -4690,12 +4752,16 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("pwd error"))
 		}
-		creds, err := activity.CreateOnTapCredentials(ctx, pool)
+		_, err := testEnv.ExecuteActivity(activity.CreateOnTapCredentials, pool)
 		assert.Error(t, err)
-		assert.Nil(t, creds)
 	})
 
 	t.Run("default password", func(t *testing.T) {
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.CreateOnTapCredentials)
+
 		pool := &datamodel.Pool{
 			DeploymentName: clusterName,
 			PoolCredentials: &datamodel.PoolCredentials{
@@ -4706,12 +4772,20 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				Username:      username,
 			},
 		}
-		creds, err := activity.CreateOnTapCredentials(ctx, pool)
+		encodedValue, err := testEnv.ExecuteActivity(activity.CreateOnTapCredentials, pool)
+		assert.NoError(t, err)
+		var creds *vlm.OntapCredentials
+		err = encodedValue.Get(&creds)
 		assert.NoError(t, err)
 		assert.Equal(t, "default-password", creds.AdminPassword)
 	})
 
 	t.Run("GetGCPService error", func(t *testing.T) {
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.CreateOnTapCredentials)
+
 		pool := &datamodel.Pool{
 			DeploymentName: clusterName,
 			PoolCredentials: &datamodel.PoolCredentials{
@@ -4725,9 +4799,8 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("gcp error"))
 		}
-		creds, err := activity.CreateOnTapCredentials(ctx, pool)
+		_, err := testEnv.ExecuteActivity(activity.CreateOnTapCredentials, pool)
 		assert.Error(t, err)
-		assert.Nil(t, creds)
 	})
 }
 
@@ -4951,7 +5024,6 @@ func TestPoolActivity_UpdatedPool_Failure(t *testing.T) {
 func TestPoolActivity_CreateOnTapCredentials_Success(t *testing.T) {
 	// Arrange
 	activity := activities.PoolActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{
@@ -4963,6 +5035,7 @@ func TestPoolActivity_CreateOnTapCredentials_Success(t *testing.T) {
 			CertificateID: "test-cert-id",
 			SecretID:      "test-secret-id",
 			Username:      "admin",
+			AuthType:      env.USER_CERTIFICATE,
 		},
 		DeploymentName: "test-cluster",
 	}
@@ -4976,7 +5049,12 @@ func TestPoolActivity_CreateOnTapCredentials_Success(t *testing.T) {
 		hyperscaler2.GeneratePasswordForVSACluster = originalGeneratePassword
 	}()
 
-	mockGCPService := &google.GcpServices{Ctx: ctx}
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	testEnv := testSuite.NewTestActivityEnvironment()
+	testEnv.RegisterActivity(activity.CreateOnTapCredentials)
+
+	mockGCPService := &google.GcpServices{}
 	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 		return mockGCPService, nil
 	}
@@ -5007,9 +5085,12 @@ func TestPoolActivity_CreateOnTapCredentials_Success(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.CreateOnTapCredentials(ctx, pool)
+	encodedValue, err := testEnv.ExecuteActivity(activity.CreateOnTapCredentials, pool)
 
 	// Assert
+	assert.NoError(t, err)
+	var result *vlm.OntapCredentials
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.IsType(t, &vlm.OntapCredentials{}, result)
@@ -5018,7 +5099,6 @@ func TestPoolActivity_CreateOnTapCredentials_Success(t *testing.T) {
 func TestPoolActivity_CreateOnTapCredentials_GetGCPServiceFails(t *testing.T) {
 	// Arrange
 	activity := activities.PoolActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{
@@ -5035,17 +5115,26 @@ func TestPoolActivity_CreateOnTapCredentials_GetGCPServiceFails(t *testing.T) {
 	originalGetGCPService := hyperscaler2.GetGCPService
 	defer func() { hyperscaler2.GetGCPService = originalGetGCPService }()
 
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	testEnv := testSuite.NewTestActivityEnvironment()
+	testEnv.RegisterActivity(activity.CreateOnTapCredentials)
+
 	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 		return nil, errors.New("failed to get GCP service")
 	}
 
 	// Act
-	result, err := activity.CreateOnTapCredentials(ctx, pool)
+	_, err := testEnv.ExecuteActivity(activity.CreateOnTapCredentials, pool)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, vsaerrors.ExtractCustomError(err).OriginalErr.Error(), "failed to get GCP service")
+	var appErr *temporal.ApplicationError
+	require.ErrorAs(t, err, &appErr)
+	var trackingID int
+	var originalMsg string
+	require.NoError(t, appErr.Details(&trackingID, &originalMsg))
+	assert.Contains(t, originalMsg, "failed to get GCP service")
 }
 
 func TestPoolActivity_DeletingPoolResources_DeletingSVMsFails(t *testing.T) {
@@ -9010,7 +9099,6 @@ func TestPoolActivity_GetComputeOpStatus(t *testing.T) {
 }
 
 func TestFetchOnTapCredentials_WithUserCertificate_Success(t *testing.T) {
-	ctx := context.Background()
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
 	pool := &datamodel.Pool{
@@ -9038,7 +9126,15 @@ func TestFetchOnTapCredentials_WithUserCertificate_Success(t *testing.T) {
 		return "admin-password", nil
 	}
 
-	creds, err := activity.GetOnTapCredentials(ctx, pool)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	testEnv := testSuite.NewTestActivityEnvironment()
+	testEnv.RegisterActivity(activity.GetOnTapCredentials)
+
+	encodedValue, err := testEnv.ExecuteActivity(activity.GetOnTapCredentials, pool)
+	assert.NoError(t, err)
+	var creds *vlm.OntapCredentials
+	err = encodedValue.Get(&creds)
 	assert.NoError(t, err)
 	assert.Equal(t, "CN", creds.Certificate.CommonName)
 	assert.Equal(t, "cert", creds.Certificate.Certificate)
@@ -9050,7 +9146,6 @@ func TestFetchOnTapCredentials_WithUserCertificate_Success(t *testing.T) {
 func TestFetchOnTapCredentials_WithUserCertificate_CertificateError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.Background()
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
 			AuthType:      env.USER_CERTIFICATE,
@@ -9064,16 +9159,19 @@ func TestFetchOnTapCredentials_WithUserCertificate_CertificateError(t *testing.T
 		return nil, errors.New("certificate error")
 	}
 
-	creds, err := activity.GetOnTapCredentials(ctx, pool)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	testEnv := testSuite.NewTestActivityEnvironment()
+	testEnv.RegisterActivity(activity.GetOnTapCredentials)
+
+	_, err := testEnv.ExecuteActivity(activity.GetOnTapCredentials, pool)
 	assert.Error(t, err)
-	assert.Nil(t, creds)
 	assert.Contains(t, err.Error(), "certificate error")
 }
 
 func TestFetchOnTapCredentials_WithUserCertificate_SecretError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.Background()
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
 			AuthType:      env.USER_CERTIFICATE,
@@ -9099,16 +9197,19 @@ func TestFetchOnTapCredentials_WithUserCertificate_SecretError(t *testing.T) {
 		return "", errors.New("Invalid resource field value")
 	}
 
-	creds, err := activity.GetOnTapCredentials(ctx, pool)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	testEnv := testSuite.NewTestActivityEnvironment()
+	testEnv.RegisterActivity(activity.GetOnTapCredentials)
+
+	_, err := testEnv.ExecuteActivity(activity.GetOnTapCredentials, pool)
 	assert.Error(t, err)
-	assert.Nil(t, creds)
 	assert.Contains(t, err.Error(), "Invalid resource field value")
 }
 
 func TestFetchOnTapCredentials_WithUsernamePwdSecMgr_Success(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.Background()
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
 			AuthType: env.USERNAME_PWD_SEC_MGR,
@@ -9121,7 +9222,15 @@ func TestFetchOnTapCredentials_WithUsernamePwdSecMgr_Success(t *testing.T) {
 		return "admin-password", nil
 	}
 
-	creds, err := activity.GetOnTapCredentials(ctx, pool)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	testEnv := testSuite.NewTestActivityEnvironment()
+	testEnv.RegisterActivity(activity.GetOnTapCredentials)
+
+	encodedValue, err := testEnv.ExecuteActivity(activity.GetOnTapCredentials, pool)
+	assert.NoError(t, err)
+	var creds *vlm.OntapCredentials
+	err = encodedValue.Get(&creds)
 	assert.NoError(t, err)
 	assert.NotNil(t, creds)
 	assert.Equal(t, "admin-password", creds.AdminPassword)
@@ -9130,7 +9239,6 @@ func TestFetchOnTapCredentials_WithUsernamePwdSecMgr_Success(t *testing.T) {
 func TestFetchOnTapCredentials_WithUsernamePwdSecMgr_SecretError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.Background()
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
 			AuthType: env.USERNAME_PWD_SEC_MGR,
@@ -9143,16 +9251,19 @@ func TestFetchOnTapCredentials_WithUsernamePwdSecMgr_SecretError(t *testing.T) {
 		return "", errors.New("Invalid resource field value")
 	}
 
-	creds, err := activity.GetOnTapCredentials(ctx, pool)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	testEnv := testSuite.NewTestActivityEnvironment()
+	testEnv.RegisterActivity(activity.GetOnTapCredentials)
+
+	_, err := testEnv.ExecuteActivity(activity.GetOnTapCredentials, pool)
 	assert.Error(t, err)
-	assert.Nil(t, creds)
 	assert.Contains(t, err.Error(), "Invalid resource field value")
 }
 
 func TestFetchOnTapCredentials_WithDefaultAuthType_ReturnsPassword(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.Background()
 	pool := &datamodel.Pool{
 		PoolCredentials: &datamodel.PoolCredentials{
 			AuthType: env.USERNAME_PWD, // Assume this is a default type
@@ -9160,7 +9271,15 @@ func TestFetchOnTapCredentials_WithDefaultAuthType_ReturnsPassword(t *testing.T)
 		},
 	}
 
-	creds, err := activity.GetOnTapCredentials(ctx, pool)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	testEnv := testSuite.NewTestActivityEnvironment()
+	testEnv.RegisterActivity(activity.GetOnTapCredentials)
+
+	encodedValue, err := testEnv.ExecuteActivity(activity.GetOnTapCredentials, pool)
+	assert.NoError(t, err)
+	var creds *vlm.OntapCredentials
+	err = encodedValue.Get(&creds)
 	assert.NoError(t, err)
 	assert.Equal(t, "plain-password", creds.AdminPassword)
 }
@@ -9293,14 +9412,20 @@ func TestGetInterClusterLifsFromVLMConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
+			// Use Temporal test suite to provide proper activity context for heartbeat
+			testSuite := &testsuite.WorkflowTestSuite{}
+			env := testSuite.NewTestActivityEnvironment()
 			activity := &activities.PoolActivity{}
+			env.RegisterActivity(activity.GetInterClusterLifsFromVLMConfig)
 
-			result, err := activity.GetInterClusterLifsFromVLMConfig(ctx, &tt.vlmConfig)
+			encodedValue, err := env.ExecuteActivity(activity.GetInterClusterLifsFromVLMConfig, &tt.vlmConfig)
 
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
+				assert.NoError(t, err)
+				var result []string
+				err = encodedValue.Get(&result)
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expected, result)
 			}
@@ -10455,7 +10580,6 @@ func TestAutoTierSyncActivity_HydrateUpdatedPoolToCCFE(t *testing.T) {
 }
 
 func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	mockStorage := database.NewMockStorage(t)
 	activity := &activities.PoolActivity{SE: mockStorage}
 
@@ -10483,6 +10607,11 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 	}
 
 	t.Run("success with matching addresses", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetIPsConsumedForSubnet)
+
 		// Mock addresses with matching subnet names
 		mockAddresses := &[]hyperscaler_models.Address{
 			{
@@ -10506,7 +10635,10 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 			return mockAddresses, nil
 		}
 
-		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+		encodedValue, err := env.ExecuteActivity(activity.GetIPsConsumedForSubnet, pool, tenancyDetails, region)
+		assert.NoError(t, err)
+		var result *[]datamodel.SubnetToIPs
+		err = encodedValue.Get(&result)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -10516,6 +10648,11 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 	})
 
 	t.Run("success with no matching addresses", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetIPsConsumedForSubnet)
+
 		// Mock addresses with no matching subnet names
 		mockAddresses := &[]hyperscaler_models.Address{
 			{
@@ -10534,7 +10671,10 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 			return mockAddresses, nil
 		}
 
-		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+		encodedValue, err := env.ExecuteActivity(activity.GetIPsConsumedForSubnet, pool, tenancyDetails, region)
+		assert.NoError(t, err)
+		var result *[]datamodel.SubnetToIPs
+		err = encodedValue.Get(&result)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -10544,6 +10684,11 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 	})
 
 	t.Run("success with multiple subnets", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetIPsConsumedForSubnet)
+
 		// Test with multiple subnets in tenancy details
 		tenancyDetailsMultiple := &commonparams.TenancyInfo{
 			RegionalTenantProject: "test-project",
@@ -10572,7 +10717,10 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 			return mockAddresses, nil
 		}
 
-		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetailsMultiple, region)
+		encodedValue, err := env.ExecuteActivity(activity.GetIPsConsumedForSubnet, pool, tenancyDetailsMultiple, region)
+		assert.NoError(t, err)
+		var result *[]datamodel.SubnetToIPs
+		err = encodedValue.Get(&result)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -10590,6 +10738,11 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 	})
 
 	t.Run("success with no addresses", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetIPsConsumedForSubnet)
+
 		// Mock empty addresses list
 		mockAddresses := &[]hyperscaler_models.Address{}
 
@@ -10597,7 +10750,10 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 			return mockAddresses, nil
 		}
 
-		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+		encodedValue, err := env.ExecuteActivity(activity.GetIPsConsumedForSubnet, pool, tenancyDetails, region)
+		assert.NoError(t, err)
+		var result *[]datamodel.SubnetToIPs
+		err = encodedValue.Get(&result)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -10607,6 +10763,11 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 	})
 
 	t.Run("success with nil addresses", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetIPsConsumedForSubnet)
+
 		// Mock nil addresses
 		var mockAddresses *[]hyperscaler_models.Address = nil
 
@@ -10614,7 +10775,10 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 			return mockAddresses, nil
 		}
 
-		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+		encodedValue, err := env.ExecuteActivity(activity.GetIPsConsumedForSubnet, pool, tenancyDetails, region)
+		assert.NoError(t, err)
+		var result *[]datamodel.SubnetToIPs
+		err = encodedValue.Get(&result)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -10622,31 +10786,63 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 	})
 
 	t.Run("success with no subnetwork names", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetIPsConsumedForSubnet)
+
 		// Test with empty subnetwork names
 		tenancyDetailsEmpty := &commonparams.TenancyInfo{
 			RegionalTenantProject: "test-project",
 			SubnetworkNames:       []string{},
 		}
 
-		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetailsEmpty, region)
+		// Mock addresses list (even though it won't be used since we return early)
+		activities.ListAddressesByDeployment = func(gcpService hyperscaler2.GoogleServices, project, region, deploymentName string) (*[]hyperscaler_models.Address, error) {
+			return &[]hyperscaler_models.Address{}, nil
+		}
 
+		encodedValue, err := env.ExecuteActivity(activity.GetIPsConsumedForSubnet, pool, tenancyDetailsEmpty, region)
 		assert.NoError(t, err)
-		assert.Nil(t, result)
+		// When activity returns nil, encodedValue might be nil or empty
+		// Try to get the result, but handle the case where it's nil
+		var result *[]datamodel.SubnetToIPs
+		if encodedValue != nil {
+			err = encodedValue.Get(&result)
+			// If Get fails with "no data available", it means the result was nil
+			if err != nil {
+				assert.Contains(t, err.Error(), "no data available")
+			} else {
+				assert.Nil(t, result)
+			}
+		} else {
+			// encodedValue is nil, which is also acceptable for nil return
+			assert.Nil(t, result)
+		}
 	})
 
 	t.Run("error when GetGCPService fails", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetIPsConsumedForSubnet)
+
 		// Mock GCP service to return error
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return nil, errors.New("failed to get GCP service")
 		}
 
-		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+		_, err := env.ExecuteActivity(activity.GetIPsConsumedForSubnet, pool, tenancyDetails, region)
 
 		assert.Error(t, err)
-		assert.Nil(t, result)
 	})
 
 	t.Run("error when ListAddressesByDeployment fails", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetIPsConsumedForSubnet)
+
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{Logger: log.NewLogger()}, nil
 		}
@@ -10655,14 +10851,18 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 			return nil, errors.New("failed to list addresses")
 		}
 
-		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+		_, err := env.ExecuteActivity(activity.GetIPsConsumedForSubnet, pool, tenancyDetails, region)
 
 		assert.Error(t, err)
-		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "failed to list addresses")
 	})
 
 	t.Run("success with addresses having empty SubnetURI", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetIPsConsumedForSubnet)
+
 		// Mock addresses with empty SubnetURI
 		mockAddresses := &[]hyperscaler_models.Address{
 			{
@@ -10681,7 +10881,10 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 			return mockAddresses, nil
 		}
 
-		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+		encodedValue, err := env.ExecuteActivity(activity.GetIPsConsumedForSubnet, pool, tenancyDetails, region)
+		assert.NoError(t, err)
+		var result *[]datamodel.SubnetToIPs
+		err = encodedValue.Get(&result)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -10691,6 +10894,11 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 	})
 
 	t.Run("success with partial subnet name matches", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.GetIPsConsumedForSubnet)
+
 		// Test that partial matches work (contains check)
 		mockAddresses := &[]hyperscaler_models.Address{
 			{
@@ -10714,7 +10922,10 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 			return mockAddresses, nil
 		}
 
-		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+		encodedValue, err := env.ExecuteActivity(activity.GetIPsConsumedForSubnet, pool, tenancyDetails, region)
+		assert.NoError(t, err)
+		var result *[]datamodel.SubnetToIPs
+		err = encodedValue.Get(&result)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -10724,6 +10935,11 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 	})
 
 	t.Run("success with HasSuffix matching behavior", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.GetIPsConsumedForSubnet)
+
 		// Test that HasSuffix correctly matches only addresses ending with the target subnet name
 		// This test would fail with Contains but pass with HasSuffix
 		mockAddresses := &[]hyperscaler_models.Address{
@@ -10753,7 +10969,10 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 			return mockAddresses, nil
 		}
 
-		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+		encodedValue, err := testEnv.ExecuteActivity(activity.GetIPsConsumedForSubnet, pool, tenancyDetails, region)
+		assert.NoError(t, err)
+		var result *[]datamodel.SubnetToIPs
+		err = encodedValue.Get(&result)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -10763,6 +10982,11 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 	})
 
 	t.Run("success with forward slash prefix in HasSuffix check", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.GetIPsConsumedForSubnet)
+
 		// Test that the forward slash prefix in HasSuffix check works correctly
 		mockAddresses := &[]hyperscaler_models.Address{
 			{
@@ -10781,7 +11005,10 @@ func TestPoolActivity_GetIPsConsumedForSubnet(t *testing.T) {
 			return mockAddresses, nil
 		}
 
-		result, err := activity.GetIPsConsumedForSubnet(ctx, pool, tenancyDetails, region)
+		encodedValue, err := testEnv.ExecuteActivity(activity.GetIPsConsumedForSubnet, pool, tenancyDetails, region)
+		assert.NoError(t, err)
+		var result *[]datamodel.SubnetToIPs
+		err = encodedValue.Get(&result)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -11559,7 +11786,6 @@ func TestGetBucketCompliance_AllScenarios(t *testing.T) {
 
 func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 	activity := &activities.PoolActivity{}
-	ctx := context.Background()
 	clusterName := "test-cluster"
 	username := "admin"
 
@@ -11575,6 +11801,11 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 	}
 
 	t.Run("USER_CERTIFICATE success", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.CreateExpertModeCredentials)
+
 		pool := &datamodel.Pool{
 			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 				ExpertModeCredential: []*datamodel.ExpertModeCredential{
@@ -11599,7 +11830,10 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 				},
 			}, nil
 		}
-		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)
+		encodedValue, err := testEnv.ExecuteActivity(activity.CreateExpertModeCredentials, pool, clusterName, username)
+		assert.NoError(t, err)
+		var creds *vlm.OntapCredentials
+		err = encodedValue.Get(&creds)
 		assert.NoError(t, err)
 		assert.Equal(t, "CN", creds.Certificate.CommonName)
 		assert.Equal(t, "cert", creds.Certificate.Certificate)
@@ -11609,17 +11843,26 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 	})
 
 	t.Run("USER_CERTIFICATE ExpertModeCredentials empty error", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.CreateExpertModeCredentials)
+
 		pool := &datamodel.Pool{
 			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 				ExpertModeCredential: nil,
 			},
 		}
-		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)
+		_, err := testEnv.ExecuteActivity(activity.CreateExpertModeCredentials, pool, clusterName, username)
 		assert.Error(t, err)
-		assert.Nil(t, creds)
 	})
 
 	t.Run("USER_CERTIFICATE error", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.CreateExpertModeCredentials)
+
 		pool := &datamodel.Pool{
 			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 				ExpertModeCredential: []*datamodel.ExpertModeCredential{
@@ -11635,12 +11878,16 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, clusterName, username string, poolCredentials *datamodel.PoolCredentials, isServerAuthEnabled bool) (*hyperscaler_models.CustomCertificateResponse, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("cert error"))
 		}
-		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)
+		_, err := testEnv.ExecuteActivity(activity.CreateExpertModeCredentials, pool, clusterName, username)
 		assert.Error(t, err)
-		assert.Nil(t, creds)
 	})
 
 	t.Run("USERNAME_PWD_SEC_MGR success", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.CreateExpertModeCredentials)
+
 		pool := &datamodel.Pool{
 			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 				ExpertModeCredential: []*datamodel.ExpertModeCredential{
@@ -11659,12 +11906,20 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 				SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "pwd"},
 			}, nil
 		}
-		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)
+		encodedValue, err := testEnv.ExecuteActivity(activity.CreateExpertModeCredentials, pool, clusterName, username)
+		assert.NoError(t, err)
+		var creds *vlm.OntapCredentials
+		err = encodedValue.Get(&creds)
 		assert.NoError(t, err)
 		assert.Equal(t, "pwd", creds.AdminPassword)
 	})
 
 	t.Run("USERNAME_PWD_SEC_MGR error", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.CreateExpertModeCredentials)
+
 		pool := &datamodel.Pool{
 			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 				ExpertModeCredential: []*datamodel.ExpertModeCredential{
@@ -11680,12 +11935,16 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("pwd error"))
 		}
-		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)
+		_, err := testEnv.ExecuteActivity(activity.CreateExpertModeCredentials, pool, clusterName, username)
 		assert.Error(t, err)
-		assert.Nil(t, creds)
 	})
 
 	t.Run("default password", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.CreateExpertModeCredentials)
+
 		pool := &datamodel.Pool{
 			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 				ExpertModeCredential: []*datamodel.ExpertModeCredential{
@@ -11698,12 +11957,20 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 				},
 			},
 		}
-		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)
+		encodedValue, err := testEnv.ExecuteActivity(activity.CreateExpertModeCredentials, pool, clusterName, username)
+		assert.NoError(t, err)
+		var creds *vlm.OntapCredentials
+		err = encodedValue.Get(&creds)
 		assert.NoError(t, err)
 		assert.Equal(t, "password", creds.AdminPassword)
 	})
 
 	t.Run("GetGCPService error", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.CreateExpertModeCredentials)
+
 		pool := &datamodel.Pool{
 			PoolCredentials: &datamodel.PoolCredentials{
 				CertificateID: "",
@@ -11715,15 +11982,13 @@ func TestPoolActivity_CreateExpertModeCredentials(t *testing.T) {
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("gcp error"))
 		}
-		creds, err := activity.CreateExpertModeCredentials(ctx, pool, clusterName, username)
+		_, err := testEnv.ExecuteActivity(activity.CreateExpertModeCredentials, pool, clusterName, username)
 		assert.Error(t, err)
-		assert.Nil(t, creds)
 	})
 }
 
 func TestPoolActivity_DeleteExpertModeCredentials(t *testing.T) {
 	activity := &activities.PoolActivity{}
-	ctx := context.Background()
 
 	origGetGCPService := hyperscaler2.GetGCPService
 	origRevokeCert := hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager
@@ -11739,6 +12004,11 @@ func TestPoolActivity_DeleteExpertModeCredentials(t *testing.T) {
 	}
 
 	t.Run("USER_CERTIFICATE success", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.DeleteExpertModeCredentials)
+
 		pool := &datamodel.Pool{
 			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 				ExpertModeCredential: []*datamodel.ExpertModeCredential{
@@ -11755,20 +12025,30 @@ func TestPoolActivity_DeleteExpertModeCredentials(t *testing.T) {
 			assert.Equal(t, "cert-id", poolCredentials.CertificateID)
 			return nil
 		}
-		err := activity.DeleteExpertModeCredentials(ctx, pool)
+		_, err := testEnv.ExecuteActivity(activity.DeleteExpertModeCredentials, pool)
 		assert.NoError(t, err)
 	})
 
 	t.Run("USER_CERTIFICATE ExpertModeCredentials empty error", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.DeleteExpertModeCredentials)
+
 		pool := &datamodel.Pool{
 			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 				ExpertModeCredential: nil,
 			},
 		}
-		err := activity.DeleteExpertModeCredentials(ctx, pool)
+		_, err := testEnv.ExecuteActivity(activity.DeleteExpertModeCredentials, pool)
 		assert.Error(t, err)
 	})
 	t.Run("USER_CERTIFICATE error", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.DeleteExpertModeCredentials)
+
 		pool := &datamodel.Pool{
 			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 				ExpertModeCredential: []*datamodel.ExpertModeCredential{
@@ -11784,12 +12064,17 @@ func TestPoolActivity_DeleteExpertModeCredentials(t *testing.T) {
 		hyperscaler2.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, poolCredentials *datamodel.PoolCredentials) error {
 			return errors.New("revoke error")
 		}
-		err := activity.DeleteExpertModeCredentials(ctx, pool)
+		_, err := testEnv.ExecuteActivity(activity.DeleteExpertModeCredentials, pool)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "revoke error")
 	})
 
 	t.Run("USERNAME_PWD_SEC_MGR success", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.DeleteExpertModeCredentials)
+
 		pool := &datamodel.Pool{
 			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 				ExpertModeCredential: []*datamodel.ExpertModeCredential{
@@ -11806,11 +12091,16 @@ func TestPoolActivity_DeleteExpertModeCredentials(t *testing.T) {
 			assert.Equal(t, "secret-id", secretID)
 			return nil
 		}
-		err := activity.DeleteExpertModeCredentials(ctx, pool)
+		_, err := testEnv.ExecuteActivity(activity.DeleteExpertModeCredentials, pool)
 		assert.NoError(t, err)
 	})
 
 	t.Run("USERNAME_PWD_SEC_MGR error", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.DeleteExpertModeCredentials)
+
 		pool := &datamodel.Pool{
 			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 				ExpertModeCredential: []*datamodel.ExpertModeCredential{
@@ -11826,12 +12116,17 @@ func TestPoolActivity_DeleteExpertModeCredentials(t *testing.T) {
 		hyperscaler2.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler2.GoogleServices, secretID string) error {
 			return errors.New("delete error")
 		}
-		err := activity.DeleteExpertModeCredentials(ctx, pool)
+		_, err := testEnv.ExecuteActivity(activity.DeleteExpertModeCredentials, pool)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "delete error")
 	})
 
 	t.Run("default password - no cert no secret-manager", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.DeleteExpertModeCredentials)
+
 		pool := &datamodel.Pool{
 			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 				ExpertModeCredential: []*datamodel.ExpertModeCredential{
@@ -11844,11 +12139,16 @@ func TestPoolActivity_DeleteExpertModeCredentials(t *testing.T) {
 				},
 			},
 		}
-		err := activity.DeleteExpertModeCredentials(ctx, pool)
+		_, err := testEnv.ExecuteActivity(activity.DeleteExpertModeCredentials, pool)
 		assert.NoError(t, err)
 	})
 
 	t.Run("GetGCPService error", func(t *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(activity.DeleteExpertModeCredentials)
+
 		pool := &datamodel.Pool{
 			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 				ExpertModeCredential: []*datamodel.ExpertModeCredential{
@@ -11864,14 +12164,13 @@ func TestPoolActivity_DeleteExpertModeCredentials(t *testing.T) {
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return nil, errors.New("gcp error")
 		}
-		err := activity.DeleteExpertModeCredentials(ctx, pool)
+		_, err := testEnv.ExecuteActivity(activity.DeleteExpertModeCredentials, pool)
 		assert.Error(t, err)
 		assertTemporalApplicationError(t, err, "gcp error", "CustomError", false)
 	})
 }
 
 func TestFetchExpertModeCredentials_WithUserCertificate_Success(t *testing.T) {
-	ctx := context.Background()
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
 	pool := &datamodel.Pool{
@@ -11899,7 +12198,15 @@ func TestFetchExpertModeCredentials_WithUserCertificate_Success(t *testing.T) {
 		}, nil
 	}
 
-	creds, err := activity.GetExpertModeCredentials(ctx, pool)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	testEnv := testSuite.NewTestActivityEnvironment()
+	testEnv.RegisterActivity(activity.GetExpertModeCredentials)
+
+	encodedValue, err := testEnv.ExecuteActivity(activity.GetExpertModeCredentials, pool)
+	assert.NoError(t, err)
+	var creds *vlm.OntapCredentials
+	err = encodedValue.Get(&creds)
 	assert.NoError(t, err)
 	assert.Equal(t, "CN", creds.Certificate.CommonName)
 	assert.Equal(t, "cert", creds.Certificate.Certificate)
@@ -11910,7 +12217,6 @@ func TestFetchExpertModeCredentials_WithUserCertificate_Success(t *testing.T) {
 func TestFetchExpertModeCredentials_WithUserCertificate_CertificateError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.Background()
 	pool := &datamodel.Pool{
 		ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 			ExpertModeCredential: []*datamodel.ExpertModeCredential{
@@ -11929,16 +12235,19 @@ func TestFetchExpertModeCredentials_WithUserCertificate_CertificateError(t *test
 		return nil, errors.New("certificate error")
 	}
 
-	creds, err := activity.GetExpertModeCredentials(ctx, pool)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	testEnv := testSuite.NewTestActivityEnvironment()
+	testEnv.RegisterActivity(activity.GetExpertModeCredentials)
+
+	_, err := testEnv.ExecuteActivity(activity.GetExpertModeCredentials, pool)
 	assert.Error(t, err)
-	assert.Nil(t, creds)
 	assert.Contains(t, err.Error(), "certificate error")
 }
 
 func TestFetchExpertModeCredentials_WithUsernamePwdSecMgr_Success(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.Background()
 	pool := &datamodel.Pool{
 		ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 			ExpertModeCredential: []*datamodel.ExpertModeCredential{
@@ -11957,7 +12266,15 @@ func TestFetchExpertModeCredentials_WithUsernamePwdSecMgr_Success(t *testing.T) 
 		return "admin-password", nil
 	}
 
-	creds, err := activity.GetExpertModeCredentials(ctx, pool)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	testEnv := testSuite.NewTestActivityEnvironment()
+	testEnv.RegisterActivity(activity.GetExpertModeCredentials)
+
+	encodedValue, err := testEnv.ExecuteActivity(activity.GetExpertModeCredentials, pool)
+	assert.NoError(t, err)
+	var creds *vlm.OntapCredentials
+	err = encodedValue.Get(&creds)
 	assert.NoError(t, err)
 	assert.NotNil(t, creds)
 	assert.Equal(t, "admin-password", creds.AdminPassword)
@@ -11966,7 +12283,6 @@ func TestFetchExpertModeCredentials_WithUsernamePwdSecMgr_Success(t *testing.T) 
 func TestFetchExpertModeCredentials_WithUsernamePwdSecMgr_SecretError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.Background()
 	pool := &datamodel.Pool{
 		ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 			ExpertModeCredential: []*datamodel.ExpertModeCredential{
@@ -11985,16 +12301,19 @@ func TestFetchExpertModeCredentials_WithUsernamePwdSecMgr_SecretError(t *testing
 		return "", errors.New("Invalid resource field value")
 	}
 
-	creds, err := activity.GetExpertModeCredentials(ctx, pool)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	testEnv := testSuite.NewTestActivityEnvironment()
+	testEnv.RegisterActivity(activity.GetExpertModeCredentials)
+
+	_, err := testEnv.ExecuteActivity(activity.GetExpertModeCredentials, pool)
 	assert.Error(t, err)
-	assert.Nil(t, creds)
 	assert.Contains(t, err.Error(), "Invalid resource field value")
 }
 
 func TestFetchExpertModeCredentials_WithDefaultAuthType_ReturnsPassword(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.Background()
 	pool := &datamodel.Pool{
 		ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 			ExpertModeCredential: []*datamodel.ExpertModeCredential{
@@ -12008,7 +12327,15 @@ func TestFetchExpertModeCredentials_WithDefaultAuthType_ReturnsPassword(t *testi
 		},
 	}
 
-	creds, err := activity.GetExpertModeCredentials(ctx, pool)
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	testEnv := testSuite.NewTestActivityEnvironment()
+	testEnv.RegisterActivity(activity.GetExpertModeCredentials)
+
+	encodedValue, err := testEnv.ExecuteActivity(activity.GetExpertModeCredentials, pool)
+	assert.NoError(t, err)
+	var creds *vlm.OntapCredentials
+	err = encodedValue.Get(&creds)
 	assert.NoError(t, err)
 	assert.Equal(t, "plain-password", creds.AdminPassword)
 }
@@ -12444,7 +12771,10 @@ func TestCalculateBatchPlan_Success_6HAPairs_4ParallelNodes(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	// Use Temporal test suite to provide proper activity context for heartbeat
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.CalculateBatchPlanForUpdate)
 
 	input := activities.CalculateBatchPlanActivityInput{
 		NumHAPairs:                  6,
@@ -12452,7 +12782,10 @@ func TestCalculateBatchPlan_Success_6HAPairs_4ParallelNodes(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+	encodedValue, err := env.ExecuteActivity(activity.CalculateBatchPlanForUpdate, input)
+	assert.NoError(t, err)
+	var result *activities.CalculateBatchPlanActivityOutput
+	err = encodedValue.Get(&result)
 
 	// Assert
 	assert.NoError(t, err)
@@ -12474,7 +12807,10 @@ func TestCalculateBatchPlan_Success_2HAPairs_4ParallelNodes(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	// Use Temporal test suite to provide proper activity context for heartbeat
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.CalculateBatchPlanForUpdate)
 
 	input := activities.CalculateBatchPlanActivityInput{
 		NumHAPairs:                  2,
@@ -12482,7 +12818,10 @@ func TestCalculateBatchPlan_Success_2HAPairs_4ParallelNodes(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+	encodedValue, err := env.ExecuteActivity(activity.CalculateBatchPlanForUpdate, input)
+	assert.NoError(t, err)
+	var result *activities.CalculateBatchPlanActivityOutput
+	err = encodedValue.Get(&result)
 
 	// Assert
 	assert.NoError(t, err)
@@ -12504,7 +12843,10 @@ func TestCalculateBatchPlan_Success_8HAPairs_4ParallelNodes(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	// Use Temporal test suite to provide proper activity context for heartbeat
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.CalculateBatchPlanForUpdate)
 
 	input := activities.CalculateBatchPlanActivityInput{
 		NumHAPairs:                  8,
@@ -12512,7 +12854,10 @@ func TestCalculateBatchPlan_Success_8HAPairs_4ParallelNodes(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+	encodedValue, err := env.ExecuteActivity(activity.CalculateBatchPlanForUpdate, input)
+	assert.NoError(t, err)
+	var result *activities.CalculateBatchPlanActivityOutput
+	err = encodedValue.Get(&result)
 
 	// Assert
 	assert.NoError(t, err)
@@ -12534,7 +12879,10 @@ func TestCalculateBatchPlan_Success_7HAPairs_4ParallelNodes(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	// Use Temporal test suite to provide proper activity context for heartbeat
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.CalculateBatchPlanForUpdate)
 
 	input := activities.CalculateBatchPlanActivityInput{
 		NumHAPairs:                  7,
@@ -12542,7 +12890,10 @@ func TestCalculateBatchPlan_Success_7HAPairs_4ParallelNodes(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+	encodedValue, err := env.ExecuteActivity(activity.CalculateBatchPlanForUpdate, input)
+	assert.NoError(t, err)
+	var result *activities.CalculateBatchPlanActivityOutput
+	err = encodedValue.Get(&result)
 
 	// Assert
 	assert.NoError(t, err)
@@ -12566,7 +12917,10 @@ func TestCalculateBatchPlan_Success_1HAPair_4ParallelNodes(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	// Use Temporal test suite to provide proper activity context for heartbeat
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.CalculateBatchPlanForUpdate)
 
 	input := activities.CalculateBatchPlanActivityInput{
 		NumHAPairs:                  1,
@@ -12574,7 +12928,10 @@ func TestCalculateBatchPlan_Success_1HAPair_4ParallelNodes(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+	encodedValue, err := env.ExecuteActivity(activity.CalculateBatchPlanForUpdate, input)
+	assert.NoError(t, err)
+	var result *activities.CalculateBatchPlanActivityOutput
+	err = encodedValue.Get(&result)
 
 	// Assert
 	assert.NoError(t, err)
@@ -12594,7 +12951,10 @@ func TestCalculateBatchPlan_Success_12HAPairs_6ParallelNodes(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	// Use Temporal test suite to provide proper activity context for heartbeat
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.CalculateBatchPlanForUpdate)
 
 	input := activities.CalculateBatchPlanActivityInput{
 		NumHAPairs:                  12,
@@ -12602,7 +12962,10 @@ func TestCalculateBatchPlan_Success_12HAPairs_6ParallelNodes(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+	encodedValue, err := env.ExecuteActivity(activity.CalculateBatchPlanForUpdate, input)
+	assert.NoError(t, err)
+	var result *activities.CalculateBatchPlanActivityOutput
+	err = encodedValue.Get(&result)
 
 	// Assert
 	assert.NoError(t, err)
@@ -12626,7 +12989,10 @@ func TestCalculateBatchPlan_Success_5HAPairs_8ParallelNodes(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	// Use Temporal test suite to provide proper activity context for heartbeat
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.CalculateBatchPlanForUpdate)
 
 	input := activities.CalculateBatchPlanActivityInput{
 		NumHAPairs:                  5,
@@ -12634,7 +13000,10 @@ func TestCalculateBatchPlan_Success_5HAPairs_8ParallelNodes(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+	encodedValue, err := env.ExecuteActivity(activity.CalculateBatchPlanForUpdate, input)
+	assert.NoError(t, err)
+	var result *activities.CalculateBatchPlanActivityOutput
+	err = encodedValue.Get(&result)
 
 	// Assert
 	assert.NoError(t, err)
@@ -12656,7 +13025,10 @@ func TestCalculateBatchPlan_Error_InvalidNumHAPairs_Zero(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	// Use Temporal test suite to provide proper activity context for heartbeat
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.CalculateBatchPlanForUpdate)
 
 	input := activities.CalculateBatchPlanActivityInput{
 		NumHAPairs:                  0,
@@ -12664,11 +13036,10 @@ func TestCalculateBatchPlan_Error_InvalidNumHAPairs_Zero(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+	_, err := env.ExecuteActivity(activity.CalculateBatchPlanForUpdate, input)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "invalid number of HA pairs: 0")
 }
 
@@ -12677,7 +13048,10 @@ func TestCalculateBatchPlan_Error_InvalidNumHAPairs_Negative(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	// Use Temporal test suite to provide proper activity context for heartbeat
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.CalculateBatchPlanForUpdate)
 
 	input := activities.CalculateBatchPlanActivityInput{
 		NumHAPairs:                  -1,
@@ -12685,11 +13059,10 @@ func TestCalculateBatchPlan_Error_InvalidNumHAPairs_Negative(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+	_, err := env.ExecuteActivity(activity.CalculateBatchPlanForUpdate, input)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "invalid number of HA pairs: -1")
 }
 
@@ -12698,7 +13071,10 @@ func TestCalculateBatchPlan_Error_InvalidParallelNodes_Zero(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	// Use Temporal test suite to provide proper activity context for heartbeat
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.CalculateBatchPlanForUpdate)
 
 	input := activities.CalculateBatchPlanActivityInput{
 		NumHAPairs:                  6,
@@ -12706,11 +13082,10 @@ func TestCalculateBatchPlan_Error_InvalidParallelNodes_Zero(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+	_, err := env.ExecuteActivity(activity.CalculateBatchPlanForUpdate, input)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "invalid parallel number of nodes for ITC: 0")
 }
 
@@ -12719,7 +13094,10 @@ func TestCalculateBatchPlan_Error_InvalidParallelNodes_Negative(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	// Use Temporal test suite to provide proper activity context for heartbeat
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.CalculateBatchPlanForUpdate)
 
 	input := activities.CalculateBatchPlanActivityInput{
 		NumHAPairs:                  6,
@@ -12727,11 +13105,10 @@ func TestCalculateBatchPlan_Error_InvalidParallelNodes_Negative(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+	_, err := env.ExecuteActivity(activity.CalculateBatchPlanForUpdate, input)
 
 	// Assert
 	assert.Error(t, err)
-	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "invalid parallel number of nodes for ITC: -1")
 }
 
@@ -12740,7 +13117,10 @@ func TestCalculateBatchPlan_Success_IndicesAreOneIndexed(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	// Use Temporal test suite to provide proper activity context for heartbeat
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.CalculateBatchPlanForUpdate)
 
 	input := activities.CalculateBatchPlanActivityInput{
 		NumHAPairs:                  3,
@@ -12748,7 +13128,10 @@ func TestCalculateBatchPlan_Success_IndicesAreOneIndexed(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.CalculateBatchPlanForUpdate(ctx, input)
+	encodedValue, err := env.ExecuteActivity(activity.CalculateBatchPlanForUpdate, input)
+	assert.NoError(t, err)
+	var result *activities.CalculateBatchPlanActivityOutput
+	err = encodedValue.Get(&result)
 
 	// Assert
 	assert.NoError(t, err)
