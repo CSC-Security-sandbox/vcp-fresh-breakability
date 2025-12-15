@@ -3,12 +3,10 @@ package backgroundworkflows
 import (
 	"database/sql"
 	"fmt"
-	"go.temporal.io/api/enums/v1"
-	"go.temporal.io/sdk/temporal"
-	"go.temporal.io/sdk/workflow"
 	"strings"
 	"time"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -22,6 +20,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	temporalutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/workflow"
 )
 
 const (
@@ -285,9 +286,20 @@ func AutoTieringPauseResumeWorkflow(ctx workflow.Context, poolIdentifier databas
 		}
 	}
 
-	err = workflow.ExecuteActivity(ctx, autoTierActivity.UpdateAggregateInOntap, node, tieringFullnessThreshold).Get(ctx, nil)
+	poolActivity := &activities.PoolActivity{}
+	currentVlmConfig := &vlm.VLMConfig{}
+	err = workflow.ExecuteActivity(ctx, poolActivity.ParseVlmConfig, pool).Get(ctx, &currentVlmConfig)
 	if err != nil {
-		logger.Errorf("Failed to execute UpdateAggregateInOntap for pool %s: %v", pool.Name, err)
+		return workflows.ConvertToVSAError(err)
+	}
+
+	aggrNames := make([]string, 0)
+	for _, aggrName := range currentVlmConfig.DataAggr {
+		aggrNames = append(aggrNames, aggrName.Name)
+	}
+	err = workflow.ExecuteActivity(ctx, autoTierActivity.UpdateAggregatesInOntap, node, tieringFullnessThreshold, aggrNames).Get(ctx, nil)
+	if err != nil {
+		logger.Errorf("Failed to execute UpdateAggregatesInOntap for pool %s: %v", pool.Name, err)
 		if operation == backgroundactivities.PoolsToPauseKey {
 			pool.AutoTieringConfig.TieringStatus = datamodel.TieringStatusPartiallyPaused
 		} else {

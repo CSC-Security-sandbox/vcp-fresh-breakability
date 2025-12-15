@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -512,11 +513,24 @@ func TestAutoTieringPauseResumeWorkflow_PauseSuccess(t *testing.T) {
 		},
 	}
 
+	// Create VLMConfig with DataAggr for ParseVlmConfig mock
+	vlmConfig := &vlm.VLMConfig{
+		DataAggr: []vlm.DataAggrConfig{
+			{
+				Name:     "aggr1",
+				Aggruuid: "aggr-uuid-1",
+				Size:     1000,
+				HomeNode: "node1",
+			},
+		},
+	}
+
 	// Mock activities
 	env.OnActivity(syncSnapshotActivity.FetchPoolByUUID, mock.Anything, poolIdentifier.UUID, poolIdentifier.AccountID).Return(pool, nil)
 	env.OnActivity(commonActivities.GetNode, mock.Anything, mock.Anything).Return(nodes, nil)
+	env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(vlmConfig, nil)
 	env.OnActivity(autoTierActivity.ToggleHotTierBypassModeForPoolVolumes, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity(autoTierActivity.UpdateAggregateInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity(autoTierActivity.UpdateAggregatesInOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity(autoTierActivity.UpdatePoolTieringThresholdAndStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
@@ -570,11 +584,24 @@ func TestAutoTieringPauseResumeWorkflow_ResumeSuccess(t *testing.T) {
 		},
 	}
 
+	// Create VLMConfig with DataAggr for ParseVlmConfig mock
+	vlmConfig := &vlm.VLMConfig{
+		DataAggr: []vlm.DataAggrConfig{
+			{
+				Name:     "aggr1",
+				Aggruuid: "aggr-uuid-1",
+				Size:     1000,
+				HomeNode: "node1",
+			},
+		},
+	}
+
 	// Mock activities
 	env.OnActivity(syncSnapshotActivity.FetchPoolByUUID, mock.Anything, poolIdentifier.UUID, poolIdentifier.AccountID).Return(pool, nil)
 	env.OnActivity(commonActivities.GetNode, mock.Anything, mock.Anything).Return(nodes, nil)
+	env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(vlmConfig, nil)
 	env.OnActivity(autoTierActivity.ToggleHotTierBypassModeForPoolVolumes, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity(autoTierActivity.UpdateAggregateInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity(autoTierActivity.UpdateAggregatesInOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity(autoTierActivity.UpdatePoolTieringThresholdAndStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
@@ -748,10 +775,23 @@ func TestAutoTieringPauseResumeWorkflow_UpdateAggregateError(t *testing.T) {
 		},
 	}
 
+	// Create VLMConfig with DataAggr for ParseVlmConfig mock
+	vlmConfig := &vlm.VLMConfig{
+		DataAggr: []vlm.DataAggrConfig{
+			{
+				Name:     "aggr1",
+				Aggruuid: "aggr-uuid-1",
+				Size:     1000,
+				HomeNode: "node1",
+			},
+		},
+	}
+
 	env.OnActivity(syncSnapshotActivity.FetchPoolByUUID, mock.Anything, poolIdentifier.UUID, poolIdentifier.AccountID).Return(pool, nil)
 	env.OnActivity(commonActivities.GetNode, mock.Anything, mock.Anything).Return(nodes, nil)
+	env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(vlmConfig, nil)
 	env.OnActivity(autoTierActivity.ToggleHotTierBypassModeForPoolVolumes, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity(autoTierActivity.UpdateAggregateInOntap, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
+	env.OnActivity(autoTierActivity.UpdateAggregatesInOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
 	env.OnActivity(autoTierActivity.UpdatePoolTieringThresholdAndStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	env.ExecuteWorkflow(AutoTieringPauseResumeWorkflow, poolIdentifier, backgroundactivities.PoolsToPauseKey)
@@ -803,12 +843,25 @@ func TestAutoTieringPauseResumeWorkflow_UpdatedPoolError(t *testing.T) {
 		},
 	}
 
+	// Create VLMConfig with DataAggr for ParseVlmConfig mock
+	vlmConfig := &vlm.VLMConfig{
+		DataAggr: []vlm.DataAggrConfig{
+			{
+				Name:     "aggr1",
+				Aggruuid: "aggr-uuid-1",
+				Size:     1000,
+				HomeNode: "node1",
+			},
+		},
+	}
+
 	// Mock activities
 	env.OnActivity(syncSnapshotActivity.FetchPoolByUUID, mock.Anything, poolIdentifier.UUID, poolIdentifier.AccountID).Return(pool, nil)
 	env.OnActivity(poolActivity.UpdatingPool, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity(commonActivities.GetNode, mock.Anything, mock.Anything).Return(nodes, nil)
+	env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(vlmConfig, nil)
 	env.OnActivity(autoTierActivity.ToggleHotTierBypassModeForPoolVolumes, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity(autoTierActivity.UpdateAggregateInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity(autoTierActivity.UpdateAggregatesInOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity(poolActivity.UpdatedPool, mock.Anything, mock.Anything).Return(nil, assert.AnError)
 	env.OnActivity(poolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -1247,17 +1300,286 @@ func TestAutoTieringPauseResumeWorkflow_InvalidOperation(t *testing.T) {
 		},
 	}
 
+	// Create VLMConfig with DataAggr for ParseVlmConfig mock
+	vlmConfig := &vlm.VLMConfig{
+		DataAggr: []vlm.DataAggrConfig{
+			{
+				Name:     "aggr1",
+				Aggruuid: "aggr-uuid-1",
+				Size:     1000,
+				HomeNode: "node1",
+			},
+		},
+	}
+
 	// Mock activities
 	env.OnActivity(syncSnapshotActivity.FetchPoolByUUID, mock.Anything, poolIdentifier.UUID, poolIdentifier.AccountID).Return(pool, nil)
 	env.OnActivity(commonActivities.GetNode, mock.Anything, mock.Anything).Return(nodes, nil)
+	env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(vlmConfig, nil)
 	env.OnActivity(autoTierActivity.ToggleHotTierBypassModeForPoolVolumes, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity(autoTierActivity.UpdateAggregateInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity(autoTierActivity.UpdateAggregatesInOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity(autoTierActivity.UpdatePoolTieringThresholdAndStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow with invalid operation (neither pause nor resume)
 	env.ExecuteWorkflow(AutoTieringPauseResumeWorkflow, poolIdentifier, "invalid-operation")
 
 	// Assert workflow completion
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestAutoTieringPauseResumeWorkflow_PauseSuccess_MultipleAggregates(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	autoTierActivity := &backgroundactivities.AutoTierSyncActivity{}
+	syncSnapshotActivity := &backgroundactivities.SyncSnapshotActivity{}
+	poolActivity := &activities.PoolActivity{}
+	commonActivities := &activities.CommonActivities{}
+
+	// Register activities
+	env.RegisterActivity(autoTierActivity)
+	env.RegisterActivity(syncSnapshotActivity)
+	env.RegisterActivity(poolActivity)
+	env.RegisterActivity(commonActivities)
+
+	poolIdentifier := database.PoolIdentifier{
+		Name:      "test-pool",
+		AccountID: 123,
+		VendorID:  "/projects/test-project/locations/us-central1/pools/test-pool",
+		UUID:      "test-pool-uuid",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+		Name:      "test-pool",
+		AccountID: 123,
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			TieringStatus: datamodel.TieringStatusResumed,
+		},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+		},
+		DeploymentName: "test-deployment",
+	}
+
+	nodes := []*datamodel.Node{
+		{
+			BaseModel:       datamodel.BaseModel{ID: 1},
+			EndpointAddress: "test-endpoint",
+		},
+	}
+
+	// Create VLMConfig with multiple DataAggr for ParseVlmConfig mock
+	vlmConfig := &vlm.VLMConfig{
+		DataAggr: []vlm.DataAggrConfig{
+			{
+				Name:     "aggr1",
+				Aggruuid: "aggr-uuid-1",
+				Size:     1000,
+				HomeNode: "node1",
+			},
+			{
+				Name:     "aggr2",
+				Aggruuid: "aggr-uuid-2",
+				Size:     2000,
+				HomeNode: "node2",
+			},
+			{
+				Name:     "aggr3",
+				Aggruuid: "aggr-uuid-3",
+				Size:     3000,
+				HomeNode: "node3",
+			},
+		},
+	}
+
+	// Mock activities
+	env.OnActivity(syncSnapshotActivity.FetchPoolByUUID, mock.Anything, poolIdentifier.UUID, poolIdentifier.AccountID).Return(pool, nil)
+	env.OnActivity(commonActivities.GetNode, mock.Anything, mock.Anything).Return(nodes, nil)
+	env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(vlmConfig, nil)
+	env.OnActivity(autoTierActivity.ToggleHotTierBypassModeForPoolVolumes, mock.Anything, mock.Anything).Return(nil)
+	// UpdateAggregatesInOntap should be called with all three aggregate names
+	env.OnActivity(autoTierActivity.UpdateAggregatesInOntap, mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(aggrNames []string) bool {
+		return len(aggrNames) == 3 && aggrNames[0] == "aggr1" && aggrNames[1] == "aggr2" && aggrNames[2] == "aggr3"
+	})).Return(nil)
+	env.OnActivity(autoTierActivity.UpdatePoolTieringThresholdAndStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	env.ExecuteWorkflow(AutoTieringPauseResumeWorkflow, poolIdentifier, backgroundactivities.PoolsToPauseKey)
+
+	// Assert workflow completion
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestAutoTieringPauseResumeWorkflow_PauseSuccess_MultipleAggregates_PartialFailure(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	autoTierActivity := &backgroundactivities.AutoTierSyncActivity{}
+	syncSnapshotActivity := &backgroundactivities.SyncSnapshotActivity{}
+	poolActivity := &activities.PoolActivity{}
+	commonActivities := &activities.CommonActivities{}
+
+	// Register activities
+	env.RegisterActivity(autoTierActivity)
+	env.RegisterActivity(syncSnapshotActivity)
+	env.RegisterActivity(poolActivity)
+	env.RegisterActivity(commonActivities)
+
+	poolIdentifier := database.PoolIdentifier{
+		Name:      "test-pool",
+		AccountID: 123,
+		VendorID:  "/projects/test-project/locations/us-central1/pools/test-pool",
+		UUID:      "test-pool-uuid",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+		Name:      "test-pool",
+		AccountID: 123,
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			TieringStatus: datamodel.TieringStatusResumed,
+		},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+		},
+		DeploymentName: "test-deployment",
+	}
+
+	nodes := []*datamodel.Node{
+		{
+			BaseModel:       datamodel.BaseModel{ID: 1},
+			EndpointAddress: "test-endpoint",
+		},
+	}
+
+	// Create VLMConfig with multiple DataAggr for ParseVlmConfig mock
+	vlmConfig := &vlm.VLMConfig{
+		DataAggr: []vlm.DataAggrConfig{
+			{
+				Name:     "aggr1",
+				Aggruuid: "aggr-uuid-1",
+				Size:     1000,
+				HomeNode: "node1",
+			},
+			{
+				Name:     "aggr2",
+				Aggruuid: "aggr-uuid-2",
+				Size:     2000,
+				HomeNode: "node2",
+			},
+			{
+				Name:     "aggr3",
+				Aggruuid: "aggr-uuid-3",
+				Size:     3000,
+				HomeNode: "node3",
+			},
+		},
+	}
+
+	// Mock activities
+	env.OnActivity(syncSnapshotActivity.FetchPoolByUUID, mock.Anything, poolIdentifier.UUID, poolIdentifier.AccountID).Return(pool, nil)
+	env.OnActivity(commonActivities.GetNode, mock.Anything, mock.Anything).Return(nodes, nil)
+	env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(vlmConfig, nil)
+	env.OnActivity(autoTierActivity.ToggleHotTierBypassModeForPoolVolumes, mock.Anything, mock.Anything).Return(nil)
+	// UpdateAggregatesInOntap should fail (first aggregate succeeds, second fails)
+	env.OnActivity(autoTierActivity.UpdateAggregatesInOntap, mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(aggrNames []string) bool {
+		return len(aggrNames) == 3 && aggrNames[0] == "aggr1" && aggrNames[1] == "aggr2" && aggrNames[2] == "aggr3"
+	})).Return(assert.AnError)
+	// When UpdateAggregatesInOntap fails, the status should be set to PartiallyPaused for pause operation
+	// TieringFullnessThreshold will be nil when UpdateAggregatesInOntap fails
+	env.OnActivity(autoTierActivity.UpdatePoolTieringThresholdAndStatus, mock.Anything, poolIdentifier.UUID, mock.Anything, datamodel.TieringStatusPartiallyPaused).Return(nil)
+
+	// Execute workflow
+	env.ExecuteWorkflow(AutoTieringPauseResumeWorkflow, poolIdentifier, backgroundactivities.PoolsToPauseKey)
+
+	// Assert workflow completion - should complete successfully even with partial failure
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestAutoTieringPauseResumeWorkflow_ResumeSuccess_MultipleAggregates_PartialFailure(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	autoTierActivity := &backgroundactivities.AutoTierSyncActivity{}
+	syncSnapshotActivity := &backgroundactivities.SyncSnapshotActivity{}
+	poolActivity := &activities.PoolActivity{}
+	commonActivities := &activities.CommonActivities{}
+
+	// Register activities
+	env.RegisterActivity(autoTierActivity)
+	env.RegisterActivity(syncSnapshotActivity)
+	env.RegisterActivity(poolActivity)
+	env.RegisterActivity(commonActivities)
+
+	poolIdentifier := database.PoolIdentifier{
+		Name:      "test-pool",
+		AccountID: 123,
+		VendorID:  "/projects/test-project/locations/us-central1/pools/test-pool",
+		UUID:      "test-pool-uuid",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+		Name:      "test-pool",
+		AccountID: 123,
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			TieringStatus: datamodel.TieringStatusPaused,
+		},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+		},
+		DeploymentName: "test-deployment",
+	}
+
+	nodes := []*datamodel.Node{
+		{
+			BaseModel:       datamodel.BaseModel{ID: 1},
+			EndpointAddress: "test-endpoint",
+		},
+	}
+
+	// Create VLMConfig with multiple DataAggr for ParseVlmConfig mock
+	vlmConfig := &vlm.VLMConfig{
+		DataAggr: []vlm.DataAggrConfig{
+			{
+				Name:     "aggr1",
+				Aggruuid: "aggr-uuid-1",
+				Size:     1000,
+				HomeNode: "node1",
+			},
+			{
+				Name:     "aggr2",
+				Aggruuid: "aggr-uuid-2",
+				Size:     2000,
+				HomeNode: "node2",
+			},
+		},
+	}
+
+	// Mock activities
+	env.OnActivity(syncSnapshotActivity.FetchPoolByUUID, mock.Anything, poolIdentifier.UUID, poolIdentifier.AccountID).Return(pool, nil)
+	env.OnActivity(commonActivities.GetNode, mock.Anything, mock.Anything).Return(nodes, nil)
+	env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(vlmConfig, nil)
+	env.OnActivity(autoTierActivity.ToggleHotTierBypassModeForPoolVolumes, mock.Anything, mock.Anything).Return(nil)
+	// UpdateAggregatesInOntap should fail (partial failure scenario)
+	env.OnActivity(autoTierActivity.UpdateAggregatesInOntap, mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(aggrNames []string) bool {
+		return len(aggrNames) == 2 && aggrNames[0] == "aggr1" && aggrNames[1] == "aggr2"
+	})).Return(assert.AnError)
+	// When UpdateAggregatesInOntap fails, the status should be set to PartiallyResumed for resume operation
+	// TieringFullnessThreshold will be nil when UpdateAggregatesInOntap fails
+	env.OnActivity(autoTierActivity.UpdatePoolTieringThresholdAndStatus, mock.Anything, poolIdentifier.UUID, mock.Anything, datamodel.TieringStatusPartiallyResumed).Return(nil)
+
+	// Execute workflow
+	env.ExecuteWorkflow(AutoTieringPauseResumeWorkflow, poolIdentifier, backgroundactivities.PoolsToResumeKey)
+
+	// Assert workflow completion - should complete successfully even with partial failure
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
 }

@@ -2,15 +2,16 @@ package backgroundactivities
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
 
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
@@ -38,25 +39,37 @@ type AutoTierSyncActivity struct {
 	SE database.Storage
 }
 
-func (a *AutoTierSyncActivity) UpdateAggregateInOntap(ctx context.Context, node *models.Node, tieringFullnessThreshold int64) error {
+func (a *AutoTierSyncActivity) UpdateAggregatesInOntap(ctx context.Context, node *models.Node, tieringFullnessThreshold int64, aggrNames []string) error {
 	activity.RecordHeartbeat(ctx, "Initializing aggregate update in ONTAP")
+	logger := util.GetLogger(ctx)
+	if len(aggrNames) == 0 {
+		return nil
+	}
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	activity.RecordHeartbeat(ctx, "Retrieved provider for node")
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	err = getAndUpdateAggregate(provider, tieringFullnessThreshold)
-	activity.RecordHeartbeat(ctx, "Updated aggregate in ONTAP")
-	if err != nil {
-		return err
+	var errList []error
+	for _, aggrName := range aggrNames {
+		err = getAndUpdateAggregate(provider, aggrName, tieringFullnessThreshold)
+		if err != nil {
+			logger.Errorf("Failed to update aggregate %s: %v", aggrName, err)
+			errList = append(errList, fmt.Errorf("failed to update aggregate %s: %w", aggrName, err))
+		}
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Updated aggregate %s in ONTAP", aggrName))
+	}
+
+	if len(errList) > 0 {
+		return errors.Join(errList...)
 	}
 
 	return nil
 }
 
-func getAndUpdateAggregate(provider vsa.Provider, tieringFullnessThreshold int64) error {
-	aggr, err := provider.GetAggregateByName(activities.AggregateName)
+func getAndUpdateAggregate(provider vsa.Provider, aggrName string, tieringFullnessThreshold int64) error {
+	aggr, err := provider.GetAggregateByName(aggrName)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -193,6 +206,16 @@ func checkPoolVolumesWithBypassModeEnabled(ctx context.Context, se database.Stor
 	return false, nil
 }
 
+func parseVlmConfig(pool *datamodel.PoolView) (*vlm.VLMConfig, error) {
+	currentVlmConfig := &vlm.VLMConfig{}
+
+	if err := json.Unmarshal([]byte(pool.VLMConfig), currentVlmConfig); err != nil {
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrVLMConfigParseError, err))
+	}
+	return currentVlmConfig, nil
+}
+
 func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context, pools []*database.PoolIdentifier) (map[string]map[string]float64, error) {
 	activity.RecordHeartbeat(ctx, "Initializing pool tiering info fetch and save")
 	logger := util.GetLogger(ctx)
@@ -229,12 +252,25 @@ func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context,
 			// Check and collect pools which have a tiering fullness threshold set as 50 and not
 			// paused/partially-paused. These pools need to have their tiering fullness threshold set to 0
 			if pool.AutoTieringConfig != nil && pool.AutoTieringConfig.TieringFullnessThreshold == 50 && pool.AutoTieringConfig.TieringStatus != datamodel.TieringStatusPaused && pool.AutoTieringConfig.TieringStatus != datamodel.TieringStatusPartiallyPaused {
-				err = getAndUpdateAggregate(provider, 0)
-				activity.RecordHeartbeat(ctx, fmt.Sprintf("Updated aggregate threshold for pool: %s", pool.UUID))
+				// Parse vlm config to find all the aggregates in a cluster
+				config, err := parseVlmConfig(pool)
 				if err != nil {
-					// Logging error and skipping. Will retry in next sync.
-					logger.Warnf("Failed to set aggregate threshold to 0 in ontap for pool %s, Error: %v", pool.Name, err)
-				} else {
+					logger.Errorf("Failed to parse vlm config for pool %s, Error: %v", pool.Name, err)
+					return
+				}
+				// Update all aggregates in the cluster
+				allAggregatesUpdated := true
+				for _, aggr := range config.DataAggr {
+					activity.RecordHeartbeat(ctx, fmt.Sprintf("Updating aggregate threshold for pool: %s, aggregate: %s", pool.UUID, aggr.Name))
+					err = getAndUpdateAggregate(provider, aggr.Name, 0)
+					if err != nil {
+						allAggregatesUpdated = false
+						logger.Errorf("Failed to set aggregate threshold to 0 in ontap for pool %s, aggregate: %s, Error: %v", pool.Name, aggr.Name, err)
+					}
+				}
+
+				activity.RecordHeartbeat(ctx, fmt.Sprintf("Updated aggregate threshold for pool: %s", pool.UUID))
+				if allAggregatesUpdated {
 					err = se.UpdatePoolTieringConfig(ctx, poolIdentifier.UUID, nil, nil, nillable.GetInt64Ptr(0), nil)
 					activity.RecordHeartbeat(ctx, fmt.Sprintf("Updated pool tiering config in database for pool: %s", pool.UUID))
 					if err != nil {

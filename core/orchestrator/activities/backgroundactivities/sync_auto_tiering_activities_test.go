@@ -2,12 +2,14 @@ package backgroundactivities
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	ontaprestmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -26,7 +28,7 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 		// Create Temporal test environment for activity context
 		testSuite := &testsuite.WorkflowTestSuite{}
 		env := testSuite.NewTestActivityEnvironment()
-		env.RegisterActivity(activity.UpdateAggregateInOntap)
+		env.RegisterActivity(activity.UpdateAggregatesInOntap)
 
 		node := &models.Node{
 			EndpointAddress: "test-endpoint",
@@ -35,9 +37,17 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 
 		// Mock provider and aggregate
 		mockProvider := new(vsa.MockProvider)
-		aggregate := &vsa.Aggregate{
-			UUID: "test-aggregate-uuid",
-			Name: activities.AggregateName,
+		aggregate1 := &vsa.Aggregate{
+			UUID: "test-aggregate-uuid1",
+			Name: "aggr1",
+		}
+		aggregate2 := &vsa.Aggregate{
+			UUID: "test-aggregate-uuid2",
+			Name: "aggr2",
+		}
+		aggregate3 := &vsa.Aggregate{
+			UUID: "test-aggregate-uuid3",
+			Name: "aggr3",
 		}
 
 		// Patch hyperscaler.GetProviderByNode
@@ -47,12 +57,20 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 			return mockProvider, nil
 		}
 
-		mockProvider.On("GetAggregateByName", activities.AggregateName).Return(aggregate, nil)
+		mockProvider.On("GetAggregateByName", "aggr1").Return(aggregate1, nil)
 		mockProvider.On("UpdateAggregate", mock.MatchedBy(func(params vsa.UpdateAggregateParams) bool {
-			return params.UUID == aggregate.UUID && params.TieringFullnessThreshold == tieringFullnessThreshold
+			return params.UUID == aggregate1.UUID && params.TieringFullnessThreshold == tieringFullnessThreshold
+		})).Return(nil)
+		mockProvider.On("GetAggregateByName", "aggr2").Return(aggregate2, nil)
+		mockProvider.On("UpdateAggregate", mock.MatchedBy(func(params vsa.UpdateAggregateParams) bool {
+			return params.UUID == aggregate2.UUID && params.TieringFullnessThreshold == tieringFullnessThreshold
+		})).Return(nil)
+		mockProvider.On("GetAggregateByName", "aggr3").Return(aggregate3, nil)
+		mockProvider.On("UpdateAggregate", mock.MatchedBy(func(params vsa.UpdateAggregateParams) bool {
+			return params.UUID == aggregate3.UUID && params.TieringFullnessThreshold == tieringFullnessThreshold
 		})).Return(nil)
 
-		_, err := env.ExecuteActivity(activity.UpdateAggregateInOntap, node, tieringFullnessThreshold)
+		_, err := env.ExecuteActivity(activity.UpdateAggregatesInOntap, node, tieringFullnessThreshold, []string{"aggr1", "aggr2", "aggr3"})
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
@@ -64,7 +82,7 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 		// Create Temporal test environment for activity context
 		testSuite := &testsuite.WorkflowTestSuite{}
 		env := testSuite.NewTestActivityEnvironment()
-		env.RegisterActivity(activity.UpdateAggregateInOntap)
+		env.RegisterActivity(activity.UpdateAggregatesInOntap)
 
 		node := &models.Node{
 			EndpointAddress: "test-endpoint",
@@ -78,7 +96,7 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 			return nil, errors.New("failed to get provider")
 		}
 
-		_, err := env.ExecuteActivity(activity.UpdateAggregateInOntap, node, tieringFullnessThreshold)
+		_, err := env.ExecuteActivity(activity.UpdateAggregatesInOntap, node, tieringFullnessThreshold, []string{"aggr1", "aggr2", "aggr3"})
 		assert.Error(tt, err)
 	})
 
@@ -89,7 +107,7 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 		// Create Temporal test environment for activity context
 		testSuite := &testsuite.WorkflowTestSuite{}
 		env := testSuite.NewTestActivityEnvironment()
-		env.RegisterActivity(activity.UpdateAggregateInOntap)
+		env.RegisterActivity(activity.UpdateAggregatesInOntap)
 
 		node := &models.Node{
 			EndpointAddress: "test-endpoint",
@@ -107,7 +125,7 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 
 		mockProvider.On("GetAggregateByName", activities.AggregateName).Return(nil, errors.New("failed to get aggregate"))
 
-		_, err := env.ExecuteActivity(activity.UpdateAggregateInOntap, node, tieringFullnessThreshold)
+		_, err := env.ExecuteActivity(activity.UpdateAggregatesInOntap, node, tieringFullnessThreshold, []string{"aggr1", "aggr2", "aggr3"})
 		assert.Error(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
@@ -119,7 +137,7 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 		// Create Temporal test environment for activity context
 		testSuite := &testsuite.WorkflowTestSuite{}
 		env := testSuite.NewTestActivityEnvironment()
-		env.RegisterActivity(activity.UpdateAggregateInOntap)
+		env.RegisterActivity(activity.UpdateAggregatesInOntap)
 
 		node := &models.Node{
 			EndpointAddress: "test-endpoint",
@@ -142,8 +160,130 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 		mockProvider.On("GetAggregateByName", activities.AggregateName).Return(aggregate, nil)
 		mockProvider.On("UpdateAggregate", mock.AnythingOfType("vsa.UpdateAggregateParams")).Return(errors.New("failed to update aggregate"))
 
-		_, err := env.ExecuteActivity(activity.UpdateAggregateInOntap, node, tieringFullnessThreshold)
+		_, err := env.ExecuteActivity(activity.UpdateAggregatesInOntap, node, tieringFullnessThreshold, []string{"aggr1", "aggr2", "aggr3"})
 		assert.Error(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateAggregateInOntap_FirstAggregateSucceedsSecondFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdateAggregatesInOntap)
+
+		node := &models.Node{
+			EndpointAddress: "test-endpoint",
+		}
+		tieringFullnessThreshold := int64(80)
+		aggrNames := []string{"aggr1", "aggr2", "aggr3"}
+
+		mockProvider := new(vsa.MockProvider)
+		aggregate1 := &vsa.Aggregate{
+			UUID: "test-aggregate-uuid-1",
+			Name: "aggr1",
+		}
+		aggregate2 := &vsa.Aggregate{
+			UUID: "test-aggregate-uuid-2",
+			Name: "aggr2",
+		}
+
+		// Patch hyperscaler.GetProviderByNode
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// First aggregate succeeds
+		mockProvider.On("GetAggregateByName", "aggr1").Return(aggregate1, nil)
+		mockProvider.On("UpdateAggregate", mock.MatchedBy(func(params vsa.UpdateAggregateParams) bool {
+			return params.UUID == aggregate1.UUID && params.TieringFullnessThreshold == tieringFullnessThreshold
+		})).Return(nil)
+
+		// Second aggregate fails
+		mockProvider.On("GetAggregateByName", "aggr2").Return(aggregate2, nil)
+		mockProvider.On("UpdateAggregate", mock.MatchedBy(func(params vsa.UpdateAggregateParams) bool {
+			return params.UUID == aggregate2.UUID && params.TieringFullnessThreshold == tieringFullnessThreshold
+		})).Return(errors.New("failed to update aggregate aggr2"))
+
+		// Third aggregate should still be processed (function continues after errors)
+		aggregate3 := &vsa.Aggregate{
+			UUID: "test-aggregate-uuid-3",
+			Name: "aggr3",
+		}
+		mockProvider.On("GetAggregateByName", "aggr3").Return(aggregate3, nil)
+		mockProvider.On("UpdateAggregate", mock.MatchedBy(func(params vsa.UpdateAggregateParams) bool {
+			return params.UUID == aggregate3.UUID && params.TieringFullnessThreshold == tieringFullnessThreshold
+		})).Return(nil)
+
+		_, err := env.ExecuteActivity(activity.UpdateAggregatesInOntap, node, tieringFullnessThreshold, aggrNames)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to update aggregate aggr2")
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateAggregateInOntap_MultipleAggregatesFail_ReturnsConcatenatedErrors", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdateAggregatesInOntap)
+
+		node := &models.Node{
+			EndpointAddress: "test-endpoint",
+		}
+		tieringFullnessThreshold := int64(80)
+		aggrNames := []string{"aggr1", "aggr2", "aggr3"}
+
+		mockProvider := new(vsa.MockProvider)
+		aggregate1 := &vsa.Aggregate{
+			UUID: "test-aggregate-uuid-1",
+			Name: "aggr1",
+		}
+		aggregate2 := &vsa.Aggregate{
+			UUID: "test-aggregate-uuid-2",
+			Name: "aggr2",
+		}
+		aggregate3 := &vsa.Aggregate{
+			UUID: "test-aggregate-uuid-3",
+			Name: "aggr3",
+		}
+
+		// Patch hyperscaler.GetProviderByNode
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// First aggregate fails
+		mockProvider.On("GetAggregateByName", "aggr1").Return(aggregate1, nil)
+		mockProvider.On("UpdateAggregate", mock.MatchedBy(func(params vsa.UpdateAggregateParams) bool {
+			return params.UUID == aggregate1.UUID && params.TieringFullnessThreshold == tieringFullnessThreshold
+		})).Return(errors.New("failed to update aggregate aggr1"))
+
+		// Second aggregate fails
+		mockProvider.On("GetAggregateByName", "aggr2").Return(aggregate2, nil)
+		mockProvider.On("UpdateAggregate", mock.MatchedBy(func(params vsa.UpdateAggregateParams) bool {
+			return params.UUID == aggregate2.UUID && params.TieringFullnessThreshold == tieringFullnessThreshold
+		})).Return(errors.New("failed to update aggregate aggr2"))
+
+		// Third aggregate succeeds
+		mockProvider.On("GetAggregateByName", "aggr3").Return(aggregate3, nil)
+		mockProvider.On("UpdateAggregate", mock.MatchedBy(func(params vsa.UpdateAggregateParams) bool {
+			return params.UUID == aggregate3.UUID && params.TieringFullnessThreshold == tieringFullnessThreshold
+		})).Return(nil)
+
+		_, err := env.ExecuteActivity(activity.UpdateAggregatesInOntap, node, tieringFullnessThreshold, aggrNames)
+		assert.Error(tt, err)
+		// Verify both errors are in the concatenated error message
+		assert.Contains(tt, err.Error(), "failed to update aggregate aggr1")
+		assert.Contains(tt, err.Error(), "failed to update aggregate aggr2")
 		mockProvider.AssertExpectations(tt)
 	})
 }
@@ -1115,11 +1255,26 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			},
 		}
 
+		// Create VLMConfig with DataAggr for threshold migration test
+		vlmConfig := &vlm.VLMConfig{
+			DataAggr: []vlm.DataAggrConfig{
+				{
+					Name:     "aggr1",
+					Aggruuid: "aggr-uuid",
+					Size:     1000,
+					HomeNode: "node1",
+				},
+			},
+		}
+		vlmConfigJSON, _ := json.Marshal(vlmConfig)
+
 		pool := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+				Name:             "test-pool",
 				AllowAutoTiering: true,
 				State:            models.LifeCycleStateREADY,
+				VLMConfig:        string(vlmConfigJSON),
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					TieringFullnessThreshold: 50,
 					TieringStatus:            datamodel.TieringStatusResumed,
@@ -1443,12 +1598,26 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			},
 		}
 
+		// Create VLMConfig with DataAggr for threshold migration test
+		vlmConfig := &vlm.VLMConfig{
+			DataAggr: []vlm.DataAggrConfig{
+				{
+					Name:     "aggr1",
+					Aggruuid: "aggr-uuid",
+					Size:     1000,
+					HomeNode: "node1",
+				},
+			},
+		}
+		vlmConfigJSON, _ := json.Marshal(vlmConfig)
+
 		pool := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				Name:             "test-pool",
 				AllowAutoTiering: true,
 				State:            models.LifeCycleStateREADY,
+				VLMConfig:        string(vlmConfigJSON),
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					TieringFullnessThreshold: 50,
 					TieringStatus:            datamodel.TieringStatusResumed,
@@ -1531,12 +1700,26 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 			},
 		}
 
+		// Create VLMConfig with DataAggr for threshold migration test
+		vlmConfig := &vlm.VLMConfig{
+			DataAggr: []vlm.DataAggrConfig{
+				{
+					Name:     "aggr1",
+					Aggruuid: "aggr-uuid",
+					Size:     1000,
+					HomeNode: "node1",
+				},
+			},
+		}
+		vlmConfigJSON, _ := json.Marshal(vlmConfig)
+
 		pool := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
 				Name:             "test-pool",
 				AllowAutoTiering: true,
 				State:            models.LifeCycleStateREADY,
+				VLMConfig:        string(vlmConfigJSON),
 				AutoTieringConfig: &datamodel.AutoTieringConfig{
 					TieringFullnessThreshold: 50,
 					TieringStatus:            datamodel.TieringStatusResumed,
@@ -1599,6 +1782,342 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		err = encodedValue.Get(&result)
 		assert.NoError(tt, err)
 		assert.Contains(tt, result, "test-pool-uuid")
+		mockStorage.AssertExpectations(tt)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("FetchAndSavePoolsTieringInfo_TieringThresholdMigration_MultipleAggregates", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchAndSavePoolsTieringInfo)
+
+		pools := []*database.PoolIdentifier{
+			{
+				UUID:      "test-pool-uuid",
+				AccountID: 123,
+				Name:      "test-pool",
+			},
+		}
+
+		// Create VLMConfig with multiple DataAggr for threshold migration test
+		vlmConfig := &vlm.VLMConfig{
+			DataAggr: []vlm.DataAggrConfig{
+				{
+					Name:     "aggr1",
+					Aggruuid: "aggr-uuid-1",
+					Size:     1000,
+					HomeNode: "node1",
+				},
+				{
+					Name:     "aggr2",
+					Aggruuid: "aggr-uuid-2",
+					Size:     2000,
+					HomeNode: "node2",
+				},
+				{
+					Name:     "aggr3",
+					Aggruuid: "aggr-uuid-3",
+					Size:     3000,
+					HomeNode: "node3",
+				},
+			},
+		}
+		vlmConfigJSON, _ := json.Marshal(vlmConfig)
+
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+				Name:             "test-pool",
+				AllowAutoTiering: true,
+				State:            models.LifeCycleStateREADY,
+				VLMConfig:        string(vlmConfigJSON),
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					TieringFullnessThreshold: 50,
+					TieringStatus:            datamodel.TieringStatusResumed,
+				},
+			},
+		}
+
+		dbVolumes := []*datamodel.Volume{
+			{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "db-vol-uuid"},
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-vol-uuid",
+				},
+			},
+		}
+
+		volumes := []*vsa.Volume{
+			{
+				Volume: ontaprestmodel.Volume{
+					UUID:      nillable.ToPointer("external-vol-uuid"),
+					IsSvmRoot: nillable.ToPointer(false),
+					Space: &ontaprestmodel.VolumeInlineSpace{
+						CapacityTierFootprint:    nillable.ToPointer(int64(100000000000)),
+						PerformanceTierFootprint: nillable.ToPointer(int64(50000000000)),
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(150000000000)),
+						},
+					},
+				},
+			},
+		}
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(dbVolumes, nil)
+		mockStorage.On("BatchUpdateVolumeTieringFields", mock.Anything, mock.Anything).Return(nil)
+		mockProvider.On("GetVolumes").Return(volumes, nil)
+
+		// Mock aggregate operations for multiple aggregates - all should be updated
+		mockAggregate1 := &vsa.Aggregate{
+			UUID: "aggr-uuid-1",
+			Name: "aggr1",
+		}
+		mockAggregate2 := &vsa.Aggregate{
+			UUID: "aggr-uuid-2",
+			Name: "aggr2",
+		}
+		mockAggregate3 := &vsa.Aggregate{
+			UUID: "aggr-uuid-3",
+			Name: "aggr3",
+		}
+
+		// Mock GetAggregateByName for each aggregate
+		mockProvider.On("GetAggregateByName", "aggr1").Return(mockAggregate1, nil)
+		mockProvider.On("GetAggregateByName", "aggr2").Return(mockAggregate2, nil)
+		mockProvider.On("GetAggregateByName", "aggr3").Return(mockAggregate3, nil)
+
+		// Mock UpdateAggregate for each aggregate - all should be called with threshold 0
+		mockProvider.On("UpdateAggregate", mock.MatchedBy(func(params vsa.UpdateAggregateParams) bool {
+			return params.TieringFullnessThreshold == 0 && params.UUID == "aggr-uuid-1"
+		})).Return(nil)
+		mockProvider.On("UpdateAggregate", mock.MatchedBy(func(params vsa.UpdateAggregateParams) bool {
+			return params.TieringFullnessThreshold == 0 && params.UUID == "aggr-uuid-2"
+		})).Return(nil)
+		mockProvider.On("UpdateAggregate", mock.MatchedBy(func(params vsa.UpdateAggregateParams) bool {
+			return params.TieringFullnessThreshold == 0 && params.UUID == "aggr-uuid-3"
+		})).Return(nil)
+
+		// Mock UpdatePoolTieringConfig - should be called with threshold 0 after all aggregates are updated
+		thresholdZero := int64(0)
+		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "test-pool-uuid", (*int64)(nil), (*int64)(nil), &thresholdZero, (*datamodel.TieringStatus)(nil)).Return(nil)
+
+		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
+		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
+		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
+		assert.NoError(tt, err)
+		var result map[string]map[string]float64
+		err = encodedValue.Get(&result)
+		assert.NoError(tt, err)
+		assert.Contains(tt, result, "test-pool-uuid")
+		mockStorage.AssertExpectations(tt)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("FetchAndSavePoolsTieringInfo_TieringThresholdMigration_MultipleAggregates_OneFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchAndSavePoolsTieringInfo)
+
+		pools := []*database.PoolIdentifier{
+			{
+				UUID:      "test-pool-uuid",
+				AccountID: 123,
+				Name:      "test-pool",
+			},
+		}
+
+		// Create VLMConfig with multiple DataAggr for threshold migration test
+		vlmConfig := &vlm.VLMConfig{
+			DataAggr: []vlm.DataAggrConfig{
+				{
+					Name:     "aggr1",
+					Aggruuid: "aggr-uuid-1",
+					Size:     1000,
+					HomeNode: "node1",
+				},
+				{
+					Name:     "aggr2",
+					Aggruuid: "aggr-uuid-2",
+					Size:     2000,
+					HomeNode: "node2",
+				},
+				{
+					Name:     "aggr3",
+					Aggruuid: "aggr-uuid-3",
+					Size:     3000,
+					HomeNode: "node3",
+				},
+			},
+		}
+		vlmConfigJSON, _ := json.Marshal(vlmConfig)
+
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+				Name:             "test-pool",
+				AllowAutoTiering: true,
+				State:            models.LifeCycleStateREADY,
+				VLMConfig:        string(vlmConfigJSON),
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					TieringFullnessThreshold: 50,
+					TieringStatus:            datamodel.TieringStatusResumed,
+				},
+			},
+		}
+
+		dbVolumes := []*datamodel.Volume{
+			{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "db-vol-uuid"},
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-vol-uuid",
+				},
+			},
+		}
+
+		volumes := []*vsa.Volume{
+			{
+				Volume: ontaprestmodel.Volume{
+					UUID:      nillable.ToPointer("external-vol-uuid"),
+					IsSvmRoot: nillable.ToPointer(false),
+					Space: &ontaprestmodel.VolumeInlineSpace{
+						CapacityTierFootprint:    nillable.ToPointer(int64(100000000000)),
+						PerformanceTierFootprint: nillable.ToPointer(int64(50000000000)),
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(150000000000)),
+						},
+					},
+				},
+			},
+		}
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(dbVolumes, nil)
+		mockStorage.On("BatchUpdateVolumeTieringFields", mock.Anything, mock.Anything).Return(nil)
+		mockProvider.On("GetVolumes").Return(volumes, nil)
+
+		// Mock aggregate operations for multiple aggregates
+		mockAggregate1 := &vsa.Aggregate{
+			UUID: "aggr-uuid-1",
+			Name: "aggr1",
+		}
+		mockAggregate2 := &vsa.Aggregate{
+			UUID: "aggr-uuid-2",
+			Name: "aggr2",
+		}
+		mockAggregate3 := &vsa.Aggregate{
+			UUID: "aggr-uuid-3",
+			Name: "aggr3",
+		}
+
+		// Mock GetAggregateByName for each aggregate
+		mockProvider.On("GetAggregateByName", "aggr1").Return(mockAggregate1, nil)
+		mockProvider.On("GetAggregateByName", "aggr2").Return(mockAggregate2, nil)
+		mockProvider.On("GetAggregateByName", "aggr3").Return(mockAggregate3, nil)
+
+		// Mock UpdateAggregate - aggr1 and aggr3 succeed, aggr2 fails
+		mockProvider.On("UpdateAggregate", mock.MatchedBy(func(params vsa.UpdateAggregateParams) bool {
+			return params.TieringFullnessThreshold == 0 && params.UUID == "aggr-uuid-1"
+		})).Return(nil)
+		mockProvider.On("UpdateAggregate", mock.MatchedBy(func(params vsa.UpdateAggregateParams) bool {
+			return params.TieringFullnessThreshold == 0 && params.UUID == "aggr-uuid-2"
+		})).Return(errors.New("failed to update aggregate aggr2"))
+		mockProvider.On("UpdateAggregate", mock.MatchedBy(func(params vsa.UpdateAggregateParams) bool {
+			return params.TieringFullnessThreshold == 0 && params.UUID == "aggr-uuid-3"
+		})).Return(nil)
+
+		// UpdatePoolTieringConfig should NOT be called because one aggregate update failed
+		// (The code only updates DB if allAggregatesUpdated is true - see line 268 in sync_auto_tiering_activities.go)
+		// (Not adding mock expectation means test will fail if it's called)
+
+		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
+		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
+		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
+		assert.NoError(tt, err) // Should not error, just log warnings for failed aggregates
+		var result map[string]map[string]float64
+		err = encodedValue.Get(&result)
+		assert.NoError(tt, err)
+		assert.Contains(tt, result, "test-pool-uuid")
+		mockStorage.AssertExpectations(tt)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("FetchAndSavePoolsTieringInfo_TieringThresholdMigration_InvalidVLMConfig", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Create Temporal test environment for activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchAndSavePoolsTieringInfo)
+
+		pools := []*database.PoolIdentifier{
+			{
+				UUID:      "test-pool-uuid",
+				AccountID: 123,
+				Name:      "test-pool",
+			},
+		}
+
+		// Create pool with invalid VLMConfig JSON to trigger parseVlmConfig error
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+				Name:             "test-pool",
+				AllowAutoTiering: true,
+				State:            models.LifeCycleStateREADY,
+				VLMConfig:        "invalid json {", // Invalid JSON that will cause parseVlmConfig to fail
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					TieringFullnessThreshold: 50,
+					TieringStatus:            datamodel.TieringStatusResumed,
+				},
+			},
+		}
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
+
+		// The following should NOT be called because parseVlmConfig failure causes early return
+		// (Not adding mock expectations means test will fail if they're called):
+		// - GetVolumesByPoolID
+		// - BatchUpdateVolumeTieringFields
+		// - GetVolumes
+		// - GetAggregateByName
+		// - UpdateAggregate
+		// - UpdatePoolTieringConfig
+
+		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
+		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
+		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
+		assert.NoError(tt, err) // Should not error, just log error and skip pool
+		var result map[string]map[string]float64
+		err = encodedValue.Get(&result)
+		assert.NoError(tt, err)
+		// Pool should NOT be in result because parseVlmConfig failure causes early return
+		// from the goroutine, skipping volume processing
+		assert.NotContains(tt, result, "test-pool-uuid")
 		mockStorage.AssertExpectations(tt)
 		mockProvider.AssertExpectations(tt)
 	})
