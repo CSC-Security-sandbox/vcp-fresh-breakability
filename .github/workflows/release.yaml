@@ -184,8 +184,9 @@ jobs:
       - name: Trigger Jenkins Job
         continue-on-error: true
         run: |
-          curl -X POST "https://vcp-cicd-jenkins.daas.netapp.com/job/${{ steps.build_type.outputs.jenkins_job }}/buildWithParameters" \
+          curl -k -f -X POST "https://vcp-cicd-jenkins.daas.netapp.com/job/${{ steps.build_type.outputs.jenkins_job }}/buildWithParameters" \
             -H "Content-Type: application/x-www-form-urlencoded" \
             --data-urlencode "vcp_release_number=${{ needs.generate_tag.outputs.newTag }}" \
-            --user "${{ secrets.JENKINS_PAT }}" || echo "Warning: Failed to trigger Jenkins job"
+            --user "${{ secrets.JENKINS_PAT }}" \
+          || echo "Warning: Failed to trigger Jenkins job"
         shell: bash
