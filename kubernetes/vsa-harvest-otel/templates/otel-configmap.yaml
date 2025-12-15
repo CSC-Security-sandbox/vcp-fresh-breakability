@@ -33,6 +33,23 @@ data:
         health_check:
             endpoint: "0.0.0.0:13133"
     processors:
+        transform/monitoring:
+            error_mode: ignore
+            metric_statements:
+              - context: resource
+                statements:
+                  - set(attributes["k8s.cluster.name"],attributes["cluster"])
+        transform/tenant:
+            error_mode: ignore
+            metric_statements:
+              - context: resource
+                statements:
+                  - set(attributes["gcp.project.id"],attributes["tenant_project"])
+                  - set(attributes["k8s.cluster.name"],attributes["cluster"])
+                  - delete_key(attributes, "tenant_project")
+        resourcedetection:
+            detectors: [gcp]
+            timeout: 10s
         batch:
             send_batch_size: 200
             send_batch_max_size: 200
@@ -45,23 +62,7 @@ data:
             check_interval: 5s
             limit_percentage: 80
             spike_limit_percentage: 30
-        resourcedetection:
-            detectors: [gcp]
-            timeout: 10s
-        transform/monitoring:
-            error_mode: ignore
-            metric_statements:
-              - context: resource
-                statements:
-                  - set(attributes["k8s.cluster.name"],attributes["deployment_name"])
-        transform/tenant:
-            error_mode: ignore
-            metric_statements:
-              - context: resource
-                statements:
-                  - set(attributes["gcp.project.id"],attributes["tenant_project"])
-                  - set(attributes["k8s.cluster.name"],attributes["cluster"])
-                  - delete_key(attributes, "tenant_project")
+      
     receivers:
         prometheus:
             config:
@@ -77,10 +78,7 @@ data:
                     regex: 'metadata_collector_bytesRx|metadata_collector_calc_time|metadata_collector_instances|metadata_collector_metrics|metadata_collector_numPartials|metadata_collector_parse_time|metadata_collector_pluginInstances|metadata_collector_plugin_time|metadata_collector_poll_time|metadata_collector_skips|metadata_collector_task_time|metadata_component_count|metadata_component_status|metadata_exporter_count|metadata_exporter_time|metadata_target_goroutines|metadata_target_ping|metadata_target_status|metadata_collector_api_time|metadata_collector_numCalls'
                   - source_labels: ['__name__']
                     action: drop
-                    regex: 'poller_memory|poller_memory_percent'
-                  - source_labels: ['__name__']
-                    action: drop
-                    regex: 'instrumentation_source|instrumentation_version|service_name|service_instance_id|plex'
+                    regex: 'poller_memory|poller_memory_percent|plex|aggr|node'
         prometheus/scaling:
             config:
                 scrape_configs:
@@ -97,14 +95,14 @@ data:
         pipelines:
             metrics:
                 receivers: [prometheus]
-                processors: [batch,resourcedetection,transform/monitoring]
-                exporters: [googlecloud, debug]
+                processors: [resourcedetection,groupbyattrs,transform/monitoring,batch]
+                exporters: [googlecloud,debug]
             metrics/tenants:
                 receivers: [prometheus]
-                processors: [resourcedetection, groupbyattrs,transform/tenant, batch]
-                exporters: [googlecloud, debug]
+                processors: [resourcedetection,groupbyattrs,transform/tenant,batch]
+                exporters: [googlecloud,debug]
             metrics/scaling:
                 receivers: [prometheus/scaling]
                 processors: [resourcedetection]
-                exporters: [googlecloud/scaling, debug]
+                exporters: [googlecloud/scaling,debug]
 {{- end }}
