@@ -62,7 +62,6 @@ data:
             check_interval: 5s
             limit_percentage: 80
             spike_limit_percentage: 30
-      
     receivers:
         prometheus:
             config:
@@ -87,8 +86,6 @@ data:
                     static_configs:
                       - targets: ["{{ .Values.otel.metricsHost }}"]
                     metrics_path: {{ .Values.otel.harvestMetricEndPoint }}
-
-
     service:
         extensions:
             - health_check
