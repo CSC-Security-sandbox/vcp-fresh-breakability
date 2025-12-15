@@ -74,6 +74,7 @@ data:
   JWK_KIDS_URL: "{{ index .Values "jwkKidsUrl" }}"
   WORKFLOW_GLOBAL_TIMEOUT_MINUTES: "{{ index .Values "workflowGlobalTimeoutMinutes" }}"
   CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES: "{{ index .Values "cmekWorkflowGlobalTimeoutMinutes" }}"
+  CMEK_BACKUP_ENABLED: "{{ index .Values "cmekBackupEnabled" }}"
   WORKFLOW_GLOBAL_TIMEOUT_FOR_REPLICATION_MINUTES: {{ index .Values "workflowGlobalTimeoutForReplicationMinutes" | quote }}
   MAX_HOSTS_PER_HOSTGROUP: "{{ index .Values "maxHostsPerHostgroup" }}"
   PROBER_PROJECT_LIST: {{ .Values.proberProjectList | quote }}

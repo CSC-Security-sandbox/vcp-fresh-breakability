@@ -63,6 +63,7 @@ jwkKidsUrl: "https://www.googleapis.com/service_accounts/v1/metadata/x509/"
 workflowGlobalTimeoutMinutes: "60" # Global timeout for workflows in minutes
 maxHostsPerHostgroup: "128"
 cmekWorkflowGlobalTimeoutMinutes: "14" # Global timeout for CMEK workflows in minutes
+cmekBackupEnabled: false
 workflowGlobalTimeoutForReplicationMinutes: 10
 gcpKmsKeyRotationEnabled: "false" # Flag to enable GCP KMS key rotation
 minCustomIops: "1024"
