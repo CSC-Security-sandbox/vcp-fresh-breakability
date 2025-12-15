@@ -638,7 +638,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 
 		objStoreName := "obj-store-name-test"
-		expectedLargeVolumeSourcePath := fmt.Sprintf("%s:/objstore/%s_large", objStoreName, backup.VolumeUUID)
+		expectedLargeVolumeSourcePath := fmt.Sprintf("%s:/objstore/%s", objStoreName, backup.VolumeUUID)
 
 		// Mock storage method for GetNode activity
 		mockStorage.On("GetNodesByPoolID", mock.Anything, int64(1)).Return([]*datamodel.Node{

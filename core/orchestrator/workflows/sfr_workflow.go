@@ -426,7 +426,7 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 
 	var smSourcePath string
 	if volume.LargeVolumeAttributes != nil && volume.LargeVolumeAttributes.LargeCapacity && volume.UUID == backup.VolumeUUID {
-		smSourcePath = fmt.Sprintf("%s:/objstore/%s_large", objStoreName, backup.VolumeUUID)
+		smSourcePath = fmt.Sprintf("%s:/objstore/%s", objStoreName, backup.VolumeUUID)
 	} else {
 		smSourcePath = fmt.Sprintf("%s:/objstore/%s", objStoreName, backup.Attributes.SnapshotID)
 	}
