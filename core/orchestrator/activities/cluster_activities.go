@@ -21,13 +21,12 @@ var (
 	IpSpace = env.GetString("VSA_IC_LIF_IPSPACE", "Gcnv")
 )
 
-const clusterPeerAvailable = "available"
-
 type ClusterPeerActivity struct {
 	SE database.Storage
 }
 
 func (j *ClusterPeerActivity) AcceptClusterPeer(ctx context.Context, params *commonparams.ClusterPeerParams, node *models.Node) (*commonparams.ClusterPeerParams, error) {
+	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -41,10 +40,37 @@ func (j *ClusterPeerActivity) AcceptClusterPeer(ctx context.Context, params *com
 	if err != nil {
 		return nil, err
 	}
+
+	// Check for existing peer that matches name and IPs
+	var existingPeer *vsa.ClusterPeer
 	for _, peer := range clusterPeers {
-		if peer.PeerClusterName == params.PeerName && areIPsMatching(peer.PeerAddresses, params.PeerAddresses) && peer.Availability == clusterPeerAvailable {
-			params.UUID = peer.ExternalUUID
+		if peer.PeerClusterName == params.PeerName && areIPsMatching(peer.PeerAddresses, params.PeerAddresses) {
+			existingPeer = peer
+			break
+		}
+	}
+
+	if existingPeer != nil {
+		// If existing peer is available, reuse it
+		if existingPeer.Availability == vsa.ClusterPeerAvailabilityStateAvailable || existingPeer.Availability == vsa.ClusterPeerAvailabilityStatePartial {
+			params.UUID = existingPeer.ExternalUUID
 			return params, nil
+		} else if existingPeer.Availability == vsa.ClusterPeerAvailabilityStatePending {
+			// If existing peer is available, wait for it to move into available state
+			logger.Infof("Found existing cluster peer %s in pending state. Retrying", existingPeer.ExternalUUID)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrClusterPeerNotAvailable, err)
+		} else {
+			// If existing peer is not available, delete it
+			logger.Warnf("Found existing cluster peer %s with non-available state: %s", existingPeer.ExternalUUID, existingPeer.Availability)
+
+			// Delete the existing non-available peer
+			logger.Infof("Deleting existing non-available cluster peer: %s", existingPeer.ExternalUUID)
+			err = provider.DeleteClusterPeer(existingPeer.ExternalUUID)
+			if err != nil {
+				logger.Errorf("Failed to delete existing cluster peer %s: %v", existingPeer.ExternalUUID, err)
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrDeletingClusterPeer, err)
+			}
+			logger.Infof("Successfully deleted existing cluster peer: %s", existingPeer.ExternalUUID)
 		}
 	}
 
@@ -80,6 +106,7 @@ func (j *ClusterPeerActivity) CreateClusterPeer(ctx context.Context, params *com
 }
 
 func CreateClusterPeer(ctx context.Context, params *commonparams.ClusterPeerParams, node *models.Node) (*commonparams.ClusterPeerParams, error) {
+	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -88,12 +115,40 @@ func CreateClusterPeer(ctx context.Context, params *commonparams.ClusterPeerPara
 	if err != nil {
 		return nil, err
 	}
+
+	// Check for existing peer that matches name and IPs
+	var existingPeer *vsa.ClusterPeer
 	for _, peer := range clusterPeers {
-		if peer.PeerClusterName == params.PeerName && areIPsMatching(peer.PeerAddresses, params.PeerAddresses) && peer.Availability == clusterPeerAvailable {
-			params.UUID = peer.ExternalUUID
-			return params, nil
+		if peer.PeerClusterName == params.PeerName && areIPsMatching(peer.PeerAddresses, params.PeerAddresses) {
+			existingPeer = peer
+			break
 		}
 	}
+
+	if existingPeer != nil {
+		// If existing peer is available, reuse it
+		if existingPeer.Availability == vsa.ClusterPeerAvailabilityStateAvailable || existingPeer.Availability == vsa.ClusterPeerAvailabilityStatePartial {
+			params.UUID = existingPeer.ExternalUUID
+			return params, nil
+		} else if existingPeer.Availability == vsa.ClusterPeerAvailabilityStatePending {
+			// If existing peer is available, wait for it to move into available state
+			logger.Infof("Found existing cluster peer %s in pending state. Retrying", existingPeer.ExternalUUID)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrClusterPeerNotAvailable, err)
+		} else {
+			// If existing peer is not available, delete it
+			logger.Warnf("Found existing cluster peer %s with non-available state: %s", existingPeer.ExternalUUID, existingPeer.Availability)
+
+			// Delete the existing non-available peer
+			logger.Infof("Deleting existing non-available cluster peer: %s", existingPeer.ExternalUUID)
+			err = provider.DeleteClusterPeer(existingPeer.ExternalUUID)
+			if err != nil {
+				logger.Errorf("Failed to delete existing cluster peer %s: %v", existingPeer.ExternalUUID, err)
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrDeletingClusterPeer, err)
+			}
+			logger.Infof("Successfully deleted existing cluster peer: %s", existingPeer.ExternalUUID)
+		}
+	}
+
 	var expiryTime *strfmt.DateTime
 	if params.ExpiryTime != nil {
 		convertedTime := strfmt.DateTime(*params.ExpiryTime)

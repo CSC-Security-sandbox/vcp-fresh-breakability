@@ -9,8 +9,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/gorm"
 )
 
@@ -273,4 +279,691 @@ func TestStatusValidation(t *testing.T) {
 		assert.Equal(t, "IN_PROGRESS", status1)
 		assert.Equal(t, "COMPLETED", status2)
 	})
+}
+
+func TestCreateClusterPeer(t *testing.T) {
+	ctx := context.Background()
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "127.0.0.1",
+	}
+
+	t.Run("Success_NoExistingPeer", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+		}
+
+		expectedClusterPeer := &vsa.ClusterPeer{
+			ExternalUUID:    "new-peer-uuid",
+			PeerClusterName: "test-peer",
+			PeerAddresses:   []string{"10.1.1.1", "10.1.1.2"},
+			Passphrase:      (*log.Secret)(stringPtr("test-passphrase")),
+		}
+
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{}, nil)
+		mockProvider.On("CreateClusterPeer", mock.Anything).Return(expectedClusterPeer, nil)
+
+		result, err := activities.CreateClusterPeer(ctx, params, node)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "new-peer-uuid", result.UUID)
+		assert.NotNil(t, result.Passphrase)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("Success_ExistingPeerAvailable_Reuse", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+		}
+
+		existingPeer := &vsa.ClusterPeer{
+			ExternalUUID:    "existing-peer-uuid",
+			PeerClusterName: "test-peer",
+			PeerAddresses:   []string{"10.1.1.1", "10.1.1.2"},
+			Availability:    "available",
+		}
+
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{existingPeer}, nil)
+
+		result, err := activities.CreateClusterPeer(ctx, params, node)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "existing-peer-uuid", result.UUID)
+		mockProvider.AssertNotCalled(t, "CreateClusterPeer")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("Error_ExistingPeerPending_ReturnsError", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+		}
+
+		existingPeer := &vsa.ClusterPeer{
+			ExternalUUID:    "existing-peer-uuid",
+			PeerClusterName: "test-peer",
+			PeerAddresses:   []string{"10.1.1.1", "10.1.1.2"},
+			Availability:    "pending",
+		}
+
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{existingPeer}, nil)
+
+		result, err := activities.CreateClusterPeer(ctx, params, node)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		// Check that the error is a VCPError with ErrClusterPeerNotAvailable
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(t, vsaerrors.ErrClusterPeerNotAvailable, customErr.TrackingID)
+		}
+		mockProvider.AssertNotCalled(t, "CreateClusterPeer")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("Success_ExistingPeerPartial_Reuse", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+		}
+
+		existingPeer := &vsa.ClusterPeer{
+			ExternalUUID:    "existing-peer-uuid",
+			PeerClusterName: "test-peer",
+			PeerAddresses:   []string{"10.1.1.1", "10.1.1.2"},
+			Availability:    vsa.ClusterPeerAvailabilityStatePartial,
+		}
+
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{existingPeer}, nil)
+
+		result, err := activities.CreateClusterPeer(ctx, params, node)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "existing-peer-uuid", result.UUID)
+		mockProvider.AssertNotCalled(t, "CreateClusterPeer")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("Success_ExistingPeerNotAvailable_DeleteAndCreate", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+		}
+
+		existingPeer := &vsa.ClusterPeer{
+			ExternalUUID:    "existing-peer-uuid",
+			PeerClusterName: "test-peer",
+			PeerAddresses:   []string{"10.1.1.1", "10.1.1.2"},
+			Availability:    "unavailable",
+		}
+
+		newClusterPeer := &vsa.ClusterPeer{
+			ExternalUUID:    "new-peer-uuid",
+			PeerClusterName: "test-peer",
+			PeerAddresses:   []string{"10.1.1.1", "10.1.1.2"},
+			Passphrase:      (*log.Secret)(stringPtr("test-passphrase")),
+		}
+
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{existingPeer}, nil)
+		mockProvider.On("DeleteClusterPeer", "existing-peer-uuid").Return(nil)
+		mockProvider.On("CreateClusterPeer", mock.Anything).Return(newClusterPeer, nil)
+
+		result, err := activities.CreateClusterPeer(ctx, params, node)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "new-peer-uuid", result.UUID)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("Error_DeleteExistingPeerFails", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+		}
+
+		existingPeer := &vsa.ClusterPeer{
+			ExternalUUID:    "existing-peer-uuid",
+			PeerClusterName: "test-peer",
+			PeerAddresses:   []string{"10.1.1.1", "10.1.1.2"},
+			Availability:    "unavailable",
+		}
+
+		deleteError := errors.New("failed to delete cluster peer")
+
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{existingPeer}, nil)
+		mockProvider.On("DeleteClusterPeer", "existing-peer-uuid").Return(deleteError)
+
+		result, err := activities.CreateClusterPeer(ctx, params, node)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		// Check that the error is a VCPError with ErrDeletingClusterPeer
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(t, vsaerrors.ErrDeletingClusterPeer, customErr.TrackingID)
+			if customErr.Unwrap() != nil {
+				assert.Contains(t, customErr.Unwrap().Error(), "failed to delete cluster peer")
+			}
+		} else {
+			assert.Contains(t, err.Error(), "failed to delete cluster peer")
+		}
+		mockProvider.AssertNotCalled(t, "CreateClusterPeer")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("Error_ListClusterPeersFails", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+		}
+
+		listError := errors.New("failed to list cluster peers")
+		mockProvider.On("ListClusterPeers").Return(nil, listError)
+
+		result, err := activities.CreateClusterPeer(ctx, params, node)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockProvider.AssertNotCalled(t, "CreateClusterPeer")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("Error_CreateClusterPeerFails", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+		}
+
+		createError := errors.New("failed to create cluster peer")
+
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{}, nil)
+		mockProvider.On("CreateClusterPeer", mock.Anything).Return(nil, createError)
+
+		result, err := activities.CreateClusterPeer(ctx, params, node)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("Error_GetProviderByNodeFails", func(t *testing.T) {
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		providerError := errors.New("failed to get provider")
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, providerError
+		}
+
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+		}
+
+		result, err := activities.CreateClusterPeer(ctx, params, node)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+}
+
+func TestAcceptClusterPeer(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.ClusterPeerActivity{
+		SE: mockStorage,
+	}
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "127.0.0.1",
+	}
+
+	t.Run("Success_NoExistingPeer", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		passphrase := "test-passphrase"
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+			Passphrase:    &passphrase,
+		}
+
+		expectedClusterPeer := &vsa.ClusterPeer{
+			ExternalUUID:    "new-peer-uuid",
+			PeerClusterName: "test-peer",
+			PeerAddresses:   []string{"10.1.1.1", "10.1.1.2"},
+		}
+
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{}, nil)
+		mockProvider.On("AcceptClusterPeer", mock.Anything).Return(expectedClusterPeer, nil)
+
+		result, err := activity.AcceptClusterPeer(ctx, params, node)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "new-peer-uuid", result.UUID)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("Success_ExistingPeerAvailable_Reuse", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		passphrase := "test-passphrase"
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+			Passphrase:    &passphrase,
+		}
+
+		existingPeer := &vsa.ClusterPeer{
+			ExternalUUID:    "existing-peer-uuid",
+			PeerClusterName: "test-peer",
+			PeerAddresses:   []string{"10.1.1.1", "10.1.1.2"},
+			Availability:    "available",
+		}
+
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{existingPeer}, nil)
+
+		result, err := activity.AcceptClusterPeer(ctx, params, node)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "existing-peer-uuid", result.UUID)
+		mockProvider.AssertNotCalled(t, "AcceptClusterPeer")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("Error_ExistingPeerPending_ReturnsError", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		passphrase := "test-passphrase"
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+			Passphrase:    &passphrase,
+		}
+
+		existingPeer := &vsa.ClusterPeer{
+			ExternalUUID:    "existing-peer-uuid",
+			PeerClusterName: "test-peer",
+			PeerAddresses:   []string{"10.1.1.1", "10.1.1.2"},
+			Availability:    "pending",
+		}
+
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{existingPeer}, nil)
+
+		result, err := activity.AcceptClusterPeer(ctx, params, node)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		// Check that the error is a VCPError with ErrClusterPeerNotAvailable
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(t, vsaerrors.ErrClusterPeerNotAvailable, customErr.TrackingID)
+		}
+		mockProvider.AssertNotCalled(t, "AcceptClusterPeer")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("Success_ExistingPeerNotAvailable_DeleteAndAccept", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		passphrase := "test-passphrase"
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+			Passphrase:    &passphrase,
+		}
+
+		existingPeer := &vsa.ClusterPeer{
+			ExternalUUID:    "existing-peer-uuid",
+			PeerClusterName: "test-peer",
+			PeerAddresses:   []string{"10.1.1.1", "10.1.1.2"},
+			Availability:    "unavailable",
+		}
+
+		newClusterPeer := &vsa.ClusterPeer{
+			ExternalUUID:    "new-peer-uuid",
+			PeerClusterName: "test-peer",
+			PeerAddresses:   []string{"10.1.1.1", "10.1.1.2"},
+		}
+
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{existingPeer}, nil)
+		mockProvider.On("DeleteClusterPeer", "existing-peer-uuid").Return(nil)
+		mockProvider.On("AcceptClusterPeer", mock.Anything).Return(newClusterPeer, nil)
+
+		result, err := activity.AcceptClusterPeer(ctx, params, node)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "new-peer-uuid", result.UUID)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("Error_DeleteExistingPeerFails_ReturnsError", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		passphrase := "test-passphrase"
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+			Passphrase:    &passphrase,
+		}
+
+		existingPeer := &vsa.ClusterPeer{
+			ExternalUUID:    "existing-peer-uuid",
+			PeerClusterName: "test-peer",
+			PeerAddresses:   []string{"10.1.1.1", "10.1.1.2"},
+			Availability:    "unavailable",
+		}
+
+		deleteError := errors.New("failed to delete cluster peer")
+
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{existingPeer}, nil)
+		mockProvider.On("DeleteClusterPeer", "existing-peer-uuid").Return(deleteError)
+
+		result, err := activity.AcceptClusterPeer(ctx, params, node)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		// Check that the error is a VCPError with ErrDeletingClusterPeer
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(t, vsaerrors.ErrDeletingClusterPeer, customErr.TrackingID)
+			if customErr.Unwrap() != nil {
+				assert.Contains(t, customErr.Unwrap().Error(), "failed to delete cluster peer")
+			}
+		} else {
+			assert.Contains(t, err.Error(), "failed to delete cluster peer")
+		}
+		mockProvider.AssertNotCalled(t, "AcceptClusterPeer")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("Error_ListClusterPeersFails", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		passphrase := "test-passphrase"
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+			Passphrase:    &passphrase,
+		}
+
+		listError := errors.New("failed to list cluster peers")
+		mockProvider.On("ListClusterPeers").Return(nil, listError)
+
+		result, err := activity.AcceptClusterPeer(ctx, params, node)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockProvider.AssertNotCalled(t, "AcceptClusterPeer")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("Error_AcceptClusterPeerFails", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		passphrase := "test-passphrase"
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+			Passphrase:    &passphrase,
+		}
+
+		acceptError := errors.New("failed to accept cluster peer")
+
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{}, nil)
+		mockProvider.On("AcceptClusterPeer", mock.Anything).Return(nil, acceptError)
+
+		result, err := activity.AcceptClusterPeer(ctx, params, node)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("Error_GetProviderByNodeFails", func(t *testing.T) {
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		providerError := errors.New("failed to get provider")
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, providerError
+		}
+
+		passphrase := "test-passphrase"
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+			Passphrase:    &passphrase,
+		}
+
+		result, err := activity.AcceptClusterPeer(ctx, params, node)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("Success_ExistingPeerPartial_Reuse", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		passphrase := "test-passphrase"
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+			Passphrase:    &passphrase,
+		}
+
+		existingPeer := &vsa.ClusterPeer{
+			ExternalUUID:    "existing-peer-uuid",
+			PeerClusterName: "test-peer",
+			PeerAddresses:   []string{"10.1.1.1", "10.1.1.2"},
+			Availability:    vsa.ClusterPeerAvailabilityStatePartial,
+		}
+
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{existingPeer}, nil)
+
+		result, err := activity.AcceptClusterPeer(ctx, params, node)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "existing-peer-uuid", result.UUID)
+		mockProvider.AssertNotCalled(t, "AcceptClusterPeer")
+		mockProvider.AssertExpectations(t)
+	})
+}
+
+func TestAreIPsMatching_Indirect(t *testing.T) {
+	// Test areIPsMatching indirectly through CreateClusterPeer and AcceptClusterPeer
+	// by testing scenarios where IPs match and don't match
+	ctx := context.Background()
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "127.0.0.1",
+	}
+
+	t.Run("MatchingIPs_ReusesExistingPeer", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+		}
+
+		existingPeer := &vsa.ClusterPeer{
+			ExternalUUID:    "existing-peer-uuid",
+			PeerClusterName: "test-peer",
+			PeerAddresses:   []string{"10.1.1.2", "10.1.1.1"}, // Different order
+			Availability:    "available",
+		}
+
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{existingPeer}, nil)
+
+		result, err := activities.CreateClusterPeer(ctx, params, node)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "existing-peer-uuid", result.UUID)
+		mockProvider.AssertNotCalled(t, "CreateClusterPeer")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("NonMatchingIPs_CreatesNewPeer", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		params := &common.ClusterPeerParams{
+			PeerName:      "test-peer",
+			PeerAddresses: []string{"10.1.1.1", "10.1.1.2"},
+		}
+
+		existingPeer := &vsa.ClusterPeer{
+			ExternalUUID:    "existing-peer-uuid",
+			PeerClusterName: "test-peer",
+			PeerAddresses:   []string{"10.1.1.3", "10.1.1.4"}, // Different IPs
+			Availability:    "available",
+		}
+
+		newClusterPeer := &vsa.ClusterPeer{
+			ExternalUUID:    "new-peer-uuid",
+			PeerClusterName: "test-peer",
+			PeerAddresses:   []string{"10.1.1.1", "10.1.1.2"},
+			Passphrase:      (*log.Secret)(stringPtr("test-passphrase")),
+		}
+
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{existingPeer}, nil)
+		mockProvider.On("CreateClusterPeer", mock.Anything).Return(newClusterPeer, nil)
+
+		result, err := activities.CreateClusterPeer(ctx, params, node)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "new-peer-uuid", result.UUID)
+		mockProvider.AssertExpectations(t)
+	})
+}
+
+// Helper function to create string pointer
+func stringPtr(s string) *string {
+	return &s
 }
