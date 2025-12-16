@@ -14274,6 +14274,35 @@ func TestBlockVolumeValidator_Validate(t *testing.T) {
 		assert.EqualError(tt, err, "Block Device/Block Properties is required")
 		assert.Nil(tt, params.FileProperties) // Should be set to nil for block volumes
 	})
+	t.Run("WithHybridReplicationParameters_ShouldSkipBlockValidation", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"}, Name: "test_account"}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			t.Fatalf("Failed to create account: %v", err)
+		}
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				ReplicationType: models.HybridReplicationParametersReplicationTypeONPREM,
+			},
+			// No BlockDevices or BlockProperties - should still pass validation
+		}
+		validator := &BlockVolumeProcessor{}
+		err = validator.Validate(ctx, store, params, account.ID)
+		assert.NoError(tt, err)
+		assert.Nil(tt, params.FileProperties) // Should be set to nil for block volumes
+	})
 }
 
 func TestGetVolumeTypeValidator(t *testing.T) {

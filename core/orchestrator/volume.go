@@ -722,6 +722,11 @@ type (
 func (v *BlockVolumeProcessor) Validate(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
 	// Block-specific validation: host group checks, block properties, etc.
 	params.FileProperties = nil // Ensure FileProperties is nil for block volumes
+
+	// NOTE: we only bypass block device validation for hybrid replications. If additional checks are introduced in the future, we will need to evaluate each one individually
+	if params.HybridReplicationParameters != nil {
+		return nil
+	}
 	// Validate BlockDevices if provided
 	if params.BlockDevices != nil && len(*params.BlockDevices) > 0 {
 		blockDevice := (*params.BlockDevices)[0]

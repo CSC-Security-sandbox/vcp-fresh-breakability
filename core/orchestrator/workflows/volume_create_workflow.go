@@ -788,7 +788,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 	var hostGroups []*datamodel.HostGroup
 	var hostParams []*common.HostParams
-	if utils.IsSanProtocols(dbVolume.VolumeAttributes.Protocols) {
+	if !dbVolume.VolumeAttributes.IsDataProtection && utils.IsSanProtocols(dbVolume.VolumeAttributes.Protocols) {
 		// Get host groups for block volume
 		err = workflow.ExecuteActivity(ctx, volumeActivity.GetHosts, &dbVolume).Get(ctx, &hostGroups)
 		if err != nil {

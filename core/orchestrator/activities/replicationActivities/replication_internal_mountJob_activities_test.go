@@ -518,6 +518,7 @@ func TestUpdateVolumeLunDetailsInDB(t *testing.T) {
 			},
 			Size:         1073741824,
 			SerialNumber: "123412214",
+			OSType:       "LINUX",
 		}
 		mockProvider.On("LunGet", mock.Anything, mock.Anything).Return(lunDetails, nil)
 		activity := &MountJobActivity{SE: mockStorage}
@@ -525,6 +526,7 @@ func TestUpdateVolumeLunDetailsInDB(t *testing.T) {
 		replication := &datamodel.VolumeReplication{
 			Volume: &datamodel.Volume{
 				VolumeAttributes: &datamodel.VolumeAttributes{
+					Protocols:    []string{"ISCSI"}, // Required for block device update
 					BlockDevices: &[]datamodel.BlockDevice{{}},
 					Mounted:      false, // Initially not mounted
 				},
@@ -560,6 +562,109 @@ func TestUpdateVolumeLunDetailsInDB(t *testing.T) {
 		assert.Equal(tt, int64(1073741824), blockDevices[0].Size)
 		assert.Equal(tt, "lun-uuid", blockDevices[0].LunUUID)
 		assert.Equal(tt, "123412214", blockDevices[0].Identifier)
+		assert.Equal(tt, "LINUX", blockDevices[0].OSType)
+	})
+	t.Run("WhenSuccess_NonISCSIProtocol_OnlyUpdatesMountStatus", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := &MountJobActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		replication := &datamodel.VolumeReplication{
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					Protocols:    []string{"NFSV3"}, // Non-ISCSI protocol
+					BlockDevices: &[]datamodel.BlockDevice{{}},
+					Mounted:      false, // Initially not mounted
+				},
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationSvmName:    "svm-name",
+				DestinationVolumeName: "volume-name",
+				SourceVolumeName:      "source-volume-name",
+				DestinationVolumeUUID: "dest-volume-uuid",
+			},
+		}
+		lunDetails := &vsa.LunResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				Name:         "/test/vol/lun_vol",
+				ExternalUUID: "lun-uuid",
+			},
+			Size:         1073741824,
+			SerialNumber: "123412214",
+		}
+
+		// Capture the updates made to the volume
+		var capturedUpdates map[string]interface{}
+		mockStorage.On("UpdateVolumeFields", ctx, "dest-volume-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
+			capturedUpdates = updates
+			return true
+		})).Return(nil)
+
+		err := activity.UpdateVolumeDetailsInDB(ctx, replication, lunDetails)
+		assert.NoError(tt, err)
+
+		// Verify the updates
+		volumeAttrs, ok := capturedUpdates["volume_attributes"].(*datamodel.VolumeAttributes)
+		assert.True(tt, ok, "volume_attributes should be present in updates")
+		assert.True(tt, volumeAttrs.Mounted, "Mounted flag should be set to true")
+
+		// Verify BlockDevices are NOT updated for non-ISCSI protocols
+		// The original BlockDevices should remain unchanged
+		assert.NotNil(tt, volumeAttrs.BlockDevices)
+		blockDevices := *volumeAttrs.BlockDevices
+		assert.Equal(tt, 1, len(blockDevices))
+		// The block device should remain empty (not updated with lunDetails)
+		assert.Equal(tt, "", blockDevices[0].Name)
+		assert.Equal(tt, int64(0), blockDevices[0].Size)
+	})
+	t.Run("WhenSuccess_ProtocolsNil_OnlyUpdatesMountStatus", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := &MountJobActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		replication := &datamodel.VolumeReplication{
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					Protocols:    nil, // Protocols is nil
+					BlockDevices: &[]datamodel.BlockDevice{{}},
+					Mounted:      false, // Initially not mounted
+				},
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationSvmName:    "svm-name",
+				DestinationVolumeName: "volume-name",
+				SourceVolumeName:      "source-volume-name",
+				DestinationVolumeUUID: "dest-volume-uuid",
+			},
+		}
+		lunDetails := &vsa.LunResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				Name:         "/test/vol/lun_vol",
+				ExternalUUID: "lun-uuid",
+			},
+			Size:         1073741824,
+			SerialNumber: "123412214",
+		}
+
+		// Capture the updates made to the volume
+		var capturedUpdates map[string]interface{}
+		mockStorage.On("UpdateVolumeFields", ctx, "dest-volume-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
+			capturedUpdates = updates
+			return true
+		})).Return(nil)
+
+		err := activity.UpdateVolumeDetailsInDB(ctx, replication, lunDetails)
+		assert.NoError(tt, err)
+
+		// Verify the updates
+		volumeAttrs, ok := capturedUpdates["volume_attributes"].(*datamodel.VolumeAttributes)
+		assert.True(tt, ok, "volume_attributes should be present in updates")
+		assert.True(tt, volumeAttrs.Mounted, "Mounted flag should be set to true")
+
+		// Verify BlockDevices are NOT updated when Protocols is nil
+		assert.NotNil(tt, volumeAttrs.BlockDevices)
+		blockDevices := *volumeAttrs.BlockDevices
+		assert.Equal(tt, 1, len(blockDevices))
+		// The block device should remain empty (not updated with lunDetails)
+		assert.Equal(tt, "", blockDevices[0].Name)
 	})
 }
 

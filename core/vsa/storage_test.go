@@ -788,6 +788,7 @@ func TestLunGet(t *testing.T) {
 		assert.Equal(tt, "testLun", resp.Name)
 		assert.Equal(tt, "uuid-123", resp.ExternalUUID)
 		assert.Equal(tt, "6c5738423724595454686164", resp.SerialNumber)
+		assert.Equal(tt, "LINUX", resp.OSType)
 
 		mockSAN.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)

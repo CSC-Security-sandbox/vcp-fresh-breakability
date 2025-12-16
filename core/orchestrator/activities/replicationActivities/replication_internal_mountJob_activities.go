@@ -147,8 +147,8 @@ func (j *MountJobActivity) MountVolume(ctx context.Context, replication *datamod
 func (j *MountJobActivity) UpdateVolumeDetailsInDB(ctx context.Context, replication *datamodel.VolumeReplication, lunDetails *vsa.LunResponse) error {
 	se := j.SE
 	updates := make(map[string]interface{})
-	if replication.Volume.VolumeAttributes != nil && replication.Volume.VolumeAttributes.BlockDevices != nil {
-		blockDevices := *replication.Volume.VolumeAttributes.BlockDevices
+	if replication.Volume.VolumeAttributes.Protocols != nil && replication.Volume.VolumeAttributes.Protocols[0] == "ISCSI" {
+		blockDevices := make([]datamodel.BlockDevice, 1)
 
 		lunPath := strings.Split(lunDetails.Name, "/")
 		lunName := lunPath[len(lunPath)-1]
@@ -156,6 +156,7 @@ func (j *MountJobActivity) UpdateVolumeDetailsInDB(ctx context.Context, replicat
 		blockDevices[0].Size = lunDetails.Size
 		blockDevices[0].LunUUID = lunDetails.ExternalUUID
 		blockDevices[0].Identifier = lunDetails.SerialNumber
+		blockDevices[0].OSType = strings.ToUpper(lunDetails.OSType)
 
 		replication.Volume.VolumeAttributes.BlockDevices = &blockDevices
 	}
