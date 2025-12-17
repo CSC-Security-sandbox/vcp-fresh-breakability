@@ -20,6 +20,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -2346,6 +2347,238 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, float64(http.StatusBadRequest), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
+	})
+
+	t.Run("ModeAssignment_MODEUNSPECIFIED_SetsGCNVMode", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4-a",
+			ProjectNumber: "project-number",
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			ResourceId:               "test-pool",
+			Unified:                  gcpgenserver.NewOptBool(true),
+			ServiceLevel:             gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:              1099511627776,
+			QosType:                  gcpgenserver.NewOptNilString("auto"),
+			CustomPerformanceEnabled: gcpgenserver.NewOptBool(true),
+			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(64),
+			Network:                  "test-network",
+			Mode:                     gcpgenserver.NewOptPoolV1betaMode(gcpgenserver.PoolV1betaModeMODEUNSPECIFIED),
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		originalGetAndSyncKmsConfigForPool := getAndSyncKmsConfigForPool
+		defer func() {
+			parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+			getAndSyncKmsConfigForPool = originalGetAndSyncKmsConfigForPool
+		}()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4-a", nil
+		}
+
+		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+			return nil, nil
+		}
+
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+
+		// Capture the CreatePool parameters to verify Mode assignment
+		var capturedParams *common.CreatePoolParams
+		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.MatchedBy(func(params *common.CreatePoolParams) bool {
+			capturedParams = params
+			return true
+		})).Return(&models.Pool{
+			BaseModel:      models.BaseModel{UUID: "new-pool-uuid"},
+			PoolAttributes: &models.PoolAttributes{Labels: make(map[string]string)},
+		}, "operation-id", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, capturedParams, "CreatePool should have been called")
+		assert.Equal(tt, workflows.GCNVMode, capturedParams.Mode, "Mode should be set to GCNVMode when Mode is MODEUNSPECIFIED")
+	})
+
+	t.Run("ModeAssignment_DEFAULT_SetsGCNVMode", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4-a",
+			ProjectNumber: "project-number",
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			ResourceId:               "test-pool",
+			Unified:                  gcpgenserver.NewOptBool(true),
+			ServiceLevel:             gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:              1099511627776,
+			QosType:                  gcpgenserver.NewOptNilString("auto"),
+			CustomPerformanceEnabled: gcpgenserver.NewOptBool(true),
+			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(64),
+			Network:                  "test-network",
+			Mode:                     gcpgenserver.NewOptPoolV1betaMode("DEFAULT"),
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		originalGetAndSyncKmsConfigForPool := getAndSyncKmsConfigForPool
+		defer func() {
+			parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+			getAndSyncKmsConfigForPool = originalGetAndSyncKmsConfigForPool
+		}()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4-a", nil
+		}
+
+		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+			return nil, nil
+		}
+
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+
+		// Capture the CreatePool parameters to verify Mode assignment
+		var capturedParams *common.CreatePoolParams
+		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.MatchedBy(func(params *common.CreatePoolParams) bool {
+			capturedParams = params
+			return true
+		})).Return(&models.Pool{
+			BaseModel:      models.BaseModel{UUID: "new-pool-uuid"},
+			PoolAttributes: &models.PoolAttributes{Labels: make(map[string]string)},
+		}, "operation-id", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, capturedParams, "CreatePool should have been called")
+		assert.Equal(tt, workflows.GCNVMode, capturedParams.Mode, "Mode should be set to GCNVMode when Mode is DEFAULT")
+	})
+
+	t.Run("ModeAssignment_ONTAP_SetsONTAPMode", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4-a",
+			ProjectNumber: "project-number",
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			ResourceId:               "test-pool",
+			Unified:                  gcpgenserver.NewOptBool(true),
+			ServiceLevel:             gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:              1099511627776,
+			QosType:                  gcpgenserver.NewOptNilString("auto"),
+			CustomPerformanceEnabled: gcpgenserver.NewOptBool(true),
+			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(64),
+			Network:                  "test-network",
+			Mode:                     gcpgenserver.NewOptPoolV1betaMode(gcpgenserver.PoolV1betaModeONTAP),
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		originalGetAndSyncKmsConfigForPool := getAndSyncKmsConfigForPool
+		defer func() {
+			parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+			getAndSyncKmsConfigForPool = originalGetAndSyncKmsConfigForPool
+		}()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4-a", nil
+		}
+
+		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+			return nil, nil
+		}
+
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+
+		// Capture the CreatePool parameters to verify Mode assignment
+		var capturedParams *common.CreatePoolParams
+		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.MatchedBy(func(params *common.CreatePoolParams) bool {
+			capturedParams = params
+			return true
+		})).Return(&models.Pool{
+			BaseModel:      models.BaseModel{UUID: "new-pool-uuid"},
+			PoolAttributes: &models.PoolAttributes{Labels: make(map[string]string)},
+		}, "operation-id", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, capturedParams, "CreatePool should have been called")
+		assert.Equal(tt, workflows.ONTAPMode, capturedParams.Mode, "Mode should be set to ONTAPMode when Mode is ONTAP")
+	})
+
+	t.Run("ModeAssignment_OtherValue_SetsONTAPMode", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4-a",
+			ProjectNumber: "project-number",
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			ResourceId:               "test-pool",
+			Unified:                  gcpgenserver.NewOptBool(true),
+			ServiceLevel:             gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:              1099511627776,
+			QosType:                  gcpgenserver.NewOptNilString("auto"),
+			CustomPerformanceEnabled: gcpgenserver.NewOptBool(true),
+			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(64),
+			Network:                  "test-network",
+			Mode:                     gcpgenserver.NewOptPoolV1betaMode("SOME_OTHER_MODE"),
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		originalGetAndSyncKmsConfigForPool := getAndSyncKmsConfigForPool
+		defer func() {
+			parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+			getAndSyncKmsConfigForPool = originalGetAndSyncKmsConfigForPool
+		}()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4-a", nil
+		}
+
+		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+			return nil, nil
+		}
+
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+
+		// Capture the CreatePool parameters to verify Mode assignment
+		var capturedParams *common.CreatePoolParams
+		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.MatchedBy(func(params *common.CreatePoolParams) bool {
+			capturedParams = params
+			return true
+		})).Return(&models.Pool{
+			BaseModel:      models.BaseModel{UUID: "new-pool-uuid"},
+			PoolAttributes: &models.PoolAttributes{Labels: make(map[string]string)},
+		}, "operation-id", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, capturedParams, "CreatePool should have been called")
+		assert.Equal(tt, workflows.ONTAPMode, capturedParams.Mode, "Mode should be set to ONTAPMode for any value other than MODEUNSPECIFIED or DEFAULT")
 	})
 }
 

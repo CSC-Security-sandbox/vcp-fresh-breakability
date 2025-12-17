@@ -2514,7 +2514,7 @@ func TestPoolInternalV1betaMode_Examples(t *testing.T) {
 	for i, tc := range []struct {
 		Input string
 	}{
-		{Input: "\"GCNV\""},
+		{Input: "\"DEFAULT\""},
 	} {
 		tc := tc
 		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
@@ -2845,7 +2845,7 @@ func TestPoolV1betaMode_Examples(t *testing.T) {
 	for i, tc := range []struct {
 		Input string
 	}{
-		{Input: "\"GCNV\""},
+		{Input: "\"DEFAULT\""},
 	} {
 		tc := tc
 		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {

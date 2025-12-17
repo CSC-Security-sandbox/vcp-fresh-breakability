@@ -281,7 +281,7 @@ func (s *PoolInternalV1beta) setDefaults() {
 		s.LargeCapacity.SetTo(val)
 	}
 	{
-		val := PoolInternalV1betaMode("GCNV")
+		val := PoolInternalV1betaMode("DEFAULT")
 		s.Mode.SetTo(val)
 	}
 }
@@ -317,7 +317,7 @@ func (s *PoolV1beta) setDefaults() {
 		s.LargeCapacity.SetTo(val)
 	}
 	{
-		val := PoolV1betaMode("GCNV")
+		val := PoolV1betaMode("DEFAULT")
 		s.Mode.SetTo(val)
 	}
 }

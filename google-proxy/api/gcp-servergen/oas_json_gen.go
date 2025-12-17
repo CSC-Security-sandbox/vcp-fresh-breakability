@@ -19290,8 +19290,10 @@ func (s *PoolInternalV1betaMode) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch PoolInternalV1betaMode(v) {
-	case PoolInternalV1betaModeGCNV:
-		*s = PoolInternalV1betaModeGCNV
+	case PoolInternalV1betaModeMODEUNSPECIFIED:
+		*s = PoolInternalV1betaModeMODEUNSPECIFIED
+	case PoolInternalV1betaModeDEFAULT:
+		*s = PoolInternalV1betaModeDEFAULT
 	case PoolInternalV1betaModeONTAP:
 		*s = PoolInternalV1betaModeONTAP
 	default:
@@ -20805,8 +20807,10 @@ func (s *PoolV1betaMode) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch PoolV1betaMode(v) {
-	case PoolV1betaModeGCNV:
-		*s = PoolV1betaModeGCNV
+	case PoolV1betaModeMODEUNSPECIFIED:
+		*s = PoolV1betaModeMODEUNSPECIFIED
+	case PoolV1betaModeDEFAULT:
+		*s = PoolV1betaModeDEFAULT
 	case PoolV1betaModeONTAP:
 		*s = PoolV1betaModeONTAP
 	default:

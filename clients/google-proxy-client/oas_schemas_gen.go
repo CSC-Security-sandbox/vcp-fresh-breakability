@@ -14778,14 +14778,16 @@ func (s *PoolInternalV1betaLabels) init() PoolInternalV1betaLabels {
 type PoolInternalV1betaMode string
 
 const (
-	PoolInternalV1betaModeGCNV  PoolInternalV1betaMode = "GCNV"
-	PoolInternalV1betaModeONTAP PoolInternalV1betaMode = "ONTAP"
+	PoolInternalV1betaModeMODEUNSPECIFIED PoolInternalV1betaMode = "MODE_UNSPECIFIED"
+	PoolInternalV1betaModeDEFAULT         PoolInternalV1betaMode = "DEFAULT"
+	PoolInternalV1betaModeONTAP           PoolInternalV1betaMode = "ONTAP"
 )
 
 // AllValues returns all PoolInternalV1betaMode values.
 func (PoolInternalV1betaMode) AllValues() []PoolInternalV1betaMode {
 	return []PoolInternalV1betaMode{
-		PoolInternalV1betaModeGCNV,
+		PoolInternalV1betaModeMODEUNSPECIFIED,
+		PoolInternalV1betaModeDEFAULT,
 		PoolInternalV1betaModeONTAP,
 	}
 }
@@ -14793,7 +14795,9 @@ func (PoolInternalV1betaMode) AllValues() []PoolInternalV1betaMode {
 // MarshalText implements encoding.TextMarshaler.
 func (s PoolInternalV1betaMode) MarshalText() ([]byte, error) {
 	switch s {
-	case PoolInternalV1betaModeGCNV:
+	case PoolInternalV1betaModeMODEUNSPECIFIED:
+		return []byte(s), nil
+	case PoolInternalV1betaModeDEFAULT:
 		return []byte(s), nil
 	case PoolInternalV1betaModeONTAP:
 		return []byte(s), nil
@@ -14805,8 +14809,11 @@ func (s PoolInternalV1betaMode) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *PoolInternalV1betaMode) UnmarshalText(data []byte) error {
 	switch PoolInternalV1betaMode(data) {
-	case PoolInternalV1betaModeGCNV:
-		*s = PoolInternalV1betaModeGCNV
+	case PoolInternalV1betaModeMODEUNSPECIFIED:
+		*s = PoolInternalV1betaModeMODEUNSPECIFIED
+		return nil
+	case PoolInternalV1betaModeDEFAULT:
+		*s = PoolInternalV1betaModeDEFAULT
 		return nil
 	case PoolInternalV1betaModeONTAP:
 		*s = PoolInternalV1betaModeONTAP
@@ -15825,14 +15832,16 @@ func (s *PoolV1betaLabels) init() PoolV1betaLabels {
 type PoolV1betaMode string
 
 const (
-	PoolV1betaModeGCNV  PoolV1betaMode = "GCNV"
-	PoolV1betaModeONTAP PoolV1betaMode = "ONTAP"
+	PoolV1betaModeMODEUNSPECIFIED PoolV1betaMode = "MODE_UNSPECIFIED"
+	PoolV1betaModeDEFAULT         PoolV1betaMode = "DEFAULT"
+	PoolV1betaModeONTAP           PoolV1betaMode = "ONTAP"
 )
 
 // AllValues returns all PoolV1betaMode values.
 func (PoolV1betaMode) AllValues() []PoolV1betaMode {
 	return []PoolV1betaMode{
-		PoolV1betaModeGCNV,
+		PoolV1betaModeMODEUNSPECIFIED,
+		PoolV1betaModeDEFAULT,
 		PoolV1betaModeONTAP,
 	}
 }
@@ -15840,7 +15849,9 @@ func (PoolV1betaMode) AllValues() []PoolV1betaMode {
 // MarshalText implements encoding.TextMarshaler.
 func (s PoolV1betaMode) MarshalText() ([]byte, error) {
 	switch s {
-	case PoolV1betaModeGCNV:
+	case PoolV1betaModeMODEUNSPECIFIED:
+		return []byte(s), nil
+	case PoolV1betaModeDEFAULT:
 		return []byte(s), nil
 	case PoolV1betaModeONTAP:
 		return []byte(s), nil
@@ -15852,8 +15863,11 @@ func (s PoolV1betaMode) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *PoolV1betaMode) UnmarshalText(data []byte) error {
 	switch PoolV1betaMode(data) {
-	case PoolV1betaModeGCNV:
-		*s = PoolV1betaModeGCNV
+	case PoolV1betaModeMODEUNSPECIFIED:
+		*s = PoolV1betaModeMODEUNSPECIFIED
+		return nil
+	case PoolV1betaModeDEFAULT:
+		*s = PoolV1betaModeDEFAULT
 		return nil
 	case PoolV1betaModeONTAP:
 		*s = PoolV1betaModeONTAP

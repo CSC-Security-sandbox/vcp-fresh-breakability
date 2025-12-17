@@ -6442,7 +6442,9 @@ func (s PoolInternalV1betaEncryptionType) Validate() error {
 
 func (s PoolInternalV1betaMode) Validate() error {
 	switch s {
-	case "GCNV":
+	case "MODE_UNSPECIFIED":
+		return nil
+	case "DEFAULT":
 		return nil
 	case "ONTAP":
 		return nil
@@ -7096,7 +7098,9 @@ func (s PoolV1betaEncryptionType) Validate() error {
 
 func (s PoolV1betaMode) Validate() error {
 	switch s {
-	case "GCNV":
+	case "MODE_UNSPECIFIED":
+		return nil
+	case "DEFAULT":
 		return nil
 	case "ONTAP":
 		return nil

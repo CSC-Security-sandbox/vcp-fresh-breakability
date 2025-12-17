@@ -4300,7 +4300,7 @@ func (s *PoolInternalV1betaLabels) SetFake() {
 
 // SetFake set fake values.
 func (s *PoolInternalV1betaMode) SetFake() {
-	*s = PoolInternalV1betaModeGCNV
+	*s = PoolInternalV1betaModeMODEUNSPECIFIED
 }
 
 // SetFake set fake values.
@@ -4654,7 +4654,7 @@ func (s *PoolV1betaLabels) SetFake() {
 
 // SetFake set fake values.
 func (s *PoolV1betaMode) SetFake() {
-	*s = PoolV1betaModeGCNV
+	*s = PoolV1betaModeMODEUNSPECIFIED
 }
 
 // SetFake set fake values.

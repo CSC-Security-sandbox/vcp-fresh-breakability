@@ -8835,11 +8835,12 @@ components:
           title: mode
           type: string
           enum:
-            - GCNV
+            - MODE_UNSPECIFIED
+            - DEFAULT
             - ONTAP
           description: Flag indicating if the pool supports expert mode
-          default: GCNV
-          example: GCNV
+          default: DEFAULT
+          example: DEFAULT
     Volume_v1beta:
       title: Volume v1beta model definition
       required:
