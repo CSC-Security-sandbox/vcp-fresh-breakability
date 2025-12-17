@@ -136,6 +136,7 @@ const (
 	JobTypeHybridReplicationInternalEstablish       JobType = "HYBRID_REPLICATION_INTERNAL_ESTABLISH"
 	JobTypeReverseHybridReplicationInternal         JobType = "HYBRID_REPLICATION_INTERNAL_REVERSE"
 	JobTypeReverseHybridReplicationFallbackInternal JobType = "HYBRID_REPLICATION_INTERNAL_REVERSE_FALLBACK"
+	JobTypeCreateExpertModeVolume                   JobType = "RECONCILE_EXPERT_MODE_VOLUME_CREATE"
 )
 
 // GetResourceJobType returns the appropriate job type based on the resource type, operation, and pool category

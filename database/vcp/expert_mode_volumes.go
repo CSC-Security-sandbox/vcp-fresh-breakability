@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"gorm.io/gorm"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -59,4 +60,48 @@ func (d *DataStoreRepository) GetExpertModeVolumeByNameAndPoolID(ctx context.Con
 	}
 
 	return &volume, nil // Return the found volume
+}
+
+// GetExpertModeVolumeByUUID retrieves an expert mode volume by UUID with details
+func (d *DataStoreRepository) GetExpertModeVolumeByUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error) {
+	return getExpertModeVolumeWithDetails(d.db.GORM().WithContext(ctx), &datamodel.ExpertModeVolumes{BaseModel: datamodel.BaseModel{UUID: volumeUUID}})
+}
+
+func getExpertModeVolumeWithDetails(db *gorm.DB, query *datamodel.ExpertModeVolumes) (*datamodel.ExpertModeVolumes, error) {
+	volume := &datamodel.ExpertModeVolumes{}
+	err := db.Preload("Account").Preload("Pool").Preload("Svm").First(volume, query).Error
+	if err != nil {
+		return nil, err
+	}
+	return volume, nil
+}
+
+// UpdateExpertModeVolume updates an expert mode volume
+func (d *DataStoreRepository) UpdateExpertModeVolume(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) (*datamodel.ExpertModeVolumes, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	dbVolume, err := getExpertModeVolumeWithDetails(tx, &datamodel.ExpertModeVolumes{BaseModel: datamodel.BaseModel{UUID: expertModeVolume.UUID}})
+	if err != nil {
+		return nil, err
+	}
+
+	// Update the fields
+	dbVolume.Name = expertModeVolume.Name
+	dbVolume.SizeInBytes = expertModeVolume.SizeInBytes
+	dbVolume.Style = expertModeVolume.Style
+	dbVolume.State = expertModeVolume.State
+	dbVolume.ExternalUUID = expertModeVolume.ExternalUUID
+
+	err = tx.Save(dbVolume).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return dbVolume, nil
 }

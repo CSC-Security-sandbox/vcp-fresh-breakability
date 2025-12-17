@@ -6545,6 +6545,65 @@ func (_c *MockDataStore_GetExpertModeVolumeByNameAndPoolID_Call) RunAndReturn(ru
 	return _c
 }
 
+// GetExpertModeVolumeByUUID provides a mock function with given fields: ctx, volumeUUID
+func (_m *MockDataStore) GetExpertModeVolumeByUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error) {
+	ret := _m.Called(ctx, volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetExpertModeVolumeByUUID")
+	}
+
+	var r0 *datamodel.ExpertModeVolumes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.ExpertModeVolumes, error)); ok {
+		return rf(ctx, volumeUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.ExpertModeVolumes); ok {
+		r0 = rf(ctx, volumeUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.ExpertModeVolumes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, volumeUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetExpertModeVolumeByUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetExpertModeVolumeByUUID'
+type MockDataStore_GetExpertModeVolumeByUUID_Call struct {
+	*mock.Call
+}
+
+// GetExpertModeVolumeByUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+func (_e *MockDataStore_Expecter) GetExpertModeVolumeByUUID(ctx interface{}, volumeUUID interface{}) *MockDataStore_GetExpertModeVolumeByUUID_Call {
+	return &MockDataStore_GetExpertModeVolumeByUUID_Call{Call: _e.mock.On("GetExpertModeVolumeByUUID", ctx, volumeUUID)}
+}
+
+func (_c *MockDataStore_GetExpertModeVolumeByUUID_Call) Run(run func(ctx context.Context, volumeUUID string)) *MockDataStore_GetExpertModeVolumeByUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetExpertModeVolumeByUUID_Call) Return(_a0 *datamodel.ExpertModeVolumes, _a1 error) *MockDataStore_GetExpertModeVolumeByUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetExpertModeVolumeByUUID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.ExpertModeVolumes, error)) *MockDataStore_GetExpertModeVolumeByUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetFlexCacheVolumeCountByClusterPeerID provides a mock function with given fields: ctx, clusterPeerID
 func (_m *MockDataStore) GetFlexCacheVolumeCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error) {
 	ret := _m.Called(ctx, clusterPeerID)
@@ -13961,6 +14020,65 @@ func (_c *MockDataStore_UpdateClusterUpgradeJob_Call) Return(_a0 error) *MockDat
 }
 
 func (_c *MockDataStore_UpdateClusterUpgradeJob_Call) RunAndReturn(run func(context.Context, *datamodel.ClusterUpgradeJob) error) *MockDataStore_UpdateClusterUpgradeJob_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateExpertModeVolume provides a mock function with given fields: ctx, expertModeVolume
+func (_m *MockDataStore) UpdateExpertModeVolume(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) (*datamodel.ExpertModeVolumes, error) {
+	ret := _m.Called(ctx, expertModeVolume)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateExpertModeVolume")
+	}
+
+	var r0 *datamodel.ExpertModeVolumes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.ExpertModeVolumes) (*datamodel.ExpertModeVolumes, error)); ok {
+		return rf(ctx, expertModeVolume)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.ExpertModeVolumes) *datamodel.ExpertModeVolumes); ok {
+		r0 = rf(ctx, expertModeVolume)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.ExpertModeVolumes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.ExpertModeVolumes) error); ok {
+		r1 = rf(ctx, expertModeVolume)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_UpdateExpertModeVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateExpertModeVolume'
+type MockDataStore_UpdateExpertModeVolume_Call struct {
+	*mock.Call
+}
+
+// UpdateExpertModeVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - expertModeVolume *datamodel.ExpertModeVolumes
+func (_e *MockDataStore_Expecter) UpdateExpertModeVolume(ctx interface{}, expertModeVolume interface{}) *MockDataStore_UpdateExpertModeVolume_Call {
+	return &MockDataStore_UpdateExpertModeVolume_Call{Call: _e.mock.On("UpdateExpertModeVolume", ctx, expertModeVolume)}
+}
+
+func (_c *MockDataStore_UpdateExpertModeVolume_Call) Run(run func(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes)) *MockDataStore_UpdateExpertModeVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.ExpertModeVolumes))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateExpertModeVolume_Call) Return(_a0 *datamodel.ExpertModeVolumes, _a1 error) *MockDataStore_UpdateExpertModeVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateExpertModeVolume_Call) RunAndReturn(run func(context.Context, *datamodel.ExpertModeVolumes) (*datamodel.ExpertModeVolumes, error)) *MockDataStore_UpdateExpertModeVolume_Call {
 	_c.Call.Return(run)
 	return _c
 }

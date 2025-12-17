@@ -219,9 +219,16 @@ data:
   RETRY_BACKOFF_COEFFICIENT: {{$.Values.workerConfig.retryBackoffCoefficient | quote }}
   BACKOFF_COEFFICIENT_FOR_REPLICATION_ACTIVITIES: {{$.Values.workerConfig.backoffCoefficientForReplicationActivities | quote }}
 
+
   # Pool workflow timeout configuration
   POOL_ACTIVITY_HEARTBEAT_TIMEOUT: {{$.Values.workerConfig.poolActivityHeartbeatTimeout | quote }}
   DATABASE_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.databaseHeartbeatTimeoutSec | quote }}
+
+  # Expert Mode Volume Reconciliation configuration
+  VOLUME_RECONCILIATION_EXPERT_MODE_ACTIVITIES_MAX_ATTEMPTS: {{$.Values.workerConfig.volumeReconciliationExpertModeActivitiesMaxAttempts | quote }}
+  VOLUME_RECONCILIATION_EXPERT_MODE_START_TO_CLOSE_TIMEOUT_SEC: {{$.Values.workerConfig.volumeReconciliationExpertModeStartToCloseTimeoutSec | quote }}
+  VOLUME_RECONCILIATION_EXPERT_MODE_BACKOFF_COEFFICIENT: {{$.Values.workerConfig.volumeReconciliationExpertModeBackoffCoefficient | quote }}
+
 
   # Volume activities timeout configuration
   VOLUME_ACTIVITIES_START_TO_CLOSE_TIMEOUT_SEC: {{$.Values.workerConfig.volumeActivitiesStartToCloseTimeoutSec | quote }}

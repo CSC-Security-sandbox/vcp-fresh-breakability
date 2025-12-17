@@ -47,6 +47,7 @@ func GetProxyRules() map[string]Rule {
 					ModifyRequest: SetRequestFields{
 						Fields: map[string]interface{}{
 							"space.logical_space.enforcement": true,
+							"space.logical_space.reporting":   true,
 						},
 					},
 					ModifyResponse: RemoveFields{

@@ -271,6 +271,38 @@ func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse,
 	return res, nil
 }
 
+func (rc *OntapRestProvider) GetVolumeForExpertMode(params GetVolumeParams) (*VolumeResponse, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	vol, err := client.Storage().VolumeGet(&ontapRest.VolumeGetParams{
+		UUID:    params.UUID,
+		Name:    params.VolumeName,
+		SvmName: &params.SvmName,
+		BaseParams: ontapRest.BaseParams{
+			Fields: []string{"uuid", "name", "state", "type"},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	volStyle := ""
+	if vol.Style != nil {
+		volStyle = *vol.Style
+	}
+	res := &VolumeResponse{
+		ProviderResponse: ProviderResponse{
+			Name:         *vol.Name,
+			ExternalUUID: *vol.UUID,
+		},
+		Size:  *vol.Size,
+		State: *vol.State,
+		Style: volStyle,
+	}
+	return res, nil
+}
+
 func (rc *OntapRestProvider) GetVolumes() ([]*Volume, error) {
 	var resultVolumes []*Volume
 

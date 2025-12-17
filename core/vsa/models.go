@@ -78,6 +78,7 @@ type VolumeResponse struct {
 	MetadataSize                   int64
 	SnapshotDirectoryAccessEnabled bool
 	ConstituentCount               *int32
+	Style                          string
 	Encryption
 }
 

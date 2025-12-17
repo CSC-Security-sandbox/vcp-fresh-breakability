@@ -1,6 +1,7 @@
 package reverseproxy
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -37,7 +38,10 @@ var (
 	ontapMaxConnsPerHost              = env.GetInt("ONTAP_MAX_CONNS_PER_HOST", 100)
 	ontapResponseHeaderTimeoutSeconds = env.GetInt("ONTAP_RESPONSE_HEADER_TIMEOUT_SECONDS", 30)
 	ontapExpectContinueTimeoutSeconds = env.GetInt("ONTAP_EXPECT_CONTINUE_TIMEOUT_SECONDS", 1)
+	runningEnv                        = env.GetString("ENV", "")
 )
+
+const localEnv = "local"
 
 // ConnectionPool manages HTTP clients for different ONTAP clusters and auth types
 type ConnectionPool struct {
@@ -537,6 +541,17 @@ func logCurlCommand(req *http.Request, endpoint string) {
 		url += "?" + req.URL.RawQuery
 	}
 	curlCmd += fmt.Sprintf(" \"%s\"", url)
+
+	if req.Body != nil && runningEnv == localEnv {
+		body, err := io.ReadAll(req.Body)
+		if err == nil {
+			req.Body = io.NopCloser(bytes.NewReader(body))
+			if len(body) > 0 {
+				curlCmd += fmt.Sprintf(" -d '%s'", string(body))
+				logger.InfoContext(req.Context(), "Request body", "body", string(body))
+			}
+		}
+	}
 
 	logger.InfoContext(req.Context(), "Equivalent curl command", "command", curlCmd)
 }

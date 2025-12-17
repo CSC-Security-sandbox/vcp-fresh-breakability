@@ -250,6 +250,11 @@ workerConfig:
   backoffCoefficientForReplicationActivities: 1.5
   startToCloseTimeoutForConfigureNetwork: "5m"
 
+  # Expert Mode Volume Reconciliation configuration
+  volumeReconciliationExpertModeActivitiesMaxAttempts: "8"
+  volumeReconciliationExpertModeStartToCloseTimeoutSec: "60"
+  volumeReconciliationExpertModeBackoffCoefficient: 1.5
+
   # Volume activities timeout configuration (in seconds)
   volumeActivitiesStartToCloseTimeoutSec: "600"  # 10 minutes
   volumeActivitiesHeartbeatTimeoutSec: "300"     # 5 minutes

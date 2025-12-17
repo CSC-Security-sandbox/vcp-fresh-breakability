@@ -598,19 +598,24 @@ func (ka JobAttributes) Value() (driver.Value, error) {
 // ExpertModeVolumes represents expert mode volumes in the database
 type ExpertModeVolumes struct {
 	BaseModel
-	Name         string          `gorm:"column:name"`
-	Description  string          `gorm:"column:description"`
-	SizeInBytes  int64           `gorm:"column:size_in_bytes"`
-	AccountID    int64           `gorm:"column:account_id"`
-	PoolID       int64           `gorm:"column:pool_id"`
-	SvmID        int64           `gorm:"column:svm_id"`
-	ExternalUUID string          `gorm:"column:external_uuid"`
-	State        string          `gorm:"column:state"`
-	Account      *Account        `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	Pool         *Pool           `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	Svm          *Svm            `gorm:"ForeignKey:SvmID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	Style        string          `gorm:"column:style"`                      // {flexvol|flexgroup}
-	BackupConfig *DataProtection `gorm:"column:data_protection;type:jsonb"` // DataProtection is an existing type which holds backup config in Volume
+	Name             string                      `gorm:"column:name"`
+	Description      string                      `gorm:"column:description"`
+	SizeInBytes      int64                       `gorm:"column:size_in_bytes"`
+	AccountID        int64                       `gorm:"column:account_id"`
+	PoolID           int64                       `gorm:"column:pool_id"`
+	SvmID            int64                       `gorm:"column:svm_id"`
+	ExternalUUID     string                      `gorm:"column:external_uuid"`
+	State            string                      `gorm:"column:state"`
+	Account          *Account                    `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	Pool             *Pool                       `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	Svm              *Svm                        `gorm:"ForeignKey:SvmID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	Style            string                      `gorm:"column:style"`                      // {flexvol|flexgroup}
+	BackupConfig     *DataProtection             `gorm:"column:data_protection;type:jsonb"` // DataProtection is an existing type which holds backup config in Volume
+	VolumeAttributes *ExpertModeVolumeAttributes `gorm:"column:volume_attributes;type:jsonb"`
+}
+
+type ExpertModeVolumeAttributes struct {
+	Protocols []string `json:"protocols"`
 }
 
 type Lif struct {

@@ -2,12 +2,14 @@ package orchestrator
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	expertModeWorkflows "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/expertMode"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -15,7 +17,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
-	"go.temporal.io/sdk/workflow"
 	"gorm.io/gorm"
 )
 
@@ -80,13 +81,12 @@ func _createExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 
 	// Create expert mode volume record
 	expertModeVolume := &datamodel.ExpertModeVolumes{
-		Name:         params.VolumeName,
-		SizeInBytes:  params.SizeInBytes,
-		PoolID:       dbPoolView.ID,
-		AccountID:    dbPoolView.AccountID,
-		Style:        params.Style,
-		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateCreating,
+		Name:        params.VolumeName,
+		SizeInBytes: params.SizeInBytes,
+		PoolID:      dbPoolView.ID,
+		AccountID:   dbPoolView.AccountID,
+		Style:       params.Style,
+		State:       models.LifeCycleStateCreating,
 	}
 
 	// Look up SVM based on provided parameters
@@ -125,41 +125,47 @@ func _createExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 		return err
 	}
 
-	// Start reconciliation workflow
-	workflowID := fmt.Sprintf("volume_reconciliation_%s", createdVolume.UUID)
-	logger.Info("Starting volume reconciliation workflow", "workflowID", workflowID, "volumeUUID", createdVolume.UUID)
+	volume, err := se.GetExpertModeVolumeByUUID(ctx, createdVolume.UUID)
+	if err != nil {
+		logger.Error("Failed to get expert mode volume with preloads", "volumeUUID", createdVolume.UUID, "error", err)
+		return err
+	}
+
+	// Create a job for the volume creation workflow
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeCreateExpertModeVolume),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  createdVolume.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: createdVolume.UUID, PoolUUID: dbPoolView.UUID},
+		CorrelationID: correlationID,
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job for expert mode volume", "error", err)
+		return err
+	}
 
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.BackgroundTaskQueue,
-			ID:                    workflowID,
+			ID:                    createdJob.WorkflowID,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 			WorkflowRunTimeout:    workflowengine.GetExpertModeSyncWorkflowTimeout(),
 		},
-		VolumeReconciliationWorkflow,
-		createdVolume,
+		expertModeWorkflows.VolumeCreateReconciliationWorkflow,
+		volume,
 	)
 
 	if err != nil {
-		logger.Error("Failed to start volume reconciliation workflow", "workflowID", workflowID, "error", err)
-		// Note: We don't return error here as the volume was created successfully
-		// The workflow failure can be handled separately
+		logger.Error("Failed to start volume reconciliation workflow", "workflowID", createdJob.WorkflowID, "error", err)
+		if updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error()); updateErr != nil {
+			logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", updateErr)
+		}
 	}
-
-	// Return success response
-	return nil
-}
-
-// VolumeReconciliationWorkflow is a skeleton workflow for volume reconciliation
-func VolumeReconciliationWorkflow(ctx workflow.Context, expertModeVolume *datamodel.ExpertModeVolumes, correlationID string) error {
-	// This is a skeleton workflow - no actual logic added
-	// TODO: Implement actual reconciliation logic
-
-	// For now, just log that the workflow was triggered
-	workflow.GetLogger(ctx).Info("Volume reconciliation workflow triggered",
-		"volumeUUID", expertModeVolume.UUID,
-		"volumeName", expertModeVolume.Name,
-		"correlationID", correlationID)
 
 	return nil
 }

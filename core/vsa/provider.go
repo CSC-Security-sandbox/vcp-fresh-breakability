@@ -40,6 +40,7 @@ type Provider interface {
 	DeleteVolume(volumeUUID, volumeName string) error
 	DeleteFlexCacheVolume(volumeUUID, name string) (*OntapAsyncResponse, error)
 	GetVolume(params GetVolumeParams) (*VolumeResponse, error)
+	GetVolumeForExpertMode(params GetVolumeParams) (*VolumeResponse, error)
 	GetVolumeEncryptionStatus(params GetVolumeParams) (*VolumeResponse, error)
 	GetVolumes() ([]*Volume, error)
 	UpdateVolume(params UpdateVolumeParams) error

@@ -4103,6 +4103,64 @@ func (_c *MockProvider_GetVolumeEncryptionStatus_Call) RunAndReturn(run func(Get
 	return _c
 }
 
+// GetVolumeForExpertMode provides a mock function with given fields: params
+func (_m *MockProvider) GetVolumeForExpertMode(params GetVolumeParams) (*VolumeResponse, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumeForExpertMode")
+	}
+
+	var r0 *VolumeResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(GetVolumeParams) (*VolumeResponse, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(GetVolumeParams) *VolumeResponse); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*VolumeResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(GetVolumeParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetVolumeForExpertMode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeForExpertMode'
+type MockProvider_GetVolumeForExpertMode_Call struct {
+	*mock.Call
+}
+
+// GetVolumeForExpertMode is a helper method to define mock.On call
+//   - params GetVolumeParams
+func (_e *MockProvider_Expecter) GetVolumeForExpertMode(params interface{}) *MockProvider_GetVolumeForExpertMode_Call {
+	return &MockProvider_GetVolumeForExpertMode_Call{Call: _e.mock.On("GetVolumeForExpertMode", params)}
+}
+
+func (_c *MockProvider_GetVolumeForExpertMode_Call) Run(run func(params GetVolumeParams)) *MockProvider_GetVolumeForExpertMode_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(GetVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetVolumeForExpertMode_Call) Return(_a0 *VolumeResponse, _a1 error) *MockProvider_GetVolumeForExpertMode_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetVolumeForExpertMode_Call) RunAndReturn(run func(GetVolumeParams) (*VolumeResponse, error)) *MockProvider_GetVolumeForExpertMode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVolumeReplication provides a mock function with given fields: replication
 func (_m *MockProvider) GetVolumeReplication(replication *VolumeReplication) (*VolumeReplication, error) {
 	ret := _m.Called(replication)
