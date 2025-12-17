@@ -26,7 +26,7 @@ spec:
       mode: ISTIO_MUTUAL
 
 ---
-apiVersion: security.istio.io/v1
+apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
   annotations:
