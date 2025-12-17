@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-faster/jx"
@@ -1003,4 +1004,165 @@ func (h Handler) V1betaReverseAndResumeReplication(ctx context.Context, params g
 		Name: gcpgenserver.NewOptString(operationID),
 		Done: gcpgenserver.NewOptBool(true),
 	}, nil
+}
+
+func (h Handler) V1betaListReplications(ctx context.Context, params gcpgenserver.V1betaListReplicationsParams) (gcpgenserver.V1betaListReplicationsRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	getReplicationParams := common.GetMultipleReplicationsParams{
+		ReplicationURIs: nil,
+		AccountName:     params.ProjectNumber,
+		LocationId:      params.LocationId,
+		XCorrelationID:  params.XCorrelationID.Value,
+	}
+
+	// Prepare CVP API call parameters
+	var xCorrelationID *string
+	if params.XCorrelationID.Set {
+		xCorrelationID = &params.XCorrelationID.Value
+	}
+	reqParams := &replications.V1betaListReplicationsParams{
+		LocationID:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		XCorrelationID: xCorrelationID,
+	}
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := createClient(logger, jwtToken)
+	// Validate cvpClient and Replications are not nil
+	if cvpClient.Replications == nil {
+		logger.Error("CVP client Replications is nil")
+		return &gcpgenserver.V1betaListReplicationsInternalServerError{
+			Code:    500,
+			Message: "CVP client not properly initialized",
+		}, nil
+	}
+
+	// Execute both calls in parallel
+	type vcpResult struct {
+		replications []gcpgenserver.ReplicationV1beta
+		err          error
+	}
+	type cvpResult struct {
+		resp *replications.V1betaListReplicationsOK
+		err  error
+	}
+
+	var wg sync.WaitGroup
+	vcpChan := make(chan vcpResult, 1)
+	cvpChan := make(chan cvpResult, 1)
+
+	// Call VCP orchestrator in parallel
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		vcpReplications, err := h.Orchestrator.GetMultipleReplications(ctx, getReplicationParams)
+		vcpChan <- vcpResult{replications: vcpReplications, err: err}
+	}()
+
+	// Call CVP API in parallel
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		cvpResp, err := cvpClient.Replications.V1betaListReplications(reqParams)
+		cvpChan <- cvpResult{resp: cvpResp, err: err}
+	}()
+
+	// Wait for both calls to complete
+	wg.Wait()
+	close(vcpChan)
+	close(cvpChan)
+
+	// Get VCP results
+	vcpRes := <-vcpChan
+	if vcpRes.err != nil {
+		logger.Errorf("Error getting replications from VCP: %v", vcpRes.err)
+		return &gcpgenserver.V1betaListReplicationsInternalServerError{
+			Code:    500,
+			Message: "Error retrieving replications from VCP",
+		}, nil
+	}
+
+	// Get CVP results
+	cvpRes := <-cvpChan
+	if cvpRes.err != nil {
+		switch e := cvpRes.err.(type) {
+		case *replications.V1betaListReplicationsBadRequest:
+			var msg string
+			var code float64
+			if e.Payload != nil {
+				msg = nillable.GetString(&e.Payload.Message, "")
+				code = float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			}
+			return &gcpgenserver.V1betaListReplicationsBadRequest{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *replications.V1betaListReplicationsUnauthorized:
+			var msg string
+			var code float64
+			if e.Payload != nil {
+				msg = nillable.GetString(&e.Payload.Message, "")
+				code = float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			}
+			return &gcpgenserver.V1betaListReplicationsUnauthorized{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *replications.V1betaListReplicationsForbidden:
+			var msg string
+			var code float64
+			if e.Payload != nil {
+				msg = nillable.GetString(&e.Payload.Message, "")
+				code = float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			}
+			return &gcpgenserver.V1betaListReplicationsForbidden{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *replications.V1betaListReplicationsTooManyRequests:
+			var msg string
+			var code float64
+			if e.Payload != nil {
+				msg = nillable.GetString(&e.Payload.Message, "")
+				code = float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			}
+			return &gcpgenserver.V1betaListReplicationsTooManyRequests{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *replications.V1betaListReplicationsDefault:
+			var msg string
+			var code float64
+			if e.Payload != nil {
+				code = float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				msg = nillable.GetString(&e.Payload.Message, "")
+			}
+			return &gcpgenserver.V1betaListReplicationsInternalServerError{
+				Code:    code,
+				Message: msg,
+			}, nil
+		}
+		logger.Errorf("Error getting replications from CVP: %v", cvpRes.err)
+		// If CVP call fails, still return VCP results
+		return &gcpgenserver.V1betaListReplicationsOK{Replications: vcpRes.replications}, nil
+	}
+
+	replicationResp := gcpgenserver.V1betaListReplicationsOK{
+		Replications: []gcpgenserver.ReplicationV1beta{},
+	}
+
+	// Add CVP replications
+	if cvpRes.resp != nil && cvpRes.resp.Payload != nil && cvpRes.resp.Payload.Replications != nil {
+		for _, rep := range cvpRes.resp.Payload.Replications {
+			replicationResp.Replications = append(replicationResp.Replications, convertToReplicationV1Beta(rep))
+		}
+	}
+
+	// Append VCP replications
+	if len(vcpRes.replications) > 0 {
+		replicationResp.Replications = append(replicationResp.Replications, vcpRes.replications...)
+	}
+
+	return &replicationResp, nil
 }

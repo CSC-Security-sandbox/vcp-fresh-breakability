@@ -2562,3 +2562,538 @@ func TestV1betaEstablishPeering(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 }
+
+func TestV1betaListReplications(t *testing.T) {
+	t.Run("WhenVCPGetMultipleReplicationsReturnsError", func(tt *testing.T) {
+		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaListReplicationsParams{
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			XCorrelationID: gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return(nil, errors.New("Error retrieving replications from VCP"))
+		// Mock CVP client to avoid HTTP errors during parallel execution
+		// Since VCP error is returned first, CVP error won't be processed, but we still need to mock it
+		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(nil, errors.New("CVP error"))
+		cvpClient := &cvpapi.Cvp{Replications: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := handler.V1betaListReplications(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(500), result.(*gcpgenserver.V1betaListReplicationsInternalServerError).Code)
+		assert.Equal(tt, "Error retrieving replications from VCP", result.(*gcpgenserver.V1betaListReplicationsInternalServerError).Message)
+	})
+
+	t.Run("WhenCVPListReplicationsFailsWithBadRequest", func(tt *testing.T) {
+		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaListReplicationsParams{
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			XCorrelationID: gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+
+		errorMessage := "BadRequest error"
+		errorCode := float64(400)
+		mockError := &replications.V1betaListReplicationsBadRequest{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(nil, mockError)
+		cvpClient := &cvpapi.Cvp{Replications: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := handler.V1betaListReplications(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, errorCode, result.(*gcpgenserver.V1betaListReplicationsBadRequest).Code)
+		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaListReplicationsBadRequest).Message)
+	})
+
+	t.Run("WhenCVPListReplicationsFailsWithUnauthorized", func(tt *testing.T) {
+		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaListReplicationsParams{
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			XCorrelationID: gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+
+		errorMessage := "Unauthorized error"
+		errorCode := float64(401)
+		mockError := &replications.V1betaListReplicationsUnauthorized{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(nil, mockError)
+		cvpClient := &cvpapi.Cvp{Replications: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := handler.V1betaListReplications(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, errorCode, result.(*gcpgenserver.V1betaListReplicationsUnauthorized).Code)
+		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaListReplicationsUnauthorized).Message)
+	})
+
+	t.Run("WhenCVPListReplicationsFailsWithForbidden", func(tt *testing.T) {
+		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaListReplicationsParams{
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			XCorrelationID: gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+
+		errorMessage := "Forbidden error"
+		errorCode := float64(403)
+		mockError := &replications.V1betaListReplicationsForbidden{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(nil, mockError)
+		cvpClient := &cvpapi.Cvp{Replications: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := handler.V1betaListReplications(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, errorCode, result.(*gcpgenserver.V1betaListReplicationsForbidden).Code)
+		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaListReplicationsForbidden).Message)
+	})
+
+	t.Run("WhenCVPListReplicationsFailsWithTooManyRequests", func(tt *testing.T) {
+		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaListReplicationsParams{
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			XCorrelationID: gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+
+		errorMessage := "TooManyRequests error"
+		errorCode := float64(429)
+		mockError := &replications.V1betaListReplicationsTooManyRequests{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(nil, mockError)
+		cvpClient := &cvpapi.Cvp{Replications: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := handler.V1betaListReplications(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, errorCode, result.(*gcpgenserver.V1betaListReplicationsTooManyRequests).Code)
+		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaListReplicationsTooManyRequests).Message)
+	})
+
+	t.Run("WhenCVPListReplicationsFailsWithDefault", func(tt *testing.T) {
+		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaListReplicationsParams{
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			XCorrelationID: gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+
+		errorMessage := "default error"
+		errorCode := float64(500)
+		mockError := &replications.V1betaListReplicationsDefault{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(nil, mockError)
+		cvpClient := &cvpapi.Cvp{Replications: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := handler.V1betaListReplications(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, errorCode, result.(*gcpgenserver.V1betaListReplicationsInternalServerError).Code)
+		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaListReplicationsInternalServerError).Message)
+	})
+
+	t.Run("WhenCVPListReplicationsFailsWithUnexpectedError", func(tt *testing.T) {
+		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaListReplicationsParams{
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			XCorrelationID: gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+
+		vcpReplications := []gcpgenserver.ReplicationV1beta{
+			{
+				ReplicationId: gcpgenserver.NewOptString("vcp-replication-id-1"),
+				ResourceId:    gcpgenserver.NewOptString("vcp-resource-id-1"),
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return(vcpReplications, nil)
+		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(nil, errors.New("unexpected error"))
+		cvpClient := &cvpapi.Cvp{Replications: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := handler.V1betaListReplications(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		successResult, ok := result.(*gcpgenserver.V1betaListReplicationsOK)
+		assert.True(tt, ok)
+		assert.Equal(tt, 1, len(successResult.Replications))
+		assert.Equal(tt, "vcp-replication-id-1", successResult.Replications[0].ReplicationId.Value)
+	})
+
+	t.Run("WhenBothVCPAndCVPSucceed", func(tt *testing.T) {
+		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaListReplicationsParams{
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			XCorrelationID: gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+
+		vcpReplications := []gcpgenserver.ReplicationV1beta{
+			{
+				ReplicationId: gcpgenserver.NewOptString("vcp-replication-id-1"),
+				ResourceId:    gcpgenserver.NewOptString("vcp-resource-id-1"),
+			},
+		}
+
+		clusterLocation := "cluster-location"
+		description := "description"
+		destination := models.ReplicationVolumeInformationV1beta{
+			VolumeName: "volume-name",
+			VolumeID:   "volume-id",
+		}
+		mockResponse := &replications.V1betaListReplicationsOK{
+			Payload: &replications.V1betaListReplicationsOKBody{
+				Replications: []*models.ReplicationV1beta{
+					{
+						ClusterLocation: &clusterLocation,
+						ReplicationID:   "cvp-replication-id-1",
+						ResourceID:      "cvp-resource-id-1",
+						Description:     &description,
+						Destination:     &destination,
+					},
+				},
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return(vcpReplications, nil)
+		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{Replications: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := handler.V1betaListReplications(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		successResult, ok := result.(*gcpgenserver.V1betaListReplicationsOK)
+		assert.True(tt, ok)
+		assert.Equal(tt, 2, len(successResult.Replications))
+		// First should be CVP replication
+		assert.Equal(tt, "cvp-replication-id-1", successResult.Replications[0].ReplicationId.Value)
+		// Second should be VCP replication
+		assert.Equal(tt, "vcp-replication-id-1", successResult.Replications[1].ReplicationId.Value)
+	})
+
+	t.Run("WhenOnlyVCPSucceeds", func(tt *testing.T) {
+		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaListReplicationsParams{
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			XCorrelationID: gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+
+		vcpReplications := []gcpgenserver.ReplicationV1beta{
+			{
+				ReplicationId: gcpgenserver.NewOptString("vcp-replication-id-1"),
+				ResourceId:    gcpgenserver.NewOptString("vcp-resource-id-1"),
+			},
+		}
+
+		mockResponse := &replications.V1betaListReplicationsOK{
+			Payload: &replications.V1betaListReplicationsOKBody{
+				Replications: []*models.ReplicationV1beta{},
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return(vcpReplications, nil)
+		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{Replications: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := handler.V1betaListReplications(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		successResult, ok := result.(*gcpgenserver.V1betaListReplicationsOK)
+		assert.True(tt, ok)
+		assert.Equal(tt, 1, len(successResult.Replications))
+		assert.Equal(tt, "vcp-replication-id-1", successResult.Replications[0].ReplicationId.Value)
+	})
+
+	t.Run("WhenOnlyCVPSucceeds", func(tt *testing.T) {
+		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaListReplicationsParams{
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			XCorrelationID: gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+
+		clusterLocation := "cluster-location"
+		description := "description"
+		destination := models.ReplicationVolumeInformationV1beta{
+			VolumeName: "volume-name",
+			VolumeID:   "volume-id",
+		}
+		mockResponse := &replications.V1betaListReplicationsOK{
+			Payload: &replications.V1betaListReplicationsOKBody{
+				Replications: []*models.ReplicationV1beta{
+					{
+						ClusterLocation: &clusterLocation,
+						ReplicationID:   "cvp-replication-id-1",
+						ResourceID:      "cvp-resource-id-1",
+						Description:     &description,
+						Destination:     &destination,
+					},
+				},
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{Replications: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := handler.V1betaListReplications(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		successResult, ok := result.(*gcpgenserver.V1betaListReplicationsOK)
+		assert.True(tt, ok)
+		assert.Equal(tt, 1, len(successResult.Replications))
+		assert.Equal(tt, "cvp-replication-id-1", successResult.Replications[0].ReplicationId.Value)
+	})
+
+	t.Run("WhenBothVCPAndCVPReturnEmpty", func(tt *testing.T) {
+		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaListReplicationsParams{
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			XCorrelationID: gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+
+		mockResponse := &replications.V1betaListReplicationsOK{
+			Payload: &replications.V1betaListReplicationsOKBody{
+				Replications: []*models.ReplicationV1beta{},
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{Replications: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := handler.V1betaListReplications(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		successResult, ok := result.(*gcpgenserver.V1betaListReplicationsOK)
+		assert.True(tt, ok)
+		assert.Equal(tt, 0, len(successResult.Replications))
+	})
+
+	t.Run("WhenBothCallsExecuteInParallel", func(tt *testing.T) {
+		mockClient := replications.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		params := gcpgenserver.V1betaListReplicationsParams{
+			LocationId:     "location-id",
+			ProjectNumber:  "project-number",
+			XCorrelationID: gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+
+		vcpReplications := []gcpgenserver.ReplicationV1beta{
+			{
+				ReplicationId: gcpgenserver.NewOptString("vcp-replication-id-1"),
+				ResourceId:    gcpgenserver.NewOptString("vcp-resource-id-1"),
+			},
+		}
+
+		clusterLocation := "cluster-location"
+		description := "description"
+		destination := models.ReplicationVolumeInformationV1beta{
+			VolumeName: "volume-name",
+			VolumeID:   "volume-id",
+		}
+		mockResponse := &replications.V1betaListReplicationsOK{
+			Payload: &replications.V1betaListReplicationsOKBody{
+				Replications: []*models.ReplicationV1beta{
+					{
+						ClusterLocation: &clusterLocation,
+						ReplicationID:   "cvp-replication-id-1",
+						ResourceID:      "cvp-resource-id-1",
+						Description:     &description,
+						Destination:     &destination,
+					},
+				},
+			},
+		}
+		// Both mocks should be called (in parallel)
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return(vcpReplications, nil)
+		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{Replications: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := handler.V1betaListReplications(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		successResult, ok := result.(*gcpgenserver.V1betaListReplicationsOK)
+		assert.True(tt, ok)
+		// Should have both CVP and VCP replications
+		assert.Equal(tt, 2, len(successResult.Replications))
+		// Verify both calls were made by checking the results contain both
+		replicationIDs := make(map[string]bool)
+		for _, rep := range successResult.Replications {
+			if rep.ReplicationId.Value != "" {
+				replicationIDs[rep.ReplicationId.Value] = true
+			}
+		}
+		assert.True(tt, replicationIDs["cvp-replication-id-1"], "CVP replication should be present")
+		assert.True(tt, replicationIDs["vcp-replication-id-1"], "VCP replication should be present")
+	})
+}

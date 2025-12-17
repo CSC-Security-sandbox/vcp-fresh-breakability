@@ -15,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
+	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -1869,6 +1870,152 @@ func TestGetMultipleReplications(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 		mm.AssertExpectations(tt)
 	})
+	t.Run("WhenReplicationURIsIsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			getReplicationObjects = _getReplicationObjects
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			}, nil
+		}
+
+		params := commonparams.GetMultipleReplicationsParams{
+			AccountName:     "test-account",
+			LocationId:      "us-east4",
+			ReplicationURIs: nil, // nil ReplicationURIs
+		}
+
+		replications := []*datamodel.VolumeReplication{}
+
+		// Verify that filter only contains account_id, not uri filter
+		mockStorage.On("ListVolumeReplications", ctx, mock.MatchedBy(func(filter utils2.Filter) bool {
+			// Check that filter has account_id condition
+			// and does NOT have uri condition (since ReplicationURIs is nil)
+			hasAccountID := false
+			hasURI := false
+			for _, condition := range filter.Conditions {
+				if condition.Field == "account_id" {
+					hasAccountID = true
+				}
+				if condition.Field == "uri" {
+					hasURI = true
+				}
+			}
+			return hasAccountID && !hasURI
+		}), mock.Anything).Return(replications, nil)
+
+		_, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.Nil(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenReplicationURIsIsEmpty", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			getReplicationObjects = _getReplicationObjects
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			}, nil
+		}
+
+		params := commonparams.GetMultipleReplicationsParams{
+			AccountName:     "test-account",
+			LocationId:      "us-east4",
+			ReplicationURIs: []string{}, // empty ReplicationURIs
+		}
+
+		replications := []*datamodel.VolumeReplication{}
+
+		// Verify that filter only contains account_id, not uri filter
+		mockStorage.On("ListVolumeReplications", ctx, mock.MatchedBy(func(filter utils2.Filter) bool {
+			// Check that filter has account_id condition
+			// and does NOT have uri condition (since ReplicationURIs is empty)
+			hasAccountID := false
+			hasURI := false
+			for _, condition := range filter.Conditions {
+				if condition.Field == "account_id" {
+					hasAccountID = true
+				}
+				if condition.Field == "uri" {
+					hasURI = true
+				}
+			}
+			return hasAccountID && !hasURI
+		}), mock.Anything).Return(replications, nil)
+
+		_, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.Nil(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenReplicationURIsHasValues", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			getReplicationObjects = _getReplicationObjects
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			}, nil
+		}
+
+		params := commonparams.GetMultipleReplicationsParams{
+			AccountName:     "test-account",
+			LocationId:      "us-east4",
+			ReplicationURIs: []string{"uri1", "uri2"}, // ReplicationURIs with values
+		}
+
+		replications := []*datamodel.VolumeReplication{}
+
+		// Verify that filter contains both account_id and uri filter
+		mockStorage.On("ListVolumeReplications", ctx, mock.MatchedBy(func(filter utils2.Filter) bool {
+			// Check that filter has both account_id and uri conditions
+			hasAccountID := false
+			hasURI := false
+			for _, condition := range filter.Conditions {
+				if condition.Field == "account_id" {
+					hasAccountID = true
+				}
+				if condition.Field == "uri" {
+					hasURI = true
+					// Verify the values match
+					if uriValues, ok := condition.Value.([]string); ok {
+						if len(uriValues) == 2 && uriValues[0] == "uri1" && uriValues[1] == "uri2" {
+							return hasAccountID && hasURI
+						}
+					}
+				}
+			}
+			return false
+		}), mock.Anything).Return(replications, nil)
+
+		_, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.Nil(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
 }
 
 func TestGetReplicationObjects(t *testing.T) {
@@ -2343,6 +2490,131 @@ func TestGetReplicationObjects(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.Len(tt, res, 0)
 		assert.Equal(tt, 1, counter)
+	})
+	t.Run("WhenMultipleReplicationsBelongToSameProject", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		defer func() {
+			utilsGetPairedRegionUri = utils.GetPairedRegionURI
+			GetProjectNumberForRegion = _getProjectNumberForRegion
+			authGetSignedJwtToken = auth.GetSignedJwtToken
+			googleProxyInternalGetMultipleReplications = _googleProxyInternalGetMultipleReplications
+			getActiveReplicationJobs = _getActiveReplicationJobs
+		}()
+
+		// Create multiple replications that belong to the same project
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        1,
+					UUID:      "uuid-1",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				},
+				Name: "replication-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "us-e4",
+					DestinationReplicationUUID: "replication-uuid-1",
+				},
+				Uri:       "projects/45110233509/locations/us-east4/volumes/gosrcvolume1/replications/replication-name-1",
+				RemoteUri: "projects/45110233509/locations/australia-southeast1/volumes/gosrcvolume1/replications/replication-name-1",
+			},
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        2,
+					UUID:      "uuid-2",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				},
+				Name: "replication-2",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "us-e4",
+					DestinationReplicationUUID: "replication-uuid-2",
+				},
+				Uri:       "projects/45110233509/locations/us-east4/volumes/gosrcvolume1/replications/replication-name-2",
+				RemoteUri: "projects/45110233509/locations/australia-southeast1/volumes/gosrcvolume1/replications/replication-name-2",
+			},
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        3,
+					UUID:      "uuid-3",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				},
+				Name: "replication-3",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "us-e4",
+					DestinationReplicationUUID: "replication-uuid-3",
+				},
+				Uri:       "projects/45110233509/locations/us-east4/volumes/gosrcvolume1/replications/replication-name-3",
+				RemoteUri: "projects/45110233509/locations/australia-southeast1/volumes/gosrcvolume1/replications/replication-name-3",
+			},
+		}
+
+		utilsGetPairedRegionUri = func(locationId string) (string, error) {
+			return "paired.region.uri", nil
+		}
+
+		// All replications belong to the same project
+		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
+			return "45110233509", nil
+		}
+
+		// Token should only be requested once for the same project
+		tokenCallCount := 0
+		authGetSignedJwtToken = func(projectNumber string) (string, error) {
+			tokenCallCount++
+			assert.Equal(tt, "45110233509", projectNumber)
+			return "signed-jwt-token", nil
+		}
+
+		// Verify that all replication UUIDs are passed together in a single call
+		var capturedReplicationUUIDs []string
+		googleProxyInternalGetMultipleReplications = func(ctx context.Context, basePath, projectNumber, location, token string, body googleproxyclient.ReplicationIDListV1beta, logger log.Logger, paramz commonparams.GetMultipleReplicationsParams) ([]googleproxyclient.VolumeReplicationInternalV1beta, error) {
+			capturedReplicationUUIDs = body.ReplicationUUIDs
+			assert.Equal(tt, "45110233509", projectNumber)
+			assert.Equal(tt, "signed-jwt-token", token)
+			// Return all three replications
+			return []googleproxyclient.VolumeReplicationInternalV1beta{
+				{
+					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+					Name:                  googleproxyclient.NewOptString("replication-1"),
+					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(models.LifeCycleStateREADY),
+					LifeCycleStateDetails: googleproxyclient.NewOptString(models.LifeCycleStateAvailableDetails),
+				},
+				{
+					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-2"),
+					Name:                  googleproxyclient.NewOptString("replication-2"),
+					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(models.LifeCycleStateREADY),
+					LifeCycleStateDetails: googleproxyclient.NewOptString(models.LifeCycleStateAvailableDetails),
+				},
+				{
+					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-3"),
+					Name:                  googleproxyclient.NewOptString("replication-3"),
+					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(models.LifeCycleStateREADY),
+					LifeCycleStateDetails: googleproxyclient.NewOptString(models.LifeCycleStateAvailableDetails),
+				},
+			}, nil
+		}
+
+		getActiveReplicationJobs = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string) ([]googleproxyclient.InternalJobV1beta, error) {
+			return nil, nil
+		}
+
+		replicationsMap := make(map[string][]*datamodel.VolumeReplication)
+		replicationsMap["us-e4"] = replications
+
+		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
+		assert.Nil(tt, err)
+		assert.Len(tt, res, 3)
+		// Verify that token was only requested once (for the same project)
+		assert.Equal(tt, 1, tokenCallCount)
+		// Verify that all three replication UUIDs were passed together
+		assert.Len(tt, capturedReplicationUUIDs, 3)
+		assert.Contains(tt, capturedReplicationUUIDs, "replication-uuid-1")
+		assert.Contains(tt, capturedReplicationUUIDs, "replication-uuid-2")
+		assert.Contains(tt, capturedReplicationUUIDs, "replication-uuid-3")
 	})
 }
 

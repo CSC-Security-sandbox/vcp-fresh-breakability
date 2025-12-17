@@ -784,9 +784,13 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 	}
 
 	// Check if replication exists in the database
-	filter := utils2.CreateFilterWithConditions(
+	filterConditions := []*utils2.FilterCondition{
 		utils2.NewFilterCondition("account_id", "=", account.ID),
-		utils2.NewFilterCondition("uri", "in", params.ReplicationURIs))
+	}
+	if len(params.ReplicationURIs) > 0 {
+		filterConditions = append(filterConditions, utils2.NewFilterCondition("uri", "in", params.ReplicationURIs))
+	}
+	filter := utils2.CreateFilterWithConditions(filterConditions...)
 	replications, err := se.ListVolumeReplications(ctx, *filter, database.QueryDepthOne)
 	if err != nil {
 		logger.Errorf("Failed to list replications for account %s: %v", params.AccountName, err)
@@ -968,7 +972,8 @@ func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string
 				replicationsForProjects[projectNumber] = ReplicationsForProject{token: token, replicationUUIDs: []string{replicationUUID}}
 			} else {
 				// Project already exists in the map so we don't need to get a new token and just append to the UUID list.
-				found.replicationUUIDs = append(replicationsForProjects[projectNumber].replicationUUIDs, replicationUUID)
+				found.replicationUUIDs = append(found.replicationUUIDs, replicationUUID)
+				replicationsForProjects[projectNumber] = found
 			}
 		}
 
