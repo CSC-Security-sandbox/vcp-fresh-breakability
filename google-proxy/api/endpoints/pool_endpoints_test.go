@@ -2423,7 +2423,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			CustomPerformanceEnabled: gcpgenserver.NewOptBool(true),
 			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(64),
 			Network:                  "test-network",
-			Mode:                     gcpgenserver.NewOptPoolV1betaMode("DEFAULT"),
+			Mode:                     gcpgenserver.NewOptPoolV1betaMode(gcpgenserver.PoolV1betaModeDEFAULT),
 		}
 
 		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone

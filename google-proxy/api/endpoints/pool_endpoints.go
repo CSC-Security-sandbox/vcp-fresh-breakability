@@ -171,7 +171,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		LargeCapacity:           req.LargeCapacity.Value,
 	}
 
-	if string(req.Mode.Value) == string(gcpgenserver.PoolV1betaModeMODEUNSPECIFIED) || string(req.Mode.Value) == string(gcpgenserver.PoolInternalV1betaModeDEFAULT) {
+	if string(req.Mode.Value) == string(gcpgenserver.PoolV1betaModeMODEUNSPECIFIED) || string(req.Mode.Value) == string(gcpgenserver.PoolV1betaModeDEFAULT) {
 		createPoolParams.Mode = workflows.GCNVMode
 	} else {
 		createPoolParams.Mode = workflows.ONTAPMode
