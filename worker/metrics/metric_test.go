@@ -25,11 +25,13 @@ func getTestVolumes() []*datamodel.Volume {
 func getExpectedKeys(metric string) []string {
 	switch metric {
 	case "autotier":
-		return []string{"volume1_active_123_account1", "volume2_inactive_456_account2"}
+		return []string{"volume1_active_account1", "volume2_inactive_account2"}
 	case "crr":
-		return []string{"volume1_active_123_account1", "volume3_active_789_"}
+		return []string{"volume1_active_account1", "volume3_active_"}
 	case "largevolume":
-		return []string{"volume1_active_123_account1", "volume2_inactive_456_account2", "volume3_active_789_"}
+		return []string{"volume1_active_account1", "volume2_inactive_account2", "volume3_active_"}
+	case "cbs":
+		return []string{}
 	case "eligibility":
 		return []string{"volE_READY", "volF_READY"}
 	default:
@@ -84,8 +86,7 @@ func TestEmitAutoTierEnabledMetric(t *testing.T) {
 					expected := map[string]string{
 						"name":         expectedLabelValues[0],
 						"state":        expectedLabelValues[1],
-						"account_id":   expectedLabelValues[2],
-						"account_name": expectedLabelValues[3],
+						"account_name": expectedLabelValues[2],
 					}
 					if metricHasLabels(m.Label, expected) {
 						found = true
@@ -118,8 +119,7 @@ func TestEmitCRREnabledMetric(t *testing.T) {
 					expected := map[string]string{
 						"name":         expectedLabelValues[0],
 						"state":        expectedLabelValues[1],
-						"account_id":   expectedLabelValues[2],
-						"account_name": expectedLabelValues[3],
+						"account_name": expectedLabelValues[2],
 					}
 					if metricHasLabels(m.Label, expected) {
 						found = true
@@ -152,8 +152,7 @@ func TestEmitLargeVolumeEnabledMetric(t *testing.T) {
 					expected := map[string]string{
 						"name":         expectedLabelValues[0],
 						"state":        expectedLabelValues[1],
-						"account_id":   expectedLabelValues[2],
-						"account_name": expectedLabelValues[3],
+						"account_name": expectedLabelValues[2],
 					}
 					if metricHasLabels(m.Label, expected) {
 						found = true
@@ -219,8 +218,7 @@ func TestEmitCBSEnabledMetric(t *testing.T) {
 					expected := map[string]string{
 						"name":         expectedLabelValues[0],
 						"state":        expectedLabelValues[1],
-						"account_id":   expectedLabelValues[2],
-						"account_name": expectedLabelValues[3],
+						"account_name": expectedLabelValues[2],
 					}
 					if metricHasLabels(m.Label, expected) {
 						found = true

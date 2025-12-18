@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -37,7 +36,7 @@ var autoTierEnabledGauge = prometheus.NewGaugeVec(
 		Name: "gcnv_vsa_autotier_volume",
 		Help: "Total number of volumes with autotier enabled",
 	},
-	[]string{"name", "state", "account_id", "account_name"},
+	[]string{"name", "state", "account_name"},
 )
 
 // Gauge for large volume enabled
@@ -46,7 +45,7 @@ var largeVolumeEnabledGauge = prometheus.NewGaugeVec(
 		Name: "gcnv_vsa_large_volume",
 		Help: "Total number of volumes with large volume enabled",
 	},
-	[]string{"name", "state", "account_id", "account_name"},
+	[]string{"name", "state", "account_name"},
 )
 
 // Gauge for CBS enabled
@@ -55,7 +54,7 @@ var cbsEnabledGauge = prometheus.NewGaugeVec(
 		Name: "gcnv_vsa_cbs_volume",
 		Help: "Total number of volumes with CBS enabled",
 	},
-	[]string{"name", "state", "account_id", "account_name"},
+	[]string{"name", "state", "account_name"},
 )
 
 // Gauge for CRR enabled
@@ -64,7 +63,7 @@ var crrEnabledGauge = prometheus.NewGaugeVec(
 		Name: "gcnv_vsa_crr_volume",
 		Help: "Total number of volumes with CRR enabled",
 	},
-	[]string{"name", "state", "account_id", "account_name"},
+	[]string{"name", "state", "account_name"},
 )
 
 // Gauge for eligibility string volumes
@@ -181,7 +180,6 @@ func EmitAutoTierEnabledMetric(volumes []*datamodel.Volume) {
 	type autoTierKey struct {
 		Name        string
 		State       string
-		AccountID   int64
 		AccountName string
 	}
 	counts := make(map[autoTierKey]int)
@@ -194,7 +192,6 @@ func EmitAutoTierEnabledMetric(volumes []*datamodel.Volume) {
 			key := autoTierKey{
 				Name:        v.Name,
 				State:       v.State,
-				AccountID:   v.AccountID,
 				AccountName: accountName,
 			}
 			counts[key]++
@@ -204,7 +201,6 @@ func EmitAutoTierEnabledMetric(volumes []*datamodel.Volume) {
 		autoTierEnabledGauge.WithLabelValues(
 			key.Name,
 			key.State,
-			fmt.Sprintf("%d", key.AccountID),
 			key.AccountName,
 		).Set(float64(count))
 	}
@@ -217,7 +213,6 @@ func EmitCRREnabledMetric(volumes []*datamodel.Volume) {
 	type crrKey struct {
 		Name        string
 		State       string
-		AccountID   int64
 		AccountName string
 	}
 	counts := make(map[crrKey]int)
@@ -230,7 +225,6 @@ func EmitCRREnabledMetric(volumes []*datamodel.Volume) {
 			key := crrKey{
 				Name:        v.Name,
 				State:       v.State,
-				AccountID:   v.AccountID,
 				AccountName: accountName,
 			}
 			counts[key]++
@@ -240,7 +234,6 @@ func EmitCRREnabledMetric(volumes []*datamodel.Volume) {
 		crrEnabledGauge.WithLabelValues(
 			key.Name,
 			key.State,
-			fmt.Sprintf("%d", key.AccountID),
 			key.AccountName,
 		).Set(float64(count))
 	}
@@ -253,7 +246,6 @@ func EmitLargeVolumeEnabledMetric(volumes []*datamodel.Volume) {
 	type largeVolumeKey struct {
 		Name        string
 		State       string
-		AccountID   int64
 		AccountName string
 	}
 	counts := make(map[largeVolumeKey]int)
@@ -266,7 +258,6 @@ func EmitLargeVolumeEnabledMetric(volumes []*datamodel.Volume) {
 			key := largeVolumeKey{
 				Name:        v.Name,
 				State:       v.State,
-				AccountID:   v.AccountID,
 				AccountName: accountName,
 			}
 			counts[key]++
@@ -276,7 +267,6 @@ func EmitLargeVolumeEnabledMetric(volumes []*datamodel.Volume) {
 		largeVolumeEnabledGauge.WithLabelValues(
 			key.Name,
 			key.State,
-			fmt.Sprintf("%d", key.AccountID),
 			key.AccountName,
 		).Set(float64(count))
 	}
@@ -289,7 +279,6 @@ func EmitCBSEnabledMetric(volumes []*datamodel.Volume) {
 	type cbsKey struct {
 		Name        string
 		State       string
-		AccountID   int64
 		AccountName string
 	}
 	counts := make(map[cbsKey]int)
@@ -302,7 +291,6 @@ func EmitCBSEnabledMetric(volumes []*datamodel.Volume) {
 			key := cbsKey{
 				Name:        v.Name,
 				State:       v.State,
-				AccountID:   v.AccountID,
 				AccountName: accountName,
 			}
 			counts[key]++
@@ -312,7 +300,6 @@ func EmitCBSEnabledMetric(volumes []*datamodel.Volume) {
 		cbsEnabledGauge.WithLabelValues(
 			key.Name,
 			key.State,
-			fmt.Sprintf("%d", key.AccountID),
 			key.AccountName,
 		).Set(float64(count))
 	}
