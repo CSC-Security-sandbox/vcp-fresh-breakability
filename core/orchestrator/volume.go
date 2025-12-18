@@ -2483,6 +2483,13 @@ func checkAndTriggerPoolScalingIfNeeded(ctx context.Context, se database.Storage
 		TotalIops:            &pool.PoolAttributes.Iops,
 		Description:          pool.Description,
 		Labels:               pool.PoolAttributes.Labels,
+		AllowAutoTiering:     pool.AllowAutoTiering,
+		LargeCapacity:        &pool.LargeCapacity,
+	}
+
+	if pool.AllowAutoTiering && pool.AutoTieringConfig != nil {
+		updateParams.HotTierSizeInBytes = uint64(pool.AutoTieringConfig.HotTierSizeInBytes)
+		updateParams.EnableHotTierAutoResize = pool.AutoTieringConfig.EnableHotTierAutoResize
 	}
 
 	poolCategory := models.GetPoolCategory(pool.LargeCapacity)

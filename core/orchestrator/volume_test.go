@@ -20932,6 +20932,228 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
 	})
+
+	t.Run("WhenAutoTieringEnabledWithConfig", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		hotTierSizeInBytes := uint64(1099511627776) // 1 TiB
+		enableHotTierAutoResize := true
+
+		pool := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			Name:             "test-pool",
+			State:            models.LifeCycleStateREADY,
+			Account:          &datamodel.Account{Name: "test-account"},
+			AccountID:        1,
+			SizeInBytes:      1000000000000, // 1TB
+			Description:      "test pool",
+			LargeCapacity:    false,
+			AllowAutoTiering: true,
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				HotTierSizeInBytes:      int64(hotTierSizeInBytes),
+				EnableHotTierAutoResize: enableHotTierAutoResize,
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 256,
+				Iops:            1024,
+				Labels:          nil,
+			},
+		}
+
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+
+		// Mock GetVolumeCountByPoolID to succeed
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(10), nil)
+
+		// Mock CreateJob to succeed
+		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.Type == string(models.JobTypeUpdatePool) &&
+				job.State == string(models.JobsStateNEW) &&
+				job.ResourceName == pool.UUID &&
+				job.AccountID.Int64 == pool.AccountID &&
+				job.AccountID.Valid
+		})).Return(createdJob, nil)
+
+		// Mock UpdatePoolState to succeed
+		mockStorage.On("UpdatePoolState", ctx, pool, "UPDATING", "Update in progress").Return(pool, nil)
+
+		// Mock ExecuteWorkflow to succeed - verify AutoTiering fields are set
+		mockTemporal.EXPECT().ExecuteWorkflow(ctx,
+			mock.AnythingOfType("internal.StartWorkflowOptions"),
+			mock.AnythingOfType("func(internal.Context, *common.UpdatePoolParams, *datamodel.Pool, *common.AutoPoolScalingParams) (gcpserver.V1betaDescribePoolRes, error)"),
+			mock.MatchedBy(func(updateParams *common.UpdatePoolParams) bool {
+				return updateParams.PoolId == pool.UUID &&
+					updateParams.AccountName == pool.Account.Name &&
+					updateParams.SizeInBytes == uint64(pool.SizeInBytes) &&
+					updateParams.TotalThroughputMibps == pool.PoolAttributes.ThroughputMibps &&
+					*updateParams.TotalIops == pool.PoolAttributes.Iops &&
+					updateParams.Description == pool.Description &&
+					updateParams.AllowAutoTiering == true &&
+					updateParams.HotTierSizeInBytes == hotTierSizeInBytes &&
+					updateParams.EnableHotTierAutoResize == enableHotTierAutoResize
+			}),
+			pool,
+			mock.MatchedBy(func(autoScalingParams *common.AutoPoolScalingParams) bool {
+				return autoScalingParams.CurrentVolumeCount == 10 &&
+					len(autoScalingParams.VolLimitPerInstanceMap) > 0
+			}),
+		).Return(nil, nil)
+
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("WhenAutoTieringEnabledButConfigIsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		pool := &datamodel.Pool{
+			BaseModel:         datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			Name:              "test-pool",
+			State:             models.LifeCycleStateREADY,
+			Account:           &datamodel.Account{Name: "test-account"},
+			AccountID:         1,
+			SizeInBytes:       1000000000000, // 1TB
+			Description:       "test pool",
+			LargeCapacity:     false,
+			AllowAutoTiering:  true,
+			AutoTieringConfig: nil, // Config is nil
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 256,
+				Iops:            1024,
+				Labels:          nil,
+			},
+		}
+
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+
+		// Mock GetVolumeCountByPoolID to succeed
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(10), nil)
+
+		// Mock CreateJob to succeed
+		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.Type == string(models.JobTypeUpdatePool) &&
+				job.State == string(models.JobsStateNEW) &&
+				job.ResourceName == pool.UUID &&
+				job.AccountID.Int64 == pool.AccountID &&
+				job.AccountID.Valid
+		})).Return(createdJob, nil)
+
+		// Mock UpdatePoolState to succeed
+		mockStorage.On("UpdatePoolState", ctx, pool, "UPDATING", "Update in progress").Return(pool, nil)
+
+		// Mock ExecuteWorkflow to succeed - verify AutoTiering fields are NOT set when config is nil
+		mockTemporal.EXPECT().ExecuteWorkflow(ctx,
+			mock.AnythingOfType("internal.StartWorkflowOptions"),
+			mock.AnythingOfType("func(internal.Context, *common.UpdatePoolParams, *datamodel.Pool, *common.AutoPoolScalingParams) (gcpserver.V1betaDescribePoolRes, error)"),
+			mock.MatchedBy(func(updateParams *common.UpdatePoolParams) bool {
+				return updateParams.PoolId == pool.UUID &&
+					updateParams.AccountName == pool.Account.Name &&
+					updateParams.SizeInBytes == uint64(pool.SizeInBytes) &&
+					updateParams.TotalThroughputMibps == pool.PoolAttributes.ThroughputMibps &&
+					*updateParams.TotalIops == pool.PoolAttributes.Iops &&
+					updateParams.Description == pool.Description &&
+					updateParams.AllowAutoTiering == true &&
+					updateParams.HotTierSizeInBytes == 0 && // Should be 0 when config is nil
+					updateParams.EnableHotTierAutoResize == false // Should be false when config is nil
+			}),
+			pool,
+			mock.MatchedBy(func(autoScalingParams *common.AutoPoolScalingParams) bool {
+				return autoScalingParams.CurrentVolumeCount == 10 &&
+					len(autoScalingParams.VolLimitPerInstanceMap) > 0
+			}),
+		).Return(nil, nil)
+
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("WhenAutoTieringDisabled", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		pool := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			Name:             "test-pool",
+			State:            models.LifeCycleStateREADY,
+			Account:          &datamodel.Account{Name: "test-account"},
+			AccountID:        1,
+			SizeInBytes:      1000000000000, // 1TB
+			Description:      "test pool",
+			LargeCapacity:    false,
+			AllowAutoTiering: false, // AutoTiering disabled
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				HotTierSizeInBytes:      1099511627776,
+				EnableHotTierAutoResize: true,
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 256,
+				Iops:            1024,
+				Labels:          nil,
+			},
+		}
+
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+
+		// Mock GetVolumeCountByPoolID to succeed
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(10), nil)
+
+		// Mock CreateJob to succeed
+		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.Type == string(models.JobTypeUpdatePool) &&
+				job.State == string(models.JobsStateNEW) &&
+				job.ResourceName == pool.UUID &&
+				job.AccountID.Int64 == pool.AccountID &&
+				job.AccountID.Valid
+		})).Return(createdJob, nil)
+
+		// Mock UpdatePoolState to succeed
+		mockStorage.On("UpdatePoolState", ctx, pool, "UPDATING", "Update in progress").Return(pool, nil)
+
+		// Mock ExecuteWorkflow to succeed - verify AutoTiering fields are NOT set when AllowAutoTiering is false
+		mockTemporal.EXPECT().ExecuteWorkflow(ctx,
+			mock.AnythingOfType("internal.StartWorkflowOptions"),
+			mock.AnythingOfType("func(internal.Context, *common.UpdatePoolParams, *datamodel.Pool, *common.AutoPoolScalingParams) (gcpserver.V1betaDescribePoolRes, error)"),
+			mock.MatchedBy(func(updateParams *common.UpdatePoolParams) bool {
+				return updateParams.PoolId == pool.UUID &&
+					updateParams.AccountName == pool.Account.Name &&
+					updateParams.SizeInBytes == uint64(pool.SizeInBytes) &&
+					updateParams.TotalThroughputMibps == pool.PoolAttributes.ThroughputMibps &&
+					*updateParams.TotalIops == pool.PoolAttributes.Iops &&
+					updateParams.Description == pool.Description &&
+					updateParams.AllowAutoTiering == false &&
+					updateParams.HotTierSizeInBytes == 0 && // Should be 0 when AllowAutoTiering is false
+					updateParams.EnableHotTierAutoResize == false // Should be false when AllowAutoTiering is false
+			}),
+			pool,
+			mock.MatchedBy(func(autoScalingParams *common.AutoPoolScalingParams) bool {
+				return autoScalingParams.CurrentVolumeCount == 10 &&
+					len(autoScalingParams.VolLimitPerInstanceMap) > 0
+			}),
+		).Return(nil, nil)
+
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
 }
 
 func Test_createVolume_BackupRestoreCompatibilityError(t *testing.T) {
