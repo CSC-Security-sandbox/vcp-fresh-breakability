@@ -22,15 +22,15 @@ type HydratedMetrics struct {
 
 type AggregatedUsage struct {
 	ID                     int64                 `gorm:"primaryKey;autoIncrement" json:"id"`
-	ResourceUUID           string                `gorm:"column:resource_uuid;size:255;not null;index;uniqueIndex:idx_aggregated_usage_unique" json:"resource_uuid"`
+	ResourceUUID           string                `gorm:"column:resource_uuid;size:255;not null;index" json:"resource_uuid"`
 	AccountID              string                `gorm:"column:account_id;size:255;not null;index" json:"account_id"`
 	VendorCustomerID       *string               `gorm:"column:vendor_customer_id;size:255;not null;index" json:"vendor_customer_id"`
-	AggregationEnd         time.Time             `gorm:"column:aggregation_end;not null;index;uniqueIndex:idx_aggregated_usage_unique" json:"aggregation_end"`
-	AggregationStart       time.Time             `gorm:"column:aggregation_start;not null;index;uniqueIndex:idx_aggregated_usage_unique" json:"aggregation_start"`
-	MeasuredType           metadata.MeasuredType `gorm:"column:measured_type;not null;index;uniqueIndex:idx_aggregated_usage_unique" json:"measured_type"`
+	AggregationEnd         time.Time             `gorm:"column:aggregation_end;not null;index" json:"aggregation_end"`
+	AggregationStart       time.Time             `gorm:"column:aggregation_start;not null;index" json:"aggregation_start"`
+	MeasuredType           metadata.MeasuredType `gorm:"column:measured_type;not null;index" json:"measured_type"`
 	Quantity               float64               `gorm:"column:quantity;not null" json:"quantity"`
 	ResourceName           *string               `gorm:"column:resource_name;size:255;index" json:"resource_name"`
-	ResourceType           metadata.ResourceType `gorm:"column:resource_type;not null;index;uniqueIndex:idx_aggregated_usage_unique" json:"resource_type"`
+	ResourceType           metadata.ResourceType `gorm:"column:resource_type;not null;index" json:"resource_type"`
 	AggregationType        string                `gorm:"column:aggregation_type;size:100;not null" json:"aggregation_type"`
 	LastCounterValue       *float64              `gorm:"column:last_counter_value" json:"last_counter_value"`
 	RegionName             *string               `gorm:"column:region_name;size:255;index" json:"region_name"`

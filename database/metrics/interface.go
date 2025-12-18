@@ -9,7 +9,6 @@ import (
 	gormWrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type DataStoreRepository struct {
@@ -102,9 +101,7 @@ func (r *DataStoreRepository) CreateAggregatedUsageBatch(ctx context.Context, us
 		return nil
 	}
 
-	// Use ON CONFLICT DO NOTHING to prevent duplicate entries based on the unique constraint
-	// This ensures that if the same aggregated usage record is not processed multiple times,
-	return r.db.GORM().WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(usages, batchSize).Error
+	return r.db.GORM().WithContext(ctx).CreateInBatches(usages, batchSize).Error
 }
 
 func (r *DataStoreRepository) GetAggregatedUsage(ctx context.Context, filter map[string]interface{}) ([]datamodel.AggregatedUsage, error) {
