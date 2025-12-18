@@ -2511,6 +2511,9 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 			RegionalTenantProject: "test-regional-project",
 			SnHostProject:         "test-host-project",
 		},
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
+		},
 		SizeInBytes: 456,
 		PoolAttributes: &datamodel.PoolAttributes{
 			PrimaryZone:     "test-primary-zone",
@@ -2987,6 +2990,9 @@ func TestUpdatePoolWorkflowWithHydrationSuccess(t *testing.T) {
 			RegionalTenantProject: "test-regional-project",
 			SnHostProject:         "test-host-project",
 		},
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
+		},
 		SizeInBytes: 456,
 		PoolAttributes: &datamodel.PoolAttributes{
 			PrimaryZone:     "test-primary-zone",
@@ -3214,6 +3220,9 @@ func TestDeletePoolWorkflow(t *testing.T) {
 		ClusterDetails: datamodel.ClusterDetails{
 			RegionalTenantProject: "test-tenant",
 		},
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
+		},
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
@@ -3378,6 +3387,9 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabled(t *testing.T) {
 		ClusterDetails: datamodel.ClusterDetails{
 			RegionalTenantProject: "test-tenant",
 		},
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
+		},
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
@@ -3472,6 +3484,9 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabledPoolAvailable(t *testing.T) {
 		ServiceAccountId: "test-service-account",
 		ClusterDetails: datamodel.ClusterDetails{
 			RegionalTenantProject: "test-tenant",
+		},
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
 		},
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
@@ -3568,6 +3583,9 @@ func TestDeletePoolWorkflowWhenVSACleanupDisabledAndStateError(t *testing.T) {
 		ServiceAccountId: "test-service-account",
 		ClusterDetails: datamodel.ClusterDetails{
 			RegionalTenantProject: "test-tenant",
+		},
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
 		},
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
@@ -3666,6 +3684,9 @@ func TestDeletePoolWorkflowWhenUnRegisterNodesFromHarvestFails(t *testing.T) {
 		ClusterDetails: datamodel.ClusterDetails{
 			RegionalTenantProject: "test-tenant",
 		},
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
+		},
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
@@ -3754,6 +3775,9 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 		ServiceAccountId: "test-service-account",
 		ClusterDetails: datamodel.ClusterDetails{
 			RegionalTenantProject: "test-tenant",
+		},
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
 		},
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
@@ -3863,6 +3887,9 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 			RegionalTenantProject: "test-tenant",
 			OntapVersion:          "",
 		},
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "",
+		},
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
@@ -3919,6 +3946,9 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 		ClusterDetails: datamodel.ClusterDetails{
 			RegionalTenantProject: "test-tenant",
 			OntapVersion:          "9.13.1P2",
+		},
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.13.1P2",
 		},
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
@@ -9988,6 +10018,9 @@ func TestServiceAccountBackwardCompatibility(t *testing.T) {
 				ClusterDetails: datamodel.ClusterDetails{
 					RegionalTenantProject: "test-tenant",
 				},
+				BuildInfo: &datamodel.PoolBuildInfo{
+					OntapVersion: "9.18.1",
+				},
 				PoolCredentials: &datamodel.PoolCredentials{
 					Password: "test-password",
 					SecretID: "",
@@ -10009,6 +10042,9 @@ func TestServiceAccountBackwardCompatibility(t *testing.T) {
 				},
 				ClusterDetails: datamodel.ClusterDetails{
 					RegionalTenantProject: "test-tenant",
+				},
+				BuildInfo: &datamodel.PoolBuildInfo{
+					OntapVersion: "9.18.1",
 				},
 				PoolCredentials: &datamodel.PoolCredentials{
 					Password: "test-password",

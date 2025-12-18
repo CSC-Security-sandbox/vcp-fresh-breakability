@@ -21,9 +21,10 @@ import (
 var NewVSAClientWorkflowManager = _newVSAClientWorkflowManager
 
 var (
-	VSALifecycleManagerQueuePrefix    = env.GetString("VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX", "vsa-lifecycle-manager")
-	OntapVersion                      = env.GetString("ONTAP_VERSION_DETAILS", "9.18.1RC1")
-	VSALifecycleManagerQueue          = fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, OntapVersion)
+	VSALifecycleManagerQueuePrefix = env.GetString("VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX", "vsa-lifecycle-manager")
+	// ExtractedOntapVersion is to be used for determining vlm task queue version
+	ExtractedOntapVersion             = utils.ExtractOntapVersion(env.GetString("ONTAP_VERSION_DETAILS", "9.18.1RC1"))
+	VSALifecycleManagerQueue          = fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, ExtractedOntapVersion)
 	IsIntegrationTest                 = env.GetBool("INTEGRATION_TEST", false)
 	VlmWorkflowStartToCloseTimeout    = env.GetString("VLMWORKFLOW_START_TO_CLOSE_WORKFLOW_TIMEOUT", "20m")
 	VlmWorkflowRetryInterval          = env.GetString("VLMWORKFLOW_RETRY_INTERVAL", "1m")
@@ -93,7 +94,7 @@ func _newVSAClientWorkflowManager() VlmWorkflowClient {
 
 // GetVLMWorkerQueue returns the VLM worker queue name based on the account and ONTAP version
 func GetVLMWorkerQueue() string {
-	ontapVersion := OntapVersion
+	ontapVersion := ExtractedOntapVersion
 	return fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, ontapVersion)
 }
 func (vlmManager *VSAClientWorkflowManager) CreateVSAExpertModeUser(ctx workflow.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig) (OntapExpertModeUserResponse, error) {
@@ -212,7 +213,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 					CloudProvider: VLMCloudProvider,
 				}
 
-				ontapVersion := OntapVersion
+				ontapVersion := ExtractedOntapVersion
 
 				deleteErr := vlmManager.DeleteVSAClusterDeployment(ctx, deleteRequest, ontapVersion)
 				if deleteErr == nil {
@@ -436,7 +437,7 @@ func (vlmManager *VSAClientWorkflowManager) UpgradeVSAClusterDeploymentWorkflow(
 		workflowExecutionTimeout = timeout
 	}
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
-		TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + OntapVersion,
+		TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + ExtractedOntapVersion,
 		WaitForCancellation:   true,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
 		RetryPolicy: &temporal.RetryPolicy{
@@ -487,7 +488,7 @@ func (vlmManager *VSAClientWorkflowManager) UpgradeVSAMediatorWorkflow(ctx workf
 		workflowExecutionTimeout = timeout
 	}
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
-		TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + OntapVersion,
+		TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + ExtractedOntapVersion,
 		WaitForCancellation:   true,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
 		RetryPolicy: &temporal.RetryPolicy{

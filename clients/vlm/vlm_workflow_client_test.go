@@ -99,7 +99,7 @@ func TestWorkflowContextHandling(t *testing.T) {
 		workflowExecutionTimeout := time.Hour
 
 		options := workflow.ChildWorkflowOptions{
-			TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + OntapVersion,
+			TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + ExtractedOntapVersion,
 			WaitForCancellation:   true,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
 			RetryPolicy: &temporal.RetryPolicy{
@@ -112,7 +112,7 @@ func TestWorkflowContextHandling(t *testing.T) {
 		}
 
 		assert.NotNil(t, options)
-		assert.Equal(t, VSALifecycleManagerQueuePrefix+"-"+OntapVersion, options.TaskQueue)
+		assert.Equal(t, VSALifecycleManagerQueuePrefix+"-"+ExtractedOntapVersion, options.TaskQueue)
 		assert.True(t, options.WaitForCancellation)
 		assert.Equal(t, enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY, options.WorkflowIDReusePolicy)
 		assert.NotNil(t, options.RetryPolicy)
@@ -766,7 +766,7 @@ func TestUpgradeVSAClusterDeploymentWorkflow_LineCoverage(t *testing.T) {
 		workflowExecutionTimeout := time.Hour
 
 		options := workflow.ChildWorkflowOptions{
-			TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + OntapVersion,
+			TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + ExtractedOntapVersion,
 			WaitForCancellation:   true,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
 			RetryPolicy: &temporal.RetryPolicy{
@@ -779,7 +779,7 @@ func TestUpgradeVSAClusterDeploymentWorkflow_LineCoverage(t *testing.T) {
 		}
 
 		assert.NotNil(t, options)
-		assert.Equal(t, VSALifecycleManagerQueuePrefix+"-"+OntapVersion, options.TaskQueue)
+		assert.Equal(t, VSALifecycleManagerQueuePrefix+"-"+ExtractedOntapVersion, options.TaskQueue)
 		assert.True(t, options.WaitForCancellation)
 		assert.Equal(t, enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY, options.WorkflowIDReusePolicy)
 		assert.NotNil(t, options.RetryPolicy)
@@ -875,7 +875,7 @@ func TestUpgradeVSAMediatorWorkflow_LineCoverage(t *testing.T) {
 		workflowExecutionTimeout := time.Hour
 
 		options := workflow.ChildWorkflowOptions{
-			TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + OntapVersion,
+			TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + ExtractedOntapVersion,
 			WaitForCancellation:   true,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
 			RetryPolicy: &temporal.RetryPolicy{
@@ -888,7 +888,7 @@ func TestUpgradeVSAMediatorWorkflow_LineCoverage(t *testing.T) {
 		}
 
 		assert.NotNil(t, options)
-		assert.Equal(t, VSALifecycleManagerQueuePrefix+"-"+OntapVersion, options.TaskQueue)
+		assert.Equal(t, VSALifecycleManagerQueuePrefix+"-"+ExtractedOntapVersion, options.TaskQueue)
 		assert.True(t, options.WaitForCancellation)
 		assert.Equal(t, enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY, options.WorkflowIDReusePolicy)
 		assert.NotNil(t, options.RetryPolicy)
@@ -1382,7 +1382,7 @@ func TestGetVLMWorkerQueue(t *testing.T) {
 	t.Run("DefaultOntapVersion", func(t *testing.T) {
 		queue := GetVLMWorkerQueue()
 
-		expectedQueue := fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, OntapVersion)
+		expectedQueue := fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, ExtractedOntapVersion)
 		assert.Equal(t, expectedQueue, queue)
 		assert.Contains(t, queue, VSALifecycleManagerQueuePrefix)
 	})
@@ -2031,6 +2031,156 @@ func TestClusterPowerOp(t *testing.T) {
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NotNil(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
+	})
+}
+
+// TestCreateVSAClusterDeployment_RetryErrorPattern tests the retry error pattern logic
+func TestCreateVSAClusterDeployment_RetryErrorPattern(t *testing.T) {
+	t.Run("WithRetryErrorPattern", func(t *testing.T) {
+		// Test that covers line 216: ontapVersion := ExtractedOntapVersion
+
+		// Save original retry error patterns
+		originalRetryErrorPatterns := RetryErrorPatterns
+		defer func() {
+			RetryErrorPatterns = originalRetryErrorPatterns
+		}()
+
+		// Set up retry error patterns to trigger the retry logic
+		RetryErrorPatterns = []string{"test error pattern"}
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+			"requestCorrelationID": "test-correlation-id",
+		})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		// Create test request
+		request := &CreateVSAClusterDeploymentRequest{
+			VLMConfig: VLMConfig{
+				Deployment: DeploymentConfig{
+					DeploymentID: "test-deployment",
+					GCPConfig: GCPConfig{
+						ProjectID: "test-project",
+					},
+					Labels: map[string]string{
+						"account_id": "test-account",
+					},
+				},
+			},
+		}
+
+		customTaskQueue := "test-queue"
+
+		// Register child workflow that fails with retry error pattern
+		callCount := 0
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context, req *CreateVSAClusterDeploymentRequest) (*CreateVSAClusterDeploymentResponse, error) {
+				callCount++
+				if callCount == 1 {
+					// First call fails with retry error pattern
+					return nil, errors.New("test error pattern in workflow")
+				}
+				// Subsequent calls succeed
+				return &CreateVSAClusterDeploymentResponse{
+					VLMConfig: req.VLMConfig,
+				}, nil
+			},
+			workflow.RegisterOptions{Name: CreateVSAClusterDeploymentWorkflowName},
+		)
+
+		// Register delete workflow
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context, req *DeleteVSAClusterDeploymentRequest) error {
+				return nil
+			},
+			workflow.RegisterOptions{Name: DeleteVSAClusterDeploymentWorkflowName},
+		)
+
+		vlmManager := &VSAClientWorkflowManager{}
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) (*CreateVSAClusterDeploymentResponse, error) {
+			return vlmManager.CreateVSAClusterDeployment(ctx, request, customTaskQueue)
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		// The workflow should succeed after retry
+		assert.NoError(t, env.GetWorkflowError())
+	})
+
+	t.Run("WithRetryErrorPattern_DeleteFails", func(t *testing.T) {
+		// Test the case where delete fails during retry
+
+		// Save original retry error patterns
+		originalRetryErrorPatterns := RetryErrorPatterns
+		defer func() {
+			RetryErrorPatterns = originalRetryErrorPatterns
+		}()
+
+		// Set up retry error patterns to trigger the retry logic
+		RetryErrorPatterns = []string{"test error pattern"}
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+			"requestCorrelationID": "test-correlation-id",
+		})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		// Create test request
+		request := &CreateVSAClusterDeploymentRequest{
+			VLMConfig: VLMConfig{
+				Deployment: DeploymentConfig{
+					DeploymentID: "test-deployment",
+					GCPConfig: GCPConfig{
+						ProjectID: "test-project",
+					},
+					Labels: map[string]string{
+						"account_id": "test-account",
+					},
+				},
+			},
+		}
+
+		customTaskQueue := "test-queue"
+
+		// Register child workflow that fails with retry error pattern
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context, req *CreateVSAClusterDeploymentRequest) (*CreateVSAClusterDeploymentResponse, error) {
+				return nil, errors.New("test error pattern in workflow")
+			},
+			workflow.RegisterOptions{Name: CreateVSAClusterDeploymentWorkflowName},
+		)
+
+		// Register delete workflow that fails
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context, req *DeleteVSAClusterDeploymentRequest) error {
+				return errors.New("delete failed")
+			},
+			workflow.RegisterOptions{Name: DeleteVSAClusterDeploymentWorkflowName},
+		)
+
+		vlmManager := &VSAClientWorkflowManager{}
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) (*CreateVSAClusterDeploymentResponse, error) {
+			return vlmManager.CreateVSAClusterDeployment(ctx, request, customTaskQueue)
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		// The workflow should fail because delete failed
+		assert.Error(t, env.GetWorkflowError())
 	})
 }
 

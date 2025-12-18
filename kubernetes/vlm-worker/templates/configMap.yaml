@@ -1,5 +1,5 @@
 {{- range $mapping := $.Values.ontapVersionVlmImageMappings}}
-  {{- $versionName := $mapping.ontapVersion }}
+  {{- $versionName := (regexFind `\d+\.\d+\.\d+(?:P\d+)?` $mapping.ontapVersion) }}
   {{- $version := ($versionName | lower | replace "." "-") }}
 
 apiVersion: v1

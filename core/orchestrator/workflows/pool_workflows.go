@@ -874,7 +874,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
-	ontapVersion := ExtractOntapVersion(pool.ClusterDetails.OntapVersion)
+	ontapVersion := ExtractOntapVersion(pool.BuildInfo.OntapVersion)
 
 	// Calculate batch plan using activity
 	batchPlanInput := &activities.CalculateBatchPlanActivityInput{
@@ -1071,9 +1071,9 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
 
-	ontapVersion := ExtractOntapVersion(dbPool.ClusterDetails.OntapVersion)
+	ontapVersion := ExtractOntapVersion(dbPool.BuildInfo.OntapVersion)
 	if ontapVersion == "" {
-		ontapVersion = vlm.OntapVersion
+		ontapVersion = vlm.ExtractedOntapVersion
 	}
 
 	if !disableVsaCleanupOnVLMFailure {
