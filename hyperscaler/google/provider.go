@@ -129,6 +129,42 @@ func (gcpService *GcpServices) IsAdminClientInitialized() bool {
 	return gcpService.AdminGCPService != nil
 }
 
+// GetComputeService returns an initialized compute service, initializing clients if needed.
+func (gcpService *GcpServices) GetComputeService(ctx context.Context) (*compute.Service, error) {
+	if gcpService.Ctx == nil {
+		gcpService.Ctx = ctx
+	}
+	if gcpService.AdminGCPService == nil || gcpService.AdminGCPService.computeService == nil {
+		if err := gcpService.InitializeClients(); err != nil {
+			return nil, err
+		}
+	}
+	return gcpService.AdminGCPService.computeService, nil
+}
+
+// GetImageLabels fetches image labels via the compute API and returns them.
+func (gcpService *GcpServices) GetImageLabels(ctx context.Context, project, image string) (map[string]string, error) {
+	if gcpService == nil {
+		return nil, fmt.Errorf("gcp service is nil")
+	}
+
+	computeSvc, err := gcpService.GetComputeService(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	imageResp, err := computeSvc.Images.Get(project, image).Context(ctx).Fields("labels").Do()
+	if err != nil {
+		return nil, err
+	}
+
+	if imageResp == nil {
+		return nil, fmt.Errorf("image response is nil")
+	}
+
+	return imageResp.Labels, nil
+}
+
 // GetLogger returns the logger instance for gcpService if exists, else creates a new one
 func (gcpService *GcpServices) GetLogger() logger.Logger {
 	if gcpService.Logger == nil {

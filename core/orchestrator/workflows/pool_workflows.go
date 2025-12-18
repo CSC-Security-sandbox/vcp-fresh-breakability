@@ -188,6 +188,17 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
+	if activities.ValidateImageDigestFlag {
+		var verified bool
+		err = workflow.ExecuteActivity(ctx, poolActivity.ValidateImageDigest).Get(ctx, &verified)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		if !verified {
+			return nil, ConvertToVSAError(vsaerrors.New("image digest verification failed"))
+		}
+	}
+
 	tenantProjectNumber := new(string)
 	err = workflow.ExecuteActivity(ctx, poolActivity.FindTenancyProject, params).Get(ctx, tenantProjectNumber)
 	if err != nil {

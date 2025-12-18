@@ -208,6 +208,118 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
+func TestCreatePoolWorkflow_ValidateImageDigestFailure(t *testing.T) {
+	origFlag := activities.ValidateImageDigestFlag
+	activities.ValidateImageDigestFlag = true
+	defer func() { activities.ValidateImageDigestFlag = origFlag }()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	origVerifyKMS := verifyKmsConfigReachability
+	verifyKmsConfigReachability = func(ctx workflow.Context, kmsConfigId string) error { return nil }
+	defer func() { verifyKmsConfigReachability = origVerifyKMS }()
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	origVSAClientFactory := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVSAClientWorkflowManager }
+	defer func() { GetNewVSAClientWorkflowManager = origVSAClientFactory }()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		RegionalTenantProject: "test-project",
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		SnHostProject:         "test-host-project",
+	}, nil).Maybe()
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	origSARetryStartToCloseTimeout := SARetryStartToCloseTimeout
+	origSARetryInitialInterval := SARetryInitialInterval
+	origSARetryBackoffCoefficient := SARetryBackoffCoefficient
+	origSARetryMaximumInterval := SARetryMaximumInterval
+	origSARetryMaximumAttempts := SARetryMaximumAttempts
+	SARetryStartToCloseTimeout = "15m"
+	SARetryInitialInterval = "5s"
+	SARetryBackoffCoefficient = "2.0"
+	SARetryMaximumInterval = "60s"
+	SARetryMaximumAttempts = 5
+	defer func() {
+		SARetryStartToCloseTimeout = origSARetryStartToCloseTimeout
+		SARetryInitialInterval = origSARetryInitialInterval
+		SARetryBackoffCoefficient = origSARetryBackoffCoefficient
+		SARetryMaximumInterval = origSARetryMaximumInterval
+		SARetryMaximumAttempts = origSARetryMaximumAttempts
+	}()
+
+	var calledDigest bool
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project-number", nil).Maybe()
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil).Maybe()
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.VLMConfig{}, nil).Maybe()
+	env.OnActivity("ValidateImageDigest", mock.Anything).Return(false, fmt.Errorf("invalid digest")).Run(func(args mock.Arguments) {
+		calledDigest = true
+	})
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil).Maybe()
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	params := &common.CreatePoolParams{
+		Name:               "test-pool",
+		AccountName:        "test-account",
+		Region:             "test-region",
+		PrimaryZone:        "zone-a",
+		SecondaryZone:      "zone-b",
+		HotTierSizeInBytes: 1024,
+		CustomPerformanceParams: &common.CustomPerformanceParams{
+			Enabled:         true,
+			ThroughputMibps: 64,
+			Iops:            nillable.ToPointer(int64(1000)),
+		},
+	}
+	pool := &datamodel.Pool{
+		Account: &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "pwd",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+		DeploymentName: "test-deployment",
+	}
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.True(t, calledDigest, "ValidateImageDigest should be invoked")
+	env.AssertExpectations(t)
+}
+
 func TestCreatePoolWorkflowWithExpertMode(t *testing.T) {
 	// Set enableSyncPoolZIZS to true for this test
 	cleanup := setEnableSyncPoolZIZSTrue()
@@ -3066,7 +3178,6 @@ func TestDeletePoolWorkflow(t *testing.T) {
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
-	
 	// Register child workflows with mock implementations
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, params *unRegisterNodeFromHarvestFarmParams) error {

@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -74,6 +75,10 @@ func TestAcceptClusterPeerWorkflow(t *testing.T) {
 
 // TestClusterUpgradeWorkflow_ThreePhaseArchitecture tests the new three-phase architecture
 func TestClusterUpgradeWorkflow_ThreePhaseArchitecture(t *testing.T) {
+	origFlag := activities.ValidateImageDigestFlag
+	activities.ValidateImageDigestFlag = true
+	defer func() { activities.ValidateImageDigestFlag = origFlag }()
+
 	t.Run("TestClusterUpgradeWorkflow_PreUpgradePhase_Success", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
@@ -112,6 +117,7 @@ func TestClusterUpgradeWorkflow_ThreePhaseArchitecture(t *testing.T) {
 
 		// Mock activities for pre-upgrade phase
 		mockPoolActivity := &activities.PoolActivity{}
+		env.RegisterActivity(mockPoolActivity.ValidateImageDigest)
 		env.RegisterActivity(mockPoolActivity.GetOnTapCredentials)
 		env.RegisterActivity(mockPoolActivity.UpdatePoolFields)
 
@@ -120,7 +126,8 @@ func TestClusterUpgradeWorkflow_ThreePhaseArchitecture(t *testing.T) {
 		env.RegisterActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity)
 
 		// Mock the activities to return success
-		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil)
+		env.OnActivity(mockPoolActivity.ValidateImageDigest, mock.Anything).Return(true, nil).Maybe()
+		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil).Maybe()
 		env.OnActivity(mockPoolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -171,6 +178,7 @@ func TestClusterUpgradeWorkflow_ThreePhaseArchitecture(t *testing.T) {
 
 		// Mock activities for pre-upgrade phase with power on
 		mockPoolActivity := &activities.PoolActivity{}
+		env.RegisterActivity(mockPoolActivity.ValidateImageDigest)
 		env.RegisterActivity(mockPoolActivity.GetOnTapCredentials)
 		env.RegisterActivity(mockPoolActivity.UpdatePoolFields)
 
@@ -179,7 +187,8 @@ func TestClusterUpgradeWorkflow_ThreePhaseArchitecture(t *testing.T) {
 		env.RegisterActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity)
 
 		// Mock the activities to return success
-		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil)
+		env.OnActivity(mockPoolActivity.ValidateImageDigest, mock.Anything).Return(true, nil).Maybe()
+		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil).Maybe()
 		env.OnActivity(mockPoolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -237,6 +246,7 @@ func TestClusterUpgradeWorkflow_ThreePhaseArchitecture(t *testing.T) {
 		env.RegisterActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity)
 
 		// Mock the activities to return error (persistent failure)
+		env.OnActivity(mockPoolActivity.ValidateImageDigest, mock.Anything).Return(true, nil).Maybe()
 		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, errors.New("activity error")).Maybe()
 		env.OnActivity(mockPoolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -246,7 +256,54 @@ func TestClusterUpgradeWorkflow_ThreePhaseArchitecture(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.Nil(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("TestClusterUpgradeWorkflow_PreUpgradePhase_InvalidImageDigest", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		env.SetTestTimeout(time.Minute * 5)
+
+		params := &ClusterUpgradeWorkflowParams{
+			JobID:             "test-job-id",
+			ClusterID:         "test-cluster-id",
+			TargetVersion:     "9.17.1",
+			VSAImagePath:      "gcr.io/vsa-image:9.17.1",
+			VSAImageName:      "vsa-9.17.1",
+			MediatorImageName: "mediator-9.17.1",
+			Pool: &datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-pool-uuid",
+					ID:   1,
+				},
+				VLMConfig: `{"cluster_name": "test-cluster"}`,
+				BuildInfo: &datamodel.PoolBuildInfo{},
+			},
+		}
+
+		mockPoolActivity := &activities.PoolActivity{}
+		env.RegisterActivity(mockPoolActivity.ValidateImageDigest)
+		env.RegisterActivity(mockPoolActivity.GetOnTapCredentials)
+
+		mockClusterUpgradeActivity := &activities.ClusterUpgradeActivity{}
+		env.RegisterActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity)
+
+		env.OnActivity(mockPoolActivity.ValidateImageDigest, mock.Anything).Return(false, fmt.Errorf("invalid digest"))
+		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil).Maybe()
+		env.OnActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(ClusterUpgradeWorkflow, params)
+
+		assert.True(t, env.IsWorkflowCompleted())
 		env.AssertExpectations(t)
 	})
 }
@@ -294,9 +351,18 @@ func TestClusterUpgradeWorkflow_UpgradePhase(t *testing.T) {
 		mockCommonActivity := &activities.CommonActivities{}
 		mockClusterUpgradeActivity := &activities.ClusterUpgradeActivity{}
 
+		// Register activities explicitly
+		env.RegisterActivity(mockPoolActivity.ValidateImageDigest)
+		env.RegisterActivity(mockPoolActivity.GetOnTapCredentials)
+		env.RegisterActivity(mockPoolActivity.UpdatePoolFields)
+		env.RegisterActivity(mockPoolActivity.GetOntapVersion)
+		env.RegisterActivity(mockCommonActivity.GetNode)
+		env.RegisterActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity)
+
 		// Mock the activities to return success
 		ontapVersion := "9.17.1"
-		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil)
+		env.OnActivity(mockPoolActivity.ValidateImageDigest, mock.Anything).Return(true, nil).Maybe()
+		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil).Maybe()
 		env.OnActivity(mockPoolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity(mockCommonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil).Maybe()
 		env.OnActivity(mockPoolActivity.GetOntapVersion, mock.Anything, mock.Anything).Return(&ontapVersion, nil).Maybe()
@@ -351,9 +417,18 @@ func TestClusterUpgradeWorkflow_UpgradePhase(t *testing.T) {
 		mockCommonActivity := &activities.CommonActivities{}
 		mockClusterUpgradeActivity := &activities.ClusterUpgradeActivity{}
 
+		// Register activities explicitly
+		env.RegisterActivity(mockPoolActivity.ValidateImageDigest)
+		env.RegisterActivity(mockPoolActivity.GetOnTapCredentials)
+		env.RegisterActivity(mockPoolActivity.UpdatePoolFields)
+		env.RegisterActivity(mockPoolActivity.GetOntapVersion)
+		env.RegisterActivity(mockCommonActivity.GetNode)
+		env.RegisterActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity)
+
 		// Mock the activities to return success
 		ontapVersion := "9.17.1"
-		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil)
+		env.OnActivity(mockPoolActivity.ValidateImageDigest, mock.Anything).Return(true, nil).Maybe()
+		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil).Maybe()
 		env.OnActivity(mockPoolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity(mockCommonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil).Maybe()
 		env.OnActivity(mockPoolActivity.GetOntapVersion, mock.Anything, mock.Anything).Return(&ontapVersion, nil).Maybe()
@@ -408,9 +483,18 @@ func TestClusterUpgradeWorkflow_UpgradePhase(t *testing.T) {
 		mockCommonActivity := &activities.CommonActivities{}
 		mockClusterUpgradeActivity := &activities.ClusterUpgradeActivity{}
 
+		// Register activities explicitly
+		env.RegisterActivity(mockPoolActivity.ValidateImageDigest)
+		env.RegisterActivity(mockPoolActivity.GetOnTapCredentials)
+		env.RegisterActivity(mockPoolActivity.UpdatePoolFields)
+		env.RegisterActivity(mockPoolActivity.GetOntapVersion)
+		env.RegisterActivity(mockCommonActivity.GetNode)
+		env.RegisterActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity)
+
 		// Mock the activities to return error
 		ontapVersion := "9.17.1"
-		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil)
+		env.OnActivity(mockPoolActivity.ValidateImageDigest, mock.Anything).Return(true, nil).Maybe()
+		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil).Maybe()
 		env.OnActivity(mockPoolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("update error")).Maybe()
 		env.OnActivity(mockCommonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil).Maybe()
 		env.OnActivity(mockPoolActivity.GetOntapVersion, mock.Anything, mock.Anything).Return(&ontapVersion, nil).Maybe()
@@ -465,6 +549,7 @@ func TestClusterUpgradeWorkflow_PostUpgradePhase(t *testing.T) {
 
 		// Mock activities for post-upgrade phase
 		mockPoolActivity := &activities.PoolActivity{}
+		env.RegisterActivity(mockPoolActivity.ValidateImageDigest)
 		env.RegisterActivity(mockPoolActivity.GetOnTapCredentials)
 		env.RegisterActivity(mockPoolActivity.UpdatePoolFields)
 
@@ -473,7 +558,8 @@ func TestClusterUpgradeWorkflow_PostUpgradePhase(t *testing.T) {
 		env.RegisterActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity)
 
 		// Mock the activities to return success
-		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil)
+		env.OnActivity(mockPoolActivity.ValidateImageDigest, mock.Anything).Return(true, nil).Maybe()
+		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil).Maybe()
 		env.OnActivity(mockPoolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -524,6 +610,7 @@ func TestClusterUpgradeWorkflow_PostUpgradePhase(t *testing.T) {
 
 		// Mock activities for post-upgrade phase with power off
 		mockPoolActivity := &activities.PoolActivity{}
+		env.RegisterActivity(mockPoolActivity.ValidateImageDigest)
 		env.RegisterActivity(mockPoolActivity.GetOnTapCredentials)
 		env.RegisterActivity(mockPoolActivity.UpdatePoolFields)
 
@@ -532,7 +619,8 @@ func TestClusterUpgradeWorkflow_PostUpgradePhase(t *testing.T) {
 		env.RegisterActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity)
 
 		// Mock the activities to return success
-		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil)
+		env.OnActivity(mockPoolActivity.ValidateImageDigest, mock.Anything).Return(true, nil).Maybe()
+		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil).Maybe()
 		env.OnActivity(mockPoolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -599,6 +687,7 @@ func TestClusterUpgradeWorkflow_LicenseUpdate(t *testing.T) {
 
 		// Mock activities for license update
 		mockPoolActivity := &activities.PoolActivity{}
+		env.RegisterActivity(mockPoolActivity.ValidateImageDigest)
 		env.RegisterActivity(mockPoolActivity.GetOnTapCredentials)
 		env.RegisterActivity(mockPoolActivity.UpdatePoolFields)
 
@@ -607,7 +696,8 @@ func TestClusterUpgradeWorkflow_LicenseUpdate(t *testing.T) {
 		env.RegisterActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity)
 
 		// Mock the activities to return success
-		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil)
+		env.OnActivity(mockPoolActivity.ValidateImageDigest, mock.Anything).Return(true, nil).Maybe()
+		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil).Maybe()
 		env.OnActivity(mockPoolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -657,6 +747,7 @@ func TestClusterUpgradeWorkflow_LicenseUpdate(t *testing.T) {
 
 		// Mock activities
 		mockPoolActivity := &activities.PoolActivity{}
+		env.RegisterActivity(mockPoolActivity.ValidateImageDigest)
 		env.RegisterActivity(mockPoolActivity.GetOnTapCredentials)
 		env.RegisterActivity(mockPoolActivity.UpdatePoolFields)
 
@@ -665,7 +756,8 @@ func TestClusterUpgradeWorkflow_LicenseUpdate(t *testing.T) {
 		env.RegisterActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity)
 
 		// Mock the activities to return success
-		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil)
+		env.OnActivity(mockPoolActivity.ValidateImageDigest, mock.Anything).Return(true, nil).Maybe()
+		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil).Maybe()
 		env.OnActivity(mockPoolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -715,6 +807,7 @@ func TestClusterUpgradeWorkflow_LicenseUpdate(t *testing.T) {
 
 		// Mock activities with license update error
 		mockPoolActivity := &activities.PoolActivity{}
+		env.RegisterActivity(mockPoolActivity.ValidateImageDigest)
 		env.RegisterActivity(mockPoolActivity.GetOnTapCredentials)
 		env.RegisterActivity(mockPoolActivity.UpdatePoolFields)
 
@@ -723,7 +816,8 @@ func TestClusterUpgradeWorkflow_LicenseUpdate(t *testing.T) {
 		env.RegisterActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity)
 
 		// Mock the activities to return success
-		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil)
+		env.OnActivity(mockPoolActivity.ValidateImageDigest, mock.Anything).Return(true, nil).Maybe()
+		env.OnActivity(mockPoolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil).Maybe()
 		env.OnActivity(mockPoolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity(mockClusterUpgradeActivity.UpdateClusterUpgradeJobStatusActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 

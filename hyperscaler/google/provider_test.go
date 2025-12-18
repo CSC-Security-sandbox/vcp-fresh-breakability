@@ -9,12 +9,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
+	"unsafe"
 
 	"cloud.google.com/go/storage"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -109,6 +112,110 @@ func TestInitializeClients(t *testing.T) {
 		assert.NotNil(t, initializeIamService)
 		assert.NotNil(t, initializeCloudProjectsService)
 	})
+}
+
+// setComputeServiceForTest injects a compute.Service into the unexported field for testing.
+func setComputeServiceForTest(t *testing.T, gcpSvc *GcpServices, computeSvc *compute.Service) {
+	t.Helper()
+	if gcpSvc.AdminGCPService == nil {
+		gcpSvc.AdminGCPService = &AdminGCPService{}
+	}
+	rv := reflect.ValueOf(gcpSvc.AdminGCPService).Elem()
+	field := rv.FieldByName("computeService")
+	require.True(t, field.IsValid())
+	reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Set(reflect.ValueOf(computeSvc))
+}
+
+func newComputeServiceWithHandler(t *testing.T, handler http.HandlerFunc) *compute.Service {
+	t.Helper()
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	client := srv.Client()
+	endpoint := srv.URL + "/compute/v1/"
+
+	svc, err := compute.NewService(context.Background(), option.WithHTTPClient(client), option.WithEndpoint(endpoint))
+	require.NoError(t, err)
+	return svc
+}
+
+func TestGetImageLabels_Success(t *testing.T) {
+	computeSvc := newComputeServiceWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"labels":{"image_digest_verified":"true","checksum1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","checksum2":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}`))
+	})
+	gcpSvc := &GcpServices{AdminGCPService: &AdminGCPService{}}
+	setComputeServiceForTest(t, gcpSvc, computeSvc)
+
+	labels, err := gcpSvc.GetImageLabels(context.Background(), "proj", "img")
+	require.NoError(t, err)
+	require.NotNil(t, labels)
+	require.Equal(t, "true", labels["image_digest_verified"])
+	require.Equal(t, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", labels["checksum1"])
+	require.Equal(t, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", labels["checksum2"])
+}
+
+func TestGetImageLabels_Non2xx(t *testing.T) {
+	computeSvc := newComputeServiceWithHandler(t, func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "nope", http.StatusUnauthorized)
+	})
+	gcpSvc := &GcpServices{AdminGCPService: &AdminGCPService{}}
+	setComputeServiceForTest(t, gcpSvc, computeSvc)
+
+	_, err := gcpSvc.GetImageLabels(context.Background(), "proj", "img")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "401")
+}
+
+func TestGetImageLabels_InvalidJSON(t *testing.T) {
+	computeSvc := newComputeServiceWithHandler(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{invalid json`))
+	})
+	gcpSvc := &GcpServices{AdminGCPService: &AdminGCPService{}}
+	setComputeServiceForTest(t, gcpSvc, computeSvc)
+
+	_, err := gcpSvc.GetImageLabels(context.Background(), "proj", "img")
+	require.Error(t, err)
+}
+
+func TestGetImageLabels_InitComputeFailure(t *testing.T) {
+	origMgmt := initializeManagementService
+	origNet := initializeNetworkingService
+	origCompute := initializeComputeService
+	t.Cleanup(func() {
+		initializeManagementService = origMgmt
+		initializeNetworkingService = origNet
+		initializeComputeService = origCompute
+		newClient = scopesHttp.NewClient
+	})
+
+	// Stub dependencies to avoid ADC and make compute init fail deterministically.
+	initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
+		return &serviceconsumermanagement.APIService{}, nil
+	}
+	initializeNetworkingService = func(ctx context.Context) (*servicenetworking.APIService, error) {
+		return &servicenetworking.APIService{}, nil
+	}
+	initializeComputeService = func(ctx context.Context) (*compute.Service, error) {
+		return nil, errors.New("boom")
+	}
+	newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+		return &http.Client{Timeout: time.Second}, "", nil
+	}
+
+	gcpSvc := &GcpServices{}
+	_, err := gcpSvc.GetImageLabels(context.Background(), "proj", "img")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "boom")
+}
+
+func TestGetImageLabels_NilService(t *testing.T) {
+	var gcpSvc *GcpServices
+	labels, err := gcpSvc.GetImageLabels(context.Background(), "proj", "img")
+	require.Error(t, err)
+	require.Nil(t, labels)
+	require.Contains(t, err.Error(), "gcp service is nil")
 }
 
 func TestIsAdminClientInitialized(t *testing.T) {

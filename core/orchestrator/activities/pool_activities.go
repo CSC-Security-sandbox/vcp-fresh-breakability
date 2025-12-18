@@ -27,6 +27,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -92,13 +93,24 @@ var (
 	// Feature flag to enforce minimum values for SPConfig throughput and IOPS.
 	// Set ENFORCE_MIN_SP_CONFIG=true in the environment to enable.
 	enforceMinSPConfig       = env.GetBool("ENFORCE_MIN_SP_CONFIG", false)
-	vsaImageProject          = env.GetString("VSA_IMAGE_PROJECT", "")
-	mediatorImageProject     = env.GetString("VSA_MEDIATOR_IMAGE_PROJECT", "")
+	VsaImageProject          = env.GetString("VSA_IMAGE_PROJECT", "")
+	MediatorImageProject     = env.GetString("VSA_MEDIATOR_IMAGE_PROJECT", "")
 	VsaInstanceTypeOverride  = env.GetBool("VSA_INSTANCE_TYPE_OVERRIDE_LSSD", false)
 	IsIntegrationTest        = env.GetBool("INTEGRATION_TEST", false)
 	maxNestedCloneLimit      = env.GetInt("MAX_NESTED_CLONE_LIMIT", 499)
 	expertModeRbacBucketName = env.GetString("EXPERT_MODE_RBAC_BUCKET_NAME", "gcnv-autopush-images-bucket")
 	expertModeRbacFilePath   = env.GetString("EXPERT_MODE_RBAC_FILE_PATH", "GCNV/%s/RBAC/gcnvadmin_create_cli")
+
+	ValidateImageDigestFlag = env.GetBool("VALIDATE_IMAGE_DIGEST", false)
+	VsaImageChecksums       = env.GetString("VSA_IMAGE_CHECKSUMS", "")
+	VsaImageName            = env.GetString("VSA_IMAGE_NAME", "")
+	MediatorImageName       = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "")
+)
+
+const (
+	imageVerifiedLabel = "image_digest_verified"
+	checksumLabel1     = "checksum1"
+	checksumLabel2     = "checksum2"
 )
 
 // ValidateVSAZonesForMachineType validates that primary and secondary zones support the VSA instance type
@@ -1423,6 +1435,117 @@ func (j *PoolActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 	return res
 }
 
+// ValidateImageDigest validates that configured VSA and mediator image checksums match the ones in the image repository.
+func (j *PoolActivity) ValidateImageDigest(ctx context.Context) (bool, error) {
+	logger := util.GetLogger(ctx)
+	logger.Info("Validating VSA and mediator image checksums")
+	activity.RecordHeartbeat(ctx, "Validating VSA and mediator image checksums")
+
+	vsaCfg, medCfg, err := GetImageConfigChecksums()
+	if err != nil {
+		logger.Error("Failed to get image config checksums", "error", err)
+		return false, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	activity.RecordHeartbeat(ctx, "Fetching image checksums from repository")
+	gcpService, err := hyperscaler2.GetGCPService(ctx)
+	if err != nil {
+		return false, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	vsaRepo, medRepo, err := GetImageRepoChecksums(ctx, gcpService)
+	if err != nil {
+		logger.Error("Failed to get image repo checksums", "error", err)
+		return false, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if vsaCfg != vsaRepo || medCfg != medRepo {
+		logger.Error("VSA and mediator image checksums do not match the ones in the image repository")
+		return false, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("VSA image verification failed"))
+	}
+	logger.Info("Successfully verified VSA and mediator images")
+	activity.RecordHeartbeat(ctx, "VSA and mediator image checksums verified")
+
+	return true, nil
+}
+
+// GetImageConfigChecksums reads configured checksums from env
+func GetImageConfigChecksums() (vsaChecksum string, mediatorChecksum string, err error) {
+	if strings.TrimSpace(VsaImageChecksums) != "" && strings.TrimSpace(VsaImageChecksums) != "{}" {
+		var payload struct {
+			VSAImageChecksum         string `json:"VSA_IMAGE_CHECKSUM"`
+			VSAMediatorImageChecksum string `json:"VSA_MEDIATOR_IMAGE_CHECKSUM"`
+		}
+		if err := json.Unmarshal([]byte(VsaImageChecksums), &payload); err != nil {
+			return "", "", fmt.Errorf("failed to unmarshal configured VSA image checksums: %w", err)
+		}
+		vsaChecksum = strings.TrimSpace(payload.VSAImageChecksum)
+		mediatorChecksum = strings.TrimSpace(payload.VSAMediatorImageChecksum)
+	}
+
+	if vsaChecksum == "" || mediatorChecksum == "" {
+		return "", "", fmt.Errorf("VSA or mediator image checksums are not configured")
+	}
+
+	return vsaChecksum, mediatorChecksum, nil
+}
+
+// GetImageRepoChecksums fetches md5sum labels for VSA and mediator images from GCE Images API.
+func GetImageRepoChecksums(ctx context.Context, gcpService *google.GcpServices) (vsaChecksum string, mediatorChecksum string, err error) {
+	if VsaImageProject == "" || VsaImageName == "" {
+		return "", "", fmt.Errorf("vsa image details are not configured")
+	}
+
+	if MediatorImageProject == "" || MediatorImageName == "" {
+		return "", "", fmt.Errorf("mediator image details are not configured")
+	}
+
+	vsaCtx, vsaCancel := context.WithTimeout(ctx, 60*time.Second)
+	defer vsaCancel()
+	vsaLabels, err := gcpService.GetImageLabels(vsaCtx, VsaImageProject, VsaImageName)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get VSA image details from repo: %w", err)
+	}
+	vsaChecksum, err = GetImageChecksum(vsaLabels)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get VSA image checksum from repo: %w", err)
+	}
+
+	mediatorCtx, mediatorCancel := context.WithTimeout(ctx, 60*time.Second)
+	defer mediatorCancel()
+	mediatorLabels, err := gcpService.GetImageLabels(mediatorCtx, MediatorImageProject, MediatorImageName)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get mediator image details from repo: %w", err)
+	}
+	mediatorChecksum, err = GetImageChecksum(mediatorLabels)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get mediator image checksum from repo: %w", err)
+	}
+
+	return vsaChecksum, mediatorChecksum, nil
+}
+
+// GetImageChecksum extracts and validates the checksum from image labels.
+func GetImageChecksum(labels map[string]string) (string, error) {
+	if len(labels) == 0 {
+		return "", fmt.Errorf("image labels are empty")
+	}
+
+	if v, ok := labels[imageVerifiedLabel]; !ok || strings.ToLower(v) != "true" {
+		return "", fmt.Errorf("image digest is not verified in repo")
+	}
+
+	checksum1 := labels[checksumLabel1]
+	if checksum1 == "" || len(checksum1) != 32 {
+		return "", fmt.Errorf("appropriate checksumLabel1 not found in image labels")
+	}
+	checksum2 := labels[checksumLabel2]
+	if checksum2 == "" || len(checksum2) != 32 {
+		return "", fmt.Errorf("appropriate checksumLabel2 not found in image labels")
+	}
+	return checksum1 + checksum2, nil
+}
+
 // The IdentifyVMs takes as input the VMRS configuration, the customer requested performance parameters, and the current VLM configuration to identify the optimal VMs to use for the VSA cluster.
 func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, customerRequest vmrs.CustomerRequestedPerformance, deploymentName string, locationInfo *commonparams.LocationInfo, tenancyInfo *commonparams.TenancyInfo, saEmail string, autoTierBucket string, isLargeCapacityPool bool) (*vlm.VLMConfig, error) {
 	activity.RecordHeartbeat(ctx, "Starting IdentifyVMs activity")
@@ -1611,12 +1734,12 @@ func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZo
 		return err
 	}
 
-	vsaImageProjectID := vsaImageProject
+	vsaImageProjectID := VsaImageProject
 	if vsaImageProjectID == "" {
 		vsaImageProjectID = regionalTenantProjectID
 	}
 
-	mediatorImageProjectID := mediatorImageProject
+	mediatorImageProjectID := MediatorImageProject
 	if mediatorImageProjectID == "" {
 		mediatorImageProjectID = regionalTenantProjectID
 	}

@@ -13527,3 +13527,577 @@ func TestPoolActivity_PrepareCreateVSAExpertModeReq(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 }
+
+func newComputeServiceWithHandler(t *testing.T, handler http.HandlerFunc) *compute.Service {
+	t.Helper()
+
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	client := srv.Client()
+	endpoint := srv.URL + "/compute/v1/"
+
+	svc, err := compute.NewService(context.Background(), option.WithHTTPClient(client), option.WithEndpoint(endpoint))
+	require.NoError(t, err)
+	return svc
+}
+
+func setComputeService(t *testing.T, gcpSvc *google.GcpServices, computeSvc *compute.Service) {
+	t.Helper()
+	if gcpSvc.AdminGCPService == nil {
+		gcpSvc.AdminGCPService = &google.AdminGCPService{}
+	}
+	rv := reflect.ValueOf(gcpSvc.AdminGCPService).Elem()
+	field := rv.FieldByName("computeService")
+	require.True(t, field.IsValid())
+	// Field is unexported; use UnsafeAddr to allow setting in tests.
+	reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Set(reflect.ValueOf(computeSvc))
+}
+
+func TestValidateImageDigest_ConfigChecksumsError(t *testing.T) {
+	origFlag := activities.ValidateImageDigestFlag
+	origCfg := activities.VsaImageChecksums
+	defer func() {
+		activities.ValidateImageDigestFlag = origFlag
+		activities.VsaImageChecksums = origCfg
+	}()
+
+	activities.ValidateImageDigestFlag = true
+	// Cause getImageConfigChecksums to fail (missing config)
+	activities.VsaImageChecksums = "{}"
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	act := &activities.PoolActivity{}
+	env.RegisterActivity(act)
+
+	result, err := env.ExecuteActivity(act.ValidateImageDigest)
+	var ok bool
+	if result != nil {
+		_ = result.Get(&ok)
+	}
+	assert.False(t, ok, "should return false on error")
+	require.Error(t, err)
+	// Returned error is the underlying error (wrapped by Temporal), not the log message
+	assert.Contains(t, err.Error(), "not configured")
+}
+
+func TestValidateImageDigest_RepoChecksumsError(t *testing.T) {
+	origFlag := activities.ValidateImageDigestFlag
+	origCfg := activities.VsaImageChecksums
+	origVsaProj, origVsaName := activities.VsaImageProject, activities.VsaImageName
+	origMedProj, origMedName := activities.MediatorImageProject, activities.MediatorImageName
+	origGetGCPService := hyperscaler2.GetGCPService
+	defer func() {
+		activities.ValidateImageDigestFlag = origFlag
+		activities.VsaImageChecksums = origCfg
+		activities.VsaImageProject, activities.VsaImageName = origVsaProj, origVsaName
+		activities.MediatorImageProject, activities.MediatorImageName = origMedProj, origMedName
+		hyperscaler2.GetGCPService = origGetGCPService
+	}()
+
+	activities.ValidateImageDigestFlag = true
+
+	// Provide valid config checksums
+	cfg := map[string]string{
+		"VSA_IMAGE_CHECKSUM":          "vsa_md5",
+		"VSA_MEDIATOR_IMAGE_CHECKSUM": "med_md5",
+	}
+	raw, err := json.Marshal(cfg)
+	require.NoError(t, err)
+	activities.VsaImageChecksums = string(raw)
+
+	// Cause getImageRepoChecksums to fail (missing VSA project/name)
+	activities.VsaImageProject, activities.VsaImageName = "", ""
+	activities.MediatorImageProject, activities.MediatorImageName = "proj", "mediator-image"
+
+	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+		return &google.GcpServices{Ctx: ctx}, nil
+	}
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	act := &activities.PoolActivity{}
+	env.RegisterActivity(act)
+
+	result, err := env.ExecuteActivity(act.ValidateImageDigest)
+	var ok bool
+	if result != nil {
+		_ = result.Get(&ok)
+	}
+	assert.False(t, ok)
+	require.Error(t, err)
+	// Returned error is underlying message from getImageRepoChecksums
+	assert.Contains(t, err.Error(), "vsa image details are not configured")
+}
+
+func TestValidateImageDigest_Mismatch(t *testing.T) {
+	origFlag := activities.ValidateImageDigestFlag
+	origCfg := activities.VsaImageChecksums
+	origVsaProj, origVsaName := activities.VsaImageProject, activities.VsaImageName
+	origMedProj, origMedName := activities.MediatorImageProject, activities.MediatorImageName
+	origGetGCPService := hyperscaler2.GetGCPService
+	defer func() {
+		activities.ValidateImageDigestFlag = origFlag
+		activities.VsaImageChecksums = origCfg
+		activities.VsaImageProject, activities.VsaImageName = origVsaProj, origVsaName
+		activities.MediatorImageProject, activities.MediatorImageName = origMedProj, origMedName
+		hyperscaler2.GetGCPService = origGetGCPService
+	}()
+
+	activities.ValidateImageDigestFlag = true
+
+	// Config checksums (intentionally mismatched with repo)
+	cfg := map[string]string{
+		"VSA_IMAGE_CHECKSUM":          strings.Repeat("a", 64),
+		"VSA_MEDIATOR_IMAGE_CHECKSUM": strings.Repeat("b", 64),
+	}
+	raw, err := json.Marshal(cfg)
+	require.NoError(t, err)
+	activities.VsaImageChecksums = string(raw)
+
+	// Configure image identifiers used in URL path matching
+	activities.VsaImageProject, activities.VsaImageName = "proj", "vsa-image"
+	activities.MediatorImageProject, activities.MediatorImageName = "proj", "mediator-image"
+
+	computeSvc := newComputeServiceWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case strings.Contains(r.URL.Path, "/vsa-image"):
+			_, _ = w.Write([]byte(`{"labels":{"image_digest_verified":"true","checksum1":"11111111111111111111111111111111","checksum2":"22222222222222222222222222222222"}}`))
+		case strings.Contains(r.URL.Path, "/mediator-image"):
+			_, _ = w.Write([]byte(`{"labels":{"image_digest_verified":"true","checksum1":"33333333333333333333333333333333","checksum2":"44444444444444444444444444444444"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	})
+
+	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+		gcpSvc := &google.GcpServices{
+			Ctx:             ctx,
+			AdminGCPService: &google.AdminGCPService{},
+		}
+		setComputeService(t, gcpSvc, computeSvc)
+		return gcpSvc, nil
+	}
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	act := &activities.PoolActivity{}
+	env.RegisterActivity(act)
+
+	result, err := env.ExecuteActivity(act.ValidateImageDigest)
+	var ok bool
+	if result != nil {
+		_ = result.Get(&ok)
+	}
+	assert.False(t, ok)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "VSA image verification failed")
+}
+
+func TestValidateImageDigest_Success(t *testing.T) {
+	origFlag := activities.ValidateImageDigestFlag
+	origCfg := activities.VsaImageChecksums
+	origVsaProj, origVsaName := activities.VsaImageProject, activities.VsaImageName
+	origMedProj, origMedName := activities.MediatorImageProject, activities.MediatorImageName
+	origGetGCPService := hyperscaler2.GetGCPService
+	defer func() {
+		activities.ValidateImageDigestFlag = origFlag
+		activities.VsaImageChecksums = origCfg
+		activities.VsaImageProject, activities.VsaImageName = origVsaProj, origVsaName
+		activities.MediatorImageProject, activities.MediatorImageName = origMedProj, origMedName
+		hyperscaler2.GetGCPService = origGetGCPService
+	}()
+
+	activities.ValidateImageDigestFlag = true
+
+	// Config checksums that match repo
+	cfg := map[string]string{
+		"VSA_IMAGE_CHECKSUM":          strings.Repeat("1", 64),
+		"VSA_MEDIATOR_IMAGE_CHECKSUM": strings.Repeat("2", 64),
+	}
+	raw, err := json.Marshal(cfg)
+	require.NoError(t, err)
+	activities.VsaImageChecksums = string(raw)
+
+	activities.VsaImageProject, activities.VsaImageName = "proj", "vsa-image"
+	activities.MediatorImageProject, activities.MediatorImageName = "proj", "mediator-image"
+
+	computeSvc := newComputeServiceWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case strings.Contains(r.URL.Path, "/vsa-image"):
+			_, _ = w.Write([]byte(`{"labels":{"image_digest_verified":"true","checksum1":"11111111111111111111111111111111","checksum2":"11111111111111111111111111111111"}}`))
+		case strings.Contains(r.URL.Path, "/mediator-image"):
+			_, _ = w.Write([]byte(`{"labels":{"image_digest_verified":"true","checksum1":"22222222222222222222222222222222","checksum2":"22222222222222222222222222222222"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	})
+
+	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+		gcpSvc := &google.GcpServices{
+			Ctx:             ctx,
+			AdminGCPService: &google.AdminGCPService{},
+		}
+		setComputeService(t, gcpSvc, computeSvc)
+		return gcpSvc, nil
+	}
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	act := &activities.PoolActivity{}
+	env.RegisterActivity(act)
+
+	res, err := env.ExecuteActivity(act.ValidateImageDigest)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	var ok bool
+	require.NoError(t, res.Get(&ok))
+	assert.True(t, ok, "expected successful validation with matching checksums")
+}
+
+func TestGetImageRepoChecksums_MissingVSAConfig(t *testing.T) {
+	origVsaProj, origVsaName := activities.VsaImageProject, activities.VsaImageName
+	origMedProj, origMedName := activities.MediatorImageProject, activities.MediatorImageName
+	defer func() {
+		activities.VsaImageProject, activities.VsaImageName = origVsaProj, origVsaName
+		activities.MediatorImageProject, activities.MediatorImageName = origMedProj, origMedName
+	}()
+
+	// Missing VSA project/name
+	activities.VsaImageProject, activities.VsaImageName = "", ""
+	activities.MediatorImageProject, activities.MediatorImageName = "proj", "mediator-image"
+
+	gcpSvc := &google.GcpServices{}
+
+	_, _, err := activities.GetImageRepoChecksums(context.Background(), gcpSvc)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "vsa image details are not configured")
+}
+
+func TestGetImageRepoChecksums_MissingMediatorConfig(t *testing.T) {
+	origVsaProj, origVsaName := activities.VsaImageProject, activities.VsaImageName
+	origMedProj, origMedName := activities.MediatorImageProject, activities.MediatorImageName
+	defer func() {
+		activities.VsaImageProject, activities.VsaImageName = origVsaProj, origVsaName
+		activities.MediatorImageProject, activities.MediatorImageName = origMedProj, origMedName
+	}()
+
+	activities.VsaImageProject, activities.VsaImageName = "proj", "vsa-image"
+	activities.MediatorImageProject, activities.MediatorImageName = "", ""
+
+	gcpSvc := &google.GcpServices{}
+
+	_, _, err := activities.GetImageRepoChecksums(context.Background(), gcpSvc)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "mediator image details are not configured")
+}
+
+func TestGetImageRepoChecksums_AuthClientFailure(t *testing.T) {
+	origVsaProj, origVsaName := activities.VsaImageProject, activities.VsaImageName
+	origMedProj, origMedName := activities.MediatorImageProject, activities.MediatorImageName
+	defer func() {
+		activities.VsaImageProject, activities.VsaImageName = origVsaProj, origVsaName
+		activities.MediatorImageProject, activities.MediatorImageName = origMedProj, origMedName
+	}()
+
+	activities.VsaImageProject, activities.VsaImageName = "proj", "vsa-image"
+	activities.MediatorImageProject, activities.MediatorImageName = "proj", "mediator-image"
+
+	// Passing a mock without a compute client should return an error while fetching images.
+	gcpSvc := &google.GcpServices{}
+
+	_, _, err := activities.GetImageRepoChecksums(context.Background(), gcpSvc)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get VSA image details from repo")
+}
+
+func TestGetImageRepoChecksums_Success(t *testing.T) {
+	origVsaProj, origVsaName := activities.VsaImageProject, activities.VsaImageName
+	origMedProj, origMedName := activities.MediatorImageProject, activities.MediatorImageName
+	defer func() {
+		activities.VsaImageProject, activities.VsaImageName = origVsaProj, origVsaName
+		activities.MediatorImageProject, activities.MediatorImageName = origMedProj, origMedName
+	}()
+
+	// Use names matching our URL suffix router
+	activities.VsaImageProject, activities.VsaImageName = "proj", "vsa-image"
+	activities.MediatorImageProject, activities.MediatorImageName = "proj", "mediator-image"
+
+	computeSvc := newComputeServiceWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case strings.Contains(r.URL.Path, "/vsa-image"):
+			_, _ = w.Write([]byte(`{"labels":{"image_digest_verified":"true","checksum1":"11111111111111111111111111111111","checksum2":"11111111111111111111111111111111"}}`))
+		case strings.Contains(r.URL.Path, "/mediator-image"):
+			_, _ = w.Write([]byte(`{"labels":{"image_digest_verified":"true","checksum1":"22222222222222222222222222222222","checksum2":"22222222222222222222222222222222"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	})
+
+	gcpSvc := &google.GcpServices{AdminGCPService: &google.AdminGCPService{}}
+	setComputeService(t, gcpSvc, computeSvc)
+
+	vsa, med, err := activities.GetImageRepoChecksums(context.Background(), gcpSvc)
+	require.NoError(t, err)
+	assert.Equal(t, strings.Repeat("1", 64), vsa)
+	assert.Equal(t, strings.Repeat("2", 64), med)
+}
+
+func TestGetImageRepoChecksums_VsaFetchError(t *testing.T) {
+	origVsaProj, origVsaName := activities.VsaImageProject, activities.VsaImageName
+	origMedProj, origMedName := activities.MediatorImageProject, activities.MediatorImageName
+	defer func() {
+		activities.VsaImageProject, activities.VsaImageName = origVsaProj, origVsaName
+		activities.MediatorImageProject, activities.MediatorImageName = origMedProj, origMedName
+	}()
+
+	activities.VsaImageProject, activities.VsaImageName = "proj", "vsa-image"
+	activities.MediatorImageProject, activities.MediatorImageName = "proj", "mediator-image"
+
+	computeSvc := newComputeServiceWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "/vsa-image"):
+			http.Error(w, "nope", http.StatusUnauthorized)
+		case strings.Contains(r.URL.Path, "/mediator-image"):
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"labels":{"image_digest_verified":"true","checksum1":"22222222222222222222222222222222","checksum2":"22222222222222222222222222222222"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	})
+
+	gcpSvc := &google.GcpServices{AdminGCPService: &google.AdminGCPService{}}
+	setComputeService(t, gcpSvc, computeSvc)
+
+	_, _, err := activities.GetImageRepoChecksums(context.Background(), gcpSvc)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get VSA image details from repo")
+}
+
+func TestGetImageRepoChecksums_MediatorFetchError(t *testing.T) {
+	origVsaProj, origVsaName := activities.VsaImageProject, activities.VsaImageName
+	origMedProj, origMedName := activities.MediatorImageProject, activities.MediatorImageName
+	defer func() {
+		activities.VsaImageProject, activities.VsaImageName = origVsaProj, origVsaName
+		activities.MediatorImageProject, activities.MediatorImageName = origMedProj, origMedName
+	}()
+
+	activities.VsaImageProject, activities.VsaImageName = "proj", "vsa-image"
+	activities.MediatorImageProject, activities.MediatorImageName = "proj", "mediator-image"
+
+	computeSvc := newComputeServiceWithHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "/vsa-image"):
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"labels":{"image_digest_verified":"true","checksum1":"11111111111111111111111111111111","checksum2":"11111111111111111111111111111111"}}`))
+		case strings.Contains(r.URL.Path, "/mediator-image"):
+			http.Error(w, "boom", http.StatusInternalServerError)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+
+	gcpSvc := &google.GcpServices{AdminGCPService: &google.AdminGCPService{}}
+	setComputeService(t, gcpSvc, computeSvc)
+
+	_, _, err := activities.GetImageRepoChecksums(context.Background(), gcpSvc)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get mediator image details from repo")
+}
+
+// Success: image_digest_verified == "true", checksum1+2 present
+func TestGetImageChecksum_Success(t *testing.T) {
+	labels := map[string]string{
+		"image_digest_verified": "true",
+		"checksum1":             strings.Repeat("a", 32),
+		"checksum2":             strings.Repeat("b", 32),
+	}
+
+	md5, err := activities.GetImageChecksum(labels)
+	require.NoError(t, err)
+	assert.Equal(t, strings.Repeat("a", 32)+strings.Repeat("b", 32), md5)
+}
+
+// Missing image_digest_verified label -> verification error
+func TestGetImageChecksum_MissingVerificationLabel(t *testing.T) {
+	labels := map[string]string{
+		"checksum1": strings.Repeat("a", 32),
+		"checksum2": strings.Repeat("b", 32),
+	}
+
+	_, err := activities.GetImageChecksum(labels)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "image digest is not verified in repo")
+}
+
+// image_digest_verified present but not "true" (case-insensitive) -> verification error
+func TestGetImageChecksum_VerificationNotTrue(t *testing.T) {
+	cases := []string{"false", "False", "FALSE", "no", "0"}
+	for _, val := range cases {
+		t.Run("value_"+val, func(t *testing.T) {
+			img := &compute.Image{
+				Labels: map[string]string{
+					"image_digest_verified": val,
+					"checksum1":             strings.Repeat("a", 32),
+					"checksum2":             strings.Repeat("b", 32),
+				},
+			}
+
+			_, err := activities.GetImageChecksum(img.Labels)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "image digest is not verified in repo")
+		})
+	}
+}
+
+func TestGetImageChecksum_MissingChecksumLabels(t *testing.T) {
+	tests := []struct {
+		name   string
+		labels map[string]string
+		substr string
+	}{
+		{
+			name: "missing checksum1 with legacy empty",
+			labels: map[string]string{
+				"image_digest_verified": "true",
+			},
+			substr: "checksumLabel1",
+		},
+		{
+			name: "missing checksum2",
+			labels: map[string]string{
+				"image_digest_verified": "true",
+				"checksum1":             strings.Repeat("a", 32),
+			},
+			substr: "checksumLabel2",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := activities.GetImageChecksum(tt.labels)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.substr)
+		})
+	}
+}
+
+// Defensive: empty labels map, missing labels, or nil image -> error
+func TestGetImageChecksum_EmptyOrMissingLabels(t *testing.T) {
+	tests := []struct {
+		name   string
+		labels map[string]string
+	}{
+		{
+			name:   "empty labels",
+			labels: map[string]string{},
+		},
+		{
+			name:   "missing labels map",
+			labels: nil,
+		},
+		{
+			name:   "nil image",
+			labels: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := activities.GetImageChecksum(tt.labels)
+			require.Error(t, err)
+		})
+	}
+}
+
+// Success: properly formatted JSON with both checksums present; values are trimmed.
+func TestGetImageConfigChecksums_Success(t *testing.T) {
+	orig := activities.VsaImageChecksums
+	defer func() { activities.VsaImageChecksums = orig }()
+
+	payload := map[string]string{
+		"VSA_IMAGE_CHECKSUM":          " vsa_md5 ",
+		"VSA_MEDIATOR_IMAGE_CHECKSUM": " med_md5 ",
+	}
+	raw, err := json.Marshal(payload)
+	require.NoError(t, err)
+	activities.VsaImageChecksums = string(raw)
+
+	vsa, med, err := activities.GetImageConfigChecksums()
+	require.NoError(t, err)
+	assert.Equal(t, "vsa_md5", vsa)
+	assert.Equal(t, "med_md5", med)
+}
+
+// Invalid JSON: returns unmarshal error.
+func TestGetImageConfigChecksums_InvalidJSON(t *testing.T) {
+	orig := activities.VsaImageChecksums
+	defer func() { activities.VsaImageChecksums = orig }()
+
+	activities.VsaImageChecksums = "{invalid json"
+
+	_, _, err := activities.GetImageConfigChecksums()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unmarshal")
+}
+
+// Missing config: empty or {} should return "not configured" error.
+func TestGetImageConfigChecksums_MissingConfig(t *testing.T) {
+	orig := activities.VsaImageChecksums
+	defer func() { activities.VsaImageChecksums = orig }()
+
+	tests := []string{
+		"",       // empty
+		"   ",    // whitespace
+		"{}",     // empty JSON
+		"\n\t{}", // empty JSON with whitespace
+	}
+	for _, tc := range tests {
+		activities.VsaImageChecksums = tc
+		_, _, err := activities.GetImageConfigChecksums()
+		require.Error(t, err, "expected error for input: %q", tc)
+		assert.Contains(t, err.Error(), "not configured")
+	}
+}
+
+// Partial config: one of the checksums missing or empty should return "not configured" error.
+func TestGetImageConfigChecksums_PartialConfig(t *testing.T) {
+	orig := activities.VsaImageChecksums
+	defer func() { activities.VsaImageChecksums = orig }()
+
+	cases := []map[string]string{
+		{
+			"VSA_IMAGE_CHECKSUM":          "only_vsa",
+			"VSA_MEDIATOR_IMAGE_CHECKSUM": "",
+		},
+		{
+			"VSA_IMAGE_CHECKSUM":          "",
+			"VSA_MEDIATOR_IMAGE_CHECKSUM": "only_med",
+		},
+		{
+			// mediator key missing
+			"VSA_IMAGE_CHECKSUM": "vsa_md5",
+		},
+		{
+			// vsa key missing
+			"VSA_MEDIATOR_IMAGE_CHECKSUM": "med_md5",
+		},
+	}
+	for _, payload := range cases {
+		raw, err := json.Marshal(payload)
+		require.NoError(t, err)
+		activities.VsaImageChecksums = string(raw)
+
+		_, _, err = activities.GetImageConfigChecksums()
+		require.Error(t, err, "expected error for payload: %+v", payload)
+		assert.Contains(t, err.Error(), "not configured")
+	}
+}

@@ -300,6 +300,17 @@ func (wf *clusterUpgradeWorkflow) preUpgradePhase(ctx workflow.Context, params *
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
+	// Validate upgrade image digest before proceeding
+	if activities.ValidateImageDigestFlag {
+		var verified bool
+		if err := workflow.ExecuteActivity(ctx, poolActivities.ValidateImageDigest).Get(ctx, &verified); err != nil {
+			return ctx, nil, ConvertToVSAError(err)
+		}
+		if !verified {
+			return ctx, nil, ConvertToVSAError(vsaerrors.New("image digest verification failed"))
+		}
+	}
+
 	// Get credentials and VLM config
 	credentials := &vlm.OntapCredentials{}
 	err = workflow.ExecuteActivity(ctx, poolActivities.GetOnTapCredentials, params.Pool).Get(ctx, &credentials)

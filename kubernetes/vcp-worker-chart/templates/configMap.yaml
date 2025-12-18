@@ -134,6 +134,8 @@ data:
   FILES_PROTOCOL_SUPPORT: {{$.Values.workerConfig.filesProtocolSupport | quote }}
   FLEXCACHE_FORCE_ENCRYPTION: {{$.Values.workerConfig.flexcacheForceEncryption | quote }}
   VSA_IMAGE_NAME: {{$.Values.workerConfig.vsaImageName | quote }}
+  VSA_IMAGE_CHECKSUMS: {{$.Values.workerConfig.vsaImageChecksums | quote }}
+  VALIDATE_IMAGE_DIGEST: {{$.Values.workerConfig.validateImageDigest | quote }}
   VSA_IMAGE_BUCKET: {{$.Values.workerConfig.vsaImageBucket | quote }}
   VSA_SIGNED_URL_DURATION_HOURS: {{$.Values.workerConfig.vsaSignedUrlDurationHours | quote }}
   VSA_MEDIATOR_INSTANCE_TYPE: {{$.Values.workerConfig.vsaMediatorInstanceType | quote }}
