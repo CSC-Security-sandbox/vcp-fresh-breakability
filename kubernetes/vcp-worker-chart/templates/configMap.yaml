@@ -122,6 +122,7 @@ data:
   IMMUTABLE_BACKUP_ENABLED: {{$.Values.workerConfig.immutableBackupEnabled | quote }}
   CROSS_REGION_BACKUP_ENABLED: {{$.Values.workerConfig.crossRegionBackupEnabled | quote }}
   THIN_CLONE_GA_SUPPORT: {{$.Values.workerConfig.thinCloneGASupport | quote }}
+  ENABLE_CLONE_INFO_REFRESH: {{$.Values.workerConfig.enableCloneInfoRefresh | quote }}
   RESTORE_VOLUME_BUFFER_ENABLED: {{$.Values.workerConfig.restoreVolumeBufferEnabled | quote }}
   ENABLE_LDAP: {{$.Values.workerConfig.enableLdap | quote }}
   ENABLE_SMB: {{$.Values.workerConfig.enableSmb | quote }}

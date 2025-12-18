@@ -76,6 +76,7 @@ waitForTemporalEnabled: false
 metricsDbCleanupEnabled: false
 volumeRefreshIntervalMinutes: "5"
 thinCloneGASupport: false
+enableCloneInfoRefresh: false
 maxThinClonesPerPool: 100
 enableAutoPoolScaling: true
 snapshotAPISyncMode: false

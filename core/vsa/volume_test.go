@@ -1179,6 +1179,36 @@ func TestGetVolumes(t *testing.T) {
 		assert.Error(t, err)
 		assert.Equal(t, "getOntapClientFunc error", err.Error())
 	})
+	t.Run("GetVolumesWithCloneInfoRefresh", func(t *testing.T) {
+		// Enable clone info refresh for this test
+		oldValue := enableCloneInfoRefresh
+		enableCloneInfoRefresh = true
+		defer func() { enableCloneInfoRefresh = oldValue }()
+
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		// Verify that clone fields are included when enableCloneInfoRefresh is true
+		mockStorage.On("VolumeCollectionGet", &ontaprest.VolumeCollectionGetParams{
+			BaseParams: ontaprest.BaseParams{
+				Fields: []string{"uuid", "name", "space.*", "svm", "is_svm_root", "style", "type", "clone.parent_snapshot.name", "clone.parent_volume.name"},
+			},
+		}, mock.Anything).Return(nil)
+
+		_, err := rc.GetVolumes()
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
 }
 
 func TestUpdateVolume_ForSplit(t *testing.T) {

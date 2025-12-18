@@ -1324,3 +1324,731 @@ func TestVolumeRefreshActivity_UpdateAccountVolumeRefreshTimestamp_FutureTime(t 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
+
+// Test clone validation logic when enableCloneInfoRefresh is true
+func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_CloneValidation_NilClone(t *testing.T) {
+	// Enable clone info refresh for this test
+	oldValue := enableCloneInfoRefresh
+	enableCloneInfoRefresh = true
+	defer func() { enableCloneInfoRefresh = oldValue }()
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	env.RegisterActivity(activity.ProcessOntapVolumeMatching)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test-pool",
+	}
+
+	dbVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:      pool,
+		ClonesSharedBytes: 100, // Volume is a clone
+		UsedBytes: 1024,        // Different from ONTAP value to ensure update
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+		},
+	}
+
+	ontapVolume := &vsa.Volume{
+		Volume: ontapmodels.Volume{
+			Space: &ontapmodels.VolumeInlineSpace{
+				LogicalSpace: &ontapmodels.VolumeInlineSpaceInlineLogicalSpace{
+					Used: nillable.ToPointer(int64(2048)),
+				},
+			},
+			Clone: nil, // Missing clone info
+		},
+	}
+
+	input := &ProcessOntapVolumeMatchingInput{
+		DbVolumes: []*datamodel.Volume{dbVolume},
+		OntapVolumesResults: map[string]*GetOntapVolumesReturnValue{
+			"pool-uuid": {
+				OntapVolumeMap: map[string]*vsa.Volume{
+					"external-uuid": ontapVolume,
+				},
+			},
+		},
+	}
+
+	val, err := env.ExecuteActivity(activity.ProcessOntapVolumeMatching, input)
+
+	assert.NoError(t, err)
+	var result *ProcessOntapVolumeMatchingResult
+	_ = val.Get(&result)
+	assert.NotNil(t, result)
+	// Volume should be updated even when clone info is missing, as long as UsedBytes changed
+	assert.Len(t, result.UpdatedVolumeByUUID, 1)
+	assert.Contains(t, result.UpdatedVolumeByUUID, "vol-uuid")
+	assert.Equal(t, uint64(2048), result.UpdatedVolumeByUUID["vol-uuid"].UsedBytes)
+	assert.Equal(t, 1, result.MatchedCount)
+	assert.Equal(t, 0, result.NotFoundCount)
+	assert.Len(t, result.VolumesNotFoundInONTAP, 0)
+	// Volume should be tracked as having incomplete clone info in ONTAP
+	assert.Len(t, result.VolumesNotCloneInONTAP, 1)
+	assert.Equal(t, dbVolume, result.VolumesNotCloneInONTAP[0])
+}
+
+func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_CloneValidation_NilParentVolume(t *testing.T) {
+	oldValue := enableCloneInfoRefresh
+	enableCloneInfoRefresh = true
+	defer func() { enableCloneInfoRefresh = oldValue }()
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	env.RegisterActivity(activity.ProcessOntapVolumeMatching)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test-pool",
+	}
+
+	dbVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:      pool,
+		ClonesSharedBytes: 100,
+		UsedBytes: 1024, // Different from ONTAP value to ensure update
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+		},
+	}
+
+	ontapVolume := &vsa.Volume{
+		Volume: ontapmodels.Volume{
+			Space: &ontapmodels.VolumeInlineSpace{
+				LogicalSpace: &ontapmodels.VolumeInlineSpaceInlineLogicalSpace{
+					Used: nillable.ToPointer(int64(2048)),
+				},
+			},
+			Clone: &ontapmodels.VolumeInlineClone{
+				ParentVolume: nil, // Missing parent volume
+			},
+		},
+	}
+
+	input := &ProcessOntapVolumeMatchingInput{
+		DbVolumes: []*datamodel.Volume{dbVolume},
+		OntapVolumesResults: map[string]*GetOntapVolumesReturnValue{
+			"pool-uuid": {
+				OntapVolumeMap: map[string]*vsa.Volume{
+					"external-uuid": ontapVolume,
+				},
+			},
+		},
+	}
+
+	val, err := env.ExecuteActivity(activity.ProcessOntapVolumeMatching, input)
+
+	assert.NoError(t, err)
+	var result *ProcessOntapVolumeMatchingResult
+	_ = val.Get(&result)
+	assert.NotNil(t, result)
+	// Volume should be updated even when clone info is missing, as long as UsedBytes changed
+	assert.Len(t, result.UpdatedVolumeByUUID, 1)
+	assert.Contains(t, result.UpdatedVolumeByUUID, "vol-uuid")
+	assert.Equal(t, uint64(2048), result.UpdatedVolumeByUUID["vol-uuid"].UsedBytes)
+	assert.Equal(t, 1, result.MatchedCount)
+	assert.Equal(t, 0, result.NotFoundCount)
+	assert.Len(t, result.VolumesNotFoundInONTAP, 0)
+	// Volume should be tracked as having incomplete clone info in ONTAP
+	assert.Len(t, result.VolumesNotCloneInONTAP, 1)
+	assert.Equal(t, dbVolume, result.VolumesNotCloneInONTAP[0])
+}
+
+func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_CloneValidation_NilParentSnapshot(t *testing.T) {
+	oldValue := enableCloneInfoRefresh
+	enableCloneInfoRefresh = true
+	defer func() { enableCloneInfoRefresh = oldValue }()
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	env.RegisterActivity(activity.ProcessOntapVolumeMatching)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test-pool",
+	}
+
+	dbVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:      pool,
+		ClonesSharedBytes: 100,
+		UsedBytes: 1024, // Different from ONTAP value to ensure update
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+		},
+	}
+
+	parentVolumeName := "parent-vol"
+	ontapVolume := &vsa.Volume{
+		Volume: ontapmodels.Volume{
+			Space: &ontapmodels.VolumeInlineSpace{
+				LogicalSpace: &ontapmodels.VolumeInlineSpaceInlineLogicalSpace{
+					Used: nillable.ToPointer(int64(2048)),
+				},
+			},
+			Clone: &ontapmodels.VolumeInlineClone{
+				ParentVolume: &ontapmodels.VolumeInlineCloneInlineParentVolume{
+					Name: &parentVolumeName,
+				},
+				ParentSnapshot: nil, // Missing parent snapshot
+			},
+		},
+	}
+
+	input := &ProcessOntapVolumeMatchingInput{
+		DbVolumes: []*datamodel.Volume{dbVolume},
+		OntapVolumesResults: map[string]*GetOntapVolumesReturnValue{
+			"pool-uuid": {
+				OntapVolumeMap: map[string]*vsa.Volume{
+					"external-uuid": ontapVolume,
+				},
+			},
+		},
+	}
+
+	val, err := env.ExecuteActivity(activity.ProcessOntapVolumeMatching, input)
+
+	assert.NoError(t, err)
+	var result *ProcessOntapVolumeMatchingResult
+	_ = val.Get(&result)
+	assert.NotNil(t, result)
+	// Volume should be updated even when clone info is missing, as long as UsedBytes changed
+	assert.Len(t, result.UpdatedVolumeByUUID, 1)
+	assert.Contains(t, result.UpdatedVolumeByUUID, "vol-uuid")
+	assert.Equal(t, uint64(2048), result.UpdatedVolumeByUUID["vol-uuid"].UsedBytes)
+	assert.Equal(t, 1, result.MatchedCount)
+	assert.Equal(t, 0, result.NotFoundCount)
+	assert.Len(t, result.VolumesNotFoundInONTAP, 0)
+	// Volume should be tracked as having incomplete clone info in ONTAP
+	assert.Len(t, result.VolumesNotCloneInONTAP, 1)
+	assert.Equal(t, dbVolume, result.VolumesNotCloneInONTAP[0])
+}
+
+// Test clone info processing with successful parent volume and snapshot lookup
+func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_CloneInfo_Success(t *testing.T) {
+	oldValue := enableCloneInfoRefresh
+	enableCloneInfoRefresh = true
+	defer func() { enableCloneInfoRefresh = oldValue }()
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	env.RegisterActivity(activity.ProcessOntapVolumeMatching)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test-pool",
+	}
+
+	parentVolumeName := "parent-vol"
+	parentSnapshotName := "parent-snap"
+	parentVolumeUUID := "parent-vol-uuid"
+	parentSnapshotUUID := "parent-snap-uuid"
+
+	dbVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:      pool,
+		AccountID: int64(1),
+		ClonesSharedBytes: 100,
+		UsedBytes: 1024,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+			CloneParentInfo: nil, // Missing clone info
+		},
+	}
+
+	ontapVolume := &vsa.Volume{
+		Volume: ontapmodels.Volume{
+			Space: &ontapmodels.VolumeInlineSpace{
+				LogicalSpace: &ontapmodels.VolumeInlineSpaceInlineLogicalSpace{
+					Used: nillable.ToPointer(int64(2048)),
+				},
+			},
+			Clone: &ontapmodels.VolumeInlineClone{
+				ParentVolume: &ontapmodels.VolumeInlineCloneInlineParentVolume{
+					Name: &parentVolumeName,
+				},
+				ParentSnapshot: &ontapmodels.SnapshotReference{
+					Name: &parentSnapshotName,
+				},
+			},
+		},
+	}
+
+	parentVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: parentVolumeUUID, ID: 456},
+	}
+
+	parentSnapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{UUID: parentSnapshotUUID},
+	}
+
+	mockStorage.On("GetVolumeByNameAndAccountID", mock.Anything, parentVolumeName, int64(1)).Return(parentVolume, nil)
+	mockStorage.On("GetSnapshotByNameAndVolumeId", mock.Anything, parentSnapshotName, int64(1), int64(456)).Return(parentSnapshot, nil)
+
+	input := &ProcessOntapVolumeMatchingInput{
+		DbVolumes: []*datamodel.Volume{dbVolume},
+		OntapVolumesResults: map[string]*GetOntapVolumesReturnValue{
+			"pool-uuid": {
+				OntapVolumeMap: map[string]*vsa.Volume{
+					"external-uuid": ontapVolume,
+				},
+			},
+		},
+	}
+
+	val, err := env.ExecuteActivity(activity.ProcessOntapVolumeMatching, input)
+
+	assert.NoError(t, err)
+	var result *ProcessOntapVolumeMatchingResult
+	_ = val.Get(&result)
+	assert.NotNil(t, result)
+	assert.Len(t, result.UpdatedVolumeByUUID, 1)
+	updatedVol := result.UpdatedVolumeByUUID["vol-uuid"]
+	assert.NotNil(t, updatedVol)
+	assert.NotNil(t, updatedVol.VolumeAttributes)
+	assert.NotNil(t, updatedVol.VolumeAttributes.CloneParentInfo)
+	assert.Equal(t, parentVolumeUUID, updatedVol.VolumeAttributes.CloneParentInfo.ParentVolumeUUID)
+	assert.Equal(t, parentSnapshotUUID, updatedVol.VolumeAttributes.CloneParentInfo.ParentSnapshotUUID)
+	mockStorage.AssertExpectations(t)
+}
+
+// Test clone info processing with parent volume lookup error
+func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_CloneInfo_ParentVolumeError(t *testing.T) {
+	oldValue := enableCloneInfoRefresh
+	enableCloneInfoRefresh = true
+	defer func() { enableCloneInfoRefresh = oldValue }()
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	env.RegisterActivity(activity.ProcessOntapVolumeMatching)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test-pool",
+	}
+
+	parentVolumeName := "parent-vol"
+	parentSnapshotName := "parent-snap"
+
+	dbVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:      pool,
+		AccountID: int64(1),
+		ClonesSharedBytes: 100,
+		UsedBytes: 1024,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+		},
+	}
+
+	ontapVolume := &vsa.Volume{
+		Volume: ontapmodels.Volume{
+			Space: &ontapmodels.VolumeInlineSpace{
+				LogicalSpace: &ontapmodels.VolumeInlineSpaceInlineLogicalSpace{
+					Used: nillable.ToPointer(int64(2048)),
+				},
+			},
+			Clone: &ontapmodels.VolumeInlineClone{
+				ParentVolume: &ontapmodels.VolumeInlineCloneInlineParentVolume{
+					Name: &parentVolumeName,
+				},
+				ParentSnapshot: &ontapmodels.SnapshotReference{
+					Name: &parentSnapshotName,
+				},
+			},
+		},
+	}
+
+	mockStorage.On("GetVolumeByNameAndAccountID", mock.Anything, parentVolumeName, int64(1)).Return(nil, errors.New("parent volume not found"))
+
+	input := &ProcessOntapVolumeMatchingInput{
+		DbVolumes: []*datamodel.Volume{dbVolume},
+		OntapVolumesResults: map[string]*GetOntapVolumesReturnValue{
+			"pool-uuid": {
+				OntapVolumeMap: map[string]*vsa.Volume{
+					"external-uuid": ontapVolume,
+				},
+			},
+		},
+	}
+
+	val, err := env.ExecuteActivity(activity.ProcessOntapVolumeMatching, input)
+
+	assert.NoError(t, err)
+	var result *ProcessOntapVolumeMatchingResult
+	_ = val.Get(&result)
+	assert.NotNil(t, result)
+	// Should still update used_bytes even if clone info lookup fails
+	assert.Len(t, result.UpdatedVolumeByUUID, 1)
+	mockStorage.AssertExpectations(t)
+}
+
+// Test clone info processing with parent snapshot lookup error
+func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_CloneInfo_ParentSnapshotError(t *testing.T) {
+	oldValue := enableCloneInfoRefresh
+	enableCloneInfoRefresh = true
+	defer func() { enableCloneInfoRefresh = oldValue }()
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	env.RegisterActivity(activity.ProcessOntapVolumeMatching)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test-pool",
+	}
+
+	parentVolumeName := "parent-vol"
+	parentSnapshotName := "parent-snap"
+	parentVolumeUUID := "parent-vol-uuid"
+
+	dbVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:      pool,
+		AccountID: int64(1),
+		ClonesSharedBytes: 100,
+		UsedBytes: 1024,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+		},
+	}
+
+	ontapVolume := &vsa.Volume{
+		Volume: ontapmodels.Volume{
+			Space: &ontapmodels.VolumeInlineSpace{
+				LogicalSpace: &ontapmodels.VolumeInlineSpaceInlineLogicalSpace{
+					Used: nillable.ToPointer(int64(2048)),
+				},
+			},
+			Clone: &ontapmodels.VolumeInlineClone{
+				ParentVolume: &ontapmodels.VolumeInlineCloneInlineParentVolume{
+					Name: &parentVolumeName,
+				},
+				ParentSnapshot: &ontapmodels.SnapshotReference{
+					Name: &parentSnapshotName,
+				},
+			},
+		},
+	}
+
+	parentVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: parentVolumeUUID, ID: 456},
+	}
+
+	mockStorage.On("GetVolumeByNameAndAccountID", mock.Anything, parentVolumeName, int64(1)).Return(parentVolume, nil)
+	mockStorage.On("GetSnapshotByNameAndVolumeId", mock.Anything, parentSnapshotName, int64(1), int64(456)).Return(nil, errors.New("snapshot not found"))
+
+	input := &ProcessOntapVolumeMatchingInput{
+		DbVolumes: []*datamodel.Volume{dbVolume},
+		OntapVolumesResults: map[string]*GetOntapVolumesReturnValue{
+			"pool-uuid": {
+				OntapVolumeMap: map[string]*vsa.Volume{
+					"external-uuid": ontapVolume,
+				},
+			},
+		},
+	}
+
+	val, err := env.ExecuteActivity(activity.ProcessOntapVolumeMatching, input)
+
+	assert.NoError(t, err)
+	var result *ProcessOntapVolumeMatchingResult
+	_ = val.Get(&result)
+	assert.NotNil(t, result)
+	// Should still update used_bytes even if snapshot lookup fails
+	assert.Len(t, result.UpdatedVolumeByUUID, 1)
+	mockStorage.AssertExpectations(t)
+}
+
+// Test clone info processing with existing clone info that needs update
+func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_CloneInfo_UpdateExisting(t *testing.T) {
+	oldValue := enableCloneInfoRefresh
+	enableCloneInfoRefresh = true
+	defer func() { enableCloneInfoRefresh = oldValue }()
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	env.RegisterActivity(activity.ProcessOntapVolumeMatching)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test-pool",
+	}
+
+	parentVolumeName := "parent-vol"
+	parentSnapshotName := "parent-snap"
+	parentVolumeUUID := "parent-vol-uuid-new"
+	parentSnapshotUUID := "parent-snap-uuid-new"
+	oldParentVolumeUUID := "parent-vol-uuid-old"
+	oldParentSnapshotUUID := "parent-snap-uuid-old"
+
+	dbVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:      pool,
+		AccountID: int64(1),
+		ClonesSharedBytes: 100,
+		UsedBytes: 1024,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID:   oldParentVolumeUUID,
+				ParentSnapshotUUID: oldParentSnapshotUUID,
+			},
+		},
+	}
+
+	ontapVolume := &vsa.Volume{
+		Volume: ontapmodels.Volume{
+			Space: &ontapmodels.VolumeInlineSpace{
+				LogicalSpace: &ontapmodels.VolumeInlineSpaceInlineLogicalSpace{
+					Used: nillable.ToPointer(int64(2048)),
+				},
+			},
+			Clone: &ontapmodels.VolumeInlineClone{
+				ParentVolume: &ontapmodels.VolumeInlineCloneInlineParentVolume{
+					Name: &parentVolumeName,
+				},
+				ParentSnapshot: &ontapmodels.SnapshotReference{
+					Name: &parentSnapshotName,
+				},
+			},
+		},
+	}
+
+	parentVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: parentVolumeUUID, ID: 456},
+	}
+
+	parentSnapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{UUID: parentSnapshotUUID},
+	}
+
+	mockStorage.On("GetVolumeByNameAndAccountID", mock.Anything, parentVolumeName, int64(1)).Return(parentVolume, nil)
+	mockStorage.On("GetSnapshotByNameAndVolumeId", mock.Anything, parentSnapshotName, int64(1), int64(456)).Return(parentSnapshot, nil)
+
+	input := &ProcessOntapVolumeMatchingInput{
+		DbVolumes: []*datamodel.Volume{dbVolume},
+		OntapVolumesResults: map[string]*GetOntapVolumesReturnValue{
+			"pool-uuid": {
+				OntapVolumeMap: map[string]*vsa.Volume{
+					"external-uuid": ontapVolume,
+				},
+			},
+		},
+	}
+
+	val, err := env.ExecuteActivity(activity.ProcessOntapVolumeMatching, input)
+
+	assert.NoError(t, err)
+	var result *ProcessOntapVolumeMatchingResult
+	_ = val.Get(&result)
+	assert.NotNil(t, result)
+	assert.Len(t, result.UpdatedVolumeByUUID, 1)
+	updatedVol := result.UpdatedVolumeByUUID["vol-uuid"]
+	assert.NotNil(t, updatedVol)
+	assert.NotNil(t, updatedVol.VolumeAttributes)
+	assert.NotNil(t, updatedVol.VolumeAttributes.CloneParentInfo)
+	assert.Equal(t, parentVolumeUUID, updatedVol.VolumeAttributes.CloneParentInfo.ParentVolumeUUID)
+	assert.Equal(t, parentSnapshotUUID, updatedVol.VolumeAttributes.CloneParentInfo.ParentSnapshotUUID)
+	mockStorage.AssertExpectations(t)
+}
+
+// Test sync volumes to database with clone info updates
+func Test_syncUpdatedVolumesToDatabase_WithCloneInfo(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+
+	parentVolumeUUID := "parent-vol-uuid"
+	parentSnapshotUUID := "parent-snap-uuid"
+
+	dbVols := map[string]*datamodel.Volume{
+		"vol-1": {
+			BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
+			UsedBytes: 1024,
+		},
+		"vol-2": {
+			BaseModel: datamodel.BaseModel{UUID: "vol-2", ID: 2},
+			UsedBytes: 2048,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID:   parentVolumeUUID,
+					ParentSnapshotUUID: parentSnapshotUUID,
+				},
+			},
+		},
+	}
+
+	existingVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-2", ID: 2},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid-2",
+		},
+	}
+
+	mockStorage.On("BatchUpdateVolumeFields", mock.Anything, mock.AnythingOfType("[]datamodel.VolumeFieldUpdate")).Return(nil)
+	mockStorage.On("GetVolume", mock.Anything, "vol-2").Return(existingVolume, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, "vol-2", mock.AnythingOfType("map[string]interface {}")).Return(nil)
+
+	wrapper := &testSyncActivityWrapper{
+		SE:     mockStorage,
+		DBVols: dbVols,
+	}
+	env.RegisterActivity(wrapper.TestSyncActivity)
+
+	_, err := env.ExecuteActivity(wrapper.TestSyncActivity)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+// Test sync volumes to database with clone info and nil existing volume attributes
+func Test_syncUpdatedVolumesToDatabase_WithCloneInfo_NilAttributes(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+
+	parentVolumeUUID := "parent-vol-uuid"
+	parentSnapshotUUID := "parent-snap-uuid"
+
+	dbVols := map[string]*datamodel.Volume{
+		"vol-1": {
+			BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
+			UsedBytes: 1024,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID:   parentVolumeUUID,
+					ParentSnapshotUUID: parentSnapshotUUID,
+				},
+			},
+		},
+	}
+
+	existingVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
+		VolumeAttributes: nil, // No existing attributes
+	}
+
+	mockStorage.On("GetVolume", mock.Anything, "vol-1").Return(existingVolume, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, "vol-1", mock.AnythingOfType("map[string]interface {}")).Return(nil)
+
+	wrapper := &testSyncActivityWrapper{
+		SE:     mockStorage,
+		DBVols: dbVols,
+	}
+	env.RegisterActivity(wrapper.TestSyncActivity)
+
+	_, err := env.ExecuteActivity(wrapper.TestSyncActivity)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+// Test sync volumes to database with clone info and GetVolume error
+func Test_syncUpdatedVolumesToDatabase_WithCloneInfo_GetVolumeError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+
+	parentVolumeUUID := "parent-vol-uuid"
+	parentSnapshotUUID := "parent-snap-uuid"
+
+	dbVols := map[string]*datamodel.Volume{
+		"vol-1": {
+			BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
+			UsedBytes: 1024,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID:   parentVolumeUUID,
+					ParentSnapshotUUID: parentSnapshotUUID,
+				},
+			},
+		},
+	}
+
+	mockStorage.On("GetVolume", mock.Anything, "vol-1").Return(nil, errors.New("volume not found"))
+
+	wrapper := &testSyncActivityWrapper{
+		SE:     mockStorage,
+		DBVols: dbVols,
+	}
+	env.RegisterActivity(wrapper.TestSyncActivity)
+
+	_, err := env.ExecuteActivity(wrapper.TestSyncActivity)
+
+	assert.NoError(t, err) // Should continue even if GetVolume fails
+	mockStorage.AssertExpectations(t)
+}
+
+// Test sync volumes to database with clone info and UpdateVolumeFields error
+func Test_syncUpdatedVolumesToDatabase_WithCloneInfo_UpdateError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+
+	parentVolumeUUID := "parent-vol-uuid"
+	parentSnapshotUUID := "parent-snap-uuid"
+
+	dbVols := map[string]*datamodel.Volume{
+		"vol-1": {
+			BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
+			UsedBytes: 1024,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID:   parentVolumeUUID,
+					ParentSnapshotUUID: parentSnapshotUUID,
+				},
+			},
+		},
+	}
+
+	existingVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid-1",
+		},
+	}
+
+	mockStorage.On("GetVolume", mock.Anything, "vol-1").Return(existingVolume, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, "vol-1", mock.AnythingOfType("map[string]interface {}")).Return(errors.New("update failed"))
+
+	wrapper := &testSyncActivityWrapper{
+		SE:     mockStorage,
+		DBVols: dbVols,
+	}
+	env.RegisterActivity(wrapper.TestSyncActivity)
+
+	_, err := env.ExecuteActivity(wrapper.TestSyncActivity)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "update failed")
+	mockStorage.AssertExpectations(t)
+}

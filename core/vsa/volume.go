@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
@@ -15,6 +16,10 @@ import (
 const (
 	// ErrMsgVolumeMaxSizeExceeded is the error message pattern returned by ONTAP when volume size exceeds maximum
 	ErrMsgVolumeMaxSizeExceeded = "failed because the resulting volume size is greater than the maximum size"
+)
+
+var (
+	enableCloneInfoRefresh = env.GetBool("ENABLE_CLONE_INFO_REFRESH", false)
 )
 
 // CreateVolume creates a volume by calling the ONTAP REST Client
@@ -321,6 +326,7 @@ func (rc *OntapRestProvider) GetVolumes() ([]*Volume, error) {
 					Style:     volume.Style,
 					Space:     volume.Space,
 					Type:      volume.Type,
+					Clone:     volume.Clone,
 				},
 				ExternalUUID: *volume.UUID,
 			}
@@ -329,9 +335,17 @@ func (rc *OntapRestProvider) GetVolumes() ([]*Volume, error) {
 		return nil
 	}
 
+	// Build base fields list
+	fields := []string{"uuid", "name", "space.*", "svm", "is_svm_root", "style", "type"}
+
+	// Conditionally add clone fields if feature flag is enabled
+	if enableCloneInfoRefresh {
+		fields = append(fields, "clone.parent_snapshot.name", "clone.parent_volume.name")
+	}
+
 	err = client.Storage().VolumeCollectionGet(&ontapRest.VolumeCollectionGetParams{
 		BaseParams: ontapRest.BaseParams{
-			Fields: []string{"uuid", "name", "space.*", "svm", "is_svm_root", "style", "type"},
+			Fields: fields,
 		},
 	}, ucbf)
 

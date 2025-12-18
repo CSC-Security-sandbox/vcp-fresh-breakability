@@ -1022,8 +1022,6 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		return customerrors.NewUserInputValidationErr("pool large capacity setting does not match volume large capacity setting")
 	}
 
-	isRestoreFromSnapshot := params.SnapshotID != ""
-
 	if hp := params.HybridReplicationParameters; hp != nil {
 		replicationType := hp.ReplicationType
 		replicationSchedule := hp.ReplicationSchedule
@@ -1123,7 +1121,7 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			}
 		}
 
-		if !isRestoreFromSnapshot && (params.QuotaInBytes < utils.MinQuotaInBytesLargeVolume || params.QuotaInBytes > utils.MaxQuotaInBytesLargeVolume) {
+		if params.QuotaInBytes < utils.MinQuotaInBytesLargeVolume || params.QuotaInBytes > utils.MaxQuotaInBytesLargeVolume {
 			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %s. Must be between %s and %s.",
 				utils.FmtUint64Bytes(params.QuotaInBytes), utils.FmtUint64Bytes(utils.MinQuotaInBytesLargeVolume),
 				utils.FmtUint64Bytes(utils.MaxQuotaInBytesLargeVolume)))
@@ -1135,7 +1133,7 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			return customerrors.NewUserInputValidationErr("Large Volume constituent count is only supported for large capacity volumes")
 		}
 
-		if !isRestoreFromSnapshot && (params.QuotaInBytes < minQuotaInBytesVolume || params.QuotaInBytes > maxQuotaInBytesVolume) {
+		if params.QuotaInBytes < minQuotaInBytesVolume || params.QuotaInBytes > maxQuotaInBytesVolume {
 			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %s. Must be between %s and %s.",
 				utils.FmtUint64Bytes(params.QuotaInBytes), utils.FmtUint64Bytes(minQuotaInBytesVolume),
 				utils.FmtUint64Bytes(maxQuotaInBytesVolume)))
@@ -1164,19 +1162,6 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		}
 		if dbSnapshot != nil && dbSnapshot.SnapshotAttributes != nil {
 			cloneSharedBytes = uint64(dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes)
-		}
-
-		// TODO: do we need this validation really because these would have already happened during parent vol creation
-		if params.LargeCapacity && (params.QuotaInBytes < utils.MinQuotaInBytesLargeVolume || params.QuotaInBytes > utils.MaxQuotaInBytesLargeVolume) {
-			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %s. Must be between %s and %s.",
-				utils.FmtUint64Bytes(params.QuotaInBytes), utils.FmtUint64Bytes(utils.MinQuotaInBytesLargeVolume),
-				utils.FmtUint64Bytes(utils.MaxQuotaInBytesLargeVolume)))
-		}
-
-		if !params.LargeCapacity && (params.QuotaInBytes < minQuotaInBytesVolume || params.QuotaInBytes > maxQuotaInBytesVolume) {
-			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %s. Must be between %s and %s.",
-				utils.FmtUint64Bytes(params.QuotaInBytes), utils.FmtUint64Bytes(minQuotaInBytesVolume),
-				utils.FmtUint64Bytes(maxQuotaInBytesVolume)))
 		}
 	}
 
