@@ -891,7 +891,6 @@ func TestSnapmirrorInONTAPDeletesWhenBackupsExist(t *testing.T) {
 		},
 	}
 
-	mockStorage.On("BackupCountByVolumeID", ctx, volumeUUID).Return(int64(1), nil)
 	mockStorage.On("GetBackupVault", ctx, "backup-vault-123").Return(mockBackupVault, nil)
 	mockProvider.On("SnapmirrorRelationshipGet", "test-bucket:/objstore/test-volume-uuid", "test-svm:test-volume").Return(mockSnapmirror, nil)
 	mockProvider.On("SnapmirrorRelationshipDelete", "snapmirror-uuid-123").Return(&vsa.OntapAsyncResponse{}, nil)
@@ -900,60 +899,6 @@ func TestSnapmirrorInONTAPDeletesWhenBackupsExist(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
-	mockStorage.AssertExpectations(t)
-	mockProvider.AssertExpectations(t)
-}
-
-func TestSnapmirrorInONTAPSkipsWhenNoBackupsExist(t *testing.T) {
-	mockProvider := new(vsa.MockProvider)
-	mockStorage := database.NewMockStorage(t)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
-		return mockProvider, nil
-	}
-
-	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volumeUUID := "test-volume-uuid"
-	volume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volumeUUID}}
-	node := &models.Node{}
-
-	mockStorage.On("BackupCountByVolumeID", ctx, volumeUUID).Return(int64(0), nil)
-
-	resp, err := activity.DeleteSnapmirrorInONTAP(ctx, volume, node)
-
-	assert.NoError(t, err)
-	assert.Nil(t, resp)
-	mockStorage.AssertExpectations(t)
-	mockProvider.AssertExpectations(t)
-}
-
-func TestSnapmirrorInONTAPFailsWhenBackupCountFails(t *testing.T) {
-	mockProvider := new(vsa.MockProvider)
-	mockStorage := database.NewMockStorage(t)
-	originalGetProviderByNode := hyperscaler.GetProviderByNode
-	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-
-	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
-		return mockProvider, nil
-	}
-
-	activity := VolumeDeleteActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volumeUUID := "test-volume-uuid"
-	volume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volumeUUID}}
-	node := &models.Node{}
-	expectedError := errors.New("failed to fetch backup count")
-
-	mockStorage.On("BackupCountByVolumeID", ctx, volumeUUID).Return(int64(0), expectedError)
-
-	resp, err := activity.DeleteSnapmirrorInONTAP(ctx, volume, node)
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to fetch backup count")
-	assert.Nil(t, resp)
 	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
 }
@@ -1006,7 +951,6 @@ func TestSnapmirrorInONTAPFailsWhenDeleteFails(t *testing.T) {
 		},
 	}
 
-	mockStorage.On("BackupCountByVolumeID", ctx, volumeUUID).Return(int64(1), nil)
 	mockStorage.On("GetBackupVault", ctx, "backup-vault-123").Return(mockBackupVault, nil)
 	mockProvider.On("SnapmirrorRelationshipGet", "test-bucket:/objstore/test-volume-uuid", "test-svm:test-volume").Return(mockSnapmirror, nil)
 	mockProvider.On("SnapmirrorRelationshipDelete", "snapmirror-uuid-123").Return(nil, expectedError)
@@ -1058,7 +1002,6 @@ func TestSnapmirrorInONTAPFailsWhenVolumeAttributesIsNil(t *testing.T) {
 		},
 	}
 
-	mockStorage.On("BackupCountByVolumeID", ctx, volumeUUID).Return(int64(1), nil)
 	mockStorage.On("GetBackupVault", ctx, "backup-vault-123").Return(mockBackupVault, nil)
 
 	resp, err := activity.DeleteSnapmirrorInONTAP(ctx, volume, node)
@@ -1089,8 +1032,6 @@ func TestSnapmirrorInONTAPSkipsWhenVolumeHasBackupsButNoDataProtection(t *testin
 	}
 	node := &models.Node{}
 
-	mockStorage.On("BackupCountByVolumeID", ctx, volumeUUID).Return(int64(1), nil)
-
 	resp, err := activity.DeleteSnapmirrorInONTAP(ctx, volume, node)
 
 	assert.NoError(t, err)
@@ -1119,8 +1060,6 @@ func TestSnapmirrorInONTAPSkipsWhenVolumeHasBackupsButEmptyBackupVaultID(t *test
 		},
 	}
 	node := &models.Node{}
-
-	mockStorage.On("BackupCountByVolumeID", ctx, volumeUUID).Return(int64(1), nil)
 
 	resp, err := activity.DeleteSnapmirrorInONTAP(ctx, volume, node)
 
@@ -1170,7 +1109,6 @@ func TestSnapmirrorInONTAPSkipsWhenSnapmirrorRelationshipNotFound(t *testing.T) 
 		},
 	}
 
-	mockStorage.On("BackupCountByVolumeID", ctx, volumeUUID).Return(int64(1), nil)
 	mockStorage.On("GetBackupVault", ctx, "backup-vault-123").Return(mockBackupVault, nil)
 	mockProvider.On("SnapmirrorRelationshipGet", "test-bucket:/objstore/test-volume-uuid", "test-svm:test-volume").Return(nil, utilErrors.NewNotFoundErr("snapmirror relationship not found for destination: test-bucket:/objstore/test-volume-uuid and source: test-svm:test-volume", nil))
 
@@ -1233,7 +1171,6 @@ func TestSnapmirrorInONTAPSuccessfullyDeletesSnapmirror(t *testing.T) {
 		},
 	}
 
-	mockStorage.On("BackupCountByVolumeID", ctx, volumeUUID).Return(int64(1), nil)
 	mockStorage.On("GetBackupVault", ctx, "backup-vault-123").Return(mockBackupVault, nil)
 	mockProvider.On("SnapmirrorRelationshipGet", "test-bucket:/objstore/test-volume-uuid", "test-svm:test-volume").Return(mockSnapmirror, nil)
 	mockProvider.On("SnapmirrorRelationshipDelete", "snapmirror-uuid").Return(&vsa.OntapAsyncResponse{}, nil)
@@ -2131,7 +2068,6 @@ func TestSnapmirrorInONTAPFailsWhenGetBackupVaultFails(t *testing.T) {
 	node := &models.Node{}
 	expectedError := errors.New("failed to get backup vault")
 
-	mockStorage.On("BackupCountByVolumeID", ctx, volumeUUID).Return(int64(1), nil)
 	mockStorage.On("GetBackupVault", ctx, "backup-vault-123").Return(nil, expectedError)
 
 	resp, err := activity.DeleteSnapmirrorInONTAP(ctx, volume, node)
@@ -2183,7 +2119,6 @@ func TestSnapmirrorInONTAPFailsWhenSnapmirrorRelationshipGetFails(t *testing.T) 
 		},
 	}
 
-	mockStorage.On("BackupCountByVolumeID", ctx, volumeUUID).Return(int64(1), nil)
 	mockStorage.On("GetBackupVault", ctx, "backup-vault-123").Return(mockBackupVault, nil)
 	mockProvider.On("SnapmirrorRelationshipGet", "test-bucket:/objstore/test-volume-uuid", "test-svm:test-volume").Return(nil, expectedError)
 

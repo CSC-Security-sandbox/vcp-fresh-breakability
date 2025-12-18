@@ -112,19 +112,8 @@ func (va VolumeDeleteActivity) DeleteSnapmirrorInONTAP(ctx context.Context, volu
 		}
 
 		se := va.SE
-		backupsCount, err := se.BackupCountByVolumeID(ctx, volume.UUID)
-		if err != nil {
-			logger.Errorf("Failed to get backups count for volume %s: %v", volume.UUID, err)
-			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get backups count for volume %s: %w", volume.UUID, err))
-		}
-
-		if backupsCount == 0 {
-			logger.Debugf("No backups found for volume %s, skipping snapmirror deletion", volume.UUID)
-			return nil, nil
-		}
-
 		if volume.DataProtection == nil || volume.DataProtection.BackupVaultID == "" {
-			logger.Warnf("Volume %s has backups but no data protection configuration, skipping snapmirror deletion", volume.UUID)
+			logger.Infof("Volume %s has no data protection configured; skipping snapmirror deletion as expected", volume.UUID)
 			return nil, nil
 		}
 
