@@ -116,6 +116,7 @@ type GcpHydrateDelete struct {
 type Request struct {
 	Volume      *VolumeHydrateObject      `json:"volume,omitempty"`
 	Replication *ReplicationHydrateObject `json:"replication,omitempty"`
+	QuotaRule   *QuotaRuleHydrateObject   `json:"quotaRule,omitempty"`
 	Snapshot    *HydrateSnapshot          `json:"snapshot,omitempty"`
 	Backup      *HydrateBackup            `json:"backup,omitempty"`
 	BackupVault *HydrateBackupVault       `json:"backup_vault,omitempty"`
@@ -126,6 +127,11 @@ type ReplicationHydrateObject struct {
 	ReplicationState      string                        `json:"state"`
 	HybridReplicationType *HybridReplicationHydrateType `json:"hybridReplicationType,omitempty"`
 	Labels                map[string]string             `json:"labels,omitempty"`
+}
+
+type QuotaRuleHydrateObject struct {
+	ResourceId  string `json:"name"`
+	QuotaRuleId string `json:"netapp_uuid"`
 }
 
 type CcfeErrorObject struct {

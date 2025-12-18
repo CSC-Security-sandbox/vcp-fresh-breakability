@@ -30,6 +30,8 @@ const (
 	ResizeOperationFailed     = "Quota policy rule create operation succeeded, however quota resize failed"
 	ActivationOperationFailed = "Quota policy rule create operation succeeded, but the rule is not active"
 	QuotaStatusFailed         = "Another quota operation is currently in progress for volume"
+	DeletedRuleEnforced       = "Quota policy rule delete operation succeeded, however the rule is still being enforced"
+	DeleteRuleResizeFailed    = "Quota policy rule delete operation succeeded, however quota resize failed"
 
 	// ONTAP quota types
 	QuotaRuleTypeUser  = "user"
@@ -430,18 +432,6 @@ func (rc *OntapRestProvider) CreateQuotaRule(ctx context.Context, params CreateQ
 
 // QuotaEnableDisable enables or disables the quota system on a volume.
 // This is a thin wrapper around the internal _quotaReinitialization function that provides
-// a clean public API for quota enable/disable operations.
-// This matches the spec (create-quota-cvs-job-function.md, Section 6).
-//
-// Parameters:
-//   - ctx: Context for logging and cancellation
-//   - volumeUUID: The ONTAP external UUID of the volume
-//   - svmName: The name of the SVM (used for error messages, not used in API call)
-//   - enable: true to enable quota, false to disable quota
-//
-// Returns:
-//   - JobStatus: Job status with Code, State ("success"/"failure"), and Message
-//   - Error: For any failure during the API call
 func (rc *OntapRestProvider) QuotaEnableDisable(ctx context.Context, volumeUUID, svmName string, enable bool) (*JobStatus, error) {
 	return rc.quotaReinitialization(ctx, volumeUUID, svmName, enable)
 }

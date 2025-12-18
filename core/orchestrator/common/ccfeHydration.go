@@ -34,6 +34,8 @@ var (
 	HydrateReplicationStateAndType = _hydrateReplicationStateAndType
 	ReplicationDelete              = _hydrateReplicationDelete
 	ReplicationCreate              = _hydrateReplicationCreate
+	HydrateQuotaRuleDelete         = _hydrateQuotaRuleDelete
+	HydrateQuotaRuleCreate         = _hydrateQuotaRuleCreate
 	GetQuotaLimit                  = _getQuotaLimit
 	createHydrateCreateObject      = _createHydrateCreateObject
 	hydrateToCffe                  = _hydrateToCffe
@@ -287,6 +289,15 @@ func _hydrateReplicationDelete(ctx context.Context, logger log.Logger, replicati
 	return err
 }
 
+func _hydrateQuotaRuleDelete(ctx context.Context, logger log.Logger, quotaRuleId string, volumeId string, region string, projectId string, token string) error {
+	nameArray := make([]string, 1)
+	nameArray[0] = "quotaRules/" + quotaRuleId
+	url := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s/resources:%s", baseUri, projectId, region, volumeId, Delete)
+	logger.Infof("Hydrating quota rule delete to callbackApi, QuotaRuleId: %s", quotaRuleId)
+	err := hydrateToCffe(ctx, logger, models.GcpHydrateDelete{Names: nameArray}, url, http.MethodPost, token)
+	return err
+}
+
 func _createHydrateCreateObject(request models.Request) models.GcpHydrateCreate {
 	requestArr := make([]models.Request, 1)
 	requestArr[0] = request
@@ -365,6 +376,17 @@ func _hydrateReplicationCreate(ctx context.Context, logger log.Logger, replicati
 	url := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s/resources:%s", baseUri, projectId, region, volumeResourceID, Create)
 	logger.Infof("Hydrating replication create to callbackApi, replication: %+v", replication)
 	err := hydrateToCffe(ctx, logger, hydrateReplication, url, http.MethodPost, token)
+	return err
+}
+
+func _hydrateQuotaRuleCreate(ctx context.Context, logger log.Logger, quotaRule models.QuotaRuleHydrateObject, volumeResourceID string, location string, projectId string, token string) error {
+	request := models.Request{
+		QuotaRule: &quotaRule,
+	}
+	hydrateQuotaRule := createHydrateCreateObject(request)
+	url := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s/resources:%s", baseUri, projectId, location, volumeResourceID, Create)
+	logger.Infof("Hydrating quotaRule create to callbackApi, quotaRule: %+v", quotaRule)
+	err := hydrateToCffe(ctx, logger, hydrateQuotaRule, url, http.MethodPost, token)
 	return err
 }
 

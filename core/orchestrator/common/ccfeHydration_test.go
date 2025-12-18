@@ -1408,3 +1408,74 @@ func TestConvertToGCPHydrateBackupDeleteRequests(t *testing.T) {
 	result = ConvertToGCPHydrateBackupDeleteRequests(nil)
 	assert.Empty(t, result)
 }
+
+func TestHydrateQuotaRuleDelete(t *testing.T) {
+	mockLogger := log.NewLogger()
+	ctx := context.Background()
+	quotaRuleId := "quota-rule-uuid-1"
+	volumeId := "volume-uuid-1"
+	region := "mocked-region"
+	projectId := "mocked-project"
+	token := "mocked-token"
+
+	// Save and mock hydrateToCffe
+	originalHydrateToCffe := hydrateToCffe
+	defer func() { hydrateToCffe = originalHydrateToCffe }()
+
+	t.Run("WhenHydrateToCffeReturnError", func(tt *testing.T) {
+		expectedErr := &errs.CustomError{
+			OriginalErr: errors.New("some error"),
+		}
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return expectedErr
+		}
+		err := _hydrateQuotaRuleDelete(ctx, mockLogger, quotaRuleId, volumeId, region, projectId, token)
+		assert.Error(tt, err.(*errs.CustomError).Unwrap())
+		assert.Equal(tt, expectedErr, err)
+	})
+
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
+		err := _hydrateQuotaRuleDelete(ctx, mockLogger, quotaRuleId, volumeId, region, projectId, token)
+		assert.NoError(tt, err, nil)
+	})
+}
+
+func TestHydrateQuotaRuleCreate(t *testing.T) {
+	mockLogger := log.NewLogger()
+	ctx := context.Background()
+	quotaRule := models.QuotaRuleHydrateObject{
+		ResourceId:  "quota-rule-1",
+		QuotaRuleId: "quota-rule-uuid-1",
+	}
+	volumeResourceID := "volume-uuid-1"
+	location := "mocked-location"
+	projectId := "mocked-project"
+	token := "mocked-token"
+
+	// Save and mock hydrateToCffe
+	originalHydrateToCffe := hydrateToCffe
+	defer func() { hydrateToCffe = originalHydrateToCffe }()
+
+	t.Run("WhenHydrateToCffeReturnError", func(tt *testing.T) {
+		expectedErr := &errs.CustomError{
+			OriginalErr: errors.New("some error"),
+		}
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return expectedErr
+		}
+		err := _hydrateQuotaRuleCreate(ctx, mockLogger, quotaRule, volumeResourceID, location, projectId, token)
+		assert.Error(tt, err.(*errs.CustomError).Unwrap())
+		assert.Equal(tt, expectedErr, err)
+	})
+
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
+		err := _hydrateQuotaRuleCreate(ctx, mockLogger, quotaRule, volumeResourceID, location, projectId, token)
+		assert.NoError(tt, err, nil)
+	})
+}

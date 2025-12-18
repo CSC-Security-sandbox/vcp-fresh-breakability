@@ -42,6 +42,8 @@ var (
 	createQuotaRuleInternal          = _createQuotaRuleInternal
 	updateQuotaRule                  = _updateQuotaRule
 	updateQuotaRuleInternal          = _updateQuotaRuleInternal
+	deleteQuotaRule                  = _deleteQuotaRule
+	deleteQuotaRuleInternal          = _deleteQuotaRuleInternal
 	listQuotaRules                   = _listQuotaRules
 	validateQuotaRuleCreateParams    = _validateQuotaRuleCreateParams
 	convertDatastoreQuotaRuleToModel = _convertDatastoreQuotaRuleToModel
@@ -114,7 +116,7 @@ func validateReplicationState(ctx context.Context, se database.Storage, volume *
 		}
 
 		if replication.HybridReplicationAttributes != nil {
-			return customerrors.NewUserInputValidationErr("Quota creation not allowed on hybrid replication volumes")
+			return customerrors.NewUserInputValidationErr("QuotaRule Operation is not allowed on hybrid replication volumes")
 		}
 
 		// Determine which replication to validate based on destination location
@@ -235,6 +237,17 @@ func (o *Orchestrator) UpdateQuotaRuleInternal(ctx context.Context, params *comm
 	return updateQuotaRuleInternal(ctx, o.storage, o.temporal, params)
 }
 
+// DeleteQuotaRule deletes a quota rule for a volume
+func (o *Orchestrator) DeleteQuotaRule(ctx context.Context, params *common.DeleteQuotaRulesParam) (*models.QuotaRule, string, error) {
+	return deleteQuotaRule(ctx, o.storage, o.temporal, params)
+}
+
+// DeleteQuotaRuleInternal deletes a quota rule for a volume via internal VCP API
+// This function is intended for VCP-to-VCP communication where replication validation is handled separately
+func (o *Orchestrator) DeleteQuotaRuleInternal(ctx context.Context, params *common.DeleteQuotaRulesParam) (*models.QuotaRule, *datamodel.Job, error) {
+	return deleteQuotaRuleInternal(ctx, o.storage, o.temporal, params)
+}
+
 // ListQuotaRules lists all quota rules for a volume
 func (o *Orchestrator) ListQuotaRules(ctx context.Context, params *common.ListQuotaRulesParams) ([]*models.QuotaRule, error) {
 	return listQuotaRules(ctx, o.storage, params)
@@ -294,7 +307,7 @@ func _createQuotaRule(ctx context.Context, se database.Storage, temporal client.
 
 	// Determine if RQuota is required for this quota rule
 	// This checks if the volume uses NFS and if this is the first quota rule in the SVM
-	rquotaRequired, err := determineRQuota(ctx, se, volumeDataModel, existingQuotaRulesData)
+	rquotaRequired, err := determineRQuota(ctx, se, volumeDataModel, false)
 	if err != nil {
 		logger.Errorf("RQuota determination failed: %v", err)
 		return nil, "", err
@@ -320,11 +333,11 @@ func _createQuotaRule(ctx context.Context, se database.Storage, temporal client.
 				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
 					logger.Errorf("Failed to delete job: %v", delErr)
 				}
-			}
-			if dbQuotaRule != nil && dbQuotaRule.UUID != "" {
-				logger.Warnf("Error occurred, marking quota rule in DB as deleted. Quota Rule UUID: %s", dbQuotaRule.UUID)
-				if _, delErr := se.DeleteQuotaRule(ctx, dbQuotaRule.UUID); delErr != nil {
-					logger.Errorf("Failed to delete quota rule: %v", delErr)
+				if dbQuotaRule != nil && dbQuotaRule.UUID != "" {
+					logger.Warnf("Error occurred, marking quota rule in DB as deleted. Quota Rule UUID: %s", dbQuotaRule.UUID)
+					if _, delErr := se.DeleteQuotaRule(ctx, dbQuotaRule.UUID); delErr != nil {
+						logger.Errorf("Failed to delete quota rule: %v", delErr)
+					}
 				}
 			}
 		}
@@ -429,7 +442,7 @@ func _createQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 
 	// Determine if RQuota is required for this quota rule
 	// This checks if the volume uses NFS and if this is the first quota rule in the SVM
-	rquotaRequired, err := determineRQuota(ctx, se, volumeDataModel, existingQuotaRulesData)
+	rquotaRequired, err := determineRQuota(ctx, se, volumeDataModel, false)
 	if err != nil {
 		logger.Errorf("RQuota determination failed: %v", err)
 		return nil, nil, err
@@ -459,11 +472,11 @@ func _createQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
 					logger.Errorf("Failed to delete job: %v", delErr)
 				}
-			}
-			if dbQuotaRule != nil && dbQuotaRule.UUID != "" {
-				logger.Warnf("Error occurred, marking quota rule in DB as deleted. Quota Rule UUID: %s", dbQuotaRule.UUID)
-				if _, delErr := se.DeleteQuotaRule(ctx, dbQuotaRule.UUID); delErr != nil {
-					logger.Errorf("Failed to delete quota rule: %v", delErr)
+				if dbQuotaRule != nil && dbQuotaRule.UUID != "" {
+					logger.Warnf("Error occurred, marking quota rule in DB as deleted. Quota Rule UUID: %s", dbQuotaRule.UUID)
+					if _, delErr := se.DeleteQuotaRule(ctx, dbQuotaRule.UUID); delErr != nil {
+						logger.Errorf("Failed to delete quota rule: %v", delErr)
+					}
 				}
 			}
 		}
@@ -601,13 +614,13 @@ func _updateQuotaRule(ctx context.Context, se database.Storage, temporal client.
 				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
 					logger.Errorf("Failed to delete job: %v", delErr)
 				}
-			}
-			// Mark quota rule as available after cleanup
-			if quotaRuleDataModel != nil {
-				quotaRuleDataModel.State = models.LifeCycleStateAvailable
-				quotaRuleDataModel.StateDetails = models.LifeCycleStateReadyDetails
-				if _, updateErr := se.UpdateQuotaRule(ctx, quotaRuleDataModel); updateErr != nil {
-					logger.Errorf("Failed to mark quota rule as available after error: %v", updateErr)
+				// Mark quota rule as available after cleanup
+				if quotaRuleDataModel != nil {
+					quotaRuleDataModel.State = models.LifeCycleStateAvailable
+					quotaRuleDataModel.StateDetails = models.LifeCycleStateReadyDetails
+					if _, updateErr := se.UpdateQuotaRule(ctx, quotaRuleDataModel); updateErr != nil {
+						logger.Errorf("Failed to mark quota rule as available after error: %v", updateErr)
+					}
 				}
 			}
 		}
@@ -731,13 +744,13 @@ func _updateQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
 					logger.Errorf("Failed to delete job: %v", delErr)
 				}
-			}
-			// Mark quota rule as available after cleanup
-			if quotaRuleDataModel != nil {
-				quotaRuleDataModel.State = models.LifeCycleStateAvailable
-				quotaRuleDataModel.StateDetails = models.LifeCycleStateReadyDetails
-				if _, updateErr := se.UpdateQuotaRule(ctx, quotaRuleDataModel); updateErr != nil {
-					logger.Errorf("Failed to mark quota rule as available after error: %v", updateErr)
+				// Mark quota rule as available after cleanup
+				if quotaRuleDataModel != nil {
+					quotaRuleDataModel.State = models.LifeCycleStateAvailable
+					quotaRuleDataModel.StateDetails = models.LifeCycleStateReadyDetails
+					if _, updateErr := se.UpdateQuotaRule(ctx, quotaRuleDataModel); updateErr != nil {
+						logger.Errorf("Failed to mark quota rule as available after error: %v", updateErr)
+					}
 				}
 			}
 		}
@@ -775,6 +788,226 @@ func _updateQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 
 	if err != nil {
 		logger.Errorf("Failed to start update quota rule workflow. Error: %v ", err)
+		return nil, nil, err
+	}
+
+	dataStoreQuotaRule := convertDatastoreQuotaRuleToModel(updatedQuotaRule)
+	return dataStoreQuotaRule, job, nil
+}
+
+func _deleteQuotaRule(ctx context.Context, se database.Storage, temporal client.Client, params *common.DeleteQuotaRulesParam) (*models.QuotaRule, string, error) {
+	logger := util.GetLogger(ctx)
+
+	// Get account for validation
+	account, err := getAccountWithName(ctx, se, params.ProjectId)
+	if err != nil {
+		logger.Errorf("Failed to get account: %s. Error: %v", params.ProjectId, err)
+		return nil, "", err
+	}
+
+	// Get quota rule by UUID
+	quotaRuleDataModel, err := se.GetQuotaRuleByUUID(ctx, params.QuotaRuleUUID, account.ID)
+	if err != nil {
+		logger.Errorf("Failed to get quota rule: %s. Error: %v", params.QuotaRuleUUID, err)
+		return nil, "", err
+	}
+
+	if isTransitionState(quotaRuleDataModel.State) {
+		logger.Errorf("Quota rule %s cannot be deleted while in transitioning state: %s", params.QuotaRuleUUID, quotaRuleDataModel.State)
+		return nil, "", customerrors.NewConflictErr("Quota rule is in transition state and cannot be deleted, state: " + quotaRuleDataModel.State)
+	}
+
+	// Get volume to access pool for provider and replication validation
+	volume, err := se.GetVolumeByIDAndAccountID(ctx, quotaRuleDataModel.VolumeID, account.ID)
+	if err != nil {
+		logger.Errorf("Failed to get volume: %v", err)
+		return nil, "", customerrors.NewUserInputValidationErr("Failed to get volume")
+	}
+
+	// Validate replication state: quota rules are not allowed on destination volumes with active replication.
+	if err := validateReplicationState(ctx, se, volume, params.LocationId); err != nil {
+		logger.Errorf("replication state validation failed: %v", err)
+		return nil, "", err
+	}
+
+	rquotaRequired, err := determineRQuota(ctx, se, volume, true)
+	if err != nil {
+		logger.Errorf("RQuota determination failed: %v", err)
+		return nil, "", err
+	}
+	logger.Debugf("RQuota determination for volume %s: required=%t", volume.UUID, rquotaRequired)
+
+	// Save previous state for error recovery
+	previousState := quotaRuleDataModel.State
+	previousStateDetails := quotaRuleDataModel.StateDetails
+	previousRquota := quotaRuleDataModel.RQuota
+
+	// Create job entry in database
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeDeleteQuotaRule),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  quotaRuleDataModel.Name,
+		AccountID:     sql.NullInt64{Int64: volume.AccountID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	// Cleanup in case of error
+	defer func() {
+		if err != nil {
+			if job != nil && job.UUID != "" {
+				logger.Warnf("Error occurred, marking job entry in DB as deleted. Job UUID: %s", job.UUID)
+				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
+					logger.Errorf("Failed to delete job: %v", delErr)
+				}
+				// Mark quota rule back to previous state after error (only if job was created)
+				if quotaRuleDataModel != nil {
+					quotaRuleDataModel.State = previousState
+					quotaRuleDataModel.StateDetails = previousStateDetails
+					quotaRuleDataModel.RQuota = previousRquota
+					if _, updateErr := se.UpdateQuotaRule(ctx, quotaRuleDataModel); updateErr != nil {
+						logger.Errorf("Failed to mark quota rule back to previous state after error: %v", updateErr)
+					}
+				}
+			}
+		}
+	}()
+
+	job, err = se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Errorf("Failed to create job in database. Error: %v", err)
+		return nil, "", err
+	}
+
+	// Update state to DELETING
+	quotaRuleDataModel.State = models.LifeCycleStateDeleting
+	quotaRuleDataModel.StateDetails = models.LifeCycleStateDeletingDetails
+	quotaRuleDataModel.RQuota = rquotaRequired
+	// Mark quota rule as DELETING state in database
+	updatedQuotaRule, err := se.UpdatingQuotaRule(ctx, quotaRuleDataModel)
+	if err != nil {
+		logger.Errorf("Failed to mark quota rule as deleting: %v", err)
+		return nil, "", err
+	}
+
+	// Start Temporal workflow for quota rule delete
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    job.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+		},
+		workflows.DeleteQuotaRuleWorkflow,
+		params,
+		updatedQuotaRule,
+	)
+
+	if err != nil {
+		logger.Errorf("Failed to start delete quota rule workflow. Error: %v ", err)
+		return nil, "", err
+	}
+
+	dataStoreQuotaRule := convertDatastoreQuotaRuleToModel(updatedQuotaRule)
+	return dataStoreQuotaRule, job.UUID, nil
+}
+
+func _deleteQuotaRuleInternal(ctx context.Context, se database.Storage, temporal client.Client, params *common.DeleteQuotaRulesParam) (*models.QuotaRule, *datamodel.Job, error) {
+	logger := util.GetLogger(ctx)
+
+	// Get account for validation
+	account, err := getAccountWithName(ctx, se, params.ProjectId)
+	if err != nil {
+		logger.Errorf("Failed to get account: %s. Error: %v", params.ProjectId, err)
+		return nil, nil, err
+	}
+
+	// Get quota rule by UUID
+	quotaRuleDataModel, err := se.GetQuotaRuleByUUID(ctx, params.QuotaRuleUUID, account.ID)
+	if err != nil {
+		logger.Errorf("Failed to get quota rule: %s. Error: %v", params.QuotaRuleUUID, err)
+		return nil, nil, err
+	}
+
+	if isTransitionState(quotaRuleDataModel.State) && quotaRuleDataModel.State != models.LifeCycleStateDeleting {
+		logger.Errorf("Quota rule %s cannot be deleted while in transitioning state: %s", params.QuotaRuleUUID, quotaRuleDataModel.State)
+		return nil, nil, customerrors.NewConflictErr("Quota rule is in transition state and cannot be deleted, state: " + quotaRuleDataModel.State)
+	}
+
+	// Get volume to access account ID for job creation
+	volume, err := se.GetVolumeByIDAndAccountID(ctx, quotaRuleDataModel.VolumeID, account.ID)
+	if err != nil {
+		logger.Errorf("Failed to get volume: %v", err)
+		return nil, nil, err
+	}
+
+	// Save previous state for error recovery
+	previousState := quotaRuleDataModel.State
+	previousStateDetails := quotaRuleDataModel.StateDetails
+
+	// Create job entry in database
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeDeleteQuotaRule),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  quotaRuleDataModel.Name,
+		AccountID:     sql.NullInt64{Int64: volume.AccountID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	// Cleanup in case of error
+	defer func() {
+		if err != nil {
+			if job != nil && job.UUID != "" {
+				logger.Warnf("Error occurred, marking job entry in DB as deleted. Job UUID: %s", job.UUID)
+				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
+					logger.Errorf("Failed to delete job: %v", delErr)
+				}
+				// Mark quota rule back to previous state after error
+				if quotaRuleDataModel != nil {
+					quotaRuleDataModel.State = previousState
+					quotaRuleDataModel.StateDetails = previousStateDetails
+					if _, updateErr := se.UpdateQuotaRule(ctx, quotaRuleDataModel); updateErr != nil {
+						logger.Errorf("Failed to mark quota rule back to previous state after error: %v", updateErr)
+					}
+				}
+			}
+		}
+	}()
+
+	job, err = se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Errorf("Failed to create job in database. Error: %v", err)
+		return nil, nil, err
+	}
+
+	// Update state to DELETING
+	quotaRuleDataModel.State = models.LifeCycleStateDeleting
+	quotaRuleDataModel.StateDetails = models.LifeCycleStateDeletingDetails
+
+	// Mark quota rule as DELETING state in database
+	updatedQuotaRule, err := se.UpdatingQuotaRule(ctx, quotaRuleDataModel)
+	if err != nil {
+		logger.Errorf("Failed to mark quota rule as deleting: %v", err)
+		return nil, nil, err
+	}
+
+	// Start Temporal workflow for quota rule delete
+	// Note: DeleteQuotaRuleWorkflow will need to be implemented separately
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    job.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+		},
+		workflows.DeleteQuotaRuleWorkflow,
+		params,
+		updatedQuotaRule,
+	)
+
+	if err != nil {
+		logger.Errorf("Failed to start delete quota rule workflow. Error: %v ", err)
 		return nil, nil, err
 	}
 
@@ -910,25 +1143,15 @@ func hasNFSv4(protocolTypes []string) bool {
 }
 
 // determineRQuota determines if recursive quota (RQuota) should be enabled for this quota rule.
-// This is a helper function called from _createQuotaRule and _createQuotaRuleInternal.
-// RQuota is set to true if and only if:
-// 1. Volume uses NFS protocol (NFSv3 or NFSv4)
-// 2. This is the first quota rule on this volume
-// 3. No other quota rules exist in the entire SVM
-//
-// This follows the ONTAP requirement that recursive quotas must be enabled at the SVM level
-// when creating the first quota rule in the entire SVM.
-//
-// Parameters:
 //   - ctx: Context for logging
 //   - se: Database storage interface
 //   - volumeDetails: Volume to check
-//   - existingQuotaRules: Existing quota rules for the volume (already fetched by caller)
+//   - isDeleteAction: true if this is for a delete operation, false for create/update
 //
 // Returns:
 //   - bool: true if RQuota is required, false otherwise
 //   - error: Error if database operations fail
-func determineRQuota(ctx context.Context, se database.Storage, volumeDetails *datamodel.Volume, existingQuotaRules []*datamodel.QuotaRule) (bool, error) {
+func determineRQuota(ctx context.Context, se database.Storage, volumeDetails *datamodel.Volume, isDeleteAction bool) (bool, error) {
 	logger := util.GetLogger(ctx)
 
 	// Get protocols from volume attributes
@@ -939,27 +1162,32 @@ func determineRQuota(ctx context.Context, se database.Storage, volumeDetails *da
 
 	// Check if volume uses NFS protocol using helper functions
 	if !(hasNFSv3(protocols) || hasNFSv4(protocols)) {
+		if isDeleteAction {
+			return true, nil
+		}
 		logger.Infof("Volume %s does not use NFS protocol, RQuota not required", volumeDetails.UUID)
 		return false, nil
 	}
 
-	// Only check SVM-level count if this is the first quota rule on the volume
-	if len(existingQuotaRules) == 0 {
-		// Get quota count under the SVM using SvmID
-		quotaCountUnderSVM, err := se.GetQuotaRuleCountBySvmID(ctx, volumeDetails.SvmID)
-		if err != nil {
-			logger.Errorf("Failed to get quota rule count for SVM ID %d: %v", volumeDetails.SvmID, err)
-			return false, err
-		}
+	// Get quota count under the SVM using SvmID
+	quotaCountUnderSVM, err := se.GetQuotaRuleCountBySvmID(ctx, volumeDetails.SvmID)
+	if err != nil {
+		logger.Errorf("Failed to get quota rule count for SVM ID %d: %v", volumeDetails.SvmID, err)
+		return false, err
+	}
 
-		// RQuota should be enabled only if this is the very first quota rule in the entire SVM
-		rquotaRequired := quotaCountUnderSVM == 0
-		logger.Infof("RQuota determination for volume %s (SvmID=%d): quotaCountUnderSVM=%d, rquotaRequired=%t",
+	if isDeleteAction {
+		// For delete: RQuota should be disabled only if this is the last quota rule in the SVM
+		rquotaRequired := quotaCountUnderSVM == 1
+		logger.Infof("RQuota determination for delete on volume %s (SvmID=%d): quotaCountUnderSVM=%d, rquotaRequired=%t",
 			volumeDetails.UUID, volumeDetails.SvmID, quotaCountUnderSVM, rquotaRequired)
-
 		return rquotaRequired, nil
 	}
 
-	logger.Infof("Volume %s already has %d quota rules, RQuota not required", volumeDetails.UUID, len(existingQuotaRules))
-	return false, nil
+	// For create/update: RQuota should be enabled only if this is the very first quota rule in the entire SVM
+	rquotaRequired := quotaCountUnderSVM == 0
+	logger.Infof("RQuota determination for volume %s (SvmID=%d): quotaCountUnderSVM=%d, rquotaRequired=%t",
+		volumeDetails.UUID, volumeDetails.SvmID, quotaCountUnderSVM, rquotaRequired)
+
+	return rquotaRequired, nil
 }

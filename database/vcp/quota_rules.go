@@ -100,7 +100,8 @@ func (d *DataStoreRepository) UpdatingQuotaRule(ctx context.Context, quotaRule *
 	defer commitOrRollbackOnError(logger, tx, &err)
 
 	// Update timestamp
-	quotaRule.UpdatedAt = time.Now()
+	updateTime := time.Now()
+	quotaRule.UpdatedAt = updateTime
 
 	// Save the updated quota rule
 	if err = tx.Updates(quotaRule).Error; err != nil {
@@ -232,7 +233,6 @@ func (d *DataStoreRepository) GetQuotaRuleCountBySvmID(ctx context.Context, svmI
 	logger := util.GetLogger(ctx)
 	db := d.db.GORM().WithContext(ctx)
 
-	// Step 1: Get all volumes for this SVM that have NFS protocols
 	var nfsVolumes []datamodel.Volume
 	err := db.Where("svm_id = ?", svmID).
 		Where("deleted_at IS NULL").
@@ -243,7 +243,6 @@ func (d *DataStoreRepository) GetQuotaRuleCountBySvmID(ctx context.Context, svmI
 		return 0, err
 	}
 
-	// Step 2: Filter volumes to only NFS volumes using protocol constants
 	var nfsVolumeIDs []int64
 	for _, volume := range nfsVolumes {
 		if volume.VolumeAttributes != nil && volume.VolumeAttributes.Protocols != nil {
@@ -255,7 +254,6 @@ func (d *DataStoreRepository) GetQuotaRuleCountBySvmID(ctx context.Context, svmI
 		}
 	}
 
-	// Step 3: Count quota rules for these NFS volumes
 	var count int64
 	err = db.Model(&datamodel.QuotaRule{}).
 		Where("volume_id IN ?", nfsVolumeIDs).

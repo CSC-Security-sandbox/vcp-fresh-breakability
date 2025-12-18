@@ -75,7 +75,7 @@ func QuotaRuleLifeCycleV1Beta(lifeCycleState string) gcpgenserver.OptQuotaRulesV
 	switch lifeCycleState {
 	case models.LifeCycleStateCreating:
 		return gcpgenserver.NewOptQuotaRulesV1betaState(gcpgenserver.QuotaRulesV1betaStateCREATING)
-	case models.LifeCycleStateAvailable:
+	case models.LifeCycleStateREADY:
 		return gcpgenserver.NewOptQuotaRulesV1betaState(gcpgenserver.QuotaRulesV1betaStateREADY)
 	case models.LifeCycleStateUpdating:
 		return gcpgenserver.NewOptQuotaRulesV1betaState(gcpgenserver.QuotaRulesV1betaStateUPDATING)
@@ -109,7 +109,7 @@ func QuotaRuleLifeCycleVCPV1Beta(lifeCycleState string) gcpgenserver.OptQuotaRul
 	switch lifeCycleState {
 	case models.LifeCycleStateCreating:
 		return gcpgenserver.NewOptQuotaRulesVCPV1betaState(gcpgenserver.QuotaRulesVCPV1betaStateCREATING)
-	case models.LifeCycleStateAvailable:
+	case models.LifeCycleStateREADY:
 		return gcpgenserver.NewOptQuotaRulesVCPV1betaState(gcpgenserver.QuotaRulesVCPV1betaStateREADY)
 	case models.LifeCycleStateUpdating:
 		return gcpgenserver.NewOptQuotaRulesVCPV1betaState(gcpgenserver.QuotaRulesVCPV1betaStateUPDATING)
@@ -351,6 +351,65 @@ func (h Handler) V1betaUpdateQuotaRule(ctx context.Context, req *gcpgenserver.Qu
 	}, nil
 }
 
+// V1betaDeleteQuotaRule is a handler for deleting a quota rule
+func (h Handler) V1betaDeleteQuotaRule(ctx context.Context, params gcpgenserver.V1betaDeleteQuotaRuleParams) (gcpgenserver.V1betaDeleteQuotaRuleRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaDeleteQuotaRuleBadRequest{
+			Code:    400,
+			Message: parsingErr.GetMessage(),
+		}, nil
+	}
+
+	// Create a parameter struct for orchestrator
+	quotaParam := &orchestratorcommon.DeleteQuotaRulesParam{
+		QuotaRuleUUID: params.QuotaRuleId,
+		ProjectId:     params.ProjectNumber,
+		LocationId:    params.LocationId,
+	}
+
+	// Call orchestrator to delete the quota rule
+	quotaRule, operationID, err := h.Orchestrator.DeleteQuotaRule(ctx, quotaParam)
+
+	if err != nil {
+		// Handle validation and not found errors
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaDeleteQuotaRuleBadRequest{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			}, nil
+		} else if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaDeleteQuotaRuleConflict{
+				Code:    http.StatusConflict,
+				Message: err.Error(),
+			}, nil
+		}
+
+		logger.Errorf("Failed to delete quota rule: %v", err)
+		return &gcpgenserver.V1betaDeleteQuotaRuleInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		}, err
+	}
+
+	quotaRuleRes, err := encodeQuotaRuleV1(convertQuotaRuleToV1beta(quotaRule))
+	if err != nil {
+		return &gcpgenserver.V1betaDeleteQuotaRuleInternalServerError{Code: 500, Message: err.Error()}, nil
+	}
+	// Build operation ID - use empty string if operationID is empty (synchronous delete)
+	operationName := ""
+	if operationID != "" {
+		operationName = fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID)
+	}
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationName),
+		Response: quotaRuleRes,
+		Done:     gcpgenserver.NewOptBool(false),
+	}, nil
+}
+
 // V1betaUpdateQuotaRuleVCP is a handler for updating a quota rule via internal VCP API
 func (h Handler) V1betaUpdateQuotaRuleVCP(ctx context.Context, req *gcpgenserver.QuotaRulesUpdateV1beta, params gcpgenserver.V1betaUpdateQuotaRuleVCPParams) (gcpgenserver.V1betaUpdateQuotaRuleVCPRes, error) {
 	logger := util.GetLogger(ctx)
@@ -399,6 +458,52 @@ func (h Handler) V1betaUpdateQuotaRuleVCP(ctx context.Context, req *gcpgenserver
 
 		logger.Errorf("Failed to update quota rule via internal API: %v", err)
 		return &gcpgenserver.V1betaUpdateQuotaRuleVCPInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, err
+	}
+
+	return convertQuotaRuleToVCPResponse(quotaRule, job), nil
+}
+
+// V1betaDeleteQuotaRuleVCP is a handler for deleting a quota rule via internal VCP API
+func (h Handler) V1betaDeleteQuotaRuleVCP(ctx context.Context, params gcpgenserver.V1betaDeleteQuotaRuleVCPParams) (gcpgenserver.V1betaDeleteQuotaRuleVCPRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaDeleteQuotaRuleVCPBadRequest{
+			Code:    400,
+			Message: parsingErr.GetMessage(),
+		}, nil
+	}
+
+	// Create a parameter struct for orchestrator
+	quotaParam := &orchestratorcommon.DeleteQuotaRulesParam{
+		QuotaRuleUUID: params.QuotaRuleId,
+		ProjectId:     params.ProjectNumber,
+		LocationId:    params.LocationId,
+	}
+
+	// Call internal orchestrator function (skips replication validation)
+	quotaRule, job, err := h.Orchestrator.DeleteQuotaRuleInternal(ctx, quotaParam)
+
+	if err != nil {
+		// Handle validation and not found errors
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaDeleteQuotaRuleVCPBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		} else if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaDeleteQuotaRuleVCPConflict{
+				Code:    409,
+				Message: err.Error(),
+			}, nil
+		}
+
+		logger.Errorf("Failed to delete quota rule via internal API: %v", err)
+		return &gcpgenserver.V1betaDeleteQuotaRuleVCPInternalServerError{
 			Code:    500,
 			Message: err.Error(),
 		}, err

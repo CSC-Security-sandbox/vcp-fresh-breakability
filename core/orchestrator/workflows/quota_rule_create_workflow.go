@@ -15,10 +15,15 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+)
+
+var (
+	hydrationEnabled = env.GetBool("GCP_HYDRATE_ENABLED", true)
 )
 
 type quotaRuleCreateWorkflow struct {
@@ -100,7 +105,7 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: 5 * time.Minute,
+		StartToCloseTimeout: 20 * time.Minute,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -186,7 +191,7 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 			return
 		}
 		svmExternalUUID := volumeDetails.Svm.SvmDetails.ExternalUUID
-		err = workflow.ExecuteActivity(ctx, quotaRuleActivity.UpdateRQuotaOnSvm, svmExternalUUID, node, true).Get(ctx, nil)
+		err = workflow.ExecuteActivity(ctx, commonActivity.UpdateRQuotaOnSvm, svmExternalUUID, node, true).Get(ctx, nil)
 		if err != nil {
 			logger.Errorf("Failed to enable RQuota on SVM: %v", err)
 			returnErr = ConvertToVSAError(err)
@@ -248,7 +253,7 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		if quotaStatus.State == vsa.QuotaStateOff {
 			// Enable quota for the first time
 			var quotaEnableResp *vsa.JobStatus
-			err = workflow.ExecuteActivity(ctx, quotaRuleActivity.HandleQuotaEnableDisable, node, volumeDetails).Get(ctx, &quotaEnableResp)
+			err = workflow.ExecuteActivity(ctx, commonActivity.HandleQuotaEnableDisable, node, volumeDetails, true).Get(ctx, &quotaEnableResp)
 			if err != nil {
 				logger.Errorf("Failed to enable quota: %v", err)
 				returnErr = ConvertToVSAError(err)
@@ -286,7 +291,7 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 					strings.Contains(quotaRuleCreateResponse.Message, vsa.ActivationOperationFailed) {
 					logger.Infof("Detected resize/activation failure - triggering quota reinitialization")
 					// Call QuotaReinitialization activity to handle reinitialization (matches spec Section 7)
-					err = workflow.ExecuteActivity(ctx, quotaRuleActivity.QuotaReinitialization,
+					err = workflow.ExecuteActivity(ctx, commonActivity.QuotaReinitialization,
 						node, volumeDetails).Get(ctx, nil)
 					if err != nil {
 						logger.Errorf("Quota reinitialization failed: %v", err)
@@ -376,6 +381,19 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 							createOperationResult.OperationName, err)
 						returnErr = ConvertToVSAError(err)
 						return
+					}
+				}
+
+				if hydrationEnabled {
+					// Hydrate the quota rule creation to CCFE after successful creation on destination
+					hydrateErr := workflow.ExecuteActivity(ctx, commonActivity.HydrateQuotaRuleCreate,
+						dbQuotaRule, replication.ReplicationAttributes.DestinationVolumeUUID,
+						replication.ReplicationAttributes.DestinationLocation, destProjectNumber).Get(ctx, nil)
+					if hydrateErr != nil {
+						logger.Warnf("Failed to hydrate quota rule create to CCFE (non-fatal): quotaRuleName=%s, error=%v", dbQuotaRule.Name, hydrateErr)
+						// Don't fail the workflow if hydration fails - log warning and continue
+					} else {
+						logger.Infof("Successfully hydrated quota rule create to CCFE: quotaRuleName=%s", dbQuotaRule.Name)
 					}
 				}
 

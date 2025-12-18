@@ -830,3 +830,10 @@ type UpdateQuotaRulesParam struct {
 	ProjectId      string // Project number for validation
 	LocationId     string // Location/region for validation
 }
+
+// DeleteQuotaRulesParam describes parameters supplied to delete a quota rule
+type DeleteQuotaRulesParam struct {
+	QuotaRuleUUID string // UUID of the quota rule to delete
+	ProjectId     string // Project number for validation
+	LocationId    string // Location/region for validation
+}

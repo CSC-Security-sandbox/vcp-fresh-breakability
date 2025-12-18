@@ -13,6 +13,7 @@ import (
 	coreerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -41,6 +42,10 @@ type QuotaRuleUpdateActivity struct {
 	SE database.Storage
 }
 
+type QuotaRuleDeleteActivity struct {
+	SE database.Storage
+}
+
 // getBasePathForQuotaRule gets the base path for a given location/region.
 // This is a local helper to avoid import cycle with replicationActivities.
 func getBasePathForQuotaRule(ctx context.Context, location string) (*string, error) {
@@ -62,8 +67,11 @@ func getBasePathForQuotaRule(ctx context.Context, location string) (*string, err
 
 const (
 	// Quota type identifiers used in protocol validation
-	QuotaIndividualGroup = "INDIVIDUAL_GROUP_QUOTA"
-	QuotaDefaultGroup    = "DEFAULT_GROUP_QUOTA"
+	QuotaIndividualGroup  = "INDIVIDUAL_GROUP_QUOTA"
+	QuotaDefaultGroup     = "DEFAULT_GROUP_QUOTA"
+	QuotaRuleEnable       = "Enable"
+	QuotaRuleDisable      = "Disable"
+	QuotaRuleActionDelete = "delete"
 )
 
 // ValidateQuotaTargetByProtocol performs protocol-specific quotaTarget validations.
@@ -179,14 +187,6 @@ func (a *QuotaRuleCommonActivity) GetVolumeReplication(ctx context.Context, volu
 // GetSignedDstTokenForQuotaRule retrieves and stores JWT token for destination project.
 // This token will be reused across all destination API calls to avoid multiple token creations.
 // Following the replication workflow pattern for consistency.
-//
-// Parameters:
-//   - ctx: Context for logging and cancellation
-//   - projectNumber: GCP project number for the destination
-//
-// Returns:
-//   - jwtToken: Pointer to JWT token string for reuse
-//   - error: Error if token creation fails
 func (a *QuotaRuleCommonActivity) GetSignedDstTokenForQuotaRule(
 	ctx context.Context,
 	projectNumber string,
@@ -202,12 +202,14 @@ func (a *QuotaRuleCommonActivity) GetSignedDstTokenForQuotaRule(
 }
 
 // GetOntapQuotaUUID retrieves the UUID of an existing quota rule from ONTAP.
+// action: "delete" to allow empty quotaUUID (not found) as expected behavior, other values will return error if not found
 func (a *QuotaRuleCommonActivity) GetOntapQuotaUUID(
 	ctx context.Context,
 	volumeDetails *datamodel.Volume,
 	node *models.Node,
 	quotaType string,
 	target string,
+	action string,
 ) (string, error) {
 	logger := util.GetLogger(ctx)
 
@@ -244,11 +246,92 @@ func (a *QuotaRuleCommonActivity) GetOntapQuotaUUID(
 		return "", vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	if quotaUUID == "" {
+		// For delete action, quota not found is expected (already deleted) - return empty string with nil error
+		// For other actions (update, etc.), quota not found is an error
+		if action == QuotaRuleActionDelete {
+			logger.Infof("No quota UUID found for volume %s, quotaType %s, target %s - returning empty UUID (delete action)", volumeUUID, quotaType, target)
+			return "", nil
+		}
 		logger.Errorf("No quota UUID found for volume %s, quotaType %s, target %s", volumeUUID, quotaType, target)
 		return "", vsaerrors.WrapAsTemporalApplicationError(customerrors.NewNotFoundErr("Quota", nil))
 	}
 
 	return quotaUUID, nil
+}
+
+// HandleQuotaEnableDisable enables or disables quota on a volume.
+// This activity calls QuotaEnableDisable and returns the response for workflow-level processing.
+// Response validation is done in the workflow, following the sample code pattern.
+func (a *QuotaRuleCommonActivity) HandleQuotaEnableDisable(
+	ctx context.Context,
+	node *models.Node,
+	volumeDetails *datamodel.Volume,
+	enable bool,
+) (*vsa.JobStatus, error) {
+	logger := util.GetLogger(ctx)
+
+	// Create provider from node
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		logger.Errorf("Failed to create provider for volume %s: %v", volumeDetails.UUID, err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Validate inputs
+	if volumeDetails.VolumeAttributes == nil || volumeDetails.VolumeAttributes.ExternalUUID == "" {
+		logger.Errorf("Volume %s has no ExternalUUID in VolumeAttributes", volumeDetails.UUID)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(customerrors.NewUserInputValidationErr(
+			"Volume has no ExternalUUID"))
+	}
+
+	// Get SVM name
+	var svmName string
+	if volumeDetails.Svm != nil && volumeDetails.Svm.Name != "" {
+		svmName = volumeDetails.Svm.Name
+	} else {
+		logger.Errorf("Volume %s has no SVM details loaded", volumeDetails.UUID)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(customerrors.NewUserInputValidationErr(
+			"Volume has no SVM details"))
+	}
+
+	volumeUUID := volumeDetails.VolumeAttributes.ExternalUUID
+
+	action := QuotaRuleEnable
+	if !enable {
+		action = QuotaRuleDisable
+	}
+	logger.Infof("%s quota on volume: %s", action, volumeUUID)
+
+	// Call provider to enable/disable quota and return response for workflow processing
+	jobStatus, err := provider.QuotaEnableDisable(ctx, volumeUUID, svmName, enable)
+	if err != nil {
+		logger.Errorf("Failed to %s quota: %v", action, err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return jobStatus, nil
+}
+
+// QuotaReinitialization performs quota reinitialization (disable then enable).
+func (a *QuotaRuleCommonActivity) QuotaReinitialization(
+	ctx context.Context,
+	node *models.Node,
+	volumeDetails *datamodel.Volume,
+) error {
+	logger := util.GetLogger(ctx)
+
+	// Create provider from node
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		logger.Errorf("Failed to create provider for volume %s: %v", volumeDetails.UUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	err = performQuotaReinitialization(ctx, provider, volumeDetails)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return nil
 }
 
 // GetReplicationDetails fetches replication details from the destination region
@@ -313,15 +396,6 @@ func ConvertGoogleProxyReplicationToModel(response *googleproxyclient.V1betaGetM
 
 // VerifyReplicationState validates that a single replication is eligible for quota rule sync.
 // This activity checks replication state to ensure quota operations are safe.
-//
-// Parameters:
-//   - ctx: Context for logging
-//   - replication: Single volume replication to check
-//   - locationId: Current location (zone) to check for destination sync eligibility
-//
-// Returns:
-//   - eligible: Boolean indicating if the replication is eligible for quota sync
-//   - error: Error if replication state check fails
 func (a *QuotaRuleCommonActivity) VerifyReplicationState(
 	ctx context.Context,
 	replication *datamodel.VolumeReplication,
@@ -409,16 +483,81 @@ func (a *QuotaRuleCommonActivity) VerifyReplicationState(
 	return false, nil
 }
 
+// HydrateQuotaRuleDelete hydrates the deletion of a quota rule to CCFE (Google Cloud callback API).
+// This activity is used to notify CCFE when a quota rule is deleted on a destination volume.
+func (a *QuotaRuleCommonActivity) HydrateQuotaRuleDelete(
+	ctx context.Context,
+	quotaRuleId string,
+	volumeId string,
+	region string,
+	projectId string,
+) error {
+	logger := util.GetLogger(ctx)
+
+	// Generate callback token for CCFE authentication
+	callbackToken, err := auth.GenerateCallbackToken(ctx)
+	if err != nil {
+		logger.Errorf("Failed to generate callback token for quota rule delete hydration: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to generate callback token: %w", err))
+	}
+
+	// Call the common hydration function to dehydrate the quota rule deletion
+	err = common.HydrateQuotaRuleDelete(ctx, logger, quotaRuleId, volumeId, region, projectId, callbackToken)
+	if err != nil {
+		logger.Errorf("Failed to hydrate quota rule delete to CCFE: quotaRuleId=%s, volumeId=%s, error=%v", quotaRuleId, volumeId, err)
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to hydrate quota rule delete: %w", err))
+	}
+
+	logger.Infof("Successfully hydrated quota rule delete to CCFE: quotaRuleId=%s, volumeId=%s", quotaRuleId, volumeId)
+	return nil
+}
+
+// mapQuotaRuleToHydrateObject maps a datamodel.QuotaRule to models.QuotaRuleHydrateObject
+func mapQuotaRuleToHydrateObject(quotaRule *datamodel.QuotaRule) models.QuotaRuleHydrateObject {
+	quotaRuleId := ""
+	if quotaRule.QuotaRuleAttributes != nil && quotaRule.QuotaRuleAttributes.ExternalUUID != "" {
+		quotaRuleId = quotaRule.QuotaRuleAttributes.ExternalUUID
+	}
+
+	return models.QuotaRuleHydrateObject{
+		ResourceId:  quotaRule.Name,
+		QuotaRuleId: quotaRuleId,
+	}
+}
+
+// HydrateQuotaRuleCreate hydrates the creation of a quota rule to CCFE (Google Cloud callback API).
+// This activity is used to notify CCFE when a quota rule is created/recreated on a destination volume.
+func (a *QuotaRuleCommonActivity) HydrateQuotaRuleCreate(
+	ctx context.Context,
+	quotaRule *datamodel.QuotaRule,
+	volumeId string,
+	region string,
+	projectId string,
+) error {
+	logger := util.GetLogger(ctx)
+
+	// Generate callback token for CCFE authentication
+	callbackToken, err := auth.GenerateCallbackToken(ctx)
+	if err != nil {
+		logger.Errorf("Failed to generate callback token for quota rule create hydration: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to generate callback token: %w", err))
+	}
+
+	// Map datamodel.QuotaRule to models.QuotaRuleHydrateObject
+	hydrateObject := mapQuotaRuleToHydrateObject(quotaRule)
+
+	// Call the common hydration function to hydrate the quota rule creation
+	err = common.HydrateQuotaRuleCreate(ctx, logger, hydrateObject, volumeId, region, projectId, callbackToken)
+	if err != nil {
+		logger.Errorf("Failed to hydrate quota rule create to CCFE: quotaRuleName=%s, volumeId=%s, error=%v", quotaRule.Name, volumeId, err)
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to hydrate quota rule create: %w", err))
+	}
+
+	logger.Infof("Successfully hydrated quota rule create to CCFE: quotaRuleName=%s, volumeId=%s", quotaRule.Name, volumeId)
+	return nil
+}
+
 // UpdateQuotaRulesOnOntap updates a quota rule's disk limit on ONTAP.
-//
-// Parameters:
-//   - ctx: Context for logging and cancellation
-//   - externalQuotaUUID: The ONTAP UUID of the quota rule to update
-//   - node: Node structure for creating the provider
-//   - diskLimitInKibs: The new disk limit in kibibytes (KiB)
-//
-// Returns:
-//   - error: Error if the update fails or the job returns failure status
 func (a *QuotaRuleUpdateActivity) UpdateQuotaRulesOnOntap(
 	ctx context.Context,
 	externalQuotaUUID string,
@@ -456,15 +595,6 @@ func (a *QuotaRuleUpdateActivity) UpdateQuotaRulesOnOntap(
 
 // RevertQuotaRulesOnSource reverts the quota rule on the source ONTAP back to its original value.
 // This is used when destination sync fails to maintain source-destination synchronization.
-//
-// Parameters:
-//   - ctx: Context for logging and cancellation
-//   - externalQuotaUUID: The ONTAP UUID of the quota rule to revert
-//   - node: Node structure for creating the provider
-//   - originalDiskLimitInKib: The original disk limit in kibibytes (KiB) to revert to
-//
-// Returns:
-//   - error: Error if the revert fails
 func (a *QuotaRuleUpdateActivity) RevertQuotaRulesOnSource(
 	ctx context.Context,
 	externalQuotaUUID string,
@@ -503,6 +633,195 @@ func (a *QuotaRuleUpdateActivity) RevertQuotaRulesOnSource(
 	return nil
 }
 
+// DeleteQuotaRuleOnOntap deletes a quota rule from ONTAP using the provider.
+// This activity follows the same pattern as UpdateQuotaRulesOnOntap but for deletion.
+func (a *QuotaRuleDeleteActivity) DeleteQuotaRuleOnOntap(
+	ctx context.Context,
+	externalQuotaUUID string,
+	node *models.Node,
+) (*vsa.JobStatus, error) {
+	logger := util.GetLogger(ctx)
+
+	// Create provider from node
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		logger.Errorf("Failed to create provider for quota rule deletion: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	jobStatus, err := provider.DeleteQuotaRule(ctx, externalQuotaUUID)
+	if err != nil {
+		logger.Errorf("Failed to delete quota rule on ONTAP: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return jobStatus, nil
+}
+
+// ListQuotaRulesForVolume lists all quota rules for a volume (excluding deleted ones).
+// This is used to determine if quota should be disabled after deletion.
+func (a *QuotaRuleDeleteActivity) ListQuotaRulesForVolume(
+	ctx context.Context,
+	volumeUUID string,
+) ([]*datamodel.QuotaRule, error) {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+
+	// Get volume by UUID to get volume ID
+	volume, err := se.GetVolume(ctx, volumeUUID)
+	if err != nil {
+		logger.Errorf("Failed to get volume %s: %v", volumeUUID, err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Get quota rules for the volume (excluding deleted)
+	quotaRules, err := se.GetQuotaRulesByVolumeID(ctx, volume.ID)
+	if err != nil {
+		logger.Errorf("Failed to list quota rules for volume %s: %v", volumeUUID, err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return quotaRules, nil
+}
+
+// DeleteQuotaRuleOnDestination calls the internal VCP API to delete a quota rule on a destination volume in a remote region.
+// The endpoint is:
+// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRule/{quotaRuleId}
+func (a *QuotaRuleDeleteActivity) DeleteQuotaRuleOnDestination(
+	ctx context.Context,
+	destinationVolumeUUID string,
+	destinationQuotaRuleId string,
+	destinationRegion string,
+	projectNumber string,
+	jwtToken *string,
+) (*QuotaRuleOperationResult, error) {
+	logger := util.GetLogger(ctx)
+
+	logger.Infof("Deleting quota rule on destination volume: volumeUUID=%s, quotaRuleId=%s, region=%s",
+		destinationVolumeUUID, destinationQuotaRuleId, destinationRegion)
+
+	// Validate JWT token is provided
+	if jwtToken == nil || *jwtToken == "" {
+		logger.Errorf("JWT token is required for destination API call")
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("JWT token is required"))
+	}
+
+	// Get destination VCP base path (similar to GetDstBasePath in replication)
+	dstBasePath, err := getBasePathForQuotaRule(ctx, destinationRegion)
+	if err != nil {
+		logger.Errorf("Failed to get destination base path for region %s: %v", destinationRegion, err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get destination base path: %w", err))
+	}
+
+	// Create Google Proxy client for the destination VCP region
+	// This is the same pattern used in CreateQuotaRuleOnDestination
+	googleProxyClient := googleproxyclient.GetGProxyClient(*dstBasePath, *jwtToken, logger)
+
+	// Get correlation ID for tracing
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+
+	// Prepare API parameters
+	params := googleproxyclient.V1betaDeleteQuotaRuleVCPParams{
+		ProjectNumber:  projectNumber,
+		LocationId:     destinationRegion,
+		VolumeId:       destinationVolumeUUID,
+		QuotaRuleId:    destinationQuotaRuleId,
+		XCorrelationID: googleproxyclient.NewOptString(correlationID),
+	}
+
+	// Call the internal VCP API to delete quota rule on destination
+	logger.Infof("Calling internal VCP API to delete quota rule on destination: volumeUUID=%s, quotaRuleId=%s",
+		destinationVolumeUUID, destinationQuotaRuleId)
+	res, err := googleProxyClient.Invoker.V1betaDeleteQuotaRuleVCP(ctx, params)
+	if err != nil {
+		logger.Errorf("Failed to call V1betaDeleteQuotaRuleVCP: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to delete quota rule on destination: %w", err))
+	}
+
+	// Handle response types (following the UpdateQuotaRuleOnDestination pattern)
+	switch r := res.(type) {
+	case *googleproxyclient.QuotaRulesVCPV1beta:
+		logger.Infof("Successfully deleted quota rule on destination: quotaId=%s, resourceId=%s, state=%s",
+			r.QuotaId.Value, r.ResourceId, r.State.Value)
+
+		// Check if state is DELETING - need to poll for completion
+		if r.State.Value == googleproxyclient.QuotaRulesVCPV1betaStateDELETING {
+			// Extract JobId from Jobs array if available for polling
+			if len(r.Jobs) > 0 && r.Jobs[0].JobId.IsSet() {
+				jobId := r.Jobs[0].JobId.Value
+				logger.Infof("Quota rule deletion in progress on destination, returning JobId for polling: %s", jobId)
+				return &QuotaRuleOperationResult{OperationName: jobId, IsDone: false}, nil
+			}
+			// No job ID available but still deleting - return as done (best effort)
+			logger.Warnf("Quota rule is in DELETING state but no JobId found, assuming success")
+		}
+		// State is DELETED or other terminal state
+		return &QuotaRuleOperationResult{IsDone: true}, nil
+	case *googleproxyclient.V1betaDeleteQuotaRuleVCPBadRequest:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(coreerrors.NewVCPError(coreerrors.ErrCreateInternalQuotaRule, customerrors.New(r.Message)))
+	case *googleproxyclient.V1betaDeleteQuotaRuleVCPUnauthorized:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(coreerrors.NewVCPError(coreerrors.ErrCreateInternalQuotaRule, customerrors.New(r.Message)))
+	case *googleproxyclient.V1betaDeleteQuotaRuleVCPForbidden:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(coreerrors.NewVCPError(coreerrors.ErrCreateInternalQuotaRule, customerrors.New(r.Message)))
+	case *googleproxyclient.V1betaDeleteQuotaRuleVCPNotFound:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(coreerrors.NewVCPError(coreerrors.ErrCreateInternalQuotaRule, customerrors.New(r.Message)))
+	case *googleproxyclient.V1betaDeleteQuotaRuleVCPConflict:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(coreerrors.NewVCPError(coreerrors.ErrCreateInternalQuotaRule, customerrors.New(r.Message)))
+	case *googleproxyclient.V1betaDeleteQuotaRuleVCPMethodNotAllowed:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(coreerrors.NewVCPError(coreerrors.ErrCreateInternalQuotaRule, customerrors.New(r.Message)))
+	case *googleproxyclient.V1betaDeleteQuotaRuleVCPRequestTimeout:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(coreerrors.NewVCPError(coreerrors.ErrCreateInternalQuotaRule, customerrors.New(r.Message)))
+	case *googleproxyclient.V1betaDeleteQuotaRuleVCPUnprocessableEntity:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(coreerrors.NewVCPError(coreerrors.ErrCreateInternalQuotaRule, customerrors.New(r.Message)))
+	case *googleproxyclient.V1betaDeleteQuotaRuleVCPTooManyRequests:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(coreerrors.NewVCPError(coreerrors.ErrCreateInternalQuotaRule, customerrors.New(r.Message)))
+	case *googleproxyclient.V1betaDeleteQuotaRuleVCPServiceUnavailable:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(coreerrors.NewVCPError(coreerrors.ErrCreateInternalQuotaRule, customerrors.New(r.Message)))
+	case *googleproxyclient.V1betaDeleteQuotaRuleVCPInternalServerError:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(coreerrors.NewVCPError(coreerrors.ErrCreateInternalQuotaRule, customerrors.New(r.Message)))
+	default:
+		return nil, vsaerrors.WrapAsTemporalApplicationError(coreerrors.NewVCPError(coreerrors.ErrCreateInternalQuotaRule, customerrors.New("unexpected response type from Google Proxy")))
+	}
+}
+
+// RevertQuotaRuleOnDestinationForDelete reverts a quota rule deletion by recreating the quota rule on destination.
+// This is used when source deletion fails after destination deletion has succeeded, to maintain source-destination synchronization.
+// Since we delete on destination first, then on source, if source deletion fails we need to restore the quota rule on destination.
+func (a *QuotaRuleDeleteActivity) RevertQuotaRuleOnDestinationForDelete(
+	ctx context.Context,
+	destinationVolumeUUID string,
+	quotaRule *datamodel.QuotaRule,
+	destinationRegion string,
+	projectNumber string,
+	jwtToken *string,
+) (*RevertQuotaRuleResult, error) {
+	logger := util.GetLogger(ctx)
+
+	logger.Infof("Reverting quota rule deletion on destination by recreating: quotaType=%s, quotaTarget=%s, diskLimit=%d KiB, destinationVolumeUUID=%s",
+		quotaRule.QuotaType, quotaRule.QuotaTarget, quotaRule.DiskLimitInKib, destinationVolumeUUID)
+
+	// Validate JWT token is provided
+	if jwtToken == nil || *jwtToken == "" {
+		logger.Errorf("JWT token is required for revert")
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("JWT token is required"))
+	}
+
+	// Use QuotaRuleCreateActivity to recreate the quota rule on destination via internal VCP API
+	quotaRuleCreateActivity := &QuotaRuleCreateActivity{SE: a.SE}
+	operationResult, err := quotaRuleCreateActivity.CreateQuotaRuleOnDestination(ctx, destinationVolumeUUID, quotaRule, destinationRegion, projectNumber, jwtToken)
+	if err != nil {
+		logger.Errorf("Failed to recreate quota rule on destination: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Successfully recreated quota rule on destination: quotaType=%s, quotaTarget=%s, destinationVolumeUUID=%s",
+		quotaRule.QuotaType, quotaRule.QuotaTarget, destinationVolumeUUID)
+	return &RevertQuotaRuleResult{
+		OperationResult: operationResult,
+		QuotaRule:       quotaRule,
+	}, nil
+}
+
 // ReplicationSyncEligibility holds the result of checking replication sync eligibility.
 type ReplicationSyncEligibility struct {
 	Eligible              bool
@@ -519,18 +838,15 @@ type QuotaRuleOperationResult struct {
 	IsDone        bool   // True if operation completed synchronously
 }
 
-// UpdateRQuotaOnSvm enables recursive quota on the SVM if required for quota rule creation.
-//
-// Parameters:
-//   - ctx: Context for logging and cancellation
-//   - svmExternalUUID: External UUID of the SVM
-//   - node: Node structure for creating provider
-//   - rquota: Boolean flag indicating whether to enable (true) or disable (false) rquota
-//
-// Returns error if:
-//   - SVM ExternalUUID is empty
-//   - ModifyRquota API call fails
-func (a *QuotaRuleCreateActivity) UpdateRQuotaOnSvm(ctx context.Context, svmExternalUUID string, node *models.Node, rquota bool) error {
+// RevertQuotaRuleResult holds the result of reverting a quota rule deletion
+type RevertQuotaRuleResult struct {
+	OperationResult *QuotaRuleOperationResult
+	QuotaRule       *datamodel.QuotaRule
+}
+
+// UpdateRQuotaOnSvm enables or disables recursive quota on the SVM.
+// This is used in both create and delete workflows to manage RQuota state.
+func (a *QuotaRuleCommonActivity) UpdateRQuotaOnSvm(ctx context.Context, svmExternalUUID string, node *models.Node, rquota bool) error {
 	logger := util.GetLogger(ctx)
 
 	// Validate SVM ExternalUUID
@@ -560,16 +876,6 @@ func (a *QuotaRuleCreateActivity) UpdateRQuotaOnSvm(ctx context.Context, svmExte
 // HandleDefaultQuotaRuleUpdate checks if a default quota rule already exists for the volume
 // and updates it if found. This handles the case where a default quota was auto-created
 // as a side effect of creating an individual quota.
-//
-// Parameters:
-//   - volumeDetails: Volume containing ExternalUUID and Svm.SvmDetails for SVM name
-//   - node: Node structure for creating provider
-//   - quotaType: Type of quota (user/group)
-//   - diskLimitInKibs: Disk limit in kibibytes
-//
-// Returns:
-//   - NotFoundErr: If the default quota doesn't exist (acceptable - workflow will proceed with creation)
-//   - Error: For any other failure
 func (a *QuotaRuleCreateActivity) HandleDefaultQuotaRuleUpdate(
 	ctx context.Context,
 	volumeDetails *datamodel.Volume,
@@ -653,15 +959,6 @@ func (a *QuotaRuleCreateActivity) HandleDefaultQuotaRuleUpdate(
 // CreateQuotaRuleOnONTAP creates a quota rule on ONTAP using the provider.
 // This activity follows the spec pattern (Step 6 of handleQuotaCreationOnOntap):
 // It directly uses the provider to call CreateQuotaRule with the necessary parameters.
-//
-// Parameters:
-//   - node: Node structure for creating provider
-//   - volumeDetails: Volume containing ExternalUUID and Svm details
-//   - quotaRule: Database quota rule with all the quota configuration
-//
-// Returns:
-//   - QuotaRuleProviderResponse: Response from ONTAP with operation state and message
-//   - Error: For any failure during quota creation
 func (a *QuotaRuleCreateActivity) CreateQuotaRuleOnONTAP(
 	ctx context.Context,
 	node *models.Node,
@@ -728,14 +1025,6 @@ func (a *QuotaRuleCreateActivity) CreateQuotaRuleOnONTAP(
 }
 
 // GetQuotaStatus retrieves the current quota system status for a volume.
-//
-// Parameters:
-//   - node: Node structure for creating provider
-//   - volumeDetails: Volume containing ExternalUUID
-//
-// Returns:
-//   - QuotaStatus: Current quota status with Enabled flag and State string
-//   - Error: For any failure
 func (a *QuotaRuleCreateActivity) GetQuotaStatus(
 	ctx context.Context,
 	node *models.Node,
@@ -829,101 +1118,6 @@ func performQuotaReinitialization(
 	return nil
 }
 
-// QuotaReinitialization performs quota reinitialization (disable then enable).
-// This activity matches the spec (create-quota-cvs-job-function.md, Section 3, Sub-function: quotaReinitialization).
-// It reinitializes the quota system on a volume by disabling and then re-enabling quotas.
-// This is required when quota rule changes cannot be applied through a simple resize operation,
-// typically when changing quota types, when resize operations fail, or when activation operations fail.
-//
-// According to the spec (Step 7), reinitialization is needed when:
-// - Resize operation failed
-// - Activation operation failed
-//
-// Parameters:
-//   - ctx: Context for logging and cancellation
-//   - provider: ONTAP provider for making REST API calls
-//   - volumeDetails: Volume containing ExternalUUID and Svm details
-//
-// Returns:
-//   - Error: Wrapped error for Temporal if reinitialization fails
-func (a *QuotaRuleCreateActivity) QuotaReinitialization(
-	ctx context.Context,
-	node *models.Node,
-	volumeDetails *datamodel.Volume,
-) error {
-	logger := util.GetLogger(ctx)
-
-	// Create provider from node
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
-	if err != nil {
-		logger.Errorf("Failed to create provider for volume %s: %v", volumeDetails.UUID, err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-
-	err = performQuotaReinitialization(ctx, provider, volumeDetails)
-	if err != nil {
-		return vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-	return nil
-}
-
-// HandleQuotaEnableDisable enables quota on a volume.
-// This activity calls QuotaEnableDisable and returns the response for workflow-level processing.
-// Response validation is done in the workflow, following the sample code pattern.
-//
-// Parameters:
-//   - ctx: Context for logging and cancellation
-//   - provider: ONTAP provider for making REST API calls
-//   - volumeDetails: Volume containing ExternalUUID and Svm details
-//
-// Returns:
-//   - *vsa.JobStatus: Job status response from QuotaEnableDisable
-//   - error: Error if the API call fails
-func (a *QuotaRuleCreateActivity) HandleQuotaEnableDisable(
-	ctx context.Context,
-	node *models.Node,
-	volumeDetails *datamodel.Volume,
-) (*vsa.JobStatus, error) {
-	logger := util.GetLogger(ctx)
-
-	// Create provider from node
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
-	if err != nil {
-		logger.Errorf("Failed to create provider for volume %s: %v", volumeDetails.UUID, err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-
-	// Validate inputs
-	if volumeDetails.VolumeAttributes == nil || volumeDetails.VolumeAttributes.ExternalUUID == "" {
-		logger.Errorf("Volume %s has no ExternalUUID in VolumeAttributes", volumeDetails.UUID)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(customerrors.NewUserInputValidationErr(
-			"Volume has no ExternalUUID"))
-	}
-
-	// Get SVM name
-	var svmName string
-	if volumeDetails.Svm != nil && volumeDetails.Svm.Name != "" {
-		svmName = volumeDetails.Svm.Name
-	} else {
-		logger.Errorf("Volume %s has no SVM details loaded", volumeDetails.UUID)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(customerrors.NewUserInputValidationErr(
-			"Volume has no SVM details"))
-	}
-
-	volumeUUID := volumeDetails.VolumeAttributes.ExternalUUID
-
-	logger.Infof("Enabling quota for the first time on volume: %s", volumeUUID)
-
-	// Call provider to enable quota and return response for workflow processing
-	jobStatus, err := provider.QuotaEnableDisable(ctx, volumeUUID, svmName, true)
-	if err != nil {
-		logger.Errorf("Failed to enable quota: %v", err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-
-	return jobStatus, nil
-}
-
 // hasProtocol checks if a protocol exists in the given protocol types array
 func hasProtocol(protocol string, protocolTypes []string) bool {
 	for _, protocolType := range protocolTypes {
@@ -1010,17 +1204,6 @@ func (a *QuotaRuleCommonActivity) UpdateQuotaRuleState(ctx context.Context, quot
 // This follows the same pattern as DescribeRemoteJob in replication activities.
 // The activity will return an error if the operation is not yet complete (allowing Temporal to retry),
 // return nil if completed successfully, or return a non-retryable error if the operation failed.
-//
-// Parameters:
-//   - ctx: Context for logging and cancellation
-//   - operationName: The operation name/ID to poll
-//   - destinationRegion: The destination region
-//   - projectNumber: GCP project number for the destination
-//   - jwtToken: Reused JWT token for VCP-to-VCP authentication (created once in workflow)
-//
-// Returns:
-//   - error: Returns ErrJobNotFinished (retryable) if operation is in progress,
-//     nil if operation completed successfully, or a non-retryable error if operation failed
 func (a *QuotaRuleCommonActivity) DescribeQuotaRuleRemoteJob(
 	ctx context.Context,
 	operationName string,
@@ -1097,23 +1280,6 @@ func (a *QuotaRuleCommonActivity) DescribeQuotaRuleRemoteJob(
 }
 
 // CreateQuotaRuleOnDestination calls the internal VCP API to create quota rule on destination volume.
-// This follows the same pattern as CreateReplicationOnDestination - calling the remote VCP region
-// via google-proxy-client for VCP-to-VCP communication during replication.
-//
-// The endpoint is:
-// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRule
-//
-// Parameters:
-//   - ctx: Context for logging and cancellation
-//   - destinationVolumeUUID: UUID of the destination volume where quota rule will be created
-//   - quotaRule: The quota rule to replicate
-//   - destinationRegion: The destination region
-//   - projectNumber: GCP project number
-//   - jwtToken: Reused JWT token for VCP-to-VCP authentication (created once in workflow)
-//
-// Returns:
-//   - QuotaRuleOperationResult: Contains operation info if async, nil if completed synchronously
-//   - error: Error if API call fails (wrapped for Temporal)
 func (a *QuotaRuleCreateActivity) CreateQuotaRuleOnDestination(
 	ctx context.Context,
 	destinationVolumeUUID string,
@@ -1225,19 +1391,7 @@ func (a *QuotaRuleCreateActivity) CreateQuotaRuleOnDestination(
 // and returns the matching quota rule by name.
 // The endpoint is:
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRules
-//
-// Parameters:
-//   - ctx: Context for logging and cancellation
-//   - destinationVolumeUUID: UUID of the destination volume to fetch quota rules from
-//   - destinationRegion: The destination region
-//   - projectNumber: GCP project number
-//   - quotaRuleName: Name of the quota rule to match (ResourceId)
-//   - jwtToken: Reused JWT token for VCP-to-VCP authentication (created once in workflow)
-//
-// Returns:
-//   - matchingQuotaRule: The matching quota rule from the destination volume
-//   - error: Error if API call fails or no matching quota rule found (wrapped for Temporal)
-func (a *QuotaRuleUpdateActivity) GetMatchingQuotaRuleOnDestination(
+func (a *QuotaRuleCommonActivity) GetMatchingQuotaRuleOnDestination(
 	ctx context.Context,
 	destinationVolumeUUID string,
 	destinationRegion string,
@@ -1337,19 +1491,6 @@ func (a *QuotaRuleUpdateActivity) GetMatchingQuotaRuleOnDestination(
 // UpdateQuotaRuleOnDestination calls the internal VCP API to update a quota rule on a destination volume in a remote region.
 // The endpoint is:
 // PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRule/{quotaRuleId}
-//
-// Parameters:
-//   - ctx: Context for logging and cancellation
-//   - destinationVolumeUUID: UUID of the destination volume
-//   - destinationQuotaRuleId: UUID of the quota rule on the destination to update
-//   - diskLimitInKib: Updated disk limit in kibibytes
-//   - destinationRegion: The destination region
-//   - projectNumber: GCP project number
-//   - jwtToken: Reused JWT token for VCP-to-VCP authentication (created once in workflow)
-//
-// Returns:
-//   - QuotaRuleOperationResult: Contains operation info if async, nil if completed synchronously
-//   - error: Error if API call fails (wrapped for Temporal)
 func (a *QuotaRuleUpdateActivity) UpdateQuotaRuleOnDestination(
 	ctx context.Context,
 	destinationVolumeUUID string,

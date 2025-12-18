@@ -76,6 +76,7 @@ const (
 	JobTypeDeleteSnapshot                           JobType = "DELETE_SNAPSHOT"
 	JobTypeCreateQuotaRule                          JobType = "CREATE_QUOTA_RULE"
 	JobTypeUpdateQuotaRule                          JobType = "UPDATE_QUOTA_RULE"
+	JobTypeDeleteQuotaRule                          JobType = "DELETE_QUOTA_RULE"
 	JobTypeRestoreBackup                            JobType = "RESTORE_BACKUP"
 	JobTypeRestoreFilesBackup                       JobType = "RESTORE_FILES_BACKUP"
 	JobTypeAcceptClusterPeer                        JobType = "ACCEPT_CLUSTER_PEER"

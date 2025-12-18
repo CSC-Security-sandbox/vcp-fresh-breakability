@@ -18,6 +18,10 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+const (
+	JobActionUpdate = "update"
+)
+
 type quotaRuleUpdateWorkflow struct {
 	BaseWorkflow
 	SE database.Storage
@@ -97,7 +101,7 @@ func (wf *quotaRuleUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: 5 * time.Minute,
+		StartToCloseTimeout: 20 * time.Minute,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -177,7 +181,7 @@ func (wf *quotaRuleUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	// Get ONTAP quota UUID for the quota rule
 	var quotaUUID string
 	err = workflow.ExecuteActivity(ctx, commonActivity.GetOntapQuotaUUID,
-		volumeDetails, node, dbQuotaRule.QuotaType, dbQuotaRule.QuotaTarget).Get(ctx, &quotaUUID)
+		volumeDetails, node, dbQuotaRule.QuotaType, dbQuotaRule.QuotaTarget, JobActionUpdate).Get(ctx, &quotaUUID)
 	if err != nil {
 		logger.Errorf("Failed to get quota UUID from ONTAP: %v", err)
 		return nil, ConvertToVSAError(err)
@@ -236,7 +240,7 @@ func (wf *quotaRuleUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 				// Fetch and match quota rule on destination volume
 				var destinationQuotaRuleId *string
-				err = workflow.ExecuteActivity(ctx, quotaRuleActivity.GetMatchingQuotaRuleOnDestination,
+				err = workflow.ExecuteActivity(ctx, commonActivity.GetMatchingQuotaRuleOnDestination,
 					replication.ReplicationAttributes.DestinationVolumeUUID, replication.ReplicationAttributes.DestinationLocation, destProjectNumber, dbQuotaRule.Name, jwtToken).Get(ctx, &destinationQuotaRuleId)
 				if err != nil {
 					logger.Errorf("Failed to fetch matching quota rule from destination: destinationVolumeUUID=%s, quotaRuleName=%s, error=%v",

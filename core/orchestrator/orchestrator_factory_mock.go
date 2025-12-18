@@ -2071,6 +2071,140 @@ func (_c *MockOrchestratorFactory_DeletePool_Call) RunAndReturn(run func(context
 	return _c
 }
 
+// DeleteQuotaRule provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) DeleteQuotaRule(ctx context.Context, params *common.DeleteQuotaRulesParam) (*models.QuotaRule, string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteQuotaRule")
+	}
+
+	var r0 *models.QuotaRule
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteQuotaRulesParam) (*models.QuotaRule, string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteQuotaRulesParam) *models.QuotaRule); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.QuotaRule)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.DeleteQuotaRulesParam) string); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.DeleteQuotaRulesParam) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_DeleteQuotaRule_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteQuotaRule'
+type MockOrchestratorFactory_DeleteQuotaRule_Call struct {
+	*mock.Call
+}
+
+// DeleteQuotaRule is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.DeleteQuotaRulesParam
+func (_e *MockOrchestratorFactory_Expecter) DeleteQuotaRule(ctx interface{}, params interface{}) *MockOrchestratorFactory_DeleteQuotaRule_Call {
+	return &MockOrchestratorFactory_DeleteQuotaRule_Call{Call: _e.mock.On("DeleteQuotaRule", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_DeleteQuotaRule_Call) Run(run func(ctx context.Context, params *common.DeleteQuotaRulesParam)) *MockOrchestratorFactory_DeleteQuotaRule_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.DeleteQuotaRulesParam))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteQuotaRule_Call) Return(_a0 *models.QuotaRule, _a1 string, _a2 error) *MockOrchestratorFactory_DeleteQuotaRule_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteQuotaRule_Call) RunAndReturn(run func(context.Context, *common.DeleteQuotaRulesParam) (*models.QuotaRule, string, error)) *MockOrchestratorFactory_DeleteQuotaRule_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteQuotaRuleInternal provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) DeleteQuotaRuleInternal(ctx context.Context, params *common.DeleteQuotaRulesParam) (*models.QuotaRule, *datamodel.Job, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteQuotaRuleInternal")
+	}
+
+	var r0 *models.QuotaRule
+	var r1 *datamodel.Job
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteQuotaRulesParam) (*models.QuotaRule, *datamodel.Job, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteQuotaRulesParam) *models.QuotaRule); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.QuotaRule)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.DeleteQuotaRulesParam) *datamodel.Job); ok {
+		r1 = rf(ctx, params)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*datamodel.Job)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.DeleteQuotaRulesParam) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_DeleteQuotaRuleInternal_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteQuotaRuleInternal'
+type MockOrchestratorFactory_DeleteQuotaRuleInternal_Call struct {
+	*mock.Call
+}
+
+// DeleteQuotaRuleInternal is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.DeleteQuotaRulesParam
+func (_e *MockOrchestratorFactory_Expecter) DeleteQuotaRuleInternal(ctx interface{}, params interface{}) *MockOrchestratorFactory_DeleteQuotaRuleInternal_Call {
+	return &MockOrchestratorFactory_DeleteQuotaRuleInternal_Call{Call: _e.mock.On("DeleteQuotaRuleInternal", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_DeleteQuotaRuleInternal_Call) Run(run func(ctx context.Context, params *common.DeleteQuotaRulesParam)) *MockOrchestratorFactory_DeleteQuotaRuleInternal_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.DeleteQuotaRulesParam))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteQuotaRuleInternal_Call) Return(_a0 *models.QuotaRule, _a1 *datamodel.Job, _a2 error) *MockOrchestratorFactory_DeleteQuotaRuleInternal_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteQuotaRuleInternal_Call) RunAndReturn(run func(context.Context, *common.DeleteQuotaRulesParam) (*models.QuotaRule, *datamodel.Job, error)) *MockOrchestratorFactory_DeleteQuotaRuleInternal_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteReplication provides a mock function with given fields: ctx, params, cleanupResourcesJobId, isCleanUp
 func (_m *MockOrchestratorFactory) DeleteReplication(ctx context.Context, params *common.DeleteReplicationParams, cleanupResourcesJobId string, isCleanUp bool) (*models.VolumeReplication, string, error) {
 	ret := _m.Called(ctx, params, cleanupResourcesJobId, isCleanUp)
