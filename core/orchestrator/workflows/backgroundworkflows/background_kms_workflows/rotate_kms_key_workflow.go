@@ -38,6 +38,7 @@ func RotateKmsSAKeyWorkflow(ctx workflow.Context) error {
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,

@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/temporal"
 )
 
@@ -20,6 +21,8 @@ var (
 
 // DescribeSDEKmsConfigurationActivity retrieves the KMS configuration details for the given KMS configuration.
 func (j *KmsConfigActivity) DescribeSDEKmsConfigurationActivity(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfigV1beta, error) {
+	activity.RecordHeartbeat(ctx, "Starting DescribeSDEKmsConfigurationActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished DescribeSDEKmsConfigurationActivity")
 	return _getSDEKmsConfiguration(ctx, params)
 }
 
@@ -38,6 +41,7 @@ func _getSDEKmsConfiguration(ctx context.Context, params *common.GetKmsConfigPar
 	describeKmsConfigParams.LocationID = params.LocationID
 	describeKmsConfigParams.ProjectNumber = params.ProjectNumber
 
+	activity.RecordHeartbeat(ctx, "Retrieving KMS configuration from SDE")
 	sdeKmsConfigResponse, err := cvpClient.KmsConfigurations.V1betaDescribeKmsConfiguration(describeKmsConfigParams)
 	if err != nil {
 		return nil, errors2.WrapAsTemporalApplicationError(errors2.NewVCPError(errors2.ErrKmsConfigNotFound, err))
@@ -50,7 +54,10 @@ func _getSDEKmsConfiguration(ctx context.Context, params *common.GetKmsConfigPar
 
 // GetKmsConfigActivity retrieves the KMS configuration by its UUID.
 func (j *KmsConfigActivity) GetKmsConfigActivity(ctx context.Context, uuid string) (*datamodel.KmsConfig, error) {
+	activity.RecordHeartbeat(ctx, "Starting GetKmsConfigActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished GetKmsConfigActivity")
 	se := j.SE
+	activity.RecordHeartbeat(ctx, "Fetching KMS configuration from database")
 	kmsConfig, err := se.GetKmsConfig(ctx, uuid)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
@@ -63,7 +70,10 @@ func (j *KmsConfigActivity) GetKmsConfigActivity(ctx context.Context, uuid strin
 
 // UpdateKmsConfigAttributesActivity updates the attributes of a KMS configuration in the database.
 func (j *KmsConfigActivity) UpdateKmsConfigAttributesActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig, attributes *datamodel.KmsAttributes) (*datamodel.KmsConfig, error) {
+	activity.RecordHeartbeat(ctx, "Starting UpdateKmsConfigAttributesActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished UpdateKmsConfigAttributesActivity")
 	se := j.SE
+	activity.RecordHeartbeat(ctx, "Updating KMS configuration attributes")
 	kmsConfig, err := se.UpdateKmsConfigAttributes(ctx, kmsConfig.UUID, attributes)
 	if err != nil {
 		return nil, err
@@ -72,11 +82,14 @@ func (j *KmsConfigActivity) UpdateKmsConfigAttributesActivity(ctx context.Contex
 }
 
 func (j *KmsConfigActivity) ListKmsConfigActivity(ctx context.Context, projectNumber string) ([]*datamodel.KmsConfig, error) {
+	activity.RecordHeartbeat(ctx, "Starting ListKmsConfigActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished ListKmsConfigActivity")
 	se := j.SE
 	account, err := se.GetAccount(ctx, projectNumber)
 	if err != nil {
 		return nil, err
 	}
+	activity.RecordHeartbeat(ctx, "Listing KMS configurations for account")
 	kmsConfigs, err := se.ListKmsConfigByAccountID(ctx, account.ID)
 	if err != nil {
 		return nil, err

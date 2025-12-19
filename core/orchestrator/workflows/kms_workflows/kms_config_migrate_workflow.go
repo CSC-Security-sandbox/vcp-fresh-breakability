@@ -110,6 +110,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 	}
 	activityOptions := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -152,6 +153,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 	// Policy for polling the KMS migrate operation
 	pollingOptions := workflow.ActivityOptions{
 		StartToCloseTimeout: time.Duration(cvpMaxPollTimeout) * time.Minute,
+		HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
 			InitialInterval:        time.Duration(cvpPollInterval) * time.Second,
@@ -371,6 +373,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 
 		activityOptionsVSAMigration := workflow.ActivityOptions{
 			StartToCloseTimeout: time.Duration(startToCloseTimeout) * time.Minute,
+			HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
 			RetryPolicy: &temporal.RetryPolicy{
 				InitialInterval:        retryPolicy.InitialInterval,
 				BackoffCoefficient:     retryPolicy.BackoffCoefficient,

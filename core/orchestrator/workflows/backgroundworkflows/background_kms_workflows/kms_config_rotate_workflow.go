@@ -81,6 +81,7 @@ func (rotateKmsConfigWf *rotateKmsConfigWorkflow) Run(ctx workflow.Context, args
 
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,

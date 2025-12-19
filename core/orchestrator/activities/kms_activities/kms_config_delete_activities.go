@@ -11,6 +11,7 @@ import (
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 )
 
 var (
@@ -19,8 +20,11 @@ var (
 )
 
 func (a *KmsConfigActivity) DeleteSDEKmsConfig(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.DeleteKmsConfigParams) (*string, error) {
+	activity.RecordHeartbeat(ctx, "Starting DeleteSDEKmsConfig activity")
+	defer activity.RecordHeartbeat(ctx, "Finished DeleteSDEKmsConfig activity")
 	logger := util.GetLogger(ctx)
 
+	activity.RecordHeartbeat(ctx, "Initiating KMS configuration deletion in SDE")
 	resp, err := sdeDeleteSDEKmsConfiguration(ctx, kmsConfig, params)
 	if err != nil {
 		return nil, err
@@ -35,28 +39,37 @@ func (a *KmsConfigActivity) DeleteSDEKmsConfig(ctx context.Context, kmsConfig *d
 }
 
 func (a *KmsConfigActivity) DescribeSDEDeleteJob(ctx context.Context, jobUuid *string, params *common.DeleteKmsConfigParams) error {
+	activity.RecordHeartbeat(ctx, "Starting DescribeSDEDeleteJob activity")
+	defer activity.RecordHeartbeat(ctx, "Finished DescribeSDEDeleteJob activity")
 	if nillable.IsNilOrEmpty(jobUuid) {
 		return nil
 	}
+	activity.RecordHeartbeat(ctx, "Checking SDE delete job status")
 	return describeSDEJob(ctx, *jobUuid, params.Region, params.AccountName, params.XCorrelationID)
 }
 
 // DisableKmsServiceAccount updates the KMS ServiceAccounts as disabled in the database.
 func (j *KmsConfigActivity) DisableKmsServiceAccount(ctx context.Context, kmsConfig *datamodel.KmsConfig) error {
+	activity.RecordHeartbeat(ctx, "Starting DisableKmsServiceAccount activity")
+	defer activity.RecordHeartbeat(ctx, "Finished DisableKmsServiceAccount activity")
 	se := j.SE
 	// it's possible that the KMS config was created without a service account
 	// in that case, there's nothing to disable
 	if kmsConfig.ServiceAccount == nil {
 		return nil
 	}
+	activity.RecordHeartbeat(ctx, "Disabling KMS service account")
 	_, err := se.UpdateServiceAccountState(ctx, kmsConfig.ServiceAccount.UUID, models.LifeCycleStateDisabled, models.LifeCycleStateDisabledDetails)
 	return err
 }
 
 func (a *KmsConfigActivity) DeleteKmsConfig(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.DeleteKmsConfigParams) error {
+	activity.RecordHeartbeat(ctx, "Starting DeleteKmsConfig activity")
+	defer activity.RecordHeartbeat(ctx, "Finished DeleteKmsConfig activity")
 	logger := util.GetLogger(ctx)
 	se := a.SE
 
+	activity.RecordHeartbeat(ctx, "Deleting KMS configuration from database")
 	_, err := se.DeleteKmsConfig(ctx, params.KmsConfigID, models.LifeCycleStateDeleted, models.LifeCycleStateDeletedDetails)
 	if err != nil {
 		return err

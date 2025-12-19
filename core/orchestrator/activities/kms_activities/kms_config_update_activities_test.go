@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"go.temporal.io/sdk/testsuite"
 )
 
 // Helper function to create string pointer
@@ -125,7 +126,9 @@ func TestUpdateKmsConfigState_Success(t *testing.T) {
 			// Arrange
 			mockStorage := database.NewMockStorage(t)
 			activity := KmsConfigActivity{SE: mockStorage}
-			ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+			testSuite := &testsuite.WorkflowTestSuite{}
+			env := testSuite.NewTestActivityEnvironment()
+			env.RegisterActivity(activity.UpdateKmsConfigState)
 
 			expectedKms := &datamodel.KmsConfig{
 				BaseModel: tt.kmsConfig.BaseModel,
@@ -133,10 +136,10 @@ func TestUpdateKmsConfigState_Success(t *testing.T) {
 				State:     tt.state,
 			}
 
-			mockStorage.On("UpdateKmsConfigState", ctx, tt.kmsConfig.UUID, tt.state, tt.stateDetails).Return(expectedKms, nil)
+			mockStorage.On("UpdateKmsConfigState", mock.Anything, tt.kmsConfig.UUID, tt.state, tt.stateDetails).Return(expectedKms, nil)
 
 			// Act
-			err := activity.UpdateKmsConfigState(ctx, tt.kmsConfig, tt.state, tt.stateDetails)
+			_, err := env.ExecuteActivity(activity.UpdateKmsConfigState, tt.kmsConfig, tt.state, tt.stateDetails)
 
 			// Assert
 			assert.NoError(t, err)
@@ -190,12 +193,14 @@ func TestUpdateKmsConfigState_Error(t *testing.T) {
 			// Arrange
 			mockStorage := database.NewMockStorage(t)
 			activity := KmsConfigActivity{SE: mockStorage}
-			ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+			testSuite := &testsuite.WorkflowTestSuite{}
+			env := testSuite.NewTestActivityEnvironment()
+			env.RegisterActivity(activity.UpdateKmsConfigState)
 
-			mockStorage.On("UpdateKmsConfigState", ctx, tt.kmsConfig.UUID, tt.state, tt.stateDetails).Return(nil, errors.New(tt.dbError))
+			mockStorage.On("UpdateKmsConfigState", mock.Anything, tt.kmsConfig.UUID, tt.state, tt.stateDetails).Return(nil, errors.New(tt.dbError))
 
 			// Act
-			err := activity.UpdateKmsConfigState(ctx, tt.kmsConfig, tt.state, tt.stateDetails)
+			_, err := env.ExecuteActivity(activity.UpdateKmsConfigState, tt.kmsConfig, tt.state, tt.stateDetails)
 
 			// Assert
 			assert.Error(t, err)

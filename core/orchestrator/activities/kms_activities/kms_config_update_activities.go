@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 )
 
 func UpdateKmsConfig(se database.Storage, ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) error {
@@ -36,9 +37,12 @@ func UpdateKmsConfig(se database.Storage, ctx context.Context, kmsConfig *datamo
 }
 
 func (a *KmsConfigActivity) UpdateKmsConfigState(ctx context.Context, kmsConfig *datamodel.KmsConfig, state, stateDetails string) error {
+	activity.RecordHeartbeat(ctx, "Starting UpdateKmsConfigState activity")
+	defer activity.RecordHeartbeat(ctx, "Finished UpdateKmsConfigState activity")
 	logger := util.GetLogger(ctx)
 	se := a.SE
 
+	activity.RecordHeartbeat(ctx, "Updating KMS configuration state to %s", state)
 	_, err := se.UpdateKmsConfigState(ctx, kmsConfig.UUID, state, stateDetails)
 	if err != nil {
 		return err

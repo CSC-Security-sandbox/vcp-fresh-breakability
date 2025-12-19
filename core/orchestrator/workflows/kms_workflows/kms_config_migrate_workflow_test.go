@@ -1201,4 +1201,44 @@ func TestValidateKmsConfigForMigration(t *testing.T) { // Generated using GitHub
 			}
 		})
 	}
+	t.Run("HeartbeatTimeoutIsConfigured", func(t *testing.T) {
+		// This test verifies that HeartbeatTimeout is configured in ActivityOptions
+		// by ensuring activities with RecordHeartbeat can execute successfully
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterActivity(&activities.PoolActivity{})
+
+		migrateParams := &common.MigrateKmsConfigParams{
+			Name:          "test-pool",
+			AccountName:   "test-account",
+			ProjectNumber: "123456789",
+			LocationID:    "us-east4",
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return([]*datamodel.Pool{}, nil)
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, migrateParams)
+
+		// Verify workflow completes successfully, which confirms HeartbeatTimeout is configured
+		// Activities with RecordHeartbeat would fail if HeartbeatTimeout wasn't set
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
 }

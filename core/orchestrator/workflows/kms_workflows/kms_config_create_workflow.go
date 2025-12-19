@@ -95,6 +95,7 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -125,6 +126,7 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 	// retry policy for polling the KMS configuration operation
 	pollingOptions := workflow.ActivityOptions{
 		StartToCloseTimeout: time.Duration(cvpMaxPollTimeout) * time.Minute,
+		HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
 			InitialInterval:        time.Duration(cvpPollInterval) * time.Second,
@@ -215,9 +217,15 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) updateSdeJobStatus(ctx workflo
 		}
 	}
 
+	retryPolicy, err := workflows.PopulateRetryPolicyParams()
+	if err != nil {
+		return workflows.ConvertToVSAError(err)
+	}
+
 	commonActivity := activities.CommonActivities{}
 	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
 		StartToCloseTimeout: 60 * time.Second,
+		HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
 			NonRetryableErrorTypes: []string{"PanicError"},
 		},

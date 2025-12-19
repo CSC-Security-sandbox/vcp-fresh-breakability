@@ -13,19 +13,16 @@ import (
 	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"go.temporal.io/sdk/testsuite"
 )
 
 func TestCreateKmsConfigSDEActivity(t *testing.T) {
 	t.Run("CreateKmsConfigSDEActivityReturnsKmsConfigOnSuccess", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		mockSE := database.NewMockStorage(t)
 		params := &common.CreateKmsConfigParams{}
 		mockClient := kms_configurations.NewMockClientService(t)
@@ -49,16 +46,16 @@ func TestCreateKmsConfigSDEActivity(t *testing.T) {
 			return *cvpClient
 		}
 		activity := &KmsConfigActivity{SE: mockSE}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateKmsConfigSDEActivity)
 
-		_, err := activity.CreateKmsConfigSDEActivity(ctx, params)
+		_, err := env.ExecuteActivity(activity.CreateKmsConfigSDEActivity, params)
 		if err != nil {
 			t.Fatal("expected no error, got error:", err)
 		}
 	})
 	t.Run("CreateKmsConfigSDEActivityReturnsErrorOnCreateFailure", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		mockSE := database.NewMockStorage(t)
 		params := &common.CreateKmsConfigParams{}
 		mockClient := kms_configurations.NewMockClientService(t)
@@ -74,15 +71,15 @@ func TestCreateKmsConfigSDEActivity(t *testing.T) {
 		}
 
 		activity := &KmsConfigActivity{SE: mockSE}
-		_, err := activity.CreateKmsConfigSDEActivity(ctx, params)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateKmsConfigSDEActivity)
+		_, err := env.ExecuteActivity(activity.CreateKmsConfigSDEActivity, params)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
 	})
 	t.Run("CreateKmsConfigSDEActivityReturnsErrorOnNilPayload", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		mockSE := database.NewMockStorage(t)
 		params := &common.CreateKmsConfigParams{}
 		mockClient := kms_configurations.NewMockClientService(t)
@@ -98,7 +95,10 @@ func TestCreateKmsConfigSDEActivity(t *testing.T) {
 		}
 
 		activity := &KmsConfigActivity{SE: mockSE}
-		_, err := activity.CreateKmsConfigSDEActivity(ctx, params)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateKmsConfigSDEActivity)
+		_, err := env.ExecuteActivity(activity.CreateKmsConfigSDEActivity, params)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -107,25 +107,36 @@ func TestCreateKmsConfigSDEActivity(t *testing.T) {
 
 func TestUpdateKmsConfigAttributesActivity(t *testing.T) {
 	t.Run("WhenNoError", func(tt *testing.T) {
-		ctx := context.Background()
 		mockSE := database.NewMockStorage(t)
 		expectedResult := &datamodel.KmsConfig{}
-		mockSE.On("UpdateKmsConfigAttributes", ctx, mock.Anything, mock.Anything).Return(expectedResult, nil)
+		mockSE.On("UpdateKmsConfigAttributes", mock.Anything, mock.Anything, mock.Anything).Return(expectedResult, nil)
 		activity := &KmsConfigActivity{SE: mockSE}
-		result, err := activity.UpdateKmsConfigAttributesActivity(ctx, &datamodel.KmsConfig{}, &datamodel.KmsAttributes{})
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdateKmsConfigAttributesActivity)
+		result, err := env.ExecuteActivity(activity.UpdateKmsConfigAttributesActivity, &datamodel.KmsConfig{}, &datamodel.KmsAttributes{})
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
-		if result != expectedResult {
-			t.Fatalf("expected %v, got %v", expectedResult, result)
+		var kmsConfig *datamodel.KmsConfig
+		err = result.Get(&kmsConfig)
+		if err != nil {
+			t.Fatalf("failed to get result: %v", err)
+		}
+		// When using env.ExecuteActivity, we get a new instance, so we can't compare pointers
+		// Just verify that the result is not nil (the actual value comparison would require field-by-field comparison)
+		if kmsConfig == nil {
+			t.Fatalf("expected non-nil result, got nil")
 		}
 	})
 	t.Run("WhenError", func(tt *testing.T) {
-		ctx := context.Background()
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
-		mockSE.On("UpdateKmsConfigAttributes", ctx, "test-uuid", mock.Anything).Return(nil, errors.New("update error"))
-		_, err := activity.UpdateKmsConfigAttributesActivity(ctx, &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "test-uuid"}}, &datamodel.KmsAttributes{})
+		mockSE.On("UpdateKmsConfigAttributes", mock.Anything, "test-uuid", mock.Anything).Return(nil, errors.New("update error"))
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdateKmsConfigAttributesActivity)
+		_, err := env.ExecuteActivity(activity.UpdateKmsConfigAttributesActivity, &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "test-uuid"}}, &datamodel.KmsAttributes{})
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -134,7 +145,6 @@ func TestUpdateKmsConfigAttributesActivity(t *testing.T) {
 
 func TestCreateAndSyncKmsConfigActivity(t *testing.T) {
 	t.Run("CreateAndSyncKmsConfigActivityReturnsKmsConfigOnSuccess", func(t *testing.T) {
-		ctx := context.Background()
 		mockSE := database.NewMockStorage(t)
 		params := &common.CreateKmsConfigParams{
 			AccountName:         "acc",
@@ -148,59 +158,73 @@ func TestCreateAndSyncKmsConfigActivity(t *testing.T) {
 			ServiceAccountEmail: "sa@email.com",
 		}
 		mockAccount := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}}
-		mockSE.On("GetAccount", ctx, "acc").Return(mockAccount, nil)
-		mockSE.On("CreateKmsConfig", ctx, mock.Anything).Return(&datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}}, nil)
+		mockSE.On("GetAccount", mock.Anything, "acc").Return(mockAccount, nil)
+		mockSE.On("CreateKmsConfig", mock.Anything, mock.Anything).Return(&datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}}, nil)
 		activity := &KmsConfigActivity{SE: mockSE}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateAndSyncKmsConfigActivity)
 
-		result, err := activity.CreateAndSyncKmsConfigActivity(ctx, params)
+		result, err := env.ExecuteActivity(activity.CreateAndSyncKmsConfigActivity, params)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
-		if result.UUID != "uuid" {
-			t.Fatalf("expected uuid, got %v", result.UUID)
+		var kmsConfig *datamodel.KmsConfig
+		err = result.Get(&kmsConfig)
+		if err != nil {
+			t.Fatalf("failed to get result: %v", err)
+		}
+		if kmsConfig.UUID != "uuid" {
+			t.Fatalf("expected uuid, got %v", kmsConfig.UUID)
 		}
 	})
 	t.Run("CreateAndSyncKmsConfigActivityReturnsErrorWhenGetAccountFails", func(t *testing.T) {
-		ctx := context.Background()
 		mockSE := database.NewMockStorage(t)
 		params := &common.CreateKmsConfigParams{AccountName: "acc"}
-		mockSE.On("GetAccount", ctx, "acc").Return(nil, errors.New("account error"))
+		mockSE.On("GetAccount", mock.Anything, "acc").Return(nil, errors.New("account error"))
 		activity := &KmsConfigActivity{SE: mockSE}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateAndSyncKmsConfigActivity)
 
-		_, err := activity.CreateAndSyncKmsConfigActivity(ctx, params)
+		_, err := env.ExecuteActivity(activity.CreateAndSyncKmsConfigActivity, params)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
 	})
 	t.Run("CreateAndSyncKmsConfigActivityReturnsErrorWhenParseKeyFullPathResourceFails", func(t *testing.T) {
-		ctx := context.Background()
 		mockSE := database.NewMockStorage(t)
 		params := &common.CreateKmsConfigParams{
 			AccountName: "acc",
 			KeyFullPath: "invalid-key-path",
 		}
 		mockAccount := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}}
-		mockSE.On("GetAccount", ctx, "acc").Return(mockAccount, nil)
+		mockSE.On("GetAccount", mock.Anything, "acc").Return(mockAccount, nil)
 		activity := &KmsConfigActivity{SE: mockSE}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateAndSyncKmsConfigActivity)
 
-		_, err := activity.CreateAndSyncKmsConfigActivity(ctx, params)
+		_, err := env.ExecuteActivity(activity.CreateAndSyncKmsConfigActivity, params)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
 	})
 	t.Run("CreateAndSyncKmsConfigActivityReturnsErrorWhenCreateKmsConfigFails", func(t *testing.T) {
-		ctx := context.Background()
 		mockSE := database.NewMockStorage(t)
 		params := &common.CreateKmsConfigParams{
 			AccountName: "acc",
 			KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k",
 		}
 		mockAccount := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}}
-		mockSE.On("GetAccount", ctx, "acc").Return(mockAccount, nil)
-		mockSE.On("CreateKmsConfig", ctx, mock.Anything).Return(nil, errors.New("create error"))
+		mockSE.On("GetAccount", mock.Anything, "acc").Return(mockAccount, nil)
+		mockSE.On("CreateKmsConfig", mock.Anything, mock.Anything).Return(nil, errors.New("create error"))
 		activity := &KmsConfigActivity{SE: mockSE}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateAndSyncKmsConfigActivity)
 
-		_, err := activity.CreateAndSyncKmsConfigActivity(ctx, params)
+		_, err := env.ExecuteActivity(activity.CreateAndSyncKmsConfigActivity, params)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -209,7 +233,6 @@ func TestCreateAndSyncKmsConfigActivity(t *testing.T) {
 
 // TestCreateDnsActivity tests the CreateDnsActivity method.
 func TestCreateDnsActivity(t *testing.T) {
-	ctx := context.Background()
 	node := &coreModels.Node{}
 
 	t.Run("returns error if GetProviderByNode fails", func(t *testing.T) {
@@ -221,7 +244,10 @@ func TestCreateDnsActivity(t *testing.T) {
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 		activity := &KmsConfigActivity{}
-		err := activity.CreateDnsActivity(ctx, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateDnsActivity)
+		_, err := env.ExecuteActivity(activity.CreateDnsActivity, node)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -238,7 +264,10 @@ func TestCreateDnsActivity(t *testing.T) {
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 		activity := &KmsConfigActivity{}
-		err := activity.CreateDnsActivity(ctx, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateDnsActivity)
+		_, err := env.ExecuteActivity(activity.CreateDnsActivity, node)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -255,9 +284,12 @@ func TestCreateDnsActivity(t *testing.T) {
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 		activity := &KmsConfigActivity{}
-		err := activity.CreateDnsActivity(ctx, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateDnsActivity)
+		_, err := env.ExecuteActivity(activity.CreateDnsActivity, node)
 		assert.Error(t, err)
-		assert.EqualError(t, err, "Unable to create DNS: Node not reachable (type: CreateDNSError, retryable: false): unable to reach node")
+		assert.Contains(t, err.Error(), "Unable to create DNS: Node not reachable (type: CreateDNSError, retryable: false): unable to reach node")
 	})
 
 	t.Run("returns nil on success", func(t *testing.T) {
@@ -271,7 +303,10 @@ func TestCreateDnsActivity(t *testing.T) {
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 		activity := &KmsConfigActivity{}
-		err := activity.CreateDnsActivity(ctx, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateDnsActivity)
+		_, err := env.ExecuteActivity(activity.CreateDnsActivity, node)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -280,9 +315,6 @@ func TestCreateDnsActivity(t *testing.T) {
 
 // TestEnableAutoVolOfflineCronForGCPKMSActivity tests the EnableAutoVolOfflineCronForGCPKMSActivity method.
 func TestEnableAutoVolOfflineCronForGCPKMSActivity(t *testing.T) {
-	ctx := context.Background()
-	mockLogger := log.NewLogger()
-	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 	node := &coreModels.Node{Name: "test-node"}
 
 	t.Run("returns error if GetProviderByNode fails", func(t *testing.T) {
@@ -294,11 +326,14 @@ func TestEnableAutoVolOfflineCronForGCPKMSActivity(t *testing.T) {
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 		activity := &KmsConfigActivity{}
-		err := activity.EnableAutoVolOfflineCronForGCPKMSActivity(ctx, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.EnableAutoVolOfflineCronForGCPKMSActivity)
+		_, err := env.ExecuteActivity(activity.EnableAutoVolOfflineCronForGCPKMSActivity, node)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		assert.EqualError(t, err, "provider error")
+		assert.Contains(t, err.Error(), "provider error")
 	})
 
 	t.Run("logs error but returns nil if provider.EnableAutoVolOfflineCronForGCPKMS fails", func(t *testing.T) {
@@ -312,7 +347,10 @@ func TestEnableAutoVolOfflineCronForGCPKMSActivity(t *testing.T) {
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 		activity := &KmsConfigActivity{}
-		err := activity.EnableAutoVolOfflineCronForGCPKMSActivity(ctx, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.EnableAutoVolOfflineCronForGCPKMSActivity)
+		_, err := env.ExecuteActivity(activity.EnableAutoVolOfflineCronForGCPKMSActivity, node)
 		// The method logs the error but returns nil (as per implementation)
 		if err != nil {
 			t.Fatalf("expected nil, got %v", err)
@@ -330,7 +368,10 @@ func TestEnableAutoVolOfflineCronForGCPKMSActivity(t *testing.T) {
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 		activity := &KmsConfigActivity{}
-		err := activity.EnableAutoVolOfflineCronForGCPKMSActivity(ctx, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.EnableAutoVolOfflineCronForGCPKMSActivity)
+		_, err := env.ExecuteActivity(activity.EnableAutoVolOfflineCronForGCPKMSActivity, node)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -339,9 +380,6 @@ func TestEnableAutoVolOfflineCronForGCPKMSActivity(t *testing.T) {
 
 // Additional test for CreateDnsActivity to handle "duplicate entry" case
 func TestCreateDnsActivity_DuplicateEntry(t *testing.T) {
-	ctx := context.Background()
-	mockLogger := log.NewLogger()
-	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 	node := &coreModels.Node{Name: "test-node"}
 
 	t.Run("returns nil when DNS entry already exists", func(t *testing.T) {
@@ -355,7 +393,10 @@ func TestCreateDnsActivity_DuplicateEntry(t *testing.T) {
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 		activity := &KmsConfigActivity{}
-		err := activity.CreateDnsActivity(ctx, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateDnsActivity)
+		_, err := env.ExecuteActivity(activity.CreateDnsActivity, node)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}

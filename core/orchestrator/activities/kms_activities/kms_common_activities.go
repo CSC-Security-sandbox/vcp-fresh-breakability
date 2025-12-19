@@ -14,7 +14,7 @@ import (
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
@@ -24,6 +24,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/temporal"
 )
 
@@ -78,12 +79,15 @@ func _pollCvpOperationForWorkflow(ctx context.Context, cvpClient cvpapi.Cvp, ope
 
 // PollKmsConfigOperationActivity polls the KMS configuration operation until it is done.
 func (j *KmsConfigActivity) PollKmsConfigOperationActivity(ctx context.Context, params *common.PollKmsConfigParams) error {
+	activity.RecordHeartbeat(ctx, "Starting PollKmsConfigOperationActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished PollKmsConfigOperationActivity")
 	jwtToken := utils.GetAuthTokenFromContext(ctx)
 	logger := util.GetLogger(ctx)
 	cvpClient := createClient(logger, jwtToken)
 
 	// Check if the operation is done
 	if !params.OperationDone {
+		activity.RecordHeartbeat(ctx, "Polling KMS configuration operation status")
 		// Extract the operation UUID
 		operationUUID := utils.GetOperationUUID(params.OperationUri)
 		operationParams := async.NewV1betaDescribeOperationParams()
@@ -119,6 +123,8 @@ func GetResponseforPollCvpOperation(ctx context.Context, responsePayloadName str
 
 // CreateVSAKmsConfigSAKeyActivity creates a service account key for the given KMS configuration.
 func (j *KmsConfigActivity) CreateVSAKmsConfigSAKeyActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig) (*datamodel.KmsConfig, error) {
+	activity.RecordHeartbeat(ctx, "Starting CreateVSAKmsConfigSAKeyActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished CreateVSAKmsConfigSAKeyActivity")
 	se := j.SE
 	gcpService, err := getGcpService(ctx)
 	if err != nil {
@@ -129,6 +135,7 @@ func (j *KmsConfigActivity) CreateVSAKmsConfigSAKeyActivity(ctx context.Context,
 	if err != nil && !errors.IsNotFoundErr(err) {
 		return nil, errors2.WrapAsTemporalApplicationError(errors2.NewVCPError(errors2.ErrGettingKmsServiceAccount, err))
 	} else if errors.IsNotFoundErr(err) {
+		activity.RecordHeartbeat(ctx, "Creating service account key for KMS config")
 		serviceAccountKey, err := GcpServiceCreateServiceAccountKey(gcpService, ctx, vsaEmail)
 		if err != nil {
 			return nil, err
@@ -161,6 +168,7 @@ func (j *KmsConfigActivity) CreateVSAKmsConfigSAKeyActivity(ctx context.Context,
 			return nil, err
 		}
 	}
+	activity.RecordHeartbeat(ctx, "Updating service account state")
 	_, err = se.UpdateServiceAccountState(ctx, dbAccount.UUID, models.AccountStateEnabled, models.LifeCycleStateAvailableDetails)
 	if err != nil {
 		return nil, err
@@ -191,15 +199,20 @@ func _gcpGrantServiceAccountRole(ctx context.Context, gcpService *google.GcpServ
 
 // GrantRoleActivity grants the specified role to the service account for the given KMS configuration.
 func (j *KmsConfigActivity) GrantRoleActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig) error {
+	activity.RecordHeartbeat(ctx, "Starting GrantRoleActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished GrantRoleActivity")
 	gcpService, err := getGcpService(ctx)
 	if err != nil {
 		return err
 	}
+	activity.RecordHeartbeat(ctx, "Granting service account role")
 	return gcpGrantServiceAccountRole(ctx, gcpService, kmsConfig.KmsAttributes.SdeServiceAccountEmail, kmsConfig.ServiceAccount.ServiceAccountEmail, TokenCreatorRole)
 }
 
 // FailedKmsConfigCreateActivity updates the KMS configuration state to "error" with the provided error message.
 func (j *KmsConfigActivity) FailedKmsConfigCreateActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig, errMsg string, location string) error {
+	activity.RecordHeartbeat(ctx, "Starting FailedKmsConfigCreateActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished FailedKmsConfigCreateActivity")
 	return _failedKmsConfigCreateActivity(ctx, j.SE, kmsConfig, errMsg, location)
 }
 
@@ -208,6 +221,7 @@ func _failedKmsConfigCreateActivity(ctx context.Context, se database.Storage, km
 	logger := util.GetLogger(ctx)
 	cvpClient := createClient(logger, jwtToken)
 
+	activity.RecordHeartbeat(ctx, "Cleaning up failed KMS configuration")
 	_, err := se.DeleteKmsConfig(ctx, kmsConfig.UUID, models.LifeCycleStateDeleted, errMsg)
 	if err != nil {
 		return err
@@ -257,9 +271,12 @@ func _failedKmsConfigCreateActivity(ctx context.Context, se database.Storage, km
 
 // CreatedKmsConfigActivity updates the KMS configuration state to created
 func (j *KmsConfigActivity) CreatedKmsConfigActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig) error {
+	activity.RecordHeartbeat(ctx, "Starting CreatedKmsConfigActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished CreatedKmsConfigActivity")
 	se := j.SE
 	kmsConfig.State = models.LifeCycleStateCreated
 	kmsConfig.StateDetails = models.LifeCycleStateCreatedDetails
+	activity.RecordHeartbeat(ctx, "Updating KMS configuration to created state")
 	_, err := se.UpdateKmsConfigState(ctx, kmsConfig.UUID, kmsConfig.State, kmsConfig.StateDetails)
 	if err != nil {
 		return err
@@ -269,16 +286,32 @@ func (j *KmsConfigActivity) CreatedKmsConfigActivity(ctx context.Context, kmsCon
 }
 
 func (j *KmsConfigActivity) UpdatePoolWithKmsConfigActivity(ctx context.Context, pool *datamodel.Pool, kmsConfigID string) (*datamodel.Pool, error) {
+	activity.RecordHeartbeat(ctx, "Starting UpdatePoolWithKmsConfigActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished UpdatePoolWithKmsConfigActivity")
 	se := j.SE
+	activity.RecordHeartbeat(ctx, "Updating pool with KMS configuration")
 	return se.UpdatePoolWithKmsConfigID(ctx, pool, kmsConfigID)
 }
 
 func (j *KmsConfigActivity) AccessCryptoKeyAndEncryptDataWithImpersonationActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig) error {
+	activity.RecordHeartbeat(ctx, "Starting AccessCryptoKeyAndEncryptDataWithImpersonationActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished AccessCryptoKeyAndEncryptDataWithImpersonationActivity")
 	err := AccessCryptoKeyAndEncryptData(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+// safeRecordHeartbeat safely records a heartbeat only if the context is an activity context.
+// This prevents panics when the function is called from non-activity contexts (e.g., HTTP handlers).
+func safeRecordHeartbeat(ctx context.Context, details ...interface{}) {
+	defer func() {
+		if r := recover(); r != nil {
+			// Ignore panic - we're not in an activity context, so RecordHeartbeat panicked
+		}
+	}()
+	activity.RecordHeartbeat(ctx, details...)
 }
 
 func _accessCryptoKeyAndEncryptData(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
@@ -295,6 +328,7 @@ func _accessCryptoKeyAndEncryptData(ctx context.Context, kmsConfig *datamodel.Km
 		return fmt.Errorf("failed to create KMS service: %w", err)
 	}
 
+	safeRecordHeartbeat(ctx, "Accessing crypto key")
 	// Define the name of the crypto key you want to get details about
 	cryptoKeyPath := utils.ParsedKeyFullPathResource{
 		ProjectID: kmsConfig.KeyProjectID,
@@ -323,6 +357,7 @@ func _accessCryptoKeyAndEncryptData(ctx context.Context, kmsConfig *datamodel.Km
 	plainText := "test"
 	// Encode the test string in base64 format before encryption request
 	req := utils.ReturnEncryptRequest(plainText)
+	safeRecordHeartbeat(ctx, "Verifying encryption capability")
 	// Attempt to encrypt the data using the KMS key.
 	errEncrypt := retryDo(ctx, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey, "AccessCryptoKeyAndEncryptDataWithImpersonationActivity", func(attempt int) (bool, error) {
 		_, err = kmsService.Projects.Locations.KeyRings.CryptoKeys.Encrypt(cryptoKeyPath, req).Do()
@@ -358,6 +393,8 @@ func _synchronizeServiceAccountKeys(ctx context.Context, gcpService hyperscaler.
 }
 
 func (j *KmsConfigActivity) VerifyVsaKmsReachabilityActivity(ctx context.Context, kmsConfigUUID string) error {
+	activity.RecordHeartbeat(ctx, "Starting VerifyVsaKmsReachabilityActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished VerifyVsaKmsReachabilityActivity")
 	se := j.SE
 
 	kmsConfig, err := se.GetKmsConfigByUUID(ctx, kmsConfigUUID)
@@ -368,6 +405,7 @@ func (j *KmsConfigActivity) VerifyVsaKmsReachabilityActivity(ctx context.Context
 		return err
 	}
 
+	activity.RecordHeartbeat(ctx, "Verifying KMS reachability from VSA")
 	// Access Crypto key and encrypt data
 	err = AccessCryptoKeyAndEncryptData(
 		ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation,
@@ -387,6 +425,7 @@ func (j *KmsConfigActivity) VerifyVsaKmsReachabilityActivity(ctx context.Context
 		},
 	}
 
+	activity.RecordHeartbeat(ctx, "Updating KMS configuration health status")
 	// Update the KmsConfig health status in the database
 	_, err = UpdateKmsConfigHealth(ctx, se, kmsConfigCheck)
 	if err != nil {
@@ -449,5 +488,7 @@ func _updateKmsConfigHealth(ctx context.Context, se database.Storage, configChec
 }
 
 func (j *KmsConfigActivity) GetSignedTokenActivity(ctx context.Context, projectNumber string) (string, error) {
+	activity.RecordHeartbeat(ctx, "Starting GetSignedTokenActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished GetSignedTokenActivity")
 	return auth.GetSignedJwtToken(projectNumber)
 }

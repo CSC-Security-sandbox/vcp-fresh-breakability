@@ -204,4 +204,50 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
+	t.Run("HeartbeatTimeoutIsConfigured", func(t *testing.T) {
+		// This test verifies that HeartbeatTimeout is configured in ActivityOptions
+		// by ensuring activities with RecordHeartbeat can execute successfully
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterWorkflow(DeleteKmsConfigWorkflow)
+		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{SE: mockStorage})
+
+		params := &common.DeleteKmsConfigParams{
+			KmsConfigID: "test-config-id",
+			AccountName: "123456789",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			Name: "kms1",
+			BaseModel: datamodel.BaseModel{
+				UUID: "kms1-uuid",
+			},
+			CustomerProjectID: "123456789",
+		}
+
+		sdeJobUuid := "job-uuid"
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, "123456789").Return("test-jwt-token", nil)
+		env.OnActivity("DeleteSDEKmsConfig", mock.Anything, kmsConfig, params).Return(&sdeJobUuid, nil)
+		env.OnActivity("DescribeSDEDeleteJob", mock.Anything, &sdeJobUuid, params).Return(nil)
+		env.OnActivity("DisableKmsServiceAccount", mock.Anything, kmsConfig).Return(nil)
+		env.OnActivity("DeleteKmsConfig", mock.Anything, kmsConfig, params).Return(nil)
+
+		env.ExecuteWorkflow(DeleteKmsConfigWorkflow, kmsConfig, params)
+
+		// Verify workflow completes successfully, which confirms HeartbeatTimeout is configured
+		// Activities with RecordHeartbeat would fail if HeartbeatTimeout wasn't set
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
 }

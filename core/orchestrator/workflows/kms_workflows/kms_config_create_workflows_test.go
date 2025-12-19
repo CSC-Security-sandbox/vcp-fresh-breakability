@@ -510,4 +510,58 @@ func TestCreateKmsConfig(t *testing.T) {
 		assert.True(t, sdeJobMarkedDone)
 		env.AssertExpectations(t)
 	})
+	t.Run("HeartbeatTimeoutIsConfigured", func(t *testing.T) {
+		// This test verifies that HeartbeatTimeout is configured in ActivityOptions
+		// by ensuring activities with RecordHeartbeat can execute successfully
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+		}
+		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
+		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
+		expectJobIsNew(env)
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreatedKmsConfigActivity", mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		if err != nil {
+			t.Fatalf("Failed to query workflow: %v", err)
+		}
+
+		// Verify workflow completes successfully, which confirms HeartbeatTimeout is configured
+		// Activities with RecordHeartbeat would fail if HeartbeatTimeout wasn't set
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
 }

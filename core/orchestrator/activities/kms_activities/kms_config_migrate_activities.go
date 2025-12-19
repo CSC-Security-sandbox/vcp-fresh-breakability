@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/temporal"
 )
 
@@ -25,6 +26,8 @@ const (
 
 // MigrateSdeKmsConfigActivity initiates migration of a CMEK policy in SDE
 func (kmsActivity *KmsConfigActivity) MigrateSdeKmsConfigActivity(ctx context.Context, params *common.MigrateKmsConfigParams) (*kms_configurations.V1betaEncryptVolumesAccepted, error) {
+	activity.RecordHeartbeat(ctx, "Starting MigrateSdeKmsConfigActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished MigrateSdeKmsConfigActivity")
 	logger := util.GetLogger(ctx)
 	jwtToken := utils.GetAuthTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
@@ -37,6 +40,7 @@ func (kmsActivity *KmsConfigActivity) MigrateSdeKmsConfigActivity(ctx context.Co
 		XCorrelationID: &xCorrelationID,
 	}
 
+	activity.RecordHeartbeat(ctx, "Initiating KMS configuration migration in SDE")
 	cvpResponse, cvpErr := cvpClient.KmsConfigurations.V1betaEncryptVolumes(migrateKmsConfigParams)
 	if cvpErr != nil {
 		logger.Error("Error migrating KMS configuration: ", cvpErr)
@@ -50,11 +54,14 @@ func (kmsActivity *KmsConfigActivity) MigrateSdeKmsConfigActivity(ctx context.Co
 
 // PollMigrateSdeKmsConfigActivity polls the SDE KMS migration operation until it is done.
 func (j *KmsConfigActivity) PollMigrateSdeKmsConfigActivity(ctx context.Context, params *common.MigrateKmsConfigParams, response *kms_configurations.V1betaEncryptVolumesAccepted) error {
+	activity.RecordHeartbeat(ctx, "Starting PollMigrateSdeKmsConfigActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished PollMigrateSdeKmsConfigActivity")
 	if response == nil || response.Payload == nil {
 		return temporal.NewNonRetryableApplicationError("Error migrating SDE KMS Configuration", "DescribeOperationError", errors.New("SDE CMEK migration error"))
 	}
 
 	if !*response.Payload.Done {
+		activity.RecordHeartbeat(ctx, "Polling SDE KMS migration operation status")
 		payload, err := GetResponseforPollCvpOperation(ctx, response.Payload.Name, params.ProjectNumber, params.LocationID)
 		if err != nil {
 			return err
@@ -68,17 +75,21 @@ func (j *KmsConfigActivity) PollMigrateSdeKmsConfigActivity(ctx context.Context,
 
 // MigrateVsaPoolActivity migrates one VSA pool over to EKM
 func (j *KmsConfigActivity) MigrateVsaPoolActivity(ctx context.Context, volumes []*datamodel.Volume, node *models.Node) error {
+	activity.RecordHeartbeat(ctx, "Starting MigrateVsaPoolActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished MigrateVsaPoolActivity")
 	se := j.SE
 	logger := util.GetLogger(ctx)
 	var volumeMigrationFailed, volumeMigrationComplete bool
 
+	activity.RecordHeartbeat(ctx, "Getting provider for pool migration")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Errorf("Unable to get provider for pool - GetProviderByNode failure: %s", err.Error())
 		return err
 	}
 
-	for _, volume := range volumes {
+	for i, volume := range volumes {
+		activity.RecordHeartbeat(ctx, "Processing volume %d of %d for migration", i+1, len(volumes))
 		// We do not wish to encrypt volumes which are not in Ready state, or upon re-entry not in Migrating state
 		if !(volume.State == models.LifeCycleStateREADY || (volume.State == models.LifeCycleStateUpdating && volume.StateDetails == models.LifeCycleStateVolMigratingDetails)) {
 			logger.Errorf("Volume %s is not in Ready state...skipping encryption for this volume; Current state is %s", volume.UUID, volume.State)
@@ -102,6 +113,7 @@ func (j *KmsConfigActivity) MigrateVsaPoolActivity(ctx context.Context, volumes 
 			continue
 		}
 
+		activity.RecordHeartbeat(ctx, "Checking encryption status for volume %s", volume.UUID)
 		getEncryptionStatus, errStatus := provider.GetVolumeEncryptionStatus(getVolumeParams)
 		if errStatus != nil {
 			logger.Errorf("Failed to get encryption status for volume %s, aborting encryption... Error: %s", volume.UUID, errStatus.Error())
@@ -132,6 +144,7 @@ func (j *KmsConfigActivity) MigrateVsaPoolActivity(ctx context.Context, volumes 
 			continue
 		} else if *getEncryptionStatus.Encryption.State != EncryptingState {
 			// Encrypt volume
+			activity.RecordHeartbeat(ctx, "Enabling encryption for volume %s", volume.UUID)
 			errEnableEncryption := provider.UpdateVolumeEnableEncryption(vsa.UpdateVolumeParams{
 				UUID:             getVolumeParams.UUID,
 				EncryptionEnable: true,
@@ -160,6 +173,7 @@ func (j *KmsConfigActivity) MigrateVsaPoolActivity(ctx context.Context, volumes 
 		volArrayForTimeout = append(volArrayForTimeout, volume)
 		volumePollTimeout := utils.DetermineStartToCloseTimeoutBasedOnUsedSize(volArrayForTimeout)
 		pollTimeout := time.After(time.Duration(volumePollTimeout) * time.Minute)
+		activity.RecordHeartbeat(ctx, "Polling encryption status for volume %s", volume.UUID)
 		for !volumeMigrationFailed && !volumeMigrationComplete {
 			select {
 			case <-pollTimeout:
@@ -176,9 +190,11 @@ func (j *KmsConfigActivity) MigrateVsaPoolActivity(ctx context.Context, volumes 
 					switch *getEncryptionResponse.Encryption.State {
 					case EncryptingState:
 						logger.Infof("Volume encryption ongoing for %s ...", volume.UUID)
+						activity.RecordHeartbeat(ctx, "Volume encryption ongoing for %s", volume.UUID)
 						time.Sleep(time.Duration(PollWaitIntervalForVolumeEncryption) * time.Second)
 					case EncryptedState:
 						logger.Infof("Volume encryption completed for %s ...", volume.UUID)
+						activity.RecordHeartbeat(ctx, "Volume encryption completed for %s", volume.UUID)
 						volumeMigrationComplete = true
 					default:
 						logger.Errorf("Unexpected encryption state for volume %s during polling: %s", volume.UUID, *getEncryptionResponse.Encryption.State)
@@ -190,6 +206,7 @@ func (j *KmsConfigActivity) MigrateVsaPoolActivity(ctx context.Context, volumes 
 				}
 			}
 		}
+		activity.RecordHeartbeat(ctx, "Updating volume state to ready after encryption for volume %s", volume.UUID)
 		errUpdateVol := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
 			"state":         models.LifeCycleStateREADY,
 			"state_details": models.LifeCycleStateAvailableDetails,

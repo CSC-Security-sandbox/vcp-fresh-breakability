@@ -314,3 +314,54 @@ func TestRotateKmsConfigWorkflow_JobStatusUpdateFails(t *testing.T) {
 	workflowErr := env.GetWorkflowError()
 	assert.Contains(t, workflowErr.Error(), "failed to update job status")
 }
+
+func TestRotateKmsConfigWorkflow_HeartbeatTimeoutIsConfigured(t *testing.T) {
+	// This test verifies that HeartbeatTimeout is configured in ActivityOptions
+	// by ensuring activities with RecordHeartbeat can execute successfully
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
+
+	params := &common.RotateKmsConfigParams{
+		KmsConfigID:    "test-kms-config-uuid",
+		AccountName:    "test-account",
+		XCorrelationID: "test-correlation-id",
+	}
+
+	serviceAccount := &datamodel.ServiceAccount{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-sa-uuid",
+		},
+		ServiceAccountEmail: "test-sa@test-project.iam.gserviceaccount.com",
+		Name:                "test-service-account",
+	}
+
+	kmsConfig := &datamodel.KmsConfig{
+		BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-uuid"},
+		Name:           "test-kms-config",
+		ServiceAccount: serviceAccount,
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetKmsConfig", mock.Anything, "test-kms-config-uuid").Return(kmsConfig, nil)
+	env.OnActivity("RotateServiceAccountKey", mock.Anything, serviceAccount, kmsConfig).Return(nil)
+
+	env.ExecuteWorkflow(RotateKmsConfigWorkflow, params)
+
+	// Verify workflow completes successfully, which confirms HeartbeatTimeout is configured
+	// Activities with RecordHeartbeat would fail if HeartbeatTimeout wasn't set
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}

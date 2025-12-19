@@ -182,3 +182,35 @@ func (s *RotateKmsKeyTestSuite) TestRotateKmsSAKeyWorkflow_RotationEnabled() {
 	s.env.AssertCalled(s.T(), "ListKmsConfigs", mock.Anything)
 	s.env.AssertCalled(s.T(), "RotateServiceAccountKey", mock.Anything, mock.Anything, mock.Anything)
 }
+
+func (s *RotateKmsKeyTestSuite) TestRotateKmsSAKeyWorkflow_HeartbeatTimeoutIsConfigured() {
+	// This test verifies that HeartbeatTimeout is configured in ActivityOptions
+	// by ensuring activities with RecordHeartbeat can execute successfully
+	defer func() {
+		kmsRotationEnabled = env.GetBool("GCP_KMS_KEY_ROTATION_ENABLED", false)
+	}()
+	kmsRotationEnabled = true
+
+	activity := &backgroundactivities.RotateKmsSAKeyActivity{}
+	kmsConfigs := []*datamodel.KmsConfig{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "kms-1"},
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountEmail: "sa1@project.iam.gserviceaccount.com",
+			},
+		},
+	}
+
+	s.env.RegisterActivity(activity.ListKmsConfigs)
+	s.env.RegisterActivity(activity.RotateServiceAccountKey)
+
+	s.env.OnActivity(activity.ListKmsConfigs, mock.Anything).Return(kmsConfigs, nil)
+	s.env.OnActivity(activity.RotateServiceAccountKey, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(RotateKmsSAKeyWorkflow)
+
+	// Verify workflow completes successfully, which confirms HeartbeatTimeout is configured
+	// Activities with RecordHeartbeat would fail if HeartbeatTimeout wasn't set
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+}

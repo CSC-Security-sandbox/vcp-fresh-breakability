@@ -2,7 +2,6 @@ package kms_activities
 
 import (
 	"context"
-	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"strings"
 	"time"
 
@@ -13,10 +12,12 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/temporal"
 )
 
@@ -33,6 +34,7 @@ var (
 
 // CreateKmsConfigSDEActivity creates a KMS configuration in SDE and polls for its completion.
 func (j *KmsConfigActivity) CreateKmsConfigSDEActivity(ctx context.Context, params *common.CreateKmsConfigParams) (*kms_configurations.V1betaCreateKmsConfigurationAccepted, error) {
+	activity.RecordHeartbeat(ctx, "Starting CreateKmsConfigSDEActivity")
 	logger := util.GetLogger(ctx)
 	jwtToken := utils.GetAuthTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
@@ -48,6 +50,7 @@ func (j *KmsConfigActivity) CreateKmsConfigSDEActivity(ctx context.Context, para
 		Body:           body,
 	}
 
+	activity.RecordHeartbeat(ctx, "Initiating KMS configuration creation in SDE")
 	// Initiate the KMS configuration creation
 	response, err := cvpClient.KmsConfigurations.V1betaCreateKmsConfiguration(createKmsConfigParams)
 	if err != nil {
@@ -57,10 +60,13 @@ func (j *KmsConfigActivity) CreateKmsConfigSDEActivity(ctx context.Context, para
 	if response == nil || response.Payload == nil {
 		return nil, errors.New("unknown error during the create kms configuration")
 	}
+	activity.RecordHeartbeat(ctx, "Finished CreateKmsConfigSDEActivity")
 	return response, nil
 }
 
 func (j *KmsConfigActivity) CreateAndSyncKmsConfigActivity(ctx context.Context, params *common.CreateKmsConfigParams) (*datamodel.KmsConfig, error) {
+	activity.RecordHeartbeat(ctx, "Starting CreateAndSyncKmsConfigActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished CreateAndSyncKmsConfigActivity")
 	return _createAndSyncKmsConfig(ctx, j.SE, params)
 }
 
@@ -70,6 +76,7 @@ func _createAndSyncKmsConfig(ctx context.Context, se database.Storage, params *c
 		return nil, err
 	}
 
+	activity.RecordHeartbeat(ctx, "Creating KMS config record in database")
 	parsedKeyFullPathResource, err := utils.ParseKeyFullPathResource(params.KeyFullPath)
 	if err != nil {
 		return nil, err
@@ -96,12 +103,15 @@ func _createAndSyncKmsConfig(ctx context.Context, se database.Storage, params *c
 }
 
 func (j *KmsConfigActivity) CreateDnsActivity(ctx context.Context, node *models.Node) error {
+	activity.RecordHeartbeat(ctx, "Starting CreateDnsActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished CreateDnsActivity")
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return err
 	}
 
+	activity.RecordHeartbeat(ctx, "Creating DNS entry for node")
 	googleDnsServers := []string{"8.8.8.8", "8.8.4.4"}
 	dnsCreateParams := vsa.CreateDnsParams{
 		Domains: []string{netappDomain},
@@ -125,6 +135,8 @@ func (j *KmsConfigActivity) CreateDnsActivity(ctx context.Context, node *models.
 }
 
 func (j *KmsConfigActivity) EnableAutoVolOfflineCronForGCPKMSActivity(ctx context.Context, node *models.Node) error {
+	activity.RecordHeartbeat(ctx, "Starting EnableAutoVolOfflineCronForGCPKMSActivity")
+	defer activity.RecordHeartbeat(ctx, "Finished EnableAutoVolOfflineCronForGCPKMSActivity")
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {

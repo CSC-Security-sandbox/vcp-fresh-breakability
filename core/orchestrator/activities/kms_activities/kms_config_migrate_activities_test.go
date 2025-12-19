@@ -16,17 +16,15 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"go.temporal.io/sdk/testsuite"
 )
 
 func TestMigrateSdeKmsConfigActivity(t *testing.T) {
 	t.Run("MigrateSdeKmsConfigActivityReturnsOperationStatus", func(tt *testing.T) {
-		mockLogger := log.NewLogger()
-		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
 		params := common.MigrateKmsConfigParams{}
@@ -50,17 +48,47 @@ func TestMigrateSdeKmsConfigActivity(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		cvpResponse, err := activity.MigrateSdeKmsConfigActivity(ctx, &params)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.MigrateSdeKmsConfigActivity)
+		result, err := env.ExecuteActivity(activity.MigrateSdeKmsConfigActivity, &params)
 
 		assert.NoError(tt, err)
+		var cvpResponse *kms_configurations.V1betaEncryptVolumesAccepted
+		err = result.Get(&cvpResponse)
+		if err != nil {
+			tt.Fatalf("failed to get result: %v", err)
+		}
 		assert.NotNil(tt, cvpResponse)
 		assert.NotNil(tt, cvpResponse.Payload)
-		assert.Equal(tt, "kmsconfig-uuid", cvpResponse.Payload.Response.(cvpModels.EncryptVolumeStatusV1beta).UUID)
-		assert.Equal(tt, "UPDATING", cvpResponse.Payload.Response.(cvpModels.EncryptVolumeStatusV1beta).Status)
+		// When Temporal deserializes, Response (interface{}) becomes map[string]interface{}
+		// We need to handle the type conversion properly
+		responseMap, ok := cvpResponse.Payload.Response.(map[string]interface{})
+		if !ok {
+			// Try direct type assertion first
+			response, ok := cvpResponse.Payload.Response.(cvpModels.EncryptVolumeStatusV1beta)
+			if ok {
+				assert.Equal(tt, "kmsconfig-uuid", response.UUID)
+				assert.Equal(tt, "UPDATING", response.Status)
+			} else {
+				tt.Fatalf("unexpected response type: %T", cvpResponse.Payload.Response)
+			}
+		} else {
+			// Handle map[string]interface{} case - JSON tags are "UUID" and "status"
+			uuidVal, uuidOk := responseMap["UUID"].(string)
+			if !uuidOk {
+				// Try lowercase as fallback
+				uuidVal, uuidOk = responseMap["uuid"].(string)
+			}
+			assert.True(tt, uuidOk, "UUID should be present in response")
+			assert.Equal(tt, "kmsconfig-uuid", uuidVal)
+
+			statusVal, statusOk := responseMap["status"].(string)
+			assert.True(tt, statusOk, "status should be present in response")
+			assert.Equal(tt, "UPDATING", statusVal)
+		}
 	})
 	t.Run("MigrateSdeKmsConfigActivityReturnsNilPayload", func(tt *testing.T) {
-		mockLogger := log.NewLogger()
-		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
 		params := common.MigrateKmsConfigParams{}
@@ -76,15 +104,15 @@ func TestMigrateSdeKmsConfigActivity(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		cvpResponse, err := activity.MigrateSdeKmsConfigActivity(ctx, &params)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.MigrateSdeKmsConfigActivity)
+		_, err := env.ExecuteActivity(activity.MigrateSdeKmsConfigActivity, &params)
 
 		assert.Error(tt, err)
-		assert.EqualError(tt, err, "Error encountered during SDE CMEK migration: CVP response is empty")
-		assert.Nil(tt, cvpResponse)
+		assert.Contains(tt, err.Error(), "Error encountered during SDE CMEK migration: CVP response is empty")
 	})
 	t.Run("MigrateSdeKmsConfigActivityReturnsNil", func(tt *testing.T) {
-		mockLogger := log.NewLogger()
-		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
 		params := common.MigrateKmsConfigParams{}
@@ -99,15 +127,15 @@ func TestMigrateSdeKmsConfigActivity(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		cvpResponse, err := activity.MigrateSdeKmsConfigActivity(ctx, &params)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.MigrateSdeKmsConfigActivity)
+		_, err := env.ExecuteActivity(activity.MigrateSdeKmsConfigActivity, &params)
 
 		assert.Error(tt, err)
-		assert.EqualError(tt, err, "Error encountered during SDE CMEK migration: CVP response is empty")
-		assert.Nil(tt, cvpResponse)
+		assert.Contains(tt, err.Error(), "Error encountered during SDE CMEK migration: CVP response is empty")
 	})
 	t.Run("MigrateSdeKmsConfigActivityReturnsError", func(tt *testing.T) {
-		mockLogger := log.NewLogger()
-		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
 		params := common.MigrateKmsConfigParams{}
@@ -122,11 +150,13 @@ func TestMigrateSdeKmsConfigActivity(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		cvpResponse, err := activity.MigrateSdeKmsConfigActivity(ctx, &params)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.MigrateSdeKmsConfigActivity)
+		_, err := env.ExecuteActivity(activity.MigrateSdeKmsConfigActivity, &params)
 
 		assert.Error(tt, err)
-		assert.EqualError(tt, err, "Error migrating SDE KMS Configuration (type: DescribeOperationError, retryable: false): migration ran into an error")
-		assert.Nil(tt, cvpResponse)
+		assert.Contains(tt, err.Error(), "Error migrating SDE KMS Configuration (type: DescribeOperationError, retryable: false): migration ran into an error")
 	})
 }
 
@@ -134,21 +164,29 @@ func TestPollMigrateSdeKmsConfigActivity(t *testing.T) {
 	t.Run("PollMigrateSdeKmsConfigActivityGetsNilResponse", func(tt *testing.T) {
 		activity := &KmsConfigActivity{}
 		params := common.MigrateKmsConfigParams{}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.PollMigrateSdeKmsConfigActivity)
 
-		errPoll := activity.PollMigrateSdeKmsConfigActivity(context.Background(), &params, nil)
+		_, errPoll := env.ExecuteActivity(activity.PollMigrateSdeKmsConfigActivity, &params, nil)
 
 		assert.Error(tt, errPoll)
-		assert.Error(tt, errPoll, "unknown error encountered during Migrate KMS configuration")
+		assert.Contains(tt, errPoll.Error(), "Error migrating SDE KMS Configuration")
+		assert.Contains(tt, errPoll.Error(), "SDE CMEK migration error")
 	})
 	t.Run("PollMigrateSdeKmsConfigActivityGetsNilPayload", func(tt *testing.T) {
 		activity := &KmsConfigActivity{}
 		params := common.MigrateKmsConfigParams{}
 		response := kms_configurations.V1betaEncryptVolumesAccepted{Payload: nil}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.PollMigrateSdeKmsConfigActivity)
 
-		errPoll := activity.PollMigrateSdeKmsConfigActivity(context.Background(), &params, &response)
+		_, errPoll := env.ExecuteActivity(activity.PollMigrateSdeKmsConfigActivity, &params, &response)
 
 		assert.Error(tt, errPoll)
-		assert.Error(tt, errPoll, "unknown error encountered during Migrate KMS configuration")
+		assert.Contains(tt, errPoll.Error(), "Error migrating SDE KMS Configuration")
+		assert.Contains(tt, errPoll.Error(), "SDE CMEK migration error")
 	})
 	t.Run("PollMigrateSdeKmsConfigActivityReturnsDoneInPayload", func(tt *testing.T) {
 		activity := &KmsConfigActivity{}
@@ -158,11 +196,13 @@ func TestPollMigrateSdeKmsConfigActivity(t *testing.T) {
 		}
 		doneStatus := true
 		response := kms_configurations.V1betaEncryptVolumesAccepted{Payload: &cvpModels.OperationV1beta{Done: &doneStatus, Name: "operationName"}}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.PollMigrateSdeKmsConfigActivity)
 
-		errPoll := activity.PollMigrateSdeKmsConfigActivity(context.Background(), &params, &response)
+		_, errPoll := env.ExecuteActivity(activity.PollMigrateSdeKmsConfigActivity, &params, &response)
 
 		assert.NoError(tt, errPoll)
-		assert.Nil(tt, errPoll)
 	})
 	t.Run("WhenPollCvpOperationForWorkflowReturnsError", func(tt *testing.T) {
 		activity := &KmsConfigActivity{}
@@ -179,10 +219,13 @@ func TestPollMigrateSdeKmsConfigActivity(t *testing.T) {
 		pollCvpOperationForWorkflow = func(ctx context.Context, cvpClient cvpapi.Cvp, operationParams *async.V1betaDescribeOperationParams) (*cvpModels.OperationV1beta, error) {
 			return nil, errors.New("CVP Polling is returning error to flag that polling needs to continue")
 		}
-		errPoll := activity.PollMigrateSdeKmsConfigActivity(context.Background(), &params, &response)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.PollMigrateSdeKmsConfigActivity)
+		_, errPoll := env.ExecuteActivity(activity.PollMigrateSdeKmsConfigActivity, &params, &response)
 
 		assert.Error(tt, errPoll)
-		assert.EqualError(tt, errPoll, "CVP Polling is returning error to flag that polling needs to continue")
+		assert.Contains(tt, errPoll.Error(), "CVP Polling is returning error to flag that polling needs to continue")
 	})
 	t.Run("WhenPollCvpOperationForWorkflowReturnsWithoutError", func(tt *testing.T) {
 		activity := &KmsConfigActivity{}
@@ -199,15 +242,16 @@ func TestPollMigrateSdeKmsConfigActivity(t *testing.T) {
 		pollCvpOperationForWorkflow = func(ctx context.Context, cvpClient cvpapi.Cvp, operationParams *async.V1betaDescribeOperationParams) (*cvpModels.OperationV1beta, error) {
 			return nil, nil
 		}
-		errPoll := activity.PollMigrateSdeKmsConfigActivity(context.Background(), &params, &response)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.PollMigrateSdeKmsConfigActivity)
+		_, errPoll := env.ExecuteActivity(activity.PollMigrateSdeKmsConfigActivity, &params, &response)
 
 		assert.NoError(tt, errPoll)
-		assert.Nil(tt, errPoll)
 	})
 }
 
 func TestMigrateVsaPoolActivity(t *testing.T) {
-	ctx := context.Background()
 	var volumes []*datamodel.Volume
 	vol1 := datamodel.Volume{
 		BaseModel:        datamodel.BaseModel{UUID: "uuid1"},
@@ -257,9 +301,12 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 				var volumesErr []*datamodel.Volume
 				volumesErr = append(volumesErr, &vol)
 
-				errGetVolume := activity.MigrateVsaPoolActivity(ctx, volumesErr, node)
+				testSuite := &testsuite.WorkflowTestSuite{}
+				env := testSuite.NewTestActivityEnvironment()
+				env.RegisterActivity(activity.MigrateVsaPoolActivity)
+				_, errGetVolume := env.ExecuteActivity(activity.MigrateVsaPoolActivity, volumesErr, node)
 				assert.Error(t, errGetVolume)
-				assert.EqualError(t, errGetVolume, "Encryption failed for one/some of the volumes (type: CmekVolumeMigrationError, retryable: false): Volume encryption failure")
+				assert.Contains(t, errGetVolume.Error(), "Encryption failed for one/some of the volumes (type: CmekVolumeMigrationError, retryable: false): Volume encryption failure")
 			})
 		}
 	})
@@ -282,9 +329,12 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		var volumesErr []*datamodel.Volume
 		volumesErr = append(volumesErr, &vol2)
 
-		errGetVolume := activity.MigrateVsaPoolActivity(ctx, volumesErr, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.MigrateVsaPoolActivity)
+		_, errGetVolume := env.ExecuteActivity(activity.MigrateVsaPoolActivity, volumesErr, node)
 		assert.Error(tt, errGetVolume)
-		assert.EqualError(tt, errGetVolume, "Encryption failed for one/some of the volumes (type: CmekVolumeMigrationError, retryable: false): Volume encryption failure")
+		assert.Contains(tt, errGetVolume.Error(), "Encryption failed for one/some of the volumes (type: CmekVolumeMigrationError, retryable: false): Volume encryption failure")
 	})
 	t.Run("WhenVolumeSvmIsNil", func(tt *testing.T) {
 		activity := &KmsConfigActivity{}
@@ -305,9 +355,12 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		}
 		volumesSvmNil = append(volumesSvmNil, &vol3)
 
-		errGetVolume := activity.MigrateVsaPoolActivity(ctx, volumesSvmNil, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.MigrateVsaPoolActivity)
+		_, errGetVolume := env.ExecuteActivity(activity.MigrateVsaPoolActivity, volumesSvmNil, node)
 		assert.Error(tt, errGetVolume)
-		assert.EqualError(tt, errGetVolume, "Encryption failed for one/some of the volumes (type: CmekVolumeMigrationError, retryable: false): Volume encryption failure")
+		assert.Contains(tt, errGetVolume.Error(), "Encryption failed for one/some of the volumes (type: CmekVolumeMigrationError, retryable: false): Volume encryption failure")
 	})
 	t.Run("WhenGetVolumeEncryptionReturnsStateAsEncryptedWithGetVolumeErr", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
@@ -327,7 +380,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		}
 		mockProvider.On("GetVolumeEncryptionStatus", mock.Anything).Return(&getEncryptionStatus, nil)
 		mockSE.On("GetVolume", mock.Anything, mock.Anything).Return(nil, errors.New("GetVolume"))
-		errMigrate := activity.MigrateVsaPoolActivity(ctx, volumes, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.MigrateVsaPoolActivity)
+		_, errMigrate := env.ExecuteActivity(activity.MigrateVsaPoolActivity, volumes, node)
 
 		assert.NoError(tt, errMigrate)
 	})
@@ -354,7 +410,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockProvider.On("GetVolumeEncryptionStatus", mock.Anything).Return(&getEncryptionStatus, nil)
 		mockSE.On("GetVolume", mock.Anything, mock.Anything).Return(&volDataModel, nil)
 		mockSE.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("UpdateVolume error"))
-		errMigrate := activity.MigrateVsaPoolActivity(ctx, volumes, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.MigrateVsaPoolActivity)
+		_, errMigrate := env.ExecuteActivity(activity.MigrateVsaPoolActivity, volumes, node)
 
 		assert.NoError(tt, errMigrate)
 	})
@@ -380,7 +439,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		}
 		mockProvider.On("GetVolumeEncryptionStatus", mock.Anything).Return(&getEncryptionStatus, nil)
 		mockSE.On("GetVolume", mock.Anything, mock.Anything).Return(&volDataModel, nil)
-		errMigrate := activity.MigrateVsaPoolActivity(ctx, volumes, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.MigrateVsaPoolActivity)
+		_, errMigrate := env.ExecuteActivity(activity.MigrateVsaPoolActivity, volumes, node)
 
 		assert.NoError(tt, errMigrate)
 	})
@@ -407,7 +469,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockProvider.On("GetVolumeEncryptionStatus", mock.Anything).Return(&getEncryptionStatus, nil)
 		mockSE.On("GetVolume", mock.Anything, mock.Anything).Return(&volDataModel, nil)
 		mockSE.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		errMigrate := activity.MigrateVsaPoolActivity(ctx, volumes, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.MigrateVsaPoolActivity)
+		_, errMigrate := env.ExecuteActivity(activity.MigrateVsaPoolActivity, volumes, node)
 
 		assert.NoError(tt, errMigrate)
 	})
@@ -415,6 +480,9 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockSE := database.NewMockStorage(tt)
 		activity := &KmsConfigActivity{SE: mockSE}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.MigrateVsaPoolActivity)
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
@@ -437,7 +505,7 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		done := make(chan struct{})
 		go func() {
 			defer close(done)
-			err = activity.MigrateVsaPoolActivity(ctx, volumes, node)
+			_, err = env.ExecuteActivity(activity.MigrateVsaPoolActivity, volumes, node)
 			if err != nil {
 				t.Errorf("Function failed: %v", err)
 			}
@@ -469,7 +537,10 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockProvider.On("GetVolumeEncryptionStatus", mock.Anything).Return(&getEncryptionStatus, nil)
 		mockProvider.On("UpdateVolumeEnableEncryption", mock.Anything).Return(errors.New("reason: Volume is encrypted"))
 
-		errMigrate := activity.MigrateVsaPoolActivity(ctx, volumes, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.MigrateVsaPoolActivity)
+		_, errMigrate := env.ExecuteActivity(activity.MigrateVsaPoolActivity, volumes, node)
 		assert.NoError(tt, errMigrate)
 	})
 	t.Run("WhenUpdateVolumeEnableEncryptionReturnsError", func(tt *testing.T) {
@@ -491,10 +562,13 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockProvider.On("GetVolumeEncryptionStatus", mock.Anything).Return(&getEncryptionStatus, nil)
 		mockProvider.On("UpdateVolumeEnableEncryption", mock.Anything).Return(errors.New("volume encryption error"))
 
-		errMigrate := activity.MigrateVsaPoolActivity(ctx, volumes, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.MigrateVsaPoolActivity)
+		_, errMigrate := env.ExecuteActivity(activity.MigrateVsaPoolActivity, volumes, node)
 
 		assert.Error(tt, errMigrate)
-		assert.EqualError(tt, errMigrate, "Encryption failed for one/some of the volumes (type: CmekVolumeMigrationError, retryable: false): Volume encryption failure")
+		assert.Contains(tt, errMigrate.Error(), "Encryption failed for one/some of the volumes (type: CmekVolumeMigrationError, retryable: false): Volume encryption failure")
 	})
 	t.Run("WhenGetVolumeEncryptionStatusReturnsError", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
@@ -517,10 +591,13 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockProvider.On("UpdateVolumeEnableEncryption", mock.Anything).Return(errors.New("volume encryption error"))
 		mockProvider.On("GetVolumeEncryptionStatus", mock.Anything).Return(nil, errors.New("get volume encryption error"))
 
-		errMigrate := activity.MigrateVsaPoolActivity(ctx, volumes, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.MigrateVsaPoolActivity)
+		_, errMigrate := env.ExecuteActivity(activity.MigrateVsaPoolActivity, volumes, node)
 
 		assert.Error(tt, errMigrate)
-		assert.EqualError(tt, errMigrate, "Encryption failed for one/some of the volumes (type: CmekVolumeMigrationError, retryable: false): Volume encryption failure")
+		assert.Contains(tt, errMigrate.Error(), "Encryption failed for one/some of the volumes (type: CmekVolumeMigrationError, retryable: false): Volume encryption failure")
 	})
 	t.Run("WhenGetEncryptionResponseIsNil", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
@@ -543,10 +620,13 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockProvider.On("UpdateVolumeEnableEncryption", mock.Anything).Return(errors.New("volume encryption error"))
 		mockProvider.On("GetVolumeEncryptionStatus", mock.Anything).Return(nil, nil)
 
-		errMigrate := activity.MigrateVsaPoolActivity(ctx, volumes, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.MigrateVsaPoolActivity)
+		_, errMigrate := env.ExecuteActivity(activity.MigrateVsaPoolActivity, volumes, node)
 
 		assert.Error(tt, errMigrate)
-		assert.EqualError(tt, errMigrate, "Encryption failed for one/some of the volumes (type: CmekVolumeMigrationError, retryable: false): Volume encryption failure")
+		assert.Contains(tt, errMigrate.Error(), "Encryption failed for one/some of the volumes (type: CmekVolumeMigrationError, retryable: false): Volume encryption failure")
 	})
 	t.Run("WhenGetEncryptionResponseIsEncrypted", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
@@ -575,10 +655,12 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockProvider.On("UpdateVolumeEnableEncryption", mock.Anything).Return(nil)
 		mockProvider.On("GetVolumeEncryptionStatus", mock.Anything).Return(&getEncryptionStatusEncrypted, nil)
 
-		errMigrate := activity.MigrateVsaPoolActivity(ctx, volumes, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.MigrateVsaPoolActivity)
+		_, errMigrate := env.ExecuteActivity(activity.MigrateVsaPoolActivity, volumes, node)
 
 		assert.NoError(tt, errMigrate)
-		assert.Nil(tt, errMigrate)
 	})
 	t.Run("WhenGetEncryptionResponseStateIsUnknown", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
@@ -607,10 +689,13 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockProvider.On("UpdateVolumeEnableEncryption", mock.Anything).Return(nil)
 		mockProvider.On("GetVolumeEncryptionStatus", mock.Anything).Return(&getEncryptionStatusEncrypted, nil)
 
-		errMigrate := activity.MigrateVsaPoolActivity(ctx, volumes, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.MigrateVsaPoolActivity)
+		_, errMigrate := env.ExecuteActivity(activity.MigrateVsaPoolActivity, volumes, node)
 
 		assert.Error(tt, errMigrate)
-		assert.EqualError(tt, errMigrate, "Encryption failed for one/some of the volumes (type: CmekVolumeMigrationError, retryable: false): Volume encryption failure")
+		assert.Contains(tt, errMigrate.Error(), "Encryption failed for one/some of the volumes (type: CmekVolumeMigrationError, retryable: false): Volume encryption failure")
 	})
 	t.Run("WhenUpdateVolumeToReadyReturnsError", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
@@ -640,9 +725,11 @@ func TestMigrateVsaPoolActivity(t *testing.T) {
 		mockProvider.On("UpdateVolumeEnableEncryption", mock.Anything).Return(nil)
 		mockProvider.On("GetVolumeEncryptionStatus", mock.Anything).Return(&getEncryptionStatusEncrypted, nil)
 
-		errMigrate := activity.MigrateVsaPoolActivity(ctx, volumes, node)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.MigrateVsaPoolActivity)
+		_, errMigrate := env.ExecuteActivity(activity.MigrateVsaPoolActivity, volumes, node)
 
 		assert.NoError(tt, errMigrate)
-		assert.Nil(tt, errMigrate)
 	})
 }
