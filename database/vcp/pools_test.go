@@ -1410,6 +1410,9 @@ func TestConvertPoolViewToPool(t *testing.T) {
 				CertificateID: "",
 			},
 			VLMConfig: "dummy-vlm-config",
+			BuildInfo: &datamodel.PoolBuildInfo{
+				OntapVersion: "1.0",
+			},
 		},
 	}
 
@@ -1425,6 +1428,9 @@ func TestConvertPoolViewToPool(t *testing.T) {
 	}
 	if pool.ClusterDetails.ExternalName != "cluster" {
 		t.Errorf("expected ClusterDetails.ExternalName 'cluster', got %v", pool.ClusterDetails.ExternalName)
+	}
+	if pool.BuildInfo.OntapVersion != "1.0" {
+		t.Errorf("expected BuildInfo.OntapVersion '1.0', got %v", pool.BuildInfo.OntapVersion)
 	}
 
 	// Test nil input

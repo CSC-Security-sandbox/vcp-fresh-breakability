@@ -434,6 +434,7 @@ func ConvertPoolViewToPool(view *datamodel.PoolView) *datamodel.Pool {
 		ActiveDirectoryID:     view.ActiveDirectoryID,
 		ExpertModeCredentials: view.ExpertModeCredentials,
 		APIAccessMode:         view.APIAccessMode,
+		BuildInfo:             view.BuildInfo,
 	}
 }
 
