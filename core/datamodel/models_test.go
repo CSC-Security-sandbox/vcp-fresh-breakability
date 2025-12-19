@@ -543,7 +543,7 @@ func TestCacheParameters(t *testing.T) {
 		}
 		val, err := cp.Value()
 		assert.NoError(tt, err)
-		assert.Equal(tt, `{"peer_cluster_name":"cluster-name","peer_svm_name":"","peer_volume_name":"","peer_ip_addresses":null,"cache_state":"","previous_cache_state":"","cache_state_details":"","cache_state_details_code":0}`, string(val.([]byte)))
+		assert.Equal(tt, `{"peer_cluster_name":"cluster-name","peer_svm_name":"","peer_volume_name":"","peer_ip_addresses":null,"cache_state":"","previous_cache_state":"","cache_state_details":"","cache_state_details_code":0,"passphrase":null,"command":null,"peer_command_expiry":null}`, string(val.([]byte)))
 	})
 	t.Run("ScanSuccess", func(tt *testing.T) {
 		var cp CacheParameters

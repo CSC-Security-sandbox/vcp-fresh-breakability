@@ -29,9 +29,9 @@ type CacheParameters struct {
 	CacheStateDetails     string `json:"cache_state_details,omitempty"`
 	CacheStateDetailsCode int    `json:"cache_state_details_code,omitempty"`
 
-	PeerExpiryTime *time.Time `json:"peerExpiryTime,omitempty"`
-	PeeringCommand string     `json:"peeringCommand,omitempty"`
-	Passphrase     *string    `json:"passphrase,omitempty"`
+	PeerExpiryTime *time.Time `json:"peerExpiryTime"`
+	PeeringCommand string     `json:"peeringCommand"`
+	Passphrase     *string    `json:"passphrase"`
 }
 
 type FlexCacheVolumeHydrateCacheState string

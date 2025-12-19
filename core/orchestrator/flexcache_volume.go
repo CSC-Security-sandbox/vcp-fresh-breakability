@@ -91,30 +91,7 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 	}
 
 	if params.FileProperties != nil {
-		junctionPath := common.CreateJunctionPath(params.CreationToken)
-		volumeObj.VolumeAttributes.FileProperties = &datamodel.FileProperties{
-			JunctionPath: junctionPath,
-		}
-		if params.FileProperties.ExportPolicy != nil {
-			exportRules := make([]*datamodel.ExportRule, 0, len(params.FileProperties.ExportPolicy.ExportRules))
-			for _, rule := range params.FileProperties.ExportPolicy.ExportRules {
-				exportRules = append(exportRules, &datamodel.ExportRule{
-					AllowedClients: rule.AllowedClients,
-					AccessType:     rule.AccessType,
-					CIFS:           rule.CIFS,
-					NFSv3:          rule.NFSv3,
-					NFSv4:          rule.NFSv4,
-					Index:          rule.Index,
-				})
-			}
-			volumeObj.VolumeAttributes.FileProperties = &datamodel.FileProperties{
-				ExportPolicy: &datamodel.ExportPolicy{
-					ExportPolicyName: params.FileProperties.ExportPolicy.ExportPolicyName,
-					ExportRules:      exportRules,
-				},
-				JunctionPath: junctionPath,
-			}
-		}
+		volumeObj.VolumeAttributes.FileProperties = buildFilePropertiesFromParams(params.FileProperties, params.CreationToken)
 	}
 
 	err = verifyCommandExpiryTime(params.CacheParameters.PeerExpiryTime)

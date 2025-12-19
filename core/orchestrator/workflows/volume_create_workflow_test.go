@@ -1560,9 +1560,6 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_Success() {
 		VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{utils.ProtocolNFSv3}},
 	}
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
-	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
-	isRestoreFromBackup := false
-	isRestoreSnapshot := false
 
 	// Enable file protocols for testing with allowlisted accounts
 	utils.SetFileProtocolSupportedForTesting(true)
@@ -1571,7 +1568,7 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_Success() {
 	}()
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, volCreateResponse)
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node)
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1584,6 +1581,8 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_Enabled_Success() {
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
 	volumeActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	originalEnableLdap := enableLdap
+	defer func() { enableLdap = originalEnableLdap }()
 	enableLdap = true
 
 	volume := &datamodel.Volume{
@@ -1611,9 +1610,6 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_Enabled_Success() {
 		},
 	}
 	activeDirectory := &vsa.ActiveDirectory{UUID: "ad-uuid"}
-	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
-	isRestoreFromBackup := false
-	isRestoreSnapshot := false
 
 	// Enable file protocols for testing with allowlisted accounts
 	utils.SetFileProtocolSupportedForTesting(true)
@@ -1629,8 +1625,7 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_Enabled_Success() {
 	s.env.OnActivity(commonActivity.UpdateSvmActiveDirectory, mock.Anything, mock.Anything).Return(svm, nil).Once()
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, volCreateResponse)
-	enableLdap = false
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node)
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1643,6 +1638,8 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_Enabled_SVMUpdateFails(
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
 	volumeActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	originalEnableLdap := enableLdap
+	defer func() { enableLdap = originalEnableLdap }()
 	enableLdap = true
 
 	volume := &datamodel.Volume{
@@ -1670,9 +1667,6 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_Enabled_SVMUpdateFails(
 		},
 	}
 	activeDirectory := &vsa.ActiveDirectory{UUID: "ad-uuid"}
-	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
-	isRestoreFromBackup := false
-	isRestoreSnapshot := false
 
 	// Enable file protocols for testing with allowlisted accounts
 	utils.SetFileProtocolSupportedForTesting(true)
@@ -1688,8 +1682,7 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_Enabled_SVMUpdateFails(
 	s.env.OnActivity(commonActivity.UpdateSvmActiveDirectory, mock.Anything, mock.Anything).Return(nil, errors.New("Failed to update SVM Active Directory association during PostFileVolumeWorkflow"))
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, volCreateResponse)
-	enableLdap = false
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node)
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1710,9 +1703,6 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_FileProtocolsDisabled() {
 		VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{utils.ProtocolNFSv3}},
 	}
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
-	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
-	isRestoreFromBackup := false
-	isRestoreSnapshot := false
 
 	// Disable file protocols for testing
 	utils.SetFileProtocolSupportedForTesting(false)
@@ -1721,7 +1711,7 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_FileProtocolsDisabled() {
 	}()
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, volCreateResponse)
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node)
 
 	// Assert workflow completed successfully (should handle disabled protocols gracefully)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1767,17 +1757,6 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_AssignsActiveDirectory
 
 	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil).Once()
 	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(activeDirectory, nil).Once()
-	calledFirewallRules := make(map[string]int)
-	s.env.OnActivity(commonActivity.CreateFirewallRule, mock.Anything, mock.Anything).
-		Run(func(args mock.Arguments) {
-			params, ok := args.Get(1).(activities.CreateFirewallRuleParams)
-			assert.True(s.T(), ok)
-			assert.Equal(s.T(), "sn-host-project", params.Project)
-			assert.Equal(s.T(), "data-network", params.Network)
-			calledFirewallRules[params.FirewallRuleName]++
-		}).
-		Return(nil).
-		Twice()
 	s.env.OnActivity(commonActivity.UpdateSvmActiveDirectory, mock.Anything, mock.MatchedBy(func(params activities.UpdateSvmActiveDirectoryParams) bool {
 		assert.Equal(s.T(), svm, params.Svm)
 		assert.Equal(s.T(), activeDirectory.UUID, params.ActiveDirectoryUUID)
@@ -1792,8 +1771,6 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_AssignsActiveDirectory
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
-	assert.Equal(s.T(), 1, calledFirewallRules[activities.SmbFirewallName])
-	assert.Equal(s.T(), 1, calledFirewallRules[activities.ILBHealthCheckFirewallName])
 
 	var workflowResult *datamodel.Volume
 	resultErr := s.env.GetWorkflowResult(&workflowResult)

@@ -220,7 +220,7 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 
 // PostFileVolumeWorkflowForSMB is a Cadence workflow that handles SMB-specific post-provisioning tasks for a volume.
 // It configures activity options, retrieves SVM and Active Directory information, and ensures CIFS share creation.
-// The workflow also updates firewall rules and Active Directory association if necessary. Returns the updated volume.
+// The workflow also updates Active Directory association if necessary. Returns the updated volume.
 func PostFileVolumeWorkflowForSMB(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node) (*datamodel.Volume, error) {
 	// Configure activity options
 	log := util.GetLogger(ctx)
@@ -257,25 +257,6 @@ func PostFileVolumeWorkflowForSMB(ctx workflow.Context, dbVolume *datamodel.Volu
 	if poolClusterDetails.SnHostProject == "" || poolClusterDetails.Network == "" {
 		err = fmt.Errorf("pool %s missing SN host project or network details", dbVolume.Pool.UUID)
 		log.Error("Pool network metadata missing during PostFileVolumeWorkflowForSMB with error: ", err)
-		return nil, ConvertToVSAError(err)
-	}
-
-	firewallParams := activities.CreateFirewallRuleParams{
-		Project:          poolClusterDetails.SnHostProject,
-		Network:          poolClusterDetails.Network,
-		FirewallRuleName: activities.SmbFirewallName,
-	}
-
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.CreateFirewallRule, firewallParams).Get(ctx, nil)
-	if err != nil {
-		log.Error("Failed to create SMB firewall during PostFileVolumeWorkflowForSMB with error: ", err)
-		return nil, ConvertToVSAError(err)
-	}
-
-	firewallParams.FirewallRuleName = activities.ILBHealthCheckFirewallName
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.CreateFirewallRule, firewallParams).Get(ctx, nil)
-	if err != nil {
-		log.Error("Failed to create ILB firewall during PostFileVolumeWorkflowForSMB with error: ", err)
 		return nil, ConvertToVSAError(err)
 	}
 
@@ -413,7 +394,7 @@ func _getActivityOptionsForEnsureCIFSShareVolumeActivity(retryPolicy *WorkflowRe
 }
 
 // PostFileVolumeWorkflow handles post-provisioning for file volumes
-func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool, isRestoreSnapshot bool, restoreVolCreateResponse *vsa.VolumeResponse) (*datamodel.Volume, error) {
+func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node) (*datamodel.Volume, error) {
 	log := util.GetLogger(ctx)
 	// Configure activity options for child workflow
 	volumeActivity := &activities.VolumeCreateActivity{}

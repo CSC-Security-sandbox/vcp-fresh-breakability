@@ -67,6 +67,8 @@ var (
 	SetupNetworkFirewallsForIscsi            = setupNetworkFirewallsForIscsi
 	SetupNetworkFirewallsForNFS              = setupNetworkFirewallsForNFS
 	SetupNetworkFirewallsForIntercluster     = setupNetworkFirewallsForIntercluster
+	SetupNetworkFirewallsForSMB              = setupNetworkFirewallsForSMB
+	SetupNetworkFirewallsForIlbHealthCheck   = setupNetworkFirewallsForIlbHealthCheck
 	CreateGCPBucket                          = _createGCPBucket
 	CheckReusableSubnet                      = _checkReusableSubnet
 	CreateServiceAccountAndAttachRole        = _createServiceAccountAndAttachRole
@@ -770,6 +772,34 @@ func (j *PoolActivity) CreateFirewalls(ctx context.Context, project, snHostProje
 				Project:            snHostProject,
 			})
 		}
+
+		op, err = SetupNetworkFirewallsForSMB(service, snHostProject, network)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		if op != "" {
+			operations = append(operations, commonparams.Operations{
+				OperationName:      op,
+				OperationType:      "firewall",
+				IsDone:             false,
+				IsRegionalResource: false,
+				Project:            snHostProject,
+			})
+		}
+
+		op, err = SetupNetworkFirewallsForIlbHealthCheck(service, snHostProject, network)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		if op != "" {
+			operations = append(operations, commonparams.Operations{
+				OperationName:      op,
+				OperationType:      "firewall",
+				IsDone:             false,
+				IsRegionalResource: false,
+				Project:            snHostProject,
+			})
+		}
 	}
 
 	return &operations, nil
@@ -1066,6 +1096,16 @@ func setupNetworkFirewallsForIscsi(service hyperscaler2.GoogleServices, snHostPr
 // setupNetworkFirewallsForNFS sets up a firewall for NFS traffic in GCP
 func setupNetworkFirewallsForNFS(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
 	return InsertFirewall(service, snHostProject, nfsDataFirewallName, network, FirewallPriority, IngressTrafficDirection, strings.Split(DataFirewallSourceRanges, ","), strings.Split(NFSFirewallPortRules, ","))
+}
+
+// setupNetworkFirewallsForSMB sets up a firewall for SMB traffic in GCP
+func setupNetworkFirewallsForSMB(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+	return InsertFirewall(service, snHostProject, SmbFirewallName, network, FirewallPriority, IngressTrafficDirection, strings.Split(DataFirewallSourceRanges, ","), strings.Split(SmbFirewallAllowedPortRulesConfig, ","))
+}
+
+// setupNetworkFirewallsForIlbHealthCheck sets up a firewall for ILB health check traffic in GCP
+func setupNetworkFirewallsForIlbHealthCheck(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+	return InsertFirewall(service, snHostProject, ILBHealthCheckFirewallName, network, FirewallPriority, IngressTrafficDirection, strings.Split(IlbHealthCheckFirewallSourceRangesConfig, ","), strings.Split(IlbHealthCheckFirewallAllowedPortRulesConfig, ","))
 }
 
 func (j *PoolActivity) DeployDeploymentManager(ctx context.Context, deploymentName, region, zone, network, subnet, projectId, snHostProject string, size int) (*[]map[string]string, error) {

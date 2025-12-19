@@ -402,7 +402,7 @@ func _createCIFSServer(tracelog log.Logger, api ontapRest.RESTClient, svmUUID, s
 			tracelog.Errorf("failed to CifsDomainModify with discoveryMode all during createCIFSServer, error: %s", err.Error())
 			return err
 		}
-		tracelog.Info("successfully performed nasc.CifsDomainModify with option all", "svnUUID", svmUUID)
+		tracelog.Info("successfully performed nasc.CifsDomainModify with option all", "svmUUID", svmUUID)
 	}
 
 	if !cifsServerNameRegExp.MatchString(name) {

@@ -1215,9 +1215,9 @@ type CacheParameters struct {
 	CacheStateDetails     string `json:"cache_state_details"`
 	CacheStateDetailsCode int    `json:"cache_state_details_code"`
 
-	Passphrase        *string    `json:"passphrase,omitempty"`
-	Command           *string    `json:"command,omitempty"`
-	CommandExpiryTime *time.Time `json:"peer_command_expiry,omitempty"`
+	Passphrase        *string    `json:"passphrase"`
+	Command           *string    `json:"command"`
+	CommandExpiryTime *time.Time `json:"peer_command_expiry"`
 }
 
 func (cp *CacheParameters) Scan(value interface{}) error {

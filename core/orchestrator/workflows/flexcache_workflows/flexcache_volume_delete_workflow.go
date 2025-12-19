@@ -9,13 +9,19 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/flexcache_activities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+)
+
+var (
+	enableSmb  = env.GetBool("ENABLE_SMB", false)
+	enableLdap = env.GetBool("ENABLE_LDAP", false)
 )
 
 type flexCacheVolumeDeleteWorkflow struct {
@@ -83,7 +89,8 @@ func (wf *flexCacheVolumeDeleteWorkflow) Setup(ctx workflow.Context, input inter
 func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	log := util.GetLogger(ctx)
 	dbVolume := args[0].(*datamodel.Volume)
-	deleteActivity := &flexcache_activities.FlexCacheVolumeDeleteActivity{}
+	fcDeleteActivity := &flexcache_activities.FlexCacheVolumeDeleteActivity{}
+	deleteActivity := &activities.VolumeDeleteActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -99,15 +106,12 @@ func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, options)
-	rollbackManager := common.NewRollbackManager()
 	defer func() {
 		if err != nil {
 			err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, dbVolume.UUID, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Get(ctx, nil)
 			if err2 != nil {
 				log.Errorf("Failed to update volume state in DB to error: %v", err2)
 			}
-			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
-			rollbackManager.ExecuteRollback(disconnectedCtx, err)
 		}
 	}()
 
@@ -127,7 +131,7 @@ func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 		Node:     node,
 	}
 
-	if err = workflow.ExecuteActivity(ctx, deleteActivity.UnmountVolumeInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
+	if err = workflow.ExecuteActivity(ctx, fcDeleteActivity.UnmountVolumeInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
@@ -135,7 +139,7 @@ func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 		return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to unmount volume: %w", err))
 	}
 
-	if err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteFlexCacheVolumeInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
+	if err = workflow.ExecuteActivity(ctx, fcDeleteActivity.DeleteFlexCacheVolumeInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
@@ -147,28 +151,49 @@ func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	if err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSVMPeeringInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
+	if err = workflow.ExecuteActivity(ctx, fcDeleteActivity.DeleteSVMPeeringInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	if err = workflow.ExecuteActivity(ctx, deleteActivity.GetClusterPeeringFromDBActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
+	if err = workflow.ExecuteActivity(ctx, fcDeleteActivity.GetClusterPeeringFromDBActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	if err = workflow.ExecuteActivity(ctx, deleteActivity.GetFlexCacheAndReplicationCountsOnClusterPeeringActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
+	if err = workflow.ExecuteActivity(ctx, fcDeleteActivity.GetFlexCacheAndReplicationCountsOnClusterPeeringActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	if flexCacheResult.VolumeReplicationCountOnClusterPeering == 0 && flexCacheResult.FlexCacheVolumeCountOnClusterPeering == 1 {
-		if err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteClusterPeerInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
+		if err = workflow.ExecuteActivity(ctx, fcDeleteActivity.DeleteClusterPeerInOntapActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
 
-		if err = workflow.ExecuteActivity(ctx, deleteActivity.UpdateClusterPeeringRowStateDeletedInDBActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
+		if err = workflow.ExecuteActivity(ctx, fcDeleteActivity.UpdateClusterPeeringRowStateDeletedInDBActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
 
-		if err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteClusterPeeringRowInDBActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
+		if err = workflow.ExecuteActivity(ctx, fcDeleteActivity.DeleteClusterPeeringRowInDBActivity, &flexCacheResult).Get(ctx, &flexCacheResult); err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	}
+
+	if enableLdap && dbVolume.Pool.PoolAttributes.LdapEnabled {
+		var isLastFilesVolume bool
+		err = workflow.ExecuteActivity(ctx, deleteActivity.DetermineIfVolumeIsLastFilesVolume, dbVolume, node).Get(ctx, &isLastFilesVolume)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+		if isLastFilesVolume {
+			err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteLDAPConfiguration, dbVolume, node).Get(ctx, nil)
+			if err != nil {
+				return nil, workflows.ConvertToVSAError(err)
+			}
+		}
+	}
+
+	if enableSmb && utils.IsSMBProtocols(dbVolume.VolumeAttributes.Protocols) {
+		err = workflow.ExecuteChildWorkflow(ctx, workflows.SmbTeardownWorkflow, dbVolume, node).Get(ctx, nil)
+		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
 	}

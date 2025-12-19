@@ -81,6 +81,61 @@ const (
 		"Please increase the volume size to at least %.0f GB with this SnapReserve or reduce the SnapReserve percentage to continue."
 )
 
+// convertExportRulesToDatamodel converts a slice of models.ExportRule to a slice of datamodel.ExportRule
+func convertExportRulesToDatamodel(modelRules []*models.ExportRule) []*datamodel.ExportRule {
+	exportRules := make([]*datamodel.ExportRule, 0, len(modelRules))
+	for _, rule := range modelRules {
+		exportRules = append(exportRules, &datamodel.ExportRule{
+			AllowedClients:      rule.AllowedClients,
+			AccessType:          rule.AccessType,
+			CIFS:                rule.CIFS,
+			NFSv3:               rule.NFSv3,
+			NFSv4:               rule.NFSv4,
+			Index:               rule.Index,
+			Kerberos5iReadOnly:  rule.Kerberos5iReadOnly,
+			Kerberos5iReadWrite: rule.Kerberos5iReadWrite,
+			Kerberos5pReadWrite: rule.Kerberos5pReadWrite,
+			Kerberos5ReadOnly:   rule.Kerberos5ReadOnly,
+			Kerberos5ReadWrite:  rule.Kerberos5ReadWrite,
+			Kerberos5pReadOnly:  rule.Kerberos5pReadOnly,
+			AllSquash:           rule.AllSquash,
+			AnonUID:             rule.AnonUID,
+		})
+	}
+	return exportRules
+}
+
+// buildFilePropertiesFromParams creates a datamodel.FileProperties from params.FileProperties
+func buildFilePropertiesFromParams(paramsFileProperties *models.FileProperties, creationToken string) *datamodel.FileProperties {
+	if paramsFileProperties == nil {
+		return nil
+	}
+
+	junctionPath := common.CreateJunctionPath(creationToken)
+	fileProperties := &datamodel.FileProperties{
+		JunctionPath: junctionPath,
+	}
+
+	if paramsFileProperties.ExportPolicy != nil {
+		exportRules := convertExportRulesToDatamodel(paramsFileProperties.ExportPolicy.ExportRules)
+		fileProperties.ExportPolicy = &datamodel.ExportPolicy{
+			ExportPolicyName: paramsFileProperties.ExportPolicy.ExportPolicyName,
+			ExportRules:      exportRules,
+		}
+		// SecurityStyle is only set when ExportPolicy exists (for regular volumes)
+		if paramsFileProperties.SecurityStyle != "" {
+			fileProperties.SecurityStyle = paramsFileProperties.SecurityStyle
+		}
+	}
+
+	// SMBShareSettings are set separately if they exist (for regular volumes)
+	if len(paramsFileProperties.SMBShareSettings) > 0 {
+		fileProperties.SMBShareSettings = paramsFileProperties.SMBShareSettings
+	}
+
+	return fileProperties
+}
+
 // CreateVolume creates the specified volume and adds it to the list of volume belonging to the specified owner
 func (o *Orchestrator) CreateVolume(ctx context.Context, params *common.CreateVolumeParams) (*models.Volume, string, error) {
 	return createVolume(ctx, o.storage, o.temporal, params)
@@ -275,42 +330,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	if params.FileProperties != nil {
-		junctionPath := common.CreateJunctionPath(params.CreationToken)
-		volumeObj.VolumeAttributes.FileProperties = &datamodel.FileProperties{
-			JunctionPath: junctionPath,
-		}
-		if params.FileProperties.ExportPolicy != nil {
-			exportRules := make([]*datamodel.ExportRule, 0, len(params.FileProperties.ExportPolicy.ExportRules))
-			for _, rule := range params.FileProperties.ExportPolicy.ExportRules {
-				exportRules = append(exportRules, &datamodel.ExportRule{
-					AllowedClients:      rule.AllowedClients,
-					AccessType:          rule.AccessType,
-					CIFS:                rule.CIFS,
-					NFSv3:               rule.NFSv3,
-					NFSv4:               rule.NFSv4,
-					Index:               rule.Index,
-					Kerberos5iReadOnly:  rule.Kerberos5iReadOnly,
-					Kerberos5iReadWrite: rule.Kerberos5iReadWrite,
-					Kerberos5pReadWrite: rule.Kerberos5pReadWrite,
-					Kerberos5ReadOnly:   rule.Kerberos5ReadOnly,
-					Kerberos5ReadWrite:  rule.Kerberos5ReadWrite,
-					Kerberos5pReadOnly:  rule.Kerberos5pReadOnly,
-					AllSquash:           rule.AllSquash,
-					AnonUID:             rule.AnonUID,
-				})
-			}
-			volumeObj.VolumeAttributes.FileProperties = &datamodel.FileProperties{
-				ExportPolicy: &datamodel.ExportPolicy{
-					ExportPolicyName: params.FileProperties.ExportPolicy.ExportPolicyName,
-					ExportRules:      exportRules,
-				},
-				JunctionPath:  junctionPath,
-				SecurityStyle: params.FileProperties.SecurityStyle,
-			}
-		}
-		if len(params.FileProperties.SMBShareSettings) > 0 {
-			volumeObj.VolumeAttributes.FileProperties.SMBShareSettings = params.FileProperties.SMBShareSettings
-		}
+		volumeObj.VolumeAttributes.FileProperties = buildFilePropertiesFromParams(params.FileProperties, params.CreationToken)
 	}
 
 	if params.SnapshotID != "" {

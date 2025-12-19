@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -405,6 +406,29 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	dbVolume.VolumeAttributes.ExternalUUID = flexcacheResult.VolumeResponse.ExternalUUID
 	if err = workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeAttributesInDB, &flexcacheResult.DBVolume.UUID, &flexcacheResult.DBVolume.VolumeAttributes).Get(ctx, nil); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	protocols := dbVolume.VolumeAttributes.Protocols
+	hasNFS := utils.IsNFSProtocols(protocols)
+	hasSMB := utils.IsSMBProtocols(protocols)
+	var postCreationChildWorkflows []interface{}
+	if hasNFS {
+		postCreationChildWorkflows = append(postCreationChildWorkflows, workflows.PostFileVolumeWorkflow)
+	}
+	if enableSmb && hasSMB {
+		postCreationChildWorkflows = append(postCreationChildWorkflows, workflows.PostFileVolumeWorkflowForSMB)
+	}
+
+	for _, wfToRun := range postCreationChildWorkflows {
+		var updatedVolume *datamodel.Volume
+		if err = workflow.ExecuteChildWorkflow(ctx, wfToRun, flexcacheResult.DBVolume, flexcacheResult.Node).Get(ctx, &updatedVolume); err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+		// Update the dbVolume with the changes from each child workflow
+		if updatedVolume != nil {
+			flexcacheResult.DBVolume = updatedVolume
+			dbVolume = flexcacheResult.DBVolume
+		}
 	}
 
 	if shouldForceEncryption() {

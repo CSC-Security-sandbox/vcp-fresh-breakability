@@ -3058,6 +3058,98 @@ func Test_setupNetworkFirewallsForIntercluster(t *testing.T) {
 	})
 }
 
+func Test_setupNetworkFirewallsForSMB(t *testing.T) {
+	mockService := new(hyperscaler2.MockGoogleServices)
+	snHostProject := "test-sn-host-project"
+	mockNetwork := "test-network"
+	firewallPriority := int64(1000)
+	ingressTrafficDirection := "INGRESS"
+	ctx := context.TODO()
+	logger := util.GetLogger(ctx)
+	t.Run("WhenSetupNetworkFirewallsForSMBSucceeds", func(tt *testing.T) {
+		defer func() {
+			activities.DataFirewallSourceRanges = ""          // Reset the environment variable after the test
+			activities.SmbFirewallAllowedPortRulesConfig = "" // Reset the environment variable after the test
+		}()
+		activities.DataFirewallSourceRanges = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+		activities.SmbFirewallAllowedPortRulesConfig = "tcp,88,135,139,389,445,464,636,udp,53,88,389,464"
+		mockService.On("GetLogger").Return(logger)
+		activities.InsertFirewall = func(service hyperscaler2.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, allowedPorts []string) (string, error) {
+			assert.Equal(t, snHostProject, project)
+			assert.Equal(t, activities.SmbFirewallName, name)
+			assert.Equal(t, mockNetwork, network)
+			assert.Equal(t, firewallPriority, priority)
+			assert.Equal(t, ingressTrafficDirection, direction)
+			assert.ElementsMatch(t, []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}, sourceRanges)
+			assert.ElementsMatch(t, []string{"tcp", "88", "135", "139", "389", "445", "464", "636", "udp", "53", "88", "389", "464"}, allowedPorts)
+			return "op-smb", nil
+		}
+		op, err := activities.SetupNetworkFirewallsForSMB(mockService, snHostProject, mockNetwork)
+		assert.NoError(t, err)
+		assert.Equal(t, op, "op-smb")
+	})
+	t.Run("WhenSetupNetworkFirewallsForSMBFails", func(tt *testing.T) {
+		defer func() {
+			activities.DataFirewallSourceRanges = ""          // Reset the environment variable after the test
+			activities.SmbFirewallAllowedPortRulesConfig = "" // Reset the environment variable after the test
+		}()
+		activities.DataFirewallSourceRanges = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+		activities.SmbFirewallAllowedPortRulesConfig = "tcp,88,135,139,389,445,464,636,udp,53,88,389,464"
+		activities.InsertFirewall = func(service hyperscaler2.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, allowedPorts []string) (string, error) {
+			return "", errors.New("smb firewall error")
+		}
+		_, err := activities.SetupNetworkFirewallsForSMB(mockService, snHostProject, mockNetwork)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "smb firewall error")
+	})
+}
+
+func Test_setupNetworkFirewallsForIlbHealthCheck(t *testing.T) {
+	mockService := new(hyperscaler2.MockGoogleServices)
+	snHostProject := "test-sn-host-project"
+	mockNetwork := "test-network"
+	firewallPriority := int64(1000)
+	ingressTrafficDirection := "INGRESS"
+	ctx := context.TODO()
+	logger := util.GetLogger(ctx)
+	t.Run("WhenSetupNetworkFirewallsForIlbHealthCheckSucceeds", func(tt *testing.T) {
+		defer func() {
+			activities.IlbHealthCheckFirewallSourceRangesConfig = ""     // Reset the environment variable after the test
+			activities.IlbHealthCheckFirewallAllowedPortRulesConfig = "" // Reset the environment variable after the test
+		}()
+		activities.IlbHealthCheckFirewallSourceRangesConfig = "130.211.0.0/22,35.191.0.0/16"
+		activities.IlbHealthCheckFirewallAllowedPortRulesConfig = "tcp"
+		mockService.On("GetLogger").Return(logger)
+		activities.InsertFirewall = func(service hyperscaler2.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, allowedPorts []string) (string, error) {
+			assert.Equal(t, snHostProject, project)
+			assert.Equal(t, activities.ILBHealthCheckFirewallName, name)
+			assert.Equal(t, mockNetwork, network)
+			assert.Equal(t, firewallPriority, priority)
+			assert.Equal(t, ingressTrafficDirection, direction)
+			assert.ElementsMatch(t, []string{"130.211.0.0/22", "35.191.0.0/16"}, sourceRanges)
+			assert.ElementsMatch(t, []string{"tcp"}, allowedPorts)
+			return "op-ilb-health-check", nil
+		}
+		op, err := activities.SetupNetworkFirewallsForIlbHealthCheck(mockService, snHostProject, mockNetwork)
+		assert.NoError(t, err)
+		assert.Equal(t, op, "op-ilb-health-check")
+	})
+	t.Run("WhenSetupNetworkFirewallsForIlbHealthCheckFails", func(tt *testing.T) {
+		defer func() {
+			activities.IlbHealthCheckFirewallSourceRangesConfig = ""     // Reset the environment variable after the test
+			activities.IlbHealthCheckFirewallAllowedPortRulesConfig = "" // Reset the environment variable after the test
+		}()
+		activities.IlbHealthCheckFirewallSourceRangesConfig = "130.211.0.0/22,35.191.0.0/16"
+		activities.IlbHealthCheckFirewallAllowedPortRulesConfig = "tcp"
+		activities.InsertFirewall = func(service hyperscaler2.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, allowedPorts []string) (string, error) {
+			return "", errors.New("ilb health check firewall error")
+		}
+		_, err := activities.SetupNetworkFirewallsForIlbHealthCheck(mockService, snHostProject, mockNetwork)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "ilb health check firewall error")
+	})
+}
+
 func Test_CreateGCPBucket_Success(t *testing.T) {
 	mockGcp := hyperscaler2.NewMockGoogleServices(t)
 
@@ -8529,12 +8621,16 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 	originalSetupNetworkFirewallsForIscsi := activities.SetupNetworkFirewallsForIscsi
 	originalSetupNetworkFirewallsForNFS := activities.SetupNetworkFirewallsForNFS
 	originalSetupNetworkFirewallsForIntercluster := activities.SetupNetworkFirewallsForIntercluster
+	originalSetupNetworkFirewallsForSMB := activities.SetupNetworkFirewallsForSMB
+	originalSetupNetworkFirewallsForIlbHealthCheck := activities.SetupNetworkFirewallsForIlbHealthCheck
 	defer func() {
 		hyperscaler2.GetGCPService = originalGetGCPService
 		activities.InsertFirewall = originalInsertFirewall
 		activities.SetupNetworkFirewallsForIscsi = originalSetupNetworkFirewallsForIscsi
 		activities.SetupNetworkFirewallsForNFS = originalSetupNetworkFirewallsForNFS
 		activities.SetupNetworkFirewallsForIntercluster = originalSetupNetworkFirewallsForIntercluster
+		activities.SetupNetworkFirewallsForSMB = originalSetupNetworkFirewallsForSMB
+		activities.SetupNetworkFirewallsForIlbHealthCheck = originalSetupNetworkFirewallsForIlbHealthCheck
 	}()
 
 	t.Run("Success_AllFirewallsCreated", func(t *testing.T) {
@@ -8577,6 +8673,16 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 			return "operation-intercluster-firewall", nil
 		}
 
+		// Mock SetupNetworkFirewallsForSMB to return operation name
+		activities.SetupNetworkFirewallsForSMB = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-smb-firewall", nil
+		}
+
+		// Mock SetupNetworkFirewallsForIlbHealthCheck to return operation name
+		activities.SetupNetworkFirewallsForIlbHealthCheck = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-ilb-health-check-firewall", nil
+		}
+
 		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
 
 		assert.NoError(t, err)
@@ -8586,7 +8692,7 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		err = result.Get(&operations)
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
-		assert.Len(t, *operations, 7)
+		assert.Len(t, *operations, 9)
 
 		// Check all operations are present and not done
 		operationNames := make([]string, len(*operations))
@@ -8601,6 +8707,8 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		assert.Contains(t, operationNames, "operation-iscsi-firewall")
 		assert.Contains(t, operationNames, "operation-nfs-firewall")
 		assert.Contains(t, operationNames, "operation-intercluster-firewall")
+		assert.Contains(t, operationNames, "operation-smb-firewall")
+		assert.Contains(t, operationNames, "operation-ilb-health-check-firewall")
 	})
 
 	t.Run("Success_SomeFirewallsAlreadyExist", func(t *testing.T) {
@@ -8643,6 +8751,16 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 
 		// Mock SetupNetworkFirewallsForIntercluster to return empty (already exists)
 		activities.SetupNetworkFirewallsForIntercluster = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", nil
+		}
+
+		// Mock SetupNetworkFirewallsForSMB to return operation name (will be created)
+		activities.SetupNetworkFirewallsForSMB = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", nil
+		}
+
+		// Mock SetupNetworkFirewallsForIlbHealthCheck to return operation name (will be created)
+		activities.SetupNetworkFirewallsForIlbHealthCheck = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
 			return "", nil
 		}
 
@@ -8885,6 +9003,12 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 			return "", nil
 		}
 		activities.SetupNetworkFirewallsForIntercluster = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", nil
+		}
+		activities.SetupNetworkFirewallsForSMB = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", nil
+		}
+		activities.SetupNetworkFirewallsForIlbHealthCheck = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
 			return "", nil
 		}
 
