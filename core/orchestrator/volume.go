@@ -295,6 +295,8 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 					Kerberos5ReadOnly:   rule.Kerberos5ReadOnly,
 					Kerberos5ReadWrite:  rule.Kerberos5ReadWrite,
 					Kerberos5pReadOnly:  rule.Kerberos5pReadOnly,
+					AllSquash:           rule.AllSquash,
+					AnonUID:             rule.AnonUID,
 				})
 			}
 			volumeObj.VolumeAttributes.FileProperties = &datamodel.FileProperties{
@@ -1474,6 +1476,8 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 					Kerberos5ReadOnly:   rule.Kerberos5ReadOnly,
 					Kerberos5ReadWrite:  rule.Kerberos5ReadWrite,
 					S3:                  rule.S3,
+					AllSquash:           rule.AllSquash,
+					AnonUID:             rule.AnonUID,
 				})
 			}
 			res.FileProperties = &models.FileProperties{

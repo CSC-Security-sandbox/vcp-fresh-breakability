@@ -94,6 +94,7 @@ var (
 	CalculateRequiredVolumeSize     = _calculateRequiredVolumeSize
 	// FileProtocolSupported controls whether file-based protocols (NFS/CIFS) are allowed
 	FileProtocolSupported      = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
+	IsAllSquashEnabled         = env.GetBool("IS_ALL_SQUASH_ENABLED", true)
 	isProberProject            = ParseCommaSeparatedStringToMap(env.GetString("PROBER_PROJECT_LIST", ""))
 	AutoTieringEnabled         = env.GetBool("AUTO_TIERING_ENABLED", false)
 	immutableBackupEnabled     = env.GetBool("IMMUTABLE_BACKUP_ENABLED", false)
@@ -1060,6 +1061,18 @@ func SetFileProtocolSupportedForTesting(enabled bool) {
 	}
 	// Re-read the environment variable to update the cached value
 	FileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
+}
+
+// EnableAllSquashForTesting is a test helper function that allows tests to enable
+// the allSquash support flag by setting the environment variable.
+// This should only be used in tests.
+func EnableAllSquashForTesting(enabled bool) {
+	err := os.Setenv("IS_ALL_SQUASH_ENABLED", strconv.FormatBool(enabled))
+	if err != nil {
+		return
+	}
+	// Re-read the environment variable to update the cached value
+	IsAllSquashEnabled = env.GetBool("IS_ALL_SQUASH_ENABLED", true)
 }
 
 func GetSnHostProject(pool *datamodel.Pool) string {

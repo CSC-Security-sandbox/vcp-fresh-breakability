@@ -454,24 +454,60 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 
 	if req.Volume.ExportPolicy.IsSet() {
 		var exportRules []*models.ExportRule
-		for index, rule := range req.Volume.ExportPolicy.Value.GetRules() {
-			accessType, err := rule.AccessType.MarshalText()
+		if utils.IsAllSquashEnabled {
+			err := validateAllSquash(req.Volume.ExportPolicy.Value.GetRules())
 			if err != nil {
-				continue
+				return nil, err
 			}
-			exportRules = append(exportRules, &models.ExportRule{
-				AllowedClients:      rule.GetAllowedClients(),
-				AccessType:          string(accessType),
-				NFSv3:               rule.Nfsv3.Value,
-				NFSv4:               rule.Nfsv4.Value,
-				Index:               index + 1, // adding 1 as 0 index is not supported by ontap
-				Kerberos5ReadOnly:   rule.Kerberos5ReadOnly.Value,
-				Kerberos5ReadWrite:  rule.Kerberos5ReadWrite.Value,
-				Kerberos5iReadOnly:  rule.Kerberos5iReadOnly.Value,
-				Kerberos5iReadWrite: rule.Kerberos5iReadWrite.Value,
-				Kerberos5pReadOnly:  rule.Kerberos5pReadOnly.Value,
-				Kerberos5pReadWrite: rule.Kerberos5pReadWrite.Value,
-			})
+			for index, rule := range req.Volume.ExportPolicy.Value.GetRules() {
+				accessType, err := rule.AccessType.MarshalText()
+				if err != nil {
+					continue
+				}
+				exportRule := &models.ExportRule{
+					AllowedClients:      rule.GetAllowedClients(),
+					AccessType:          string(accessType),
+					NFSv3:               rule.Nfsv3.Value,
+					NFSv4:               rule.Nfsv4.Value,
+					Index:               index + 1, // adding 1 as 0 index is not supported by ontap
+					Kerberos5ReadOnly:   rule.Kerberos5ReadOnly.Value,
+					Kerberos5ReadWrite:  rule.Kerberos5ReadWrite.Value,
+					Kerberos5iReadOnly:  rule.Kerberos5iReadOnly.Value,
+					Kerberos5iReadWrite: rule.Kerberos5iReadWrite.Value,
+					Kerberos5pReadOnly:  rule.Kerberos5pReadOnly.Value,
+					Kerberos5pReadWrite: rule.Kerberos5pReadWrite.Value,
+				}
+				if rule.AllSquash.IsSet() {
+					allSquashVal := rule.AllSquash.Value
+					exportRule.AllSquash = &allSquashVal
+				}
+				if rule.AnonUID.IsSet() {
+					anonUIDVal := rule.AnonUID.Value
+					exportRule.AnonUID = &anonUIDVal
+				}
+				exportRules = append(exportRules, exportRule)
+			}
+		} else {
+			// Fallback to old model if no new fields are set
+			for index, rule := range req.Volume.ExportPolicy.Value.GetRules() {
+				accessType, err := rule.AccessType.MarshalText()
+				if err != nil {
+					continue
+				}
+				exportRules = append(exportRules, &models.ExportRule{
+					AllowedClients:      rule.GetAllowedClients(),
+					AccessType:          string(accessType),
+					NFSv3:               rule.Nfsv3.Value,
+					NFSv4:               rule.Nfsv4.Value,
+					Index:               index + 1, // adding 1 as 0 index is not supported by ontap
+					Kerberos5ReadOnly:   rule.Kerberos5ReadOnly.Value,
+					Kerberos5ReadWrite:  rule.Kerberos5ReadWrite.Value,
+					Kerberos5iReadOnly:  rule.Kerberos5iReadOnly.Value,
+					Kerberos5iReadWrite: rule.Kerberos5iReadWrite.Value,
+					Kerberos5pReadOnly:  rule.Kerberos5pReadOnly.Value,
+					Kerberos5pReadWrite: rule.Kerberos5pReadWrite.Value,
+				})
+			}
 		}
 		param.FileProperties.ExportPolicy.ExportRules = exportRules
 	}
@@ -624,6 +660,39 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 	}
 
 	return param, nil
+}
+
+func validateAllSquash(rules []gcpgenserver.SimpleExportPolicyRuleV1beta) error {
+	hasAllSquashRule := false
+	for _, rule := range rules {
+		if rule.AllSquash.IsSet() && rule.AllSquash.Value {
+			if hasAllSquashRule {
+				return errors.NewUserInputValidationErr("only one all_squash rule is allowed per export policy")
+			}
+			if _, ok := rule.AnonUID.Get(); !ok {
+				return errors.NewUserInputValidationErr("AnonUID must be set when allSquash is enabled")
+			}
+			hasAllSquashRule = true
+			if rule.HasRootAccess.IsSet() {
+				if val, ok := rule.HasRootAccess.Get(); ok {
+					if val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue ||
+						val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn {
+						return errors.NewUserInputValidationErr(
+							"rootSquash cannot be enabled when allSquash is true for the same rule")
+					}
+				}
+			}
+
+			if rule.Kerberos5ReadWrite.Value || rule.Kerberos5ReadOnly.Value ||
+				rule.Kerberos5iReadOnly.Value || rule.Kerberos5iReadWrite.Value ||
+				rule.Kerberos5pReadOnly.Value || rule.Kerberos5pReadWrite.Value {
+				return errors.NewUserInputValidationErr(
+					"allSquash cannot be enabled for Kerberos-enabled export rules")
+			}
+		}
+	}
+
+	return nil
 }
 
 func _prepareRevertVolumeParams(req *gcpgenserver.VolumeRevertV1beta, params gcpgenserver.V1betaRevertVolumeParams, region string) (*common.RevertVolumeParams, error) {
@@ -948,6 +1017,14 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 			param.FileProperties.ExportPolicy = &models.ExportPolicy{}
 		}
 
+		// Validate allSquash rules if the feature is enabled
+		if utils.IsAllSquashEnabled {
+			err := validateAllSquash(exportPolicy.GetRules())
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		// Deep copy export rules
 		param.FileProperties.ExportPolicy.ExportRules = make([]*models.ExportRule, 0, len(exportPolicy.GetRules()))
 		for _, rule := range exportPolicy.GetRules() {
@@ -978,6 +1055,16 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 			}
 			if rule.Kerberos5pReadWrite.IsSet() {
 				exportRule.Kerberos5pReadWrite = rule.Kerberos5pReadWrite.Value
+			}
+			if utils.IsAllSquashEnabled {
+				if rule.AllSquash.IsSet() {
+					allSquashVal := rule.AllSquash.Value
+					exportRule.AllSquash = &allSquashVal
+				}
+				if rule.AnonUID.IsSet() {
+					anonUIDVal := rule.AnonUID.Value
+					exportRule.AnonUID = &anonUIDVal
+				}
 			}
 			param.FileProperties.ExportPolicy.ExportRules = append(param.FileProperties.ExportPolicy.ExportRules, exportRule)
 		}
@@ -1300,7 +1387,7 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 	if volume.FileProperties != nil && volume.FileProperties.ExportPolicy != nil {
 		rules := make([]gcpgenserver.SimpleExportPolicyRuleV1beta, 0)
 		for _, rule := range volume.FileProperties.ExportPolicy.ExportRules {
-			rules = append(rules, gcpgenserver.SimpleExportPolicyRuleV1beta{
+			ruleV1beta := gcpgenserver.SimpleExportPolicyRuleV1beta{
 				AllowedClients:      rule.AllowedClients,
 				AccessType:          gcpgenserver.SimpleExportPolicyRuleV1betaAccessType(rule.AccessType),
 				Nfsv3:               gcpgenserver.NewOptNilBool(rule.NFSv3),
@@ -1311,7 +1398,16 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 				Kerberos5iReadWrite: gcpgenserver.NewOptNilBool(rule.Kerberos5iReadWrite),
 				Kerberos5pReadOnly:  gcpgenserver.NewOptNilBool(rule.Kerberos5pReadOnly),
 				Kerberos5pReadWrite: gcpgenserver.NewOptNilBool(rule.Kerberos5pReadWrite),
-			})
+			}
+			if utils.IsAllSquashEnabled {
+				if rule.AllSquash != nil {
+					ruleV1beta.AllSquash = gcpgenserver.NewOptNilBool(*rule.AllSquash)
+				}
+				if rule.AnonUID != nil {
+					ruleV1beta.AnonUID = gcpgenserver.NewOptNilInt64(*rule.AnonUID)
+				}
+			}
+			rules = append(rules, ruleV1beta)
 		}
 		res.ExportPolicy = gcpgenserver.NewOptExportPolicyV1beta(
 			gcpgenserver.ExportPolicyV1beta{
@@ -1881,6 +1977,13 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 					Kerberos5pReadWrite: utils.SafeBool(rule.Kerberos5pReadWrite),
 					Nfsv3:               utils.SafeBool(rule.Nfsv3),
 					Nfsv4:               utils.SafeBool(rule.Nfsv4),
+				}
+				// Only set AllSquash and AnonUID if they are explicitly set (not nil)
+				if rule.AllSquash != nil {
+					exportRule.AllSquash = gcpgenserver.NewOptNilBool(*rule.AllSquash)
+				}
+				if rule.AnonUID != nil {
+					exportRule.AnonUID = gcpgenserver.NewOptNilInt64(*rule.AnonUID)
 				}
 				if rule.AccessType != nil {
 					exportRule.AccessType = gcpgenserver.SimpleExportPolicyRuleV1betaAccessType(*rule.AccessType)

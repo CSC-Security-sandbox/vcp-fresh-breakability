@@ -24530,9 +24530,21 @@ func (s *SimpleExportPolicyRuleV1beta) encodeFields(e *jx.Encoder) {
 			s.Kerberos5pReadWrite.Encode(e)
 		}
 	}
+	{
+		if s.AllSquash.Set {
+			e.FieldStart("allSquash")
+			s.AllSquash.Encode(e)
+		}
+	}
+	{
+		if s.AnonUID.Set {
+			e.FieldStart("anonUID")
+			s.AnonUID.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfSimpleExportPolicyRuleV1beta = [11]string{
+var jsonFieldsNameOfSimpleExportPolicyRuleV1beta = [13]string{
 	0:  "allowedClients",
 	1:  "hasRootAccess",
 	2:  "accessType",
@@ -24544,6 +24556,8 @@ var jsonFieldsNameOfSimpleExportPolicyRuleV1beta = [11]string{
 	8:  "kerberos5iReadWrite",
 	9:  "kerberos5pReadOnly",
 	10: "kerberos5pReadWrite",
+	11: "allSquash",
+	12: "anonUID",
 }
 
 // Decode decodes SimpleExportPolicyRuleV1beta from json.
@@ -24667,6 +24681,26 @@ func (s *SimpleExportPolicyRuleV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kerberos5pReadWrite\"")
+			}
+		case "allSquash":
+			if err := func() error {
+				s.AllSquash.Reset()
+				if err := s.AllSquash.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"allSquash\"")
+			}
+		case "anonUID":
+			if err := func() error {
+				s.AnonUID.Reset()
+				if err := s.AnonUID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"anonUID\"")
 			}
 		default:
 			return d.Skip()

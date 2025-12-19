@@ -18457,6 +18457,12 @@ type SimpleExportPolicyRuleV1beta struct {
 	// specification. It enables NFS clients to mount using 'privacy' kerberos security mode. The
 	// 'kerberos5pReadOnly' value shall be ignored if this is enabled.
 	Kerberos5pReadWrite OptNilBool `json:"kerberos5pReadWrite"`
+	// If enabled (true), all UIDs are mapped to the anonymous UID specified by anonUID. When true,
+	// hasRootAccess must be false for that particular rule.
+	AllSquash OptNilBool `json:"allSquash"`
+	// The anonymous UID to which all UIDs are mapped when allSquash is true. Must be a integer
+	// representing a valid UID (0 to 4294967295). Required when allSquash is true.
+	AnonUID OptNilInt64 `json:"anonUID"`
 }
 
 // GetAllowedClients returns the value of AllowedClients.
@@ -18514,6 +18520,16 @@ func (s *SimpleExportPolicyRuleV1beta) GetKerberos5pReadWrite() OptNilBool {
 	return s.Kerberos5pReadWrite
 }
 
+// GetAllSquash returns the value of AllSquash.
+func (s *SimpleExportPolicyRuleV1beta) GetAllSquash() OptNilBool {
+	return s.AllSquash
+}
+
+// GetAnonUID returns the value of AnonUID.
+func (s *SimpleExportPolicyRuleV1beta) GetAnonUID() OptNilInt64 {
+	return s.AnonUID
+}
+
 // SetAllowedClients sets the value of AllowedClients.
 func (s *SimpleExportPolicyRuleV1beta) SetAllowedClients(val string) {
 	s.AllowedClients = val
@@ -18567,6 +18583,16 @@ func (s *SimpleExportPolicyRuleV1beta) SetKerberos5pReadOnly(val OptNilBool) {
 // SetKerberos5pReadWrite sets the value of Kerberos5pReadWrite.
 func (s *SimpleExportPolicyRuleV1beta) SetKerberos5pReadWrite(val OptNilBool) {
 	s.Kerberos5pReadWrite = val
+}
+
+// SetAllSquash sets the value of AllSquash.
+func (s *SimpleExportPolicyRuleV1beta) SetAllSquash(val OptNilBool) {
+	s.AllSquash = val
+}
+
+// SetAnonUID sets the value of AnonUID.
+func (s *SimpleExportPolicyRuleV1beta) SetAnonUID(val OptNilInt64) {
+	s.AnonUID = val
 }
 
 // Defines the access type for clients matching the 'allowedClients' specification.

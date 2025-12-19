@@ -5352,6 +5352,16 @@ func (s *SimpleExportPolicyRuleV1beta) SetFake() {
 			s.Kerberos5pReadWrite.SetFake()
 		}
 	}
+	{
+		{
+			s.AllSquash.SetFake()
+		}
+	}
+	{
+		{
+			s.AnonUID.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

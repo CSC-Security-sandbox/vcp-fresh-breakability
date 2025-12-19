@@ -431,6 +431,8 @@ type ExportRule struct {
 	Kerberos5pReadOnly  bool
 	Kerberos5pReadWrite bool
 	Superuser           bool
+	AllSquash           *bool
+	AnonUID             *int64
 }
 
 // TieringPolicy describes the auto tiering policy for a volume

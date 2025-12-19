@@ -2,6 +2,7 @@ package vsa
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	ontaprestmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
@@ -41,9 +42,17 @@ func convertStorageExportPolicyRuleToONTAP(rule ExportRule) *ontapRest.ExportRul
 		superUserRule = models.AnyAccessProtocol
 	}
 	anonUser := models.RootAnonymousUser
-	if rule.AnonymousUser != "" {
+
+	// When AllSquash is enabled, AnonUID takes precedence (even if it's 0, which is a valid root UID)
+	// Validation ensures AnonUID is required when AllSquash is true, so we can trust it's explicitly set
+	if utils.IsAllSquashEnabled && rule.AllSquash != nil && *rule.AllSquash {
+		if rule.AnonUID != nil {
+			anonUser = strconv.FormatInt(*rule.AnonUID, 10)
+		}
+	} else if rule.AnonymousUser != "" {
 		anonUser = rule.AnonymousUser
 	}
+
 	chownMode := models.ChownModeRestricted
 	if rule.ChownMode != "" {
 		chownMode = rule.ChownMode
@@ -159,7 +168,7 @@ func (rc *OntapRestProvider) CreateExportPolicy(params *ExportPolicy) error {
 	ontapExportRules := make([]*ontapRest.ExportRule, 0)
 	for _, rule := range params.ExportRules {
 		ontapExportRule := convertStorageExportPolicyRuleToONTAP(*rule)
-		rc.Logger.Info("Creating export policy rule", "ontapExportRule", ontapExportRule)
+		rc.Logger.Info("Creating export policy rule", "vsaExportRule", *rule, "ontapExportRule", ontapExportRule)
 		ontapExportRules = append(ontapExportRules, ontapExportRule)
 	}
 	err = rc.ExportPolicyEnsureDefault(params.SvmName)

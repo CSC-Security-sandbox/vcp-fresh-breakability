@@ -84,6 +84,8 @@ spec:
               value: "false"
             - name: FILES_PROTOCOL_SUPPORT
               value: "false"
+            - name: IS_ALL_SQUASH_ENABLED
+              value: "true"
             - name: NUMBER_OF_HA_PAIRS_LARGE_CAPACITY
               value: "6"
             - name: MIN_CONSTITUENT_VOLUME_SIZE_BYTES

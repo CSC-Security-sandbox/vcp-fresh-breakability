@@ -10367,6 +10367,23 @@ definitions:
         default: false
         example: true
         x-nullable: true
+      allSquash:
+        type: boolean
+        description:
+          If enabled (true), all UIDs are mapped to the anonymous UID specified by anonUID.
+          When true, hasRootAccess must be false.
+        default: false
+        example: true
+      anonUID:
+        type: integer
+        format: int64
+        description:
+          The anonymous UID to which all UIDs are mapped when allSquash is true.
+          Must be a integer representing a valid UID (0 to 4294967295).
+          Required when allSquash is true.
+        minimum: 0
+        maximum: 4294967295
+        example: 1000
   MountPoint_v1beta:
     title: MountPoint
     properties:

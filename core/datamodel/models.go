@@ -446,6 +446,8 @@ type ExportRule struct {
 	Kerberos5pReadOnly  bool   `json:"kerberos_5_p_read_only"`
 	Kerberos5pReadWrite bool   `json:"kerberos_5_p_read_write"`
 	Superuser           bool   `json:"superuser"`
+	AllSquash           *bool  `json:"all_squash,omitempty"`
+	AnonUID             *int64 `json:"anon_uid,omitempty"`
 }
 
 type CloneParentInfo struct {

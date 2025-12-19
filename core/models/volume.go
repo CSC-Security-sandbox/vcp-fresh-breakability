@@ -100,6 +100,8 @@ type ExportRule struct {
 	Kerberos5pReadOnly  bool
 	Kerberos5pReadWrite bool
 	Superuser           bool
+	AllSquash           *bool
+	AnonUID             *int64
 }
 
 type HostGroupDetails struct {

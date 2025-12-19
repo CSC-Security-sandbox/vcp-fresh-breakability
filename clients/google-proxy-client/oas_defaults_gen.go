@@ -364,6 +364,10 @@ func (s *SimpleExportPolicyRuleV1beta) setDefaults() {
 		val := bool(false)
 		s.Kerberos5pReadWrite.SetTo(val)
 	}
+	{
+		val := bool(false)
+		s.AllSquash.SetTo(val)
+	}
 }
 
 // setDefaults set default value of fields.

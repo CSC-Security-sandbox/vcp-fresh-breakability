@@ -854,6 +854,156 @@ func TestCreateExportPolicy_Success(t *testing.T) {
 	mockNASClient.AssertExpectations(t)
 }
 
+func TestConvertStorageExportPolicyRuleToONTAP_AllSquashEnabled(t *testing.T) {
+	// Enable the feature flag for this test
+	originalValue := utils.IsAllSquashEnabled
+	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
+	utils.EnableAllSquashForTesting(true)
+
+	allSquashVal := true
+	anonUIDVal := int64(1001)
+	rule := ExportRule{
+		AllowedClients: "10.0.0.0/24",
+		AnonymousUser:  "",
+		Index:          1,
+		ChownMode:      "",
+		CIFS:           false,
+		NFSv3:          true,
+		NFSv4:          false,
+		Superuser:      false,
+		AllSquash:      &allSquashVal,
+		AnonUID:        &anonUIDVal,
+	}
+
+	got := convertStorageExportPolicyRuleToONTAP(rule)
+
+	expected := &ontapRest.ExportRule{
+		ClientMatch:      "10.0.0.0/24",
+		ChownMode:        models.ChownModeRestricted,
+		ReadOnlyRule:     models.ExportAuthenticationFlavorSys,
+		ReadWriteRule:    models.AnyAccessProtocol,
+		SuperUserRule:    models.NoneAccessProtocol,
+		Index:            1,
+		NtfsUnixSecurity: *nillable.ToPointer("ignore"),
+		Protocols:        []string{utils.GetOntapValue(utils.ProtocolNFSv3)},
+		AnonymousUser:    "1001",
+	}
+
+	assert.Equal(t, expected, got)
+}
+
+func TestConvertStorageExportPolicyRuleToONTAP_AllSquashDisabled(t *testing.T) {
+	originalValue := utils.IsAllSquashEnabled
+	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
+	allSquashVal := false
+	anonUIDVal := int64(1001)
+	rule := ExportRule{
+		AllowedClients: "10.0.0.0/24",
+		AnonymousUser:  "nobody",
+		Index:          1,
+		ChownMode:      "",
+		CIFS:           false,
+		NFSv3:          true,
+		NFSv4:          true,
+		Superuser:      true,
+		AllSquash:      &allSquashVal,
+		AnonUID:        &anonUIDVal,
+	}
+
+	got := convertStorageExportPolicyRuleToONTAP(rule)
+
+	expected := &ontapRest.ExportRule{
+		ClientMatch:      "10.0.0.0/24",
+		ChownMode:        models.ChownModeRestricted,
+		ReadOnlyRule:     models.ExportAuthenticationFlavorSys,
+		ReadWriteRule:    models.AnyAccessProtocol,
+		SuperUserRule:    models.AnyAccessProtocol,
+		Index:            1,
+		NtfsUnixSecurity: *nillable.ToPointer("ignore"),
+		Protocols: []string{
+			utils.GetOntapValue(utils.ProtocolNFSv3),
+			utils.GetOntapValue(utils.ProtocolNFSv4),
+		},
+		AnonymousUser: "nobody",
+	}
+	assert.Equal(t, expected, got)
+}
+
+func TestConvertStorageExportPolicyRuleToONTAP_AllSquashEnabledWithZeroAnonUID(t *testing.T) {
+	// Enable the feature flag for this test
+	originalValue := utils.IsAllSquashEnabled
+	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
+	utils.EnableAllSquashForTesting(true)
+
+	allSquashVal := true
+	anonUIDVal := int64(0) // Explicitly set to 0 (root UID)
+	rule := ExportRule{
+		AllowedClients: "10.0.0.0/24",
+		AnonymousUser:  "", // Empty, should be overridden by AnonUID
+		Index:          1,
+		ChownMode:      "",
+		CIFS:           false,
+		NFSv3:          true,
+		NFSv4:          false,
+		Superuser:      false,
+		AllSquash:      &allSquashVal,
+		AnonUID:        &anonUIDVal,
+	}
+
+	got := convertStorageExportPolicyRuleToONTAP(rule)
+
+	expected := &ontapRest.ExportRule{
+		ClientMatch:      "10.0.0.0/24",
+		ChownMode:        models.ChownModeRestricted,
+		ReadOnlyRule:     models.ExportAuthenticationFlavorSys,
+		ReadWriteRule:    models.AnyAccessProtocol,
+		SuperUserRule:    models.NoneAccessProtocol,
+		Index:            1,
+		NtfsUnixSecurity: *nillable.ToPointer("ignore"),
+		Protocols:        []string{utils.GetOntapValue(utils.ProtocolNFSv3)},
+		AnonymousUser:    "0", // Should be "0", not "root"
+	}
+
+	assert.Equal(t, expected, got)
+}
+
+func TestConvertStorageExportPolicyRuleToONTAP_AllSquashEnabledAnonUIDTakesPrecedence(t *testing.T) {
+	originalValue := utils.IsAllSquashEnabled
+	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
+	utils.EnableAllSquashForTesting(true)
+
+	allSquashVal := true
+	anonUIDVal := int64(0) // Should take precedence over AnonymousUser
+	rule := ExportRule{
+		AllowedClients: "10.0.0.0/24",
+		AnonymousUser:  "nobody", // Set but should be overridden by AnonUID
+		Index:          1,
+		ChownMode:      "",
+		CIFS:           false,
+		NFSv3:          true,
+		NFSv4:          false,
+		Superuser:      false,
+		AllSquash:      &allSquashVal,
+		AnonUID:        &anonUIDVal,
+	}
+
+	got := convertStorageExportPolicyRuleToONTAP(rule)
+
+	expected := &ontapRest.ExportRule{
+		ClientMatch:      "10.0.0.0/24",
+		ChownMode:        models.ChownModeRestricted,
+		ReadOnlyRule:     models.ExportAuthenticationFlavorSys,
+		ReadWriteRule:    models.AnyAccessProtocol,
+		SuperUserRule:    models.NoneAccessProtocol,
+		Index:            1,
+		NtfsUnixSecurity: *nillable.ToPointer("ignore"),
+		Protocols:        []string{utils.GetOntapValue(utils.ProtocolNFSv3)},
+		AnonymousUser:    "0", // AnonUID should take precedence, not "nobody"
+	}
+
+	assert.Equal(t, expected, got)
+}
+
 func TestCreateExportPolicy_Error_EnsureDefaultFails(t *testing.T) {
 	mockNASClient := new(MockNASClient)
 	mockRESTClient := &MockRESTClientForNAS{

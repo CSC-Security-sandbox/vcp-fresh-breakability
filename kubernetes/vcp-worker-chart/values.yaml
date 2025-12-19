@@ -133,6 +133,7 @@ workerConfig:
   maxNodesPerGroup: 200
   maxNestedCloneLimit: 499
   filesProtocolSupport: "false"
+  isAllSquashEnabled: "true"
   fileProtocolAllowlistedAccounts: "" # Comma-separated list of account IDs that are allowlisted for file protocol support
   flexcacheForceEncryption: "false"
   ontapRestAsyncPollTimeoutMinutes: 30

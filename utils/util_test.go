@@ -1952,6 +1952,60 @@ func TestSetFileProtocolSupportedForTesting_ErrorHandling(t *testing.T) {
 	}
 }
 
+// TestEnableAllSquashForTesting tests the test helper function
+func TestEnableAllSquashForTesting(t *testing.T) {
+	tests := []struct {
+		name     string
+		enabled  bool
+		expected bool
+	}{
+		{
+			name:     "Enable all squash support",
+			enabled:  true,
+			expected: true,
+		},
+		{
+			name:     "Disable all squash support",
+			enabled:  false,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Call the test helper function
+			EnableAllSquashForTesting(tt.enabled)
+
+			// Verify the environment variable was set correctly
+			envValue := os.Getenv("IS_ALL_SQUASH_ENABLED")
+			expectedEnvValue := strconv.FormatBool(tt.enabled)
+			if envValue != expectedEnvValue {
+				t.Errorf("Environment variable IS_ALL_SQUASH_ENABLED = %q, want %q", envValue, expectedEnvValue)
+			}
+
+			// Verify the cached value was updated correctly
+			if IsAllSquashEnabled != tt.expected {
+				t.Errorf("IsAllSquashEnabled = %v, want %v", IsAllSquashEnabled, tt.expected)
+			}
+		})
+	}
+}
+
+func TestEnableAllSquashForTesting_ErrorHandling(t *testing.T) {
+	// Test that the function handles errors gracefully
+	// This is difficult to test directly since os.Setenv rarely fails,
+	// but we can verify the function doesn't panic and handles the flow correctly
+
+	// Test with valid input
+	EnableAllSquashForTesting(true)
+
+	// Verify the function completed without issues
+	envValue := os.Getenv("IS_ALL_SQUASH_ENABLED")
+	if envValue != "true" {
+		t.Errorf("Environment variable not set correctly: %q", envValue)
+	}
+}
+
 func TestParseCommaSeparatedStringToMap(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1959,7 +2013,7 @@ func TestParseCommaSeparatedStringToMap(t *testing.T) {
 		expected map[string]struct{}
 	}{
 		{
-			name:     "Empty string",
+			name:     "Empty String",
 			input:    "",
 			expected: map[string]struct{}{},
 		},

@@ -9996,6 +9996,25 @@ components:
           nullable: true
           example: true
           default: false
+        allSquash:
+          type: boolean
+          description:
+            If enabled (true), all UIDs are mapped to the anonymous UID specified by anonUID.
+            When true, hasRootAccess must be false for that particular rule.
+          default: false
+          nullable: true
+          example: true
+        anonUID:
+          type: integer
+          format: int64
+          description:
+            The anonymous UID to which all UIDs are mapped when allSquash is true.
+            Must be a integer representing a valid UID (0 to 4294967295).
+            Required when allSquash is true.
+          minimum: 0
+          maximum: 4294967295
+          nullable: true
+          example: 1000
       description: A simple export-policy rule that defines who can access the volume
         and how. Only 5 rules are allowed but each rule can serve many clients and
         subnets.
