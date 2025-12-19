@@ -20653,7 +20653,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		}
 
 		// Should return early without any calls to storage or temporal
-		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool, false)
 
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
@@ -20673,7 +20673,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		// Mock GetVolumeCountByPoolID to fail
 		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(0), errors.New("failed to get volume count"))
 
-		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool, false)
 
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
@@ -20698,7 +20698,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		autoPoolScalingLimits = "invalid-json"
 		defer func() { autoPoolScalingLimits = originalLimits }()
 
-		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool, false)
 
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
@@ -20723,13 +20723,21 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 			},
 		}
 
-		// Mock GetVolumeCountByPoolID to succeed
-		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(10), nil)
+		// Mock GetVolumeCountByPoolID to succeed with a count that exceeds c3-standard-4-lssd limit (245)
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(250), nil)
+
+		// Mock GetNodesByPoolID to return nodes with instance type
+		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{
+			{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				NodeAttributes: &datamodel.NodeDetails{InstanceType: "c3-standard-4-lssd"},
+			},
+		}, nil)
 
 		// Mock CreateJob to fail
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(nil, errors.New("failed to create job"))
 
-		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool, false)
 
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
@@ -20759,8 +20767,16 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 			WorkflowID: "workflow-id",
 		}
 
-		// Mock GetVolumeCountByPoolID to succeed
-		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(10), nil)
+		// Mock GetVolumeCountByPoolID to succeed with a count that exceeds c3-standard-4-lssd limit (245)
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(250), nil)
+
+		// Mock GetNodesByPoolID to return nodes with instance type
+		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{
+			{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				NodeAttributes: &datamodel.NodeDetails{InstanceType: "c3-standard-4-lssd"},
+			},
+		}, nil)
 
 		// Mock CreateJob to succeed
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil)
@@ -20780,7 +20796,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 			mock.AnythingOfType("*common.AutoPoolScalingParams"),
 		).Return(nil, errors.New("failed to execute workflow"))
 
-		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool, false)
 
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
@@ -20812,8 +20828,16 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 			WorkflowID: "workflow-id",
 		}
 
-		// Mock GetVolumeCountByPoolID to succeed
-		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(10), nil)
+		// Mock GetVolumeCountByPoolID to succeed with a count that exceeds c3-standard-4-lssd limit (245)
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(250), nil)
+
+		// Mock GetNodesByPoolID to return nodes with instance type
+		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{
+			{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				NodeAttributes: &datamodel.NodeDetails{InstanceType: "c3-standard-4-lssd"},
+			},
+		}, nil)
 
 		// Mock CreateJob to succeed
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
@@ -20841,12 +20865,12 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 			}),
 			pool,
 			mock.MatchedBy(func(autoScalingParams *common.AutoPoolScalingParams) bool {
-				return autoScalingParams.CurrentVolumeCount == 10 &&
+				return autoScalingParams.CurrentVolumeCount == 250 &&
 					len(autoScalingParams.VolLimitPerInstanceMap) > 0
 			}),
 		).Return(nil, nil)
 
-		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool, false)
 
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
@@ -20878,8 +20902,16 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 			WorkflowID: "workflow-id",
 		}
 
-		// Mock GetVolumeCountByPoolID to succeed
-		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(5), nil)
+		// Mock GetVolumeCountByPoolID to succeed with a count that exceeds c3-standard-4-lssd limit (245)
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(250), nil)
+
+		// Mock GetNodesByPoolID to return nodes with instance type
+		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{
+			{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				NodeAttributes: &datamodel.NodeDetails{InstanceType: "c3-standard-4-lssd"},
+			},
+		}, nil)
 
 		// Mock CreateJob to succeed with large capacity job type
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
@@ -20902,7 +20934,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 			mock.AnythingOfType("*common.AutoPoolScalingParams"),
 		).Return(nil, nil)
 
-		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool, false)
 
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
@@ -20927,7 +20959,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		autoPoolScalingLimits = "{}"
 		defer func() { autoPoolScalingLimits = originalLimits }()
 
-		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool, false)
 
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
@@ -20967,8 +20999,16 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 			WorkflowID: "workflow-id",
 		}
 
-		// Mock GetVolumeCountByPoolID to succeed
-		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(10), nil)
+		// Mock GetVolumeCountByPoolID to succeed with a count that exceeds c3-standard-4-lssd limit (245)
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(250), nil)
+
+		// Mock GetNodesByPoolID to return nodes with instance type
+		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{
+			{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				NodeAttributes: &datamodel.NodeDetails{InstanceType: "c3-standard-4-lssd"},
+			},
+		}, nil)
 
 		// Mock CreateJob to succeed
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
@@ -20999,12 +21039,12 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 			}),
 			pool,
 			mock.MatchedBy(func(autoScalingParams *common.AutoPoolScalingParams) bool {
-				return autoScalingParams.CurrentVolumeCount == 10 &&
+				return autoScalingParams.CurrentVolumeCount == 250 &&
 					len(autoScalingParams.VolLimitPerInstanceMap) > 0
 			}),
 		).Return(nil, nil)
 
-		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool, false)
 
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
@@ -21038,8 +21078,16 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 			WorkflowID: "workflow-id",
 		}
 
-		// Mock GetVolumeCountByPoolID to succeed
-		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(10), nil)
+		// Mock GetVolumeCountByPoolID to succeed with a count that exceeds c3-standard-4-lssd limit (245)
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(250), nil)
+
+		// Mock GetNodesByPoolID to return nodes with instance type
+		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{
+			{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				NodeAttributes: &datamodel.NodeDetails{InstanceType: "c3-standard-4-lssd"},
+			},
+		}, nil)
 
 		// Mock CreateJob to succeed
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
@@ -21070,12 +21118,12 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 			}),
 			pool,
 			mock.MatchedBy(func(autoScalingParams *common.AutoPoolScalingParams) bool {
-				return autoScalingParams.CurrentVolumeCount == 10 &&
+				return autoScalingParams.CurrentVolumeCount == 250 &&
 					len(autoScalingParams.VolLimitPerInstanceMap) > 0
 			}),
 		).Return(nil, nil)
 
-		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool, false)
 
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
@@ -21112,8 +21160,16 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 			WorkflowID: "workflow-id",
 		}
 
-		// Mock GetVolumeCountByPoolID to succeed
-		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(10), nil)
+		// Mock GetVolumeCountByPoolID to succeed with a count that exceeds c3-standard-4-lssd limit (245)
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(250), nil)
+
+		// Mock GetNodesByPoolID to return nodes with instance type
+		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{
+			{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				NodeAttributes: &datamodel.NodeDetails{InstanceType: "c3-standard-4-lssd"},
+			},
+		}, nil)
 
 		// Mock CreateJob to succeed
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
@@ -21144,12 +21200,12 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 			}),
 			pool,
 			mock.MatchedBy(func(autoScalingParams *common.AutoPoolScalingParams) bool {
-				return autoScalingParams.CurrentVolumeCount == 10 &&
+				return autoScalingParams.CurrentVolumeCount == 250 &&
 					len(autoScalingParams.VolLimitPerInstanceMap) > 0
 			}),
 		).Return(nil, nil)
 
-		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool)
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool, false)
 
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
@@ -25302,4 +25358,129 @@ func TestValidateUpdateVolumeRequest_CMEK_ExistingKmsGrant_CMEKDisabled(t *testi
 	err = validateUpdateVolumeRequest(ctx, store, volume, params, poolView)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "CMEK backup is not enabled")
+}
+
+func TestCheckIfPoolUpdateRequired(t *testing.T) {
+	volLimitPerInstanceMap := map[string]common.VolumeCountRange{
+		"c3-standard-4-lssd":  {MinVolumeCount: 0, MaxVolumeCount: 50},
+		"c3-standard-8-lssd":  {MinVolumeCount: 0, MaxVolumeCount: 100},
+		"c3-standard-16-lssd": {MinVolumeCount: 0, MaxVolumeCount: 200},
+	}
+
+	tests := []struct {
+		name                string
+		volumeCount         int64
+		currentInstanceType string
+		isDelete            bool
+		expectedUpdate      bool
+	}{
+		// Volume Create scenarios (isDelete = false)
+		{
+			name:                "Create_NoUpdateRequired_VolumeCountInRange",
+			volumeCount:         25,
+			currentInstanceType: "c3-standard-4-lssd",
+			isDelete:            false,
+			expectedUpdate:      false,
+		},
+		{
+			name:                "Create_NoUpdateRequired_VolumeCountAtMaxRange",
+			volumeCount:         50,
+			currentInstanceType: "c3-standard-4-lssd",
+			isDelete:            false,
+			expectedUpdate:      false,
+		},
+		{
+			name:                "Create_NoUpdateRequired_MidRange",
+			volumeCount:         75,
+			currentInstanceType: "c3-standard-8-lssd",
+			isDelete:            false,
+			expectedUpdate:      false,
+		},
+		{
+			name:                "Create_NoUpdateRequired_InstanceTypeNotInMap",
+			volumeCount:         25,
+			currentInstanceType: "unknown-instance-type",
+			isDelete:            false,
+			expectedUpdate:      false,
+		},
+		{
+			name:                "Create_UpdateRequired_VolumeCountExceedsMax",
+			volumeCount:         51,
+			currentInstanceType: "c3-standard-4-lssd",
+			isDelete:            false,
+			expectedUpdate:      true,
+		},
+		{
+			name:                "Create_UpdateRequired_VolumeCountWayAboveMax",
+			volumeCount:         201,
+			currentInstanceType: "c3-standard-16-lssd",
+			isDelete:            false,
+			expectedUpdate:      true,
+		},
+		{
+			name:                "Create_UpdateRequired_ExceedsMaxByOne",
+			volumeCount:         101,
+			currentInstanceType: "c3-standard-8-lssd",
+			isDelete:            false,
+			expectedUpdate:      true,
+		},
+
+		// Volume Delete scenarios (isDelete = true)
+		{
+			name:                "Delete_NoUpdateRequired_VolumeCountAbovePreviousMax",
+			volumeCount:         51,
+			currentInstanceType: "c3-standard-8-lssd",
+			isDelete:            true,
+			expectedUpdate:      false,
+		},
+		{
+			name:                "Delete_NoUpdateRequired_VolumeCountEqualsPreviousMax",
+			volumeCount:         50,
+			currentInstanceType: "c3-standard-8-lssd",
+			isDelete:            true,
+			expectedUpdate:      false,
+		},
+		{
+			name:                "Delete_NoUpdateRequired_SmallestInstanceType",
+			volumeCount:         10,
+			currentInstanceType: "c3-standard-4-lssd",
+			isDelete:            true,
+			expectedUpdate:      false, // No previous instance type to scale down to
+		},
+		{
+			name:                "Delete_UpdateRequired_VolumeCountBelowPreviousMax",
+			volumeCount:         49,
+			currentInstanceType: "c3-standard-8-lssd",
+			isDelete:            true,
+			expectedUpdate:      true, // 49 < 50 (previous max)
+		},
+		{
+			name:                "Delete_UpdateRequired_VolumeCountWayBelowPreviousMax",
+			volumeCount:         25,
+			currentInstanceType: "c3-standard-8-lssd",
+			isDelete:            true,
+			expectedUpdate:      true,
+		},
+		{
+			name:                "Delete_UpdateRequired_HighInstanceTypeBelowMidMax",
+			volumeCount:         99,
+			currentInstanceType: "c3-standard-16-lssd",
+			isDelete:            true,
+			expectedUpdate:      true, // 99 < 100 (c3-standard-8-lssd max)
+		},
+		{
+			name:                "Delete_NoUpdateRequired_HighInstanceTypeAboveMidMax",
+			volumeCount:         101,
+			currentInstanceType: "c3-standard-16-lssd",
+			isDelete:            true,
+			expectedUpdate:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			requiresUpdate := checkIfPoolUpdateRequired(tt.volumeCount, tt.currentInstanceType, volLimitPerInstanceMap, tt.isDelete)
+			assert.Equal(t, tt.expectedUpdate, requiresUpdate, "Test case %s failed: expected %v, got %v", tt.name, tt.expectedUpdate, !tt.expectedUpdate)
+		})
+	}
 }

@@ -101,13 +101,13 @@ enableMultiAd: true
 maxNumberOfAdPerAccount: 5
 autoPoolScalingLimits:
   c3-standard-4-lssd:
-    min_volume_count: 1
+    min_volume_count: 0
     max_volume_count: 245
   c3-standard-8-lssd:
-    min_volume_count: 246
+    min_volume_count: 0
     max_volume_count: 495
   c3-standard-22-lssd:
-    min_volume_count: 496
+    min_volume_count: 0
     max_volume_count: 995
 
 # Mock gcp access token for testing purposes

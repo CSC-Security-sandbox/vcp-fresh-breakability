@@ -1858,6 +1858,21 @@ func (re *retryEngine) DeletingNode(ctx context.Context, node *datamodel.Node) e
 	return err
 }
 
+func (re *retryEngine) UpdateNodesInstanceType(ctx context.Context, poolID int64, newInstanceType string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateNodesInstanceType(ctx, poolID, newInstanceType)
+		if err != nil {
+			re.logError("UpdateNodesInstanceType", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
 func (re *retryEngine) DeleteSVM(ctx context.Context, svm *datamodel.Svm) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error

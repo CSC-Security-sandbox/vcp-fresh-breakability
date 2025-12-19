@@ -163,6 +163,7 @@ type (
 		DeleteLif(ctx context.Context, lif *datamodel.Lif) error
 		DeleteNode(ctx context.Context, node *datamodel.Node) error
 		DeletingNode(ctx context.Context, node *datamodel.Node) error
+		UpdateNodesInstanceType(ctx context.Context, poolID int64, newInstanceType string) error
 		DeleteSVM(ctx context.Context, svm *datamodel.Svm) error
 		DeletingSVM(ctx context.Context, svm *datamodel.Svm) error
 		ErroredNode(ctx context.Context, node *datamodel.Node, errMsg string) error

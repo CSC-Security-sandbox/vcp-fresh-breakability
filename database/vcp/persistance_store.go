@@ -760,6 +760,10 @@ func (s *PersistenceStore) DeletingNode(ctx context.Context, node *datamodel.Nod
 	return s.dataStore.DeletingNode(ctx, node)
 }
 
+func (s *PersistenceStore) UpdateNodesInstanceType(ctx context.Context, poolID int64, newInstanceType string) error {
+	return s.dataStore.UpdateNodesInstanceType(ctx, poolID, newInstanceType)
+}
+
 func (s *PersistenceStore) GetLifForNode(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error) {
 	return s.dataStore.GetLifForNode(ctx, nodeID, accountID)
 }

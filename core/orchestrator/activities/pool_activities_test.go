@@ -6974,6 +6974,51 @@ func TestUpdatedPoolWithVLMConfig_AutoTieringWithIOPS(t *testing.T) {
 	mockSE.AssertExpectations(t)
 }
 
+func TestUpdateNodesInstanceTypeActivity(t *testing.T) {
+	t.Run("Success", func(tt *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockSE := database.NewMockStorage(tt)
+		activity := &activities.PoolActivity{SE: mockSE}
+		env.RegisterActivity(activity.UpdateNodesInstanceTypeActivity)
+
+		poolID := int64(123)
+		newInstanceType := "c3-standard-8-lssd"
+
+		mockSE.On("UpdateNodesInstanceType", mock.Anything, poolID, newInstanceType).Return(nil)
+
+		encodedValue, err := env.ExecuteActivity(activity.UpdateNodesInstanceTypeActivity, poolID, newInstanceType)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, encodedValue)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_DatabaseError", func(tt *testing.T) {
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockSE := database.NewMockStorage(tt)
+		activity := &activities.PoolActivity{SE: mockSE}
+		env.RegisterActivity(activity.UpdateNodesInstanceTypeActivity)
+
+		poolID := int64(456)
+		newInstanceType := "c3-standard-16-lssd"
+		expectedError := errors.New("database update failed")
+
+		mockSE.On("UpdateNodesInstanceType", mock.Anything, poolID, newInstanceType).Return(expectedError)
+
+		_, err := env.ExecuteActivity(activity.UpdateNodesInstanceTypeActivity, poolID, newInstanceType)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "database update failed")
+		mockSE.AssertExpectations(tt)
+	})
+}
+
 func TestPoolActivity_GetServiceNetOpStatus(t *testing.T) {
 	activity := &activities.PoolActivity{}
 

@@ -64,7 +64,7 @@ var (
 	cvpCreateClient                            = cvp.CreateClient
 	GetBackupVaultFromCVP                      = getBackupVaultFromCVP
 	enableAutoPoolScaling                      = env.GetBool("ENABLE_AUTO_POOL_SCALING", true)
-	autoPoolScalingLimits                      = env.GetString("AUTO_POOL_SCALING_LIMITS", "{\"c3-standard-4-lssd\":{\"min_volume_count\":0,\"max_volume_count\":245},\"c3-standard-8-lssd\":{\"min_volume_count\":246,\"max_volume_count\":495},\"c3-standard-16-lssd\":{\"min_volume_count\":496,\"max_volume_count\":995}}")
+	autoPoolScalingLimits                      = env.GetString("AUTO_POOL_SCALING_LIMITS", "{\"c3-standard-4-lssd\":{\"min_volume_count\":0,\"max_volume_count\":245},\"c3-standard-8-lssd\":{\"min_volume_count\":0,\"max_volume_count\":495},\"c3-standard-22-lssd\":{\"min_volume_count\":0,\"max_volume_count\":995}}")
 	maxConstituentVolumesPerVolumePerAggregate = env.GetInt64("MAX_CONSTITUENT_VOLUMES_PER_VOLUME_PER_AGGREGATE", 200)
 	checkIsValidImmutableBackupPolicyWithRetry = _checkIsValidImmutableBackupPolicyWithRetry
 )
@@ -462,7 +462,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	// This happens after volume creation workflow is triggered successfully
 	// Configuration variables
 	if enableAutoPoolScaling {
-		checkAndTriggerPoolScalingIfNeeded(ctx, se, temporal, dbPool)
+		checkAndTriggerPoolScalingIfNeeded(ctx, se, temporal, dbPool, false)
 	}
 
 	return convertDatastoreVolumeToModel(dbVolume, nil), createdJob.UUID, nil
@@ -1702,7 +1702,7 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			return nil, "", err
 		}
 		dbPool := database.ConvertPoolViewToPool(pool)
-		checkAndTriggerPoolScalingIfNeeded(ctx, se, temporal, dbPool)
+		checkAndTriggerPoolScalingIfNeeded(ctx, se, temporal, dbPool, true)
 	}
 
 	volume.State = models.LifeCycleStateDeleting
@@ -2431,8 +2431,46 @@ func validateExportRulesAgainstProtocols(rules []*models.ExportRule, protocols [
 	return nil
 }
 
+// checkIfPoolUpdateRequired determines if a pool update is needed based on volume count, current instance type, and operation type
+// For volume create: Returns true if volumeCount exceeds the maxVolumeCount of current instance type
+// For volume delete: Returns true if volumeCount falls below the maxVolumeCount of the previous (smaller) instance type
+func checkIfPoolUpdateRequired(volumeCount int64, currentInstanceType string, volLimitPerInstanceMap map[string]common.VolumeCountRange, isDelete bool) bool {
+	currentLimits, exists := volLimitPerInstanceMap[currentInstanceType]
+	if !exists {
+		// If instance type not found in map, assume no update needed
+		return false
+	}
+
+	if !isDelete {
+		// Volume Create scenario: Update required if volume count exceeds current instance type's max
+		return volumeCount > currentLimits.MaxVolumeCount
+	}
+
+	// Volume Delete scenario: Check if we can scale down to a smaller instance type
+	// Find the previous (smaller) instance type's max capacity
+	var previousMaxVolumeCount int64 = -1
+
+	// Iterate through the map to find the instance type with max capacity just below the current one
+	for _, limits := range volLimitPerInstanceMap {
+		if limits.MaxVolumeCount < currentLimits.MaxVolumeCount {
+			if previousMaxVolumeCount == -1 || limits.MaxVolumeCount > previousMaxVolumeCount {
+				previousMaxVolumeCount = limits.MaxVolumeCount
+			}
+		}
+	}
+
+	// If no previous instance type exists (we're on the smallest), no update needed
+	if previousMaxVolumeCount == -1 {
+		return false
+	}
+
+	// Update required if volume count is less than the previous instance type's max
+	// This means we can scale down to a smaller instance type
+	return volumeCount < previousMaxVolumeCount
+}
+
 // checkAndTriggerPoolScalingIfNeeded checks if the pool needs scaling and triggers it asynchronously
-func checkAndTriggerPoolScalingIfNeeded(ctx context.Context, se database.Storage, temporal client.Client, pool *datamodel.Pool) {
+func checkAndTriggerPoolScalingIfNeeded(ctx context.Context, se database.Storage, temporal client.Client, pool *datamodel.Pool, isDelete bool) {
 	logger := util.GetLogger(ctx)
 
 	// Validate pool state - only scale pools in a stable state
@@ -2453,6 +2491,31 @@ func checkAndTriggerPoolScalingIfNeeded(ctx context.Context, se database.Storage
 		logger.Error("Failed to parse auto pool scaling limits", "error", err)
 		return
 	}
+
+	// Get current instance type from pool's nodes
+	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
+	if err != nil || len(nodes) == 0 {
+		logger.Error("Failed to get nodes for pool", "poolID", pool.ID, "error", err)
+		return
+	}
+	currentInstanceType := ""
+	if nodes[0].NodeAttributes != nil {
+		currentInstanceType = nodes[0].NodeAttributes.InstanceType
+	}
+	if currentInstanceType == "" {
+		logger.Warn("Current instance type not found for pool", "poolID", pool.UUID)
+		return
+	}
+
+	// Check if current instance type is appropriate for the volume count
+	requiresUpdate := checkIfPoolUpdateRequired(currentVolumeCount, currentInstanceType, volLimitPerInstanceMap, isDelete)
+	if !requiresUpdate {
+		logger.Infof("Pool update not required. Current instance type %s is suitable for %d volumes", currentInstanceType, currentVolumeCount)
+		return
+	}
+
+	logger.Infof("Pool update required. Current instance type: %s, Volume count: %d", currentInstanceType, currentVolumeCount)
+
 	autoScalingParams := &common.AutoPoolScalingParams{
 		VolLimitPerInstanceMap: volLimitPerInstanceMap,
 		CurrentVolumeCount:     currentVolumeCount,

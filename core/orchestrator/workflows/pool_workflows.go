@@ -902,6 +902,16 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		}
 	}
 
+	// Update nodes table with new instance type if it changed
+	if currentInstanceType != newInstanceType {
+		wf.Logger.Info("Instance type changed - updating nodes table", "from", currentInstanceType, "to", newInstanceType)
+		err = workflow.ExecuteActivity(ctx, poolActivity.UpdateNodesInstanceTypeActivity, dbPool.ID, newInstanceType).Get(ctx, nil)
+		if err != nil {
+			wf.Logger.Errorf("Failed to update nodes instance type in database: %v", err)
+			return nil, ConvertToVSAError(err)
+		}
+	}
+
 	// Only hydrate to CCFE if this update was triggered by auto-tiering hot tier auto-resize.
 	if updatePoolParams.AutoResizeTriggeredUpdate {
 		err = workflow.ExecuteActivity(ctx, poolActivity.HydrateUpdatedPoolToCCFE, pool).Get(ctx, nil)

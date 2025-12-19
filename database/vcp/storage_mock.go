@@ -3887,6 +3887,54 @@ func (_c *MockStorage_DeletingNode_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
+// UpdateNodesInstanceType provides a mock function with given fields: ctx, poolID, newInstanceType
+func (_m *MockStorage) UpdateNodesInstanceType(ctx context.Context, poolID int64, newInstanceType string) error {
+	ret := _m.Called(ctx, poolID, newInstanceType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateNodesInstanceType")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64, string) error); ok {
+		r0 = rf(ctx, poolID, newInstanceType)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_UpdateNodesInstanceType_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateNodesInstanceType'
+type MockStorage_UpdateNodesInstanceType_Call struct {
+	*mock.Call
+}
+
+// UpdateNodesInstanceType is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolID int64
+//   - newInstanceType string
+func (_e *MockStorage_Expecter) UpdateNodesInstanceType(ctx interface{}, poolID interface{}, newInstanceType interface{}) *MockStorage_UpdateNodesInstanceType_Call {
+	return &MockStorage_UpdateNodesInstanceType_Call{Call: _e.mock.On("UpdateNodesInstanceType", ctx, poolID, newInstanceType)}
+}
+
+func (_c *MockStorage_UpdateNodesInstanceType_Call) Run(run func(ctx context.Context, poolID int64, newInstanceType string)) *MockStorage_UpdateNodesInstanceType_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdateNodesInstanceType_Call) Return(_a0 error) *MockStorage_UpdateNodesInstanceType_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_UpdateNodesInstanceType_Call) RunAndReturn(run func(context.Context, int64, string) error) *MockStorage_UpdateNodesInstanceType_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeletingPool provides a mock function with given fields: ctx, pool
 func (_m *MockStorage) DeletingPool(ctx context.Context, pool *datamodel.Pool) error {
 	ret := _m.Called(ctx, pool)

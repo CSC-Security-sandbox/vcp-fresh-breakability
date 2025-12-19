@@ -473,6 +473,24 @@ func (j *PoolActivity) UpdatedPoolWithVLMConfig(ctx context.Context, pool *datam
 	return updatedPool, nil
 }
 
+func (j *PoolActivity) UpdateNodesInstanceTypeActivity(ctx context.Context, poolID int64, newInstanceType string) error {
+	se := j.SE
+	logger := util.GetLogger(ctx)
+
+	logger.Debugf("Updating nodes instance type for pool ID %d to %s", poolID, newInstanceType)
+	activity.RecordHeartbeat(ctx, "Starting UpdateNodesInstanceTypeActivity activity")
+
+	err := se.UpdateNodesInstanceType(ctx, poolID, newInstanceType)
+	if err != nil {
+		logger.Errorf("Failed to update nodes instance type: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Successfully updated nodes instance type for pool ID %d", poolID)
+	activity.RecordHeartbeat(ctx, "Finished UpdateNodesInstanceTypeActivity activity")
+	return nil
+}
+
 func (j *PoolActivity) UpdatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	activity.RecordHeartbeat(ctx, "Initializing pool update operation")
 	se := j.SE

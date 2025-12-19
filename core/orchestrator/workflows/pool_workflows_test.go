@@ -2576,6 +2576,9 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 	// Mock the new UpdatePoolFields activity
 	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
+	// Mock UpdateNodesInstanceTypeActivity since instance type is changing (foo-bar -> c3-new-instance-type)
+	env.OnActivity("UpdateNodesInstanceTypeActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
 	}
@@ -3054,6 +3057,8 @@ func TestUpdatePoolWorkflowWithHydrationSuccess(t *testing.T) {
 
 	// Mock the new UpdatePoolFields activity
 	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Mock UpdateNodesInstanceTypeActivity since instance type is changing (foo-bar -> c3-new-instance-type)
+	env.OnActivity("UpdateNodesInstanceTypeActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("HydrateUpdatedPoolToCCFE", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
