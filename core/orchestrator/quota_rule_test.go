@@ -5882,3 +5882,997 @@ func TestDeleteQuotaRuleInternal(t *testing.T) {
 		assert.Empty(tt, params.LocationId, "LocationId should remain empty when PoolAttributes is nil")
 	})
 }
+
+func TestGetMultipleQuotaRules(t *testing.T) {
+	// Save original function pointers
+	originalGetAccountWithName := getAccountWithName
+
+	defer func() {
+		getAccountWithName = originalGetAccountWithName
+	}()
+
+	t.Run("WhenAccountNotFound_ReturnsError", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUIDs := []string{"quota-uuid-1", "quota-uuid-2"}
+
+		// Mock getAccountWithName to return NotFound error
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.NewNotFoundErr("Account not found", nil)
+		}
+
+		result, err := orchestrator.GetMultipleQuotaRules(ctx, volumeUuid, accountName, quotaRuleUUIDs)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.True(tt, errors.IsNotFoundErr(err), "Should return NotFound error when account not found")
+	})
+
+	t.Run("WhenGetAccountWithNameFailsWithNonNotFoundError", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUIDs := []string{"quota-uuid-1"}
+
+		// Mock getAccountWithName to return non-NotFound error
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("database connection failed")
+		}
+
+		result, err := orchestrator.GetMultipleQuotaRules(ctx, volumeUuid, accountName, quotaRuleUUIDs)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "database connection failed")
+	})
+
+	t.Run("WhenVolumeNotFound_ReturnsError", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUIDs := []string{"quota-uuid-1"}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to return NotFound error
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(nil, errors.NewNotFoundErr("Volume not found", nil))
+
+		result, err := orchestrator.GetMultipleQuotaRules(ctx, volumeUuid, accountName, quotaRuleUUIDs)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.True(tt, errors.IsNotFoundErr(err), "Should return NotFound error when volume not found")
+	})
+
+	t.Run("WhenGetVolumeWithAccountIDFailsWithNonNotFoundError", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUIDs := []string{"quota-uuid-1"}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to return non-NotFound error
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(nil, errors.New("database error"))
+
+		result, err := orchestrator.GetMultipleQuotaRules(ctx, volumeUuid, accountName, quotaRuleUUIDs)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "database error")
+	})
+
+	t.Run("WhenGetQuotaRulesWithConditionFails", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUIDs := []string{"quota-uuid-1", "quota-uuid-2"}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: volumeUuid},
+			AccountID: account.ID,
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to succeed
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(volume, nil)
+
+		// Mock GetQuotaRulesWithCondition to fail
+		mockStore.EXPECT().GetQuotaRulesWithCondition(ctx, mock.Anything).
+			Return(nil, errors.New("failed to get quota rules"))
+
+		result, err := orchestrator.GetMultipleQuotaRules(ctx, volumeUuid, accountName, quotaRuleUUIDs)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "failed to get quota rules")
+	})
+
+	t.Run("WhenGetQuotaRulesWithConditionSucceeds_ReturnsMultipleQuotaRules", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUIDs := []string{"quota-uuid-1", "quota-uuid-2"}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: volumeUuid},
+			AccountID: account.ID,
+		}
+
+		dbQuotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel:      datamodel.BaseModel{ID: 1, UUID: "quota-uuid-1"},
+				Name:           "quota-rule-1",
+				QuotaType:      IndividualUserQuota,
+				QuotaTarget:    "user:alice",
+				DiskLimitInKib: 102400, // 100 MiB in KiB
+				State:          models.LifeCycleStateAvailable,
+				StateDetails:   models.LifeCycleStateReadyDetails,
+				Description:    "First quota rule",
+				VolumeID:       volume.ID,
+				AccountID:      account.ID,
+			},
+			{
+				BaseModel:      datamodel.BaseModel{ID: 2, UUID: "quota-uuid-2"},
+				Name:           "quota-rule-2",
+				QuotaType:      IndividualGroupQuota,
+				QuotaTarget:    "group:developers",
+				DiskLimitInKib: 204800, // 200 MiB in KiB
+				State:          models.LifeCycleStateAvailable,
+				StateDetails:   models.LifeCycleStateReadyDetails,
+				Description:    "Second quota rule",
+				VolumeID:       volume.ID,
+				AccountID:      account.ID,
+			},
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to succeed
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(volume, nil)
+
+		// Mock GetQuotaRulesWithCondition to succeed
+		mockStore.EXPECT().GetQuotaRulesWithCondition(ctx, mock.Anything).
+			Return(dbQuotaRules, nil)
+
+		result, err := orchestrator.GetMultipleQuotaRules(ctx, volumeUuid, accountName, quotaRuleUUIDs)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 2)
+
+		// Verify first quota rule
+		assert.Equal(tt, "quota-uuid-1", result[0].UUID)
+		assert.Equal(tt, "quota-rule-1", result[0].Name)
+		assert.Equal(tt, IndividualUserQuota, result[0].QuotaType)
+		assert.Equal(tt, "user:alice", result[0].QuotaTarget)
+		assert.Equal(tt, int64(100), result[0].DiskLimitInMib) // 102400 KiB / 1024 = 100 MiB
+		assert.Equal(tt, models.LifeCycleStateAvailable, result[0].LifeCycleState)
+		assert.Equal(tt, "First quota rule", result[0].Description)
+
+		// Verify second quota rule
+		assert.Equal(tt, "quota-uuid-2", result[1].UUID)
+		assert.Equal(tt, "quota-rule-2", result[1].Name)
+		assert.Equal(tt, IndividualGroupQuota, result[1].QuotaType)
+		assert.Equal(tt, "group:developers", result[1].QuotaTarget)
+		assert.Equal(tt, int64(200), result[1].DiskLimitInMib) // 204800 KiB / 1024 = 200 MiB
+		assert.Equal(tt, "Second quota rule", result[1].Description)
+	})
+
+	t.Run("WhenGetQuotaRulesWithConditionReturnsEmptyList", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUIDs := []string{"quota-uuid-1"}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: volumeUuid},
+			AccountID: account.ID,
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to succeed
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(volume, nil)
+
+		// Mock GetQuotaRulesWithCondition to return empty list
+		mockStore.EXPECT().GetQuotaRulesWithCondition(ctx, mock.Anything).
+			Return([]*datamodel.QuotaRule{}, nil)
+
+		result, err := orchestrator.GetMultipleQuotaRules(ctx, volumeUuid, accountName, quotaRuleUUIDs)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 0)
+	})
+
+	t.Run("WhenGetQuotaRulesWithConditionReturnsSingleQuotaRule", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUIDs := []string{"quota-uuid-1"}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: volumeUuid},
+			AccountID: account.ID,
+		}
+
+		dbQuotaRule := &datamodel.QuotaRule{
+			BaseModel:      datamodel.BaseModel{ID: 1, UUID: "quota-uuid-1"},
+			Name:           "quota-rule-1",
+			QuotaType:      DefaultUserQuota,
+			QuotaTarget:    "",
+			DiskLimitInKib: 51200, // 50 MiB in KiB
+			State:          models.LifeCycleStateCreating,
+			StateDetails:   models.LifeCycleStateCreatingDetails,
+			Description:    "Default user quota",
+			VolumeID:       volume.ID,
+			AccountID:      account.ID,
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to succeed
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(volume, nil)
+
+		// Mock GetQuotaRulesWithCondition to return single quota rule
+		mockStore.EXPECT().GetQuotaRulesWithCondition(ctx, mock.Anything).
+			Return([]*datamodel.QuotaRule{dbQuotaRule}, nil)
+
+		result, err := orchestrator.GetMultipleQuotaRules(ctx, volumeUuid, accountName, quotaRuleUUIDs)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 1)
+		assert.Equal(tt, "quota-uuid-1", result[0].UUID)
+		assert.Equal(tt, "quota-rule-1", result[0].Name)
+		assert.Equal(tt, DefaultUserQuota, result[0].QuotaType)
+		assert.Equal(tt, "", result[0].QuotaTarget)
+		assert.Equal(tt, int64(50), result[0].DiskLimitInMib) // 51200 KiB / 1024 = 50 MiB
+		assert.Equal(tt, models.LifeCycleStateCreating, result[0].LifeCycleState)
+		assert.Equal(tt, "Default user quota", result[0].Description)
+	})
+
+	t.Run("WhenQuotaRuleUUIDsIsEmpty_StillCallsDatabase", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUIDs := []string{}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: volumeUuid},
+			AccountID: account.ID,
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to succeed
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(volume, nil)
+
+		// Mock GetQuotaRulesWithCondition to return empty list
+		mockStore.EXPECT().GetQuotaRulesWithCondition(ctx, mock.Anything).
+			Return([]*datamodel.QuotaRule{}, nil)
+
+		result, err := orchestrator.GetMultipleQuotaRules(ctx, volumeUuid, accountName, quotaRuleUUIDs)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 0)
+	})
+}
+
+func TestDescribeQuotaRule(t *testing.T) {
+	// Save original function pointers
+	originalGetAccountWithName := getAccountWithName
+
+	defer func() {
+		getAccountWithName = originalGetAccountWithName
+	}()
+
+	t.Run("WhenAccountNotFound_ReturnsError", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUID := "quota-uuid-1"
+
+		// Mock getAccountWithName to return NotFound error
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.NewNotFoundErr("Account not found", nil)
+		}
+
+		result, err := orchestrator.DescribeQuotaRule(ctx, volumeUuid, accountName, quotaRuleUUID)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.True(tt, errors.IsNotFoundErr(err))
+	})
+
+	t.Run("WhenGetAccountWithNameFailsWithNonNotFoundError", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUID := "quota-uuid-1"
+
+		// Mock getAccountWithName to return non-NotFound error
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("database connection failed")
+		}
+
+		result, err := orchestrator.DescribeQuotaRule(ctx, volumeUuid, accountName, quotaRuleUUID)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "database connection failed")
+	})
+
+	t.Run("WhenVolumeNotFound_ReturnsError", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUID := "quota-uuid-1"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to return NotFound error (fatal error for DescribeQuotaRule)
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(nil, errors.NewNotFoundErr("Volume not found", nil))
+
+		result, err := orchestrator.DescribeQuotaRule(ctx, volumeUuid, accountName, quotaRuleUUID)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.True(tt, errors.IsNotFoundErr(err))
+	})
+
+	t.Run("WhenGetVolumeWithAccountIDFailsWithNonNotFoundError", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUID := "quota-uuid-1"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to return non-NotFound error
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(nil, errors.New("database error"))
+
+		result, err := orchestrator.DescribeQuotaRule(ctx, volumeUuid, accountName, quotaRuleUUID)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "database error")
+	})
+
+	t.Run("WhenGetQuotaRuleByUUIDFails", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUID := "quota-uuid-1"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: volumeUuid},
+			AccountID: account.ID,
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to succeed
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(volume, nil)
+
+		// Mock GetQuotaRuleByUUID to fail
+		mockStore.EXPECT().GetQuotaRuleByUUID(ctx, quotaRuleUUID, account.ID).
+			Return(nil, errors.NewNotFoundErr("Quota rule not found", nil))
+
+		result, err := orchestrator.DescribeQuotaRule(ctx, volumeUuid, accountName, quotaRuleUUID)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.True(tt, errors.IsNotFoundErr(err))
+	})
+
+	t.Run("WhenGetQuotaRuleByUUIDSucceeds_IndividualUserQuota", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUID := "quota-uuid-1"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: volumeUuid},
+			AccountID: account.ID,
+		}
+
+		dbQuotaRule := &datamodel.QuotaRule{
+			BaseModel:      datamodel.BaseModel{ID: 1, UUID: quotaRuleUUID},
+			Name:           "quota-rule-1",
+			QuotaType:      IndividualUserQuota,
+			QuotaTarget:    "user:alice",
+			DiskLimitInKib: 102400, // 100 MiB in KiB
+			State:          models.LifeCycleStateAvailable,
+			StateDetails:   models.LifeCycleStateReadyDetails,
+			Description:    "Individual user quota rule",
+			VolumeID:       volume.ID,
+			AccountID:      account.ID,
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to succeed
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(volume, nil)
+
+		// Mock GetQuotaRuleByUUID to succeed
+		mockStore.EXPECT().GetQuotaRuleByUUID(ctx, quotaRuleUUID, account.ID).
+			Return(dbQuotaRule, nil)
+
+		result, err := orchestrator.DescribeQuotaRule(ctx, volumeUuid, accountName, quotaRuleUUID)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, quotaRuleUUID, result.UUID)
+		assert.Equal(tt, "quota-rule-1", result.Name)
+		assert.Equal(tt, IndividualUserQuota, result.QuotaType)
+		assert.Equal(tt, "user:alice", result.QuotaTarget)
+		assert.Equal(tt, int64(100), result.DiskLimitInMib) // 102400 KiB / 1024 = 100 MiB
+		assert.Equal(tt, models.LifeCycleStateAvailable, result.LifeCycleState)
+		assert.Equal(tt, models.LifeCycleStateReadyDetails, result.LifeCycleStateDetails)
+		assert.Equal(tt, "Individual user quota rule", result.Description)
+	})
+
+	t.Run("WhenGetQuotaRuleByUUIDSucceeds_IndividualGroupQuota", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUID := "quota-uuid-2"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: volumeUuid},
+			AccountID: account.ID,
+		}
+
+		dbQuotaRule := &datamodel.QuotaRule{
+			BaseModel:      datamodel.BaseModel{ID: 2, UUID: quotaRuleUUID},
+			Name:           "quota-rule-2",
+			QuotaType:      IndividualGroupQuota,
+			QuotaTarget:    "group:developers",
+			DiskLimitInKib: 204800, // 200 MiB in KiB
+			State:          models.LifeCycleStateAvailable,
+			StateDetails:   models.LifeCycleStateReadyDetails,
+			Description:    "Individual group quota rule",
+			VolumeID:       volume.ID,
+			AccountID:      account.ID,
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to succeed
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(volume, nil)
+
+		// Mock GetQuotaRuleByUUID to succeed
+		mockStore.EXPECT().GetQuotaRuleByUUID(ctx, quotaRuleUUID, account.ID).
+			Return(dbQuotaRule, nil)
+
+		result, err := orchestrator.DescribeQuotaRule(ctx, volumeUuid, accountName, quotaRuleUUID)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, quotaRuleUUID, result.UUID)
+		assert.Equal(tt, IndividualGroupQuota, result.QuotaType)
+		assert.Equal(tt, "group:developers", result.QuotaTarget)
+		assert.Equal(tt, int64(200), result.DiskLimitInMib) // 204800 KiB / 1024 = 200 MiB
+	})
+
+	t.Run("WhenGetQuotaRuleByUUIDSucceeds_DefaultUserQuota", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUID := "quota-uuid-3"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: volumeUuid},
+			AccountID: account.ID,
+		}
+
+		dbQuotaRule := &datamodel.QuotaRule{
+			BaseModel:      datamodel.BaseModel{ID: 3, UUID: quotaRuleUUID},
+			Name:           "quota-rule-3",
+			QuotaType:      DefaultUserQuota,
+			QuotaTarget:    "",
+			DiskLimitInKib: 51200, // 50 MiB in KiB
+			State:          models.LifeCycleStateAvailable,
+			StateDetails:   models.LifeCycleStateReadyDetails,
+			Description:    "Default user quota rule",
+			VolumeID:       volume.ID,
+			AccountID:      account.ID,
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to succeed
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(volume, nil)
+
+		// Mock GetQuotaRuleByUUID to succeed
+		mockStore.EXPECT().GetQuotaRuleByUUID(ctx, quotaRuleUUID, account.ID).
+			Return(dbQuotaRule, nil)
+
+		result, err := orchestrator.DescribeQuotaRule(ctx, volumeUuid, accountName, quotaRuleUUID)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, quotaRuleUUID, result.UUID)
+		assert.Equal(tt, DefaultUserQuota, result.QuotaType)
+		assert.Equal(tt, "", result.QuotaTarget)
+		assert.Equal(tt, int64(50), result.DiskLimitInMib) // 51200 KiB / 1024 = 50 MiB
+	})
+
+	t.Run("WhenGetQuotaRuleByUUIDSucceeds_DefaultGroupQuota", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUID := "quota-uuid-4"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: volumeUuid},
+			AccountID: account.ID,
+		}
+
+		dbQuotaRule := &datamodel.QuotaRule{
+			BaseModel:      datamodel.BaseModel{ID: 4, UUID: quotaRuleUUID},
+			Name:           "quota-rule-4",
+			QuotaType:      DefaultGroupQuota,
+			QuotaTarget:    "",
+			DiskLimitInKib: 409600, // 400 MiB in KiB
+			State:          models.LifeCycleStateAvailable,
+			StateDetails:   models.LifeCycleStateReadyDetails,
+			Description:    "Default group quota rule",
+			VolumeID:       volume.ID,
+			AccountID:      account.ID,
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to succeed
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(volume, nil)
+
+		// Mock GetQuotaRuleByUUID to succeed
+		mockStore.EXPECT().GetQuotaRuleByUUID(ctx, quotaRuleUUID, account.ID).
+			Return(dbQuotaRule, nil)
+
+		result, err := orchestrator.DescribeQuotaRule(ctx, volumeUuid, accountName, quotaRuleUUID)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, quotaRuleUUID, result.UUID)
+		assert.Equal(tt, DefaultGroupQuota, result.QuotaType)
+		assert.Equal(tt, int64(400), result.DiskLimitInMib) // 409600 KiB / 1024 = 400 MiB
+	})
+
+	t.Run("WhenGetQuotaRuleByUUIDSucceeds_CreatingState", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUID := "quota-uuid-5"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: volumeUuid},
+			AccountID: account.ID,
+		}
+
+		dbQuotaRule := &datamodel.QuotaRule{
+			BaseModel:      datamodel.BaseModel{ID: 5, UUID: quotaRuleUUID},
+			Name:           "quota-rule-5",
+			QuotaType:      IndividualUserQuota,
+			QuotaTarget:    "user:bob",
+			DiskLimitInKib: 102400,
+			State:          models.LifeCycleStateCreating,
+			StateDetails:   models.LifeCycleStateCreatingDetails,
+			Description:    "Creating quota rule",
+			VolumeID:       volume.ID,
+			AccountID:      account.ID,
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to succeed
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(volume, nil)
+
+		// Mock GetQuotaRuleByUUID to succeed
+		mockStore.EXPECT().GetQuotaRuleByUUID(ctx, quotaRuleUUID, account.ID).
+			Return(dbQuotaRule, nil)
+
+		result, err := orchestrator.DescribeQuotaRule(ctx, volumeUuid, accountName, quotaRuleUUID)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, models.LifeCycleStateCreating, result.LifeCycleState)
+		assert.Equal(tt, models.LifeCycleStateCreatingDetails, result.LifeCycleStateDetails)
+	})
+
+	t.Run("WhenGetQuotaRuleByUUIDSucceeds_UpdatingState", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUID := "quota-uuid-6"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: volumeUuid},
+			AccountID: account.ID,
+		}
+
+		dbQuotaRule := &datamodel.QuotaRule{
+			BaseModel:      datamodel.BaseModel{ID: 6, UUID: quotaRuleUUID},
+			Name:           "quota-rule-6",
+			QuotaType:      IndividualUserQuota,
+			QuotaTarget:    "user:charlie",
+			DiskLimitInKib: 204800,
+			State:          models.LifeCycleStateUpdating,
+			StateDetails:   models.LifeCycleStateUpdatingDetails,
+			Description:    "Updating quota rule",
+			VolumeID:       volume.ID,
+			AccountID:      account.ID,
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to succeed
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(volume, nil)
+
+		// Mock GetQuotaRuleByUUID to succeed
+		mockStore.EXPECT().GetQuotaRuleByUUID(ctx, quotaRuleUUID, account.ID).
+			Return(dbQuotaRule, nil)
+
+		result, err := orchestrator.DescribeQuotaRule(ctx, volumeUuid, accountName, quotaRuleUUID)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, models.LifeCycleStateUpdating, result.LifeCycleState)
+		assert.Equal(tt, models.LifeCycleStateUpdatingDetails, result.LifeCycleStateDetails)
+	})
+
+	t.Run("WhenGetQuotaRuleByUUIDSucceeds_DeletingState", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUID := "quota-uuid-7"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: volumeUuid},
+			AccountID: account.ID,
+		}
+
+		dbQuotaRule := &datamodel.QuotaRule{
+			BaseModel:      datamodel.BaseModel{ID: 7, UUID: quotaRuleUUID},
+			Name:           "quota-rule-7",
+			QuotaType:      IndividualUserQuota,
+			QuotaTarget:    "user:dave",
+			DiskLimitInKib: 102400,
+			State:          models.LifeCycleStateDeleting,
+			StateDetails:   models.LifeCycleStateDeletingDetails,
+			Description:    "Deleting quota rule",
+			VolumeID:       volume.ID,
+			AccountID:      account.ID,
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to succeed
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(volume, nil)
+
+		// Mock GetQuotaRuleByUUID to succeed
+		mockStore.EXPECT().GetQuotaRuleByUUID(ctx, quotaRuleUUID, account.ID).
+			Return(dbQuotaRule, nil)
+
+		result, err := orchestrator.DescribeQuotaRule(ctx, volumeUuid, accountName, quotaRuleUUID)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, models.LifeCycleStateDeleting, result.LifeCycleState)
+		assert.Equal(tt, models.LifeCycleStateDeletingDetails, result.LifeCycleStateDetails)
+	})
+
+	t.Run("WhenGetQuotaRuleByUUIDSucceeds_ErrorState", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUID := "quota-uuid-8"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: volumeUuid},
+			AccountID: account.ID,
+		}
+
+		dbQuotaRule := &datamodel.QuotaRule{
+			BaseModel:      datamodel.BaseModel{ID: 8, UUID: quotaRuleUUID},
+			Name:           "quota-rule-8",
+			QuotaType:      IndividualUserQuota,
+			QuotaTarget:    "user:eve",
+			DiskLimitInKib: 102400,
+			State:          models.LifeCycleStateError,
+			StateDetails:   models.LifeCycleStateCreationErrorDetails,
+			Description:    "Error quota rule",
+			VolumeID:       volume.ID,
+			AccountID:      account.ID,
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to succeed
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(volume, nil)
+
+		// Mock GetQuotaRuleByUUID to succeed
+		mockStore.EXPECT().GetQuotaRuleByUUID(ctx, quotaRuleUUID, account.ID).
+			Return(dbQuotaRule, nil)
+
+		result, err := orchestrator.DescribeQuotaRule(ctx, volumeUuid, accountName, quotaRuleUUID)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, models.LifeCycleStateError, result.LifeCycleState)
+		assert.Equal(tt, models.LifeCycleStateCreationErrorDetails, result.LifeCycleStateDetails)
+	})
+
+	t.Run("WhenGetQuotaRuleByUUIDFailsWithInternalError", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeUuid := "volume-uuid-1"
+		accountName := "test-project"
+		quotaRuleUUID := "quota-uuid-1"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      accountName,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: volumeUuid},
+			AccountID: account.ID,
+		}
+
+		// Mock getAccountWithName to succeed
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		// Mock GetVolumeWithAccountID to succeed
+		mockStore.EXPECT().GetVolumeWithAccountID(ctx, volumeUuid, account.ID).
+			Return(volume, nil)
+
+		// Mock GetQuotaRuleByUUID to fail with internal error
+		mockStore.EXPECT().GetQuotaRuleByUUID(ctx, quotaRuleUUID, account.ID).
+			Return(nil, errors.New("database connection failed"))
+
+		result, err := orchestrator.DescribeQuotaRule(ctx, volumeUuid, accountName, quotaRuleUUID)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "database connection failed")
+	})
+}

@@ -1482,6 +1482,10 @@ func (s *PersistenceStore) GetQuotaRulesByVolumeID(ctx context.Context, volumeID
 	return s.dataStore.GetQuotaRulesByVolumeID(ctx, volumeID)
 }
 
+func (s *PersistenceStore) GetQuotaRulesWithCondition(ctx context.Context, filter dbutils.Filter) ([]*datamodel.QuotaRule, error) {
+	return s.dataStore.GetQuotaRulesWithCondition(ctx, filter)
+}
+
 func (s *PersistenceStore) GetQuotaRuleCountBySvmID(ctx context.Context, svmID int64) (int64, error) {
 	return s.dataStore.GetQuotaRuleCountBySvmID(ctx, svmID)
 }

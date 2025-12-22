@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"gorm.io/gorm"
@@ -1030,5 +1031,176 @@ func TestGetQuotaRuleCountBySvmID(t *testing.T) {
 		count, err := store.GetQuotaRuleCountBySvmID(context.Background(), volume.SvmID)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, int64(0), count, "Expected 0 quota rules for soft deleted volume, got %d", count)
+	})
+}
+
+func TestRetryEngine_GetQuotaRulesWithCondition(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenGetQuotaRulesWithConditionSucceeds", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		dataStore := NewDataStoreRepository(wrapper)
+		re := &retryEngine{dataStore: dataStore}
+
+		err = ClearInMemoryDB(dataStore.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account, _, volume, err := CreateTestData(dataStore)
+		assert.NoError(tt, err, "Failed to create test data")
+
+		quotaRule1 := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid-1",
+			},
+			Name:           "quota-rule-1",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			DiskLimitInKib: 1048576,
+			AccountID:      account.ID,
+			VolumeID:       volume.ID,
+		}
+		err = dataStore.db.Create(quotaRule1).Error()
+		assert.NoError(tt, err, "Failed to create quota rule 1")
+
+		quotaRule2 := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid-2",
+			},
+			Name:           "quota-rule-2",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			DiskLimitInKib: 2097152,
+			AccountID:      account.ID,
+			VolumeID:       volume.ID,
+		}
+		err = dataStore.db.Create(quotaRule2).Error()
+		assert.NoError(tt, err, "Failed to create quota rule 2")
+
+		filter := dbutils.CreateFilterWithConditions(
+			dbutils.NewFilterCondition("quota_type", "=", "INDIVIDUAL_USER_QUOTA"),
+		)
+
+		quotaRules, err := re.GetQuotaRulesWithCondition(ctx, *filter)
+
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.GreaterOrEqual(tt, len(quotaRules), 2, "Expected at least 2 quota rules, got %d", len(quotaRules))
+	})
+
+	t.Run("WhenGetQuotaRulesWithConditionReturnsEmptyList", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		dataStore := NewDataStoreRepository(wrapper)
+		re := &retryEngine{dataStore: dataStore}
+
+		err = ClearInMemoryDB(dataStore.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		filter := dbutils.CreateFilterWithConditions(
+			dbutils.NewFilterCondition("quota_type", "=", "NON_EXISTENT_TYPE"),
+		)
+
+		quotaRules, err := re.GetQuotaRulesWithCondition(ctx, *filter)
+
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Empty(tt, quotaRules, "Expected empty quota rules list")
+	})
+
+	t.Run("WhenGetQuotaRulesWithConditionFailsWithNonTransientError_NoRetry", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		dataStore := NewDataStoreRepository(wrapper)
+		re := &retryEngine{dataStore: dataStore}
+
+		err = ClearInMemoryDB(dataStore.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Close the database connection to cause a non-transient error
+		sqlDB, err := dataStore.db.GORM().DB()
+		assert.NoError(tt, err)
+		err = sqlDB.Close()
+		assert.NoError(tt, err)
+
+		filter := dbutils.CreateFilterWithConditions(
+			dbutils.NewFilterCondition("quota_type", "=", "INDIVIDUAL_USER_QUOTA"),
+		)
+
+		quotaRules, err := re.GetQuotaRulesWithCondition(ctx, *filter)
+
+		assert.Error(tt, err, "Expected error when database connection is closed")
+		assert.Nil(tt, quotaRules, "Expected nil quota rules on error")
+	})
+
+	t.Run("WhenGetQuotaRulesWithConditionWithEmptyFilter", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		dataStore := NewDataStoreRepository(wrapper)
+		re := &retryEngine{dataStore: dataStore}
+
+		err = ClearInMemoryDB(dataStore.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account, _, volume, err := CreateTestData(dataStore)
+		assert.NoError(tt, err, "Failed to create test data")
+
+		quotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid-1",
+			},
+			Name:           "quota-rule-1",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			DiskLimitInKib: 1048576,
+			AccountID:      account.ID,
+			VolumeID:       volume.ID,
+		}
+		err = dataStore.db.Create(quotaRule).Error()
+		assert.NoError(tt, err, "Failed to create quota rule")
+
+		filter := &dbutils.Filter{}
+
+		quotaRules, err := re.GetQuotaRulesWithCondition(ctx, *filter)
+
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.GreaterOrEqual(tt, len(quotaRules), 1, "Expected at least 1 quota rule, got %d", len(quotaRules))
+	})
+
+	t.Run("WhenGetQuotaRulesWithConditionWithMultipleFilters", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		dataStore := NewDataStoreRepository(wrapper)
+		re := &retryEngine{dataStore: dataStore}
+
+		err = ClearInMemoryDB(dataStore.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account, _, volume, err := CreateTestData(dataStore)
+		assert.NoError(tt, err, "Failed to create test data")
+
+		quotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid-1",
+			},
+			Name:           "quota-rule-1",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			QuotaTarget:    "user:alice",
+			DiskLimitInKib: 1048576,
+			AccountID:      account.ID,
+			VolumeID:       volume.ID,
+		}
+		err = dataStore.db.Create(quotaRule).Error()
+		assert.NoError(tt, err, "Failed to create quota rule")
+
+		filter := dbutils.CreateFilterWithConditions(
+			dbutils.NewFilterCondition("quota_type", "=", "INDIVIDUAL_USER_QUOTA"),
+			dbutils.NewFilterCondition("quota_target", "=", "user:alice"),
+		)
+
+		quotaRules, err := re.GetQuotaRulesWithCondition(ctx, *filter)
+
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.GreaterOrEqual(tt, len(quotaRules), 1, "Expected at least 1 quota rule, got %d", len(quotaRules))
 	})
 }

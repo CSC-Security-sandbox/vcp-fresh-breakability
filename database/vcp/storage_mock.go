@@ -8973,6 +8973,65 @@ func (_c *MockStorage_GetQuotaRulesByVolumeID_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// GetQuotaRulesWithCondition provides a mock function with given fields: ctx, filter
+func (_m *MockStorage) GetQuotaRulesWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.QuotaRule, error) {
+	ret := _m.Called(ctx, filter)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetQuotaRulesWithCondition")
+	}
+
+	var r0 []*datamodel.QuotaRule
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, utils.Filter) ([]*datamodel.QuotaRule, error)); ok {
+		return rf(ctx, filter)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, utils.Filter) []*datamodel.QuotaRule); ok {
+		r0 = rf(ctx, filter)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.QuotaRule)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, utils.Filter) error); ok {
+		r1 = rf(ctx, filter)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetQuotaRulesWithCondition_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetQuotaRulesWithCondition'
+type MockStorage_GetQuotaRulesWithCondition_Call struct {
+	*mock.Call
+}
+
+// GetQuotaRulesWithCondition is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filter utils.Filter
+func (_e *MockStorage_Expecter) GetQuotaRulesWithCondition(ctx interface{}, filter interface{}) *MockStorage_GetQuotaRulesWithCondition_Call {
+	return &MockStorage_GetQuotaRulesWithCondition_Call{Call: _e.mock.On("GetQuotaRulesWithCondition", ctx, filter)}
+}
+
+func (_c *MockStorage_GetQuotaRulesWithCondition_Call) Run(run func(ctx context.Context, filter utils.Filter)) *MockStorage_GetQuotaRulesWithCondition_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(utils.Filter))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetQuotaRulesWithCondition_Call) Return(_a0 []*datamodel.QuotaRule, _a1 error) *MockStorage_GetQuotaRulesWithCondition_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetQuotaRulesWithCondition_Call) RunAndReturn(run func(context.Context, utils.Filter) ([]*datamodel.QuotaRule, error)) *MockStorage_GetQuotaRulesWithCondition_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetReplicationSnapshotsByVolumeID provides a mock function with given fields: ctx, volumeID
 func (_m *MockStorage) GetReplicationSnapshotsByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.Snapshot, error) {
 	ret := _m.Called(ctx, volumeID)

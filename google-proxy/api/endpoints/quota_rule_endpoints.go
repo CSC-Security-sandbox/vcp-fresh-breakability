@@ -5,15 +5,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/go-faster/jx"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/quota_rules"
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	orchestratorcommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+)
+
+var (
+	getMultipleQuotaRulesFromCVP = _getMultipleQuotaRulesFromCVP
 )
 
 // convertQuotaRuleToV1beta converts models.QuotaRule to gcpgenserver.QuotaRulesV1beta
@@ -169,6 +178,122 @@ func JobStateToVCPV1Beta(jobState models.JobState) gcpgenserver.OptJobV1betaStat
 	default:
 		return gcpgenserver.NewOptJobV1betaState(gcpgenserver.JobV1betaStateOngoing)
 	}
+}
+
+// convertCVPQuotaRuleToV1beta converts CVP QuotaRulesV1beta to gcpgenserver.QuotaRulesV1beta
+func convertCVPQuotaRuleToV1beta(cvpRule *cvpmodels.QuotaRulesV1beta) gcpgenserver.QuotaRulesV1beta {
+	quotaRule := gcpgenserver.QuotaRulesV1beta{
+		QuotaId:        gcpgenserver.NewOptString(cvpRule.QuotaID),
+		ResourceId:     nillable.GetString(cvpRule.ResourceID, ""),
+		DiskLimitInMib: nillable.GetInt64(cvpRule.DiskLimitInMib, 0),
+		QuotaTarget:    gcpgenserver.NewOptString(nillable.GetString(cvpRule.QuotaTarget, "")),
+		StateDetails:   gcpgenserver.NewOptString(cvpRule.StateDetails),
+		Description:    gcpgenserver.NewOptString(nillable.GetString(cvpRule.Description, "")),
+	}
+
+	// Convert quota type
+	if cvpRule.QuotaType != nil {
+		quotaRule.QuotaType = QuotaRuleQuotaTypeV1Beta(*cvpRule.QuotaType)
+	}
+
+	// Convert state
+	if cvpRule.State != "" {
+		quotaRule.State = QuotaRuleLifeCycleV1Beta(cvpRule.State)
+	} else {
+		quotaRule.State = gcpgenserver.NewOptQuotaRulesV1betaState(gcpgenserver.QuotaRulesV1betaStateSTATEUNSPECIFIED)
+	}
+
+	// Convert timestamps
+	if !cvpRule.CreatedAt.IsZero() {
+		quotaRule.CreatedAt = gcpgenserver.NewOptDateTime(time.Time(cvpRule.CreatedAt))
+	}
+	if !cvpRule.UpdatedAt.IsZero() {
+		quotaRule.UpdatedAt = gcpgenserver.NewOptDateTime(time.Time(cvpRule.UpdatedAt))
+	}
+
+	return quotaRule
+}
+
+// _getMultipleQuotaRulesFromCVP fetches quota rules from CVP when not found in VCP
+func _getMultipleQuotaRulesFromCVP(ctx context.Context, req *gcpgenserver.QuotaRuleIdListV1beta, params gcpgenserver.V1betaGetMultipleQuotaRulesParams, vcpQuotaRules []gcpgenserver.QuotaRulesV1beta) (gcpgenserver.V1betaGetMultipleQuotaRulesRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	reqParams := &quota_rules.V1betaGetMultipleQuotaRulesParams{
+		LocationID:    params.LocationId,
+		ProjectNumber: params.ProjectNumber,
+		VolumeID:      params.VolumeId,
+		Body: &cvpmodels.QuotaRuleIDListV1beta{
+			QuotaRuleUUIDs: req.QuotaRuleUuids,
+		},
+	}
+	if params.XCorrelationID.IsSet() {
+		reqParams.XCorrelationID = &params.XCorrelationID.Value
+	}
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := createCVPClient(logger, jwtToken)
+	resp, err := cvpClient.QuotaRules.V1betaGetMultipleQuotaRules(reqParams)
+	if err != nil {
+		logger.Errorf("Received error from CVP client for the V1betaGetMultipleQuotaRules call: %v", err)
+		switch e := err.(type) {
+		case *quota_rules.V1betaGetMultipleQuotaRulesNotFound:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := nillable.GetFloat64(&e.Payload.Code, 0)
+			return &gcpgenserver.V1betaGetMultipleQuotaRulesNotFound{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *quota_rules.V1betaGetMultipleQuotaRulesBadRequest:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := nillable.GetFloat64(&e.Payload.Code, 0)
+			return &gcpgenserver.V1betaGetMultipleQuotaRulesBadRequest{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *quota_rules.V1betaGetMultipleQuotaRulesUnauthorized:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := nillable.GetFloat64(&e.Payload.Code, 0)
+			return &gcpgenserver.V1betaGetMultipleQuotaRulesUnauthorized{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *quota_rules.V1betaGetMultipleQuotaRulesForbidden:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := nillable.GetFloat64(&e.Payload.Code, 0)
+			return &gcpgenserver.V1betaGetMultipleQuotaRulesForbidden{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *quota_rules.V1betaGetMultipleQuotaRulesTooManyRequests:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := nillable.GetFloat64(&e.Payload.Code, 0)
+			return &gcpgenserver.V1betaGetMultipleQuotaRulesTooManyRequests{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *quota_rules.V1betaGetMultipleQuotaRulesDefault:
+			return &gcpgenserver.V1betaGetMultipleQuotaRulesInternalServerError{
+				Code:    500,
+				Message: err.Error(),
+			}, nil
+		}
+	}
+
+	// Converting CVP model to gcpgenserver.QuotaRulesV1beta
+	quotaRuleResponse := gcpgenserver.V1betaGetMultipleQuotaRulesOK{
+		QuotaRules: []gcpgenserver.QuotaRulesV1beta{},
+	}
+
+	if resp != nil && resp.Payload != nil && len(resp.Payload.QuotaRules) != 0 {
+		for _, quotaRule := range resp.Payload.QuotaRules {
+			quotaRuleResponse.QuotaRules = append(quotaRuleResponse.QuotaRules, convertCVPQuotaRuleToV1beta(quotaRule))
+		}
+	}
+
+	// Append VCP quota rules if any
+	if len(vcpQuotaRules) > 0 {
+		quotaRuleResponse.QuotaRules = append(quotaRuleResponse.QuotaRules, vcpQuotaRules...)
+	}
+	return &quotaRuleResponse, nil
 }
 
 // V1betaCreateQuotaRule is a handler for creating a quota rule
@@ -552,4 +677,75 @@ func (h Handler) V1betaListAllQuotaRules(ctx context.Context, params gcpgenserve
 	return &gcpgenserver.V1betaListAllQuotaRulesOK{
 		QuotaRules: convertToVCPQuotaRulesV1Beta(quotaRuleList),
 	}, nil
+}
+
+// V1betaGetMultipleQuotaRules is a handler for getting multiple quota rules by UUIDs
+func (h Handler) V1betaGetMultipleQuotaRules(ctx context.Context, req *gcpgenserver.QuotaRuleIdListV1beta, params gcpgenserver.V1betaGetMultipleQuotaRulesParams) (gcpgenserver.V1betaGetMultipleQuotaRulesRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaGetMultipleQuotaRulesBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	quotaRuleModelVCP, err := h.Orchestrator.GetMultipleQuotaRules(ctx, params.VolumeId, params.ProjectNumber, req.QuotaRuleUuids)
+	if err != nil {
+		// If volume/account not found error, try fetching from CVP
+		if errors.IsNotFoundErr(err) {
+			return getMultipleQuotaRulesFromCVP(ctx, req, params, []gcpgenserver.QuotaRulesV1beta{})
+		}
+		logger.Error("Failed to fetch quota rules", "error", err.Error())
+		return &gcpgenserver.V1betaGetMultipleQuotaRulesInternalServerError{Code: 500, Message: "Internal server error"}, nil
+	}
+
+	quotaRulesVCP := make([]gcpgenserver.QuotaRulesV1beta, 0)
+	if len(quotaRuleModelVCP) > 0 {
+		for _, quotaRule := range quotaRuleModelVCP {
+			response := convertQuotaRuleToV1beta(quotaRule)
+			quotaRulesVCP = append(quotaRulesVCP, *response)
+		}
+		return &gcpgenserver.V1betaGetMultipleQuotaRulesOK{
+			QuotaRules: quotaRulesVCP,
+		}, nil
+	}
+
+	// If no quota rules found in VCP, fetch from CVP
+	return getMultipleQuotaRulesFromCVP(ctx, req, params, quotaRulesVCP)
+}
+
+// V1betaDescribeQuotaRule is a handler for describing a single quota rule by ID
+func (h Handler) V1betaDescribeQuotaRule(ctx context.Context, params gcpgenserver.V1betaDescribeQuotaRuleParams) (gcpgenserver.V1betaDescribeQuotaRuleRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaDescribeQuotaRuleBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	quotaRule, err := h.Orchestrator.DescribeQuotaRule(ctx, params.VolumeId, params.ProjectNumber, params.QuotaRuleId)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaDescribeQuotaRuleNotFound{
+				Code:    404,
+				Message: "Quota rule not found",
+			}, nil
+		}
+		logger.Error("Failed to fetch quota rule", "error", err.Error())
+		return &gcpgenserver.V1betaDescribeQuotaRuleInternalServerError{Code: 500, Message: "Internal server error"}, nil
+	}
+
+	if quotaRule == nil {
+		return &gcpgenserver.V1betaDescribeQuotaRuleNotFound{
+			Code:    404,
+			Message: "Quota rule not found",
+		}, nil
+	}
+
+	return convertQuotaRuleToV1beta(quotaRule), nil
 }

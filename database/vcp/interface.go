@@ -196,6 +196,7 @@ type (
 		UpdateQuotaRule(ctx context.Context, quotaRule *datamodel.QuotaRule) (*datamodel.QuotaRule, error)
 		GetQuotaRuleByUUID(ctx context.Context, uuid string, accountID int64) (*datamodel.QuotaRule, error)
 		GetQuotaRulesByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.QuotaRule, error)
+		GetQuotaRulesWithCondition(ctx context.Context, filter dbutils.Filter) ([]*datamodel.QuotaRule, error)
 		GetQuotaRuleCountBySvmID(ctx context.Context, svmID int64) (int64, error)
 		DeleteQuotaRule(ctx context.Context, id string) (*datamodel.QuotaRule, error)
 		GetMultipleKmsConfigs(ctx context.Context, conditions [][]interface{}) ([]*datamodel.KmsConfig, error)

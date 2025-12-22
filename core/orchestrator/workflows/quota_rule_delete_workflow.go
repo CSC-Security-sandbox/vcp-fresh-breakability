@@ -332,14 +332,14 @@ func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}
 				}
 
 				if hydrationEnabled {
-					// Hydrate the quota rule creation to CCFE after successful revert
-					hydrateErr := workflow.ExecuteActivity(ctx, commonActivity.HydrateQuotaRuleCreate,
+				// Hydrate the quota rule creation to CCFE after successful revert
+				hydrateErr := workflow.ExecuteActivity(ctx, commonActivity.HydrateQuotaRuleCreate,
 						revertResult.QuotaRule, replicationForRevert.ReplicationAttributes.DestinationVolumeUUID,
-						replicationForRevert.ReplicationAttributes.DestinationLocation, destProjectNumberForRevert).Get(ctx, nil)
-					if hydrateErr != nil {
+					replicationForRevert.ReplicationAttributes.DestinationLocation, destProjectNumberForRevert).Get(ctx, nil)
+				if hydrateErr != nil {
 						logger.Warnf("Failed to hydrate quota rule create to CCFE after revert (non-fatal): quotaRuleName=%s, error=%v", revertResult.QuotaRule.Name, hydrateErr)
-						// Don't fail the workflow if hydration fails - log warning and continue
-					} else {
+					// Don't fail the workflow if hydration fails - log warning and continue
+				} else {
 						logger.Infof("Successfully hydrated quota rule create to CCFE after revert: quotaRuleName=%s", revertResult.QuotaRule.Name)
 					}
 				}

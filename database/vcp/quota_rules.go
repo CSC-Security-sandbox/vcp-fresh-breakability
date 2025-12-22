@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -185,6 +186,17 @@ func (d *DataStoreRepository) GetQuotaRuleByUUID(ctx context.Context, uuid strin
 
 	logger.Infof("Successfully fetched quota rule: UUID=%s, Name=%s", quotaRule.UUID, quotaRule.Name)
 	return &quotaRule, nil
+}
+
+// GetQuotaRulesWithCondition fetches quota rules based on filter conditions
+func (d *DataStoreRepository) GetQuotaRulesWithCondition(ctx context.Context, filter utils2.Filter) ([]*datamodel.QuotaRule, error) {
+	db := d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx)
+	var quotaRules []*datamodel.QuotaRule
+	err := db.Find(&quotaRules).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return quotaRules, nil
 }
 
 // DeleteQuotaRule performs soft delete on a quota rule

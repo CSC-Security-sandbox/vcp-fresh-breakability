@@ -2361,6 +2361,22 @@ func (re *retryEngine) GetQuotaRulesByVolumeID(ctx context.Context, volumeID int
 	return var0, err
 }
 
+func (re *retryEngine) GetQuotaRulesWithCondition(ctx context.Context, filter dbutils.Filter) ([]*datamodel.QuotaRule, error) {
+	var var0 []*datamodel.QuotaRule
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetQuotaRulesWithCondition(ctx, filter)
+		if err != nil {
+			re.logError("GetQuotaRulesWithCondition", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetQuotaRuleCountBySvmID(ctx context.Context, svmID int64) (int64, error) {
 	var var0 int64
 	err := retry.Do(func(attempt int) (bool, error) {

@@ -2591,6 +2591,67 @@ func (_c *MockOrchestratorFactory_DescribePool_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// DescribeQuotaRule provides a mock function with given fields: ctx, volumeUuid, accountName, quotaRuleUUID
+func (_m *MockOrchestratorFactory) DescribeQuotaRule(ctx context.Context, volumeUuid string, accountName string, quotaRuleUUID string) (*models.QuotaRule, error) {
+	ret := _m.Called(ctx, volumeUuid, accountName, quotaRuleUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DescribeQuotaRule")
+	}
+
+	var r0 *models.QuotaRule
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (*models.QuotaRule, error)); ok {
+		return rf(ctx, volumeUuid, accountName, quotaRuleUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) *models.QuotaRule); ok {
+		r0 = rf(ctx, volumeUuid, accountName, quotaRuleUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.QuotaRule)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, volumeUuid, accountName, quotaRuleUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_DescribeQuotaRule_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DescribeQuotaRule'
+type MockOrchestratorFactory_DescribeQuotaRule_Call struct {
+	*mock.Call
+}
+
+// DescribeQuotaRule is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUuid string
+//   - accountName string
+//   - quotaRuleUUID string
+func (_e *MockOrchestratorFactory_Expecter) DescribeQuotaRule(ctx interface{}, volumeUuid interface{}, accountName interface{}, quotaRuleUUID interface{}) *MockOrchestratorFactory_DescribeQuotaRule_Call {
+	return &MockOrchestratorFactory_DescribeQuotaRule_Call{Call: _e.mock.On("DescribeQuotaRule", ctx, volumeUuid, accountName, quotaRuleUUID)}
+}
+
+func (_c *MockOrchestratorFactory_DescribeQuotaRule_Call) Run(run func(ctx context.Context, volumeUuid string, accountName string, quotaRuleUUID string)) *MockOrchestratorFactory_DescribeQuotaRule_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DescribeQuotaRule_Call) Return(_a0 *models.QuotaRule, _a1 error) *MockOrchestratorFactory_DescribeQuotaRule_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DescribeQuotaRule_Call) RunAndReturn(run func(context.Context, string, string, string) (*models.QuotaRule, error)) *MockOrchestratorFactory_DescribeQuotaRule_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // EstablishFlexCacheVolumePeering provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) EstablishFlexCacheVolumePeering(ctx context.Context, params *common.EstablishVolumePeeringParams) (*models.Volume, string, error) {
 	ret := _m.Called(ctx, params)
@@ -4211,6 +4272,67 @@ func (_c *MockOrchestratorFactory_GetMultiplePools_Call) Return(_a0 []*models.Po
 }
 
 func (_c *MockOrchestratorFactory_GetMultiplePools_Call) RunAndReturn(run func(context.Context, string, []string) ([]*models.Pool, error)) *MockOrchestratorFactory_GetMultiplePools_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetMultipleQuotaRules provides a mock function with given fields: ctx, volumeUuid, accountName, quotaRuleUUIDs
+func (_m *MockOrchestratorFactory) GetMultipleQuotaRules(ctx context.Context, volumeUuid string, accountName string, quotaRuleUUIDs []string) ([]*models.QuotaRule, error) {
+	ret := _m.Called(ctx, volumeUuid, accountName, quotaRuleUUIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMultipleQuotaRules")
+	}
+
+	var r0 []*models.QuotaRule
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, []string) ([]*models.QuotaRule, error)); ok {
+		return rf(ctx, volumeUuid, accountName, quotaRuleUUIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, []string) []*models.QuotaRule); ok {
+		r0 = rf(ctx, volumeUuid, accountName, quotaRuleUUIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.QuotaRule)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, []string) error); ok {
+		r1 = rf(ctx, volumeUuid, accountName, quotaRuleUUIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetMultipleQuotaRules_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMultipleQuotaRules'
+type MockOrchestratorFactory_GetMultipleQuotaRules_Call struct {
+	*mock.Call
+}
+
+// GetMultipleQuotaRules is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUuid string
+//   - accountName string
+//   - quotaRuleUUIDs []string
+func (_e *MockOrchestratorFactory_Expecter) GetMultipleQuotaRules(ctx interface{}, volumeUuid interface{}, accountName interface{}, quotaRuleUUIDs interface{}) *MockOrchestratorFactory_GetMultipleQuotaRules_Call {
+	return &MockOrchestratorFactory_GetMultipleQuotaRules_Call{Call: _e.mock.On("GetMultipleQuotaRules", ctx, volumeUuid, accountName, quotaRuleUUIDs)}
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleQuotaRules_Call) Run(run func(ctx context.Context, volumeUuid string, accountName string, quotaRuleUUIDs []string)) *MockOrchestratorFactory_GetMultipleQuotaRules_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].([]string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleQuotaRules_Call) Return(_a0 []*models.QuotaRule, _a1 error) *MockOrchestratorFactory_GetMultipleQuotaRules_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleQuotaRules_Call) RunAndReturn(run func(context.Context, string, string, []string) ([]*models.QuotaRule, error)) *MockOrchestratorFactory_GetMultipleQuotaRules_Call {
 	_c.Call.Return(run)
 	return _c
 }

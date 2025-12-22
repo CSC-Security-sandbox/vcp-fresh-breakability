@@ -253,6 +253,64 @@ func (o *Orchestrator) ListQuotaRules(ctx context.Context, params *common.ListQu
 	return listQuotaRules(ctx, o.storage, params)
 }
 
+// GetMultipleQuotaRules retrieves multiple quota rules by UUIDs for a volume
+func (o *Orchestrator) GetMultipleQuotaRules(ctx context.Context, volumeUuid string, accountName string, quotaRuleUUIDs []string) ([]*models.QuotaRule, error) {
+	se := o.storage
+
+	account, err := getAccountWithName(ctx, se, accountName)
+	if err != nil {
+		return nil, err
+	}
+
+	volume, err := se.GetVolumeWithAccountID(ctx, volumeUuid, account.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	filter := dbutils.CreateFilterWithConditions(
+		dbutils.NewFilterCondition("account_id", "=", account.ID),
+		dbutils.NewFilterCondition("volume_id", "=", volume.ID),
+		dbutils.NewFilterCondition("uuid", "in", quotaRuleUUIDs))
+
+	dbQuotaRules, err := se.GetQuotaRulesWithCondition(ctx, *filter)
+	if err != nil {
+		return nil, err
+	}
+
+	modelQuotaRules := make([]*models.QuotaRule, len(dbQuotaRules))
+	for i, quotaRule := range dbQuotaRules {
+		modelQuotaRules[i] = convertDatastoreQuotaRuleToModel(quotaRule)
+	}
+	return modelQuotaRules, nil
+}
+
+// DescribeQuotaRule retrieves a single quota rule by UUID for a volume
+func (o *Orchestrator) DescribeQuotaRule(ctx context.Context, volumeUuid string, accountName string, quotaRuleUUID string) (*models.QuotaRule, error) {
+	se := o.storage
+
+	account, err := getAccountWithName(ctx, se, accountName)
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			util.GetLogger(ctx).Warnf("Account with name %s not found in VCP, checking in CVP", accountName)
+			return nil, err
+		}
+		return nil, err
+	}
+
+	_, err = se.GetVolumeWithAccountID(ctx, volumeUuid, account.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	dbQuotaRule, err := se.GetQuotaRuleByUUID(ctx, quotaRuleUUID, account.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	modelQuotaRule := convertDatastoreQuotaRuleToModel(dbQuotaRule)
+	return modelQuotaRule, nil
+}
+
 func _createQuotaRule(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateQuotaRulesParam) (*models.QuotaRule, string, error) {
 	logger := util.GetLogger(ctx)
 
