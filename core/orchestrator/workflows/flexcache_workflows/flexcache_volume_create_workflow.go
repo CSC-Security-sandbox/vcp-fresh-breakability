@@ -431,6 +431,10 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		}
 	}
 
+	if err = workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeAttributesInDB, &flexcacheResult.DBVolume.UUID, &flexcacheResult.DBVolume.VolumeAttributes).Get(ctx, nil); err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
 	if shouldForceEncryption() {
 		if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.VerifyVolumeEncryptionActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 			return nil, workflows.ConvertToVSAError(err)
