@@ -177,18 +177,41 @@ func (a *CleanupVolumeReplicationActivity) DescribeRemoteJobForCleanup(ctx conte
 }
 
 func (a *CleanupVolumeReplicationActivity) UpdateReplicationOnDestinationToErrorStateForCleanup(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
-	logger := util.GetLogger(ctx)
-	logger.Debugf("Release ReplicationOn Destination")
+	return a.updateReplicationToErrorStateForCleanup(ctx, result, "destination")
+}
 
-	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
+func (a *CleanupVolumeReplicationActivity) UpdateReplicationOnSourceToErrorStateForCleanup(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
+	return a.updateReplicationToErrorStateForCleanup(ctx, result, "source")
+}
+
+func (a *CleanupVolumeReplicationActivity) updateReplicationToErrorStateForCleanup(ctx context.Context, result *replication.DeleteReplicationResult, target string) (*replication.DeleteReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("Release ReplicationOn %s", target)
+
+	var basePath, jwtToken, projectNumber, locationId, replicationUUID string
+	if target == "source" {
+		basePath = *result.SrcBasePath
+		jwtToken = *result.SrcJwtToken
+		projectNumber = *result.SrcProjectNumber
+		locationId = result.Event.ReplicationModel.ReplicationAttributes.SourceLocation
+		replicationUUID = result.Event.ReplicationModel.ReplicationAttributes.SourceReplicationUUID
+	} else {
+		basePath = *result.DstBasePath
+		jwtToken = *result.DstJwtToken
+		projectNumber = *result.DstProjectNumber
+		locationId = result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation
+		replicationUUID = result.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID
+	}
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, jwtToken, logger)
 	updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
 		State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
 		StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
 	}
 	updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
-		ProjectNumber:       *result.DstProjectNumber,
-		LocationId:          result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
-		VolumeReplicationId: result.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+		ProjectNumber:       projectNumber,
+		LocationId:          locationId,
+		VolumeReplicationId: replicationUUID,
 		XCorrelationID:      googleproxyclient.NewOptString(*result.CorrelationID),
 	}
 	res, err := googleProxyClient.Invoker.V1betaInternalUpdateState(ctx, &updateRequest, updateParams)

@@ -1130,7 +1130,7 @@ func _releaseVolumeReplication(ctx context.Context, se database.Storage, tempora
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: dbVolumeReplication.UUID,
-			PoolUUID:     dbVolumeReplication.Volume.Pool.UUID,
+			PoolUUID:     dbVolumeReplication.ReplicationAttributes.DestinationPoolUUID,
 		},
 	}
 	createdJob, err := se.CreateJob(ctx, job)

@@ -101,6 +101,10 @@ func (wf *replicationCleanupWorkflow) Run(ctx workflow.Context, args ...interfac
 			if err2 != nil {
 				log.Errorf("Failed to update volume replication state in DB to error: %v", err2)
 			}
+			err3 := workflow.ExecuteActivity(ctx1, replicationActivity.UpdateReplicationOnSourceToErrorStateForCleanup, &replicationResult).Get(ctx, &replicationResult)
+			if err3 != nil {
+				log.Errorf("Failed to update volume replication state in DB to error: %v", err3)
+			}
 		}
 	}()
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSrcBasePathCleanup, &replicationResult).Get(ctx, &replicationResult)

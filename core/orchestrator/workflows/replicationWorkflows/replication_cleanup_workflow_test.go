@@ -128,19 +128,41 @@ func TestReplicationCleanupWorkflowWhenError(t *testing.T) {
 		env.RegisterActivity(resumeReplicationActivity.DeleteVolumeOnDestinationForCleanup)
 		env.RegisterActivity(resumeReplicationActivity.DeHydrateDestinationVolumeForCleanup)
 		env.RegisterActivity(resumeReplicationActivity.UpdateReplicationOnDestinationToErrorStateForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.UpdateReplicationOnSourceToErrorStateForCleanup)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		params := &commonparams.DeleteReplicationParams{}
 
+		srcBasePath := "https://src-base-path"
+		dstBasePath := "https://dst-base-path"
+		srcJwtToken := "src-jwt-token"
+		dstJwtToken := "dst-jwt-token"
+		srcProjectNumber := "123456789"
+		dstProjectNumber := "987654321"
+
 		event := &replication.DeleteReplicationEvent{
 			CommonReplicationEventParams: replication.CommonReplicationEventParams{
-				ReplicationModel: &datamodel.VolumeReplication{},
+				ReplicationModel: &datamodel.VolumeReplication{
+					Name: "test-replication",
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:      "us-central1",
+						DestinationLocation: "us-east1",
+						SourceReplicationUUID: "src-replication-uuid",
+						DestinationReplicationUUID: "dst-replication-uuid",
+					},
+				},
+				SourceProjectNumber:      srcProjectNumber,
+				DestinationProjectNumber: dstProjectNumber,
 			},
 		}
 
 		replicationResult := &replication.DeleteReplicationResult{
-			SrcProjectNumber: &event.SourceProjectNumber,
-			DstProjectNumber: &event.DestinationProjectNumber,
+			SrcProjectNumber: &srcProjectNumber,
+			DstProjectNumber: &dstProjectNumber,
+			SrcBasePath:      &srcBasePath,
+			DstBasePath:      &dstBasePath,
+			SrcJwtToken:      &srcJwtToken,
+			DstJwtToken:      &dstJwtToken,
 			Event:            event,
 			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
 				Name:             googleproxyclient.NewOptString("repl-123"),
@@ -156,6 +178,8 @@ func TestReplicationCleanupWorkflowWhenError(t *testing.T) {
 		env.OnActivity("GetSignedDstTokenCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("GetReplicationOnDestinationForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity(resumeReplicationActivity.StopReplicationOnDestinationForCleanup, mock.Anything, mock.Anything).Return(nil, errors.New("failed to update volume details"))
+		env.OnActivity("UpdateReplicationOnDestinationToErrorStateForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("UpdateReplicationOnSourceToErrorStateForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.ExecuteWorkflow(ReplicationCleanupWorkflow, params, event)
 		// Assert that the workflow was executed and handled the error

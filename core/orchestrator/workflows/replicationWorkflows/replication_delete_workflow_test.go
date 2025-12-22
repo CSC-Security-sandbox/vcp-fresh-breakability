@@ -381,6 +381,7 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 		env.RegisterActivity(deleteReplicationActivity.DeleteVolumeOnDestination)
 		env.RegisterActivity(deleteReplicationActivity.DeHydrateDestinationVolume)
 		env.RegisterActivity(deleteReplicationActivity.UpdateReplicationOnDestinationToErrorState)
+		env.RegisterActivity(deleteReplicationActivity.UpdateReplicationOnSourceToErrorState)
 
 		params := &commonparams.DeleteReplicationParams{
 			AccountName:           "test-account",
@@ -428,6 +429,8 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSnapmirrorSnapshotsOnDestination", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("DescribeRemoteJobForDelete", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSnapmirrorSnapshotsOnSource", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		env.OnActivity("UpdateReplicationOnDestinationToErrorState", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("UpdateReplicationOnSourceToErrorState", mock.Anything, mock.Anything).Return(replicationResult, nil)
 
 		env.ExecuteWorkflow(ReplicationDeleteWorkflow, params, event)
 
@@ -467,6 +470,7 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 		env.RegisterActivity(deleteReplicationActivity.DeleteVolumeOnDestination)
 		env.RegisterActivity(deleteReplicationActivity.DeHydrateDestinationVolume)
 		env.RegisterActivity(deleteReplicationActivity.UpdateReplicationOnDestinationToErrorState)
+		env.RegisterActivity(deleteReplicationActivity.UpdateReplicationOnSourceToErrorState)
 
 		params := &commonparams.DeleteReplicationParams{
 			AccountName:           "test-account",
@@ -515,6 +519,8 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 		env.OnActivity("DescribeRemoteJobForDelete", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSnapmirrorSnapshotsOnSource", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("DescribeSourceJobForDelete", mock.Anything, mock.Anything).Return(assert.AnError)
+		env.OnActivity("UpdateReplicationOnDestinationToErrorState", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("UpdateReplicationOnSourceToErrorState", mock.Anything, mock.Anything).Return(replicationResult, nil)
 
 		env.ExecuteWorkflow(ReplicationDeleteWorkflow, params, event)
 
@@ -550,6 +556,7 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 		env.RegisterActivity(deleteReplicationActivity.DeleteClusterPeeringInOntap)
 		env.RegisterActivity(deleteReplicationActivity.DeleteClusterPeeringDB)
 		env.RegisterActivity(deleteReplicationActivity.DeleteRoleInOntap)
+		env.RegisterActivity(deleteReplicationActivity.UpdateReplicationInDBToErrorState)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		params := &commonparams.DeleteReplicationParams{
@@ -620,11 +627,12 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 		env.OnActivity("ReleaseReplicationOnSrc", mock.Anything, mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("DeleteSnapmirrorSnapshotsOnSource", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("DescribeSourceJobForDelete", mock.Anything, mock.Anything).Return(nil).Times(2)
-		env.OnActivity("DeleteReplicationRecordOnSource", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DeleteReplicationRecordOnSource", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateRbacRole", mock.Anything, mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("DeleteClusterPeeringInOntap", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteClusterPeeringDB", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteRoleInOntap", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateReplicationInDBToErrorState", mock.Anything, mock.Anything).Return(nil)
 		env.ExecuteWorkflow(ReplicationDeleteWorkflow, params, event)
 
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
@@ -665,6 +673,7 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 		env.RegisterActivity(deleteReplicationActivity.DeleteVolumeOnDestination)
 		env.RegisterActivity(deleteReplicationActivity.DeHydrateDestinationVolume)
 		env.RegisterActivity(deleteReplicationActivity.UpdateReplicationOnDestinationToErrorState)
+		env.RegisterActivity(deleteReplicationActivity.UpdateReplicationOnSourceToErrorState)
 
 		params := &commonparams.DeleteReplicationParams{
 			AccountName:           "test-account",
@@ -677,7 +686,15 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 
 		event := &replication.DeleteReplicationEvent{
 			CommonReplicationEventParams: replication.CommonReplicationEventParams{
-				ReplicationModel:         &datamodel.VolumeReplication{},
+				ReplicationModel: &datamodel.VolumeReplication{
+					Name: "test-replication",
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:      "us-central1",
+						DestinationLocation: "us-east1",
+						SourceVolumeName:    "source-volume",
+						DestinationVolumeName: "destination-volume",
+					},
+				},
 				SourceProjectNumber:      "123456789",
 				DestinationProjectNumber: "987654321",
 				VolumeResourceID:         "test-volume-id",
@@ -713,7 +730,10 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 		env.OnActivity("DescribeRemoteJobForDelete", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSnapmirrorSnapshotsOnSource", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("DescribeSourceJobForDelete", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeHydrateDestinationVolumeReplication", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("UpdateReplicationRecordOnSource", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		env.OnActivity("UpdateReplicationOnDestinationToErrorState", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("UpdateReplicationOnSourceToErrorState", mock.Anything, mock.Anything).Return(replicationResult, nil)
 
 		env.ExecuteWorkflow(ReplicationDeleteWorkflow, params, event)
 

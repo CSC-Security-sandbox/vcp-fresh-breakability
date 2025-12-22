@@ -114,6 +114,10 @@ func (wf *replicationDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 				if err2 != nil {
 					log.Errorf("Failed to update volume replication state in DB to error: %v", err2)
 				}
+				err3 := workflow.ExecuteActivity(ctx1, replicationActivity.UpdateReplicationOnSourceToErrorState, &replicationResult).Get(ctx, &replicationResult)
+				if err3 != nil {
+					log.Errorf("Failed to update volume replication state in DB to error: %v", err3)
+				}
 			}
 		}
 	}()
