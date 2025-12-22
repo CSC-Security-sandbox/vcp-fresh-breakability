@@ -44,6 +44,7 @@ func TestCreateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 				PoolAttributes: &datamodel.PoolAttributes{
 					PrimaryZone: "us-west1-a",
 				},
+				APIAccessMode: workflows.DEFAULTMode,
 			},
 			QuotaInBytes: 0,
 		}
@@ -395,6 +396,7 @@ func TestCreateVolume_FailedVolumeDeleteOnError(t *testing.T) {
 				PoolAttributes: &datamodel.PoolAttributes{
 					PrimaryZone: "us-west1-a",
 				},
+				APIAccessMode: workflows.DEFAULTMode,
 			},
 			QuotaInBytes: 0,
 		}
@@ -497,6 +499,7 @@ func TestCreateVolume_FailedJobUpdateOnError(t *testing.T) {
 				PoolAttributes: &datamodel.PoolAttributes{
 					PrimaryZone: "us-west1-a",
 				},
+				APIAccessMode: workflows.DEFAULTMode,
 			},
 			QuotaInBytes: 0,
 		}

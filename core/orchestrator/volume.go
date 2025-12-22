@@ -155,6 +155,10 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
+	if pool.APIAccessMode == workflows.ONTAPMode {
+		return nil, "", customerrors.NewUserInputValidationErr("Cannot create Volumes in ONTAP mode pool using GCNV API")
+	}
+
 	poolPrimaryZone := pool.PoolAttributes.PrimaryZone
 	isRegionalPool := pool.PoolAttributes.IsRegionalHA
 	// Validate that volume zone matches pool's primary zone for zonal volume

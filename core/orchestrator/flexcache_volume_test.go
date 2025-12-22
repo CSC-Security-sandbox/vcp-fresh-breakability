@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -55,6 +56,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			AccountID:      account.ID,
 			DeploymentName: "test_pool_deployment",
 			VendorID:       vendorID,
+			APIAccessMode:  workflows.DEFAULTMode, // Set to DEFAULT mode for FlexCache volumes
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone: "us-west1-a",
 			},
@@ -80,6 +82,40 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 
 		return mockLogger, store
 	}
+
+	t.Run("Failure_WhenAPIAccessModeIsONTAPMode", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		_, store := setupStore(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		// Update pool to have ONTAP mode to test the error condition
+		var pool datamodel.Pool
+		err := store.DB().Where("name = ?", poolName).First(&pool).Error
+		assert.NoError(tt, err)
+		pool.APIAccessMode = workflows.ONTAPMode
+		err = store.DB().Save(&pool).Error
+		assert.NoError(tt, err)
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			VendorID:      "test_vendor",
+			QuotaInBytes:  minQuotaInBytesPool,
+			Protocols:     []string{"NFS"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+		}
+
+		orch := &Orchestrator{storage: store, temporal: temporal}
+		volume, _, err := orch.CreateFlexCacheVolume(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, volume)
+		assert.Contains(tt, err.Error(), "Cannot create Volumes in ONTAP mode pool using GCNV API")
+	})
 
 	t.Run("Success", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -273,9 +309,15 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			Name: "test_account",
 		}
 
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				APIAccessMode: workflows.DEFAULTMode,
+			},
+		}
+
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
-		store.EXPECT().GetPool(ctx, params.PoolID, dbAccount.ID).Return(&datamodel.PoolView{}, nil)
+		store.EXPECT().GetPool(ctx, params.PoolID, dbAccount.ID).Return(poolView, nil)
 		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
 		store.EXPECT().GetSvmForPoolID(ctx, int64(0)).Return(nil, assert.AnError)
 
@@ -314,9 +356,15 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			Name: "test_account",
 		}
 
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				APIAccessMode: workflows.DEFAULTMode,
+			},
+		}
+
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
-		store.EXPECT().GetPool(ctx, params.PoolID, dbAccount.ID).Return(&datamodel.PoolView{}, nil)
+		store.EXPECT().GetPool(ctx, params.PoolID, dbAccount.ID).Return(poolView, nil)
 		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
 		store.EXPECT().GetSvmForPoolID(ctx, int64(0)).Return(&datamodel.Svm{}, nil)
 		mm.EXPECT().verifyCommandExpiryTime(&peerExpiryTime).Return(assert.AnError)
@@ -356,11 +404,17 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			Name: "test_account",
 		}
 
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				APIAccessMode: workflows.DEFAULTMode,
+			},
+		}
+
 		mockLogger.On("Errorf", mock.AnythingOfType("string"), mock.Anything).Return()
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
 		mm.EXPECT().verifyCommandExpiryTime(&peerExpiryTime).Return(nil)
-		store.EXPECT().GetPool(ctx, params.PoolID, dbAccount.ID).Return(&datamodel.PoolView{}, nil)
+		store.EXPECT().GetPool(ctx, params.PoolID, dbAccount.ID).Return(poolView, nil)
 		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
 		store.EXPECT().GetSvmForPoolID(ctx, int64(0)).Return(&datamodel.Svm{}, nil)
 		store.EXPECT().CreateVolume(ctx, mock.AnythingOfType("*datamodel.Volume")).Return(nil, assert.AnError)
@@ -442,10 +496,16 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			Name: "test_account",
 		}
 
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				APIAccessMode: workflows.DEFAULTMode,
+			},
+		}
+
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().verifyCommandExpiryTime(&peerExpiryTime).Return(nil)
 		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
-		store.EXPECT().GetPool(ctx, params.PoolID, dbAccount.ID).Return(&datamodel.PoolView{}, nil)
+		store.EXPECT().GetPool(ctx, params.PoolID, dbAccount.ID).Return(poolView, nil)
 		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
 		mm.EXPECT().utilsGetLocationFromVendorID(vendorID).Return(location, nil)
 		mm.EXPECT().utilsGetRequestIDFromContext(ctx).Return(requestURI)
