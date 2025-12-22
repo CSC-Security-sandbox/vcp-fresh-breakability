@@ -47,9 +47,7 @@ var (
 )
 
 const (
-	BackupComment        = "VCP-Backup"
-	BackupMaxWaitTimeCap = 15 * time.Minute   // Maximum wait time cap
-	adcWorkflowTimeout   = 7 * 24 * time.Hour // 7 days timeout to accommodate 6-day max sleep + buffer
+	adcWorkflowTimeout = 7 * 24 * time.Hour // 7 days timeout to accommodate 6-day max sleep + buffer
 )
 
 // CreateBackupWorkflow  process backup related requests from a customer.
@@ -328,10 +326,10 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 	}
 
 	// Cleanup older adhoc-backup snapshots for this volume
-	err = workflow.ExecuteActivity(ctx, backupActivity.CleanupOldAdhocBackupSnapshotsActivity, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.Node).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, backupActivity.CleanupOldBackupSnapshotsActivity, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.Node).Get(ctx, nil)
 	if err != nil {
 		// Log the error but don't fail the entire backup workflow
-		wf.Logger.Errorf("Failed to cleanup older adhoc-backup snapshots for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+		wf.Logger.Errorf("Failed to cleanup older backup snapshots for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
 	}
 
 	// Hydrate snapshot to CCFE
@@ -612,6 +610,42 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
+
+			// Try to delete snapshot from DB, but don't fail the workflow if this fails
+			snapshotErr := workflow.ExecuteActivity(ctx, backupActivity.DeleteBackupSnapshotFromDB, dbBackup).Get(ctx, nil)
+			if snapshotErr != nil {
+				wf.Logger.Error("Failed to delete snapshot from database", "error", snapshotErr)
+			}
+
+			// Hydrate snapshot deletion to CCFE
+			if dbBackup.Attributes != nil && volume != nil && account != nil {
+				snapshot := &datamodel.Snapshot{
+					BaseModel: datamodel.BaseModel{
+						UUID:      dbBackup.Attributes.SnapshotID,
+						CreatedAt: dbBackup.CreatedAt,
+					},
+					Name:         dbBackup.Name,
+					State:        models.LifeCycleStateDeleted,
+					StateDetails: models.LifeCycleStateDeletedDetails,
+					Description:  dbBackup.Description,
+					Volume:       volume,
+					Account:      account,
+					SnapshotAttributes: &datamodel.SnapshotAttributes{
+						SizeInBytes: dbBackup.SizeInBytes,
+					},
+				}
+
+				location := utils.GetLocation(*snapshot)
+				hydrateSnapshotErr := workflow.ExecuteActivity(ctx, backupActivity.HydrateSnapshotDeletionToCCFEActivity,
+					snapshot,
+					volume.Name,
+					location,
+					account.Name).Get(ctx, nil)
+				if hydrateSnapshotErr != nil {
+					// Log the error but don't fail the entire backup deletion workflow
+					wf.Logger.Errorf("Failed to hydrate snapshot deletion to CCFE for backup %s: %v", dbBackup.Name, hydrateSnapshotErr)
+				}
+			}
 		} else {
 			var isBackupShared bool
 			err = workflow.ExecuteActivity(ctx, backupActivity.IsBackupShared, dbBackup).Get(ctx, &isBackupShared)
@@ -650,43 +684,6 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		if remoteBackupErr != nil {
 			wf.Logger.Errorf("Failed to delete remote backup from VCP for backup %s: %v", dbBackup.UUID, remoteBackupErr)
 		}
-	}
-
-	// Hydrate snapshot deletion to CCFE
-	// Only proceed if all required fields are not nil
-	if dbBackup.Attributes != nil && volume != nil && account != nil {
-		snapshot := &datamodel.Snapshot{
-			BaseModel: datamodel.BaseModel{
-				UUID:      dbBackup.Attributes.SnapshotID,
-				CreatedAt: dbBackup.CreatedAt,
-			},
-			Name:         dbBackup.Name,
-			State:        models.LifeCycleStateDeleted,
-			StateDetails: models.LifeCycleStateDeletedDetails,
-			Description:  dbBackup.Description,
-			Volume:       volume,
-			Account:      account,
-			SnapshotAttributes: &datamodel.SnapshotAttributes{
-				SizeInBytes: dbBackup.SizeInBytes,
-			},
-		}
-
-		location := utils.GetLocation(*snapshot)
-		hydrateSnapshoterr := workflow.ExecuteActivity(ctx, backupActivity.HydrateSnapshotDeletionToCCFEActivity,
-			snapshot,
-			volume.Name,
-			location,
-			account.Name).Get(ctx, nil)
-		if hydrateSnapshoterr != nil {
-			// Log the error but don't fail the entire backup deletion workflow
-			wf.Logger.Errorf("Failed to hydrate snapshot deletion to CCFE for backup %s: %v", dbBackup.Name, hydrateSnapshoterr)
-		}
-	}
-
-	// Try to delete snapshot from DB, but don't fail the workflow if this fails
-	snapshotErr := workflow.ExecuteActivity(ctx, backupActivity.DeleteBackupSnapshotFromDB, dbBackup).Get(ctx, nil)
-	if snapshotErr != nil {
-		workflow.GetLogger(ctx).Error("Failed to delete snapshot from database", "error", snapshotErr)
 	}
 
 	// Delete BackupMetadata entry if this was the last backup for the volume

@@ -303,6 +303,7 @@ func TestBackupWorkflow(t *testing.T) {
 		Node: &models.Node{EndpointAddress: "127.0.0.1"},
 	}, nil)
 	env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(CreateBackupWorkflow, params, backup, backupVault, volume)
@@ -613,7 +614,7 @@ func TestBackupWorkflowSnapmirrorTransferPolling(t *testing.T) {
 	env.RegisterActivity(&TestBackupActivity{BackupActivity: &activities.BackupActivity{SE: mockStorage}})
 
 	// Register the specific activity method
-	env.OnActivity("CleanupOldAdhocBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Set up test data
 	params := &commonparams.CreateBackupParams{
@@ -773,7 +774,7 @@ func TestBackupWorkflowSnapmirrorTransferPolling(t *testing.T) {
 		},
 		Node: &models.Node{EndpointAddress: "127.0.0.1"},
 	}, nil)
-	env.OnActivity("CleanupOldAdhocBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
@@ -1103,8 +1104,9 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeLatestLogicalBackupSize", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteCloudEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
 		env.OnActivity("DeleteSnapshotForBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(nil, nil)
+		env.OnActivity("DeleteBackupSnapshotFromDB", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("HydrateSnapshotDeletionToCCFEActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(nil, nil)
 		env.OnActivity("DeleteBackupMetadataIfLastBackupActivity", mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
@@ -1247,7 +1249,6 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		env.OnActivity("GetObjectStore", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.CloudTarget{UUID: "obj-store-uuid"}, nil)
 		env.OnActivity("IsBackupShared", mock.Anything, backup).Return(true, nil) // Backup is shared
 		env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(nil, nil)
-		env.OnActivity("HydrateSnapshotDeletionToCCFEActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteBackupMetadataIfLastBackupActivity", mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
@@ -1334,7 +1335,6 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSnapshotFromObjectStore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
 		env.OnActivity("GetOntapJob", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
 		env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(nil, nil)
-		env.OnActivity("HydrateSnapshotDeletionToCCFEActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteBackupMetadataIfLastBackupActivity", mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
@@ -1756,7 +1756,7 @@ func TestCreateBackupWorkflowEdgeCases(t *testing.T) {
 			},
 			Node: &models.Node{EndpointAddress: "127.0.0.1"},
 		}, nil)
-		env.OnActivity("CleanupOldAdhocBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
@@ -2029,7 +2029,7 @@ func TestBackupWorkflowSnapmirrorTransferWaitTimeCap(t *testing.T) {
 	env.RegisterActivity(&TestBackupActivity{BackupActivity: &activities.BackupActivity{SE: mockStorage}})
 
 	// Register the specific activity method
-	env.OnActivity("CleanupOldAdhocBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Set up test data
 	params := &commonparams.CreateBackupParams{
@@ -2172,7 +2172,7 @@ func TestBackupWorkflowSnapmirrorTransferWaitTimeCap(t *testing.T) {
 		},
 		Node: &models.Node{EndpointAddress: "127.0.0.1"},
 	}, nil)
-	env.OnActivity("CleanupOldAdhocBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
@@ -2503,6 +2503,7 @@ func TestBackupWorkflowGetObjectStoreEndpointActivityFailure(t *testing.T) {
 		Node: &models.Node{EndpointAddress: "127.0.0.1"},
 	}, nil)
 	env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(CreateBackupWorkflow, params, backup, backupVault, volume)
@@ -2766,7 +2767,7 @@ func TestBackupWorkflowHydrationWithGetLocation(t *testing.T) {
 		Node:       &models.Node{EndpointAddress: "127.0.0.1"},
 		DbSnapshot: dbSnapshot, // Set DbSnapshot for hydration
 	}, nil)
-	env.OnActivity("CleanupOldAdhocBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("HydrateSnapshotToCCFEActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil)
 
@@ -3172,6 +3173,7 @@ func TestCreateBackupWorkflowWithContinueAsNew(t *testing.T) {
 			Node: &models.Node{EndpointAddress: "127.0.0.1"},
 		}, nil)
 		env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(CreateBackupWorkflow, params, backup, backupVault, volume)
@@ -3576,6 +3578,7 @@ func TestCreateBackupWorkflowWithRetryPolicy(t *testing.T) {
 			Node: &models.Node{EndpointAddress: "127.0.0.1"},
 		}, nil)
 		env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(CreateBackupWorkflow, params, backup, backupVault, volume)
@@ -3862,7 +3865,7 @@ func TestCreateBackupWorkflowWithContext(t *testing.T) {
 			},
 			Node: &models.Node{EndpointAddress: "127.0.0.1"},
 		}, nil)
-		env.OnActivity("CleanupOldAdhocBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
@@ -4566,6 +4569,7 @@ func TestBackupWorkflow_CreateBackupMetadataIfFirstBackupActivityFailure(t *test
 	}, nil)
 	// Mock CreateBackupMetadataIfFirstBackupActivity to return an error
 	env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(errors.New("failed to create backup metadata"))
+	env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(CreateBackupWorkflow, params, backup, backupVault, volume)
@@ -4651,8 +4655,9 @@ func TestDeleteBackupWorkflow_DeleteBackupMetadataIfLastBackupActivityFailure(t 
 	env.OnActivity("UpdateVolumeLatestLogicalBackupSize", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteCloudEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
 	env.OnActivity("DeleteSnapshotForBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeleteBackupSnapshotFromDB", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("HydrateSnapshotDeletionToCCFEActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(nil, nil)
 
 	// Mock DeleteBackupMetadataIfLastBackupActivity to return an error
 	env.OnActivity("DeleteBackupMetadataIfLastBackupActivity", mock.Anything, mock.Anything).Return(errors.New("failed to delete backup metadata"))
@@ -4751,10 +4756,11 @@ func TestDeleteBackupWorkflow_CrossRegionBackupSuccess(t *testing.T) {
 	env.OnActivity("UpdateVolumeLatestLogicalBackupSize", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteCloudEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
 	env.OnActivity("DeleteSnapshotForBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteBackupSnapshotFromDB", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("HydrateSnapshotDeletionToCCFEActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(backup, nil)
 	// Mock DeleteRemoteBackupFromVCPActivity to succeed
 	env.OnActivity("DeleteRemoteBackupFromVCPActivity", mock.Anything, params.BackupUUID, params.BackupVaultUUID, params.AccountName, backupRegionName).Return(nil)
-	env.OnActivity("HydrateSnapshotDeletionToCCFEActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteBackupMetadataIfLastBackupActivity", mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
@@ -4851,10 +4857,11 @@ func TestDeleteBackupWorkflow_CrossRegionBackupFailure(t *testing.T) {
 	env.OnActivity("UpdateVolumeLatestLogicalBackupSize", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteCloudEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
 	env.OnActivity("DeleteSnapshotForBackup", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteBackupSnapshotFromDB", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("HydrateSnapshotDeletionToCCFEActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(backup, nil)
 	// Mock DeleteRemoteBackupFromVCPActivity to fail
 	env.OnActivity("DeleteRemoteBackupFromVCPActivity", mock.Anything, params.BackupUUID, params.BackupVaultUUID, params.AccountName, backupRegionName).Return(errors.New("failed to delete remote backup from VCP"))
-	env.OnActivity("HydrateSnapshotDeletionToCCFEActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteBackupMetadataIfLastBackupActivity", mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow

@@ -5922,3 +5922,483 @@ func TestPersistenceStore_GetSfrMetricsByTimeRange(t *testing.T) {
 	assert.Equal(t, int64(4096), result["volume-uuid-2"].TotalSize)
 	assert.Equal(t, int64(10), result["volume-uuid-2"].TotalCount)
 }
+
+func TestPersistenceStore_AreBackupsInProgressForVolume(t *testing.T) {
+	t.Run("ReturnsFalseWhenNoBackupsInProgress", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+		account, err = store.CreateAccount(ctx, account)
+		require.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:      "test-backup-vault",
+			AccountID: account.ID,
+		}
+		backupVault, err = store.CreatingBackupVault(ctx, backupVault)
+		require.NoError(tt, err)
+
+		// Create backup (will be in Creating state initially)
+		backup := &datamodel.Backup{
+			Name:          "test-backup",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+		}
+		backup, err = store.CreateBackup(ctx, backup)
+		require.NoError(tt, err)
+
+		// Update backup to Available state (not in progress)
+		backup.State = models.LifeCycleStateAvailable
+		backup.StateDetails = models.LifeCycleStateAvailableDetails
+		_, err = store.UpdateBackupState(ctx, backup)
+		require.NoError(tt, err)
+
+		// Check if backups are in progress
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid", nil)
+		assert.NoError(tt, err)
+		assert.False(tt, inProgress)
+	})
+
+	t.Run("ReturnsTrueWhenBackupInCreatingState", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid-2"},
+			Name:      "test-account-2",
+		}
+		account, err = store.CreateAccount(ctx, account)
+		require.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid-2"},
+			Name:      "test-backup-vault-2",
+			AccountID: account.ID,
+		}
+		backupVault, err = store.CreatingBackupVault(ctx, backupVault)
+		require.NoError(tt, err)
+
+		// Create backup in Creating state
+		backup := &datamodel.Backup{
+			Name:          "test-backup-2",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid-2",
+		}
+		_, err = store.CreateBackup(ctx, backup)
+		require.NoError(tt, err)
+
+		// Check if backups are in progress
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-2", nil)
+		assert.NoError(tt, err)
+		assert.True(tt, inProgress)
+	})
+
+	t.Run("ReturnsTrueWhenBackupInDeletingState", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid-3"},
+			Name:      "test-account-3",
+		}
+		account, err = store.CreateAccount(ctx, account)
+		require.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid-3"},
+			Name:      "test-backup-vault-3",
+			AccountID: account.ID,
+		}
+		backupVault, err = store.CreatingBackupVault(ctx, backupVault)
+		require.NoError(tt, err)
+
+		// Create backup (will be in Creating state initially)
+		backup := &datamodel.Backup{
+			Name:          "test-backup-3",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid-3",
+		}
+		backup, err = store.CreateBackup(ctx, backup)
+		require.NoError(tt, err)
+
+		// Update backup to Deleting state
+		backup.State = models.LifeCycleStateDeleting
+		backup.StateDetails = models.LifeCycleStateDeletingDetails
+		_, err = store.UpdateBackupState(ctx, backup)
+		require.NoError(tt, err)
+
+		// Check if backups are in progress
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-3", nil)
+		assert.NoError(tt, err)
+		assert.True(tt, inProgress)
+	})
+
+	t.Run("ReturnsFalseWhenExcludedBackupUUIDMatches", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid-4"},
+			Name:      "test-account-4",
+		}
+		account, err = store.CreateAccount(ctx, account)
+		require.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid-4"},
+			Name:      "test-backup-vault-4",
+			AccountID: account.ID,
+		}
+		backupVault, err = store.CreatingBackupVault(ctx, backupVault)
+		require.NoError(tt, err)
+
+		// Create backup in Creating state
+		backup := &datamodel.Backup{
+			Name:          "test-backup-4",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid-4",
+		}
+		backup, err = store.CreateBackup(ctx, backup)
+		require.NoError(tt, err)
+
+		// Check if backups are in progress, excluding the backup we just created
+		excludeUUIDs := []string{backup.UUID}
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-4", excludeUUIDs)
+		assert.NoError(tt, err)
+		assert.False(tt, inProgress)
+	})
+
+	t.Run("ReturnsTrueWhenExcludedBackupUUIDDoesNotMatch", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid-5"},
+			Name:      "test-account-5",
+		}
+		account, err = store.CreateAccount(ctx, account)
+		require.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid-5"},
+			Name:      "test-backup-vault-5",
+			AccountID: account.ID,
+		}
+		backupVault, err = store.CreatingBackupVault(ctx, backupVault)
+		require.NoError(tt, err)
+
+		// Create backup in Creating state
+		backup := &datamodel.Backup{
+			Name:          "test-backup-5",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid-5",
+		}
+		_, err = store.CreateBackup(ctx, backup)
+		require.NoError(tt, err)
+
+		// Check if backups are in progress, excluding a different backup UUID
+		excludeUUIDs := []string{"different-backup-uuid"}
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-5", excludeUUIDs)
+		assert.NoError(tt, err)
+		assert.True(tt, inProgress)
+	})
+
+	t.Run("ReturnsTrueWhenMultipleBackupsInProgress", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid-6"},
+			Name:      "test-account-6",
+		}
+		account, err = store.CreateAccount(ctx, account)
+		require.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid-6"},
+			Name:      "test-backup-vault-6",
+			AccountID: account.ID,
+		}
+		backupVault, err = store.CreatingBackupVault(ctx, backupVault)
+		require.NoError(tt, err)
+
+		// Create multiple backups in progress states
+		backup1 := &datamodel.Backup{
+			Name:          "test-backup-6-1",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid-6",
+		}
+		_, err = store.CreateBackup(ctx, backup1)
+		require.NoError(tt, err)
+
+		backup2 := &datamodel.Backup{
+			Name:          "test-backup-6-2",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid-6",
+		}
+		backup2, err = store.CreateBackup(ctx, backup2)
+		require.NoError(tt, err)
+
+		// Update backup2 to Deleting state
+		backup2.State = models.LifeCycleStateDeleting
+		backup2.StateDetails = models.LifeCycleStateDeletingDetails
+		_, err = store.UpdateBackupState(ctx, backup2)
+		require.NoError(tt, err)
+
+		// Check if backups are in progress
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-6", nil)
+		assert.NoError(tt, err)
+		assert.True(tt, inProgress)
+	})
+
+	t.Run("ReturnsFalseWhenAllBackupsExcluded", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid-7"},
+			Name:      "test-account-7",
+		}
+		account, err = store.CreateAccount(ctx, account)
+		require.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid-7"},
+			Name:      "test-backup-vault-7",
+			AccountID: account.ID,
+		}
+		backupVault, err = store.CreatingBackupVault(ctx, backupVault)
+		require.NoError(tt, err)
+
+		// Create multiple backups in progress states
+		backup1 := &datamodel.Backup{
+			Name:          "test-backup-7-1",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid-7",
+		}
+		backup1, err = store.CreateBackup(ctx, backup1)
+		require.NoError(tt, err)
+
+		backup2 := &datamodel.Backup{
+			Name:          "test-backup-7-2",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid-7",
+		}
+		backup2, err = store.CreateBackup(ctx, backup2)
+		require.NoError(tt, err)
+
+		// Update backup2 to Deleting state
+		backup2.State = models.LifeCycleStateDeleting
+		backup2.StateDetails = models.LifeCycleStateDeletingDetails
+		backup2, err = store.UpdateBackupState(ctx, backup2)
+		require.NoError(tt, err)
+
+		// Check if backups are in progress, excluding all backups
+		excludeUUIDs := []string{backup1.UUID, backup2.UUID}
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-7", excludeUUIDs)
+		assert.NoError(tt, err)
+		assert.False(tt, inProgress)
+	})
+
+	t.Run("ReturnsFalseWhenVolumeHasNoBackups", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Check if backups are in progress for a volume with no backups
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "non-existent-volume-uuid", nil)
+		assert.NoError(tt, err)
+		assert.False(tt, inProgress)
+	})
+
+	t.Run("ReturnsTrueWhenEmptyExcludeListProvided", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid-8"},
+			Name:      "test-account-8",
+		}
+		account, err = store.CreateAccount(ctx, account)
+		require.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid-8"},
+			Name:      "test-backup-vault-8",
+			AccountID: account.ID,
+		}
+		backupVault, err = store.CreatingBackupVault(ctx, backupVault)
+		require.NoError(tt, err)
+
+		// Create backup in Creating state
+		backup := &datamodel.Backup{
+			Name:          "test-backup-8",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid-8",
+		}
+		_, err = store.CreateBackup(ctx, backup)
+		require.NoError(tt, err)
+
+		// Check if backups are in progress with empty exclude list
+		excludeUUIDs := []string{}
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-8", excludeUUIDs)
+		assert.NoError(tt, err)
+		assert.True(tt, inProgress)
+	})
+
+	t.Run("ReturnsFalseWhenNilExcludeListProvided", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+		defer func() {
+			if err := store.Close(); err != nil {
+				tt.Logf("Error closing store: %v", err)
+			}
+		}()
+
+		ctx := context.Background()
+
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid-9"},
+			Name:      "test-account-9",
+		}
+		account, err = store.CreateAccount(ctx, account)
+		require.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid-9"},
+			Name:      "test-backup-vault-9",
+			AccountID: account.ID,
+		}
+		backupVault, err = store.CreatingBackupVault(ctx, backupVault)
+		require.NoError(tt, err)
+
+		// Create backup in Creating state
+		backup := &datamodel.Backup{
+			Name:          "test-backup-9",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid-9",
+		}
+		_, err = store.CreateBackup(ctx, backup)
+		require.NoError(tt, err)
+
+		// Check if backups are in progress with nil exclude list
+		inProgress, err := store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid-9", nil)
+		assert.NoError(tt, err)
+		assert.True(tt, inProgress)
+	})
+
+	t.Run("ReturnsErrorWhenDBFails", func(tt *testing.T) {
+		logger := log.NewLogger()
+		store, err := SetupStorageForTest(logger)
+		require.NoError(tt, err)
+
+		ctx := context.Background()
+
+		// Simulate DB failure by closing the connection
+		sqlDB, err := store.DB().DB()
+		require.NoError(tt, err)
+		err = sqlDB.Close()
+		require.NoError(tt, err)
+
+		_, err = store.AreBackupsInProgressForVolume(ctx, "test-volume-uuid", nil)
+		assert.Error(tt, err)
+
+		// Clean up
+		_ = store.Close()
+	})
+}

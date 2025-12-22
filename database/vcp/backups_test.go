@@ -4024,3 +4024,559 @@ func TestGetSfrMetricsByTimeRange_DatabaseError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 }
+
+func TestAreBackupsInProgressForVolume(t *testing.T) {
+	t.Run("ReturnsFalseWhenNoBackupsInProgress", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid", ID: 1},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create backup in Available state (not in progress)
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "test-backup",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Check if backups are in progress
+		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", nil)
+		assert.NoError(tt, err)
+		assert.False(tt, inProgress)
+	})
+
+	t.Run("ReturnsTrueWhenBackupInCreatingState", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid", ID: 1},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create backup in Creating state
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "test-backup",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateCreating,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Check if backups are in progress
+		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", nil)
+		assert.NoError(tt, err)
+		assert.True(tt, inProgress)
+	})
+
+	t.Run("ReturnsTrueWhenBackupInDeletingState", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid", ID: 1},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create backup in Deleting state
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "test-backup",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateDeleting,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Check if backups are in progress
+		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", nil)
+		assert.NoError(tt, err)
+		assert.True(tt, inProgress)
+	})
+
+	t.Run("ReturnsFalseWhenExcludedBackupUUIDMatches", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid", ID: 1},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create backup in Creating state
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "test-backup",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateCreating,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Check if backups are in progress, excluding the backup we just created
+		excludeUUIDs := []string{"test-backup-uuid"}
+		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", excludeUUIDs)
+		assert.NoError(tt, err)
+		assert.False(tt, inProgress)
+	})
+
+	t.Run("ReturnsTrueWhenExcludedBackupUUIDDoesNotMatch", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid", ID: 1},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create backup in Creating state
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "test-backup",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateCreating,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Check if backups are in progress, excluding a different backup UUID
+		excludeUUIDs := []string{"different-backup-uuid"}
+		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", excludeUUIDs)
+		assert.NoError(tt, err)
+		assert.True(tt, inProgress)
+	})
+
+	t.Run("ReturnsTrueWhenMultipleBackupsInProgress", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid", ID: 1},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create multiple backups in progress states
+		backup1 := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid-1"},
+			Name:          "test-backup-1",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateCreating,
+		}
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+
+		backup2 := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid-2"},
+			Name:          "test-backup-2",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateDeleting,
+		}
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		// Check if backups are in progress
+		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", nil)
+		assert.NoError(tt, err)
+		assert.True(tt, inProgress)
+	})
+
+	t.Run("ReturnsFalseWhenAllBackupsExcluded", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid", ID: 1},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create multiple backups in progress states
+		backup1 := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid-1"},
+			Name:          "test-backup-1",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateCreating,
+		}
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+
+		backup2 := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid-2"},
+			Name:          "test-backup-2",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateDeleting,
+		}
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		// Check if backups are in progress, excluding all backups
+		excludeUUIDs := []string{"test-backup-uuid-1", "test-backup-uuid-2"}
+		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", excludeUUIDs)
+		assert.NoError(tt, err)
+		assert.False(tt, inProgress)
+	})
+
+	t.Run("ReturnsFalseWhenVolumeHasNoBackups", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Check if backups are in progress for a volume with no backups
+		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "non-existent-volume-uuid", nil)
+		assert.NoError(tt, err)
+		assert.False(tt, inProgress)
+	})
+
+	t.Run("ReturnsFalseWhenEmptyExcludeListProvided", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid", ID: 1},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create backup in Creating state
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "test-backup",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateCreating,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Check if backups are in progress with empty exclude list
+		excludeUUIDs := []string{}
+		inProgress, err := store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", excludeUUIDs)
+		assert.NoError(tt, err)
+		assert.True(tt, inProgress)
+	})
+
+	t.Run("ReturnsErrorWhenDBFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Simulate DB failure by closing the connection
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		_, err = store.AreBackupsInProgressForVolume(context.Background(), "test-volume-uuid", nil)
+		assert.Error(tt, err)
+	})
+}
+
+func Test_areBackupsInProgressForVolume(t *testing.T) {
+	t.Run("ReturnsFalseWhenNoBackupsInProgress", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid", ID: 1},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create backup in Available state (not in progress)
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "test-backup",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Test the internal function directly
+		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", nil)
+		assert.NoError(tt, err)
+		assert.False(tt, inProgress)
+	})
+
+	t.Run("ReturnsTrueWhenBackupInCreatingState", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid", ID: 1},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create backup in Creating state
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "test-backup",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateCreating,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Test the internal function directly
+		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", nil)
+		assert.NoError(tt, err)
+		assert.True(tt, inProgress)
+	})
+
+	t.Run("ReturnsTrueWhenBackupInDeletingState", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid", ID: 1},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create backup in Deleting state
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "test-backup",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateDeleting,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Test the internal function directly
+		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", nil)
+		assert.NoError(tt, err)
+		assert.True(tt, inProgress)
+	})
+
+	t.Run("ReturnsFalseWhenExcludedBackupUUIDMatches", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid", ID: 1},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create backup in Creating state
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "test-backup",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateCreating,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Test the internal function directly with exclude list
+		excludeUUIDs := []string{"test-backup-uuid"}
+		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", excludeUUIDs)
+		assert.NoError(tt, err)
+		assert.False(tt, inProgress)
+	})
+
+	t.Run("ReturnsTrueWhenExcludedBackupUUIDDoesNotMatch", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid", ID: 1},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create backup in Creating state
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "test-backup",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "test-volume-uuid",
+			State:         models.LifeCycleStateCreating,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Test the internal function directly with different exclude UUID
+		excludeUUIDs := []string{"different-backup-uuid"}
+		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", excludeUUIDs)
+		assert.NoError(tt, err)
+		assert.True(tt, inProgress)
+	})
+
+	t.Run("HandlesRecordNotFoundError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Test with non-existent volume (should return false, not error)
+		// Note: GORM's Count doesn't return ErrRecordNotFound, but we test the error handling path
+		inProgress, err := areBackupsInProgressForVolume(store.db.GORM(), "non-existent-volume-uuid", nil)
+		assert.NoError(tt, err)
+		assert.False(tt, inProgress)
+	})
+
+	t.Run("ReturnsErrorWhenDBFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Simulate DB failure by closing the connection
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		_, err = areBackupsInProgressForVolume(store.db.GORM(), "test-volume-uuid", nil)
+		assert.Error(tt, err)
+	})
+}

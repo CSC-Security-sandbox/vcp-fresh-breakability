@@ -3960,7 +3960,7 @@ func TestGetObjectStoreEndpointActivity(t *testing.T) {
 	})
 }
 
-// Tests for CleanupOldAdhocBackupSnapshotsActivity
+// Tests for CleanupOldBackupSnapshotsActivity
 
 func TestCleanupOldAdhocBackupSnapshotsActivity_Success_MultipleSnapshots(t *testing.T) {
 	// Test case 1: Successfully clean up older snapshots when multiple snapshots exist
@@ -3971,8 +3971,16 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_Success_MultipleSnapshots(t *tes
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{ID: 1},
 		Name:      "test-volume",
+		Account: &datamodel.Account{
+			Name: "test-project",
+		},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "volume-uuid-1",
+		},
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-central1-a",
+			},
 		},
 	}
 	node := &models.Node{EndpointAddress: "test-node-address"}
@@ -3983,16 +3991,22 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_Success_MultipleSnapshots(t *tes
 			BaseModel: datamodel.BaseModel{ID: 3, UUID: "snapshot-uuid-3"},
 			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-3"},
+			Volume: volume,
+			Account: volume.Account,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
 			Name:      "backup-adhoc-older1", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
+			Volume: volume,
+			Account: volume.Account,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
 			Name:      "backup-adhoc-older2", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-1"},
+			Volume: volume,
+			Account: volume.Account,
 		},
 	}
 
@@ -4018,8 +4032,23 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_Success_MultipleSnapshots(t *tes
 	mockProvider.On("DeleteSnapshot", "snap-uuid-2", "volume-uuid-1").Return(nil)
 	mockProvider.On("DeleteSnapshot", "snap-uuid-1", "volume-uuid-1").Return(nil)
 
+	// Mock hydration functions
+	originalBatchHydrateDeletedSnapshots := commonparams.BatchHydrateDeletedSnapshots
+	originalGenerateCallbackToken := auth.GenerateCallbackToken
+	defer func() {
+		commonparams.BatchHydrateDeletedSnapshots = originalBatchHydrateDeletedSnapshots
+		auth.GenerateCallbackToken = originalGenerateCallbackToken
+	}()
+
+	commonparams.BatchHydrateDeletedSnapshots = func(ctx context.Context, logger log.Logger, requests []models.Request, volumeName, region, projectId, token string) error {
+		return nil
+	}
+	auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+		return "test-token", nil
+	}
+
 	// Execute the activity
-	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+	err := activity.CleanupOldBackupSnapshotsActivity(ctx, volume, node)
 
 	// Assertions
 	assert.NoError(t, err)
@@ -4053,7 +4082,7 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_Success_SingleSnapshot(t *testin
 		Return(snapshots, nil)
 
 	// Execute the activity
-	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+	err := activity.CleanupOldBackupSnapshotsActivity(ctx, volume, node)
 
 	// Assertions
 	assert.NoError(t, err)
@@ -4079,7 +4108,7 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_Success_NoSnapshots(t *testing.T
 		Return([]*datamodel.Snapshot{}, nil)
 
 	// Execute the activity
-	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+	err := activity.CleanupOldBackupSnapshotsActivity(ctx, volume, node)
 
 	// Assertions
 	assert.NoError(t, err)
@@ -4136,7 +4165,7 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_OntapError_ContinueProcessing(t 
 	})).Return(&datamodel.Snapshot{}, nil)
 
 	// Execute the activity
-	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+	err := activity.CleanupOldBackupSnapshotsActivity(ctx, volume, node)
 
 	// Assertions
 	assert.NoError(t, err) // Should not fail the entire operation
@@ -4151,9 +4180,17 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_SnapshotAttributesNil(t *testing
 
 	activity := BackupActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		BaseModel:        datamodel.BaseModel{ID: 1},
-		Name:             "test-volume",
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-volume",
+		Account: &datamodel.Account{
+			Name: "test-project",
+		},
 		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-uuid-1"},
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-central1-a",
+			},
+		},
 	}
 	node := &models.Node{EndpointAddress: "test-node-address"}
 
@@ -4163,11 +4200,15 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_SnapshotAttributesNil(t *testing
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
 			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
+			Volume: volume,
+			Account: volume.Account,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
 			Name:      "backup-adhoc-older", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: nil, // Nil attributes
+			Volume: volume,
+			Account: volume.Account,
 		},
 	}
 
@@ -4178,8 +4219,23 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_SnapshotAttributesNil(t *testing
 	mockStorage.On("DeleteSnapshot", ctx, "snapshot-uuid-1").
 		Return(&datamodel.Snapshot{}, nil)
 
+	// Mock hydration functions
+	originalBatchHydrateDeletedSnapshots := commonparams.BatchHydrateDeletedSnapshots
+	originalGenerateCallbackToken := auth.GenerateCallbackToken
+	defer func() {
+		commonparams.BatchHydrateDeletedSnapshots = originalBatchHydrateDeletedSnapshots
+		auth.GenerateCallbackToken = originalGenerateCallbackToken
+	}()
+
+	commonparams.BatchHydrateDeletedSnapshots = func(ctx context.Context, logger log.Logger, requests []models.Request, volumeName, region, projectId, token string) error {
+		return nil
+	}
+	auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+		return "test-token", nil
+	}
+
 	// Execute the activity
-	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+	err := activity.CleanupOldBackupSnapshotsActivity(ctx, volume, node)
 
 	// Assertions
 	assert.NoError(t, err)
@@ -4193,9 +4249,17 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_EmptyExternalUUID(t *testing.T) 
 
 	activity := BackupActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		BaseModel:        datamodel.BaseModel{ID: 1},
-		Name:             "test-volume",
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-volume",
+		Account: &datamodel.Account{
+			Name: "test-project",
+		},
 		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-uuid-1"},
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-central1-a",
+			},
+		},
 	}
 	node := &models.Node{EndpointAddress: "test-node-address"}
 
@@ -4205,11 +4269,15 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_EmptyExternalUUID(t *testing.T) 
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
 			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
+			Volume: volume,
+			Account: volume.Account,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
 			Name:      "backup-adhoc-older", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: ""}, // Empty external UUID
+			Volume: volume,
+			Account: volume.Account,
 		},
 	}
 
@@ -4220,8 +4288,23 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_EmptyExternalUUID(t *testing.T) 
 	mockStorage.On("DeleteSnapshot", ctx, "snapshot-uuid-1").
 		Return(&datamodel.Snapshot{}, nil)
 
+	// Mock hydration functions
+	originalBatchHydrateDeletedSnapshots := commonparams.BatchHydrateDeletedSnapshots
+	originalGenerateCallbackToken := auth.GenerateCallbackToken
+	defer func() {
+		commonparams.BatchHydrateDeletedSnapshots = originalBatchHydrateDeletedSnapshots
+		auth.GenerateCallbackToken = originalGenerateCallbackToken
+	}()
+
+	commonparams.BatchHydrateDeletedSnapshots = func(ctx context.Context, logger log.Logger, requests []models.Request, volumeName, region, projectId, token string) error {
+		return nil
+	}
+	auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+		return "test-token", nil
+	}
+
 	// Execute the activity
-	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+	err := activity.CleanupOldBackupSnapshotsActivity(ctx, volume, node)
 
 	// Assertions
 	assert.NoError(t, err)
@@ -4275,7 +4358,7 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_MarkSnapshotAsErrorFails(t *test
 	mockStorage.On("UpdateSnapshot", ctx, mock.AnythingOfType("*datamodel.Snapshot")).Return(nil, updateError)
 
 	// Execute the activity
-	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+	err := activity.CleanupOldBackupSnapshotsActivity(ctx, volume, node)
 
 	// Assertions
 	assert.NoError(t, err) // Should still not fail the entire operation
@@ -4290,9 +4373,17 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_Integration_FullWorkflow(t *test
 
 	activity := BackupActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		BaseModel:        datamodel.BaseModel{ID: 1},
-		Name:             "test-volume",
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-volume",
+		Account: &datamodel.Account{
+			Name: "test-project",
+		},
 		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-uuid-1"},
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-central1-a",
+			},
+		},
 	}
 	node := &models.Node{EndpointAddress: "test-node-address"}
 
@@ -4302,27 +4393,37 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_Integration_FullWorkflow(t *test
 			BaseModel: datamodel.BaseModel{ID: 5, UUID: "snapshot-uuid-5"},
 			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-5"},
+			Volume: volume,
+			Account: volume.Account,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 4, UUID: "snapshot-uuid-4"},
 			Name:      "backup-adhoc-older1", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-4"},
+			Volume: volume,
+			Account: volume.Account,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 3, UUID: "snapshot-uuid-3"},
 			Name:      "backup-adhoc-older2", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-3"},
+			Volume: volume,
+			Account: volume.Account,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
 			Name:      "backup-adhoc-older3", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
+			Volume: volume,
+			Account: volume.Account,
 		},
 		// Snapshot with nil attributes
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
 			Name:      "backup-adhoc-older4", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: nil,
+			Volume: volume,
+			Account: volume.Account,
 		},
 	}
 
@@ -4354,8 +4455,23 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_Integration_FullWorkflow(t *test
 			snapshot.State == models.LifeCycleStateError
 	})).Return(&datamodel.Snapshot{}, nil)
 
+	// Mock hydration functions for successful deletions
+	originalBatchHydrateDeletedSnapshots := commonparams.BatchHydrateDeletedSnapshots
+	originalGenerateCallbackToken := auth.GenerateCallbackToken
+	defer func() {
+		commonparams.BatchHydrateDeletedSnapshots = originalBatchHydrateDeletedSnapshots
+		auth.GenerateCallbackToken = originalGenerateCallbackToken
+	}()
+
+	commonparams.BatchHydrateDeletedSnapshots = func(ctx context.Context, logger log.Logger, requests []models.Request, volumeName, region, projectId, token string) error {
+		return nil
+	}
+	auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+		return "test-token", nil
+	}
+
 	// Execute the activity
-	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+	err := activity.CleanupOldBackupSnapshotsActivity(ctx, volume, node)
 
 	// Assertions
 	assert.NoError(t, err) // Should not fail despite partial failures
@@ -4424,7 +4540,7 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_DatabaseDeletionError(t *testing
 	})).Return(&datamodel.Snapshot{}, nil)
 
 	// Execute the activity
-	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+	err := activity.CleanupOldBackupSnapshotsActivity(ctx, volume, node)
 
 	// Assertions
 	assert.NoError(t, err) // Should not fail the entire operation
@@ -4490,10 +4606,255 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_DatabaseDeletionError_MarkAsErro
 	mockStorage.On("UpdateSnapshot", ctx, mock.AnythingOfType("*datamodel.Snapshot")).Return(nil, updateError)
 
 	// Execute the activity
-	err := activity.CleanupOldAdhocBackupSnapshotsActivity(ctx, volume, node)
+	err := activity.CleanupOldBackupSnapshotsActivity(ctx, volume, node)
 
 	// Assertions
 	assert.NoError(t, err) // Should still not fail the entire operation
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCleanupOldAdhocBackupSnapshotsActivity_HydrationSuccess(t *testing.T) {
+	// Test case: Successfully hydrate snapshot deletion to CCFE
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+
+	activity := BackupActivity{SE: mockStorage}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-volume",
+		Account: &datamodel.Account{
+			Name: "test-project",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-uuid-1"},
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-central1-a",
+			},
+		},
+	}
+	node := &models.Node{EndpointAddress: "test-node-address"}
+
+	// Create test snapshots
+	snapshots := []*datamodel.Snapshot{
+		{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
+			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
+			Volume: volume,
+			Account: volume.Account,
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
+			Name:      "backup-adhoc-older", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-1"},
+			Volume: volume,
+			Account: volume.Account,
+		},
+	}
+
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup", int64(1)).
+		Return(snapshots, nil)
+
+	// Mock hyperscaler provider
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	// Mock successful ONTAP deletion
+	mockProvider.On("DeleteSnapshot", "snap-uuid-1", "volume-uuid-1").Return(nil)
+
+	// Mock successful database deletion
+	mockStorage.On("DeleteSnapshot", ctx, "snapshot-uuid-1").
+		Return(&datamodel.Snapshot{}, nil)
+
+	// Mock hydration functions - verify they are called correctly
+	originalBatchHydrateDeletedSnapshots := commonparams.BatchHydrateDeletedSnapshots
+	originalGenerateCallbackToken := auth.GenerateCallbackToken
+	defer func() {
+		commonparams.BatchHydrateDeletedSnapshots = originalBatchHydrateDeletedSnapshots
+		auth.GenerateCallbackToken = originalGenerateCallbackToken
+	}()
+
+	hydrationCalled := false
+	commonparams.BatchHydrateDeletedSnapshots = func(ctx context.Context, logger log.Logger, requests []models.Request, volumeName, region, projectId, token string) error {
+		hydrationCalled = true
+		assert.Equal(t, "test-volume", volumeName)
+		assert.Equal(t, "us-central1-a", region)
+		assert.Equal(t, "test-project", projectId)
+		assert.Equal(t, "test-token", token)
+		assert.Len(t, requests, 1)
+		assert.NotNil(t, requests[0].Snapshot)
+		return nil
+	}
+	auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+		return "test-token", nil
+	}
+
+	// Execute the activity
+	err := activity.CleanupOldBackupSnapshotsActivity(ctx, volume, node)
+
+	// Assertions
+	assert.NoError(t, err)
+	assert.True(t, hydrationCalled, "Hydration should have been called")
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCleanupOldAdhocBackupSnapshotsActivity_HydrationFailure_ContinueProcessing(t *testing.T) {
+	// Test case: Hydration failure should not fail the entire operation
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+
+	activity := BackupActivity{SE: mockStorage}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-volume",
+		Account: &datamodel.Account{
+			Name: "test-project",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-uuid-1"},
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-central1-a",
+			},
+		},
+	}
+	node := &models.Node{EndpointAddress: "test-node-address"}
+
+	// Create test snapshots
+	snapshots := []*datamodel.Snapshot{
+		{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
+			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
+			Volume: volume,
+			Account: volume.Account,
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
+			Name:      "backup-adhoc-older", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-1"},
+			Volume: volume,
+			Account: volume.Account,
+		},
+	}
+
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup", int64(1)).
+		Return(snapshots, nil)
+
+	// Mock hyperscaler provider
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	// Mock successful ONTAP deletion
+	mockProvider.On("DeleteSnapshot", "snap-uuid-1", "volume-uuid-1").Return(nil)
+
+	// Mock successful database deletion
+	mockStorage.On("DeleteSnapshot", ctx, "snapshot-uuid-1").
+		Return(&datamodel.Snapshot{}, nil)
+
+	// Mock hydration functions - simulate failure
+	originalBatchHydrateDeletedSnapshots := commonparams.BatchHydrateDeletedSnapshots
+	originalGenerateCallbackToken := auth.GenerateCallbackToken
+	defer func() {
+		commonparams.BatchHydrateDeletedSnapshots = originalBatchHydrateDeletedSnapshots
+		auth.GenerateCallbackToken = originalGenerateCallbackToken
+	}()
+
+	commonparams.BatchHydrateDeletedSnapshots = func(ctx context.Context, logger log.Logger, requests []models.Request, volumeName, region, projectId, token string) error {
+		return errors.New("hydration service unavailable")
+	}
+	auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+		return "test-token", nil
+	}
+
+	// Execute the activity
+	err := activity.CleanupOldBackupSnapshotsActivity(ctx, volume, node)
+
+	// Assertions - should not fail despite hydration error
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCleanupOldAdhocBackupSnapshotsActivity_TokenGenerationFailure_ContinueProcessing(t *testing.T) {
+	// Test case: Token generation failure should not fail the entire operation
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+
+	activity := BackupActivity{SE: mockStorage}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-volume",
+		Account: &datamodel.Account{
+			Name: "test-project",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-uuid-1"},
+		Pool: &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-central1-a",
+			},
+		},
+	}
+	node := &models.Node{EndpointAddress: "test-node-address"}
+
+	// Create test snapshots
+	snapshots := []*datamodel.Snapshot{
+		{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
+			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
+			Volume: volume,
+			Account: volume.Account,
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
+			Name:      "backup-adhoc-older", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-1"},
+			Volume: volume,
+			Account: volume.Account,
+		},
+	}
+
+	mockStorage.On("GetSnapshotsByTypeAndVolumeID", ctx, "backup", int64(1)).
+		Return(snapshots, nil)
+
+	// Mock hyperscaler provider
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	// Mock successful ONTAP deletion
+	mockProvider.On("DeleteSnapshot", "snap-uuid-1", "volume-uuid-1").Return(nil)
+
+	// Mock successful database deletion
+	mockStorage.On("DeleteSnapshot", ctx, "snapshot-uuid-1").
+		Return(&datamodel.Snapshot{}, nil)
+
+	// Mock token generation failure
+	originalGenerateCallbackToken := auth.GenerateCallbackToken
+	defer func() { auth.GenerateCallbackToken = originalGenerateCallbackToken }()
+
+	auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+		return "", errors.New("token generation failed")
+	}
+
+	// Execute the activity
+	err := activity.CleanupOldBackupSnapshotsActivity(ctx, volume, node)
+
+	// Assertions - should not fail despite token generation error
+	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
 }

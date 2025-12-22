@@ -32,6 +32,7 @@ var (
 	scheduledWeeklyBackupDay                  = env.GetInt("SCHEDULED_WEEKLY_BACKUP_DAY", 1)  // Default to Monday (0=Sunday, 1=Monday, ..., 6=Saturday)
 	scheduledMonthlyBackupDay                 = env.GetInt("SCHEDULED_MONTHLY_BACKUP_DAY", 1) // Default to 1st day of the month
 	scheduleBackupWorkflowHeartbeatTimeoutSec = env.GetUint64("SCHEDULE_BACKUP_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 600)
+	checkBackupStateRetryMaxAttempts          = env.GetInt("CHECK_BACKUP_STATE_RETRY_MAX_ATTEMPTS", 300) // Default to 300 attempts
 )
 
 type baseScheduledBackupWorkflow struct {
@@ -425,10 +426,6 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 		if preTransferErr != nil {
 			return nil, workflows.ConvertToVSAError(preTransferErr)
 		}
-		if snapmirrorRelationship.DestinationUUID == nil {
-			preTransferErr = vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("DestinationUUID not found in snapmirror relationship"))
-			return nil, workflows.ConvertToVSAError(preTransferErr)
-		}
 
 		var snapshotName string
 		preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.GenerateScheduledSnapshotName, timestamp).Get(ctx, &snapshotName)
@@ -445,15 +442,37 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 		preTransferRollbackManager.AddActivity(scheduledBackupActivities.DeleteBackupSnapshotInDB, dbSnapshot.UUID)
 
 		ontapSnapshot := &vsa.SnapshotProviderResponse{}
-		preTransferErr = workflow.ExecuteActivity(ctx, backupActivities.SnapshotCreate, node, volume.VolumeAttributes.ExternalUUID, snapshotName, workflows.BackupComment).Get(ctx, &ontapSnapshot)
+		preTransferErr = workflow.ExecuteActivity(ctx, backupActivities.SnapshotCreate, node, volume.VolumeAttributes.ExternalUUID, snapshotName, activities.BackupComment).Get(ctx, &ontapSnapshot)
 		if preTransferErr != nil {
 			return nil, workflows.ConvertToVSAError(preTransferErr)
 		}
 		scheduledBackupContext.ScheduledBackupParams.OntapSnapshot = ontapSnapshot
 
 		preTransferRollbackManager.AddActivity(backupActivities.DeleteBackupSnapshot, node, ontapSnapshot.ExternalUUID, volume.VolumeAttributes.ExternalUUID)
-
 		preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.UpdateBackupSnapshotInDB, dbSnapshot, ontapSnapshot).Get(ctx, &dbSnapshot)
+		if preTransferErr != nil {
+			return nil, workflows.ConvertToVSAError(preTransferErr)
+		}
+
+		// Check if any backup for the volume is in CREATING/DELETING state before starting Snapmirror transfer
+		// This prevents parallel transfers on the same Snapmirror instance
+		// Exclude the backups we're currently creating in this workflow
+		excludeBackupUUIDs := make([]string, len(backups))
+		for i, backup := range backups {
+			excludeBackupUUIDs[i] = backup.UUID
+		}
+		checkBackupStateActivityOptions := workflow.ActivityOptions{
+			StartToCloseTimeout: 30 * time.Second, // Timeout for each individual attempt
+			RetryPolicy: &temporal.RetryPolicy{
+				InitialInterval:        1 * time.Second,                         // Start with 1 second wait
+				BackoffCoefficient:     2.0,                                     // Exponential backoff (double each time)
+				MaximumInterval:        10 * time.Minute,                        // Maximum wait between retries (10 minutes)
+				MaximumAttempts:        int32(checkBackupStateRetryMaxAttempts), // Configurable via CHECK_BACKUP_STATE_RETRY_MAX_ATTEMPTS env var (default 300)
+				NonRetryableErrorTypes: []string{"PanicError"},
+			},
+		}
+		checkBackupStateCtx := workflow.WithActivityOptions(ctx, checkBackupStateActivityOptions)
+		preTransferErr = workflow.ExecuteActivity(checkBackupStateCtx, scheduledBackupActivities.CheckBackupsInProgressByVolume, volume.UUID, excludeBackupUUIDs).Get(ctx, nil)
 		if preTransferErr != nil {
 			return nil, workflows.ConvertToVSAError(preTransferErr)
 		}
@@ -672,17 +691,6 @@ func (wf *deleteScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	var backupToBeDeleted []*datamodel.Backup
-	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.FetchScheduledBackupForDeletion, volume, backupPolicy).Get(ctx, &backupToBeDeleted)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
-	// Exit early if there are no backups to delete
-	if len(backupToBeDeleted) == 0 {
-		return nil, nil
-	}
-
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &volume.PoolID).Get(ctx, &dbNodes)
 	if err != nil {
@@ -693,6 +701,24 @@ func (wf *deleteScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 		DeploymentName:   volume.Pool.DeploymentName,
 		OntapCredentials: volume.Pool.PoolCredentials,
 	})
+
+	// Cleanup older backup snapshots for this volume
+	err = workflow.ExecuteActivity(ctx, backupActivities.CleanupOldBackupSnapshotsActivity, volume, node).Get(ctx, nil)
+	if err != nil {
+		// Log the error but don't fail the entire backup workflow
+		wf.Logger.Errorf("Failed to cleanup older backup snapshots for volume %s: %v", volume.Name, err)
+	}
+
+	var backupToBeDeleted []*datamodel.Backup
+	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.FetchScheduledBackupForDeletion, volume, backupPolicy).Get(ctx, &backupToBeDeleted)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	// Exit early if there are no backups to delete
+	if len(backupToBeDeleted) == 0 {
+		return nil, nil
+	}
 
 	var objectStoreName string
 	err = workflow.ExecuteActivity(ctx, backupActivities.GetObjStoreNameActivity, backupVault, volume).Get(ctx, &objectStoreName)
@@ -744,37 +770,6 @@ func (wf *deleteScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 				*backupVault.BackupRegionName).Get(ctx, nil)
 			if remoteBackupErr != nil {
 				wf.Logger.Errorf("Failed to delete remote backup from VCP for backup %s: %v", backup.UUID, remoteBackupErr)
-			}
-		}
-
-		if hydrationEnabled {
-			// Hydrate snapshot deletions to CCFE for each deleted backup
-			var snapshot *datamodel.Snapshot
-			// snapshotErr is used instead of err to avoid the execution of rollbackManager for snapshot hydration errors
-			snapshotHydrationErr := workflow.ExecuteActivity(ctx, scheduledBackupActivities.GetSnapshotByNameAndVolumeID, backup.Attributes.SnapshotName, volume.AccountID, volume.ID).Get(ctx, &snapshot)
-			if snapshotHydrationErr != nil {
-				// Log the error but don't fail the workflow
-				wf.Logger.Errorf("Failed to get snapshot from database to hydrate deletion %v", snapshotHydrationErr)
-			} else {
-				// Delete snapshot entry from the database
-				snapshotHydrationErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.DeleteBackupSnapshotInDB, snapshot.UUID).Get(ctx, nil)
-				if snapshotHydrationErr != nil {
-					wf.Logger.Errorf("Failed to delete snapshot in the database %s: %v", snapshot.Name, snapshotHydrationErr)
-				}
-
-				// Hydrate snapshot deletion to CCFE
-				location := utils.GetLocation(*snapshot)
-				snapshot.State = models.LifeCycleStateDeleted
-				snapshot.StateDetails = models.LifeCycleStateDeletedDetails
-				snapshotHydrationErr = workflow.ExecuteActivity(ctx, backupActivities.HydrateSnapshotDeletionToCCFEActivity,
-					snapshot,
-					volume.Name,
-					location,
-					volume.Account.Name).Get(ctx, nil)
-				if snapshotHydrationErr != nil {
-					// Log the error but don't fail the entire workflow
-					wf.Logger.Errorf("Failed to hydrate snapshot deletion to CCFE for backup %s: %v", backup.Name, snapshotHydrationErr)
-				}
 			}
 		}
 	}

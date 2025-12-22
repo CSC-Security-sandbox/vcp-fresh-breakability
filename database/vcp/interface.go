@@ -263,6 +263,7 @@ type (
 		FinishBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 		UpdateBackupState(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 		IsBackupInCreatingorDeletingStateByVolume(ctx context.Context, volumeUUID string) (bool, error)
+		AreBackupsInProgressForVolume(ctx context.Context, volumeUUID string, excludeBackupUUIDs []string) (bool, error)
 		IsLatestBackup(ctx context.Context, backupUUID, volumeUUID string) (bool, error)
 		IsLatestBackupAnyState(ctx context.Context, backupUUID, volumeUUID string) (bool, error)
 		BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error)

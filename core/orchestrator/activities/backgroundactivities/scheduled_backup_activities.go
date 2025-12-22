@@ -319,3 +319,24 @@ func (j *ScheduledBackupActivity) DeleteRemoteScheduledBackupFromVCPActivity(ctx
 	logger.Infof("Successfully deleted remote backup for scheduled backup %s", backupUUID)
 	return nil
 }
+
+// CheckBackupsInProgressByVolume checks if any backup for the volume is in CREATING or DELETING state.
+// Excludes the specified backup UUIDs from the check (typically the backups being created in the current workflow).
+// Returns an error if a backup is found in these states to prevent parallel transfers on the same Snapmirror instance.
+func (j *ScheduledBackupActivity) CheckBackupsInProgressByVolume(ctx context.Context, volumeUUID string, excludedBackupUUIDs []string) error {
+	se := j.SE
+	logger := util.GetLogger(ctx)
+
+	backupInTransition, err := se.AreBackupsInProgressForVolume(ctx, volumeUUID, excludedBackupUUIDs)
+	if err != nil {
+		logger.Errorf("Failed to check backup state for volume %s: %v", volumeUUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if backupInTransition {
+		logger.Warnf("Another backup operation is already in progress for volume %s. Skipping to prevent parallel transfers on the same Snapmirror instance", volumeUUID)
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("another backup operation is already in progress for volume %s. Please wait for it to complete before starting a new backup", volumeUUID))
+	}
+
+	return nil
+}

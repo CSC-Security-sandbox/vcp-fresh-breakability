@@ -207,6 +207,29 @@ func isBackupInCreatingorDeletingStateByVolume(db *gorm.DB, volumeUUID string) (
 	return false, err
 }
 
+func (d *DataStoreRepository) AreBackupsInProgressForVolume(ctx context.Context, volumeUUID string, excludeBackupUUIDs []string) (bool, error) {
+	return areBackupsInProgressForVolume(d.db.GORM().WithContext(ctx), volumeUUID, excludeBackupUUIDs)
+}
+
+func areBackupsInProgressForVolume(db *gorm.DB, volumeUUID string, excludeBackupUUIDs []string) (bool, error) {
+	var backups int64
+	query := db.Model(&datamodel.Backup{}).Where("volume_uuid = ?", volumeUUID).Where("state = ? OR state = ?", models.LifeCycleStateCreating, models.LifeCycleStateDeleting)
+
+	if len(excludeBackupUUIDs) > 0 {
+		query = query.Where("uuid NOT IN ?", excludeBackupUUIDs)
+	}
+
+	err := query.Count(&backups).Error
+
+	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, nil
+	}
+	if backups > 0 {
+		return true, nil
+	}
+	return false, err
+}
+
 func (d *DataStoreRepository) DeleteBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
 	return deleteBackup(ctx, d.db.GORM().WithContext(ctx), backupUUID)
 }

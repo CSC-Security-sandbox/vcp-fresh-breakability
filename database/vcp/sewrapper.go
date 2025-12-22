@@ -3349,6 +3349,22 @@ func (re *retryEngine) IsBackupInCreatingorDeletingStateByVolume(ctx context.Con
 	return var0, err
 }
 
+func (re *retryEngine) AreBackupsInProgressForVolume(ctx context.Context, volumeUUID string, excludeBackupUUIDs []string) (bool, error) {
+	var var0 bool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.AreBackupsInProgressForVolume(ctx, volumeUUID, excludeBackupUUIDs)
+		if err != nil {
+			re.logError("AreBackupsInProgressForVolume", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) IsLatestBackup(ctx context.Context, backupUUID, volumeUUID string) (bool, error) {
 	var var0 bool
 	err := retry.Do(func(attempt int) (bool, error) {

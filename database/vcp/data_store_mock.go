@@ -26,6 +26,64 @@ func (_m *MockDataStore) EXPECT() *MockDataStore_Expecter {
 	return &MockDataStore_Expecter{mock: &_m.Mock}
 }
 
+// AreBackupsInProgressForVolume provides a mock function with given fields: ctx, volumeUUID, excludeBackupUUIDs
+func (_m *MockDataStore) AreBackupsInProgressForVolume(ctx context.Context, volumeUUID string, excludeBackupUUIDs []string) (bool, error) {
+	ret := _m.Called(ctx, volumeUUID, excludeBackupUUIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AreBackupsInProgressForVolume")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, []string) (bool, error)); ok {
+		return rf(ctx, volumeUUID, excludeBackupUUIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, []string) bool); ok {
+		r0 = rf(ctx, volumeUUID, excludeBackupUUIDs)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, []string) error); ok {
+		r1 = rf(ctx, volumeUUID, excludeBackupUUIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_AreBackupsInProgressForVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AreBackupsInProgressForVolume'
+type MockDataStore_AreBackupsInProgressForVolume_Call struct {
+	*mock.Call
+}
+
+// AreBackupsInProgressForVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+//   - excludeBackupUUIDs []string
+func (_e *MockDataStore_Expecter) AreBackupsInProgressForVolume(ctx interface{}, volumeUUID interface{}, excludeBackupUUIDs interface{}) *MockDataStore_AreBackupsInProgressForVolume_Call {
+	return &MockDataStore_AreBackupsInProgressForVolume_Call{Call: _e.mock.On("AreBackupsInProgressForVolume", ctx, volumeUUID, excludeBackupUUIDs)}
+}
+
+func (_c *MockDataStore_AreBackupsInProgressForVolume_Call) Run(run func(ctx context.Context, volumeUUID string, excludeBackupUUIDs []string)) *MockDataStore_AreBackupsInProgressForVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].([]string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_AreBackupsInProgressForVolume_Call) Return(_a0 bool, _a1 error) *MockDataStore_AreBackupsInProgressForVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_AreBackupsInProgressForVolume_Call) RunAndReturn(run func(context.Context, string, []string) (bool, error)) *MockDataStore_AreBackupsInProgressForVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AssignTwoNodesToTwoGroups provides a mock function with given fields: ctx, params
 func (_m *MockDataStore) AssignTwoNodesToTwoGroups(ctx context.Context, params datamodel.NodeGroupAssignmentParams) ([]*datamodel.NodeNodeGroupMap, error) {
 	ret := _m.Called(ctx, params)
@@ -14902,6 +14960,54 @@ func (_c *MockDataStore_UpdateNodeNodeGroupMap_Call) Return(_a0 *datamodel.NodeN
 }
 
 func (_c *MockDataStore_UpdateNodeNodeGroupMap_Call) RunAndReturn(run func(context.Context, *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error)) *MockDataStore_UpdateNodeNodeGroupMap_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateNodesInstanceType provides a mock function with given fields: ctx, poolID, newInstanceType
+func (_m *MockDataStore) UpdateNodesInstanceType(ctx context.Context, poolID int64, newInstanceType string) error {
+	ret := _m.Called(ctx, poolID, newInstanceType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateNodesInstanceType")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64, string) error); ok {
+		r0 = rf(ctx, poolID, newInstanceType)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpdateNodesInstanceType_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateNodesInstanceType'
+type MockDataStore_UpdateNodesInstanceType_Call struct {
+	*mock.Call
+}
+
+// UpdateNodesInstanceType is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolID int64
+//   - newInstanceType string
+func (_e *MockDataStore_Expecter) UpdateNodesInstanceType(ctx interface{}, poolID interface{}, newInstanceType interface{}) *MockDataStore_UpdateNodesInstanceType_Call {
+	return &MockDataStore_UpdateNodesInstanceType_Call{Call: _e.mock.On("UpdateNodesInstanceType", ctx, poolID, newInstanceType)}
+}
+
+func (_c *MockDataStore_UpdateNodesInstanceType_Call) Run(run func(ctx context.Context, poolID int64, newInstanceType string)) *MockDataStore_UpdateNodesInstanceType_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateNodesInstanceType_Call) Return(_a0 error) *MockDataStore_UpdateNodesInstanceType_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateNodesInstanceType_Call) RunAndReturn(run func(context.Context, int64, string) error) *MockDataStore_UpdateNodesInstanceType_Call {
 	_c.Call.Return(run)
 	return _c
 }
