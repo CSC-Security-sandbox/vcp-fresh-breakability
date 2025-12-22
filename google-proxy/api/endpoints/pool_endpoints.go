@@ -1073,6 +1073,13 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 		}
 	}
 
+	if existingPool.State == models.LifeCycleStateDegraded {
+		return &gcpgenserver.V1betaUpdatePoolConflict{
+			Code:    http.StatusConflict,
+			Message: "Update operation is not allowed when the pool is in degraded state",
+		}
+	}
+
 	if req.Zone.IsSet() && req.Zone.Value != existingPool.PoolAttributes.PrimaryZone {
 		return &gcpgenserver.V1betaUpdatePoolBadRequest{
 			Code:    http.StatusBadRequest,

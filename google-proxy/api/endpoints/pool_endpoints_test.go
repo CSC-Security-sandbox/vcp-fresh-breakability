@@ -2783,6 +2783,54 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 			tt.Fatalf("Unexpected response type: %T", result)
 		}
 	})
+
+	t.Run("TestDegradedPoolUpdateBlocked", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaUpdatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-id",
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		// Set orchestrator to return a pool in DEGRADED state when DescribePool is called.
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Description: "original description",
+			SizeInBytes: 1099511627776, // 1 TiB
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 64, // 64 MiBps
+				Iops:       1024,
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+			State: models.LifeCycleStateDegraded,
+		}, nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaUpdatePool(context.Background(), &gcpgenserver.PoolUpdateV1beta{
+			SizeInBytes: gcpgenserver.NewOptNilFloat64(2199023255552), // 2 TiB
+		}, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Check if result is Conflict error
+		conflict, ok := result.(*gcpgenserver.V1betaUpdatePoolConflict)
+		assert.True(tt, ok, "Expected V1betaUpdatePoolConflict response")
+		assert.Equal(tt, float64(409), conflict.Code)
+		assert.Equal(tt, "Update operation is not allowed when the pool is in degraded state", conflict.Message)
+	})
 }
 
 func TestV1betaUpdatePool(t *testing.T) {
@@ -6428,5 +6476,36 @@ func TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool(t *testing.T) {
 					"Should not reject non-auto-tiering updates on non-AT pool")
 			}
 		}
+	})
+
+	t.Run("RejectsUpdateWhenPoolIsInDegradedState", func(tt *testing.T) {
+		// Pool in DEGRADED state
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			AllowAutoTiering: false,
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+			State:       models.LifeCycleStateDegraded,
+			SizeInBytes: 1099511627776, // 1TB
+		}
+
+		// Request to update pool
+		req := &gcpgenserver.PoolUpdateV1beta{
+			Description:          gcpgenserver.NewOptNilString("Updated description"),
+			SizeInBytes:          gcpgenserver.NewOptNilFloat64(2199023255552), // 2TB
+			TotalIops:            gcpgenserver.NewOptNilFloat64(2048),
+			TotalThroughputMibps: gcpgenserver.NewOptNilFloat64(128),
+		}
+
+		result := validateUpdatePoolParams(req, existingPool)
+
+		// Should return Conflict error
+		conflict, ok := result.(*gcpgenserver.V1betaUpdatePoolConflict)
+		assert.True(tt, ok, "Expected V1betaUpdatePoolConflict response")
+		assert.Equal(tt, float64(http.StatusConflict), conflict.Code)
+		assert.Equal(tt, "Update operation is not allowed when the pool is in degraded state", conflict.Message)
 	})
 }
