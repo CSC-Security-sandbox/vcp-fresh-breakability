@@ -719,7 +719,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		result, err := prepareCreateVolumeParams(req, params, region, zone)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Contains(tt, err.Error(), "AnonUID must be set when allSquash is enabled")
+		assert.Contains(tt, err.Error(), "AnonUID must be set when AllSquash is enabled")
 	})
 
 	t.Run("ValidInputWithSecurityStyle", func(tt *testing.T) {
@@ -8941,7 +8941,7 @@ func TestPrepareUpdateVolumeParamsExportPolicy(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Contains(tt, err.Error(), "AnonUID must be set when allSquash is enabled")
+		assert.Contains(tt, err.Error(), "AnonUID must be set when AllSquash is enabled")
 	})
 
 	t.Run("ExportPolicy_WithAllSquashEnabled_OnlyAllSquashSet", func(tt *testing.T) {
@@ -12615,10 +12615,31 @@ func TestValidateAllSquash_Positive(t *testing.T) {
 		err := validateAllSquash(rules)
 		assert.NoError(t, err)
 	})
+
+	t.Run("AllSquashWithReadWriteAccessType_ShouldPass", func(t *testing.T) {
+		rules := []gcpgenserver.SimpleExportPolicyRuleV1beta{
+			{
+				AllowedClients:      "192.168.1.0/24",
+				AccessType:          gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+				Nfsv3:               gcpgenserver.NewOptNilBool(true),
+				Nfsv4:               gcpgenserver.NewOptNilBool(false),
+				AllSquash:           gcpgenserver.NewOptNilBool(true),
+				AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
+				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
+				Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
+				Kerberos5iReadWrite: gcpgenserver.NewOptNilBool(false),
+				Kerberos5pReadOnly:  gcpgenserver.NewOptNilBool(false),
+				Kerberos5pReadWrite: gcpgenserver.NewOptNilBool(false),
+			},
+		}
+
+		err := validateAllSquash(rules)
+		assert.NoError(t, err)
+	})
 }
 
 func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
-	// Enable the feature flag for these tests
 	originalValue := utils.IsAllSquashEnabled
 	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
 	utils.EnableAllSquashForTesting(true)
@@ -12657,7 +12678,7 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 
 		err := validateAllSquash(rules)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "only one all_squash rule is allowed per export policy")
+		assert.Contains(t, err.Error(), "only one AllSquash rule is allowed per export policy")
 	})
 
 	t.Run("AllSquashWithRootAccessTrue_ShouldFail", func(t *testing.T) {
@@ -12681,7 +12702,7 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 
 		err := validateAllSquash(rules)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "rootSquash cannot be enabled when allSquash is true for the same rule")
+		assert.Contains(t, err.Error(), "RootSquash cannot be enabled when AllSquash is true for the same rule")
 	})
 
 	t.Run("AllSquashWithKerberos5ReadWrite_ShouldFail", func(t *testing.T) {
@@ -12704,7 +12725,7 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 
 		err := validateAllSquash(rules)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "allSquash cannot be enabled for Kerberos-enabled export rules")
+		assert.Contains(t, err.Error(), "AllSquash cannot be enabled for Kerberos-enabled export rules")
 	})
 
 	t.Run("AllSquashWithoutAnonUID_ShouldFail", func(t *testing.T) {
@@ -12726,7 +12747,7 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 
 		err := validateAllSquash(rules)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "AnonUID must be set when allSquash is enabled")
+		assert.Contains(t, err.Error(), "AnonUID must be set when AllSquash is enabled")
 	})
 
 	t.Run("AllSquashWithAnonUIDSetToNull_ShouldFail", func(t *testing.T) {
@@ -12751,6 +12772,98 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 
 		err := validateAllSquash(rules)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "AnonUID must be set when allSquash is enabled")
+		assert.Contains(t, err.Error(), "AnonUID must be set when AllSquash is enabled")
+	})
+
+	t.Run("AllSquashWithReadOnlyAccessType_ShouldFail", func(t *testing.T) {
+		rules := []gcpgenserver.SimpleExportPolicyRuleV1beta{
+			{
+				AllowedClients:      "192.168.1.0/24",
+				AccessType:          gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY,
+				Nfsv3:               gcpgenserver.NewOptNilBool(true),
+				Nfsv4:               gcpgenserver.NewOptNilBool(false),
+				AllSquash:           gcpgenserver.NewOptNilBool(true),
+				AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
+				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
+				Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
+				Kerberos5iReadWrite: gcpgenserver.NewOptNilBool(false),
+				Kerberos5pReadOnly:  gcpgenserver.NewOptNilBool(false),
+				Kerberos5pReadWrite: gcpgenserver.NewOptNilBool(false),
+			},
+		}
+
+		err := validateAllSquash(rules)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "AccessType must be READ_WRITE when AllSquash is enabled")
+	})
+
+	t.Run("AllSquashWithReadNoneAccessType_ShouldFail", func(t *testing.T) {
+		rules := []gcpgenserver.SimpleExportPolicyRuleV1beta{
+			{
+				AllowedClients:      "192.168.1.0/24",
+				AccessType:          gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADNONE,
+				Nfsv3:               gcpgenserver.NewOptNilBool(true),
+				Nfsv4:               gcpgenserver.NewOptNilBool(false),
+				AllSquash:           gcpgenserver.NewOptNilBool(true),
+				AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
+				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
+				Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
+				Kerberos5iReadWrite: gcpgenserver.NewOptNilBool(false),
+				Kerberos5pReadOnly:  gcpgenserver.NewOptNilBool(false),
+				Kerberos5pReadWrite: gcpgenserver.NewOptNilBool(false),
+			},
+		}
+
+		err := validateAllSquash(rules)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "AccessType must be READ_WRITE when AllSquash is enabled")
+	})
+
+	t.Run("AllSquashWithAccessTypeUnspecified_ShouldFail", func(t *testing.T) {
+		rules := []gcpgenserver.SimpleExportPolicyRuleV1beta{
+			{
+				AllowedClients:      "192.168.1.0/24",
+				AccessType:          gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeACCESSTYPEUNSPECIFIED,
+				Nfsv3:               gcpgenserver.NewOptNilBool(true),
+				Nfsv4:               gcpgenserver.NewOptNilBool(false),
+				AllSquash:           gcpgenserver.NewOptNilBool(true),
+				AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
+				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
+				Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
+				Kerberos5iReadWrite: gcpgenserver.NewOptNilBool(false),
+				Kerberos5pReadOnly:  gcpgenserver.NewOptNilBool(false),
+				Kerberos5pReadWrite: gcpgenserver.NewOptNilBool(false),
+			},
+		}
+
+		err := validateAllSquash(rules)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "AccessType must be READ_WRITE when AllSquash is enabled")
+	})
+
+	t.Run("AllSquashWithEmptyAccessType_ShouldFail", func(t *testing.T) {
+		rules := []gcpgenserver.SimpleExportPolicyRuleV1beta{
+			{
+				AllowedClients:      "192.168.1.0/24",
+				AccessType:          "",
+				Nfsv3:               gcpgenserver.NewOptNilBool(true),
+				Nfsv4:               gcpgenserver.NewOptNilBool(false),
+				AllSquash:           gcpgenserver.NewOptNilBool(true),
+				AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
+				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
+				Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
+				Kerberos5iReadWrite: gcpgenserver.NewOptNilBool(false),
+				Kerberos5pReadOnly:  gcpgenserver.NewOptNilBool(false),
+				Kerberos5pReadWrite: gcpgenserver.NewOptNilBool(false),
+			},
+		}
+
+		err := validateAllSquash(rules)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "AccessType must be READ_WRITE when AllSquash is enabled")
 	})
 }

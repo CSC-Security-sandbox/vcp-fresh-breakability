@@ -667,10 +667,13 @@ func validateAllSquash(rules []gcpgenserver.SimpleExportPolicyRuleV1beta) error 
 	for _, rule := range rules {
 		if rule.AllSquash.IsSet() && rule.AllSquash.Value {
 			if hasAllSquashRule {
-				return errors.NewUserInputValidationErr("only one all_squash rule is allowed per export policy")
+				return errors.NewUserInputValidationErr("only one AllSquash rule is allowed per export policy")
 			}
 			if _, ok := rule.AnonUID.Get(); !ok {
-				return errors.NewUserInputValidationErr("AnonUID must be set when allSquash is enabled")
+				return errors.NewUserInputValidationErr("AnonUID must be set when AllSquash is enabled")
+			}
+			if rule.AccessType != gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE {
+				return errors.NewUserInputValidationErr("AccessType must be READ_WRITE when AllSquash is enabled")
 			}
 			hasAllSquashRule = true
 			if rule.HasRootAccess.IsSet() {
@@ -678,7 +681,7 @@ func validateAllSquash(rules []gcpgenserver.SimpleExportPolicyRuleV1beta) error 
 					if val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue ||
 						val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn {
 						return errors.NewUserInputValidationErr(
-							"rootSquash cannot be enabled when allSquash is true for the same rule")
+							"RootSquash cannot be enabled when AllSquash is true for the same rule")
 					}
 				}
 			}
@@ -687,7 +690,7 @@ func validateAllSquash(rules []gcpgenserver.SimpleExportPolicyRuleV1beta) error 
 				rule.Kerberos5iReadOnly.Value || rule.Kerberos5iReadWrite.Value ||
 				rule.Kerberos5pReadOnly.Value || rule.Kerberos5pReadWrite.Value {
 				return errors.NewUserInputValidationErr(
-					"allSquash cannot be enabled for Kerberos-enabled export rules")
+					"AllSquash cannot be enabled for Kerberos-enabled export rules")
 			}
 		}
 	}
