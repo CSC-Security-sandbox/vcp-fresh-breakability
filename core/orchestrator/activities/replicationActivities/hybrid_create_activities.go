@@ -709,11 +709,14 @@ func (a *HybridReplicationActivity) createSVMPeerForHybridReplication(ctx contex
 	logger := util.GetLogger(ctx)
 	logger.Debug("createSVMPeerForHybridReplication")
 	snapmirrorApplication := ontaprestmodels.SvmPeerApplicationsSnapmirror
+	flexcacheApplication := ontaprestmodels.SvmPeerApplicationsFlexcache
+	
 	params := vsa.CreateSVMPeerParams{
 		LocalSVMName:    result.DestinationVolume.Svm.Name,
 		PeerSVMName:     result.HybridReplicationParameters.PeerSvmName,
 		PeerClusterName: result.HybridReplicationParameters.PeerClusterName,
-		Applications:    []ontaprestmodels.SvmPeerApplications{snapmirrorApplication},
+		// Adding support for both FlexCache and SnapMirror peering applications for reusing svm peer
+		Applications: []ontaprestmodels.SvmPeerApplications{snapmirrorApplication, flexcacheApplication},
 	}
 	_, err := provider.CreateSVMPeer(params)
 	if err != nil {

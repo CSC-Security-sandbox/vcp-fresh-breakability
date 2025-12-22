@@ -1863,6 +1863,52 @@ func TestHybridReplicationActivity_createSVMPeerForHybridReplication(t *testing.
 		assert.Contains(tt, err.Error(), "failed to create SVM peer")
 		mockProvider.AssertExpectations(tt)
 	})
+
+	t.Run("IncludesSnapmirrorAndFlexcacheApplications", func(tt *testing.T) {
+		ctx := context.Background()
+		activity := HybridReplicationActivity{}
+		mockProvider := &vsa.MockProvider{}
+		mockProvider.
+			On("CreateSVMPeer", mock.MatchedBy(func(params vsa.CreateSVMPeerParams) bool {
+				if params.LocalSVMName != "test-local-svm" ||
+					params.PeerSVMName != "test-peer-svm" ||
+					params.PeerClusterName != "test-peer-cluster" {
+					return false
+				}
+				if len(params.Applications) != 2 {
+					return false
+				}
+				// Assert order: snapmirror first, then flexcache
+				if string(params.Applications[0]) != "snapmirror" {
+					return false
+				}
+				if string(params.Applications[1]) != "flexcache" {
+					return false
+				}
+				return true
+			})).
+			Return(&vsa.SvmPeer{UUID: "peer-uuid"}, nil).
+			Once()
+
+		replicationResult := replication.CreateHybridReplicationResult{
+			NodeProvider: &models.Node{
+				Name: "test-node",
+			},
+			DestinationVolume: &datamodel.Volume{
+				Svm: &datamodel.Svm{
+					Name: "test-local-svm",
+				},
+			},
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				PeerSvmName:     "test-peer-svm",
+				PeerClusterName: "test-peer-cluster",
+			},
+		}
+
+		err := activity.createSVMPeerForHybridReplication(ctx, mockProvider, &replicationResult)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
 }
 
 func TestHybridReplicationActivity_deleteSVMPeerForHybridReplication(t *testing.T) {

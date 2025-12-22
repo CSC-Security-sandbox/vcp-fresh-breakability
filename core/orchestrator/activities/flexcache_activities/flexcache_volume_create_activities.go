@@ -233,7 +233,8 @@ func (a *FlexCacheVolumeCreateActivity) CreateSVMPeeringInOntapActivity(ctx cont
 		LocalSVMName:    volume.Svm.Name,
 		PeerSVMName:     cacheParams.PeerSvmName,
 		PeerClusterName: cacheParams.PeerClusterName,
-		Applications:    []ontaprestmodels.SvmPeerApplications{ontaprestmodels.SvmPeerApplicationsFlexcache},
+		// Adding support for both FlexCache and SnapMirror peering applications for reusing svm peer
+		Applications: []ontaprestmodels.SvmPeerApplications{ontaprestmodels.SvmPeerApplicationsFlexcache, ontaprestmodels.SvmPeerApplicationsSnapmirror},
 	}
 
 	svmPeer, err := provider.CreateSVMPeer(params)

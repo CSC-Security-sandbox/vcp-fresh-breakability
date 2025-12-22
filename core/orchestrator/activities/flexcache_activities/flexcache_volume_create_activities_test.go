@@ -580,6 +580,38 @@ func TestFlexCacheVolumeCreateActivity_CreateSVMPeeringInOntapActivity(t *testin
 		assert.Nil(tt, res)
 		assert.Error(tt, err)
 	})
+
+	t.Run("IncludesFlexcacheAndSnapmirrorApplications", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		vol := &datamodel.Volume{
+			Svm:     &datamodel.Svm{Name: "svm-name"},
+			Account: &datamodel.Account{Name: "account-name"},
+			CacheParameters: &datamodel.CacheParameters{
+				PeerSvmName:     "peer-svm",
+				PeerClusterName: "peer-cluster",
+			},
+		}
+		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+		svmPeer := &vsa.SvmPeer{UUID: "svm-peer-uuid"}
+
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+		mockProvider.EXPECT().CreateSVMPeer(mock.MatchedBy(func(params vsa.CreateSVMPeerParams) bool {
+			return params.LocalSVMName == "svm-name" &&
+				params.PeerSVMName == "peer-svm" &&
+				params.PeerClusterName == "peer-cluster" &&
+				len(params.Applications) == 2 &&
+				params.Applications[0] == ontaprestmodel.SvmPeerApplicationsFlexcache &&
+				params.Applications[1] == ontaprestmodel.SvmPeerApplicationsSnapmirror
+		})).Return(svmPeer, nil)
+
+		res, err := activity.CreateSVMPeeringInOntapActivity(ctx, flexcacheResult)
+		assert.NoError(tt, err)
+		assert.Equal(tt, svmPeer, res.SVMPeer)
+	})
 }
 
 func TestFlexCacheVolumeCreateActivity_UpdateFlexCacheVolumeForSVMPeeringActivity(t *testing.T) {

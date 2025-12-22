@@ -883,6 +883,12 @@ func cleanupSvmPeering(provider *OntapRestProvider, params *DeleteVolumeReplicat
 			if strings.Contains(err.Error(), "Relationship is in use by SnapMirror in local cluster") {
 				return nil
 			}
+
+			// Ignore error if peer relationship is in use by FlexCache
+			if strings.Contains(err.Error(), "The peer relationship is in use by FlexCache") {
+				return nil
+			}
+
 			if strings.Contains(err.Error(), "Relationship is in use by SnapMirror in peer cluster") {
 				time.Sleep(time.Duration(svmPeerPollIntervalSeconds) * time.Second)
 				continue

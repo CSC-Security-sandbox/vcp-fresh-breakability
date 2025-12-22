@@ -2334,6 +2334,50 @@ func TestCleanupSvmPeering(t *testing.T) {
 			tt.Error("Error unexpectedly returned")
 		}
 	})
+	t.Run("IgnoreFlexCacheInUseErrorOnDeleteSVMPeer", func(tt *testing.T) {
+		origGetOntapClient := getOntapClientFunc
+		origGetSvmPeer := getSvmPeer
+		origDeleteSvmPeer := deleteSvmPeer
+		defer func() {
+			getOntapClientFunc = origGetOntapClient
+			getSvmPeer = origGetSvmPeer
+			deleteSvmPeer = origDeleteSvmPeer
+		}()
+
+		mrc := new(ontaprest.MockRESTClient)
+		msmc := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mrc, nil
+		}
+
+		var empty []*ontaprest.SnapmirrorRelationship
+		listParams := &ontaprest.SnapmirrorRelationshipListParams{}
+		destListParams := &ontaprest.SnapmirrorRelationshipListDestinationsParams{}
+
+		mrc.On("Snapmirror").Return(msmc)
+		msmc.On("SnapmirrorRelationshipList", listParams).Return(empty, nil).Times(1)
+		msmc.On("SnapmirrorRelationshipListDestinations", destListParams).Return(empty, nil).Times(1)
+
+		getSvmPeer = func(provider *OntapRestProvider, srcSVMName, dstSVMName string) (*SvmPeer, error) {
+			return &SvmPeer{UUID: "peer-uuid"}, nil
+		}
+		deleteSvmPeer = func(provider *OntapRestProvider, svmPeerUUID string, force bool) error {
+			return fmt.Errorf("The peer relationship is in use by FlexCache")
+		}
+
+		prov := &OntapRestProvider{}
+		params := &DeleteVolumeReplicationParams{
+			VolumeReplication: &VolumeReplication{
+				SourceSVMName:      "srcSVM",
+				DestinationSVMName: "dstSVM",
+				EndpointType:       "src",
+			},
+		}
+		err := cleanupSvmPeering(prov, params)
+		assert.NoError(tt, err)
+		mrc.AssertExpectations(tt)
+		msmc.AssertExpectations(tt)
+	})
 	t.Run("WhenShouldNotDeletePeerDueToExistingDestination", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
