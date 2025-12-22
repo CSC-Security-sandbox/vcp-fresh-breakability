@@ -172,7 +172,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 	}
 
 	if string(req.Mode.Value) == string(gcpgenserver.PoolV1betaModeMODEUNSPECIFIED) || string(req.Mode.Value) == string(gcpgenserver.PoolV1betaModeDEFAULT) {
-		createPoolParams.Mode = workflows.GCNVMode
+		createPoolParams.Mode = workflows.DEFAULTMode
 	} else {
 		createPoolParams.Mode = workflows.ONTAPMode
 	}

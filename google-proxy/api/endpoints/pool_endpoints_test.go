@@ -2404,10 +2404,10 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, capturedParams, "CreatePool should have been called")
-		assert.Equal(tt, workflows.GCNVMode, capturedParams.Mode, "Mode should be set to GCNVMode when Mode is MODEUNSPECIFIED")
+		assert.Equal(tt, workflows.DEFAULTMode, capturedParams.Mode, "Mode should be set to DEFAULTMode when Mode is MODEUNSPECIFIED")
 	})
 
-	t.Run("ModeAssignment_DEFAULT_SetsGCNVMode", func(tt *testing.T) {
+	t.Run("ModeAssignment_DEFAULT_SetsDEFAULTMode", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4-a",
@@ -2462,7 +2462,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, capturedParams, "CreatePool should have been called")
-		assert.Equal(tt, workflows.GCNVMode, capturedParams.Mode, "Mode should be set to GCNVMode when Mode is DEFAULT")
+		assert.Equal(tt, workflows.DEFAULTMode, capturedParams.Mode, "Mode should be set to DEFAULTMode when Mode is DEFAULT")
 	})
 
 	t.Run("ModeAssignment_ONTAP_SetsONTAPMode", func(tt *testing.T) {

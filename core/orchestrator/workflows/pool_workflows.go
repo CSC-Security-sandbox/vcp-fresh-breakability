@@ -73,7 +73,7 @@ const (
 	statusDone        = "DONE"
 	operationProgress = int64(100)
 	ONTAPMode         = "ONTAP"
-	GCNVMode          = "GCNV"
+	DEFAULTMode       = "DEFAULT"
 )
 
 type createPoolWorkflow struct {
