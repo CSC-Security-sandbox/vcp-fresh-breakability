@@ -72,6 +72,7 @@ global:
     ontapVersionDetails: "9.18.1RC1"
     skipOntapImageVersionMatch: "false"
     gcpKmsKeyRotationEnabled: "false"
+    enableJSwapVersionCheck: "false"
     vsaDeploymentPollInterval: "15s"
     vsaDeploymentTimeout: "10m"
     vsaNodeHomePort: "443"

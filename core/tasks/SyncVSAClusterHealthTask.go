@@ -3,6 +3,7 @@ package tasks
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,6 +37,15 @@ var defaultRequiredTakeoverReasons = []string{
 // Unplanned failover detection constant
 const UnplannedFailoverTakeoverReason = "Local node is already in takeover state"
 
+// JSwapVersionThreshold is the ONTAP version threshold for JSWAP API behavior
+// Versions >= this threshold will skip JSWAP API calls when feature flag is enabled
+const JSwapVersionThreshold = "9.18.1"
+
+// Feature flag to control JSWAP API behavior for ONTAP 9.18.1+
+// When enabled (true), JSWAP API is skipped for ONTAP versions >= 9.18.1
+// When disabled (false), JSWAP API is called for all versions (legacy behavior)
+var enableJSwapVersionCheck = env.GetBool("ENABLE_JSWAP_VERSION_CHECK", false)
+
 // getRequiredTakeoverReasons returns the list of takeover reasons from environment variable or defaults
 func getRequiredTakeoverReasons() []string {
 	// Try to get from environment variable first
@@ -61,9 +71,9 @@ var (
 	ShouldJSwapToDiskForUnplannedFailover   = shouldJSwapToDiskForUnplannedFailover
 	ShouldJSwapToMemoryForTakeoverPossible  = shouldJSwapToMemoryForTakeoverPossible
 	ExecuteJSwapAction                      = executeJSwapAction
-	PerformJSwapToDisk                      = performJSwapToDisk
-	PerformJSwapToMemory                    = performJSwapToMemory
-	UpdatePoolToReadyState                  = updatePoolToReadyState
+	UpdatePoolToDegradedState               = updatePoolToDegradedState
+	UpdatePoolToReadyStateFromHealth        = updatePoolToReadyState
+	UpdatePoolToReadyState                  = updatePoolToReadyStateSimple
 	UpdatePoolState                         = updatePoolState
 	IsRequiredTakeoverReason                = isRequiredTakeoverReason
 	HasNodeRequiredTakeoverReasonFromHealth = hasNodeRequiredTakeoverReasonFromHealth
@@ -169,9 +179,16 @@ func _syncVSAClusterHealthTask(imtpCtx interface{}, inputs ...interface{}) {
 	}
 	clusterHealth := clusterHealthResult.Result.(*vsa.ClusterHealthStatusResponse)
 
+	// Get ONTAP version to determine if we should call JSWAP API
+	ontapVersion, err := provider.GetONTAPVersion()
+	if err != nil {
+		logger.Warnf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Failed to get ONTAP version, defaulting to state update only: %v", correlationID, poolIdentifier.UUID, err)
+		ontapVersion = nil
+	}
+
 	// Determine and execute JSWAP action
 	jswapAction := determineJSwapAction(clusterHealth, poolIdentifier.UUID, logger, correlationID)
-	executeJSwapAction(ctx, jswapAction, clusterHealth, provider, se, poolIdentifier, logger, correlationID, bgCtx, ontapClient)
+	executeJSwapAction(ctx, jswapAction, clusterHealth, provider, se, poolIdentifier, logger, correlationID, bgCtx, ontapClient, ontapVersion)
 
 	logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Task completed", correlationID, poolIdentifier.UUID)
 }
@@ -290,32 +307,119 @@ func shouldJSwapToMemoryForTakeoverPossible(nodes []vsa.NodeHealthStatus, poolUU
 
 // executeJSwapAction executes the determined JSWAP action and updates pool state accordingly
 func executeJSwapAction(ctx *inmemotasksprocessor.IMTPContext, action JSwapAction, clusterHealth *vsa.ClusterHealthStatusResponse,
-	provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context, ontapClient ontapRest.RESTClient) {
+	provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context, ontapClient ontapRest.RESTClient, ontapVersion *string) {
 	switch action {
 	case JSwapActionToDisk:
-		performJSwapToDisk(ctx, clusterHealth, provider, se, poolIdentifier, logger, correlationID, bgCtx, ontapClient)
+		updatePoolToDegradedState(ctx, clusterHealth, provider, se, poolIdentifier, logger, correlationID, bgCtx, ontapClient, ontapVersion)
 	case JSwapActionToMemory:
-		performJSwapToMemory(ctx, clusterHealth, provider, se, poolIdentifier, logger, correlationID, bgCtx, ontapClient)
+		updatePoolToReadyState(ctx, clusterHealth, provider, se, poolIdentifier, logger, correlationID, bgCtx, ontapClient, ontapVersion)
 	case JSwapActionNone:
-		updatePoolToReadyState(se, poolIdentifier, logger, correlationID)
+		updatePoolToReadyStateSimple(se, poolIdentifier, logger, correlationID)
 	}
 }
 
-// performJSwapToDisk performs JSWAP to ephemeral_disk and updates pool to DEGRADED state
-func performJSwapToDisk(ctx *inmemotasksprocessor.IMTPContext, clusterHealth *vsa.ClusterHealthStatusResponse,
-	provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context, ontapClient ontapRest.RESTClient) {
-	logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Executing JSWAP to ephemeral_disk", correlationID, poolIdentifier.UUID)
+// IsJswapRequired checks if JSWAP is required for the given ONTAP version
+// Returns true if currentVersion < targetVersion (JSWAP required), false otherwise
+// Only compares the first 3 parts (major.minor.patch), ignoring patch suffixes like "P2"
+// Handles full ONTAP version strings like "NetApp Release 9.18.1: Mon May 24 08:07:35 UTC 2017"
+func IsJswapRequired(currentVersion, targetVersion string) bool {
+	// Extract base version from full ONTAP version strings (e.g., "NetApp Release 9.18.1: ..." -> "9.18.1")
+	currentBase := extractBaseVersion(currentVersion)
+	targetBase := extractBaseVersion(targetVersion)
 
-	jswapCount := 0
+	parts1 := strings.Split(currentBase, ".")
+	parts2 := strings.Split(targetBase, ".")
+
+	// Compare up to 3 parts (major, minor, patch)
+	// Find the minimum of 3, len(parts1), and len(parts2)
+	maxParts := 3
+	if len(parts1) < maxParts {
+		maxParts = len(parts1)
+	}
+	if len(parts2) < maxParts {
+		maxParts = len(parts2)
+	}
+
+	for i := 0; i < maxParts; i++ {
+		num1, err1 := strconv.Atoi(parts1[i])
+		num2, err2 := strconv.Atoi(parts2[i])
+		if err1 != nil || err2 != nil {
+			return false // On error, default to false (not below)
+		}
+		if num1 < num2 {
+			return true
+		}
+		if num1 > num2 {
+			return false
+		}
+	}
+
+	// If all compared parts are equal, a version with fewer parts is considered less
+	// (e.g., "9.17" < "9.17.1" and "9.17.0" < "9.17.1")
+	if len(parts1) < len(parts2) {
+		return true
+	}
+	return false
+}
+
+// extractBaseVersion extracts the base version string from ONTAP version strings
+// Handles formats like:
+// - "9.17.1" -> "9.17.1"
+// - "9.17.1P2" -> "9.17.1"
+// - "NetApp Release 9.18.1: Mon May 24 08:07:35 UTC 2017" -> "9.18.1"
+func extractBaseVersion(version string) string {
+	// First, use the utility function to extract version from full ONTAP version strings
+	extracted := utils.ExtractOntapVersion(version)
+	if extracted == "" {
+		// Fallback: if extraction failed, try to remove patch suffixes manually
+		// This handles cases like "9.17.1P2" where ExtractOntapVersion might not work
+		parts := strings.FieldsFunc(version, func(r rune) bool {
+			return r == 'P' || r == 'p'
+		})
+		if len(parts) > 0 {
+			extracted = strings.TrimSpace(parts[0])
+		} else {
+			extracted = version
+		}
+	}
+	return extracted
+}
+
+// updatePoolToDegradedState updates pool to DEGRADED state based on cluster health analysis
+// For ONTAP versions < 9.18.1, it calls the JSWAP API. For versions >= 9.18.1, it only updates the state.
+func updatePoolToDegradedState(ctx *inmemotasksprocessor.IMTPContext, clusterHealth *vsa.ClusterHealthStatusResponse, provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context, ontapClient ontapRest.RESTClient, ontapVersion *string) {
+	logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Updating pool state to DEGRADED based on cluster health", correlationID, poolIdentifier.UUID)
+
+	// Determine if JSWAP API should be called based on feature flag and ONTAP version
+	shouldCallJSwapAPI := false
+	if enableJSwapVersionCheck {
+		// Feature flag enabled: Skip JSWAP for versions >= JSwapVersionThreshold
+		if ontapVersion != nil {
+			shouldCallJSwapAPI = IsJswapRequired(*ontapVersion, JSwapVersionThreshold)
+		} else {
+			logger.Warnf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - ONTAP version not available, defaulting to state update only", correlationID, poolIdentifier.UUID)
+		}
+	} else {
+		// Feature flag disabled: Use legacy behavior (always call JSWAP)
+		shouldCallJSwapAPI = true
+		if ontapVersion == nil {
+			logger.Warnf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - ONTAP version not available, will attempt JSWAP (legacy behavior)", correlationID, poolIdentifier.UUID)
+		}
+	}
+
+	nodeCount := 0
 	for _, node := range clusterHealth.Records {
 		if node.NVLog != nil && node.NVLog.BackingType == string(vsa.JSWAPBackingTypeEphemeralMemory) {
-			jswapResult := ctx.RunUnit(JSwapUnit, inmemotasksprocessor.UnitOptions{}, provider, node.UUID, vsa.JSWAPBackingTypeEphemeralDisk, ontapClient, bgCtx)
-			if jswapResult.Err != nil {
-				logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - JSWAP to disk failed for node %s: %v", correlationID, poolIdentifier.UUID, node.UUID, jswapResult.Err)
-			} else {
-				logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - JSWAP to disk completed for node %s", correlationID, poolIdentifier.UUID, node.UUID)
-				jswapCount++
+			if shouldCallJSwapAPI {
+				// Call JSWAP API for versions < 9.18.1
+				jswapResult := ctx.RunUnit(JSwapUnit, inmemotasksprocessor.UnitOptions{}, provider, node.UUID, vsa.JSWAPBackingTypeEphemeralDisk, ontapClient)
+				if jswapResult.Err != nil {
+					logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - JSWAP to disk failed for node %s: %v", correlationID, poolIdentifier.UUID, node.UUID, jswapResult.Err)
+				} else {
+					logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - JSWAP to disk completed for node %s", correlationID, poolIdentifier.UUID, node.UUID)
+				}
 			}
+			nodeCount++
 		}
 	}
 
@@ -324,25 +428,45 @@ func performJSwapToDisk(ctx *inmemotasksprocessor.IMTPContext, clusterHealth *vs
 	if err != nil {
 		logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Failed to update pool state to DEGRADED: %v", correlationID, poolIdentifier.UUID, err)
 	} else {
-		logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Pool state updated to DEGRADED (%d nodes processed)", correlationID, poolIdentifier.UUID, jswapCount)
+		logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Pool state updated to DEGRADED (%d nodes analyzed)", correlationID, poolIdentifier.UUID, nodeCount)
 	}
 }
 
-// performJSwapToMemory performs JSWAP to ephemeral_memory and updates pool to READY state
-func performJSwapToMemory(ctx *inmemotasksprocessor.IMTPContext, clusterHealth *vsa.ClusterHealthStatusResponse,
-	provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context, ontapClient ontapRest.RESTClient) {
-	logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Executing JSWAP to ephemeral_memory", correlationID, poolIdentifier.UUID)
+// updatePoolToReadyState updates pool to READY state based on cluster health analysis
+// For ONTAP versions < JSwapVersionThreshold, it calls the JSWAP API. For versions >= JSwapVersionThreshold, it only updates the state.
+func updatePoolToReadyState(ctx *inmemotasksprocessor.IMTPContext, clusterHealth *vsa.ClusterHealthStatusResponse, provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context, ontapClient ontapRest.RESTClient, ontapVersion *string) {
+	logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Updating pool state to READY based on cluster health", correlationID, poolIdentifier.UUID)
 
-	jswapCount := 0
+	// Determine if JSWAP API should be called based on feature flag and ONTAP version
+	shouldCallJSwapAPI := false
+	if enableJSwapVersionCheck {
+		// Feature flag enabled: Skip JSWAP for versions >= JSwapVersionThreshold
+		if ontapVersion != nil {
+			shouldCallJSwapAPI = IsJswapRequired(*ontapVersion, JSwapVersionThreshold)
+		} else {
+			logger.Warnf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - ONTAP version not available, defaulting to state update only", correlationID, poolIdentifier.UUID)
+		}
+	} else {
+		// Feature flag disabled: Use legacy behavior (always call JSWAP)
+		shouldCallJSwapAPI = true
+		if ontapVersion == nil {
+			logger.Warnf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - ONTAP version not available, will attempt JSWAP (legacy behavior)", correlationID, poolIdentifier.UUID)
+		}
+	}
+
+	nodeCount := 0
 	for _, node := range clusterHealth.Records {
 		if node.NVLog != nil && node.NVLog.BackingType == string(vsa.JSWAPBackingTypeEphemeralDisk) {
-			jswapResult := ctx.RunUnit(JSwapUnit, inmemotasksprocessor.UnitOptions{}, provider, node.UUID, vsa.JSWAPBackingTypeEphemeralMemory, ontapClient, bgCtx)
-			if jswapResult.Err != nil {
-				logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - JSWAP to memory failed for node %s: %v", correlationID, poolIdentifier.UUID, node.UUID, jswapResult.Err)
-			} else {
-				logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - JSWAP to memory completed for node %s", correlationID, poolIdentifier.UUID, node.UUID)
-				jswapCount++
+			if shouldCallJSwapAPI {
+				// Call JSWAP API for versions < 9.18.1
+				jswapResult := ctx.RunUnit(JSwapUnit, inmemotasksprocessor.UnitOptions{}, provider, node.UUID, vsa.JSWAPBackingTypeEphemeralMemory, ontapClient)
+				if jswapResult.Err != nil {
+					logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - JSWAP to memory failed for node %s: %v", correlationID, poolIdentifier.UUID, node.UUID, jswapResult.Err)
+				} else {
+					logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - JSWAP to memory completed for node %s", correlationID, poolIdentifier.UUID, node.UUID)
+				}
 			}
+			nodeCount++
 		}
 	}
 
@@ -351,12 +475,12 @@ func performJSwapToMemory(ctx *inmemotasksprocessor.IMTPContext, clusterHealth *
 	if err != nil {
 		logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Failed to update pool state to READY: %v", correlationID, poolIdentifier.UUID, err)
 	} else {
-		logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Pool state updated to READY (%d nodes processed)", correlationID, poolIdentifier.UUID, jswapCount)
+		logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Pool state updated to READY (%d nodes analyzed)", correlationID, poolIdentifier.UUID, nodeCount)
 	}
 }
 
-// updatePoolToReadyState updates pool to READY state when no JSWAP is needed
-func updatePoolToReadyState(se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string) {
+// updatePoolToReadyStateSimple updates pool to READY state when no JSWAP is needed
+func updatePoolToReadyStateSimple(se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string) {
 	err := updatePoolState(se, poolIdentifier, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
 	if err != nil {
 		logger.Errorf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Failed to update pool state to READY: %v", correlationID, poolIdentifier.UUID, err)
@@ -372,24 +496,23 @@ func updatePoolState(se database.Storage, poolIdentifier *database.PoolIdentifie
 	logger := util.GetLogger(ctx)
 
 	// Get current pool state for validation
-	poolView, err := se.GetPool(ctx, poolIdentifier.UUID, poolIdentifier.AccountID)
+	pool, err := se.GetPoolByUUID(ctx, poolIdentifier.UUID)
 	if err != nil {
 		return fmt.Errorf("failed to get pool for state update: %v", err)
 	}
 
-	pool := database.ConvertPoolViewToPool(poolView)
-	currentState := pool.State
+	poolState := pool.State
 
 	// Only update if pool is in expected states (READY or DEGRADED)
 	// This prevents race conditions where pool may have transitioned to DELETING, UPDATING, etc.
-	if currentState != models.LifeCycleStateREADY && currentState != models.LifeCycleStateDegraded {
-		logger.Infof("Skipping pool state update - pool %s is in state %s (not READY/DEGRADED)", poolIdentifier.UUID, currentState)
+	if poolState != models.LifeCycleStateREADY && poolState != models.LifeCycleStateDegraded {
+		logger.Infof("Skipping pool state update - pool %s is in state %s (not READY/DEGRADED)", poolIdentifier.UUID, poolState)
 		return nil // Not an error, just skip the update
 	}
 
 	// Check if the new state is the same as current state to avoid unnecessary database updates
-	if currentState == newState {
-		logger.Infof("Skipping pool state update - pool %s is already in state %s", poolIdentifier.UUID, currentState)
+	if poolState == newState {
+		logger.Infof("Skipping pool state update - pool %s is already in state %s", poolIdentifier.UUID, poolState)
 		return nil
 	}
 
@@ -405,7 +528,7 @@ func updatePoolState(se database.Storage, poolIdentifier *database.PoolIdentifie
 		return fmt.Errorf("failed to conditionally update pool state to %s: %v", newState, err)
 	}
 
-	logger.Infof("Successfully updated pool %s state from %s to %s with details: %s", poolIdentifier.UUID, currentState, newState, stateDetails)
+	logger.Infof("Successfully updated pool %s state from %s to %s with details: %s", poolIdentifier.UUID, poolState, newState, stateDetails)
 	return nil
 }
 
@@ -570,9 +693,9 @@ func _getClusterHealthStatusUnit(ctx context.Context, inputs ...interface{}) (in
 	return clusterHealthResponse, nil
 }
 
-// _jSwapUnit performs JSWAP operation on a specific node
+// _jSwapUnit performs JSWAP operation for a specific node
 func _jSwapUnit(ctx context.Context, inputs ...interface{}) (interface{}, error) {
-	if len(inputs) < 5 {
+	if len(inputs) < 4 {
 		return nil, fmt.Errorf("insufficient parameters for JSwapUnit")
 	}
 
@@ -580,24 +703,14 @@ func _jSwapUnit(ctx context.Context, inputs ...interface{}) (interface{}, error)
 	nodeUUID := inputs[1].(string)
 	backingType := inputs[2].(vsa.JSWAPBackingType)
 	ontapClient := inputs[3].(ontapRest.RESTClient)
-	contextWithCorrelationID := inputs[4].(context.Context)
-
-	logger := util.GetLogger(contextWithCorrelationID)
-
-	// Extract correlation ID for logging using utility function
-	correlationID := utils.GetCoRelationIDFromContext(contextWithCorrelationID)
-
-	logger.Infof("[JSwapUnit] CorrelationID: %s - Performing JSWAP operation for node %s to backing type %s", correlationID, nodeUUID, backingType)
 
 	success, err := provider.UpdateJSwapModeWithClient(nodeUUID, backingType, ontapClient)
 	if err != nil {
-		return nil, fmt.Errorf("[JSwapUnit] CorrelationID: %s - failed to perform JSWAP for node %s to backing type %s: %v", correlationID, nodeUUID, backingType, err)
+		return nil, fmt.Errorf("JSWAP operation failed for node %s: %w", nodeUUID, err)
 	}
-
 	if !success {
-		return nil, fmt.Errorf("[JSwapUnit] CorrelationID: %s - JSWAP operation failed for node %s to backing type %s", correlationID, nodeUUID, backingType)
+		return nil, fmt.Errorf("JSWAP operation returned false for node %s", nodeUUID)
 	}
 
-	logger.Infof("[JSwapUnit] CorrelationID: %s - Successfully completed JSWAP for node %s to backing type %s", correlationID, nodeUUID, backingType)
 	return success, nil
 }
