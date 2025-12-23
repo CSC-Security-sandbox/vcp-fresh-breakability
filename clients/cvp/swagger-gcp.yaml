@@ -11773,6 +11773,25 @@ definitions:
         minLength: 36
         example: 40a79608-dcf8-4b67-8df6-c4ab40a5b246
         x-nullable: true
+      numberOfAggregates:
+        title: numberOfAggregates
+        type: integer
+        format: int32
+        readOnly: true
+        description: Number of aggregates in the backup chain
+        example: 3
+      constituentVolumesPerAggregate:
+        title: constituentVolumesPerAggregate
+        type: integer
+        format: int32
+        readOnly: true
+        description: Number of constituent volumes per aggregate in the backup chain
+        example: 5
+      ontapStyle:
+        title: ontapStyle
+        type: string
+        readOnly: true
+        description: The ONTAP style of the source volume
       assetLocationMetadata:
         $ref: '#/definitions/AssetLocationMetadata_v2'
   AssetLocationMetadata_v2:

@@ -11346,3 +11346,112 @@ func TestEnsureBucketDetailsExist_BucketAlreadyExists(t *testing.T) {
 	assert.Equal(t, 1, len(backupVault.BucketDetails))
 	assert.Equal(t, "test-bucket", backupVault.BucketDetails[0].BucketName)
 }
+
+func TestFetchBackupFromCVP_SuccessWithFkexvol(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
+	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
+
+	// Setup mock CVP client
+	mockBackupsClient := backups.NewMockClientService(t)
+	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient}
+
+	originalCreateClient := activities.CvpCreateClient
+	defer func() { activities.CvpCreateClient = originalCreateClient }()
+	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	backupName := "test-backup"
+	backupID := "backup-uuid-1234"
+	volumeUsageBytes := int64(1073741824)
+	mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(&backups.V1betaListBackupsOK{
+		Payload: &backups.V1betaListBackupsOKBody{
+			Backups: []*cvpModels.BackupV1beta{
+				{
+					BackupID:         backupID,
+					BucketName:       "test-bucket",
+					SourceVolume:     "source-volume",
+					VolumeID:         "volume-uuid",
+					State:            "READY",
+					BackupType:       "MANUAL",
+					VolumeUsageBytes: &volumeUsageBytes,
+				},
+			},
+		},
+	}, nil)
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vault-uuid"},
+	}
+	pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
+	account := &datamodel.Account{Name: "123456"}
+
+	backup, err := activities.FetchBackupFromCVP(ctx, backupName, backupVault, pool, account)
+
+	// This validates lines 1555-1634
+	assert.NoError(t, err)
+	assert.NotNil(t, backup)
+	assert.Equal(t, backupName, backup.Name)
+	assert.Equal(t, backupID, backup.UUID)
+	assert.Equal(t, "test-bucket", backup.Attributes.BucketName)
+	assert.Equal(t, volumeUsageBytes, backup.SizeInBytes)
+	mockBackupsClient.AssertExpectations(t)
+}
+
+func TestFetchBackupFromCVP_SuccessWithFlexgroup(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
+	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
+
+	// Setup mock CVP client
+	mockBackupsClient := backups.NewMockClientService(t)
+	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient}
+
+	originalCreateClient := activities.CvpCreateClient
+	defer func() { activities.CvpCreateClient = originalCreateClient }()
+	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	backupName := "test-backup"
+	backupID := "backup-uuid-1234"
+	volumeUsageBytes := int64(1073741824)
+	mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(&backups.V1betaListBackupsOK{
+		Payload: &backups.V1betaListBackupsOKBody{
+			Backups: []*cvpModels.BackupV1beta{
+				{
+					BackupID:                       backupID,
+					BucketName:                     "test-bucket",
+					SourceVolume:                   "source-volume",
+					VolumeID:                       "volume-uuid",
+					State:                          "READY",
+					BackupType:                     "MANUAL",
+					VolumeUsageBytes:               &volumeUsageBytes,
+					OntapStyle:                     "flexgroup",
+					ConstituentVolumesPerAggregate: 4,
+					NumberOfAggregates:             2,
+				},
+			},
+		},
+	}, nil)
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vault-uuid"},
+	}
+	pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
+	account := &datamodel.Account{Name: "123456"}
+
+	backup, err := activities.FetchBackupFromCVP(ctx, backupName, backupVault, pool, account)
+
+	// This validates lines 1555-1634
+	assert.NoError(t, err)
+	assert.NotNil(t, backup)
+	assert.Equal(t, backupName, backup.Name)
+	assert.Equal(t, backupID, backup.UUID)
+	assert.Equal(t, "test-bucket", backup.Attributes.BucketName)
+	assert.Equal(t, volumeUsageBytes, backup.SizeInBytes)
+	assert.Equal(t, "flexgroup", backup.Attributes.OntapVolumeStyle)
+	assert.Equal(t, int32(8), backup.Attributes.ConstituentCountOfBackup)
+	mockBackupsClient.AssertExpectations(t)
+}

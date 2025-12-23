@@ -61,6 +61,12 @@ type BackupV1beta struct {
 	// Read Only: true
 	BucketName string `json:"bucketName,omitempty"`
 
+	// constituentVolumesPerAggregate
+	//
+	// Number of constituent volumes per aggregate in the backup chain
+	// Read Only: true
+	ConstituentVolumesPerAggregate int32 `json:"constituentVolumesPerAggregate,omitempty"`
+
 	// created
 	//
 	// Creation date of the resource
@@ -89,6 +95,18 @@ type BackupV1beta struct {
 	// Read Only: true
 	// Format: date-time
 	EnforcedRetentionEndTime *strfmt.DateTime `json:"enforcedRetentionEndTime,omitempty"`
+
+	// numberOfAggregates
+	//
+	// Number of aggregates in the backup chain
+	// Read Only: true
+	NumberOfAggregates int32 `json:"numberOfAggregates,omitempty"`
+
+	// ontapStyle
+	//
+	// The ONTAP style of the source volume
+	// Read Only: true
+	OntapStyle string `json:"ontapStyle,omitempty"`
 
 	// resourceId
 	//

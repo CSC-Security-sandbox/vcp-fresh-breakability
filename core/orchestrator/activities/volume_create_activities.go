@@ -1618,6 +1618,15 @@ func FetchBackupFromCVP(ctx context.Context, backupName string, backupVault *dat
 		backupSize = *b.BackupChainBytes
 	}
 
+	var ontapVolumeStyle string
+	var largeConstituteCount int32
+	if b.OntapStyle == "flexgroup" {
+		largeConstituteCount = b.ConstituentVolumesPerAggregate * b.NumberOfAggregates
+		ontapVolumeStyle = "flexgroup"
+	} else {
+		ontapVolumeStyle = "flexvol"
+	}
+
 	// Convert CVP backup to VCP data model
 	backup := &datamodel.Backup{
 		BaseModel: datamodel.BaseModel{
@@ -1635,12 +1644,14 @@ func FetchBackupFromCVP(ctx context.Context, backupName string, backupVault *dat
 		Type:          b.BackupType,
 		SizeInBytes:   backupSize,
 		Attributes: &datamodel.BackupAttributes{
-			VolumeName:        b.SourceVolume,
-			SnapshotName:      nillable.GetString(b.SourceSnapshot, ""),
-			SnapshotID:        nillable.GetString(b.SnapshotUUID, ""),
-			AccountIdentifier: account.Name,
-			BucketName:        bucketName,
-			EndpointUUID:      nillable.GetString(b.EndPointUUID, ""),
+			VolumeName:               b.SourceVolume,
+			SnapshotName:             nillable.GetString(b.SourceSnapshot, ""),
+			SnapshotID:               nillable.GetString(b.SnapshotUUID, ""),
+			AccountIdentifier:        account.Name,
+			BucketName:               bucketName,
+			EndpointUUID:             nillable.GetString(b.EndPointUUID, ""),
+			ConstituentCountOfBackup: largeConstituteCount,
+			OntapVolumeStyle:         ontapVolumeStyle,
 		},
 	}
 
