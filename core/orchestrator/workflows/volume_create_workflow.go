@@ -614,6 +614,19 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	dbHbCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(dbHeartbeatTimeoutSec)*time.Second)
+
+	rollbackManager := common.NewRollbackManager()
+	defer func() {
+		if err != nil {
+			err2 := workflow.ExecuteActivity(dbHbCtx, volumeActivity.UpdateVolumeStateInDB, dbVolume.UUID, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails).Get(dbHbCtx, nil)
+			if err2 != nil {
+				log.Errorf("Failed to update volume state in DB to error: %v", err2)
+			}
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		}
+	}()
+
 	var backupVault *datamodel.BackupVault
 	var backup *datamodel.Backup
 
@@ -669,18 +682,6 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			}
 		}
 	}
-
-	rollbackManager := common.NewRollbackManager()
-	defer func() {
-		if err != nil {
-			err2 := workflow.ExecuteActivity(dbHbCtx, volumeActivity.UpdateVolumeStateInDB, dbVolume.UUID, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails).Get(dbHbCtx, nil)
-			if err2 != nil {
-				log.Errorf("Failed to update volume state in DB to error: %v", err2)
-			}
-			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
-			rollbackManager.ExecuteRollback(disconnectedCtx, err)
-		}
-	}()
 
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbVolume.Pool.ID).Get(ctx, &dbNodes)
