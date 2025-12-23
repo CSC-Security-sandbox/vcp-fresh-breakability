@@ -142,6 +142,11 @@ service:
   type: ClusterIP
   appPort: 8080
 
+# Readiness probe configuration for graceful shutdown
+readinessProbe:
+  failureThreshold: 1  # Number of consecutive failures before marking pod as not ready
+  periodSeconds: 5     # Interval between probe checks
+
 database:
   host: postgres
   user: postgres

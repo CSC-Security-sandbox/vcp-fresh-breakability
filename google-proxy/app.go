@@ -24,6 +24,7 @@ import (
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/endpoints"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -87,7 +88,8 @@ func main() {
 
 	// Create GCP proxy server and inject required dependencies
 	orch := orchestrator.GetNewOrchestrator(dbCon, workflowClient.GetTemporalClient())
-	newHandler := api.Handler{Orchestrator: orch} // inject the orchestrator into the handler
+	serverState := api.NewServerState()
+	newHandler := &api.Handler{Orchestrator: orch, ServerState: serverState} // inject the orchestrator and server state into the handler
 	gcpServer, err := gcpgenserver.NewServer(newHandler)
 	if err != nil {
 		logger.Error("Failed to create server", "error", err.Error())
@@ -117,7 +119,7 @@ func main() {
 		return nil
 	})
 
-	handleGracefulShutdown(eg, ctx, httpServer, logger)
+	handleGracefulShutdown(eg, ctx, httpServer, serverState, logger)
 	// Wait for all goroutines to finish
 	if err := eg.Wait(); err != nil {
 		logger.Error("Server error", "error", err.Error())
@@ -264,18 +266,40 @@ func launchUpdateBackupScheduleWorkflow(ctx context.Context, cfg *common.Config,
 	return nil
 }
 
-func handleGracefulShutdown(eg *errgroup.Group, ctx context.Context, httpServer *http.Server, logger log.Logger) {
+func handleGracefulShutdown(eg *errgroup.Group, ctx context.Context, httpServer *http.Server, serverState *api.ServerState, logger log.Logger) {
 	eg.Go(func() error {
 		<-ctx.Done()
-		logger.Info("Shutting down server")
+		logger.Info("Received shutdown signal, marking server as not ready")
 
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		// Mark server as shutting down immediately.
+		// This causes the health endpoint to return 500, failing readiness probes.
+		// The load balancer will stop routing new traffic to this pod.
+		serverState.SetShuttingDown()
+
+		// Wait for the load balancer to detect the failed health check and remove
+		// this pod from the backend pool. The sleep duration is calculated based on
+		// readiness probe configuration: failureThreshold × periodSeconds.
+		// This ensures we wait long enough for the probe to fail and ILB to deregister.
+		failureThreshold := env.GetInt("READINESS_PROBE_FAILURE_THRESHOLD", 1)
+		periodSeconds := env.GetInt("READINESS_PROBE_PERIOD_SECONDS", 5)
+		shutdownWaitSeconds := failureThreshold * periodSeconds
+		logger.Info("Waiting for load balancer to deregister pod and drain connections",
+			"failureThreshold", failureThreshold,
+			"periodSeconds", periodSeconds,
+			"waitDuration", shutdownWaitSeconds)
+		time.Sleep(time.Duration(shutdownWaitSeconds) * time.Second)
+
+		logger.Info("Shutting down HTTP server")
+		// Allow up to 30 seconds for graceful shutdown to complete.
+		// This gives time for in-flight requests to finish.
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer shutdownCancel()
 
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
 			logger.Error("Failed to shut down server gracefully", "error", err.Error())
 			return err
 		}
+		logger.Info("HTTP server shut down successfully")
 		return nil
 	})
 }
