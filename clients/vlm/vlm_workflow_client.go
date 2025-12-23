@@ -23,7 +23,7 @@ var NewVSAClientWorkflowManager = _newVSAClientWorkflowManager
 var (
 	VSALifecycleManagerQueuePrefix = env.GetString("VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX", "vsa-lifecycle-manager")
 	// ExtractedOntapVersion is to be used for determining vlm task queue version
-	ExtractedOntapVersion             = utils.ExtractOntapVersion(env.GetString("ONTAP_VERSION_DETAILS", "9.18.1RC1"))
+	ExtractedOntapVersion             = utils.ExtractOntapVersion(env.GetString("ONTAP_VERSION_DETAILS", "9.17.1P2"))
 	VSALifecycleManagerQueue          = fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, ExtractedOntapVersion)
 	IsIntegrationTest                 = env.GetBool("INTEGRATION_TEST", false)
 	VlmWorkflowStartToCloseTimeout    = env.GetString("VLMWORKFLOW_START_TO_CLOSE_WORKFLOW_TIMEOUT", "20m")
@@ -93,8 +93,13 @@ func _newVSAClientWorkflowManager() VlmWorkflowClient {
 }
 
 // GetVLMWorkerQueue returns the VLM worker queue name based on the account and ONTAP version
-func GetVLMWorkerQueue() string {
+func GetVLMWorkerQueue(logger log.Logger, account string) string {
 	ontapVersion := ExtractedOntapVersion
+	if utils.IsFileProtocolSupported(account) {
+		// not made it has configurable as this will be removed after AGA
+		ontapVersion = "9.18.1" // file protocol is supported in 9.18.1 and later
+		logger.Info("using 9.18.1 as ontap version for file protocol support", "account", account)
+	}
 	return fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, ontapVersion)
 }
 func (vlmManager *VSAClientWorkflowManager) CreateVSAExpertModeUser(ctx workflow.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig) (OntapExpertModeUserResponse, error) {
@@ -104,6 +109,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAExpertModeUser(ctx workflow
 	if err != nil {
 		return ontapExpertModeUserResponse, err
 	}
+	accountId := createVSAExpertModeUserRequest.VLMConfig.Deployment.Labels["account_id"]
 
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
 	if timeout, ok := WorkflowExecutionTimeoutMap[CreateVSAExpertModeUserWorkflowName]; ok {
@@ -112,7 +118,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAExpertModeUser(ctx workflow
 
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		WorkflowID:            createVSAExpertModeUserRequest.VLMConfig.Deployment.DeploymentID + expertMode, // This ensures that each child workflow has a unique identifier, even if the same Deployment ID is used across different zones
-		TaskQueue:             GetVLMWorkerQueue(),                                                           // As VLM workflows are executed in a VSALifecycleManagerQueue queue
+		TaskQueue:             GetVLMWorkerQueue(logger, accountId),                                          // As VLM workflows are executed in a VSALifecycleManagerQueue queue
 		WaitForCancellation:   true,                                                                          // The parent workflow waits until the child workflow is fully canceled (it finishes whatever it needs to do after being canceled).
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,                    // Allows reuse only if the previous execution did not complete successfully (e.g., failed, timed out, terminated, or cancelled)
 		RetryPolicy: &temporal.RetryPolicy{
@@ -158,6 +164,8 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 	if err != nil {
 		return nil, err
 	}
+
+	accountID := createVSAClusterDeploymentRequest.VLMConfig.Deployment.Labels["account_id"]
 
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
 	if timeout, ok := WorkflowExecutionTimeoutMap[CreateVSAClusterDeploymentWorkflowName]; ok {
@@ -214,6 +222,9 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 				}
 
 				ontapVersion := ExtractedOntapVersion
+				if utils.IsFileProtocolSupported(accountID) {
+					ontapVersion = "9.18.1"
+				}
 
 				deleteErr := vlmManager.DeleteVSAClusterDeployment(ctx, deleteRequest, ontapVersion)
 				if deleteErr == nil {
@@ -273,13 +284,15 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSASVM(ctx workflow.Context, c
 		return nil, err
 	}
 
+	accountID := createSVMRequest.VLMConfig.Deployment.Labels["account_id"]
+
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
 	if timeout, ok := WorkflowExecutionTimeoutMap[CreateVSASVMWorkflowName]; ok {
 		workflowExecutionTimeout = timeout
 	}
 
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
-		TaskQueue:             GetVLMWorkerQueue(),
+		TaskQueue:             GetVLMWorkerQueue(logger, accountID),
 		WaitForCancellation:   true,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 		RetryPolicy: &temporal.RetryPolicy{
@@ -534,13 +547,20 @@ func (vlmManager *VSAClientWorkflowManager) GetClusterZiZsDetails(ctx workflow.C
 		return nil, err
 	}
 
+	// Extract account ID from project ID (assuming project ID contains account info)
+	// If project ID doesn't contain account info, we'll use a default account
+	var accountId string
+	if ctx.Value(AccountName) != nil {
+		accountId = ctx.Value(AccountName).(string)
+	}
+
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
 	if timeout, ok := WorkflowExecutionTimeoutMap[GetClusterZiZsDetailsWorkflowName]; ok {
 		workflowExecutionTimeout = timeout
 	}
 
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
-		TaskQueue:             GetVLMWorkerQueue(),
+		TaskQueue:             GetVLMWorkerQueue(logger, accountId),
 		WaitForCancellation:   true,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 		RetryPolicy: &temporal.RetryPolicy{
@@ -672,7 +692,7 @@ func (vlmManager *VSAClientWorkflowManager) ValidateClusterHealth(ctx workflow.C
 
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		WorkflowID:            childWorkflowID,
-		TaskQueue:             GetVLMWorkerQueue(),
+		TaskQueue:             GetVLMWorkerQueue(logger, accountID),
 		WaitForCancellation:   true,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
 		RetryPolicy: &temporal.RetryPolicy{
@@ -724,7 +744,7 @@ func (vlmManager *VSAClientWorkflowManager) ClusterPowerOp(ctx workflow.Context,
 
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		WorkflowID:            childWorkflowID,
-		TaskQueue:             GetVLMWorkerQueue(),
+		TaskQueue:             GetVLMWorkerQueue(logger, accountID),
 		WaitForCancellation:   true,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
 		RetryPolicy: &temporal.RetryPolicy{

@@ -19,10 +19,10 @@ import (
 
 // Test constants for cluster upgrade tests
 const (
-	testOntapVersion    = "9.18.1RC1"
-	testVSAImagePath    = "gcr.io/vsa-image:9.18.1RC1"
-	testVSAName         = "x-9-18-1rc1"
-	testMediatorName    = "cvo-mediator-x-9-18-1rc1"
+	testOntapVersion    = "9.17.1P2"
+	testVSAImagePath    = "gcr.io/vsa-image:9.17.1p2"
+	testVSAName         = "x-9-17-1p2-gcnv"
+	testMediatorName    = "cvo-mediator-x-9-17-1p2d1"
 	testOntapVersionOld = "9.17.1P1"
 	testVSAImagePathOld = "gcr.io/vsa-image:9.17.1p1"
 )

@@ -52,8 +52,8 @@ Update the default VSA and mediator image names for new pool deployments:
 ```json
 {
   "images": {
-    "vsa_image_name": "x-9-18-1rc1",
-    "mediator_image_name": "cvo-mediator-x-9-18-1rc1"
+    "vsa_image_name": "x-9-17-1p2-gcnv",
+    "mediator_image_name": "cvo-mediator-x-9-17-1p2d1"
   }
 }
 ```
@@ -62,23 +62,23 @@ Update the default VSA and mediator image names for new pool deployments:
 Update the worker configuration with new default values:
 ```yaml
 workerConfig:
-  vsaImageName: "x-9-18-1rc1"
-  vsaMediatorImageName: "cvo-mediator-x-9-18-1rc1"
-  ontapVersionDetails: "9.18.1RC1"  # ⚠️ CRITICAL: This is often missed!
+  vsaImageName: "x-9-17-1p2-gcnv"
+  vsaMediatorImageName: "cvo-mediator-x-9-17-1p2d1"
+  ontapVersionDetails: "9.17.1P2"  # ⚠️ CRITICAL: This is often missed!
 ```
 
 #### `kubernetes/vsa-control-plane/values.yaml`
 Update the core configuration:
 ```yaml
 config:
-  ontapVersionDetails: "9.18.1RC1"  # ⚠️ CRITICAL: This is often missed!
+  ontapVersionDetails: "9.17.1P2"  # ⚠️ CRITICAL: This is often missed!
 ```
 
 #### `kubernetes/vsa-control-plane/charts/core/values.yaml`
 Update the core chart configuration:
 ```yaml
 config:
-  ontapVersionDetails: "9.18.1RC1"  # ⚠️ CRITICAL: This is often missed!
+  ontapVersionDetails: "9.17.1P2"  # ⚠️ CRITICAL: This is often missed!
 ```
 
 ### 2. Source Code Files
@@ -86,20 +86,20 @@ config:
 #### `core/orchestrator/workflows/pool_workflows.go`
 Update default environment variable values for new pool deployments:
 ```go
-vsaImageName      = env.GetString("VSA_IMAGE_NAME", "x-9-18-1rc1")
-mediatorImage     = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-18-1rc1")
+vsaImageName      = env.GetString("VSA_IMAGE_NAME", "x-9-17-1p2-gcnv")
+mediatorImage     = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-17-1p2d1")
 ```
 
 #### `utils/env/env.go`
 Update the default ONTAP version details:
 ```go
-CurrentOntapVersionDetails = GetString("ONTAP_VERSION_DETAILS", "9.18.1RC1")
+CurrentOntapVersionDetails = GetString("ONTAP_VERSION_DETAILS", "9.17.1P2")
 ```
 
 #### `clients/vlm/vlm_workflow_client.go`
 Update the default ONTAP version:
 ```go
-OntapVersion = env.GetString("ONTAP_VERSION_DETAILS", "9.18.1RC1")
+OntapVersion = env.GetString("ONTAP_VERSION_DETAILS", "9.17.1P2")
 ```
 
 ### 3. Kubernetes Deployment Files
@@ -169,7 +169,7 @@ Update the environment variable for local development:
 ```yaml
 env:
   - name: ONTAP_VERSION_DETAILS
-    value: "9.18.1RC1"
+    value: "9.17.1P2"
 ```
 
 ### 4. Test Files
@@ -178,7 +178,7 @@ env:
 Update test assertions that reference specific image names:
 ```go
 assert.Equal(t, "x-9-17-1p2-gcnv", req.VLMConfig.Deployment.Images.VSAImageName, "...")
-assert.Equal(t, "cvo-mediator-x-9-18-1rc1", req.VLMConfig.Deployment.Images.MediatorImageName, "...")
+assert.Equal(t, "cvo-mediator-x-9-17-1p2d1", req.VLMConfig.Deployment.Images.MediatorImageName, "...")
 ```
 
 ### 5. Documentation Files
@@ -187,8 +187,8 @@ assert.Equal(t, "cvo-mediator-x-9-18-1rc1", req.VLMConfig.Deployment.Images.Medi
 Update documentation to reflect new default values:
 ```markdown
 **Image Configuration**:
-- **VSA Image**: `x-9-18-1rc1` (default)
-- **Mediator Image**: `cvo-mediator-x-9-18-1rc1` (default)
+- **VSA Image**: `x-9-17-1p2-gcnv` (default)
+- **Mediator Image**: `cvo-mediator-x-9-17-1p2d1` (default)
 ```
 
 ---

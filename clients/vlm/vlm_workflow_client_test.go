@@ -1380,7 +1380,11 @@ func TestGetClusterZiZsDetails_CorrelationIDFallback(t *testing.T) {
 // TestGetVLMWorkerQueue tests the GetVLMWorkerQueue function
 func TestGetVLMWorkerQueue(t *testing.T) {
 	t.Run("DefaultOntapVersion", func(t *testing.T) {
-		queue := GetVLMWorkerQueue()
+		// Test with a regular account (not file protocol)
+		logger := log.NewLogger()
+		account := "regular-account"
+
+		queue := GetVLMWorkerQueue(logger, account)
 
 		expectedQueue := fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, ExtractedOntapVersion)
 		assert.Equal(t, expectedQueue, queue)
@@ -1389,7 +1393,12 @@ func TestGetVLMWorkerQueue(t *testing.T) {
 
 	t.Run("FileProtocolSupported", func(t *testing.T) {
 		// Test with a file protocol supported account
-		queue := GetVLMWorkerQueue()
+		logger := log.NewLogger()
+		// Based on the code, IsFileProtocolSupported would return true for accounts with file protocol support
+		// This test assumes there's a way to identify file protocol accounts
+		account := "file-protocol-account"
+
+		queue := GetVLMWorkerQueue(logger, account)
 
 		// Queue should still contain the prefix
 		assert.Contains(t, queue, VSALifecycleManagerQueuePrefix)
@@ -1397,8 +1406,24 @@ func TestGetVLMWorkerQueue(t *testing.T) {
 		assert.NotEmpty(t, queue)
 	})
 
+	t.Run("EmptyAccount", func(t *testing.T) {
+		// Test with empty account name
+		logger := log.NewLogger()
+		account := ""
+
+		queue := GetVLMWorkerQueue(logger, account)
+
+		// Should still return a valid queue name with default ONTAP version
+		expectedQueue := fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, ExtractedOntapVersion)
+		assert.Equal(t, expectedQueue, queue)
+	})
+
 	t.Run("QueueFormat", func(t *testing.T) {
-		queue := GetVLMWorkerQueue()
+		// Test the queue format is correct
+		logger := log.NewLogger()
+		account := "test-account"
+
+		queue := GetVLMWorkerQueue(logger, account)
 
 		// Queue should have the format: VSALifecycleManagerQueue-<version>
 		// Version can be like 9.17.1 or 9.17.1P1 (with patch suffix)
@@ -1476,15 +1501,18 @@ func TestCreateVSAClusterDeployment_WithTaskQueue(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 
+		logger := log.NewLogger()
+		account := "test-account"
+
 		// Calculate queue once (as would be done in pool_workflows.go)
-		vlmWorkerQueue := GetVLMWorkerQueue()
+		vlmWorkerQueue := GetVLMWorkerQueue(logger, account)
 
 		request := &CreateVSAClusterDeploymentRequest{
 			VLMConfig: VLMConfig{
 				Deployment: DeploymentConfig{
 					DeploymentID: "test-deployment",
 					Labels: map[string]string{
-						"account_id": "test-account",
+						"account_id": account,
 					},
 				},
 			},
@@ -1513,6 +1541,29 @@ func TestCreateVSAClusterDeployment_WithTaskQueue(t *testing.T) {
 		// Verify that the same vlmWorkerQueue would be used for rollback
 		assert.NotEmpty(t, vlmWorkerQueue)
 		assert.Contains(t, vlmWorkerQueue, VSALifecycleManagerQueuePrefix)
+	})
+
+	t.Run("DifferentTaskQueuesForDifferentAccounts", func(t *testing.T) {
+		// Test that different accounts can have different task queues
+
+		logger := log.NewLogger()
+
+		// Regular account
+		regularAccount := "regular-account"
+		regularQueue := GetVLMWorkerQueue(logger, regularAccount)
+
+		// Another account
+		anotherAccount := "another-account"
+		anotherQueue := GetVLMWorkerQueue(logger, anotherAccount)
+
+		// Both queues should be valid
+		assert.NotEmpty(t, regularQueue)
+		assert.NotEmpty(t, anotherQueue)
+		assert.Contains(t, regularQueue, VSALifecycleManagerQueuePrefix)
+		assert.Contains(t, anotherQueue, VSALifecycleManagerQueuePrefix)
+
+		// Queues might be different if file protocol support differs
+		// But both should be valid queue names
 	})
 
 	t.Run("LargeCapacityTimeout", func(t *testing.T) {

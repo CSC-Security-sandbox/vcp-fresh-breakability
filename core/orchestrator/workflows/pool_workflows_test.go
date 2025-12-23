@@ -11307,17 +11307,19 @@ func TestSyncPoolComplianceForPoolWorkflow_BucketComplianceLogicalAND(t *testing
 	}
 }
 func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testing.T) {
-	// Test case 1: When file protocol is supported, the function should enable ILB support
-	// for NFS V3 compatibility. Images remain the same (file-specific images are no longer used).
-	t.Run("FileProtocolSupported_EnablesIlbSupport", func(t *testing.T) {
+	// Test case 1: When file protocol is supported for an account, the function should configure
+	// file-specific images (vsaFilesImageName and filesMediatorImage) and enable ILB support
+	// for NFS V3 compatibility. This is used for accounts that require file protocol support.
+	t.Run("FileProtocolSupported_ConfiguresFileImagesAndIlbSupport", func(t *testing.T) {
 		testAccountID := "test-account-123"
 		// Save original value and restore it after test
 		originalFileProtocolSupported := utils.FileProtocolSupported
 		defer func() {
 			utils.FileProtocolSupported = originalFileProtocolSupported
 		}()
-		// Enable file protocol support
+		// Enable file protocol support for this account
 		utils.FileProtocolSupported = true
+		utils.SetFileProtocolAllowlistedAccountsForTesting(testAccountID)
 
 		// Setup test data
 		vlmConfig := vlm.VLMConfig{
@@ -11354,11 +11356,10 @@ func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testi
 		req := &vlm.CreateVSAClusterDeploymentRequest{}
 		prepareCreateVSAClusterDeploymentRequest(req, vlmConfig, ontapCreds, pool, resolvedLocationInfo)
 
-		// Verify file protocol configuration is applied: ILB support enabled
+		// Verify file protocol configuration is applied: ILB support enabled and file-specific images used
 		assert.True(t, req.VLMConfig.Deployment.DevFlags.EnableIlbSupport, "EnableIlbSupport should be true to support NFS V3 when file protocol is enabled")
-		// Images should be set to current standard images (file-specific images are no longer used)
-		assert.Equal(t, vsaImageName, req.VLMConfig.Deployment.Images.VSAImageName, "VSAImageName should be set to standard image")
-		assert.Equal(t, mediatorImage, req.VLMConfig.Deployment.Images.MediatorImageName, "MediatorImageName should be set to standard mediator image")
+		assert.Equal(t, "x-9-18-1rc1", req.VLMConfig.Deployment.Images.VSAImageName, "VSAImageName should be set to file-specific image (vsaFilesImageName)")
+		assert.Equal(t, "cvo-mediator-x-9-18-1rc1", req.VLMConfig.Deployment.Images.MediatorImageName, "MediatorImageName should be set to file-specific mediator image (filesMediatorImage)")
 
 		// Verify other fields are set correctly
 		assert.Equal(t, "test-pool", req.VLMConfig.Deployment.Labels["pool_name"])
@@ -11376,6 +11377,7 @@ func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testi
 			utils.FileProtocolSupported = originalFileProtocolSupported
 		}()
 		utils.FileProtocolSupported = true
+		utils.SetFileProtocolAllowlistedAccountsForTesting(testAccountID)
 
 		vlmConfig := vlm.VLMConfig{
 			Deployment: vlm.DeploymentConfig{
@@ -11417,9 +11419,10 @@ func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testi
 			"EnableNfsV364BitIdentifier should be set when large capacity pools support file protocol")
 	})
 
-	// Test case 2: When file protocol is not supported, the function should keep ILB support disabled.
-	// Images remain unchanged (file-specific images are no longer used).
-	t.Run("FileProtocolNotSupported_IlbSupportDisabled", func(t *testing.T) {
+	// Test case 2: When file protocol is not supported, the function should use default images
+	// (vsaImageName and mediatorImage) and keep ILB support disabled. This is the standard
+	// configuration for accounts that don't require file protocol support.
+	t.Run("FileProtocolNotSupported_UsesDefaultImages", func(t *testing.T) {
 		testAccountID := "test-account-456"
 		// Save original value and restore it after test
 		originalFileProtocolSupported := utils.FileProtocolSupported
@@ -11464,11 +11467,10 @@ func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testi
 		req := &vlm.CreateVSAClusterDeploymentRequest{}
 		prepareCreateVSAClusterDeploymentRequest(req, vlmConfig, ontapCreds, pool, resolvedLocationInfo)
 
-		// Verify ILB support disabled
+		// Verify default configuration is used: ILB support disabled and default images used
 		assert.False(t, req.VLMConfig.Deployment.DevFlags.EnableIlbSupport, "EnableIlbSupport should remain false when file protocol is not supported")
-		// Images should be set to standard images
-		assert.Equal(t, vsaImageName, req.VLMConfig.Deployment.Images.VSAImageName, "VSAImageName should be set to standard image")
-		assert.Equal(t, mediatorImage, req.VLMConfig.Deployment.Images.MediatorImageName, "MediatorImageName should be set to standard mediator image")
+		assert.Equal(t, "x-9-17-1p2-gcnv", req.VLMConfig.Deployment.Images.VSAImageName, "VSAImageName should use default image (vsaImageName) when file protocol is not supported")
+		assert.Equal(t, "cvo-mediator-x-9-17-1p2d1", req.VLMConfig.Deployment.Images.MediatorImageName, "MediatorImageName should use default mediator image (mediatorImage) when file protocol is not supported")
 
 		// Verify other fields are still set correctly
 		assert.Equal(t, "test-pool-2", req.VLMConfig.Deployment.Labels["pool_name"])
@@ -11477,7 +11479,8 @@ func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testi
 	})
 
 	// Test case 3: When account is nil, the function should skip file protocol configuration
-	// entirely. The account_id label should not be set, and images remain unchanged.
+	// entirely. The account_id label should not be set, and default images should be used
+	// regardless of file protocol support settings.
 	t.Run("AccountIsNil_SkipsFileProtocolConfiguration", func(t *testing.T) {
 		// Save original value and restore it after test
 		originalFileProtocolSupported := utils.FileProtocolSupported
@@ -11486,6 +11489,7 @@ func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testi
 		}()
 		// Even with file protocol enabled, it should be ignored when account is nil
 		utils.FileProtocolSupported = true
+		utils.SetFileProtocolAllowlistedAccountsForTesting("test-account-789")
 
 		// Setup test data with nil account
 		vlmConfig := vlm.VLMConfig{
@@ -11517,11 +11521,10 @@ func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testi
 		req := &vlm.CreateVSAClusterDeploymentRequest{}
 		prepareCreateVSAClusterDeploymentRequest(req, vlmConfig, ontapCreds, pool, resolvedLocationInfo)
 
-		// Verify configuration is skipped when account is nil
+		// Verify default configuration is used when account is nil (file protocol config is skipped)
 		assert.False(t, req.VLMConfig.Deployment.DevFlags.EnableIlbSupport, "EnableIlbSupport should remain false when account is nil")
-		// Images should still be set to standard images
-		assert.Equal(t, vsaImageName, req.VLMConfig.Deployment.Images.VSAImageName, "VSAImageName should be set to standard image when account is nil")
-		assert.Equal(t, "cvo-mediator-x-9-18-1rc1", req.VLMConfig.Deployment.Images.MediatorImageName, "MediatorImageName should use default mediator image when account is nil")
+		assert.Equal(t, "x-9-17-1p2-gcnv", req.VLMConfig.Deployment.Images.VSAImageName, "VSAImageName should use default image when account is nil")
+		assert.Equal(t, "cvo-mediator-x-9-17-1p2d1", req.VLMConfig.Deployment.Images.MediatorImageName, "MediatorImageName should use default mediator image when account is nil")
 
 		// Verify account_id label is not set when account is nil
 		_, exists := req.VLMConfig.Deployment.Labels["account_id"]
@@ -12297,11 +12300,13 @@ func TestCreatePoolWorkflow_BuildInfo_FilesProtocol(t *testing.T) {
 	cleanup := setEnableSyncPoolZIZSTrue()
 	defer cleanup()
 
-	// Files protocol account - enable file protocol support
+	// Files protocol account - enable file protocol support for this specific account
 	accountName := "files-enabled-account"
 	utils.SetFileProtocolSupportedForTesting(true)
+	utils.SetFileProtocolAllowlistedAccountsForTesting(accountName)
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	var ts testsuite.WorkflowTestSuite
@@ -12384,11 +12389,11 @@ func TestCreatePoolWorkflow_BuildInfo_FilesProtocol(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
 
-	// Validate BuildInfo uses current images (file-specific images are no longer used)
+	// Validate BuildInfo uses files images
 	assert.NotNil(t, capturedPool, "Pool should be captured on second SavePoolWithClusterDetails call")
 	assert.NotNil(t, capturedPool.BuildInfo, "BuildInfo should be set")
-	assert.Equal(t, vsaImageName, capturedPool.BuildInfo.VSABuildImage, "Should use standard VSA image")
-	assert.Equal(t, mediatorImage, capturedPool.BuildInfo.MediatorBuildImage, "Should use standard mediator image")
+	assert.Equal(t, vsaFilesImageName, capturedPool.BuildInfo.VSABuildImage, "Should use files VSA image")
+	assert.Equal(t, filesMediatorImage, capturedPool.BuildInfo.MediatorBuildImage, "Should use files mediator image")
 	assert.Equal(t, envs.CurrentOntapVersionDetails, capturedPool.BuildInfo.OntapVersion, "Should use current ONTAP version")
 	assert.False(t, capturedPool.BuildInfo.BuildTimestamp.IsZero(), "BuildTimestamp should be set")
 }

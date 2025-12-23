@@ -233,8 +233,10 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 
 		// Setup file protocol support for this test
 		utils.SetFileProtocolSupportedForTesting(true)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("test-account")
 		defer func() {
 			utils.SetFileProtocolSupportedForTesting(false)
+			utils.SetFileProtocolAllowlistedAccountsForTesting("")
 		}()
 
 		// Arrange
@@ -2658,9 +2660,11 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeAndExportPolicy_Success(t *testing.T) {
 	// Set up file protocol support for testing
 	utils.SetFileProtocolSupportedForTesting(true)
+	utils.SetFileProtocolAllowlistedAccountsForTesting("test-account")
 	defer func() {
 		// Clean up environment variables after test
 		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
 
 	mockStorage := database.NewMockStorage(t)

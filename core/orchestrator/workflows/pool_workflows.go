@@ -55,8 +55,10 @@ var (
 	enableUniqueSerialNumberGeneration                   = env.GetBool("ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION", false)
 	Region                                               = env.GetString("LOCAL_REGION", "")
 
-	vsaImageName                 = env.GetString("VSA_IMAGE_NAME", "x-9-18-1rc1")
-	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-18-1rc1")
+	vsaImageName                 = env.GetString("VSA_IMAGE_NAME", "x-9-17-1p2-gcnv")
+	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-17-1p2d1")
+	vsaFilesImageName            = env.GetString("VSA_FILES_IMAGE_NAME", "x-9-18-1rc1")
+	filesMediatorImage           = env.GetString("VSA_FILES_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-18-1rc1")
 	waitTimeForGCPOperationInSec = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)
 	parallelNumberOfNodesForITC  = env.GetInt("PARALLEL_NUMBER_OF_NODES_FOR_ITC", 4) // As of now it's 4 as per the VLM design document
 
@@ -314,7 +316,8 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	// Calculate VLM worker queue once to use for both creation and rollback
-	vlmWorkerQueue := vlm.GetVLMWorkerQueue()
+	log := util.GetLogger(ctx)
+	vlmWorkerQueue := vlm.GetVLMWorkerQueue(log, pool.Account.Name)
 
 	if vlmWorkerQueue == "" {
 		return nil, ConvertToVSAError(
@@ -414,6 +417,10 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	// Determine which images to use based on file protocol support
 	buildImage, buildMediatorImage := vsaImageName, mediatorImage
+	if utils.IsFileProtocolSupported(pool.Account.Name) {
+		buildImage = vsaFilesImageName
+		buildMediatorImage = filesMediatorImage
+	}
 
 	// Create pool build info with current image details
 	poolBuildInfo := &datamodel.PoolBuildInfo{
@@ -1585,6 +1592,7 @@ func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest 
 		MediatorZone: resolvedLocationInfo.MediatorZone,
 	}
 
+	// Set default images
 	vlmConfig.Deployment.Images.VSAImageName = vsaImageName
 	vlmConfig.Deployment.Images.MediatorImageName = mediatorImage
 
@@ -1595,7 +1603,10 @@ func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest 
 	vlmConfig.Deployment.Labels["pool_uuid"] = pool.UUID
 	if pool.Account != nil {
 		vlmConfig.Deployment.Labels["account_id"] = pool.Account.Name
-		if utils.IsFileProtocolSupported() {
+		if utils.IsFileProtocolSupported(pool.Account.Name) {
+			// Use file-specific images for file protocol enabled accounts
+			vlmConfig.Deployment.Images.VSAImageName = vsaFilesImageName
+			vlmConfig.Deployment.Images.MediatorImageName = filesMediatorImage
 			// Set the NFS V3 support flag based on the file protocol support
 			vlmConfig.Deployment.DevFlags.EnableIlbSupport = true
 			if pool.LargeCapacity {

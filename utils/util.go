@@ -94,6 +94,7 @@ var (
 	CalculateRequiredVolumeSize     = _calculateRequiredVolumeSize
 	// FileProtocolSupported controls whether file-based protocols (NFS/CIFS) are allowed
 	FileProtocolSupported      = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
+	fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
 	IsAllSquashEnabled         = env.GetBool("IS_ALL_SQUASH_ENABLED", true)
 	isProberProject            = ParseCommaSeparatedStringToMap(env.GetString("PROBER_PROJECT_LIST", ""))
 	AutoTieringEnabled         = env.GetBool("AUTO_TIERING_ENABLED", false)
@@ -1040,8 +1041,23 @@ func ParseCommaSeparatedStringToMap(input string) map[string]struct{} {
 }
 
 // IsFileProtocolSupported returns true only if the file protocol support flag is enabled
-func IsFileProtocolSupported() bool {
-	return FileProtocolSupported
+// and the provided accountID is in the allowlisted accounts config map array.
+// If no allowlisted accounts are configured, it returns false even if the flag is enabled.
+func IsFileProtocolSupported(accountID string) bool {
+	// First check if the flag is enabled
+	if !FileProtocolSupported {
+		return false
+	}
+
+	// If no allowlisted accounts are configured, return false
+	if len(fileProtocolAllowlistedAccounts) == 0 {
+		return false
+	}
+
+	// Check if the accountID is in the allowlisted accounts
+	// Exact matching (account IDs are typically numbered strings)
+	_, exists := fileProtocolAllowlistedAccounts[accountID]
+	return exists
 }
 
 // IsProberProject checks if the given project number is a prober project by search it in PROBER_PROJECT_LIST.
@@ -1073,6 +1089,18 @@ func EnableAllSquashForTesting(enabled bool) {
 	}
 	// Re-read the environment variable to update the cached value
 	IsAllSquashEnabled = env.GetBool("IS_ALL_SQUASH_ENABLED", true)
+}
+
+// SetFileProtocolAllowlistedAccountsForTesting is a test helper function that allows tests to set
+// the allowlisted accounts by setting the environment variable.
+// This should only be used in tests.
+func SetFileProtocolAllowlistedAccountsForTesting(accounts string) {
+	err := os.Setenv("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", accounts)
+	if err != nil {
+		return
+	}
+	// Re-parse the accounts to update the cached value
+	fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
 }
 
 func GetSnHostProject(pool *datamodel.Pool) string {

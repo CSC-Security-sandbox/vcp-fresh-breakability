@@ -327,7 +327,7 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 	}
 
 	// Post-provisioning child workflow
-	postWorkflowFunc, err := selectVolumeChildWorkflow(backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.Protocols, PhasePost)
+	postWorkflowFunc, err := selectVolumeChildWorkflow(backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.Protocols, PhasePost, backupActivitiesContext.BackupWorkflowInit.Volume.Account.Name)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}

@@ -791,12 +791,12 @@ func (v *FileVolumeProcessor) Validate(ctx context.Context, se database.Storage,
 	return nil
 }
 
-func GetVolumeTypeValidator(protocols []string) (VolumeTypeProcessor, error) {
+func GetVolumeTypeValidator(protocols []string, accountName string) (VolumeTypeProcessor, error) {
 	if utils.IsSanProtocols(protocols) {
 		return &BlockVolumeProcessor{}, nil
 	}
 	if utils.IsNasProtocols(protocols) {
-		if !utils.IsFileProtocolSupported() {
+		if !utils.IsFileProtocolSupported(accountName) {
 			return nil, customerrors.NewUserInputValidationErr("file protocols are not enabled")
 		}
 		return &FileVolumeProcessor{}, nil
@@ -1329,7 +1329,7 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 	}
 
 	// Protocol-specific validation
-	validator, err := GetVolumeTypeValidator(params.Protocols)
+	validator, err := GetVolumeTypeValidator(params.Protocols, params.AccountName)
 	if err != nil {
 		return err
 	}
@@ -2335,7 +2335,7 @@ func validateUpdateFileProperties(params *common.UpdateVolumeParams, volume *dat
 	}
 
 	// Validate that the volume supports NFS protocols before allowing file property updates
-	if !utils.IsFileProtocolSupported() {
+	if !utils.IsFileProtocolSupported(volume.Account.Name) {
 		return customerrors.NewUserInputValidationErr("file properties can only be supported for volumes with NAS protocols")
 	}
 
