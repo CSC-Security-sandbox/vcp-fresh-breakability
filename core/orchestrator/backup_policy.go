@@ -10,7 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -164,6 +164,7 @@ func (o *Orchestrator) UpdateBackupPolicy(ctx context.Context, params *commonpar
 		createdJob.WorkflowID,
 		workflowengine.CustomerTaskQueue,
 		workflows.UpdateBackupPolicyWorkflow,
+		nil,
 		params,
 		dbBackupPolicy,
 	)
@@ -292,6 +293,7 @@ func (o *Orchestrator) DeleteBackupPolicy(ctx context.Context, params *commonpar
 		createdJob.WorkflowID,
 		workflowengine.CustomerTaskQueue,
 		workflows.DeleteBackupPolicyWorkflow,
+		nil,
 		params,
 		updatedBackupPolicy,
 	)

@@ -224,6 +224,7 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		createdJob.WorkflowID,
 		workflowengine.CustomerTaskQueue,
 		workflows.CreateBackupWorkflow,
+		workflowengine.GetCreateBackupWorkflowTimeout(),
 		params,
 		dbBackup,
 		backupVault,
@@ -321,6 +322,7 @@ func _updateBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		createdJob.WorkflowID,
 		workflowengine.CustomerTaskQueue,
 		workflows.UpdateBackupWorkflow,
+		nil,
 		backup,
 	)
 	if err != nil {
@@ -599,6 +601,7 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		createdJob.WorkflowID,
 		workflowengine.CustomerTaskQueue,
 		workflows.DeleteBackupWorkflow,
+		workflowengine.GetDeleteBackupWorkflowTimeout(),
 		params,
 	)
 	if err != nil {

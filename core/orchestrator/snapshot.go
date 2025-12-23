@@ -56,13 +56,11 @@ const (
 	snapshotNameErrorIllegalNames = `Snapshot name cannot start with the following: "ref_ss_volmove", "snapmirror", "hourly.", "daily.", "weekly." or "monthly.".`
 )
 
-var (
-	illegalNamesRegexp = []*regexp.Regexp{
-		regexp.MustCompile(`^ref_ss_volmove.*$`),
-		regexp.MustCompile(`^snapmirror.*$`),
-		regexp.MustCompile(`^(hourly|daily|weekly|monthly)\..*$`),
-	}
-)
+var illegalNamesRegexp = []*regexp.Regexp{
+	regexp.MustCompile(`^ref_ss_volmove.*$`),
+	regexp.MustCompile(`^snapmirror.*$`),
+	regexp.MustCompile(`^(hourly|daily|weekly|monthly)\..*$`),
+}
 
 // CreateSnapshot creates the snapshot and adds to the specified volume belonging to the specified owner
 func (o *Orchestrator) CreateSnapshot(ctx context.Context, params *common.CreateSnapshotParams) (*models.Snapshot, string, error) {
@@ -225,6 +223,7 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		job.WorkflowID,
 		workflowengine.CustomerTaskQueue,
 		workflows.CreateSnapshotWorkflow,
+		nil,
 		params,
 		dbSnapshot,
 	)
@@ -391,7 +390,6 @@ func createSnapshotSync(ctx context.Context, se database.Storage, dbSnapshot *da
 
 		return nil
 	})
-
 	if err != nil {
 		logger.Errorf("Failed to update snapshot in transaction: %v", err)
 		return nil, err
@@ -786,6 +784,7 @@ func _deleteSnapshots(ctx context.Context, se database.Storage, temporal client.
 		job.WorkflowID,
 		workflowengine.CustomerTaskQueue,
 		replicationWorkflows.DeleteInternalSnapshotWorkflow,
+		nil,
 		params,
 	)
 	if err != nil {

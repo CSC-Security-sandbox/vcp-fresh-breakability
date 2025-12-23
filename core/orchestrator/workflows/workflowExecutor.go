@@ -77,9 +77,10 @@ func (we *WorkflowExecutor) ExecuteWorkflow(
 	workflowID string,
 	taskQueue string,
 	workflowFunc interface{},
+	workflowRunTimeout *time.Duration,
 	args ...interface{},
 ) error {
-	return we.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, args...)
+	return we.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, workflowRunTimeout, args...)
 }
 
 // ExecuteWorkflowWithRetry executes standard workflow with retry logic for transient failures
@@ -88,12 +89,13 @@ func (we *WorkflowExecutor) ExecuteWorkflowWithRetry(
 	workflowID string,
 	taskQueue string,
 	workflowFunc interface{},
+	workflowRunTimeout *time.Duration,
 	args ...interface{},
 ) error {
 	var lastErr error
 
 	for attempt := 1; attempt <= temporalWorkflowMaxRetries; attempt++ {
-		err := we.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, args...)
+		err := we.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, workflowRunTimeout, args...)
 
 		if err == nil {
 			if attempt > 1 {
@@ -152,13 +154,19 @@ func (we *WorkflowExecutor) ExecuteWorkflowSingle(
 	workflowID string,
 	taskQueue string,
 	workflowFunc interface{},
+	workflowRunTimeout *time.Duration,
 	args ...interface{},
 ) error {
+	timeout := workflowengine.GetWorkflowGlobalTimeout()
+	if workflowRunTimeout != nil {
+		timeout = *workflowRunTimeout
+	}
+
 	options := client.StartWorkflowOptions{
 		TaskQueue:             taskQueue,
 		ID:                    workflowID,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-		WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+		WorkflowRunTimeout:    timeout,
 	}
 
 	_, err := we.temporal.ExecuteWorkflow(ctx, options, workflowFunc, args...)

@@ -180,6 +180,7 @@ func _deleteBackupVault(ctx context.Context, se database.Storage, temporal clien
 		createdJob.WorkflowID,
 		workflowengine.CustomerTaskQueue,
 		workflows.DeleteBackupVaultWorkflow,
+		nil,
 		params,
 		dbBV,
 	)
@@ -266,6 +267,7 @@ func _updateBackupVault(ctx context.Context, se database.Storage, temporal clien
 		createdJob.WorkflowID,
 		workflowengine.CustomerTaskQueue,
 		workflows.UpdateBackupVaultWorkflow,
+		nil,
 		params,
 		dbBV,
 	)

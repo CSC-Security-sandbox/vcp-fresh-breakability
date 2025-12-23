@@ -12,6 +12,9 @@ var (
 	CMEKWorkflowGlobalTimeoutMinutes     = env.GetString("CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "14")
 	WorkflowGlobalTimeoutMinutes         = env.GetString("WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "60")
 	ExpertModeSyncWorkflowTimeoutMinutes = env.GetString("EXPERT_MODE_SYNC_WORKFLOW_TIMEOUT_MINUTES", "10")
+	CreateBackupWorkflowTimeoutMinutes   = env.GetString("CREATE_BACKUP_WORKFLOW_TIMEOUT_MINUTES", "8640")
+	DeleteBackupWorkflowTimeoutMinutes   = env.GetString("DELETE_BACKUP_WORKFLOW_TIMEOUT_MINUTES", "6480")
+	SFRWorkflowTimeoutMinutes            = env.GetString("SFR_WORKFLOW_TIMEOUT_MINUTES", "13680")
 )
 
 // Struct for RetryPolicy configuration
@@ -93,4 +96,25 @@ func GetExpertModeSyncWorkflowTimeout() time.Duration {
 		return 10 * time.Minute
 	}
 	return timeout
+}
+
+func getWorkflowTimeoutWithDefault(configValue string, defaultMinutes int) *time.Duration {
+	timeout, err := time.ParseDuration(configValue + "m")
+	if err != nil {
+		defaultTimeout := time.Duration(defaultMinutes) * time.Minute
+		return &defaultTimeout
+	}
+	return &timeout
+}
+
+func GetCreateBackupWorkflowTimeout() *time.Duration {
+	return getWorkflowTimeoutWithDefault(CreateBackupWorkflowTimeoutMinutes, 8640)
+}
+
+func GetDeleteBackupWorkflowTimeout() *time.Duration {
+	return getWorkflowTimeoutWithDefault(DeleteBackupWorkflowTimeoutMinutes, 6480)
+}
+
+func GetSFRWorkflowTimeout() *time.Duration {
+	return getWorkflowTimeoutWithDefault(SFRWorkflowTimeoutMinutes, 13680)
 }

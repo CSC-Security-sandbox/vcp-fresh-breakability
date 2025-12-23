@@ -877,7 +877,6 @@ func getBackupVaultFromCVP(ctx context.Context, backupVaultID string, region str
 		ProjectNumber:  accountName,
 		XCorrelationID: &xCorrelationID,
 	})
-
 	if err != nil {
 		if customerrors.IsNotFoundErr(err) {
 			return nil, customerrors.NewNotFoundErr("Backup vault", nil)
@@ -1830,7 +1829,6 @@ func (o *Orchestrator) TriggerRefreshWorkflow(ctx context.Context, account *data
 		workflows.VolumeRefreshWorkflow,
 		volumes,
 	)
-
 	if err != nil {
 		return err
 	}
@@ -1971,6 +1969,7 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		createdJob.WorkflowID,
 		workflowengine.CustomerTaskQueue,
 		wf,
+		nil,
 		params,
 		dbVolume,
 	)
@@ -2612,7 +2611,6 @@ func checkAndTriggerPoolScalingIfNeeded(ctx context.Context, se database.Storage
 		pool,
 		autoScalingParams,
 	)
-
 	if err != nil {
 		logger.Errorf("failed to start automatic pool scaling workflow: %v", err)
 	}
@@ -2763,6 +2761,7 @@ func _restoreFilesFromBackup(ctx context.Context, se database.Storage, temporal 
 		createdJob.WorkflowID,
 		workflowengine.CustomerTaskQueue,
 		workflows.RestoreFilesFromBackupWorkflow,
+		workflowengine.GetSFRWorkflowTimeout(),
 		params,
 		backup,
 		volume,

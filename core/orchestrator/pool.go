@@ -122,6 +122,7 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 		createdJob.WorkflowID,
 		workflowengine.CustomerTaskQueue,
 		workflows.CreatePoolWorkflow,
+		nil,
 		params,
 		dbPool,
 	)
@@ -367,6 +368,7 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 		createdJob.WorkflowID,
 		workflowengine.CustomerTaskQueue,
 		workflows.UpdatePoolWorkflow,
+		nil,
 		params,
 		pool,
 		nil,
@@ -596,6 +598,7 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 		createdJob.WorkflowID,
 		workflowengine.CustomerTaskQueue,
 		workflows.DeletePoolWorkflow,
+		nil,
 		params,
 		dbpool,
 	)

@@ -75,6 +75,9 @@ data:
   JWK_KIDS_URL: "{{ index .Values "jwkKidsUrl" }}"
   WORKFLOW_GLOBAL_TIMEOUT_MINUTES: "{{ index .Values "workflowGlobalTimeoutMinutes" }}"
   CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES: "{{ index .Values "cmekWorkflowGlobalTimeoutMinutes" }}"
+  CREATE_BACKUP_WORKFLOW_TIMEOUT_MINUTES: "{{ index .Values "createBackupWorkflowTimeoutMinutes" }}"
+  DELETE_BACKUP_WORKFLOW_TIMEOUT_MINUTES: "{{ index .Values "deleteBackupWorkflowTimeoutMinutes" }}"
+  SFR_WORKFLOW_TIMEOUT_MINUTES: "{{ index .Values "sfrWorkflowTimeoutMinutes" }}"
   CMEK_BACKUP_ENABLED: "{{ index .Values "cmekBackupEnabled" }}"
   WORKFLOW_GLOBAL_TIMEOUT_FOR_REPLICATION_MINUTES: {{ index .Values "workflowGlobalTimeoutForReplicationMinutes" | quote }}
   MAX_HOSTS_PER_HOSTGROUP: "{{ index .Values "maxHostsPerHostgroup" }}"
