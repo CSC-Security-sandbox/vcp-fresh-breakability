@@ -1497,3 +1497,11 @@ func (s *PersistenceStore) GetQuotaRuleCountBySvmID(ctx context.Context, svmID i
 func (s *PersistenceStore) DeleteQuotaRule(ctx context.Context, id string) (*datamodel.QuotaRule, error) {
 	return s.dataStore.DeleteQuotaRule(ctx, id)
 }
+
+func (s *PersistenceStore) GetExpertModeVolumeByVolumeUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error) {
+	return s.dataStore.GetExpertModeVolumeByVolumeUUID(ctx, volumeUUID)
+}
+
+func (s *PersistenceStore) UpdateExpertModeVolumeDataProtection(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) error {
+	return s.dataStore.UpdateExpertModeVolumeDataProtection(ctx, expertModeVolume)
+}

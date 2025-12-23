@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
@@ -27,6 +28,8 @@ var (
 	listBackupsToCVP                  = _listBackupsToCVP
 	getBackupsFromCVP                 = _getBackupsFromCVP
 	checkIfBackupExistInCVP           = _checkIfBackupExistInCVP
+	ONTAPMode                         = "ONTAP"
+	ExpertModeBackupEnabled           = env.GetBool("EXPERT_MODE_BACKUP_ENABLED", false)
 )
 
 func (h Handler) V1betaGetMultipleBackups(ctx context.Context, req *gcpgenserver.BackupUuidListV1beta, params gcpgenserver.V1betaGetMultipleBackupsParams) (gcpgenserver.V1betaGetMultipleBackupsRes, error) {
@@ -150,10 +153,96 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 			Message: parsingErr.Message,
 		}, nil
 	}
-	vol, err := h.Orchestrator.GetVolume(ctx, req.VolumeId, false)
+
+	var fetchFromCVP bool
+
+	var isExpertMode bool
+	var err error
+	// Check if poolID is provided
+	if req.PoolId.IsSet() && req.PoolId.Value != "" {
+		pool, err := h.Orchestrator.DescribePool(ctx, req.PoolId.Value, params.ProjectNumber)
+		if err != nil {
+			logger.Error("Failed to get pool", "error", err.Error())
+			if errors.IsNotFoundErr(err) {
+				return &gcpgenserver.V1betaCreateBackupBadRequest{
+					Code:    400,
+					Message: fmt.Sprintf("Pool with ID %s not found", req.PoolId.Value),
+				}, nil
+			}
+			return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, nil
+		}
+		isExpertMode = pool.APIAccessMode == ONTAPMode
+	}
+
+	if isExpertMode && !ExpertModeBackupEnabled {
+		msg := "Backup for ONTAP mode pools is currently not enabled."
+		logger.Error(msg)
+		return &gcpgenserver.V1betaCreateBackupBadRequest{
+			Code:    400,
+			Message: msg,
+		}, nil
+	}
+
+	var vol *coremodels.Volume
+	var expertModeVol *datamodel.ExpertModeVolumes
+	// If pool is ONTAP mode, fetch from ExpertModeVolumes table
+	if isExpertMode {
+		expertModeVol, err = h.Orchestrator.GetExpertModeVolumeByUUID(ctx, req.VolumeId)
+		if err != nil {
+			if errors.IsNotFoundErr(err) {
+				logger.Error("Expert mode volume not found", "volumeID", req.VolumeId)
+				return &gcpgenserver.V1betaCreateBackupBadRequest{
+					Code:    400,
+					Message: fmt.Sprintf("Expert mode volume with ID %s not found", req.VolumeId),
+				}, nil
+			} else {
+				return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, nil
+			}
+		}
+		if expertModeVol != nil {
+			if expertModeVol.BackupConfig != nil && expertModeVol.BackupConfig.BackupVaultID != "" && expertModeVol.BackupConfig.BackupVaultID != params.BackupVaultId {
+				msg := fmt.Sprintf("Expert mode volume %s is associated with a different backup vault %s", req.VolumeId, expertModeVol.BackupConfig.BackupVaultID)
+				return &gcpgenserver.V1betaCreateBackupBadRequest{
+					Code:    400,
+					Message: msg,
+				}, nil
+			}
+			// Expert mode volume found - check if backup vault is attached
+			if expertModeVol.BackupConfig == nil || expertModeVol.BackupConfig.BackupVaultID == "" {
+				// Backup vault not attached, check if it exists in VCP, if not fetch from CVP
+				backupVault, err := checkAndFetchBackupVault(ctx, &h, expertModeVol, params.BackupVaultId, params.LocationId)
+				if err != nil {
+					logger.Error("Failed to check/attach backup vault to expert mode volume", "error", err.Error())
+					return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
+				}
+				if backupVault == nil {
+					return &gcpgenserver.V1betaCreateBackupBadRequest{
+						Code:    400,
+						Message: fmt.Sprintf("Backup vault %s not found", params.BackupVaultId),
+					}, nil
+				}
+			}
+		}
+	} else {
+		// For non-ONTAP pools or when poolID is not provided, use regular volume lookup
+		vol, err = h.Orchestrator.GetVolume(ctx, req.VolumeId, false)
+		if err != nil {
+			if errors.IsNotFoundErr(err) {
+				fetchFromCVP = true
+			} else if errors.IsUserInputValidationErr(err) {
+				return &gcpgenserver.V1betaCreateBackupBadRequest{
+					Code:    400,
+					Message: err.Error(),
+				}, nil
+			} else {
+				logger.Error("Failed to get volume", "error", err.Error())
+				return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
+			}
+		}
+	}
 
 	// Check if volume exist in the VSA if not call CVP API to create the backup
-	if (err != nil && errors.IsNotFoundErr(err)) || vol == nil {
+	if (err != nil && fetchFromCVP) || (vol == nil && !isExpertMode) {
 		// Check if backup already exists in VCP under the same vault before creating in CVP
 		filters := [][]interface{}{{"name = ?", req.ResourceId}}
 		existingBackups, err := h.Orchestrator.ListBackups(ctx, params.BackupVaultId, params.ProjectNumber, filters)
@@ -306,7 +395,7 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 		}, nil
 	}
 	// If the request belongs to VSA, we will create the backup using the orchestrator
-	vsaParams := createBackupParams(req, params)
+	vsaParams := createBackupParams(req, params, isExpertMode && expertModeVol != nil)
 
 	backup, jobID, err := h.Orchestrator.CreateBackup(ctx, vsaParams)
 	if err != nil {
@@ -839,7 +928,7 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 	return backupV1
 }
 
-func createBackupParams(req *gcpgenserver.BackupCreateV1beta, params gcpgenserver.V1betaCreateBackupParams) *common.CreateBackupParams {
+func createBackupParams(req *gcpgenserver.BackupCreateV1beta, params gcpgenserver.V1betaCreateBackupParams, isExpertModeVolume bool) *common.CreateBackupParams {
 	backupParams := common.CreateBackupParams{
 		AccountName:         params.ProjectNumber,
 		BackupVaultID:       params.BackupVaultId,
@@ -847,8 +936,9 @@ func createBackupParams(req *gcpgenserver.BackupCreateV1beta, params gcpgenserve
 		BackupName:          req.ResourceId,
 		BackupType:          utils.BackupTypeMANUAL, // Default to MANUAL, later can be changed based on the request
 		LocationID:          params.LocationId,
-		UseExistingSnapshot: false, // Default to false, can be changed based on the request
-		SnapshotID:          "",    // Default to empty, can be changed based on the request
+		UseExistingSnapshot: false,              // Default to false, can be changed based on the request
+		SnapshotID:          "",                 // Default to empty, can be changed based on the request
+		IsExpertModeVolume:  isExpertModeVolume, // Indicates if this is an expert mode volume
 	}
 	if req.Description.IsSet() {
 		backupParams.Description = req.Description.Value
@@ -1154,4 +1244,33 @@ func fetchBackupUUIDWhichAreNotPartOfListBackups(listBackups []*datamodel.Backup
 		}
 	}
 	return uuids
+}
+
+func checkAndFetchBackupVault(ctx context.Context, handler *Handler, expertModeVol *datamodel.ExpertModeVolumes, backupVaultID, region string) (*datamodel.BackupVault, error) {
+	backupVaultModel, err := handler.Orchestrator.GetBackupVaultByUUID(ctx, backupVaultID, expertModeVol.Account.Name)
+	if err == nil && backupVaultModel != nil {
+		return &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID: backupVaultID,
+			},
+		}, nil
+	}
+
+	// If error is not a NotFound error, propagate it (e.g., database connection failures, timeouts)
+	if err != nil && !errors.IsNotFoundErr(err) {
+		return nil, err
+	}
+
+	// Backup vault not found locally, fetch from CVP
+	backupVault, err := orchestrator.GetBackupVaultFromCVP(ctx, backupVaultID, region, expertModeVol.Account.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	createdBackupVault, err := handler.Orchestrator.CreateBackupVaultEntryInVCP(ctx, backupVault, expertModeVol.Account.Name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create backup vault entry in VCP: %w", err)
+	}
+
+	return createdBackupVault, nil
 }

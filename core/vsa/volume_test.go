@@ -1001,6 +1001,111 @@ func TestGetVolume_WhenVolumeGetReturnsError_getOntapClientFuncError(t *testing.
 	assertErrContains(t, err, "getOntapClientFunc error")
 }
 
+// TestGetVolume_ConstituentCountHandling tests the constituent count extraction logic in GetVolume
+func TestGetVolume_ConstituentCountHandling(t *testing.T) {
+	tests := []struct {
+		name                     string
+		volumeInlineConstituents []*models.VolumeInlineConstituentsInlineArrayItem
+		expectedConstituentCount *int32
+		description              string
+	}{
+		{
+			name: "VolumeInlineConstituents with multiple items",
+			volumeInlineConstituents: []*models.VolumeInlineConstituentsInlineArrayItem{
+				{Name: nillable.ToPointer("constituent1")},
+				{Name: nillable.ToPointer("constituent2")},
+				{Name: nillable.ToPointer("constituent3")},
+			},
+			expectedConstituentCount: nillable.GetInt32Ptr(3),
+			description:              "Should return count of 3 when VolumeInlineConstituents has 3 items",
+		},
+		{
+			name:                     "VolumeInlineConstituents with empty array",
+			volumeInlineConstituents: []*models.VolumeInlineConstituentsInlineArrayItem{},
+			expectedConstituentCount: nillable.GetInt32Ptr(0),
+			description:              "Should return count of 0 when VolumeInlineConstituents is empty array",
+		},
+		{
+			name:                     "VolumeInlineConstituents is nil",
+			volumeInlineConstituents: nil,
+			expectedConstituentCount: nil,
+			description:              "Should return nil when VolumeInlineConstituents is nil",
+		},
+		{
+			name: "VolumeInlineConstituents with single item",
+			volumeInlineConstituents: []*models.VolumeInlineConstituentsInlineArrayItem{
+				{Name: nillable.ToPointer("constituent1")},
+			},
+			expectedConstituentCount: nillable.GetInt32Ptr(1),
+			description:              "Should return count of 1 when VolumeInlineConstituents has 1 item",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange
+			mockStorage := new(ontaprest.MockStorageClient)
+			mockClient := new(ontaprest.MockRESTClient)
+			mockClient.On("Storage").Return(mockStorage)
+			originalgetOntapClientFunc := getOntapClientFunc
+			defer func() {
+				getOntapClientFunc = originalgetOntapClientFunc
+			}()
+			getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+				return mockClient, nil
+			}
+			rc := &OntapRestProvider{}
+
+			volumeName := "testVolume"
+			volumeUUID := "testUUID"
+			svmName := "testSVM"
+
+			mockVolume := &ontaprest.Volume{
+				Volume: models.Volume{
+					UUID: nillable.ToPointer(volumeUUID),
+					Name: &volumeName,
+					Space: &models.VolumeInlineSpace{
+						Available: nillable.GetInt64Ptr(100000),
+						Size:      nillable.GetInt64Ptr(200000),
+						LogicalSpace: &models.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.GetInt64Ptr(50000),
+						},
+					},
+					State: nillable.ToPointer(models.VolumeStateOnline),
+					SnapshotPolicy: &models.VolumeInlineSnapshotPolicy{
+						Name: nillable.GetStringPtr("none"),
+					},
+					SnapshotDirectoryAccessEnabled: nillable.GetBoolPtr(false),
+					VolumeInlineConstituents:       tt.volumeInlineConstituents,
+				},
+			}
+			mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
+
+			params := GetVolumeParams{
+				UUID:       volumeUUID,
+				VolumeName: volumeName,
+				SvmName:    svmName,
+			}
+
+			// Act
+			resp, err := rc.GetVolume(params)
+
+			// Assert
+			assert.NoError(t, err)
+			assert.NotNil(t, resp)
+			if tt.expectedConstituentCount == nil {
+				assert.Nil(t, resp.ConstituentCount, tt.description)
+			} else {
+				require.NotNil(t, resp.ConstituentCount, tt.description)
+				assert.Equal(t, *tt.expectedConstituentCount, *resp.ConstituentCount, tt.description)
+			}
+
+			mockStorage.AssertExpectations(t)
+			mockClient.AssertExpectations(t)
+		})
+	}
+}
+
 func TestUpdateVolume(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)

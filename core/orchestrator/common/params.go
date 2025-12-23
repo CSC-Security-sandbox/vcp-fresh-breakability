@@ -459,6 +459,7 @@ type CreateBackupParams struct {
 	ConstituentCountOfBackup int32
 	VolumeUsageBytes         int64
 	BackupChainBytes         int64
+	IsExpertModeVolume       bool // Indicates if the volume is an expert mode volume (ONTAP mode)
 }
 
 type GetBackupsParams struct {

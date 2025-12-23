@@ -747,6 +747,8 @@ type BackupCreateV1beta struct {
 	VolumeId string `json:"volumeId"`
 	// UUID v4 of the snapshot.
 	SnapshotId OptString `json:"snapshotId"`
+	// UUID v4 of the Pool.
+	PoolId OptString `json:"poolId"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -769,6 +771,11 @@ func (s *BackupCreateV1beta) GetSnapshotId() OptString {
 	return s.SnapshotId
 }
 
+// GetPoolId returns the value of PoolId.
+func (s *BackupCreateV1beta) GetPoolId() OptString {
+	return s.PoolId
+}
+
 // SetResourceId sets the value of ResourceId.
 func (s *BackupCreateV1beta) SetResourceId(val string) {
 	s.ResourceId = val
@@ -787,6 +794,11 @@ func (s *BackupCreateV1beta) SetVolumeId(val string) {
 // SetSnapshotId sets the value of SnapshotId.
 func (s *BackupCreateV1beta) SetSnapshotId(val OptString) {
 	s.SnapshotId = val
+}
+
+// SetPoolId sets the value of PoolId.
+func (s *BackupCreateV1beta) SetPoolId(val OptString) {
+	s.PoolId = val
 }
 
 // Merged schema.

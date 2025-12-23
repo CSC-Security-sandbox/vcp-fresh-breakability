@@ -150,6 +150,7 @@ type OrchestratorFactory interface {
 	DeleteActiveDirectory(ctx context.Context, params *commonparams.DeleteActiveDirectoryParams) (string, error)
 
 	CreateExpertModeVolume(ctx context.Context, params *commonparams.CreateExpertModeVolumeParams) error
+	GetExpertModeVolumeByUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error)
 }
 
 type Orchestrator struct {

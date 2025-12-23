@@ -1424,13 +1424,20 @@ func (s *BackupCreateV1beta) encodeFields(e *jx.Encoder) {
 			s.SnapshotId.Encode(e)
 		}
 	}
+	{
+		if s.PoolId.Set {
+			e.FieldStart("poolId")
+			s.PoolId.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfBackupCreateV1beta = [4]string{
+var jsonFieldsNameOfBackupCreateV1beta = [5]string{
 	0: "resourceId",
 	1: "description",
 	2: "volumeId",
 	3: "snapshotId",
+	4: "poolId",
 }
 
 // Decode decodes BackupCreateV1beta from json.
@@ -1485,6 +1492,16 @@ func (s *BackupCreateV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"snapshotId\"")
+			}
+		case "poolId":
+			if err := func() error {
+				s.PoolId.Reset()
+				if err := s.PoolId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"poolId\"")
 			}
 		default:
 			return d.Skip()

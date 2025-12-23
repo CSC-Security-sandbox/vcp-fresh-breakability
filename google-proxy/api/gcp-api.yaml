@@ -11534,6 +11534,19 @@ components:
           maxLength: 36
           minLength: 36
           example: 0ddaee2c-a92d-4e6c-bb72-d7d373c1d43
+    PoolId_v1beta:
+      title: PoolId
+      type: object
+      description: String describing Pool ID
+      properties:
+        poolId:
+          type: string
+          description: UUID v4 of the Pool
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 0ddaee2c-a92d-4e6c-bb72-d7d373c1d44
     VolumeId_v1beta:
       title: VolumeId
       type: object
@@ -11558,6 +11571,7 @@ components:
         - $ref: '#/components/schemas/Description_v1beta'
         - $ref: '#/components/schemas/VolumeId_v1beta'
         - $ref: '#/components/schemas/SnapshotId_v1beta'
+        - $ref: '#/components/schemas/PoolId_v1beta'
     InternalBackupCreate_v1beta:
       type: object
       title: InternalBackupCreate

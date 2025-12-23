@@ -11,7 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -978,10 +978,10 @@ func TestGetSnapshotsWithConditions(t *testing.T) {
 		assert.NoError(tt, err, "Failed to create snapshot")
 
 		// Query for the snapshot using conditions
-		filter := utils.CreateFilterWithConditions(
-			utils.NewFilterCondition("account_id", "=", 1),
-			utils.NewFilterCondition("volume_id", "=", volume.ID),
-			utils.NewFilterCondition("name", "=", "test_snapshot"),
+		filter := dbutils.CreateFilterWithConditions(
+			dbutils.NewFilterCondition("account_id", "=", 1),
+			dbutils.NewFilterCondition("volume_id", "=", volume.ID),
+			dbutils.NewFilterCondition("name", "=", "test_snapshot"),
 		)
 		snapshots, err := store.GetSnapshotsWithCondition(ctx, *filter)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
@@ -1002,10 +1002,10 @@ func TestGetSnapshotsWithConditions(t *testing.T) {
 		assert.NoError(tt, err, "Failed to clean up test database")
 
 		// Query for a snapshot that does not exist
-		filter := utils.CreateFilterWithConditions(
-			utils.NewFilterCondition("account_id", "=", 999),
-			utils.NewFilterCondition("volume_id", "=", 999),
-			utils.NewFilterCondition("name", "=", "non-existent-snapshot"),
+		filter := dbutils.CreateFilterWithConditions(
+			dbutils.NewFilterCondition("account_id", "=", 999),
+			dbutils.NewFilterCondition("volume_id", "=", 999),
+			dbutils.NewFilterCondition("name", "=", "non-existent-snapshot"),
 		)
 		snapshots, err := store.GetSnapshotsWithCondition(ctx, *filter)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
@@ -1019,8 +1019,8 @@ func TestGetSnapshotsWithConditions(t *testing.T) {
 		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(t, err, "Failed to clean up test database")
 
-		filter := utils.CreateFilterWithConditions(
-			utils.NewFilterCondition("account", "=", 999),
+		filter := dbutils.CreateFilterWithConditions(
+			dbutils.NewFilterCondition("account", "=", 999),
 		)
 
 		_, err = store.GetSnapshotsWithCondition(context.Background(), *filter)

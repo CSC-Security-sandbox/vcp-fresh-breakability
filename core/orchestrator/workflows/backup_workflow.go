@@ -210,6 +210,35 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 		backupActivitiesContext.Node = node
 		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SourceVolumeZone = backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolAttributes.PrimaryZone
 		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.IsRegionalHA = backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolAttributes.IsRegionalHA
+
+		// Check if backup vault is attached to volume, if not create bucket and attach it
+		// Only execute for expert mode volumes
+		wf.Logger.Info("IsExpertModeVolumeVolume:", params.IsExpertModeVolume)
+		if params.IsExpertModeVolume {
+			// Initialize DataProtection if it's nil
+			if backupActivitiesContext.BackupWorkflowInit.Volume.DataProtection == nil {
+				backupActivitiesContext.BackupWorkflowInit.Volume.DataProtection = &datamodel.DataProtection{}
+			}
+			err = workflow.ExecuteActivity(ctx, backupActivity.CheckAndAttachBackupVaultToVolume, backupActivitiesContext, params.LocationID).Get(ctx, &backupActivitiesContext)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+
+			if backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotID != "" {
+				err = workflow.ExecuteActivity(ctx, backupActivity.GetSnapshotNameByUUIDActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+				if err != nil {
+					return nil, ConvertToVSAError(err)
+				}
+			}
+
+			// Get volumes from provider and fetch constituent count
+			err = workflow.ExecuteActivity(ctx, backupActivity.GetVolumesAndConstituentCountActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+		}
+		backupActivitiesContext.IsExpertMode = params.IsExpertModeVolume
+
 		// Prepare object store details
 		err = workflow.ExecuteActivity(ctx, backupActivity.PrepareObjectStoreActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
 		if err != nil {
@@ -326,17 +355,19 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 	}
 
 	// Cleanup older adhoc-backup snapshots for this volume
-	err = workflow.ExecuteActivity(ctx, backupActivity.CleanupOldBackupSnapshotsActivity, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.Node).Get(ctx, nil)
-	if err != nil {
-		// Log the error but don't fail the entire backup workflow
-		wf.Logger.Errorf("Failed to cleanup older backup snapshots for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+	if !backupActivitiesContext.IsExpertMode {
+		err = workflow.ExecuteActivity(ctx, backupActivity.CleanupOldBackupSnapshotsActivity, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.Node).Get(ctx, nil)
+		if err != nil {
+			// Log the error but don't fail the entire backup workflow
+			wf.Logger.Errorf("Failed to cleanup older backup snapshots for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+		}
 	}
 
 	// Hydrate snapshot to CCFE
 	if backupActivitiesContext.DbSnapshot != nil &&
 		backupActivitiesContext.BackupWorkflowInit.Volume != nil &&
 		backupActivitiesContext.BackupWorkflowInit.BackupVault != nil &&
-		backupActivitiesContext.BackupWorkflowInit.Volume.Account != nil {
+		backupActivitiesContext.BackupWorkflowInit.Volume.Account != nil && !backupActivitiesContext.IsExpertMode {
 		location := utils.GetLocation(*backupActivitiesContext.DbSnapshot)
 		err = workflow.ExecuteActivity(ctx, backupActivity.HydrateSnapshotToCCFEActivity,
 			backupActivitiesContext.DbSnapshot,

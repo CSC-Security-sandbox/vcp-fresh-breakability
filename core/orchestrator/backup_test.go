@@ -194,6 +194,264 @@ func Test_createBackup(t *testing.T) {
 	})
 }
 
+// Test_createBackup_VolumeFetching tests the volume fetching logic in _createBackup
+// This specifically tests lines 179-201 which handle fetching from ExpertModeVolumes or regular Volumes table
+func Test_createBackup_VolumeFetching(t *testing.T) {
+	ctx := context.Background()
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{
+			ID:   1,
+			UUID: "account-uuid",
+		},
+		Name: "test-account",
+	}
+
+	// Setup common mocks that are needed for all tests
+	setupCommonMocks := func(t *testing.T) (*database.MockStorage, *workflow_engine_mock.MockTemporalTestClient) {
+		store := database.NewMockStorage(t)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		// Mock getOrCreateAccount to return account
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		t.Cleanup(func() {
+			getOrCreateAccount = originalGetOrCreateAccount
+		})
+
+		// Mock validateCreateBackupParams to succeed
+		originalValidateCreateBackupParams := validateCreateBackupParams
+		validateCreateBackupParams = func(ctx context.Context, se database.Storage, params *common.CreateBackupParams) error {
+			return nil
+		}
+		t.Cleanup(func() {
+			validateCreateBackupParams = originalValidateCreateBackupParams
+		})
+
+		return store, temporal
+	}
+
+	t.Run("ExpertModeVolume_WhenGetExpertModeVolumeByUUIDSucceedsWithAccountSet", func(t *testing.T) {
+		store, temporal := setupCommonMocks(t)
+		params := &common.CreateBackupParams{
+			VolumeUUID:         "expert-volume-uuid",
+			BackupVaultID:      "vault-id",
+			BackupName:         "test-backup",
+			AccountName:        "test-account",
+			IsExpertModeVolume: true,
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		expertModeVol := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{
+				UUID: params.VolumeUUID,
+				ID:   1,
+			},
+			AccountID: account.ID,
+			Account:   account, // Account already set
+			Pool:      pool,    // Pool preloaded
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+			Name:      "expert-vol",
+			Svm:       svm,
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: params.BackupVaultID},
+		}
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+		backup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         params.BackupName,
+			State:        models.LifeCycleStateCreating,
+			StateDetails: models.LifeCycleStateCreatingDetails,
+			BackupVault:  backupVault,
+			Attributes:   &datamodel.BackupAttributes{VolumeName: expertModeVol.Name},
+			Description:  params.Description,
+			Type:         params.BackupType,
+		}
+
+		store.On("GetExpertModeVolumeByVolumeUUID", ctx, params.VolumeUUID).Return(expertModeVol, nil)
+		store.On("GetBackupVault", ctx, params.BackupVaultID).Return(backupVault, nil)
+		store.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		store.On("CreateBackup", ctx, mock.Anything).Return(backup, nil)
+		// Mock workflow execution to succeed
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		_, _, err := _createBackup(ctx, store, temporal, params)
+		// Verify that Account is not overwritten when already set
+		assert.NoError(t, err)
+		assert.Equal(t, account, expertModeVol.Account)
+		store.AssertExpectations(t)
+	})
+
+	t.Run("ExpertModeVolume_WhenGetExpertModeVolumeByUUIDSucceedsWithAccountNil", func(t *testing.T) {
+		store, temporal := setupCommonMocks(t)
+		params := &common.CreateBackupParams{
+			VolumeUUID:         "expert-volume-uuid",
+			BackupVaultID:      "vault-id",
+			BackupName:         "test-backup",
+			AccountName:        "test-account",
+			IsExpertModeVolume: true,
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "account-uuid",
+			}}
+		expertModeVol := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{
+				UUID: params.VolumeUUID,
+				ID:   1,
+			},
+			AccountID: account.ID,
+			Account:   account, // Account not set - should be set by _createBackup
+			Pool:      pool,    // Pool preloaded
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+			Name:      "expert-vol",
+			Svm:       svm,
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: params.BackupVaultID},
+		}
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+		backup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         params.BackupName,
+			State:        models.LifeCycleStateCreating,
+			StateDetails: models.LifeCycleStateCreatingDetails,
+			BackupVault:  backupVault,
+			Attributes:   &datamodel.BackupAttributes{VolumeName: expertModeVol.Name},
+			Description:  params.Description,
+			Type:         params.BackupType,
+		}
+
+		store.On("GetExpertModeVolumeByVolumeUUID", ctx, params.VolumeUUID).Return(expertModeVol, nil)
+		store.On("GetBackupVault", ctx, params.BackupVaultID).Return(backupVault, nil)
+		store.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		store.On("CreateBackup", ctx, mock.Anything).Return(backup, nil)
+		// Mock workflow execution to succeed
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		_, _, err := _createBackup(ctx, store, temporal, params)
+		// Verify that Account was set when it was nil
+		assert.NoError(t, err)
+		assert.Equal(t, account, expertModeVol.Account)
+		store.AssertExpectations(t)
+	})
+
+	t.Run("ExpertModeVolume_WhenGetExpertModeVolumeByUUIDFails", func(t *testing.T) {
+		store, temporal := setupCommonMocks(t)
+		params := &common.CreateBackupParams{
+			VolumeUUID:         "expert-volume-uuid",
+			BackupVaultID:      "vault-id",
+			AccountName:        "test-account",
+			IsExpertModeVolume: true,
+		}
+
+		expectedErr := vsaerror.NewNotFoundErr("Expert mode volume", &params.VolumeUUID)
+		store.On("GetExpertModeVolumeByVolumeUUID", ctx, params.VolumeUUID).Return(nil, expectedErr)
+
+		_, _, err := _createBackup(ctx, store, temporal, params)
+		assert.Error(t, err)
+		assert.Equal(t, expectedErr, err)
+		store.AssertExpectations(t)
+	})
+
+	t.Run("RegularVolume_WhenGetVolumeWithAccountIDSucceeds", func(t *testing.T) {
+		store, temporal := setupCommonMocks(t)
+		params := &common.CreateBackupParams{
+			VolumeUUID:         "regular-volume-uuid",
+			BackupVaultID:      "vault-id",
+			BackupName:         "test-backup",
+			AccountName:        "test-account",
+			IsExpertModeVolume: false,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: params.VolumeUUID,
+				ID:   1,
+			},
+			AccountID: account.ID,
+			Account:   account,
+			State:     models.LifeCycleStateREADY,
+			Name:      "regular-vol",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"NFS"},
+			},
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: params.BackupVaultID},
+		}
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+		backup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         params.BackupName,
+			State:        models.LifeCycleStateCreating,
+			StateDetails: models.LifeCycleStateCreatingDetails,
+			BackupVault:  backupVault,
+			Attributes:   &datamodel.BackupAttributes{VolumeName: volume.Name},
+			Description:  params.Description,
+			Type:         params.BackupType,
+		}
+
+		store.On("GetVolumeWithAccountID", ctx, params.VolumeUUID, account.ID).Return(volume, nil)
+		store.On("GetBackupVault", ctx, params.BackupVaultID).Return(backupVault, nil)
+		store.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		store.On("CreateBackup", ctx, mock.Anything).Return(backup, nil)
+		// Mock workflow execution to succeed
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		_, _, err := _createBackup(ctx, store, temporal, params)
+		assert.NoError(t, err)
+		store.AssertExpectations(t)
+	})
+
+	t.Run("RegularVolume_WhenGetVolumeWithAccountIDFails", func(t *testing.T) {
+		store, temporal := setupCommonMocks(t)
+		params := &common.CreateBackupParams{
+			VolumeUUID:         "regular-volume-uuid",
+			BackupVaultID:      "vault-id",
+			AccountName:        "test-account",
+			IsExpertModeVolume: false,
+		}
+
+		expectedErr := vsaerror.NewNotFoundErr("Volume", &params.VolumeUUID)
+		store.On("GetVolumeWithAccountID", ctx, params.VolumeUUID, account.ID).Return(nil, expectedErr)
+
+		_, _, err := _createBackup(ctx, store, temporal, params)
+		assert.Error(t, err)
+		assert.Equal(t, expectedErr, err)
+		store.AssertExpectations(t)
+	})
+}
+
 func Test_validateCreateBackupParams(t *testing.T) {
 	t.Run("FailsBackupCreatingState", func(tt *testing.T) {
 		ctx := context.Background()
@@ -2031,6 +2289,101 @@ func TestValidateCreateBackupParams_VolumeValidations(t *testing.T) {
 
 		err := _validateCreateBackupParams(ctx, store, params)
 		assert.EqualError(t, err, "Backups cannot be created from snapshots resulting from volume replication. Please use a non-replication snapshot and update the backup name to a non-replication snapshot name")
+	})
+}
+
+// TestValidateCreateBackupParams_RegularVolume_ValidateSnapshotError tests the regular volume path when validateSnapshotForBackup fails
+func TestValidateCreateBackupParams_RegularVolume_ValidateSnapshotError(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenValidateSnapshotForBackupFails", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		params := &common.CreateBackupParams{
+			VolumeUUID:         "test-volume-uuid",
+			BackupVaultID:      "vault-id",
+			BackupName:         "test-backup",
+			AccountName:        "test-account",
+			IsExpertModeVolume: false,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "account-uuid",
+			},
+			Name: params.AccountName,
+		}
+
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: params.VolumeUUID,
+				ID:   1,
+			},
+			State: models.LifeCycleStateREADY,
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: params.BackupVaultID,
+			},
+			AccountID: 1,
+			Account:   account,
+		}
+
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
+		store.On("GetVolume", ctx, params.VolumeUUID).Return(vol, nil)
+
+		// Mock validateSnapshotForBackup to fail
+		originalValidateSnapshotForBackup := validateSnapshotForBackup
+		defer func() { validateSnapshotForBackup = originalValidateSnapshotForBackup }()
+		validateSnapshotForBackup = func(ctx context.Context, se database.Storage, params *common.CreateBackupParams, vol *datamodel.Volume) error {
+			return vsaerror.NewUserInputValidationErr("Snapshot validation failed")
+		}
+
+		err := _validateCreateBackupParams(ctx, store, params)
+		assert.EqualError(t, err, "Failed to validate snapshot for backup: Snapshot validation failed")
+	})
+
+	t.Run("WhenRegularVolumeValidationSucceeds", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		params := &common.CreateBackupParams{
+			VolumeUUID:         "test-volume-uuid",
+			BackupVaultID:      "vault-id",
+			BackupName:         "test-backup",
+			AccountName:        "test-account",
+			IsExpertModeVolume: false,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "account-uuid",
+			},
+			Name: params.AccountName,
+		}
+
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: params.VolumeUUID,
+				ID:   1,
+			},
+			State: models.LifeCycleStateREADY,
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: params.BackupVaultID,
+			},
+			AccountID: 1,
+			Account:   account,
+		}
+
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
+		store.On("GetVolume", ctx, params.VolumeUUID).Return(vol, nil)
+
+		// Mock validateSnapshotForBackup to succeed
+		originalValidateSnapshotForBackup := validateSnapshotForBackup
+		defer func() { validateSnapshotForBackup = originalValidateSnapshotForBackup }()
+		validateSnapshotForBackup = func(ctx context.Context, se database.Storage, params *common.CreateBackupParams, vol *datamodel.Volume) error {
+			return nil
+		}
+
+		err := _validateCreateBackupParams(ctx, store, params)
+		assert.NoError(t, err)
 	})
 }
 
@@ -4925,5 +5278,241 @@ func TestUpdateBackupLatestLogicalBackupSizeByVolume(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
 		mockStorage.AssertExpectations(tt)
+	})
+}
+
+// Test_createVolumePayloadFromExpertModeVolume tests the createVolumePayloadFromExpertModeVolume function
+// This covers missing lines: 102, 112-113, 115-117, 119-120, 123, 128, 133, 142
+func Test_createVolumePayloadFromExpertModeVolume(t *testing.T) {
+	ctx := context.Background()
+	t.Run("WhenPoolHasVendorID_SetsVendorSubnetID", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			VendorID:  "vendor-123",
+			Network:   "subnet-network-123",
+		}
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		expertModeVol := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			PoolID:       1,
+			Pool:         pool,
+			ExternalUUID: "external-uuid",
+			Svm:          svm,
+			SvmID:        svm.ID,
+		}
+		volume, err := createVolumePayloadFromExpertModeVolume(ctx, store, expertModeVol)
+		assert.NoError(t, err)
+		assert.NotNil(t, volume)
+		assert.Equal(t, "subnet-network-123", volume.VolumeAttributes.VendorSubnetID)
+		store.AssertExpectations(t)
+	})
+
+	t.Run("WhenPoolHasNoVendorID_DoesNotSetVendorSubnetID", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			VendorID:  "", // Empty VendorID
+			Network:   "subnet-network-123",
+		}
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		expertModeVol := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			PoolID:       1,
+			Pool:         pool,
+			ExternalUUID: "external-uuid",
+			Svm:          svm,
+			SvmID:        svm.ID,
+		}
+		volume, err := createVolumePayloadFromExpertModeVolume(ctx, store, expertModeVol)
+		assert.NoError(t, err)
+		assert.NotNil(t, volume)
+		assert.Empty(t, volume.VolumeAttributes.VendorSubnetID)
+		store.AssertExpectations(t)
+	})
+
+	t.Run("Success_WithPreloadedPool", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			VendorID:  "vendor-1",
+			Network:   "network-1",
+		}
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		expertModeVol := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-uuid",
+				ID:        1,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			PoolID:       1,
+			Pool:         pool, // Pool preloaded
+			AccountID:    1,
+			Account:      account,
+			State:        models.LifeCycleStateREADY,
+			Name:         "expert-vol",
+			ExternalUUID: "external-uuid",
+			Svm:          svm,
+			SvmID:        svm.ID,
+		}
+		volume, err := createVolumePayloadFromExpertModeVolume(ctx, store, expertModeVol)
+		assert.NoError(t, err)
+		assert.NotNil(t, volume)
+		assert.Equal(t, expertModeVol.UUID, volume.UUID)
+		assert.Equal(t, expertModeVol.ID, volume.ID)
+		assert.Equal(t, expertModeVol.Name, volume.Name)
+		assert.Equal(t, expertModeVol.AccountID, volume.AccountID)
+		assert.Equal(t, pool, volume.Pool)
+		assert.Equal(t, svm.ID, volume.SvmID)
+		assert.Equal(t, svm, volume.Svm)
+		assert.Equal(t, "external-uuid", volume.VolumeAttributes.ExternalUUID)
+		assert.Equal(t, "network-1", volume.VolumeAttributes.VendorSubnetID)
+		store.AssertExpectations(t)
+	})
+}
+
+// Test_createBackup_ExpertModeVolumeErrors tests error paths in _createBackup for expert mode volumes
+// This covers missing lines: 334, 339
+func Test_createBackup_ExpertModeVolumeErrors(t *testing.T) {
+	ctx := context.Background()
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{
+			ID:   1,
+			UUID: "account-uuid",
+		},
+		Name: "test-account",
+	}
+
+	setupCommonMocks := func(t *testing.T) (*database.MockStorage, *workflow_engine_mock.MockTemporalTestClient) {
+		store := database.NewMockStorage(t)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		t.Cleanup(func() {
+			getOrCreateAccount = originalGetOrCreateAccount
+		})
+
+		originalValidateCreateBackupParams := validateCreateBackupParams
+		validateCreateBackupParams = func(ctx context.Context, se database.Storage, params *common.CreateBackupParams) error {
+			return nil
+		}
+		t.Cleanup(func() {
+			validateCreateBackupParams = originalValidateCreateBackupParams
+		})
+
+		return store, temporal
+	}
+
+	t.Run("ExpertModeVolume_WhenWorkflowExecutionFails", func(t *testing.T) {
+		store, temporal := setupCommonMocks(t)
+		params := &common.CreateBackupParams{
+			VolumeUUID:         "expert-volume-uuid",
+			BackupVaultID:      "vault-id",
+			BackupName:         "test-backup",
+			AccountName:        "test-account",
+			IsExpertModeVolume: true,
+		}
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			VendorID:  "abc",
+		}
+		expertModeVol := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{
+				UUID: params.VolumeUUID,
+				ID:   1,
+			},
+			AccountID: account.ID,
+			Account:   account,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+			Name:      "expert-vol",
+			Svm:       svm,
+			SvmID:     svm.ID,
+			Pool:      pool,
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: params.BackupVaultID},
+		}
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+		backup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         params.BackupName,
+			State:        models.LifeCycleStateCreating,
+			StateDetails: models.LifeCycleStateCreatingDetails,
+			BackupVault:  backupVault,
+			Attributes:   &datamodel.BackupAttributes{VolumeName: expertModeVol.Name},
+			Description:  params.Description,
+			Type:         params.BackupType,
+		}
+
+		store.On("GetExpertModeVolumeByVolumeUUID", ctx, params.VolumeUUID).Return(expertModeVol, nil)
+		store.On("GetBackupVault", ctx, params.BackupVaultID).Return(backupVault, nil)
+		store.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		store.On("CreateBackup", ctx, mock.Anything).Return(backup, nil)
+
+		// Mock workflow execution to fail
+		workflowErr := errors.New("workflow execution failed")
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowErr).Once()
+
+		// The defer block will try to delete the backup and update the job when error occurs
+		store.On("DeleteBackup", ctx, backup.UUID).Return(nil, nil)
+		store.On("UpdateJob", ctx, job.UUID, string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+
+		_, _, err := _createBackup(ctx, store, temporal, params)
+		assert.Error(t, err)
+		assert.Equal(t, workflowErr, err)
+		store.AssertExpectations(t)
+	})
+}
+
+// Test_validateCreateBackupParams_RegularVolumeGetVolumeError tests the error path when GetVolume fails
+// This covers missing line: 504
+func Test_validateCreateBackupParams_RegularVolumeGetVolumeError(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenGetVolumeFails", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		params := &common.CreateBackupParams{
+			VolumeUUID:         "test-volume-uuid",
+			BackupVaultID:      "vault-id",
+			BackupName:         "test-backup",
+			AccountName:        "test-account",
+			IsExpertModeVolume: false,
+		}
+
+		expectedErr := errors.New("database error")
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
+		store.On("GetVolume", ctx, params.VolumeUUID).Return(nil, expectedErr)
+
+		err := _validateCreateBackupParams(ctx, store, params)
+		assert.Error(t, err)
+		assert.Equal(t, expectedErr, err)
+		store.AssertExpectations(t)
 	})
 }

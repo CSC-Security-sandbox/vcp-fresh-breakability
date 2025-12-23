@@ -45,6 +45,7 @@ regionalSupportEnabled: true
 filesProtocolSupport: false
 fileProtocolAllowlistedAccounts: "" # Comma-separated list of account IDs that are allowlisted for file protocol support
 backupEnabled: false
+expertModeBackupEnabled: false
 sfrEnabled: false
 qaEnabled: false
 immutableBackupEnabled: false

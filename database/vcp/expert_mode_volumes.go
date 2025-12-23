@@ -105,3 +105,47 @@ func (d *DataStoreRepository) UpdateExpertModeVolume(ctx context.Context, expert
 
 	return dbVolume, nil
 }
+
+// GetExpertModeVolumeByUUID retrieves an expert mode volume by its UUID
+func (d *DataStoreRepository) GetExpertModeVolumeByVolumeUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error) {
+	var volume datamodel.ExpertModeVolumes
+
+	// Query the database for the volume with the given UUID
+	err := d.db.GORM().WithContext(ctx).
+		Where("uuid = ?", volumeUUID).
+		Preload("Account").
+		Preload("Pool").
+		Preload("Svm").
+		First(&volume).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &volume, nil
+}
+
+// UpdateExpertModeVolume updates an expert mode volume in the database
+func (d *DataStoreRepository) UpdateExpertModeVolumeDataProtection(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	// Prepare the fields to update - only update BackupConfig
+	updateFields := map[string]interface{}{
+		"data_protection": expertModeVolume.BackupConfig,
+	}
+
+	err = tx.Model(expertModeVolume).
+		Where("uuid = ?", expertModeVolume.UUID).
+		Updates(updateFields).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

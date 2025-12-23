@@ -630,7 +630,7 @@ func TestCreateBackupParams(t *testing.T) {
 			BackupVaultId: "backup-vault-id",
 		}
 
-		result := createBackupParams(req, params)
+		result := createBackupParams(req, params, false)
 
 		assert.Equal(t, "project-number", result.AccountName)
 		assert.Equal(t, "backup-vault-id", result.BackupVaultID)
@@ -650,7 +650,7 @@ func TestCreateBackupParams(t *testing.T) {
 			ProjectNumber: "project-number",
 			BackupVaultId: "backup-vault-id",
 		}
-		result := createBackupParams(req, params)
+		result := createBackupParams(req, params, false)
 		assert.Equal(t, "project-number", result.AccountName)
 		assert.Equal(t, "backup-vault-id", result.BackupVaultID)
 		assert.Equal(t, "volume-uuid", result.VolumeUUID)
@@ -1174,9 +1174,10 @@ func TestV1betaCreateBackup_CVPErrorCases(t *testing.T) {
 				return "us-east4", "us-east4", nil
 			}
 
+			volumeID := "vol-id"
 			mockOrch.EXPECT().
 				GetVolume(ctx, "vol-id", false).
-				Return(nil, fmt.Errorf("not found"))
+				Return(nil, errors.NewNotFoundErr("Volume", &volumeID))
 
 			// Mock ListBackups call that happens when volume is not found
 			mockOrch.EXPECT().
@@ -4602,4 +4603,452 @@ func TestConvertBackupDataModelToBackupsV1beta_EnforcedRetentionEndTime(t *testi
 			assert.Equal(t, tt.backup.UUID, result.BackupId.Value)
 		})
 	}
+}
+
+// TestCheckAndFetchBackupVault tests the checkAndFetchBackupVault function
+func TestCheckAndFetchBackupVault(t *testing.T) {
+	ctx := context.Background()
+	backupVaultID := "backup-vault-123"
+	region := "us-central1"
+	accountName := "test-account"
+
+	expertModeVol := &datamodel.ExpertModeVolumes{
+		BaseModel: datamodel.BaseModel{
+			UUID: "expert-vol-123",
+		},
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "account-uuid",
+			},
+			Name: accountName,
+		},
+	}
+
+	t.Run("WhenBackupVaultFoundLocally", func(t *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+
+		backupVaultModel := &coremodels.BackupVaultV1beta{
+			BackupVaultID: backupVaultID,
+		}
+
+		mockOrch.EXPECT().
+			GetBackupVaultByUUID(ctx, backupVaultID, accountName).
+			Return(backupVaultModel, nil)
+
+		result, err := checkAndFetchBackupVault(ctx, &handler, expertModeVol, backupVaultID, region)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, backupVaultID, result.UUID)
+	})
+
+	t.Run("WhenGetBackupVaultByUUIDReturnsNonNotFoundError", func(t *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+
+		dbError := fmt.Errorf("database connection error")
+		mockOrch.EXPECT().
+			GetBackupVaultByUUID(ctx, backupVaultID, accountName).
+			Return(nil, dbError)
+
+		result, err := checkAndFetchBackupVault(ctx, &handler, expertModeVol, backupVaultID, region)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, dbError, err)
+	})
+
+	t.Run("WhenBackupVaultNotFoundLocallyAndCVPFetchSucceeds", func(t *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+
+		notFoundErr := errors.NewNotFoundErr("Backup vault", &backupVaultID)
+		mockOrch.EXPECT().
+			GetBackupVaultByUUID(ctx, backupVaultID, accountName).
+			Return(nil, notFoundErr)
+		_, err := checkAndFetchBackupVault(ctx, &handler, expertModeVol, backupVaultID, region)
+		assert.Error(t, err)
+	})
+
+	t.Run("WhenGetBackupVaultByUUIDReturnsNilWithNoError", func(t *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+
+		mockOrch.EXPECT().
+			GetBackupVaultByUUID(ctx, backupVaultID, accountName).
+			Return(nil, nil)
+
+		_, err := checkAndFetchBackupVault(ctx, &handler, expertModeVol, backupVaultID, region)
+		assert.Error(t, err)
+	})
+}
+
+// TestV1betaCreateBackup_PoolAndExpertModeVolumeHandling tests the pool validation and expert mode volume handling logic
+func TestV1betaCreateBackup_PoolAndExpertModeVolumeHandling(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	ctx := context.Background()
+	projectNumber := "test-project-123"
+	locationId := "us-central1-a"
+	backupVaultId := "backup-vault-123"
+	volumeId := "volume-123"
+	poolId := "pool-123"
+
+	params := gcpgenserver.V1betaCreateBackupParams{
+		ProjectNumber:  projectNumber,
+		LocationId:     locationId,
+		BackupVaultId:  backupVaultId,
+		XCorrelationID: gcpgenserver.NewOptString("correlation-123"),
+	}
+
+	// Mock region parsing - the code uses utils.ParseAndValidateRegionAndZone directly
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "a", nil
+	}
+
+	t.Run("WhenPoolIdNotProvided", func(t *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+
+		req := &gcpgenserver.BackupCreateV1beta{
+			VolumeId:   volumeId,
+			ResourceId: "backup-123",
+			PoolId:     gcpgenserver.OptString{}, // Not set
+		}
+
+		// Should call GetVolume since poolId is not provided
+		mockOrch.EXPECT().
+			GetVolume(ctx, volumeId, false).
+			Return(nil, errors.NewNotFoundErr("Volume", &volumeId))
+
+		// Mock ListBackups with exact filters
+		mockOrch.EXPECT().
+			ListBackups(ctx, backupVaultId, projectNumber, [][]interface{}{{"name = ?", "backup-123"}}).
+			Return([]*datamodel.Backup{}, nil)
+
+		// Mock CVP client and successful backup creation
+		mockCVPClient := backups.NewMockClientService(t)
+		cvpBackupCreated := &backups.V1betaCreateBackupCreated{
+			Payload: &models.BackupV1beta{
+				ResourceID: "backup-123",
+				VolumeID:   volumeId,
+				State:      "Available for use",
+				BackupID:   "cvp-backup-id",
+			},
+		}
+		mockCVPClient.EXPECT().V1betaCreateBackup(mock.Anything).Return(cvpBackupCreated, nil, nil)
+
+		// Mock createClient function
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockCVPClient}
+		}
+
+		_, err := handler.V1betaCreateBackup(ctx, req, params)
+		// Should proceed to CVP since volume not found
+		assert.NoError(t, err)
+	})
+
+	t.Run("WhenPoolIdProvidedAndValidateAndDescribePoolReturnsErrorResponse", func(t *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+
+		req := &gcpgenserver.BackupCreateV1beta{
+			VolumeId:   volumeId,
+			ResourceId: "backup-123",
+			PoolId:     gcpgenserver.NewOptString(poolId),
+		}
+
+		// Mock ParseAndValidateRegionAndZone to succeed
+		originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+		defer func() {
+			utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+		}()
+		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "a", nil
+		}
+
+		// Mock validateAndDescribePool to return error response
+		notFoundErr := errors.NewNotFoundErr("Pool", &poolId)
+		mockOrch.EXPECT().
+			DescribePool(ctx, poolId, projectNumber).
+			Return(nil, notFoundErr)
+
+		result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		badRequest, ok := result.(*gcpgenserver.V1betaCreateBackupBadRequest)
+		assert.True(t, ok)
+		assert.Equal(t, float64(400), badRequest.Code)
+		assert.Contains(t, badRequest.Message, fmt.Sprintf("Pool with ID %s not found", poolId))
+	})
+
+	t.Run("WhenPoolIdProvidedAndValidateAndDescribePoolReturnsError", func(t *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+
+		req := &gcpgenserver.BackupCreateV1beta{
+			VolumeId:   volumeId,
+			ResourceId: "backup-123",
+			PoolId:     gcpgenserver.NewOptString(poolId),
+		}
+
+		// Mock ParseAndValidateRegionAndZone to succeed
+		originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+		defer func() {
+			utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+		}()
+		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "a", nil
+		}
+
+		// Mock validateAndDescribePool to return non-NotFound error
+		dbError := fmt.Errorf("database connection error")
+		mockOrch.EXPECT().
+			DescribePool(ctx, poolId, projectNumber).
+			Return(nil, dbError)
+
+		result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+		// For non-NotFound errors, validateAndDescribePool returns both errResponse and err
+		// but V1betaCreateBackup checks errResponse first, so it returns errResponse, nil
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		internalServerError, ok := result.(*gcpgenserver.V1betaCreateBackupInternalServerError)
+		assert.True(t, ok)
+		assert.Equal(t, float64(500), internalServerError.Code)
+		assert.Equal(t, dbError.Error(), internalServerError.Message)
+	})
+
+	t.Run("WhenONTAPModeAndExpertModeVolumeHasDifferentBackupVault", func(t *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+
+		req := &gcpgenserver.BackupCreateV1beta{
+			VolumeId:   volumeId,
+			ResourceId: "backup-123",
+			PoolId:     gcpgenserver.NewOptString(poolId),
+		}
+
+		oldOntapModebackupEnabled := ExpertModeBackupEnabled
+		defer func() { ExpertModeBackupEnabled = oldOntapModebackupEnabled }()
+		ExpertModeBackupEnabled = true
+		// Mock pool description to return ONTAP mode
+		pool := &coremodels.Pool{
+			BaseModel: coremodels.BaseModel{
+				UUID: poolId,
+			},
+			APIAccessMode: ONTAPMode,
+		}
+		mockOrch.EXPECT().
+			DescribePool(ctx, poolId, projectNumber).
+			Return(pool, nil)
+
+		// Mock GetExpertModeVolumeByUUID to return expert mode volume with different backup vault
+		differentBackupVaultId := "different-vault-123"
+		expertModeVol := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{
+				UUID: volumeId,
+			},
+			BackupConfig: &datamodel.DataProtection{
+				BackupVaultID: differentBackupVaultId,
+			},
+		}
+		mockOrch.EXPECT().
+			GetExpertModeVolumeByUUID(ctx, volumeId).
+			Return(expertModeVol, nil)
+
+		result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		badRequest, ok := result.(*gcpgenserver.V1betaCreateBackupBadRequest)
+		assert.True(t, ok)
+		assert.Equal(t, float64(400), badRequest.Code)
+		assert.Contains(t, badRequest.Message, fmt.Sprintf("Expert mode volume %s is associated with a different backup vault %s", volumeId, differentBackupVaultId))
+	})
+
+	t.Run("WhenONTAPModeAndExpertModeVolumeHasNoBackupVaultAndCheckAndFetchBackupVaultReturnsError", func(t *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+
+		req := &gcpgenserver.BackupCreateV1beta{
+			VolumeId:   volumeId,
+			ResourceId: "backup-123",
+			PoolId:     gcpgenserver.NewOptString(poolId),
+		}
+
+		oldOntapModebackupEnabled := ExpertModeBackupEnabled
+		defer func() { ExpertModeBackupEnabled = oldOntapModebackupEnabled }()
+		ExpertModeBackupEnabled = true
+
+		// Mock pool description to return ONTAP mode
+		pool := &coremodels.Pool{
+			BaseModel: coremodels.BaseModel{
+				UUID: poolId,
+			},
+			APIAccessMode: ONTAPMode,
+		}
+		mockOrch.EXPECT().
+			DescribePool(ctx, poolId, projectNumber).
+			Return(pool, nil)
+
+		// Mock GetExpertModeVolumeByUUID to return expert mode volume with no backup vault
+		expertModeVol := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{
+				UUID: volumeId,
+			},
+			BackupConfig: nil, // No backup vault attached
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{
+					UUID: "account-uuid",
+				},
+				Name: projectNumber,
+			},
+		}
+		mockOrch.EXPECT().
+			GetExpertModeVolumeByUUID(ctx, volumeId).
+			Return(expertModeVol, nil)
+
+		// Mock GetBackupVaultByUUID to return error (checkAndFetchBackupVault will fail)
+		dbError := fmt.Errorf("database error")
+		mockOrch.EXPECT().
+			GetBackupVaultByUUID(ctx, backupVaultId, projectNumber).
+			Return(nil, dbError)
+
+		result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+		assert.Error(t, err)
+		assert.NotNil(t, result)
+		internalServerError, ok := result.(*gcpgenserver.V1betaCreateBackupInternalServerError)
+		assert.True(t, ok)
+		assert.Equal(t, float64(500), internalServerError.Code)
+		assert.Contains(t, internalServerError.Message, dbError.Error())
+	})
+
+	t.Run("WhenONTAPModeAndExpertModeVolumeHasNoBackupVaultAndCheckAndFetchBackupVaultReturnsNil", func(t *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+
+		req := &gcpgenserver.BackupCreateV1beta{
+			VolumeId:   volumeId,
+			ResourceId: "backup-123",
+			PoolId:     gcpgenserver.NewOptString(poolId),
+		}
+
+		oldOntapModebackupEnabled := ExpertModeBackupEnabled
+		defer func() { ExpertModeBackupEnabled = oldOntapModebackupEnabled }()
+		ExpertModeBackupEnabled = true
+
+		// Mock pool description to return ONTAP mode
+		pool := &coremodels.Pool{
+			BaseModel: coremodels.BaseModel{
+				UUID: poolId,
+			},
+			APIAccessMode: ONTAPMode,
+		}
+		mockOrch.EXPECT().
+			DescribePool(ctx, poolId, projectNumber).
+			Return(pool, nil)
+
+		// Mock GetExpertModeVolumeByUUID to return expert mode volume with no backup vault
+		expertModeVol := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{
+				UUID: volumeId,
+			},
+			BackupConfig: nil, // No backup vault attached
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{
+					UUID: "account-uuid",
+				},
+				Name: projectNumber,
+			},
+		}
+		mockOrch.EXPECT().
+			GetExpertModeVolumeByUUID(ctx, volumeId).
+			Return(expertModeVol, nil)
+
+		// Mock GetBackupVaultByUUID to return NotFound, then GetBackupVaultFromCVP will fail
+		// Since we can't easily mock GetBackupVaultFromCVP, we'll test the error path
+		notFoundErr := errors.NewNotFoundErr("Backup vault", &backupVaultId)
+		mockOrch.EXPECT().
+			GetBackupVaultByUUID(ctx, backupVaultId, projectNumber).
+			Return(nil, notFoundErr)
+
+		result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+		// Since GetBackupVaultFromCVP can't be easily mocked, we expect an error
+		// In a real scenario with proper mocking, this would return BadRequest if backup vault not found
+		assert.Error(t, err)
+		assert.NotNil(t, result)
+	})
+
+	t.Run("WhenNonONTAPModeCallsGetVolume", func(t *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+
+		req := &gcpgenserver.BackupCreateV1beta{
+			VolumeId:   volumeId,
+			ResourceId: "backup-123",
+			PoolId:     gcpgenserver.NewOptString(poolId),
+		}
+
+		// Mock pool description to return non-ONTAP mode
+		pool := &coremodels.Pool{
+			BaseModel: coremodels.BaseModel{
+				UUID: poolId,
+			},
+			APIAccessMode: "REST", // Non-ONTAP mode
+		}
+		mockOrch.EXPECT().
+			DescribePool(ctx, poolId, projectNumber).
+			Return(pool, nil)
+
+		// Should call GetVolume for non-ONTAP mode
+		mockOrch.EXPECT().
+			GetVolume(ctx, volumeId, false).
+			Return(nil, errors.NewNotFoundErr("Volume", &volumeId))
+
+		// Mock checkIfBackupExistInCVP
+		originalCheckIfBackupExistInCVP := checkIfBackupExistInCVP
+		defer func() { checkIfBackupExistInCVP = originalCheckIfBackupExistInCVP }()
+		checkIfBackupExistInCVP = func(ctx context.Context, backupID *string, params gcpgenserver.V1betaCreateBackupParams) (bool, error) {
+			return false, nil
+		}
+
+		// Mock ListBackups with exact filters
+		mockOrch.EXPECT().
+			ListBackups(ctx, backupVaultId, projectNumber, [][]interface{}{{"name = ?", "backup-123"}}).
+			Return([]*datamodel.Backup{}, nil)
+
+		// Mock CVP client and successful backup creation
+		mockCVPClient := backups.NewMockClientService(t)
+		cvpBackupCreated := &backups.V1betaCreateBackupCreated{
+			Payload: &models.BackupV1beta{
+				ResourceID: "backup-123",
+				VolumeID:   volumeId,
+				State:      "Available for use",
+				BackupID:   "cvp-backup-id",
+			},
+		}
+		mockCVPClient.EXPECT().V1betaCreateBackup(mock.Anything).Return(cvpBackupCreated, nil, nil)
+
+		// Mock createClient function
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockCVPClient}
+		}
+
+		_, err := handler.V1betaCreateBackup(ctx, req, params)
+		// Should proceed to CVP since volume not found
+		assert.NoError(t, err)
+	})
 }

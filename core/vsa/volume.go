@@ -230,7 +230,7 @@ func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse,
 		SvmName:                        &params.SvmName,
 		SnapshotDirectoryAccessEnabled: &params.SnapshotDirectory,
 		BaseParams: ontapRest.BaseParams{
-			Fields: []string{"uuid", "name", "space.*", "state", "snapshot_policy.name", "type", "snapshot_directory_access_enabled"},
+			Fields: []string{"uuid", "name", "space.*", "state", "snapshot_policy.name", "type", "snapshot_directory_access_enabled", "constituents"},
 		},
 	})
 	if err != nil {
@@ -272,6 +272,15 @@ func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse,
 	}
 	if vol.Space.AfsTotal != nil {
 		res.AFSSize = *vol.Space.AfsTotal
+	}
+	if vol.VolumeInlineConstituents != nil {
+		if len(vol.VolumeInlineConstituents) > 0 {
+			count := int32(len(vol.VolumeInlineConstituents))
+			res.ConstituentCount = &count
+		} else {
+			zero := int32(0)
+			res.ConstituentCount = &zero
+		}
 	}
 	return res, nil
 }

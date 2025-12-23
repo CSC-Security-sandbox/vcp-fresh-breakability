@@ -94,6 +94,39 @@ func (o *Orchestrator) UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.C
 	return nil
 }
 
+// createVolumePayloadFromExpertModeVolume creates a volume object from an expert mode volume for workflow compatibility.
+// The workflow needs PoolID, Pool (with DeploymentName, PoolCredentials, PoolAttributes), and VolumeAttributes.
+func createVolumePayloadFromExpertModeVolume(ctx context.Context, se database.Storage, expertModeVol *datamodel.ExpertModeVolumes) (*datamodel.Volume, error) {
+	// Build VolumeAttributes with VendorSubnetID from pool if available
+	volumeAttributes := &datamodel.VolumeAttributes{
+		ExternalUUID: expertModeVol.ExternalUUID,
+	}
+	// Set VendorSubnetID from pool if available, otherwise leave empty
+	if expertModeVol.Pool.VendorID != "" {
+		volumeAttributes.VendorSubnetID = expertModeVol.Pool.Network
+	}
+
+	volumeForWorkflow := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID:      expertModeVol.UUID,
+			ID:        expertModeVol.ID,
+			CreatedAt: expertModeVol.CreatedAt,
+			UpdatedAt: expertModeVol.UpdatedAt,
+		},
+		Name:             expertModeVol.Name,
+		AccountID:        expertModeVol.AccountID,
+		PoolID:           expertModeVol.PoolID,
+		State:            expertModeVol.State,
+		Account:          expertModeVol.Account,
+		Pool:             expertModeVol.Pool,
+		VolumeAttributes: volumeAttributes,
+		SvmID:            expertModeVol.Svm.ID,
+		Svm:              expertModeVol.Svm,
+	}
+
+	return volumeForWorkflow, nil
+}
+
 func _createBackup(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateBackupParams) (*models.Backup, string, error) {
 	logger := util.GetLogger(ctx)
 	// Get the account
@@ -106,9 +139,24 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
-	volume, err := se.GetVolumeWithAccountID(ctx, params.VolumeUUID, account.ID)
-	if err != nil {
-		return nil, "", err
+	// Fetch from the appropriate table based on IsExpertModeVolume flag
+	var volume *datamodel.Volume
+	var expertModeVol *datamodel.ExpertModeVolumes
+	var isExpertModeVolume bool
+	isExpertModeVolume = params.IsExpertModeVolume
+
+	if isExpertModeVolume {
+		// Fetch from ExpertModeVolumes table
+		expertModeVol, err = se.GetExpertModeVolumeByVolumeUUID(ctx, params.VolumeUUID)
+		if err != nil {
+			return nil, "", err
+		}
+	} else {
+		// Fetch from regular Volumes table
+		volume, err = se.GetVolumeWithAccountID(ctx, params.VolumeUUID, account.ID)
+		if err != nil {
+			return nil, "", err
+		}
 	}
 
 	backupVault, err := se.GetBackupVault(ctx, params.BackupVaultID)
@@ -133,14 +181,32 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
-	backupAttributes := datamodel.BackupAttributes{
-		VolumeName:          volume.Name,
-		AccountIdentifier:   account.Name,
-		Protocols:           volume.VolumeAttributes.Protocols,
-		UseExistingSnapshot: params.UseExistingSnapshot,
+	var backupAttributes datamodel.BackupAttributes
+	var volumeID int64
+	if isExpertModeVolume && expertModeVol != nil {
+		// Handle expert mode volume
+		backupAttributes = datamodel.BackupAttributes{
+			VolumeName:          expertModeVol.Name,
+			AccountIdentifier:   account.Name,
+			Protocols:           []string{}, // TODO: Expert mode volumes don't have protocols in VolumeAttributes
+			UseExistingSnapshot: params.UseExistingSnapshot,
+		}
+		volumeID = expertModeVol.ID
+	} else {
+		// Handle regular volume
+		if volume != nil {
+			backupAttributes = datamodel.BackupAttributes{
+				VolumeName:          volume.Name,
+				AccountIdentifier:   account.Name,
+				Protocols:           volume.VolumeAttributes.Protocols,
+				UseExistingSnapshot: params.UseExistingSnapshot,
+			}
+			volumeID = volume.ID
+		}
 	}
-	if params.UseExistingSnapshot {
-		dbSnapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotID, account.ID, volume.ID)
+
+	if params.UseExistingSnapshot && !isExpertModeVolume {
+		dbSnapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotID, account.ID, volumeID)
 		if err != nil {
 			if customerrors.IsNotFoundErr(err) {
 				return nil, "", customerrors.NewUserInputValidationErr("Snapshot not found")
@@ -149,6 +215,10 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		}
 		backupAttributes.SnapshotName = dbSnapshot.Name
 		backupAttributes.SnapshotID = dbSnapshot.SnapshotAttributes.ExternalUUID
+	} else {
+		if params.SnapshotID != "" {
+			backupAttributes.SnapshotID = params.SnapshotID
+		}
 	}
 	// Set backup attributes from params (for cross-region operations)
 	if params.BucketName != "" {
@@ -219,6 +289,22 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	stateUpdated = true
 
 	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
+	// For expert mode volumes, create a minimal volume object with essential fields for the workflow
+	// The workflow needs volume.PoolID, Pool relationship, and VolumeAttributes.ExternalUUID
+	var volumeForWorkflow *datamodel.Volume
+	if isExpertModeVolume {
+		volumeForWorkflow, err = createVolumePayloadFromExpertModeVolume(ctx, se, expertModeVol)
+		if err != nil {
+			return nil, "", err
+		}
+	} else {
+		// Validate regular volume is not nil
+		if volume == nil {
+			return nil, "", fmt.Errorf("volume is nil")
+		}
+		volumeForWorkflow = volume
+	}
+
 	err = workflowExecutor.ExecuteWorkflow(
 		ctx,
 		createdJob.WorkflowID,
@@ -228,7 +314,7 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		params,
 		dbBackup,
 		backupVault,
-		volume,
+		volumeForWorkflow,
 	)
 	if err != nil {
 		logger.Error("Failed to start create backup workflow after retries: ", "error", err)
@@ -340,29 +426,33 @@ func _validateCreateBackupParams(ctx context.Context, se database.Storage, param
 	if backupInTransition {
 		return customerrors.NewUserInputValidationErr("A backup operation from the same volume is currently in progress. Please wait for it to complete before starting a new backup")
 	}
-	vol, err := se.GetVolume(ctx, params.VolumeUUID)
-	if err != nil {
-		return err
-	}
-	if vol.State != models.LifeCycleStateREADY {
-		return customerrors.NewUserInputValidationErr("Volume is not in available state")
-	}
-	if vol.DataProtection == nil {
-		return customerrors.NewUserInputValidationErr("Volume does not have any backup vault associated with it")
-	}
-	if vol.DataProtection != nil && vol.DataProtection.BackupVaultID != params.BackupVaultID {
-		return customerrors.NewUserInputValidationErr("Volume does not have the specified backup vault associated with it")
-	}
-	if vol.VolumeAttributes != nil && vol.VolumeAttributes.IsDataProtection && params.SnapshotID == "" {
-		return customerrors.NewUserInputValidationErr("Backup creation is not supported for destination volumes without specifying an existing snapshot. Please use an existing snapshot to create backups or create a snapshot on the source volume and back that up on this volume once it has been replicated to this volume")
-	}
+	if params.IsExpertModeVolume {
+		return nil
+	} else {
+		vol, err := se.GetVolume(ctx, params.VolumeUUID)
+		if err != nil {
+			return err
+		}
+		if vol.State != models.LifeCycleStateREADY {
+			return customerrors.NewUserInputValidationErr("Volume is not in available state")
+		}
+		if vol.DataProtection == nil {
+			return customerrors.NewUserInputValidationErr("Volume does not have any backup vault associated with it")
+		}
+		if vol.DataProtection != nil && vol.DataProtection.BackupVaultID != params.BackupVaultID {
+			return customerrors.NewUserInputValidationErr("Volume does not have the specified backup vault associated with it")
+		}
+		if vol.VolumeAttributes != nil && vol.VolumeAttributes.IsDataProtection && params.SnapshotID == "" {
+			return customerrors.NewUserInputValidationErr("Backup creation is not supported for destination volumes without specifying an existing snapshot. Please use an existing snapshot to create backups or create a snapshot on the source volume and back that up on this volume once it has been replicated to this volume")
+		}
 
-	if common.SnapmirrorSnapshotPrefix.MatchString(params.BackupName) {
-		return customerrors.NewUserInputValidationErr("Backups cannot be created from snapshots resulting from volume replication. Please use a non-replication snapshot and update the backup name to a non-replication snapshot name")
-	}
-	err = validateSnapshotForBackup(ctx, se, params, vol)
-	if err != nil {
-		return customerrors.NewUserInputValidationErr("Failed to validate snapshot for backup: " + err.Error())
+		if common.SnapmirrorSnapshotPrefix.MatchString(params.BackupName) {
+			return customerrors.NewUserInputValidationErr("Backups cannot be created from snapshots resulting from volume replication. Please use a non-replication snapshot and update the backup name to a non-replication snapshot name")
+		}
+		err = validateSnapshotForBackup(ctx, se, params, vol)
+		if err != nil {
+			return customerrors.NewUserInputValidationErr("Failed to validate snapshot for backup: " + err.Error())
+		}
 	}
 
 	return nil

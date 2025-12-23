@@ -3682,6 +3682,65 @@ func (_c *MockOrchestratorFactory_GetExpertModePoolCreds_Call) RunAndReturn(run 
 	return _c
 }
 
+// GetExpertModeVolumeByUUID provides a mock function with given fields: ctx, volumeUUID
+func (_m *MockOrchestratorFactory) GetExpertModeVolumeByUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error) {
+	ret := _m.Called(ctx, volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetExpertModeVolumeByUUID")
+	}
+
+	var r0 *datamodel.ExpertModeVolumes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.ExpertModeVolumes, error)); ok {
+		return rf(ctx, volumeUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.ExpertModeVolumes); ok {
+		r0 = rf(ctx, volumeUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.ExpertModeVolumes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, volumeUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetExpertModeVolumeByUUID'
+type MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call struct {
+	*mock.Call
+}
+
+// GetExpertModeVolumeByUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+func (_e *MockOrchestratorFactory_Expecter) GetExpertModeVolumeByUUID(ctx interface{}, volumeUUID interface{}) *MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call {
+	return &MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call{Call: _e.mock.On("GetExpertModeVolumeByUUID", ctx, volumeUUID)}
+}
+
+func (_c *MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call) Run(run func(ctx context.Context, volumeUUID string)) *MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call) Return(_a0 *datamodel.ExpertModeVolumes, _a1 error) *MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.ExpertModeVolumes, error)) *MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetHostGroup provides a mock function with given fields: ctx, hostGroupUUID, accountID
 func (_m *MockOrchestratorFactory) GetHostGroup(ctx context.Context, hostGroupUUID string, accountID string) (*models.HostGroup, error) {
 	ret := _m.Called(ctx, hostGroupUUID, accountID)

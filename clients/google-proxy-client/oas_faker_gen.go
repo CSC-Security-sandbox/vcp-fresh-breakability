@@ -364,6 +364,11 @@ func (s *BackupCreateV1beta) SetFake() {
 			s.SnapshotId.SetFake()
 		}
 	}
+	{
+		{
+			s.PoolId.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

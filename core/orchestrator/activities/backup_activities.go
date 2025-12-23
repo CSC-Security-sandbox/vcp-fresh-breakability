@@ -79,6 +79,7 @@ type BackupActivitiesContext struct {
 	TransferStatus         string
 	DbSnapshot             *datamodel.Snapshot
 	ObjStoreSnapshot       *vsa.SmObjectStoreEndpointSnapshot
+	IsExpertMode           bool
 }
 
 // PollTransferStatusInput represents the input for the polling activity
@@ -256,7 +257,7 @@ func (b *BackupActivity) CreatingSnapshotActivity(ctx context.Context, backupAct
 	var dbSnapshot *datamodel.Snapshot
 	var err error
 	// If UseExistingSnapshot is true, we do not create a new snapshot in the database
-	if backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.UseExistingSnapshot {
+	if backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.UseExistingSnapshot && !backupActivitiesContext.IsExpertMode {
 		dbSnapshot, err = b.SE.GetSnapshotByNameAndVolumeId(ctx, snapshot.Name, snapshot.AccountID, snapshot.VolumeID)
 		if err != nil {
 			if errors.IsNotFoundErr(err) {
@@ -279,7 +280,7 @@ func (b *BackupActivity) CreatingSnapshotActivity(ctx context.Context, backupAct
 // UpdateSnapshotActivity updates snapshot in database
 func (b *BackupActivity) UpdateSnapshotActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
 	logger := util.GetLogger(ctx)
-	if backupActivitiesContext.DbSnapshot == nil {
+	if backupActivitiesContext.DbSnapshot == nil && !backupActivitiesContext.IsExpertMode {
 		return nil, errors.New("database snapshot is nil")
 	}
 	if !backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.UseExistingSnapshot {
@@ -316,12 +317,19 @@ func (b *BackupActivity) CreateSnapshotActivity(ctx context.Context, backupActiv
 			return nil, errors.New("snapshot name is empty in backup attributes")
 		}
 		logger.Infof("Using existing snapshot: %s", backupActivitiesContext.SnapshotName)
-		dbSnapshot, err := b.SE.GetSnapshotByNameAndVolumeId(ctx, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotName, backupActivitiesContext.BackupWorkflowInit.Volume.AccountID, backupActivitiesContext.BackupWorkflowInit.Volume.ID)
-		if err != nil {
-			logger.Errorf("Failed to get snapshot from database. Error: %v", err)
-			return nil, err
+		var snapshotExternalUUID string
+		if backupActivitiesContext.IsExpertMode {
+			snapshotExternalUUID = backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotID
+		} else {
+			dbSnapshot, err := b.SE.GetSnapshotByNameAndVolumeId(ctx, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotName, backupActivitiesContext.BackupWorkflowInit.Volume.AccountID, backupActivitiesContext.BackupWorkflowInit.Volume.ID)
+			if err != nil {
+				logger.Errorf("Failed to get snapshot from database. Error: %v", err)
+				return nil, err
+			}
+			snapshotExternalUUID = dbSnapshot.SnapshotAttributes.ExternalUUID
 		}
-		snapshotResponse, err = b.SnapshotGet(ctx, backupActivitiesContext.Node, dbSnapshot.SnapshotAttributes.ExternalUUID, backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.ExternalUUID)
+
+		snapshotResponse, err = b.SnapshotGet(ctx, backupActivitiesContext.Node, snapshotExternalUUID, backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.ExternalUUID)
 		if err != nil {
 			logger.Errorf("Failed to get snapshot from Ontap. Error: %v", err)
 			return nil, err
@@ -707,24 +715,67 @@ func (a BackupActivity) SnapshotGet(ctx context.Context, node *models.Node, snap
 
 func (a BackupActivity) IsVolumeDeleted(ctx context.Context, volumeUUID string) (bool, error) {
 	se := a.SE
+	// Try regular volume first
 	_, err := se.GetVolume(ctx, volumeUUID)
-	if err != nil {
-		if errors.IsNotFoundErr(err) {
-			// If the volume is not found, it means it has been deleted
-			return true, nil
-		}
-		return false, err
+	if err == nil {
+		return false, nil // Found in regular table
 	}
-	return false, nil
+	if !errors.IsNotFoundErr(err) {
+		return false, err // Unexpected error
+	}
+
+	// Not found in regular table, try expert mode volumes
+	_, err = se.GetExpertModeVolumeByUUID(ctx, volumeUUID)
+	if err == nil {
+		return false, nil // Found in expert mode table
+	}
+	if errors.IsNotFoundErr(err) {
+		return true, nil // Not found in either table - deleted
+	}
+	return false, err // Unexpected error
 }
 
 func (a BackupActivity) GetVolume(ctx context.Context, volumeUUID string) (*datamodel.Volume, error) {
 	se := a.SE
 	volume, err := se.GetVolume(ctx, volumeUUID)
 	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			// Volume not found in regular table, try expert mode volumes
+			expertModeVol, err := se.GetExpertModeVolumeByUUID(ctx, volumeUUID)
+			if err != nil {
+				return nil, err
+			}
+			volume := ConvertExpertModeVolumeToVolume(expertModeVol)
+			return volume, nil
+		}
 		return nil, err
 	}
 	return volume, nil
+}
+
+func ConvertExpertModeVolumeToVolume(expertModeVol *datamodel.ExpertModeVolumes) *datamodel.Volume {
+	return &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID:      expertModeVol.UUID,
+			ID:        expertModeVol.ID,
+			CreatedAt: expertModeVol.CreatedAt,
+			UpdatedAt: expertModeVol.UpdatedAt,
+		},
+		Name:           expertModeVol.Name,
+		Description:    expertModeVol.Description,
+		State:          expertModeVol.State,
+		SizeInBytes:    expertModeVol.SizeInBytes,
+		AccountID:      expertModeVol.AccountID,
+		PoolID:         expertModeVol.PoolID,
+		SvmID:          expertModeVol.SvmID,
+		Account:        expertModeVol.Account,
+		Pool:           expertModeVol.Pool,
+		Svm:            expertModeVol.Svm,
+		DataProtection: expertModeVol.BackupConfig,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: expertModeVol.ExternalUUID,
+		},
+	}
 }
 
 func (a BackupActivity) GetAccountByName(ctx context.Context, accountName string) (*datamodel.Account, error) {
@@ -1803,4 +1854,210 @@ func (a *BackupActivity) UpdateRemoteBackupFromVCPActivity(ctx context.Context, 
 
 	logger.Infof("Successfully updated remote Backup, backupID=%s, region=%s", backup.ExternalUUID, region)
 	return nil
+}
+
+// GetSnapshotNameByUUIDActivity retrieves the snapshot name using its UUID from the hyperscaler provider
+func (a *BackupActivity) GetSnapshotNameByUUIDActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+	node := backupActivitiesContext.Node
+
+	if node == nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("node is nil"))
+	}
+
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get provider: %w", err))
+	}
+
+	snapshot, err := provider.GetSnapshot(backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotID, backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.ExternalUUID)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get snapshot by UUID: %w", err))
+	}
+	backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotName = snapshot.Name
+	backupActivitiesContext.SnapshotName = snapshot.Name
+	return backupActivitiesContext, nil
+}
+
+// CheckAndAttachBackupVaultToVolume checks if backup vault is attached to volume, if not creates bucket and attaches it
+func (a *BackupActivity) CheckAndAttachBackupVaultToVolume(ctx context.Context, backupActivitiesContext *BackupActivitiesContext, region string) (*BackupActivitiesContext, error) {
+	logger := util.GetLogger(ctx)
+
+	volume := backupActivitiesContext.BackupWorkflowInit.Volume
+	backupVault := backupActivitiesContext.BackupWorkflowInit.BackupVault
+
+	// Check if backup vault is already attached to volume
+	var backupVaultID string
+	if volume.DataProtection != nil && volume.DataProtection.BackupVaultID != "" {
+		backupVaultID = volume.DataProtection.BackupVaultID
+		// If backup vault is already attached and matches, no need to do anything
+		if backupVaultID == backupVault.UUID {
+			logger.Info("Backup vault already attached to volume", "volumeUUID", volume.UUID, "backupVaultUUID", backupVaultID)
+			return backupActivitiesContext, nil
+		}
+	}
+
+	// Backup vault is not attached or doesn't match, proceed to attach it
+	logger.Info("Backup vault not attached to volume, proceeding to attach", "volumeUUID", volume.UUID, "backupVaultUUID", backupVault.UUID)
+
+	// Check if backup vault exists in VCP
+	volumeActivity := &VolumeCreateActivity{
+		SE: a.SE,
+	}
+	var existingBackupVault *datamodel.BackupVault
+	var err error
+
+	// Try to get backup vault from VCP first
+	existingBackupVault, err = a.SE.GetBackupVaultByUUIDndOwnerID(ctx, backupVault.UUID, volume.AccountID)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to check backup vault in VCP: %w", err))
+	}
+
+	backupRegion := region
+	if existingBackupVault.BackupVaultType == CrossRegionBackupType && existingBackupVault.BackupRegionName != nil && *existingBackupVault.BackupRegionName != "" {
+		backupRegion = *existingBackupVault.BackupRegionName
+	}
+
+	// Find tenancy details
+	if volume.VolumeAttributes == nil || volume.VolumeAttributes.VendorSubnetID == "" {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume does not have VendorSubnetID"))
+	}
+
+	// Ensure DataProtection is set for CheckForBucketResourceName (it expects DataProtection.BackupVaultID)
+	// For expert mode volumes, this might be nil, so we set it temporarily
+	if volume.DataProtection == nil {
+		volume.DataProtection = &datamodel.DataProtection{}
+	}
+	// Set the backup vault ID if not already set
+	if volume.DataProtection.BackupVaultID == "" {
+		volume.DataProtection.BackupVaultID = existingBackupVault.UUID
+	}
+
+	tenancyDetails, err := volumeActivity.FindTenancy(ctx, volume.VolumeAttributes.VendorSubnetID, volume.Account.Name, &backupRegion)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to find tenancy: %w", err))
+	}
+	// Check for bucket resource name
+	bucketDetails, err := volumeActivity.CheckForBucketResourceName(ctx, volume)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to check for bucket resource name: %w", err))
+	}
+	if bucketDetails == nil {
+		bucketDetails = &commonparams.BucketDetails{}
+	}
+
+	// If bucket doesn't exist, create it
+	if bucketDetails.BucketName == "" && bucketDetails.ServiceAccountName == "" && bucketDetails.TenantProjectNumber == "" {
+		// Generate resource names
+		resourceName, err := volumeActivity.GenerateResourceNames(ctx, volume, tenancyDetails, region)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to generate resource names: %w", err))
+		}
+
+		// Create bucket
+		bucketDetails, err = volumeActivity.CreateBucket(ctx, resourceName, tenancyDetails, backupRegion, nil)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to create bucket: %w", err))
+		}
+		bucketDetails.VendorSubnetID = volume.VolumeAttributes.VendorSubnetID
+
+		// Update backup vault with bucket details
+		err = volumeActivity.UpdateBackupVaultWithBucketDetails(ctx, volume, bucketDetails)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to update backup vault with bucket details: %w", err))
+		}
+
+		// Handle cross-region backup vaults
+		remoteBV, err := volumeActivity.CheckOrCreateRemoteBackupVaultInVCP(ctx, volume, existingBackupVault, bucketDetails)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to check or create remote backup vault: %w", err))
+		}
+
+		if remoteBV != nil {
+			err = volumeActivity.UpdateRemoteBackupVaultWithBucketDetails(ctx, volume, existingBackupVault, remoteBV, bucketDetails)
+			if err != nil {
+				return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to update remote backup vault with bucket details: %w", err))
+			}
+		}
+
+		if existingBackupVault.BackupVaultType == CrossRegionBackupType && existingBackupVault.BackupRegionName != nil && *existingBackupVault.BackupRegionName != "" {
+			if volume.Pool == nil {
+				return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume pool cannot be nil for cross-region backup setup"))
+			}
+			err = volumeActivity.SetupCrossRegionBackupPermissionsActivity(ctx, existingBackupVault, volume.Pool, bucketDetails)
+			if err != nil {
+				return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to setup cross-region backup permissions: %w", err))
+			}
+		}
+	}
+	// Convert commonparams.BucketDetails to datamodel.BucketDetails
+	datamodelBucketDetails := &datamodel.BucketDetails{
+		BucketName:          bucketDetails.BucketName,
+		ServiceAccountName:  bucketDetails.ServiceAccountName,
+		VendorSubnetID:      bucketDetails.VendorSubnetID,
+		TenantProjectNumber: bucketDetails.TenantProjectNumber,
+		SatisfiesPzi:        bucketDetails.SatisfiesPzi,
+		SatisfiesPzs:        bucketDetails.SatisfiesPzs,
+	}
+	backupActivitiesContext.BackupWorkflowInit.BackupVault.BucketDetails = datamodel.BucketDetailsArray{datamodelBucketDetails}
+
+	// Attach backup vault to volume
+	// This function is only called for expert mode volumes, so we must fetch and update the expert mode volume
+	expertModeVol, err := a.SE.GetExpertModeVolumeByUUID(ctx, volume.UUID)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get expert mode volume: %w", err))
+	}
+	// This is an expert mode volume, update BackupConfig instead of DataProtection
+	if expertModeVol.BackupConfig == nil {
+		expertModeVol.BackupConfig = &datamodel.DataProtection{}
+	}
+	expertModeVol.BackupConfig.BackupVaultID = existingBackupVault.UUID
+
+	// Update expert mode volume in database
+	err = a.SE.UpdateExpertModeVolumeDataProtection(ctx, expertModeVol)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to update expert mode volume with backup vault: %w", err))
+	}
+	logger.Info("Successfully attached backup vault to expert mode volume", "volumeUUID", volume.UUID, "backupVaultUUID", existingBackupVault.UUID)
+	return backupActivitiesContext, nil
+}
+
+// GetVolumesAndConstituentCountActivity gets volumes from provider and fetches constituent count
+func (b *BackupActivity) GetVolumesAndConstituentCountActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+	logger := util.GetLogger(ctx)
+	volume := backupActivitiesContext.BackupWorkflowInit.Volume
+	node := backupActivitiesContext.Node
+
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get provider: %w", err))
+	}
+
+	// Get the specific volume from ONTAP using external UUID
+	volumeResponse, err := provider.GetVolume(vsa.GetVolumeParams{
+		UUID:    volume.VolumeAttributes.ExternalUUID,
+		SvmName: volume.Svm.Name,
+	})
+
+	if err != nil {
+		logger.Errorf("Failed to get volume from ONTAP: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get volume from ONTAP: %w", err))
+	}
+
+	if volumeResponse == nil {
+		logger.Warnf("Volume not found in ONTAP, volumeUUID: %s", volume.VolumeAttributes.ExternalUUID)
+		return backupActivitiesContext, nil
+	}
+
+	// Get constituent count from the volume response
+	if volumeResponse.ConstituentCount != nil {
+		constituentCount := *volumeResponse.ConstituentCount
+		logger.Infof("Found constituent count for volume %s: %d", volume.Name, constituentCount)
+		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.ConstituentCountOfBackup = constituentCount
+		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.OntapVolumeStyle = "flexgroup"
+	} else {
+		logger.Debugf("No constituent count found for volume %s (may not be a flexgroup volume)", volume.Name)
+		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.ConstituentCountOfBackup = 0
+	}
+
+	return backupActivitiesContext, nil
 }
