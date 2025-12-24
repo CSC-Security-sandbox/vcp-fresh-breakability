@@ -93,15 +93,15 @@ var (
 	ParsePEMCertificate             = _parsePEMCertificate
 	CalculateRequiredVolumeSize     = _calculateRequiredVolumeSize
 	// FileProtocolSupported controls whether file-based protocols (NFS/CIFS) are allowed
-	FileProtocolSupported      = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
+	FileProtocolSupported           = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
 	fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
-	IsAllSquashEnabled         = env.GetBool("IS_ALL_SQUASH_ENABLED", true)
-	isProberProject            = ParseCommaSeparatedStringToMap(env.GetString("PROBER_PROJECT_LIST", ""))
-	AutoTieringEnabled         = env.GetBool("AUTO_TIERING_ENABLED", false)
-	immutableBackupEnabled     = env.GetBool("IMMUTABLE_BACKUP_ENABLED", false)
-	crossRegionBackupEnabled   = env.GetBool("CROSS_REGION_BACKUP_ENABLED", false)
-	RestoreVolumeBufferEnabled = env.GetBool("RESTORE_VOLUME_BUFFER_ENABLED", false)
-	enableKerberos             = env.GetBool("ENABLE_KERBEROS", false)
+	IsAllSquashEnabled              = env.GetBool("IS_ALL_SQUASH_ENABLED", true)
+	isProberProject                 = ParseCommaSeparatedStringToMap(env.GetString("PROBER_PROJECT_LIST", ""))
+	AutoTieringEnabled              = env.GetBool("AUTO_TIERING_ENABLED", false)
+	immutableBackupEnabled          = env.GetBool("IMMUTABLE_BACKUP_ENABLED", false)
+	crossRegionBackupEnabled        = env.GetBool("CROSS_REGION_BACKUP_ENABLED", false)
+	RestoreVolumeBufferEnabled      = env.GetBool("RESTORE_VOLUME_BUFFER_ENABLED", false)
+	enableKerberos                  = env.GetBool("ENABLE_KERBEROS", false)
 
 	// Will match ONTAP version strings like "9.7.1", "9.8.2P3", "10.1.0", "10.3.1P2", etc.
 	ontapVersionRegex = regexp.MustCompile(`\d+\.\d+\.\d+(?:P\d+)?`)
@@ -128,6 +128,7 @@ const (
 
 	// ActiveDirectorySeSecurityPrivilege defines the name of the SE security privilege
 	ActiveDirectorySeSecurityPrivilege = `SeSecurityPrivilege`
+	wildCardForAllowlist               = "*"
 )
 
 func ValidateIPv4Address(ipAddr string) bool {
@@ -1051,6 +1052,15 @@ func IsFileProtocolSupported(accountID string) bool {
 
 	// If no allowlisted accounts are configured, return false
 	if len(fileProtocolAllowlistedAccounts) == 0 {
+		return false
+	}
+
+	if _, exists := fileProtocolAllowlistedAccounts[wildCardForAllowlist]; exists {
+		if len(fileProtocolAllowlistedAccounts) == 1 {
+			// If the only entry is "*", allow all accounts
+			return true
+		}
+		// If wildcard is mixed with other accounts, it's an invalid configuration
 		return false
 	}
 

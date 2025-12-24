@@ -11307,6 +11307,24 @@ func TestSyncPoolComplianceForPoolWorkflow_BucketComplianceLogicalAND(t *testing
 	}
 }
 func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testing.T) {
+	// Save and set image names for testing
+	originalVsaImageName := vsaImageName
+	originalMediatorImage := mediatorImage
+	originalVsaFilesImageName := vsaFilesImageName
+	originalFilesMediatorImage := filesMediatorImage
+
+	vsaImageName = "x-9-17-1p2-gcnv"
+	mediatorImage = "cvo-mediator-x-9-17-1p2d1"
+	vsaFilesImageName = "x-9-18-1rc1"
+	filesMediatorImage = "cvo-mediator-x-9-18-1rc1"
+
+	defer func() {
+		vsaImageName = originalVsaImageName
+		mediatorImage = originalMediatorImage
+		vsaFilesImageName = originalVsaFilesImageName
+		filesMediatorImage = originalFilesMediatorImage
+	}()
+
 	// Test case 1: When file protocol is supported for an account, the function should configure
 	// file-specific images (vsaFilesImageName and filesMediatorImage) and enable ILB support
 	// for NFS V3 compatibility. This is used for accounts that require file protocol support.

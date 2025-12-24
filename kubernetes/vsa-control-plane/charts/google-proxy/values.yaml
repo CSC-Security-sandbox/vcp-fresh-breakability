@@ -42,8 +42,10 @@ hybridReplicationEnabled: false
 autoTieringEnabled: false
 blockUpdatePoolToATPool: true # Block updating existing pools to Auto-Tiering pools
 regionalSupportEnabled: true
-filesProtocolSupport: false
-fileProtocolAllowlistedAccounts: "" # Comma-separated list of account IDs that are allowlisted for file protocol support
+filesProtocolSupport: true
+# "" implies only block support is enabled. #"*" implies all accounts are allowlisted for files protocol support
+# "Comma-separated list of account IDs" implies only those accounts are allowlisted for files protocol support
+fileProtocolAllowlistedAccounts: ""
 backupEnabled: false
 expertModeBackupEnabled: false
 sfrEnabled: false

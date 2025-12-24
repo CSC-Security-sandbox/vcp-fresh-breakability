@@ -1925,6 +1925,48 @@ func TestIsFileProtocolSupported(t *testing.T) {
 			accountID:           "account2",
 			expectedResult:      false,
 		},
+		{
+			name:                "Flag enabled, wildcard in whitelist, should return true for any account",
+			fileProtocolSupport: "true",
+			whitelistedAccounts: "*",
+			accountID:           "anyAccountID",
+			expectedResult:      true,
+		},
+		{
+			name:                "Flag enabled, wildcard in whitelist, should return true for empty account",
+			fileProtocolSupport: "true",
+			whitelistedAccounts: "*",
+			accountID:           "",
+			expectedResult:      true,
+		},
+		{
+			name:                "Flag enabled, wildcard in whitelist, should return true for numeric account",
+			fileProtocolSupport: "true",
+			whitelistedAccounts: "*",
+			accountID:           "123456789",
+			expectedResult:      true,
+		},
+		{
+			name:                "Flag enabled, wildcard with other accounts in whitelist, should check exact match",
+			fileProtocolSupport: "true",
+			whitelistedAccounts: "*,account1,account2",
+			accountID:           "account1",
+			expectedResult:      false,
+		},
+		{
+			name:                "Flag enabled, wildcard with other accounts in whitelist, non-listed account should be rejected",
+			fileProtocolSupport: "true",
+			whitelistedAccounts: "*,account1,account2",
+			accountID:           "randomAccount",
+			expectedResult:      false,
+		},
+		{
+			name:                "Flag disabled, wildcard in whitelist, should return false",
+			fileProtocolSupport: "false",
+			whitelistedAccounts: "*",
+			accountID:           "anyAccount",
+			expectedResult:      false,
+		},
 	}
 
 	for _, tt := range tests {

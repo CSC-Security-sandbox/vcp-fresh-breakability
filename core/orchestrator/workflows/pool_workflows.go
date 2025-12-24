@@ -55,10 +55,10 @@ var (
 	enableUniqueSerialNumberGeneration                   = env.GetBool("ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION", false)
 	Region                                               = env.GetString("LOCAL_REGION", "")
 
-	vsaImageName                 = env.GetString("VSA_IMAGE_NAME", "x-9-17-1p2-gcnv")
-	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-17-1p2d1")
-	vsaFilesImageName            = env.GetString("VSA_FILES_IMAGE_NAME", "x-9-18-1rc1")
-	filesMediatorImage           = env.GetString("VSA_FILES_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-18-1rc1")
+	vsaImageName                 = env.GetString("VSA_IMAGE_NAME", "")
+	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "")
+	vsaFilesImageName            = env.GetString("VSA_FILES_IMAGE_NAME", "")
+	filesMediatorImage           = env.GetString("VSA_FILES_MEDIATOR_IMAGE_NAME", "")
 	waitTimeForGCPOperationInSec = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)
 	parallelNumberOfNodesForITC  = env.GetInt("PARALLEL_NUMBER_OF_NODES_FOR_ITC", 4) // As of now it's 4 as per the VLM design document
 
