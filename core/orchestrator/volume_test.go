@@ -9148,6 +9148,135 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			})
 		}
 	})
+	t.Run("WhenPoolStateDegraded", func(tt *testing.T) {
+		testCases := []struct {
+			name          string
+			hasKmsConfig  bool
+			expectedError string
+		}{
+			{
+				name:          "DegradedPoolWithKmsConfig",
+				hasKmsConfig:  true,
+				expectedError: "Pool is in degraded state, hence CMEK enabled volumes cannot be created",
+			},
+			{
+				name:          "DegradedPoolWithoutKmsConfig",
+				hasKmsConfig:  false,
+				expectedError: "", // Should not error on degraded state, but may error on other validations
+			},
+		}
+
+		for _, tc := range testCases {
+			tt.Run(tc.name, func(t *testing.T) {
+				ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+				mockLogger := log.NewLogger()
+				store, err := database.SetupStorageForTest(mockLogger)
+				if err != nil {
+					t.Fatalf("Failed to create test storage: %v", err)
+				}
+
+				// Clear the in-memory database
+				err = database.ClearInMemoryDB(store.DB())
+				if err != nil {
+					t.Fatalf("Failed to clean up test storage: %v", err)
+				}
+
+				account := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+					Name:      "test_account",
+				}
+				err = store.DB().Create(account).Error
+				if err != nil {
+					t.Fatalf("Failed to create account: %v", err)
+				}
+
+				pool := &datamodel.Pool{
+					BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+					Name:        "test_pool",
+					AccountID:   account.ID,
+					State:       models.LifeCycleStateDegraded,
+					SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10 TiB
+					Network:     "test-network",
+				}
+
+				if tc.hasKmsConfig {
+					pool.KmsConfigID = sql.NullInt64{Valid: true, Int64: 1}
+				} else {
+					pool.KmsConfigID = sql.NullInt64{Valid: false}
+				}
+
+				err = store.DB().Create(pool).Error
+				if err != nil {
+					t.Fatalf("Failed to create pool: %v", err)
+				}
+
+				// Set up SVM and nodes for validation
+				svm := &datamodel.Svm{
+					BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+					Name:      "test_svm",
+					AccountID: account.ID,
+					PoolID:    pool.ID,
+					State:     models.LifeCycleStateREADY,
+				}
+				err = store.DB().Create(svm).Error
+				if err != nil {
+					t.Fatalf("Failed to create svm: %v", err)
+				}
+
+				// Create 2 nodes as required by the validation
+				node1 := &datamodel.Node{
+					BaseModel:       datamodel.BaseModel{UUID: "test-node-1-uuid"},
+					Name:            "test_node_1",
+					AccountID:       account.ID,
+					EndpointAddress: "12.12.12.12",
+					PoolID:          pool.ID,
+					State:           models.LifeCycleStateREADY,
+				}
+				err = store.DB().Create(node1).Error
+				if err != nil {
+					t.Fatalf("Failed to create node1: %v", err)
+				}
+
+				node2 := &datamodel.Node{
+					BaseModel:       datamodel.BaseModel{UUID: "test-node-2-uuid"},
+					Name:            "test_node_2",
+					AccountID:       account.ID,
+					EndpointAddress: "12.12.12.13",
+					PoolID:          pool.ID,
+					State:           models.LifeCycleStateREADY,
+				}
+				err = store.DB().Create(node2).Error
+				if err != nil {
+					t.Fatalf("Failed to create node2: %v", err)
+				}
+
+				params := &common.CreateVolumeParams{
+					Name:         "dummy-name",
+					PoolID:       pool.UUID,
+					QuotaInBytes: uint64(100 * 1024 * 1024 * 1024), // 100 GiB
+					Network:      "test-network",
+					Protocols:    []string{utils.ProtocolNFSv3},
+				}
+
+				poolView := &datamodel.PoolView{
+					Pool:         *pool,
+					QuotaInBytes: uint64(500 * 1024 * 1024 * 1024), // 500 GiB already used
+				}
+
+				err = validateCreateVolumeParams(ctx, store, params, poolView)
+				if tc.expectedError != "" {
+					assert.EqualError(t, err, tc.expectedError)
+				} else {
+					// Should not error on degraded state check, but may error on other validations
+					// Verify that the error is NOT about degraded state
+					if err != nil {
+						assert.NotContains(t, err.Error(), "degraded state")
+					}
+				}
+			})
+		}
+	})
 	t.Run("WhenQuotaIsTooSmall", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 

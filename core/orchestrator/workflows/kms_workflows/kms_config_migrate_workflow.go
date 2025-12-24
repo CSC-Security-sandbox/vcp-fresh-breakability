@@ -244,6 +244,10 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 			kmsWorkflow.Logger.Info(fmt.Sprintf("Pool with ID %s is in transitioning state %s ...skipping migration for this pool", pool.UUID, pool.State))
 			vsaCmekMigrationSkippedPoolReason += fmt.Sprintf("\n Pool with ID: %s is in transitioning state...skipping migration for this pool", pool.UUID)
 			continue
+		case models.LifeCycleStateDegraded:
+			kmsWorkflow.Logger.Info(fmt.Sprintf("Pool with ID %s is in degraded state...skipping migration for this pool", pool.UUID))
+			vsaCmekMigrationSkippedPoolReason += fmt.Sprintf("\n Pool with ID: %s is in degraded state...skipping migration for this pool", pool.UUID)
+			continue
 		}
 
 		if !pool.KmsConfigID.Valid {

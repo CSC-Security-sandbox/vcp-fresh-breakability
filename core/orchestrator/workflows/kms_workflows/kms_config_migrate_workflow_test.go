@@ -400,8 +400,9 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 
 		pool2 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(2), UUID: "pool2"}, State: models.LifeCycleStateError}
 		pool3 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool3"}, State: models.LifeCycleStateCreating, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
+		pool4 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(4), UUID: "pool4"}, State: models.LifeCycleStateDegraded, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
 		var poolsInAccount []*datamodel.Pool
-		poolsInAccount = append(poolsInAccount, &pool2, &pool3)
+		poolsInAccount = append(poolsInAccount, &pool2, &pool3, &pool4)
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
