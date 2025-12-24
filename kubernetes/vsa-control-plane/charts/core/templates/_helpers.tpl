@@ -45,9 +45,14 @@ Helper function to get the final URL of the image to be used in the deployment.
 
 {{- define "toCapitalUnderscore" -}}
 {{- $key := . -}}
+{{- /* Special case: enableJSwapVersionCheck should become ENABLE_JSWAP_VERSION_CHECK (not ENABLE_J_SWAP_VERSION_CHECK) */}}
+{{- if eq $key "enableJSwapVersionCheck" }}
+{{- "ENABLE_JSWAP_VERSION_CHECK" -}}
+{{- else }}
 {{- $key = regexReplaceAll "[A-Z]" $key "_${0}" -}}
 {{- $key = regexReplaceAll "^_" $key "" -}}
 {{- upper $key -}}
+{{- end }}
 {{- end -}}
 
 {{/*

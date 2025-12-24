@@ -575,12 +575,11 @@ func _getVSAProviderUnit(ctx context.Context, inputs ...interface{}) (interface{
 
 	logger.Infof("[GetVSAProviderUnit] CorrelationID: %s - Getting VSA provider for pool: %s", correlationID, poolIdentifier.UUID)
 
-	poolView, err := se.GetPool(contextWithCorrelationID, poolIdentifier.UUID, poolIdentifier.AccountID)
+	pool, err := se.GetPoolByUUID(contextWithCorrelationID, poolIdentifier.UUID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pool: %v", err)
 	}
 
-	pool := database.ConvertPoolViewToPool(poolView)
 	provider, err := backgroundactivities.GetOntapRestProviderForPoolFastConn(contextWithCorrelationID, se, pool)
 	if err != nil || provider == nil {
 		return nil, fmt.Errorf("failed to get ONTAP rest provider for pool %v: %v", pool.UUID, err)

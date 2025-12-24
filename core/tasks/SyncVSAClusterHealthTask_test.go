@@ -858,8 +858,8 @@ func TestGetVSAProviderUnit(t *testing.T) {
 			AccountID: int64(123),
 		}
 
-		// Mock GetPool to return error for simplicity
-		mockStorage.On("GetPool", mock.Anything, poolIdentifier.UUID, poolIdentifier.AccountID).Return(nil, errors.New("pool not found"))
+		// Mock GetPoolByUUID to return error for simplicity
+		mockStorage.On("GetPoolByUUID", mock.Anything, poolIdentifier.UUID).Return(nil, errors.New("pool not found"))
 
 		// Act - Pass context as first parameter, then poolIdentifier, mockStorage, and context again
 		result, err := GetVSAProviderUnit(ctx, poolIdentifier, mockStorage, ctx)
@@ -1078,8 +1078,8 @@ func TestSyncVSAClusterHealth(t *testing.T) {
 		ontapVersion := "9.18.1"
 		mockProvider.On("GetONTAPVersion").Return(&ontapVersion, nil).Times(2)
 
-		mockStorage.On("GetPool", mock.Anything, mock.Anything, mock.Anything).Return(poolView, nil)
-		// Mock GetPoolByUUID for updatePoolState (convert PoolView to Pool)
+		// Mock GetPoolByUUID for _getVSAProviderUnit (called once per pool = 2 calls) and updatePoolState
+		// Convert PoolView to Pool for GetPoolByUUID return value
 		pool := database.ConvertPoolViewToPool(poolView)
 		mockStorage.On("GetPoolByUUID", mock.Anything, mock.Anything).Return(pool, nil)
 		mockStorage.On("ListPoolUUIDs", mock.Anything, mock.Anything).Return(pools, nil)
@@ -2214,7 +2214,7 @@ func TestGetVSAProviderUnit_ErrorCases(t *testing.T) {
 			AccountID: 1,
 		}
 
-		mockStorage.On("GetPool", mock.Anything, "pool-1", int64(1)).Return(nil, errors.New("pool not found"))
+		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(nil, errors.New("pool not found"))
 
 		result, err := GetVSAProviderUnit(ctx, poolIdentifier, mockStorage, ctx)
 		assert.Error(t, err)
