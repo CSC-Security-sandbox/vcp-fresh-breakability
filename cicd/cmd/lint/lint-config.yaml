@@ -70,6 +70,10 @@ linters:
       - path: '(.+)generate_mocks\.go'
         linters:
           - unused
+      - path: 'tools/safesql/.*'
+        linters:
+          - errcheck
+          - unused
 
 # formatters:
 #   enable:
@@ -98,6 +102,7 @@ run:
     - telemetry/api/telemetry-servergen
     - ontap-proxy/api/ontap-proxy-servergen
     - cicd/cmd/lint
+    - tools/safesql
   skip-files:
     - workflow_engine/workflow_engine_mock.go
     - workflow_engine/client_config_mock.go

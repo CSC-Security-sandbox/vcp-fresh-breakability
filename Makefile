@@ -302,6 +302,23 @@ validate-errors:
 	@echo "🔍 Running error framework validation..."
 	@cd core/errors && ./validate.sh
 
+# SafeSQL targets
+.PHONY: safesql-build
+safesql-build:
+	go build -o safesql ./tools/safesql/
+
+.PHONY: safesql-build-linux
+safesql-build-linux:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o safesql-linux ./tools/safesql/
+
+.PHONY: safesql-install
+safesql-install:
+	go install ./tools/safesql/
+
+.PHONY: safesql-test
+safesql-test:
+	go test ./tools/safesql/...
+
 # Quick error framework status check
 .PHONY: error-status
 error-status:
