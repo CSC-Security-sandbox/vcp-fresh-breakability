@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows/background_kms_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/kms_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/sde"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -489,8 +490,27 @@ func rotateKmsConfig(ctx context.Context, se database.Storage, temporal client.C
 		return nil, nil, err
 	}
 
+	// Check if KMS config is in Migrating state
+	if kmsConfig.State == models.LifeCycleStateMigrating {
+		return nil, nil, errors.NewConflictErr("KMS config is currently in Migrating state and cannot be rotated")
+	}
+
 	if kmsConfig.State != cvpModels.KmsConfigV1betaKmsStateINUSE && kmsConfig.State != cvpModels.KmsConfigV1betaKmsStateREADY {
-		return nil, nil, errors.New("Concerned GCP KMS config is not in a state(ready/in use) to rotate the service account key")
+		return nil, nil, errors.NewBadRequestErr("Concerned GCP KMS config is not in a state(ready/in use) to rotate the service account key")
+	}
+
+	// Check if any pools for this account are in CREATING state
+	filter := dbutils.CreateFilterWithConditions(dbutils.NewFilterCondition("account_id", "=", account.ID))
+	pools, err := se.ListPools(ctx, filter)
+	if err != nil {
+		logger.Error("Failed to list pools for account", "AccountID", account.ID, "Error", err)
+		return nil, nil, err
+	}
+
+	for _, pool := range pools {
+		if pool.State == string(gcpserver.PoolV1betaStoragePoolStateCREATING) {
+			return nil, nil, errors.NewConflictErr("Storage pool present which is in creating state: " + pool.Name)
+		}
 	}
 
 	// Create a new job for the rotation

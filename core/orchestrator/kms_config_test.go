@@ -2176,6 +2176,7 @@ func TestRotateKmsConfig_Success(t *testing.T) {
 
 	// Set up expectations
 	mockStorage.On("GetKmsConfig", context.Background(), "test-kms-config-uuid").Return(kmsConfig, nil)
+	mockStorage.On("ListPools", context.Background(), mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	mockStorage.On("CreateJob", context.Background(), mock.Anything).Return(createdJob, nil)
 
 	mockTemporal.On("ExecuteWorkflow",
@@ -2211,6 +2212,115 @@ func TestRotateKmsConfig_Success(t *testing.T) {
 	assert.Equal(t, "customer-project", result.CustomerProjectID)
 	assert.Equal(t, "key-project", result.KeyProjectID)
 	assert.Equal(t, "test-resource-id", result.ResourceID)
+
+	// Verify expectations
+	mockStorage.AssertExpectations(t)
+	mockTemporal.AssertExpectations(t)
+}
+
+func TestRotateKmsConfig_PoolInCreatingState(t *testing.T) {
+	// Setup mocks
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+	// Test data
+	params := &common.RotateKmsConfigParams{
+		KmsConfigID:    "test-kms-config-uuid",
+		AccountName:    "test-account",
+		XCorrelationID: "test-correlation-id",
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-account",
+	}
+
+	kmsConfig := &datamodel.KmsConfig{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-kms-config-uuid",
+		},
+		State: string(cvpModels.KmsConfigV1betaKmsStateREADY),
+	}
+
+	// Create a pool in CREATING state
+	pools := []*datamodel.PoolView{
+		{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+				Name:      "test-pool",
+				State:     string(gcpserver.PoolV1betaStoragePoolStateCREATING),
+			},
+		},
+	}
+
+	// Mock the getAccountFromUUID function
+	originalGetAccountFromUUID := getAccountFromUUID
+	getAccountFromUUID = func(ctx context.Context, se database.Storage, accountUUID string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getAccountFromUUID = originalGetAccountFromUUID }()
+
+	// Set up expectations
+	mockStorage.On("GetKmsConfig", context.Background(), "test-kms-config-uuid").Return(kmsConfig, nil)
+	mockStorage.On("ListPools", context.Background(), mock.Anything).Return(pools, nil)
+
+	// Execute
+	result, job, err := rotateKmsConfig(context.Background(), mockStorage, mockTemporal, params)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Nil(t, job)
+	assert.Contains(t, err.Error(), "Storage pool present which is in creating state: test-pool")
+
+	// Verify expectations
+	mockStorage.AssertExpectations(t)
+	mockTemporal.AssertExpectations(t)
+}
+
+func TestRotateKmsConfig_KmsConfigInMigratingState(t *testing.T) {
+	// Setup mocks
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+	// Test data
+	params := &common.RotateKmsConfigParams{
+		KmsConfigID:    "test-kms-config-uuid",
+		AccountName:    "test-account",
+		XCorrelationID: "test-correlation-id",
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-account",
+	}
+
+	kmsConfig := &datamodel.KmsConfig{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-kms-config-uuid",
+		},
+		State: models.LifeCycleStateMigrating,
+	}
+
+	// Mock the getAccountFromUUID function
+	originalGetAccountFromUUID := getAccountFromUUID
+	getAccountFromUUID = func(ctx context.Context, se database.Storage, accountUUID string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getAccountFromUUID = originalGetAccountFromUUID }()
+
+	// Set up expectations
+	mockStorage.On("GetKmsConfig", context.Background(), "test-kms-config-uuid").Return(kmsConfig, nil)
+
+	// Execute
+	result, job, err := rotateKmsConfig(context.Background(), mockStorage, mockTemporal, params)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Nil(t, job)
+	// Migrating state is caught by a specific check before the generic state check
+	assert.Contains(t, err.Error(), "KMS config is currently in Migrating state and cannot be rotated")
 
 	// Verify expectations
 	mockStorage.AssertExpectations(t)
@@ -2299,6 +2409,8 @@ func TestRotateKmsConfig_SetsCorrelationIDAndRequestID(t *testing.T) {
 
 	// Set up expectations - verify job has CorrelationID and RequestID
 	mockStorage.On("GetKmsConfig", ctx, "test-kms-config-uuid").Return(kmsConfig, nil)
+	// Mock ListPools to return empty list so pool check passes
+	mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
 		return job.CorrelationID == "test-correlation-id-789" && job.RequestID == "test-request-id-999"
 	})).Return(&datamodel.Job{

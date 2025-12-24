@@ -5396,6 +5396,258 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
+
+	t.Run("ServiceAccountUpdating_TransitionsToEnabled", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetTestTimeout(time.Minute)
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		pool := datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		node := &models.Node{
+			Name: "test-node",
+		}
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
+		}
+		params := &common.CreatePoolParams{
+			KmsConfigId: "test-kms-config-uuid",
+		}
+
+		// First call returns service account in UPDATING state
+		updatingKmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-uuid"},
+			ServiceAccount: &datamodel.ServiceAccount{
+				BaseModel: datamodel.BaseModel{UUID: "test-sa-uuid"},
+				State:     models.LifeCycleStateUpdating,
+			},
+		}
+		// Second call returns service account in ENABLED state
+		enabledKmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-uuid"},
+			ServiceAccount: &datamodel.ServiceAccount{
+				BaseModel: datamodel.BaseModel{UUID: "test-sa-uuid"},
+				State:     models.AccountStateEnabled,
+			},
+		}
+
+		env.OnActivity("GetKmsConfigActivity", mock.Anything, "test-kms-config-uuid").Return(updatingKmsConfig, nil).Once()
+		env.OnActivity("GetKmsConfigActivity", mock.Anything, "test-kms-config-uuid").Return(enabledKmsConfig, nil).Once()
+		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		// Create a test workflow that calls the function with activity options
+		testWorkflow := func(ctx workflow.Context) error {
+			ao := workflow.ActivityOptions{
+				StartToCloseTimeout: time.Minute,
+			}
+			ctx = workflow.WithActivityOptions(ctx, ao)
+			return _configureKmsConfigForSvmActivity(ctx, pool, node, svm, params)
+		}
+		env.ExecuteWorkflow(testWorkflow)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("ServiceAccountUpdating_Timeout_ContinuesWithPoolCreation", func(t *testing.T) {
+		// Override timeout and interval for faster test execution
+		originalTimeout := ServiceAccountUpdateTimeout
+		originalInterval := ServiceAccountUpdateInterval
+		ServiceAccountUpdateTimeout = 2 * time.Second  // 2 second timeout
+		ServiceAccountUpdateInterval = 1 * time.Second // 1 second interval
+		defer func() {
+			ServiceAccountUpdateTimeout = originalTimeout
+			ServiceAccountUpdateInterval = originalInterval
+		}()
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetTestTimeout(time.Minute)
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		pool := datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		node := &models.Node{
+			Name: "test-node",
+		}
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
+		}
+		params := &common.CreatePoolParams{
+			KmsConfigId: "test-kms-config-uuid",
+		}
+
+		// Always return service account in UPDATING state (simulating timeout)
+		updatingKmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-uuid"},
+			ServiceAccount: &datamodel.ServiceAccount{
+				BaseModel: datamodel.BaseModel{UUID: "test-sa-uuid"},
+				State:     models.LifeCycleStateUpdating,
+			},
+		}
+
+		// Mock multiple calls to simulate polling (at least 2 iterations before timeout)
+		env.OnActivity("GetKmsConfigActivity", mock.Anything, "test-kms-config-uuid").Return(updatingKmsConfig, nil)
+		// Mock subsequent activities that are called after timeout - pool creation continues
+		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		// Create a test workflow that calls the function with activity options
+		testWorkflow := func(ctx workflow.Context) error {
+			ao := workflow.ActivityOptions{
+				StartToCloseTimeout: time.Minute,
+			}
+			ctx = workflow.WithActivityOptions(ctx, ao)
+			return _configureKmsConfigForSvmActivity(ctx, pool, node, svm, params)
+		}
+		env.ExecuteWorkflow(testWorkflow)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("ServiceAccountAlreadyEnabled_NoPolling", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetTestTimeout(time.Minute)
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		pool := datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		node := &models.Node{
+			Name: "test-node",
+		}
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
+		}
+		params := &common.CreatePoolParams{
+			KmsConfigId: "test-kms-config-uuid",
+		}
+
+		// Service account already in ENABLED state - no polling needed
+		enabledKmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-uuid"},
+			ServiceAccount: &datamodel.ServiceAccount{
+				BaseModel: datamodel.BaseModel{UUID: "test-sa-uuid"},
+				State:     models.AccountStateEnabled,
+			},
+		}
+
+		env.OnActivity("GetKmsConfigActivity", mock.Anything, "test-kms-config-uuid").Return(enabledKmsConfig, nil).Once()
+		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		// Create a test workflow that calls the function with activity options
+		testWorkflow := func(ctx workflow.Context) error {
+			ao := workflow.ActivityOptions{
+				StartToCloseTimeout: time.Minute,
+			}
+			ctx = workflow.WithActivityOptions(ctx, ao)
+			return _configureKmsConfigForSvmActivity(ctx, pool, node, svm, params)
+		}
+		env.ExecuteWorkflow(testWorkflow)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		// Verify GetKmsConfigActivity was only called once (no polling)
+		env.AssertExpectations(t)
+	})
+
+	t.Run("ServiceAccountNil_NoPolling", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetTestTimeout(time.Minute)
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		pool := datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		node := &models.Node{
+			Name: "test-node",
+		}
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
+		}
+		params := &common.CreatePoolParams{
+			KmsConfigId: "test-kms-config-uuid",
+		}
+
+		// Service account is nil - no polling needed
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-uuid"},
+			ServiceAccount: nil,
+		}
+
+		env.OnActivity("GetKmsConfigActivity", mock.Anything, "test-kms-config-uuid").Return(kmsConfig, nil).Once()
+		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		// Create a test workflow that calls the function with activity options
+		testWorkflow := func(ctx workflow.Context) error {
+			ao := workflow.ActivityOptions{
+				StartToCloseTimeout: time.Minute,
+			}
+			ctx = workflow.WithActivityOptions(ctx, ao)
+			return _configureKmsConfigForSvmActivity(ctx, pool, node, svm, params)
+		}
+		env.ExecuteWorkflow(testWorkflow)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		// Verify GetKmsConfigActivity was only called once (no polling)
+		env.AssertExpectations(t)
+	})
 }
 
 func TestCreatePoolWorkflow_Failure_FindTenancyProject(t *testing.T) {
@@ -9507,14 +9759,15 @@ func TestCreatePoolWorkflow_ServiceAccountCreationMaxRetriesExceeded(t *testing.
 	}()
 
 	// Set limited retry policy for testing max retries exceeded scenario
-	SARetryStartToCloseTimeout = "2m"
+	SARetryStartToCloseTimeout = "5s"
 	SARetryInitialInterval = "1s"
 	SARetryBackoffCoefficient = "1.5"
-	SARetryMaximumInterval = "5s"
+	SARetryMaximumInterval = "1s"
 	SARetryMaximumAttempts = 2 // Only 2 attempts to test failure
 
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
+	env.SetTestTimeout(30 * time.Second)
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
 	mockHeader := &commonpb.Header{
@@ -9600,6 +9853,10 @@ func TestCreatePoolWorkflow_ServiceAccountCreationMaxRetriesExceeded(t *testing.
 			attemptCount++
 		}).
 		Return(nil, serviceAccountError)
+
+	// Mock rollback activities that will be called when service account creation fails
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -105,13 +106,20 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		}
 
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-uuid", ID: 123},
+			BaseModel:    datamodel.BaseModel{UUID: "kms-uuid", ID: 123},
+			KeyProjectID: "test-project",
 		}
 
-		// Multiple pools to test the loop
+		// Multiple pools to test the loop (not in CREATING state)
 		pools := []*datamodel.Pool{
-			{BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"}},
-			{BaseModel: datamodel.BaseModel{ID: 2, UUID: "pool-2"}},
+			{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
+				State:     string(gcpserver.PoolV1betaStoragePoolStateREADY),
+			},
+			{
+				BaseModel: datamodel.BaseModel{ID: 2, UUID: "pool-2"},
+				State:     string(gcpserver.PoolV1betaStoragePoolStateREADY),
+			},
 		}
 
 		// Use valid base64 encoded private key data
@@ -178,6 +186,13 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 			ServiceAccountEmail:            serviceAccount.ServiceAccountEmail,
 			ServiceAccountPasswordLocation: validPrivateKeyData,
 		}
+
+		// Mock the UpdateServiceAccountState calls for state tracking
+		// Note: UPDATING state is now set after getGcpService, before creating service account key
+		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "UPDATING", "Key rotation in progress").Return(updatedServiceAccount, nil)
+		// Defer always sets state to ENABLED and deletes keys
+		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "ENABLED", "Available for use").Return(updatedServiceAccount, nil)
+
 		mockSE.On("UpdateServiceAccountEmailAndKey", ctx, serviceAccount.UUID, serviceAccount.ServiceAccountEmail, validPrivateKeyData).Return(updatedServiceAccount, nil)
 
 		// Mock AccessCryptoKey
@@ -207,7 +222,8 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		}
 
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-uuid", ID: 123},
+			BaseModel:    datamodel.BaseModel{UUID: "kms-uuid", ID: 123},
+			KeyProjectID: "test-project",
 		}
 
 		// Use valid base64 encoded private key data
@@ -240,7 +256,9 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*hyperscalerModels.ServiceAccountKey, error) {
 			return newServiceAccountKey, nil
 		}
+		// On success, defer uses new key, so we delete old keys
 		deleteServiceAccountKeysExcludingKey = func(ctx context.Context, gcpService *google.GcpServices, email, keyToExclude string) error {
+			assert.Equal(tt, newServiceAccountKey.Name, keyToExclude) // Should be new key on success
 			return nil
 		}
 		encryptedPassword := "encrypted-password"
@@ -256,7 +274,13 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		}
 
 		// Mock database calls
-		mockSE.On("UpdateServiceAccountEmailAndKey", ctx, serviceAccount.UUID, serviceAccount.ServiceAccountEmail, validPrivateKeyData).Return(&datamodel.ServiceAccount{}, nil)
+		updatedServiceAccount := &datamodel.ServiceAccount{}
+
+		// Mock the UpdateServiceAccountState calls for state tracking
+		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "UPDATING", "Key rotation in progress").Return(updatedServiceAccount, nil)
+		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "ENABLED", "Available for use").Return(updatedServiceAccount, nil)
+
+		mockSE.On("UpdateServiceAccountEmailAndKey", ctx, serviceAccount.UUID, serviceAccount.ServiceAccountEmail, validPrivateKeyData).Return(updatedServiceAccount, nil)
 
 		// Mock AccessCryptoKey
 		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
@@ -286,15 +310,25 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 
 		originalGetGcpService := getGcpService
 		originalExtractKeyID := extractKeyID
+		originalListPoolsByKmsConfigId := listPoolsByKmsConfigId
 		defer func() {
 			getGcpService = originalGetGcpService
 			extractKeyID = originalExtractKeyID
+			listPoolsByKmsConfigId = originalListPoolsByKmsConfigId
 		}()
+
+		// Mock listPoolsByKmsConfigId to return empty list (no pools in CREATING state)
+		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
+			return []*datamodel.Pool{}, nil
+		}
 
 		// Mock extractKeyID to succeed so we can test the getGcpService failure
 		extractKeyID = func(serviceAccountKey string) (string, error) {
 			return "existing-key-id", nil
 		}
+
+		// Note: UpdateServiceAccountState should NOT be called if getGcpService fails
+		// The state update happens right after getGcpService succeeds
 
 		gcpError := errors.New("failed to get GCP service")
 		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
@@ -307,6 +341,46 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		assert.Equal(tt, gcpError, err)
 	})
 
+	t.Run("RotateServiceAccountKeySkipsWhenPoolInCreatingState", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid", ID: 1},
+			ServiceAccountEmail: "test@project.iam.gserviceaccount.com",
+		}
+
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:    datamodel.BaseModel{UUID: "kms-uuid", ID: 123},
+			KeyProjectID: "test-project",
+		}
+
+		// Create a pool in CREATING state
+		pools := []*datamodel.Pool{
+			{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
+				Name:      "test-pool",
+				State:     string(gcpserver.PoolV1betaStoragePoolStateCREATING),
+			},
+		}
+
+		originalListPoolsByKmsConfigId := listPoolsByKmsConfigId
+		defer func() { listPoolsByKmsConfigId = originalListPoolsByKmsConfigId }()
+
+		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
+			assert.Equal(tt, kmsConfig.ID, kmsConfigId)
+			return pools, nil
+		}
+
+		err := activity.RotateServiceAccountKey(ctx, serviceAccount, kmsConfig)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Storage pool present which is in creating state: test-pool")
+		// Verify that UpdateServiceAccountState is NOT called when pool is in CREATING state
+		// (no mocks set up, so AssertExpectations will pass if no calls were made)
+		mockSE.AssertExpectations(tt)
+	})
+
 	t.Run("RotateServiceAccountKeyFailsWhenCreateServiceAccountKeyFails", func(tt *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &RotateKmsSAKeyActivity{SE: mockSE}
@@ -317,17 +391,27 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		}
 
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
+			BaseModel:    datamodel.BaseModel{UUID: "kms-uuid"},
+			KeyProjectID: "test-project",
 		}
 
 		originalGetGcpService := getGcpService
 		originalGcpServiceCreateServiceAccountKey := gcpServiceCreateServiceAccountKey
+		originalDeleteServiceAccountKeysExcludingKey := deleteServiceAccountKeysExcludingKey
 		originalExtractKeyID := extractKeyID
+		originalListPoolsByKmsConfigId := listPoolsByKmsConfigId
 		defer func() {
 			getGcpService = originalGetGcpService
 			gcpServiceCreateServiceAccountKey = originalGcpServiceCreateServiceAccountKey
+			deleteServiceAccountKeysExcludingKey = originalDeleteServiceAccountKeysExcludingKey
 			extractKeyID = originalExtractKeyID
+			listPoolsByKmsConfigId = originalListPoolsByKmsConfigId
 		}()
+
+		// Mock listPoolsByKmsConfigId to return empty list (no pools in CREATING state)
+		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
+			return []*datamodel.Pool{}, nil
+		}
 
 		// Mock extractKeyID to succeed so we can test the createServiceAccountKey failure
 		extractKeyID = func(serviceAccountKey string) (string, error) {
@@ -338,6 +422,10 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
 			return mockGcpService, nil
 		}
+
+		// Note: State update happens after getGcpService (which succeeds), but before createServiceAccountKey
+		// If createServiceAccountKey fails, we return before the defer is set up, so defer won't run
+		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "UPDATING", "Key rotation in progress").Return(&datamodel.ServiceAccount{}, nil)
 
 		createKeyError := errors.New("failed to create service account key")
 		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*hyperscalerModels.ServiceAccountKey, error) {
@@ -361,7 +449,8 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		}
 
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-uuid", ID: 123},
+			BaseModel:    datamodel.BaseModel{UUID: "kms-uuid", ID: 123},
+			KeyProjectID: "test-project",
 		}
 
 		// Use valid base64 encoded private key data
@@ -400,7 +489,10 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*hyperscalerModels.ServiceAccountKey, error) {
 			return newServiceAccountKey, nil
 		}
+		// On error, defer sets keyToExclude = existingKey, so we delete the new key
+		existingKeyPath := "projects/test-project/serviceAccounts/test@project.iam.gserviceaccount.com/keys/existing-key-id"
 		deleteServiceAccountKeysExcludingKey = func(ctx context.Context, gcpService *google.GcpServices, email, keyToExclude string) error {
+			assert.Equal(tt, existingKeyPath, keyToExclude) // Should be existingKey on error
 			return nil
 		}
 
@@ -421,6 +513,10 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
 			return []*datamodel.Pool{{BaseModel: datamodel.BaseModel{ID: 1}}}, nil
 		}
+
+		// Mock both UpdateServiceAccountState calls - state update happens after getGcpService, defer always runs
+		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "UPDATING", "Key rotation in progress").Return(&datamodel.ServiceAccount{}, nil)
+		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "ENABLED", "Available for use").Return(&datamodel.ServiceAccount{}, nil)
 
 		// Mock syncKeyWithOntap to fail
 		syncError := errors.New("sync failed")
@@ -450,7 +546,8 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		}
 
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
+			BaseModel:    datamodel.BaseModel{UUID: "kms-uuid"},
+			KeyProjectID: "test-project",
 		}
 
 		// Use valid base64 encoded private key data
@@ -486,7 +583,10 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*hyperscalerModels.ServiceAccountKey, error) {
 			return newServiceAccountKey, nil
 		}
+		// On error, defer sets keyToExclude = existingKey, so we delete the new key
+		existingKeyPath := "projects/test-project/serviceAccounts/test@project.iam.gserviceaccount.com/keys/existing-key-id"
 		deleteServiceAccountKeysExcludingKey = func(ctx context.Context, gcpService *google.GcpServices, email, keyToExclude string) error {
+			assert.Equal(tt, existingKeyPath, keyToExclude) // Should be existingKey on error
 			return nil
 		}
 		encryptedPassword := "encrypted-password"
@@ -504,6 +604,10 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
 			return nil
 		}
+
+		// Mock both UpdateServiceAccountState calls - state update happens after getGcpService, defer always runs
+		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "UPDATING", "Key rotation in progress").Return(&datamodel.ServiceAccount{}, nil)
+		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "ENABLED", "Available for use").Return(&datamodel.ServiceAccount{}, nil)
 
 		updateError := errors.New("failed to update service account")
 		updateCalled := false
@@ -530,7 +634,8 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		}
 
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
+			BaseModel:    datamodel.BaseModel{UUID: "kms-uuid"},
+			KeyProjectID: "test-project",
 		}
 
 		// Use valid base64 encoded private key data
@@ -542,14 +647,23 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 
 		originalGetGcpService := getGcpService
 		originalGcpServiceCreateServiceAccountKey := gcpServiceCreateServiceAccountKey
+		originalDeleteServiceAccountKeysExcludingKey := deleteServiceAccountKeysExcludingKey
 		originalUtilsEncryptPassword := utils.EncryptPassword
 		originalExtractKeyID := extractKeyID
+		originalListPoolsByKmsConfigId := listPoolsByKmsConfigId
 		defer func() {
 			getGcpService = originalGetGcpService
 			gcpServiceCreateServiceAccountKey = originalGcpServiceCreateServiceAccountKey
+			deleteServiceAccountKeysExcludingKey = originalDeleteServiceAccountKeysExcludingKey
 			utils.EncryptPassword = originalUtilsEncryptPassword
 			extractKeyID = originalExtractKeyID
+			listPoolsByKmsConfigId = originalListPoolsByKmsConfigId
 		}()
+
+		// Mock listPoolsByKmsConfigId to return empty list (no pools in CREATING state)
+		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
+			return []*datamodel.Pool{}, nil
+		}
 
 		// Mock extractKeyID to succeed so we can test the AccessCryptoKey failure
 		extractKeyID = func(serviceAccountKey string) (string, error) {
@@ -563,6 +677,10 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*hyperscalerModels.ServiceAccountKey, error) {
 			return newServiceAccountKey, nil
 		}
+		// Note: State update happens after getGcpService (which succeeds), but AccessCryptoKey fails
+		// If AccessCryptoKey fails, we return before the defer is set up, so defer won't run
+		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "UPDATING", "Key rotation in progress").Return(&datamodel.ServiceAccount{}, nil)
+
 		encryptedPassword := "encrypted-password"
 		utils.EncryptPassword = func(secret log.Secret) (*string, error) {
 			return &encryptedPassword, nil
@@ -591,7 +709,8 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		}
 
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
+			BaseModel:    datamodel.BaseModel{UUID: "kms-uuid"},
+			KeyProjectID: "test-project",
 		}
 
 		// Use valid base64 encoded private key data
@@ -603,14 +722,23 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 
 		originalGetGcpService := getGcpService
 		originalGcpServiceCreateServiceAccountKey := gcpServiceCreateServiceAccountKey
+		originalDeleteServiceAccountKeysExcludingKey := deleteServiceAccountKeysExcludingKey
 		originalUtilsEncryptPassword := utils.EncryptPassword
 		originalExtractKeyID := extractKeyID
+		originalListPoolsByKmsConfigId := listPoolsByKmsConfigId
 		defer func() {
 			getGcpService = originalGetGcpService
 			gcpServiceCreateServiceAccountKey = originalGcpServiceCreateServiceAccountKey
+			deleteServiceAccountKeysExcludingKey = originalDeleteServiceAccountKeysExcludingKey
 			utils.EncryptPassword = originalUtilsEncryptPassword
 			extractKeyID = originalExtractKeyID
+			listPoolsByKmsConfigId = originalListPoolsByKmsConfigId
 		}()
+
+		// Mock listPoolsByKmsConfigId to return empty list (no pools in CREATING state)
+		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
+			return []*datamodel.Pool{}, nil
+		}
 
 		// Mock extractKeyID to succeed so we can test the EncryptPassword failure
 		extractKeyID = func(serviceAccountKey string) (string, error) {
@@ -624,6 +752,9 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*hyperscalerModels.ServiceAccountKey, error) {
 			return newServiceAccountKey, nil
 		}
+		// Note: State update happens after getGcpService (which succeeds), but EncryptPassword fails
+		// If EncryptPassword fails, we return before the defer is set up, so defer won't run
+		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "UPDATING", "Key rotation in progress").Return(&datamodel.ServiceAccount{}, nil)
 
 		encryptError := errors.New("failed to encrypt password")
 		utils.EncryptPassword = func(secret log.Secret) (*string, error) {
@@ -646,7 +777,8 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 		}
 
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
+			BaseModel:    datamodel.BaseModel{UUID: "kms-uuid"},
+			KeyProjectID: "test-project",
 		}
 
 		// Use valid base64 encoded private key data
@@ -687,15 +819,24 @@ func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
 			return &encryptedPassword, nil
 		}
 
+		// On success, defer uses new key, so we delete old keys
 		deleteKeysError := errors.New("failed to delete old service account keys")
 		deleteServiceAccountKeysExcludingKey = func(ctx context.Context, gcpService *google.GcpServices, email, keyToExclude string) error {
+			assert.Equal(tt, newServiceAccountKey.Name, keyToExclude) // Should be new key on success
 			return deleteKeysError
 		}
 		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
 			// Return empty pool list so we skip sync and go to update
 			return []*datamodel.Pool{}, nil
 		}
-		mockSE.On("UpdateServiceAccountEmailAndKey", ctx, serviceAccount.UUID, serviceAccount.ServiceAccountEmail, validPrivateKeyData).Return(&datamodel.ServiceAccount{}, nil)
+
+		// Mock both UpdateServiceAccountState calls - state update happens after getGcpService, defer always runs
+		// Even if deleteServiceAccountKeysExcludingKey fails, state is still set to ENABLED
+		updatedServiceAccount := &datamodel.ServiceAccount{}
+		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "UPDATING", "Key rotation in progress").Return(updatedServiceAccount, nil)
+		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "ENABLED", "Available for use").Return(updatedServiceAccount, nil)
+
+		mockSE.On("UpdateServiceAccountEmailAndKey", ctx, serviceAccount.UUID, serviceAccount.ServiceAccountEmail, validPrivateKeyData).Return(updatedServiceAccount, nil)
 
 		// Mock AccessCryptoKey
 		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
@@ -732,6 +873,7 @@ func TestRotateKmsSAKeyActivity_Integration(t *testing.T) {
 		kmsConfig := &datamodel.KmsConfig{
 			BaseModel:      datamodel.BaseModel{UUID: "kms-uuid"},
 			ServiceAccount: serviceAccounts[0],
+			KeyProjectID:   "test-project",
 		}
 
 		// Use valid base64 encoded private key data
@@ -764,7 +906,9 @@ func TestRotateKmsSAKeyActivity_Integration(t *testing.T) {
 		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*hyperscalerModels.ServiceAccountKey, error) {
 			return newServiceAccountKey, nil
 		}
+		// On success, defer uses new key, so we delete old keys
 		deleteServiceAccountKeysExcludingKey = func(ctx context.Context, gcpService *google.GcpServices, email, keyToExclude string) error {
+			assert.Equal(tt, newServiceAccountKey.Name, keyToExclude) // Should be new key on success
 			return nil
 		}
 		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
@@ -788,7 +932,11 @@ func TestRotateKmsSAKeyActivity_Integration(t *testing.T) {
 
 		// Setup database expectations
 		mockSE.On("GetMultipleKmsConfigs", ctx, mock.Anything).Return([]*datamodel.KmsConfig{kmsConfig}, nil)
+		// State update happens after getGcpService, before creating service account key
+		mockSE.On("UpdateServiceAccountState", ctx, serviceAccounts[0].UUID, models.LifeCycleStateUpdating, "Key rotation in progress").Return(&datamodel.ServiceAccount{}, nil)
 		mockSE.On("UpdateServiceAccountEmailAndKey", ctx, serviceAccounts[0].UUID, serviceAccounts[0].ServiceAccountEmail, validPrivateKeyData).Return(&datamodel.ServiceAccount{}, nil)
+		// Defer always sets state to ENABLED and deletes keys
+		mockSE.On("UpdateServiceAccountState", ctx, serviceAccounts[0].UUID, models.AccountStateEnabled, models.LifeCycleStateAvailableDetails).Return(&datamodel.ServiceAccount{}, nil)
 
 		// Test the complete workflow
 		// 1. List KMS configs
@@ -1015,14 +1163,18 @@ func TestListPoolsByKmsConfigId(t *testing.T) {
 
 		// Setup expected filter conditions
 		mockSE.On("ListPools", ctx, mock.MatchedBy(func(filter *utils2.Filter) bool {
-			// Verify the filter has the correct condition
-			return len(filter.Conditions) == 2 &&
+			// Verify the filter has the correct conditions (3 conditions total)
+			// Note: CREATING state is checked later in RotateServiceAccountKey, not in the filter
+			return len(filter.Conditions) == 3 &&
 				filter.Conditions[0].Field == "kms_config_id" &&
 				filter.Conditions[0].Op == "=" &&
 				filter.Conditions[0].Value == kmsConfigId &&
 				filter.Conditions[1].Field == "state" &&
 				filter.Conditions[1].Op == "!=" &&
-				filter.Conditions[1].Value == gcpserver.PoolV1betaStoragePoolStateERROR
+				filter.Conditions[1].Value == gcpserver.PoolV1betaStoragePoolStateERROR &&
+				filter.Conditions[2].Field == "state" &&
+				filter.Conditions[2].Op == "!=" &&
+				filter.Conditions[2].Value == gcpserver.PoolV1betaStoragePoolStateDELETING
 		})).Return(expectedPoolViews, nil)
 
 		result, err := ListPoolsByKmsConfigId(ctx, kmsConfigId, mockSE)
@@ -1118,7 +1270,7 @@ func TestListPoolsByKmsConfigId(t *testing.T) {
 
 		for _, kmsConfigId := range testCases {
 			mockSE.On("ListPools", ctx, mock.MatchedBy(func(filter *utils2.Filter) bool {
-				return filter.Conditions[0].Value == kmsConfigId
+				return len(filter.Conditions) == 3 && filter.Conditions[0].Value == kmsConfigId
 			})).Return([]*datamodel.PoolView{}, nil).Once()
 
 			result, err := ListPoolsByKmsConfigId(ctx, kmsConfigId, mockSE)

@@ -47,6 +47,13 @@ var (
 )
 
 var (
+	// ServiceAccountUpdateTimeout is the maximum time to wait for service account state to transition from Updating to Enabled
+	ServiceAccountUpdateTimeout = 10 * time.Minute
+	// ServiceAccountUpdateInterval is the interval between polling attempts for service account state
+	ServiceAccountUpdateInterval = 20 * time.Second
+)
+
+var (
 	_                                  WorkflowInterface = &createPoolWorkflow{} // Enforcing the WorkflowInterface on createPoolWorkflow
 	setupNwHeartbeatTimeout                              = env.GetUint64("SETUP_NW_HEARTBEAT_TIMEOUT_SEC", 300)
 	vmrsConfigPath                                       = env.GetString("VMRS_CONFIG_PATH", "/config/vmrs_gcp.yaml")
@@ -1222,9 +1229,49 @@ func _configureKmsConfigForSvmActivity(ctx workflow.Context, pool datamodel.Pool
 	kmsConfigActivity := &kms_activities.KmsConfigActivity{}
 	kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
 
+	// Check if service account is in UPDATING state and wait for it to transition to ENABLED
+	logger := workflow.GetLogger(ctx)
+
+	// Get KMS config to check initial state
 	err := workflow.ExecuteActivity(ctx, kmsConfigActivity.GetKmsConfigActivity, params.KmsConfigId).Get(ctx, kmsConfig)
 	if err != nil {
 		return err
+	}
+
+	if kmsConfig.ServiceAccount != nil && kmsConfig.ServiceAccount.State == models.LifeCycleStateUpdating {
+		timeout, interval := ServiceAccountUpdateTimeout, ServiceAccountUpdateInterval
+		deadline := workflow.Now(ctx).Add(timeout)
+		serviceAccountUUID := kmsConfig.ServiceAccount.UUID
+
+		logger.Info("Service account is in Updating state, waiting for it to transition to Enabled", "serviceAccountUUID", serviceAccountUUID)
+
+		stateChanged := false
+		for workflow.Now(ctx).Before(deadline) {
+			if err = workflow.Sleep(ctx, interval); err != nil {
+				return err
+			}
+
+			polledKmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
+			err := workflow.ExecuteActivity(ctx, kmsConfigActivity.GetKmsConfigActivity, params.KmsConfigId).Get(ctx, polledKmsConfig)
+			if err != nil {
+				logger.Warn("Failed to fetch KMS config while waiting for service account state change", "error", err)
+				continue
+			}
+
+			if polledKmsConfig.ServiceAccount != nil {
+				if polledKmsConfig.ServiceAccount.State == models.AccountStateEnabled {
+					logger.Info("Service account has transitioned to Enabled state", "serviceAccountUUID", serviceAccountUUID)
+					kmsConfig.ServiceAccount.State = models.AccountStateEnabled
+					stateChanged = true
+					break
+				}
+				logger.Debug("Service account still in state, waiting...", "serviceAccountUUID", serviceAccountUUID, "state", polledKmsConfig.ServiceAccount.State)
+			}
+		}
+
+		if !stateChanged {
+			logger.Error("Service account for KMS Config did not transition to Enabled state during pool creation within timeout period, continuing with pool creation")
+		}
 	}
 
 	// Creates DNS to reach google KMS from the VSA cluster

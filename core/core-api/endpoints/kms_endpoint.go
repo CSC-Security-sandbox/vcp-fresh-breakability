@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
 var (
@@ -47,7 +48,13 @@ func (h *Handler) V1RotateGcpKmsConfig(ctx context.Context, req *oasgenserver.Gc
 				Code:    http.StatusNotFound,
 			}, nil
 		}
-		if strings.Contains(err.Error(), "conflict") {
+		if errors.IsBadRequestErr(err) {
+			return &oasgenserver.V1RotateGcpKmsConfigBadRequest{
+				Message: err.Error(),
+				Code:    http.StatusBadRequest,
+			}, nil
+		}
+		if strings.Contains(err.Error(), "conflict") || errors.IsConflictErr(err) {
 			return &oasgenserver.V1RotateGcpKmsConfigConflict{
 				Message: err.Error(),
 				Code:    http.StatusConflict,

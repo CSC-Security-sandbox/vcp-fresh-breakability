@@ -3297,6 +3297,134 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 		err := _validateCreatePoolParams(params)
 		assert.NoError(tt, err, "Valid create params with tags should pass validation")
 	})
+
+	// Tests for the new KMS configuration validation in _validateCreatePoolParams
+	t.Run("ValidParams_WithValidKmsConfig_ReadyState", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:   uint64(2 * utils.TiBInBytes),
+			ServiceLevel:  ServiceLevelNameFLEX,
+			QosType:       QosTypeAuto,
+			LargeCapacity: false,
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				ThroughputMibps: 128,
+				Iops:            nillable.ToPointer(int64(2048)),
+			},
+			KmsConfig: &models.KmsConfig{
+				State: models.LifeCycleStateREADY,
+				ServiceAccount: &models.ServiceAccount{
+					State: models.AccountStateEnabled,
+				},
+			},
+		}
+
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err, "Valid KMS config in READY state should pass validation")
+	})
+
+	t.Run("ValidParams_WithValidKmsConfig_InUseState", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:   uint64(2 * utils.TiBInBytes),
+			ServiceLevel:  ServiceLevelNameFLEX,
+			QosType:       QosTypeAuto,
+			LargeCapacity: false,
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				ThroughputMibps: 128,
+				Iops:            nillable.ToPointer(int64(2048)),
+			},
+			KmsConfig: &models.KmsConfig{
+				State: models.LifeCycleStateInUse,
+				ServiceAccount: &models.ServiceAccount{
+					State: models.AccountStateEnabled,
+				},
+			},
+		}
+
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err, "Valid KMS config in IN_USE state should pass validation")
+	})
+
+	t.Run("InvalidParams_KmsConfigInvalidState", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:   uint64(2 * utils.TiBInBytes),
+			ServiceLevel:  ServiceLevelNameFLEX,
+			QosType:       QosTypeAuto,
+			LargeCapacity: false,
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				ThroughputMibps: 128,
+				Iops:            nillable.ToPointer(int64(2048)),
+			},
+			KmsConfig: &models.KmsConfig{
+				State: models.LifeCycleStateCreating, // Invalid state for pool creation
+				ServiceAccount: &models.ServiceAccount{
+					State: models.AccountStateEnabled,
+				},
+			},
+		}
+
+		err := _validateCreatePoolParams(params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Invalid KMS configuration state for pool creation: CREATING")
+	})
+
+	t.Run("InvalidParams_KmsConfigDisabledState", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:   uint64(2 * utils.TiBInBytes),
+			ServiceLevel:  ServiceLevelNameFLEX,
+			QosType:       QosTypeAuto,
+			LargeCapacity: false,
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				ThroughputMibps: 128,
+				Iops:            nillable.ToPointer(int64(2048)),
+			},
+			KmsConfig: &models.KmsConfig{
+				State: models.LifeCycleStateDisabled, // Invalid state for pool creation
+				ServiceAccount: &models.ServiceAccount{
+					State: models.AccountStateEnabled,
+				},
+			},
+		}
+
+		err := _validateCreatePoolParams(params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Invalid KMS configuration state for pool creation: DISABLED")
+	})
+
+	t.Run("ValidParams_WithNilKmsConfig", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:   uint64(2 * utils.TiBInBytes),
+			ServiceLevel:  ServiceLevelNameFLEX,
+			QosType:       QosTypeAuto,
+			LargeCapacity: false,
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				ThroughputMibps: 128,
+				Iops:            nillable.ToPointer(int64(2048)),
+			},
+			KmsConfig: nil, // No KMS config should be valid
+		}
+
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err, "Nil KMS config should pass validation")
+	})
+
+	t.Run("ValidParams_WithKmsConfigNilServiceAccount", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			SizeInBytes:   uint64(2 * utils.TiBInBytes),
+			ServiceLevel:  ServiceLevelNameFLEX,
+			QosType:       QosTypeAuto,
+			LargeCapacity: false,
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				ThroughputMibps: 128,
+				Iops:            nillable.ToPointer(int64(2048)),
+			},
+			KmsConfig: &models.KmsConfig{
+				State:          models.LifeCycleStateREADY,
+				ServiceAccount: nil, // Nil service account should be valid
+			},
+		}
+
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err, "KMS config with nil service account should pass validation")
+	})
 }
 
 // Comprehensive tests for the _validateAndSetUpdatePoolParams function
@@ -4998,7 +5126,8 @@ func TestGetResourceJobType_Comprehensive(t *testing.T) {
 		}
 		err := _validateCreatePoolParams(params)
 		assert.Error(tt, err)
-		assert.EqualError(tt, err, "invalid KMS configuration state: KEY_CHECK_PENDING")
+		assert.Contains(tt, err.Error(), "KMS configuration state")
+		assert.Contains(tt, err.Error(), "KEY_CHECK_PENDING")
 	})
 }
 

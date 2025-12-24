@@ -200,6 +200,7 @@ func (c *GcpServices) DeleteServiceAccountKeysExcludingKey(ctx context.Context, 
 	}
 	for _, key := range keyList.Keys {
 		if key.Name != keyToExclude && key.KeyType == "USER_MANAGED" {
+			util.GetLogger(ctx).Infof("Deleting service account key %s for service account %s", key.Name, email)
 			err := deleteServiceAccountKeyWithRetry(ctx, c, key.Name)
 			if err != nil {
 				return fmt.Errorf("Projects.ServiceAccounts.Keys.Delete: %v", err)

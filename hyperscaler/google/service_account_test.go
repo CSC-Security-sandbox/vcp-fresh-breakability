@@ -404,7 +404,7 @@ func Test_DeleteServiceAccountKeysExcludingKey(t *testing.T) {
 			listServiceAccountsKeysWithRetry = origList
 			deleteServiceAccountKeyWithRetry = origDelete
 		}()
-		err := (&GcpServices{}).DeleteServiceAccountKeysExcludingKey(ctx, email, keyToExclude)
+		err := (&GcpServices{Logger: util.GetLogger(ctx)}).DeleteServiceAccountKeysExcludingKey(ctx, email, keyToExclude)
 		if err == nil || err.Error() != "Projects.ServiceAccounts.Keys.Delete: delete error" {
 			tt.Errorf("expected delete error, got %v", err)
 		}

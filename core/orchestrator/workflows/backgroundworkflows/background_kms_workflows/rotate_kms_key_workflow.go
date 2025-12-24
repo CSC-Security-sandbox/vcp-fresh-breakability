@@ -1,18 +1,22 @@
 package background_kms_workflows
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+)
+
+const (
+	storagePoolCreatingStateError = "Storage pool present which is in creating state"
 )
 
 var (
@@ -65,14 +69,29 @@ func RotateKmsSAKeyWorkflow(ctx workflow.Context) error {
 	}
 
 	keyRotationFailed := false
+	skippedKmsConfigs := 0
 	for index, future := range futures {
 		err := future.Get(ctx, nil)
 		if err != nil {
+			if strings.Contains(err.Error(), storagePoolCreatingStateError) {
+				skippedKmsConfigs++
+				logger.Warn(fmt.Sprintf(
+					"Skipping KMS config %s (service account: %s) due to pools in Creating state: %v",
+					kmsConfigs[index].UUID,
+					kmsConfigs[index].ServiceAccount.ServiceAccountEmail,
+					err))
+				continue
+			}
+
 			keyRotationFailed = true
 			logger.Error(fmt.Sprintf(
 				"key rotation failed for service account %s", kmsConfigs[index].ServiceAccount.ServiceAccountEmail),
-				log.Fields{"error": err})
+				"error", err)
 		}
+	}
+
+	if skippedKmsConfigs > 0 {
+		logger.Info(fmt.Sprintf("Skipped %d KMS config(s) due to pools in Creating state", skippedKmsConfigs))
 	}
 	if keyRotationFailed {
 		return errors.New("key rotation failed for one or more service accounts")

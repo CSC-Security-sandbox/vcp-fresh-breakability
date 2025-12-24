@@ -485,7 +485,7 @@ func _validateCreatePoolParams(params *commonparams.CreatePoolParams) error {
 		case models.LifeCycleStateREADY, models.LifeCycleStateInUse:
 			break
 		default:
-			return customerrors.NewUserInputValidationErr(fmt.Sprintf("invalid KMS configuration state: %s", params.KmsConfig.State))
+			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid KMS configuration state for pool creation: %s", params.KmsConfig.State))
 		}
 	}
 

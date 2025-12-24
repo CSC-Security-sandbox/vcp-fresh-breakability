@@ -3,6 +3,9 @@ package api
 import (
 	"context"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
@@ -10,9 +13,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	utilserrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
-	"testing"
-	"time"
 )
 
 func TestV1RotateGcpKmsConfig_Success(t *testing.T) {
@@ -228,6 +230,55 @@ func TestV1RotateGcpKmsConfig_KmsConfigNotFound(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, float64(404), notFoundResponse.Code)
 	assert.Equal(t, "KMS config not found", notFoundResponse.Message)
+
+	// Verify mock expectations
+	mockOrch.AssertExpectations(t)
+}
+
+func TestV1RotateGcpKmsConfig_BadRequestError(t *testing.T) {
+	// Setup - enable KMS rotation for this test
+	defer func() {
+		kmsRotationEnabled = env.GetBool("GCP_KMS_KEY_ROTATION_ENABLED", false)
+	}()
+	kmsRotationEnabled = true
+
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	handler := NewHandler(mockOrch)
+
+	kmsConfigUUID := "test-kms-config-uuid"
+	accountName := "test-account"
+
+	req := &oasgenserver.GcpKmsKeyRotateV1{
+		OwnerID: accountName,
+	}
+
+	params := oasgenserver.V1RotateGcpKmsConfigParams{
+		UUID: kmsConfigUUID,
+	}
+
+	// Set up expectations - orchestrator returns bad request error
+	expectedParams := &common.RotateKmsConfigParams{
+		KmsConfigID:    kmsConfigUUID,
+		AccountName:    accountName,
+		XCorrelationID: "",
+	}
+
+	badRequestErr := utilserrors.NewBadRequestErr("Concerned GCP KMS config is not in a state(ready/in use) to rotate the service account key")
+	mockOrch.EXPECT().RotateKmsConfig(mock.Anything, expectedParams).Return((*models.KmsConfig)(nil), (*models.Job)(nil), badRequestErr)
+
+	// Execute
+	ctx := context.Background()
+	result, err := handler.V1RotateGcpKmsConfig(ctx, req, params)
+
+	// Assert
+	assert.NoError(t, err) // Handler converts error to response
+	assert.NotNil(t, result)
+
+	// Check that we got a bad request response
+	badRequestResponse, ok := result.(*oasgenserver.V1RotateGcpKmsConfigBadRequest)
+	assert.True(t, ok)
+	assert.Equal(t, float64(400), badRequestResponse.Code)
+	assert.Equal(t, "Concerned GCP KMS config is not in a state(ready/in use) to rotate the service account key", badRequestResponse.Message)
 
 	// Verify mock expectations
 	mockOrch.AssertExpectations(t)

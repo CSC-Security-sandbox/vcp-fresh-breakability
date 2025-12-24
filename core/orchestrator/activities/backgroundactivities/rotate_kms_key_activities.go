@@ -4,18 +4,21 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	utilserrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -95,19 +98,44 @@ func (a *RotateKmsSAKeyActivity) GetKmsConfig(ctx context.Context, kmsConfigID s
 // RotateServiceAccountKey rotates the service account key for a given service account.
 func (a *RotateKmsSAKeyActivity) RotateServiceAccountKey(ctx context.Context, serviceAccount *datamodel.ServiceAccount, kmsConfig *datamodel.KmsConfig) error {
 	logger := util.GetLogger(ctx)
-	logger.Infof("Rotating KMS Service Account Key for service account: %s", serviceAccount.ServiceAccountEmail)
+	logger.Infof("KMS_KEY_ROTATION: Rotating KMS Service Account Key for service account: %s", serviceAccount.ServiceAccountEmail)
 	se := a.SE
+
+	var gcpService *google.GcpServices
+	var keyToExclude string
+	var err error
+
+	pools, err := listPoolsByKmsConfigId(ctx, kmsConfig.ID, se)
+	if err != nil {
+		logger.Errorf("KMS_KEY_ROTATION: Failed to list pools by kms config id: %v", err)
+		return err
+	}
+
+	// Check if any pools are in CREATING state
+	for _, pool := range pools {
+		if pool.State == string(gcpserver.PoolV1betaStoragePoolStateCREATING) {
+			logger.Warn("KMS_KEY_ROTATION: Pool %s is in CREATING state, skipping key rotation for this schedule", pool.Name)
+			return utilserrors.NewConflictErr("Storage pool present which is in creating state: " + pool.Name)
+		}
+	}
 
 	// Extract the keyID from the service account key
 	saKeyId, err := extractKeyID(serviceAccount.ServiceAccountPasswordLocation)
 	if err != nil {
-		logger.Errorf("Failed to extract key ID for service account: %s : %v", serviceAccount.ServiceAccountEmail, err)
+		logger.Errorf("KMS_KEY_ROTATION: Failed to extract key ID for service account: %s : %v", serviceAccount.ServiceAccountEmail, err)
 		return err
 	}
 	existingKey := "projects/" + kmsConfig.KeyProjectID + "/serviceAccounts/" + serviceAccount.ServiceAccountEmail + keyPrefix + saKeyId
 
-	gcpService, err := getGcpService(ctx)
+	gcpService, err = getGcpService(ctx)
 	if err != nil {
+		return err
+	}
+
+	logger.Info("KMS_KEY_ROTATION: Updating service account state to UPDATING")
+	_, err = se.UpdateServiceAccountState(ctx, serviceAccount.UUID, models.LifeCycleStateUpdating, "Key rotation in progress")
+	if err != nil {
+		logger.Errorf("KMS_KEY_ROTATION: Error updating service account state to UPDATING: %v", err)
 		return err
 	}
 
@@ -115,29 +143,42 @@ func (a *RotateKmsSAKeyActivity) RotateServiceAccountKey(ctx context.Context, se
 	if err != nil {
 		return err
 	}
-	keyToExclude := serviceAccountKey.Name
+	keyToExclude = serviceAccountKey.Name
 
 	secretPassword, err := utils.EncryptPassword(log.Secret(serviceAccountKey.PrivateKeyData))
 	if err != nil {
-		logger.Errorf("Failed to encrypt service account key for service account: %s : %v", serviceAccount.ServiceAccountEmail, err)
+		logger.Errorf("KMS_KEY_ROTATION: Failed to encrypt service account key for service account: %s : %v", serviceAccount.ServiceAccountEmail, err)
 		return err
 	}
 	err = kms_activities.AccessCryptoKeyAndEncryptData(ctx, kmsConfig, *secretPassword, kms_activities.RetryTimeOutForGetCryptoKey, kms_activities.RetryIntervalForGetCryptoKey)
 	if err != nil {
-		logger.Errorf("Failed to access crypto key for service account: %s : %v", serviceAccount.ServiceAccountEmail, err)
+		logger.Errorf("KMS_KEY_ROTATION: Failed to access crypto key for service account: %s : %v", serviceAccount.ServiceAccountEmail, err)
 		return err
 	}
 
-	pools, err := listPoolsByKmsConfigId(ctx, kmsConfig.ID, se)
-	if err != nil {
-		logger.Errorf("Failed to list pools by kms config id: %v", err)
-		return err
-	}
+	// Single defer to always reset state to ENABLED and clean up keys
+	defer func() {
+		if err != nil {
+			keyToExclude = existingKey
+			logger.Errorf("KMS_KEY_ROTATION: Failed to rotate kms key for service account: %s : %v", serviceAccount.ServiceAccountEmail, err)
+		}
+
+		deleteErr := deleteServiceAccountKeysExcludingKey(ctx, gcpService, serviceAccount.ServiceAccountEmail, keyToExclude)
+		if deleteErr != nil {
+			logger.Errorf("KMS_KEY_ROTATION: Failed to delete service account keys for %s: %v", serviceAccount.ServiceAccountEmail, deleteErr)
+		}
+
+		logger.Info("KMS_KEY_ROTATION: Updating service account state to ENABLED")
+		_, updateErr := se.UpdateServiceAccountState(ctx, serviceAccount.UUID, models.AccountStateEnabled, models.LifeCycleStateAvailableDetails)
+		if updateErr != nil {
+			logger.Errorf("KMS_KEY_ROTATION: Error updating service account state to ENABLED: %v", updateErr)
+		}
+	}()
 
 	// First sync the new key with all ONTAP clusters to validate it works
 	for _, pool := range pools {
 		if err = syncKeyWithOntap(ctx, se, serviceAccountKey.PrivateKeyData, serviceAccount.ServiceAccountPasswordLocation, pool); err != nil {
-			logger.Errorf("Failed to sync key with ontap for pool: %s : %v", pool.Name, err)
+			logger.Errorf("KMS_KEY_ROTATION: Failed to sync key with ontap for pool - %s : %v", pool.Name, err)
 			return err
 		}
 	}
@@ -145,23 +186,11 @@ func (a *RotateKmsSAKeyActivity) RotateServiceAccountKey(ctx context.Context, se
 	// Only if all ONTAP sync operations succeed, update the database
 	_, err = se.UpdateServiceAccountEmailAndKey(ctx, serviceAccount.UUID, serviceAccount.ServiceAccountEmail, serviceAccountKey.PrivateKeyData)
 	if err != nil {
-		logger.Errorf("Failed to update service account key for service account: %s : %v", serviceAccount.ServiceAccountEmail, err)
+		logger.Errorf("KMS_KEY_ROTATION: Failed to update service account key for service account - %s : %v", serviceAccount.ServiceAccountEmail, err)
 		return err
 	}
 
-	defer func() {
-		if err != nil {
-			keyToExclude = existingKey
-			logger.Errorf("Failed to rotate kms key for service account: %s : %v", serviceAccount.ServiceAccountEmail, err)
-		}
-		// Delete the stale service account keys
-		err = deleteServiceAccountKeysExcludingKey(ctx, gcpService, serviceAccount.ServiceAccountEmail, keyToExclude)
-		if err != nil {
-			logger.Errorf("Failed to delete service account old keys %s: %v", serviceAccountKey.Name, err)
-			return
-		}
-	}()
-
+	logger.Infof("Successfully rotated service account key for service account: %s", serviceAccount.ServiceAccountEmail)
 	return nil
 }
 
@@ -169,7 +198,8 @@ func ListPoolsByKmsConfigId(ctx context.Context, kmsConfigId int64, se database.
 	logger := util.GetLogger(ctx)
 
 	filter := dbutils.CreateFilterWithConditions(dbutils.NewFilterCondition("kms_config_id", "=", kmsConfigId),
-		dbutils.NewFilterCondition("state", "!=", gcpserver.PoolV1betaStoragePoolStateERROR))
+		dbutils.NewFilterCondition("state", "!=", gcpserver.PoolV1betaStoragePoolStateERROR),
+		dbutils.NewFilterCondition("state", "!=", gcpserver.PoolV1betaStoragePoolStateDELETING))
 	poolViews, err := se.ListPools(ctx, filter)
 	if err != nil {
 		logger.Errorf("Failed to list pools: %v", err)

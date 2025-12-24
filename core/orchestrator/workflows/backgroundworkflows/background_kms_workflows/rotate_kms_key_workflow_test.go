@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	utilserrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"go.temporal.io/sdk/testsuite"
 )
 
@@ -61,6 +62,42 @@ func (s *RotateKmsKeyTestSuite) TestRotateKmsSAKeyWorkflow_Success() {
 
 	s.env.OnActivity(activity.ListKmsConfigs, mock.Anything).Return(kmsConfigs, nil)
 	s.env.OnActivity(activity.RotateServiceAccountKey, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(RotateKmsSAKeyWorkflow)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *RotateKmsKeyTestSuite) TestRotateKmsSAKeyWorkflow_PoolCreatingState() {
+	defer func() {
+		kmsRotationEnabled = env.GetBool("GCP_KMS_KEY_ROTATION_ENABLED", false)
+	}()
+	kmsRotationEnabled = true
+
+	activity := &backgroundactivities.RotateKmsSAKeyActivity{}
+	kmsConfigs := []*datamodel.KmsConfig{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "kms-1"},
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountEmail: "sa1@project.iam.gserviceaccount.com",
+			},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "kms-2"},
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountEmail: "sa2@project.iam.gserviceaccount.com",
+			},
+		},
+	}
+
+	s.env.RegisterActivity(activity.ListKmsConfigs)
+	s.env.RegisterActivity(activity.RotateServiceAccountKey)
+
+	s.env.OnActivity(activity.ListKmsConfigs, mock.Anything).Return(kmsConfigs, nil)
+
+	errPoolCreating := utilserrors.NewConflictErr(storagePoolCreatingStateError + ": test-pool")
+	s.env.OnActivity(activity.RotateServiceAccountKey, mock.Anything, mock.Anything, mock.Anything).Return(errPoolCreating)
 
 	s.env.ExecuteWorkflow(RotateKmsSAKeyWorkflow)
 
