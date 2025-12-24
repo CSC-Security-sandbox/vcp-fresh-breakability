@@ -208,7 +208,10 @@ func (m *mockNASClient) CifsShareCreate(params *nas.CifsShareCreateParams, authI
 }
 
 func (m *mockNASClient) CifsShareDelete(params *nas.CifsShareDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.CifsShareDeleteOK, error) {
-	return nil, nil
+	if m.err != nil {
+		return nil, m.err
+	}
+	return &nas.CifsShareDeleteOK{}, nil
 }
 
 func (m *mockNASClient) CifsShareGet(params *nas.CifsShareGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...nas.ClientOption) (*nas.CifsShareGetOK, error) {
@@ -922,6 +925,30 @@ func TestCifsShareModify_Success(t *testing.T) {
 		err := client.CifsShareModify(params)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "API error")
+	})
+}
+
+func TestCifsShareDelete(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		api := &mockNASClient{err: errors.New("api error")}
+		client := &nasClient{api: api}
+		params := &CifsShareDeleteParams{
+			ShareName: "test-share",
+			SvmUUID:   "test-svm-uuid",
+		}
+		err := client.CifsShareDelete(params)
+		assert.EqualError(tt, err, "api error")
+	})
+
+	t.Run("WhenSuccessful_ThenNoError", func(tt *testing.T) {
+		api := &mockNASClient{}
+		client := &nasClient{api: api}
+		params := &CifsShareDeleteParams{
+			ShareName: "test-share",
+			SvmUUID:   "test-svm-uuid",
+		}
+		err := client.CifsShareDelete(params)
+		assert.NoError(tt, err)
 	})
 }
 

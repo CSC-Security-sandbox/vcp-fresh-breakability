@@ -817,19 +817,57 @@ func _unmountVolume(provider *OntapRestProvider, volume *ontaprest.Volume, volRe
 	if volRep.Volume.HasProtocolType(string(utils.ProtocolISCSI)) {
 		return nil
 	}
+
+	// If volume is SMB, delete CIFS share before unmounting
 	if volRep.Volume.HasProtocolType(string(utils.ProtocolSMB)) {
-		// TODO: Add support for cifs share once SMB protocol is supported
-		provider.Logger.Errorf("SMB protocol type not supported")
+		// Get junction path and SVM UUID from volume
+		var junctionPath string
+		var svmUUID string
+
+		junctionPath = volRep.Volume.JunctionPath
+
+		if volume.Svm != nil && volume.Svm.UUID != nil {
+			svmUUID = *volume.Svm.UUID
+		}
+
+		// Delete CIFS share if junction path and SVM UUID are available
+		// Share name is derived from junction path by removing leading '/'
+		shareName := junctionPath
+		if len(shareName) > 0 && shareName[0] == '/' {
+			shareName = shareName[1:]
+		}
+
+		client, err := getOntapClientFunc(provider.ClientParams)
+		if err != nil {
+			provider.Logger.Errorf("Failed to get ONTAP client for CIFS share deletion: %v", err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+
+		provider.Logger.Debugf("Deleting CIFS share %s for volume %s", shareName, nillable.GetString(volume.Name, ""))
+		err = client.NAS().CifsShareDelete(&ontaprest.CifsShareDeleteParams{
+			ShareName: shareName,
+			SvmUUID:   svmUUID,
+		})
+		if err != nil {
+			// Log error but continue with unmount - share might not exist or already deleted
+			if !errors.IsNotFoundErr(err) && !strings.Contains(err.Error(), "entry doesn't exist") && !strings.Contains(err.Error(), "entry not found") {
+				provider.Logger.Errorf("Failed to delete CIFS share %s for volume %s: %v", shareName, nillable.GetString(volume.Name, ""), err)
+				return vsaerrors.WrapAsTemporalApplicationError(err)
+			}
+			provider.Logger.Debugf("CIFS share %s not found or already deleted for volume %s", shareName, nillable.GetString(volume.Name, ""))
+		} else {
+			provider.Logger.Debugf("Successfully deleted CIFS share %s for volume %s", shareName, nillable.GetString(volume.Name, ""))
+		}
 	}
 
 	// If volume is currently mounted (has existing junction path), unmount it first
-	provider.Logger.Debugf("Unmounting volume %s from junction path %s", volume.Name)
+	provider.Logger.Debugf("Unmounting volume %s from junction path %s", nillable.GetString(volume.Name, ""), volRep.Volume.JunctionPath)
 	_, err := provider.UnmountVolume(*volume.UUID)
 	if err != nil {
-		provider.Logger.Errorf("Failed to unmount volume %s: %v", volume.Name, err)
+		provider.Logger.Errorf("Failed to unmount volume %s: %v", nillable.GetString(volume.Name, ""), err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	provider.Logger.Debugf("Volume %s unmounted successfully", volume.Name)
+	provider.Logger.Debugf("Volume %s unmounted successfully", nillable.GetString(volume.Name, ""))
 	return nil
 }
 

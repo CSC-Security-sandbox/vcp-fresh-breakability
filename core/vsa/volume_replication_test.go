@@ -3497,6 +3497,7 @@ func Test_unmountVolume(t *testing.T) {
 	t.Run("Error_WhenVolumeModifyFails", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockStorageClient := new(ontaprest.MockStorageClient)
+		mockNASClient := new(ontaprest.MockNASClient)
 
 		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
 			return mockClient, nil
@@ -3508,6 +3509,7 @@ func Test_unmountVolume(t *testing.T) {
 		}
 
 		volumeUUID := "test-volume-uuid-modify-error"
+		svmUUID := "test-svm-uuid"
 		securityStyle := "unix"
 		volume := ontaprest.Volume{
 			Volume: models.Volume{
@@ -3516,6 +3518,9 @@ func Test_unmountVolume(t *testing.T) {
 				Nas: &models.VolumeInlineNas{
 					Path:          nillable.GetStringPtr("/modify/error/path"),
 					SecurityStyle: &securityStyle,
+				},
+				Svm: &models.VolumeInlineSvm{
+					UUID: &svmUUID,
 				},
 			},
 		}
@@ -3530,7 +3535,11 @@ func Test_unmountVolume(t *testing.T) {
 
 		modifyError := errors.New("volume unmount operation failed")
 
-		// Setup mocks
+		// Setup mocks for CIFS share deletion (SMB volume)
+		mockClient.On("NAS").Return(mockNASClient)
+		mockNASClient.On("CifsShareDelete", mock.Anything).Return(nil)
+
+		// Setup mocks for volume unmount
 		mockClient.On("Storage").Return(mockStorageClient)
 		mockStorageClient.On("VolumeUnmount", mock.Anything).Return((*ontaprest.JobAccepted)(nil), modifyError)
 
@@ -3539,8 +3548,9 @@ func Test_unmountVolume(t *testing.T) {
 
 		// Verify results
 		assert.Error(tt, err)
-		assert.Equal(tt, modifyError, err)
+		assert.Contains(tt, err.Error(), "volume unmount operation failed")
 		mockClient.AssertExpectations(tt)
+		mockNASClient.AssertExpectations(tt)
 		mockStorageClient.AssertExpectations(tt)
 	})
 
@@ -3594,6 +3604,191 @@ func Test_unmountVolume(t *testing.T) {
 		assert.NoError(tt, err)
 		mockClient.AssertExpectations(tt)
 		mockStorageClient.AssertExpectations(tt)
+	})
+
+	t.Run("Success_SMBVolume_DeletesCifsShareAndUnmounts", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorageClient := new(ontaprest.MockStorageClient)
+		mockNASClient := new(ontaprest.MockNASClient)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		provider := &OntapRestProvider{
+			ClientParams: ontaprest.RESTClientParams{},
+			Logger:       log.NewLogger(),
+		}
+
+		volumeUUID := "test-volume-uuid-smb"
+		svmUUID := "test-svm-uuid"
+		junctionPath := "/test-creation-token"
+		shareName := "test-creation-token"
+		securityStyle := "unix"
+		volume := ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: &volumeUUID,
+				Name: nillable.GetStringPtr("test-volume-smb"),
+				Nas: &models.VolumeInlineNas{
+					Path:          nillable.GetStringPtr(junctionPath),
+					SecurityStyle: &securityStyle,
+				},
+				Svm: &models.VolumeInlineSvm{
+					UUID: &svmUUID,
+				},
+			},
+		}
+
+		volRep := &VolumeReplication{
+			SourceSVMName:      "source-svm",
+			DestinationSVMName: "dest-svm",
+			Volume: &Volume{
+				ProtocolTypes: []string{"SMB"},
+				JunctionPath:  junctionPath,
+			},
+		}
+
+		// Setup mocks for CIFS share deletion
+		mockClient.On("NAS").Return(mockNASClient)
+		mockNASClient.On("CifsShareDelete", mock.MatchedBy(func(params *ontaprest.CifsShareDeleteParams) bool {
+			return params.ShareName == shareName && params.SvmUUID == svmUUID
+		})).Return(nil)
+
+		// Setup mocks for volume unmount
+		jobAccepted := &ontaprest.JobAccepted{JobUUID: "unmount-job-123"}
+		mockClient.On("Storage").Return(mockStorageClient)
+		mockStorageClient.On("VolumeUnmount", mock.Anything).Return(jobAccepted, nil)
+
+		// Execute test
+		err := _unmountVolume(provider, &volume, volRep)
+
+		// Verify results
+		assert.NoError(tt, err)
+		mockClient.AssertExpectations(tt)
+		mockNASClient.AssertExpectations(tt)
+		mockStorageClient.AssertExpectations(tt)
+	})
+
+	t.Run("Success_SMBVolume_CifsShareNotFound_ContinuesWithUnmount", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorageClient := new(ontaprest.MockStorageClient)
+		mockNASClient := new(ontaprest.MockNASClient)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		provider := &OntapRestProvider{
+			ClientParams: ontaprest.RESTClientParams{},
+			Logger:       log.NewLogger(),
+		}
+
+		volumeUUID := "test-volume-uuid-smb-notfound"
+		svmUUID := "test-svm-uuid"
+		junctionPath := "/test-creation-token"
+		shareName := "test-creation-token"
+		securityStyle := "unix"
+		volume := ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: &volumeUUID,
+				Name: nillable.GetStringPtr("test-volume-smb-notfound"),
+				Nas: &models.VolumeInlineNas{
+					Path:          nillable.GetStringPtr(junctionPath),
+					SecurityStyle: &securityStyle,
+				},
+				Svm: &models.VolumeInlineSvm{
+					UUID: &svmUUID,
+				},
+			},
+		}
+
+		volRep := &VolumeReplication{
+			SourceSVMName:      "source-svm",
+			DestinationSVMName: "dest-svm",
+			Volume: &Volume{
+				ProtocolTypes: []string{"SMB"},
+				JunctionPath:  junctionPath,
+			},
+		}
+
+		// Setup mocks for CIFS share deletion - share not found
+		notFoundError := errors.NewNotFoundErr("CIFS share", &shareName)
+		mockClient.On("NAS").Return(mockNASClient)
+		mockNASClient.On("CifsShareDelete", mock.MatchedBy(func(params *ontaprest.CifsShareDeleteParams) bool {
+			return params.ShareName == shareName && params.SvmUUID == svmUUID
+		})).Return(notFoundError)
+
+		// Setup mocks for volume unmount
+		jobAccepted := &ontaprest.JobAccepted{JobUUID: "unmount-job-123"}
+		mockClient.On("Storage").Return(mockStorageClient)
+		mockStorageClient.On("VolumeUnmount", mock.Anything).Return(jobAccepted, nil)
+
+		// Execute test
+		err := _unmountVolume(provider, &volume, volRep)
+
+		// Verify results - should succeed even if share not found
+		assert.NoError(tt, err)
+		mockClient.AssertExpectations(tt)
+		mockNASClient.AssertExpectations(tt)
+		mockStorageClient.AssertExpectations(tt)
+	})
+
+	t.Run("Error_SMBVolume_CifsShareDeleteFails_NonNotFoundError", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockNASClient := new(ontaprest.MockNASClient)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		provider := &OntapRestProvider{
+			ClientParams: ontaprest.RESTClientParams{},
+			Logger:       log.NewLogger(),
+		}
+
+		volumeUUID := "test-volume-uuid-smb-error"
+		svmUUID := "test-svm-uuid"
+		junctionPath := "/test-creation-token"
+		shareName := "test-creation-token"
+		securityStyle := "unix"
+		volume := ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: &volumeUUID,
+				Name: nillable.GetStringPtr("test-volume-smb-error"),
+				Nas: &models.VolumeInlineNas{
+					Path:          nillable.GetStringPtr(junctionPath),
+					SecurityStyle: &securityStyle,
+				},
+				Svm: &models.VolumeInlineSvm{
+					UUID: &svmUUID,
+				},
+			},
+		}
+
+		volRep := &VolumeReplication{
+			SourceSVMName:      "source-svm",
+			DestinationSVMName: "dest-svm",
+			Volume: &Volume{
+				ProtocolTypes: []string{"SMB"},
+				JunctionPath:  junctionPath,
+			},
+		}
+
+		// Setup mocks for CIFS share deletion - returns non-not-found error
+		deleteError := errors.New("failed to delete CIFS share")
+		mockClient.On("NAS").Return(mockNASClient)
+		mockNASClient.On("CifsShareDelete", mock.MatchedBy(func(params *ontaprest.CifsShareDeleteParams) bool {
+			return params.ShareName == shareName && params.SvmUUID == svmUUID
+		})).Return(deleteError)
+
+		// Execute test
+		err := _unmountVolume(provider, &volume, volRep)
+
+		// Verify results - should fail with error
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to delete CIFS share")
+		mockClient.AssertExpectations(tt)
+		mockNASClient.AssertExpectations(tt)
 	})
 }
 

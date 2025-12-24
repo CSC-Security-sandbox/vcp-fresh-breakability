@@ -4169,6 +4169,13 @@ type CifsShareACLDeleteParams struct {
 	SvmUUID   string
 }
 
+// CifsShareDeleteParams is the input params for nas.CifsShareDelete
+type CifsShareDeleteParams struct {
+	BaseParams
+	ShareName string
+	SvmUUID   string
+}
+
 // =============================================================================
 // NAS Client Parameter Conversion Functions
 // =============================================================================
@@ -4636,6 +4643,17 @@ func cifsShareModifyParamsToONTAP(params *CifsShareModifyParams) *nas.CifsShareM
 	otParams.SetSvmUUID(params.SvmUUID)
 
 	otParams.SetInfo(calculateShareProperties(params.ShareProperties))
+	return otParams
+}
+
+func cifsShareDeleteParamsToONTAP(params *CifsShareDeleteParams) *nas.CifsShareDeleteParams {
+	otParams := nas.NewCifsShareDeleteParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetName(params.ShareName)
+	otParams.SetSvmUUID(params.SvmUUID)
 	return otParams
 }
 

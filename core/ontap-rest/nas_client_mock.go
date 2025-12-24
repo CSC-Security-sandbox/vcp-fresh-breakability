@@ -964,6 +964,52 @@ func (_c *MockNASClient_CifsShareModify_Call) RunAndReturn(run func(*CifsShareMo
 	return _c
 }
 
+// CifsShareDelete provides a mock function with given fields: params
+func (_m *MockNASClient) CifsShareDelete(params *CifsShareDeleteParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CifsShareDelete")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*CifsShareDeleteParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockNASClient_CifsShareDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CifsShareDelete'
+type MockNASClient_CifsShareDelete_Call struct {
+	*mock.Call
+}
+
+// CifsShareDelete is a helper method to define mock.On call
+//   - params *CifsShareDeleteParams
+func (_e *MockNASClient_Expecter) CifsShareDelete(params interface{}) *MockNASClient_CifsShareDelete_Call {
+	return &MockNASClient_CifsShareDelete_Call{Call: _e.mock.On("CifsShareDelete", params)}
+}
+
+func (_c *MockNASClient_CifsShareDelete_Call) Run(run func(params *CifsShareDeleteParams)) *MockNASClient_CifsShareDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*CifsShareDeleteParams))
+	})
+	return _c
+}
+
+func (_c *MockNASClient_CifsShareDelete_Call) Return(_a0 error) *MockNASClient_CifsShareDelete_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockNASClient_CifsShareDelete_Call) RunAndReturn(run func(*CifsShareDeleteParams) error) *MockNASClient_CifsShareDelete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DomainControllersSrvLookupGet provides a mock function with given fields: params
 func (_m *MockNASClient) DomainControllersSrvLookupGet(params *SrvLookupParams) ([]string, error) {
 	ret := _m.Called(params)

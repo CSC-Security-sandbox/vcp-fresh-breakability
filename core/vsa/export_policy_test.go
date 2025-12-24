@@ -145,6 +145,11 @@ func (m *MockNASClient) CifsShareModify(params *ontapRest.CifsShareModifyParams)
 	return args.Error(0)
 }
 
+func (m *MockNASClient) CifsShareDelete(params *ontapRest.CifsShareDeleteParams) error {
+	args := m.Called(params)
+	return args.Error(0)
+}
+
 func (m *MockNASClient) CifsShareCollectionGet(params *ontapRest.CifsShareCollectionGetParams) (*ontapRest.CifsShareGetResponse, error) {
 	args := m.Called(params)
 	if args.Get(0) == nil {

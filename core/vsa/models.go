@@ -639,6 +639,7 @@ type Volume struct {
 	ExternalUUID      string
 	IsOnPremMigration bool
 	ProtocolTypes     []string
+	JunctionPath      string
 }
 
 // SourcePath returns the source path of an ONTAP snapmirror relationship in a <svm_name>:<volume_name> format

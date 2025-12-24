@@ -33,6 +33,9 @@ func (a *InternalVolumeReplicationResumeActivity) ResumeVolumeReplication(ctx co
 			ProtocolTypes: replication.Volume.VolumeAttributes.Protocols,
 		},
 	}
+	if replication.Volume.VolumeAttributes.FileProperties != nil {
+		vsaResumeParams.Volume.JunctionPath = replication.Volume.VolumeAttributes.FileProperties.JunctionPath
+	}
 	resp, err := provider.ResyncVolumeReplication(vsaResumeParams)
 	if err != nil {
 		if errors.IsConflictErr(err) {

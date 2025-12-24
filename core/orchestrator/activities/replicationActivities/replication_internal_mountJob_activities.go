@@ -9,9 +9,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -188,6 +190,29 @@ func (j *MountJobActivity) MountVolume(ctx context.Context, replication *datamod
 	}
 
 	logger.Debugf("Junction path updated successfully for volume %s in ONTAP", replication.Volume.Name)
+
+	// If volume is SMB, create CIFS share for the junction path
+	if replication.Volume.VolumeAttributes != nil &&
+		replication.Volume.VolumeAttributes.Protocols != nil &&
+		utils.IsSMBProtocols(replication.Volume.VolumeAttributes.Protocols) {
+		logger.Infof("Volume %s is SMB, creating CIFS share for junction path %s", replication.Volume.Name, junctionPath)
+
+		svmName := replication.ReplicationAttributes.DestinationSvmName
+		var smbShareProperties []string
+		if replication.Volume.VolumeAttributes.FileProperties != nil {
+			smbShareProperties = replication.Volume.VolumeAttributes.FileProperties.SMBShareSettings
+		}
+
+		activeDirectoryActivity := active_directory_activities.ActiveDirectoryActivity{}
+		err = activeDirectoryActivity.CreateJunctionPathForCifsShare(ctx, node, svmName, junctionPath, smbShareProperties)
+		if err != nil {
+			logger.Errorf("Failed to create CIFS share for volume %s: %v", replication.Volume.Name, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+
+		logger.Infof("Successfully created CIFS share for volume %s", replication.Volume.Name)
+	}
+
 	return nil
 }
 

@@ -299,6 +299,56 @@ func TestEnsureCIFSShareWorkflow(t *testing.T) {
 		assert.NoError(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
+
+	t.Run("skips_junction_path_creation_when_is_data_protection", func(t *testing.T) {
+		env := ts.NewTestWorkflowEnvironment()
+		setupTestWorkflowEnvironment(t, env)
+
+		adActivity := &active_directory_activities.ActiveDirectoryActivity{}
+		restoreFactory := overrideActiveDirectoryActivityFactory(adActivity)
+		defer restoreFactory()
+
+		// Register workflow
+		env.RegisterWorkflow(EnsureCIFSShareWorkflow)
+
+		// Register activities
+		env.RegisterActivity(adActivity.CreateOrModifyADDNS)
+		env.RegisterActivity(adActivity.GetOrCreateCifsService)
+
+		// Create volume with IsDataProtection = true
+		dataProtectionVolume := &datamodel.Volume{
+			Name: "data-protection-volume",
+			Svm:  &datamodel.Svm{Name: "test-svm"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{
+					JunctionPath: "/test/junction",
+				},
+				Protocols:        []string{"SMB"},
+				IsDataProtection: true, // This should skip CIFS share creation
+			},
+		}
+
+		// Mock CreateOrModifyADDNS
+		env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+		// Mock GetOrCreateCifsService - service created
+		cifsResult := &active_directory_activities.GetOrCreateCifsServiceResult{
+			FQDN:      "server.example.com",
+			NeedsDDNS: false,
+		}
+		env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(cifsResult, nil).Once()
+
+		// Note: CreateJunctionPathForCifsShare should NOT be called when IsDataProtection is true
+		// We don't register or mock it, so if it's called, the test will fail
+
+		env.ExecuteWorkflow(EnsureCIFSShareWorkflow, dataProtectionVolume, node, ad, svmName, externalSVMUUID)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+
+		// Verify that CreateJunctionPathForCifsShare was NOT called
+		env.AssertExpectations(t)
+	})
 }
 
 func overrideActiveDirectoryActivityFactory(activity *active_directory_activities.ActiveDirectoryActivity) func() {

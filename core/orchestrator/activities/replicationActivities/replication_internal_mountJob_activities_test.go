@@ -10,12 +10,15 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	active_directory_activities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"go.temporal.io/sdk/testsuite"
 	"gorm.io/gorm"
 )
 
@@ -1192,6 +1195,350 @@ func TestMountVolume(t *testing.T) {
 		// Verify results
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("Success_SMBVolume_CreatesCifsShare", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.SetTestHooks(vsa.TestHooks{})
+		}()
+
+		// Setup mock ONTAP client for CreateJunctionPathForCifsShare
+		mockClient := new(ontapRest.MockRESTClient)
+		mockNAS := new(ontapRest.MockNASClient)
+		mockClient.On("NAS").Return(mockNAS)
+		mockNAS.On("CifsShareCreate", mock.MatchedBy(func(params *ontapRest.CifsShareCreateParams) bool {
+			return params != nil && params.SvmName != nil && *params.SvmName == "destination-svm-name" &&
+				params.Path == "/test-creation-token" && params.Name == "test-creation-token"
+		})).Return(nil)
+
+		// Set up test hooks for ONTAP client
+		cleanupHooks := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockClient, nil
+			},
+		})
+		defer cleanupHooks()
+
+		// Setup mock provider for MountVolume
+		mockProvider := new(vsa.MockProvider)
+		expectedMountParams := vsa.MountVolumeParams{
+			UUID:         "external-volume-uuid",
+			JunctionPath: "/test-creation-token",
+		}
+		mockProvider.On("MountVolume", expectedMountParams).Return(&vsa.OntapAsyncResponse{}, nil)
+
+		// Create OntapRestProvider for CreateJunctionPathForCifsShare
+		ontapProvider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Override hyperscaler.GetProviderByNode to return OntapRestProvider for getOntapRestProvider
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return ontapProvider, nil
+		}
+
+		// Create test data with SMB protocol
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid",
+			},
+			Volume: &datamodel.Volume{
+				Name: "test-volume",
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID:  "external-volume-uuid",
+					CreationToken: "test-creation-token",
+					Protocols:     []string{"SMB"},
+					FileProperties: &datamodel.FileProperties{
+						SMBShareSettings: []string{"browsable", "oplocks"},
+					},
+				},
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationSvmName: "destination-svm-name",
+			},
+		}
+		node := &models.Node{
+			EndpointAddress: "127.0.0.1",
+		}
+
+		// Mock CreateJunctionPathForCifsShare by wrapping MountVolume in a test activity
+		// This allows us to execute it through the Temporal test environment which provides activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		adActivity := active_directory_activities.ActiveDirectoryActivity{}
+		env.RegisterActivity(adActivity.CreateJunctionPathForCifsShare)
+
+		// Create a test activity that wraps MountVolume
+		// This allows us to execute it through the test environment to get activity context
+		// The function signature must match what ExecuteActivity expects
+		mountVolumeWrapper := func(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node) error {
+			mountActivity := &MountJobActivity{}
+			return mountActivity.MountVolume(ctx, replication, node)
+		}
+		env.RegisterActivity(mountVolumeWrapper)
+
+		// Execute through test environment to get activity context for CreateJunctionPathForCifsShare
+		// When MountVolume calls CreateJunctionPathForCifsShare, it will have the activity context
+		// ExecuteActivity automatically provides the context as the first parameter
+		_, err := env.ExecuteActivity(mountVolumeWrapper, replication, node)
+
+		// Verify results
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+		mockNAS.AssertExpectations(tt)
+	})
+
+	t.Run("Success_NonSMBVolume_DoesNotCreateCifsShare", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+
+		// Setup mock provider
+		mockProvider := new(vsa.MockProvider)
+		expectedMountParams := vsa.MountVolumeParams{
+			UUID:         "external-volume-uuid",
+			JunctionPath: "/test-creation-token",
+		}
+		mockProvider.On("MountVolume", expectedMountParams).Return(&vsa.OntapAsyncResponse{}, nil)
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Create test data with NFS protocol (non-SMB)
+		replication := &datamodel.VolumeReplication{
+			Volume: &datamodel.Volume{
+				Name: "test-volume",
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID:  "external-volume-uuid",
+					CreationToken: "test-creation-token",
+					Protocols:     []string{"NFSV3"},
+				},
+			},
+		}
+		node := &models.Node{
+			EndpointAddress: "127.0.0.1",
+		}
+
+		// Execute test
+		activity := &MountJobActivity{}
+		err := activity.MountVolume(ctx, replication, node)
+
+		// Verify results - should succeed without creating CIFS share
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+	
+	t.Run("Error_SMBVolume_CreateCifsShareFails", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.SetTestHooks(vsa.TestHooks{})
+		}()
+
+		// Setup mock ONTAP client that fails
+		mockClient := new(ontapRest.MockRESTClient)
+		mockNAS := new(ontapRest.MockNASClient)
+		mockClient.On("NAS").Return(mockNAS)
+		mockNAS.On("CifsShareCreate", mock.Anything).Return(errors.New("failed to create CIFS share"))
+
+		// Set up test hooks for ONTAP client
+		cleanupHooks := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockClient, nil
+			},
+		})
+		defer cleanupHooks()
+
+		// Setup mock provider for MountVolume
+		mockProvider := new(vsa.MockProvider)
+		expectedMountParams := vsa.MountVolumeParams{
+			UUID:         "external-volume-uuid",
+			JunctionPath: "/test-creation-token",
+		}
+		mockProvider.On("MountVolume", expectedMountParams).Return(&vsa.OntapAsyncResponse{}, nil)
+
+		// Create OntapRestProvider for CreateJunctionPathForCifsShare
+		ontapProvider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Override hyperscaler.GetProviderByNode to return OntapRestProvider for getOntapRestProvider
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return ontapProvider, nil
+		}
+
+		// Create test data with SMB protocol
+		replication := &datamodel.VolumeReplication{
+			Volume: &datamodel.Volume{
+				Name: "test-volume",
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID:  "external-volume-uuid",
+					CreationToken: "test-creation-token",
+					Protocols:     []string{"SMB"},
+				},
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationSvmName: "destination-svm-name",
+			},
+		}
+		node := &models.Node{
+			EndpointAddress: "127.0.0.1",
+		}
+
+		// Mock CreateJunctionPathForCifsShare by wrapping MountVolume in a test activity
+		// This allows us to execute it through the Temporal test environment which provides activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		adActivity := active_directory_activities.ActiveDirectoryActivity{}
+		env.RegisterActivity(adActivity.CreateJunctionPathForCifsShare)
+
+		// Create a test activity that wraps MountVolume
+		// This allows us to execute it through the test environment to get activity context
+		mountVolumeWrapper := func(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node) error {
+			mountActivity := &MountJobActivity{}
+			return mountActivity.MountVolume(ctx, replication, node)
+		}
+		env.RegisterActivity(mountVolumeWrapper)
+
+		// Execute through test environment to get activity context for CreateJunctionPathForCifsShare
+		// When MountVolume calls CreateJunctionPathForCifsShare, it will have the activity context
+		// ExecuteActivity automatically provides the context as the first parameter
+		_, err := env.ExecuteActivity(mountVolumeWrapper, replication, node)
+
+		// Verify results - should fail with CIFS share creation error
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to create CIFS share")
+		mockProvider.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+		mockNAS.AssertExpectations(tt)
+	})
+
+	t.Run("Success_SMBVolume_WithSMBShareProperties", func(tt *testing.T) {
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+			vsa.SetTestHooks(vsa.TestHooks{})
+		}()
+
+		// Setup mock ONTAP client for CreateJunctionPathForCifsShare
+		mockClient := new(ontapRest.MockRESTClient)
+		mockNAS := new(ontapRest.MockNASClient)
+		mockClient.On("NAS").Return(mockNAS)
+		expectedSMBProperties := []string{"browsable", "encrypt_data", "oplocks"}
+		mockNAS.On("CifsShareCreate", mock.MatchedBy(func(params *ontapRest.CifsShareCreateParams) bool {
+			if params == nil || params.SvmName == nil || *params.SvmName != "destination-svm-name" {
+				return false
+			}
+			if params.Path != "/test-creation-token" || params.Name != "test-creation-token" {
+				return false
+			}
+			// Check if share properties match (order may differ)
+			if len(params.ShareProperties) != len(expectedSMBProperties) {
+				return false
+			}
+			propsMap := make(map[string]bool)
+			for _, prop := range params.ShareProperties {
+				propsMap[prop] = true
+			}
+			for _, expectedProp := range expectedSMBProperties {
+				if !propsMap[expectedProp] {
+					return false
+				}
+			}
+			return true
+		})).Return(nil)
+
+		// Set up test hooks for ONTAP client
+		cleanupHooks := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockClient, nil
+			},
+		})
+		defer cleanupHooks()
+
+		// Setup mock provider for MountVolume
+		mockProvider := new(vsa.MockProvider)
+		expectedMountParams := vsa.MountVolumeParams{
+			UUID:         "external-volume-uuid",
+			JunctionPath: "/test-creation-token",
+		}
+		mockProvider.On("MountVolume", expectedMountParams).Return(&vsa.OntapAsyncResponse{}, nil)
+
+		// Create OntapRestProvider for CreateJunctionPathForCifsShare
+		ontapProvider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Override hyperscaler.GetProviderByNode to return OntapRestProvider for getOntapRestProvider
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return ontapProvider, nil
+		}
+
+		// Create test data with SMB protocol and SMB share properties
+		replication := &datamodel.VolumeReplication{
+			Volume: &datamodel.Volume{
+				Name: "test-volume",
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID:  "external-volume-uuid",
+					CreationToken: "test-creation-token",
+					Protocols:     []string{"SMB"},
+					FileProperties: &datamodel.FileProperties{
+						SMBShareSettings: expectedSMBProperties,
+					},
+				},
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationSvmName: "destination-svm-name",
+			},
+		}
+		node := &models.Node{
+			EndpointAddress: "127.0.0.1",
+		}
+
+		// Mock CreateJunctionPathForCifsShare by wrapping MountVolume in a test activity
+		// This allows us to execute it through the Temporal test environment which provides activity context
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		adActivity := active_directory_activities.ActiveDirectoryActivity{}
+		env.RegisterActivity(adActivity.CreateJunctionPathForCifsShare)
+
+		// Create a test activity that wraps MountVolume
+		// This allows us to execute it through the test environment to get activity context
+		mountVolumeWrapper := func(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node) error {
+			mountActivity := &MountJobActivity{}
+			return mountActivity.MountVolume(ctx, replication, node)
+		}
+		env.RegisterActivity(mountVolumeWrapper)
+
+		// Execute through test environment to get activity context for CreateJunctionPathForCifsShare
+		// When MountVolume calls CreateJunctionPathForCifsShare, it will have the activity context
+		// ExecuteActivity automatically provides the context as the first parameter
+		_, err := env.ExecuteActivity(mountVolumeWrapper, replication, node)
+
+		// Verify results
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+		mockNAS.AssertExpectations(tt)
 	})
 }
 

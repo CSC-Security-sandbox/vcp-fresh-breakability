@@ -37,6 +37,7 @@ type NASClient interface { // generate:mock
 	CifsServiceAddSecurityPrivilege(params *CifsServiceModifySecurityPrivilegeParams) error
 	CifsShareCreate(params *CifsShareCreateParams) error
 	CifsShareModify(params *CifsShareModifyParams) error
+	CifsShareDelete(params *CifsShareDeleteParams) error
 	CifsShareCollectionGet(params *CifsShareCollectionGetParams) (*CifsShareGetResponse, error)
 	DomainControllersSrvLookupGet(params *SrvLookupParams) ([]string, error)
 	CifsDomainPreferredDCDelete(params *CifsDomainPreferredDCDeleteParams) error
@@ -337,6 +338,12 @@ func _convertCifsShareFromREST(resp *models.CifsShare) *CifsShareGetResponse {
 // CifsShareModify Modifies a CIFS share for the ONTAP API SVM
 func (nc *nasClient) CifsShareModify(params *CifsShareModifyParams) error {
 	_, err := nc.api.CifsShareModify(cifsShareModifyParamsToONTAP(params), nil)
+	return err
+}
+
+// CifsShareDelete deletes a CIFS share for the ONTAP API SVM
+func (nc *nasClient) CifsShareDelete(params *CifsShareDeleteParams) error {
+	_, err := nc.api.CifsShareDelete(cifsShareDeleteParamsToONTAP(params), nil)
 	return err
 }
 
