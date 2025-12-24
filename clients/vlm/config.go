@@ -48,6 +48,15 @@ const (
 
 	ZiZsComputeInstanceKey string = "compute_instance"
 	ZiZsComputeDiskKey     string = "compute_disk"
+
+	// Create a single placement policy for SPREAD with a separate AD active, passive and mediator VM sets
+	GCPPlacementPolicySpreadSingle string = "spread_single"
+	// Zonal Cluster only: Create a single placement policy for all VMs, to be implemented later
+	GCPPlacementPolicyCompactSingle string = "compact_single"
+	// Create a separate placement policy for active, passive and mediator VM sets and assign VMs to respective policies
+	GCPPlacementPolicySpreadMulti string = "spread_multi"
+	// Create a separate placement policy for active, passive and mediator VM sets and assign VMs to respective policies
+	GCPPlacementPolicyCompactMulti string = "compact_multi"
 )
 
 // TODO: Need to revisit these values for Multi HA configurations
@@ -84,6 +93,8 @@ type DeploymentConfigFlags struct {
 	EnableAASupportSvm         bool   `json:"enable_aa_support_svm"`          // Enable AA support for svm
 	EnableIlbSupport           bool   `json:"enable_ilb_support"`             // Enable ILB support
 	EnableNfsV364BitIdentifier string `json:"enable_nfs_v3_64bit_identifier"` // Enable NFS v3 64-bit identifier support
+	EnableNonLssdInstanceType  bool   `json:"enable_non_lssd_instance_type"`  // Enable Non LSSD instance type support
+	EnableTcpUdpBasedIlb       bool   `json:"enable_tcp_udp_based_ilb"`       // Enable TCP/UDP based ILB support
 }
 
 type DeploymentConfig struct {
@@ -120,6 +131,7 @@ type DeploymentConfig struct {
 	DNSServers []string                     `json:"dns_servers"` // DNS servers for name resolution
 	// DeploymentConfigFlags added for future flags
 	DeploymentConfigFlags DeploymentConfigFlags `json:"additional_deployment_config_flags"`
+	PlacementPolicyConfig PlacementPolicyConfig `json:"placement_policy_config"`
 }
 
 type DevFlags struct {
@@ -176,10 +188,10 @@ type OntapCredentials struct {
 
 // Will be revisted during multi svm support
 type GCPILBHaResources struct {
-	ForwardingRules  []string `json:"forwarding_rules"`   // Array of forwarding rules for ILB
-	BackendServices  []string `json:"backend_services"`   // Array of backend services for ILB
-	HealthChecks     []string `json:"health_checks"`      // Array of health checks for ILB
-	HealthCheckPorts []int32  `json:"health_check_ports"` // Array of health check ports for ILB
+	ForwardingRules  string `json:"forwarding_rules"`   // Added for backward compatibility with vcp, deprecated
+	BackendServices  string `json:"backend_services"`   // Added for backward compatibility with vcp, deprecated
+	HealthChecks     string `json:"health_checks"`      // Added for backward compatibility with vcp, deprecated
+	HealthCheckPorts int32  `json:"health_check_ports"` // Added for backward compatibility with vcp, deprecated
 }
 
 type OntapExpertModeUserConfig struct {
@@ -197,7 +209,7 @@ type OntapExpertModeUserResponse struct {
 }
 
 type GCPILBVmResources struct {
-	Negs []string `json:"negs"` // Neg name where the vm is attached
+	Negs string `json:"negs"` // Added for backward compatibility with vcp, deprecated
 }
 
 type AdditionalVmResources struct {
@@ -294,6 +306,7 @@ type VsaClusterConfig struct {
 	CustIPSpace         string `json:"cust_ip_space"`
 	ObjectStoreName     string `json:"object_store_name"`
 	ClusterName         string `json:"cluster_name"` // Name of the VSA cluster
+	AutoTierThreshold   int64  `json:"auto_tier_threshold"`
 }
 
 type SvmLIFConfigs map[VSALIFType][]LIFConfig
@@ -354,14 +367,16 @@ type ModifySVMResponse struct {
 }
 
 type UpdateVSAClusterDeploymentRequest struct {
-	VLMConfig        VLMConfig          `json:"vlm_config"`        // VLM configuration
-	NumHAPair        int                `json:"num_ha_pair"`       // Number of HA pairs to be created
-	SPConfig         SPConfig           `json:"spconfig"`          //Storagepool specific configuration
-	OntapCredentials OntapCredentials   `json:"ontap_credentials"` // ONTAP credentials for the VSA cluster
-	NewInstanceType  string             `json:"new_instance_type"` // Instance type for the storage pool
-	OntapUpgrade     OntapUpgradeConfig `json:"ontap_upgrade"`     // ONTAP upgrade configuration
-	HAPairIndices    []int              `json:"ha_pair_indices"`   // Selected HA pair indices for targeted operations
-	ITCRecovery      bool               `json:"itc_recovery"`      // Flag to indicate if this is a recovery operation (ITC)
+	VLMConfig         VLMConfig          `json:"vlm_config"`          // VLM configuration
+	NumHAPair         int                `json:"num_ha_pair"`         // Number of HA pairs to be created
+	SPConfig          SPConfig           `json:"spconfig"`            //Storagepool specific configuration
+	OntapCredentials  OntapCredentials   `json:"ontap_credentials"`   // ONTAP credentials for the VSA cluster
+	NewInstanceType   string             `json:"new_instance_type"`   // Instance type for the storage pool
+	OntapUpgrade      OntapUpgradeConfig `json:"ontap_upgrade"`       // ONTAP upgrade configuration
+	HAPairIndices     []int              `json:"ha_pair_indices"`     // Selected HA pair indices for targeted operations
+	ITCRecovery       bool               `json:"itc_recovery"`        // Flag to indicate if this is a recovery operation (ITC)
+	BucketName        string             `json:"bucket_name"`         // GCP Bucket Name
+	AutoTierThreshold int64              `json:"auto_tier_threshold"` // Auto tiering threshold percentage (0-100)
 }
 
 type UpdateMediatorRequest struct {
@@ -398,13 +413,14 @@ type DeploymentUpdateStatus struct {
 
 // Used for error propagation to VCP
 type VLMClientError struct {
-	HttpCode  int      `json:"vlmclient_http_code"`
-	Code      string   `json:"vlmclient_code"`
-	Message   string   `json:"vlmclient_message"`
-	Component string   `json:"vlmclient_component"`
-	Retryable bool     `json:"vlmclient_retryable"`
-	External  bool     `json:"vlmclient_external"`
-	Cause     []string `json:"vlmclient_error_string"`
+	HttpCode       int      `json:"vlmclient_http_code"`
+	Code           string   `json:"vlmclient_code"`
+	Message        string   `json:"vlmclient_message"`
+	OntapErrorCode string   `json:"vlmclient_ontap_error_code,omitempty"`
+	Component      string   `json:"vlmclient_component"`
+	Retryable      bool     `json:"vlmclient_retryable"`
+	External       bool     `json:"vlmclient_external"`
+	Cause          []string `json:"vlmclient_error_string"`
 }
 
 type UpdateVSAClusterDeploymentResponse struct {
@@ -479,4 +495,14 @@ type UpdateLicenseRequest struct {
 	OntapLicense     OntapLicense     `json:"ontap_license"`
 	OntapCredentials OntapCredentials `json:"ontap_credentials"`
 	VSAManagementIP  string           `json:"vsa_management_ip"` // VSA management IP for the VM
+}
+
+type PlacementPolicyConfig struct {
+	GCPPlacementPolicyConfig GCPPlacementPolicyConfig `json:"gcp_placement_policy_config"`
+}
+
+type GCPPlacementPolicyConfig struct {
+	PolicyConfig       string `json:"policy_config"`         // SPREAD_SINGLE, COMPACT_SINGLE, SPREAD_MULTI, COMPACT_MULTI
+	CompactMaxDistance int32  `json:"compact_max_distance"`  // Compact configs only: Max distance for COMPACT configs
+	SpreadMultiADCount int32  `json:"spread_multi_ad_count"` // SPREAD_MULTI config only: Number of availability domains for SPREAD_MULTI config
 }
