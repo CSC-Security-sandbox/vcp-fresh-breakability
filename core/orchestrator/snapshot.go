@@ -160,8 +160,7 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 					logger.Errorf("Failed to mark snapshot as ERROR: %v", updateErr)
 				}
 			}
-			// For async mode only, delete the job
-			if !snapshotAPISyncMode && job != nil && job.UUID != "" {
+			if job != nil && job.UUID != "" {
 				logger.Warnf("Error occurred, marking job entry in DB as deleted. Job UUID: %s", job.UUID)
 				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
 					logger.Errorf("Failed to delete job: %v", delErr)
