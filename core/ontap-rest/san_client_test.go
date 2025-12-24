@@ -278,9 +278,9 @@ func TestLunGet(t *testing.T) {
 		transport := &mockTransport{err: errors.New("something went wrong")}
 		sanAPI := san.New(transport, nil)
 		client := &sanClient{api: sanAPI}
-		lun, err := client.LunGet(&LunGetParams{})
+		luns, err := client.LunGet(&LunGetParams{})
 		assert.EqualError(tt, err, transport.err.Error())
-		assert.Nil(tt, lun)
+		assert.Nil(tt, luns)
 	})
 
 	t.Run("WhenNoRecordsReturned_ThenReturnNotFoundError", func(tt *testing.T) {
@@ -291,26 +291,30 @@ func TestLunGet(t *testing.T) {
 		}}
 		sanAPI := san.New(transport, nil)
 		client := &sanClient{api: sanAPI}
-		lun, err := client.LunGet(&LunGetParams{})
+		luns, err := client.LunGet(&LunGetParams{})
 		assert.EqualError(tt, err, "lun not found")
-		assert.Nil(tt, lun)
+		assert.Nil(tt, luns)
 	})
 
-	t.Run("WhenMultipleRecordsReturned_ThenReturnError", func(tt *testing.T) {
-		lunName := "lun1"
+	t.Run("WhenMultipleRecordsReturned_ThenReturnMultipleLuns", func(tt *testing.T) {
+		lunName1 := "lun1"
+		lunName2 := "lun2"
 		transport := &mockTransport{response: &san.LunCollectionGetOK{
 			Payload: &models.LunResponse{
 				LunResponseInlineRecords: []*models.Lun{
-					{Name: &lunName},
-					{Name: &lunName},
+					{Name: &lunName1},
+					{Name: &lunName2},
 				},
 			},
 		}}
 		sanAPI := san.New(transport, nil)
 		client := &sanClient{api: sanAPI}
-		lun, err := client.LunGet(&LunGetParams{})
-		assert.EqualError(tt, err, "unexpected response when querying lun")
-		assert.Nil(tt, lun)
+		luns, err := client.LunGet(&LunGetParams{})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, luns)
+		assert.Len(tt, luns, 2)
+		assert.Equal(tt, lunName1, *luns[0].Name)
+		assert.Equal(tt, lunName2, *luns[1].Name)
 	})
 
 	t.Run("WhenSingleRecordReturned_ThenReturnLun", func(tt *testing.T) {
@@ -324,10 +328,11 @@ func TestLunGet(t *testing.T) {
 		}}
 		sanAPI := san.New(transport, nil)
 		client := &sanClient{api: sanAPI}
-		lun, err := client.LunGet(&LunGetParams{})
+		luns, err := client.LunGet(&LunGetParams{})
 		assert.NoError(tt, err)
-		assert.NotNil(tt, lun)
-		assert.Equal(tt, lunName, *lun.Name)
+		assert.NotNil(tt, luns)
+		assert.Len(tt, luns, 1)
+		assert.Equal(tt, lunName, *luns[0].Name)
 	})
 }
 

@@ -774,7 +774,7 @@ func TestLunGet(t *testing.T) {
 			},
 		}
 
-		mockSAN.On("LunGet", mock.Anything).Return(mockLun, nil)
+		mockSAN.On("LunGet", mock.Anything).Return([]*ontaprest.Lun{mockLun}, nil)
 
 		params := LunGetParams{
 			SvmName:    "testSVM",
@@ -882,6 +882,289 @@ func TestLunGet(t *testing.T) {
 			LunName:    "testLun",
 		}
 		resp, err := rc.LunGet(params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, "OntapClientFunc error", err.Error())
+	})
+}
+
+func TestLunsGet(t *testing.T) {
+	t.Run("WhenMultipleLunsAreFound_ThenReturnLunResponseSlice", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		mockLun1 := &ontaprest.Lun{
+			Lun: models.Lun{
+				Name:            nillable.ToPointer("testLun1"),
+				UUID:            nillable.ToPointer("uuid-123"),
+				SerialNumberHex: nillable.ToPointer("6c5738423724595454686164"),
+				OsType:          nillable.ToPointer("LINUX"),
+				Space: &models.LunInlineSpace{
+					Size: nillable.ToPointer(int64(1024)),
+				},
+			},
+		}
+
+		mockLun2 := &ontaprest.Lun{
+			Lun: models.Lun{
+				Name:            nillable.ToPointer("testLun2"),
+				UUID:            nillable.ToPointer("uuid-456"),
+				SerialNumberHex: nillable.ToPointer("7d6849534835606565797265"),
+				OsType:          nillable.ToPointer("WINDOWS"),
+				Space: &models.LunInlineSpace{
+					Size: nillable.ToPointer(int64(2048)),
+				},
+			},
+		}
+
+		mockSAN.On("LunGet", mock.Anything).Return([]*ontaprest.Lun{mockLun1, mockLun2}, nil)
+
+		params := LunGetParams{
+			SvmName:    "testSVM",
+			VolumeName: "testVol",
+			LunName:    "",
+		}
+		resp, err := rc.LunList(params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Len(tt, resp, 2)
+		assert.Equal(tt, "testLun1", resp[0].Name)
+		assert.Equal(tt, "uuid-123", resp[0].ExternalUUID)
+		assert.Equal(tt, "6c5738423724595454686164", resp[0].SerialNumber)
+		assert.Equal(tt, int64(1024), resp[0].Size)
+		assert.Equal(tt, "LINUX", resp[0].OSType)
+
+		assert.Equal(tt, "testLun2", resp[1].Name)
+		assert.Equal(tt, "uuid-456", resp[1].ExternalUUID)
+		assert.Equal(tt, "7d6849534835606565797265", resp[1].SerialNumber)
+		assert.Equal(tt, int64(2048), resp[1].Size)
+		assert.Equal(tt, "WINDOWS", resp[1].OSType)
+
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSingleLunIsFound_ThenReturnLunResponseSlice", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		mockLun := &ontaprest.Lun{
+			Lun: models.Lun{
+				Name:            nillable.ToPointer("testLun"),
+				UUID:            nillable.ToPointer("uuid-123"),
+				SerialNumberHex: nillable.ToPointer("6c5738423724595454686164"),
+				OsType:          nillable.ToPointer("LINUX"),
+				Space: &models.LunInlineSpace{
+					Size: nillable.ToPointer(int64(1024)),
+				},
+			},
+		}
+
+		mockSAN.On("LunGet", mock.Anything).Return([]*ontaprest.Lun{mockLun}, nil)
+
+		params := LunGetParams{
+			SvmName:    "testSVM",
+			VolumeName: "testVol",
+			LunName:    "testLun",
+		}
+		resp, err := rc.LunList(params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Len(tt, resp, 1)
+		assert.Equal(tt, "testLun", resp[0].Name)
+		assert.Equal(tt, "uuid-123", resp[0].ExternalUUID)
+		assert.Equal(tt, "6c5738423724595454686164", resp[0].SerialNumber)
+		assert.Equal(tt, int64(1024), resp[0].Size)
+		assert.Equal(tt, "LINUX", resp[0].OSType)
+
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenLunHasNilOsType_ThenReturnEmptyString", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		mockLun := &ontaprest.Lun{
+			Lun: models.Lun{
+				Name:            nillable.ToPointer("testLun"),
+				UUID:            nillable.ToPointer("uuid-123"),
+				SerialNumberHex: nillable.ToPointer("6c5738423724595454686164"),
+				OsType:          nil,
+				Space: &models.LunInlineSpace{
+					Size: nillable.ToPointer(int64(1024)),
+				},
+			},
+		}
+
+		mockSAN.On("LunGet", mock.Anything).Return([]*ontaprest.Lun{mockLun}, nil)
+
+		params := LunGetParams{
+			SvmName:    "testSVM",
+			VolumeName: "testVol",
+			LunName:    "testLun",
+		}
+		resp, err := rc.LunList(params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Len(tt, resp, 1)
+		assert.Equal(tt, "testLun", resp[0].Name)
+		assert.Equal(tt, "", resp[0].OSType)
+
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNoLunsAreFound_ThenReturnError", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		mockSAN.On("LunGet", mock.Anything).Return([]*ontaprest.Lun{}, nil)
+
+		params := LunGetParams{
+			SvmName:    "testSVM",
+			VolumeName: "testVol",
+			LunName:    "testLun",
+		}
+		resp, err := rc.LunList(params)
+
+		assert.Nil(tt, resp)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "An internal error occurred.")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, customErr.OriginalErr.Error(), "lun not found: svm=testSVM, volume=testVol, lun=testLun")
+			assert.Equal(tt, customErr.HttpCode, nillable.ToPointer(500))
+			assert.Equal(tt, customErr.TrackingID, 5006)
+			assert.Equal(tt, customErr.Message, "An internal error occurred.")
+			assert.Equal(tt, customErr.Retriable, false)
+		} else {
+			tt.Fatalf("Expected a CustomError, got %T", err)
+		}
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenLunGetReturnsNil_ThenReturnError", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		mockSAN.On("LunGet", mock.Anything).Return(nil, nil)
+
+		params := LunGetParams{
+			SvmName:    "testSVM",
+			VolumeName: "testVol",
+			LunName:    "testLun",
+		}
+		resp, err := rc.LunList(params)
+
+		assert.Nil(tt, resp)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "An internal error occurred.")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, customErr.OriginalErr.Error(), "lun not found: svm=testSVM, volume=testVol, lun=testLun")
+			assert.Equal(tt, customErr.HttpCode, nillable.ToPointer(500))
+			assert.Equal(tt, customErr.TrackingID, 5006)
+			assert.Equal(tt, customErr.Message, "An internal error occurred.")
+			assert.Equal(tt, customErr.Retriable, false)
+		} else {
+			tt.Fatalf("Expected a CustomError, got %T", err)
+		}
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenLunGetReturnsError_ThenReturnError", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		mockSAN.On("LunGet", mock.Anything).Return(nil, errors.New("fetch error"))
+
+		params := LunGetParams{
+			SvmName:    "testSVM",
+			VolumeName: "testVol",
+			LunName:    "testLun",
+		}
+		resp, err := rc.LunList(params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.EqualError(tt, err, "An internal error occurred.")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, customErr.OriginalErr.Error(), "fetch error")
+			assert.Equal(tt, customErr.HttpCode, nillable.ToPointer(500))
+			assert.Equal(tt, customErr.TrackingID, 5006)
+			assert.Equal(tt, customErr.Message, "An internal error occurred.")
+			assert.Equal(tt, customErr.Retriable, false)
+		} else {
+			tt.Fatalf("Expected a CustomError, got %T", err)
+		}
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenOntapClientFuncError_ThenReturnError", func(tt *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("OntapClientFunc error")
+		}
+		rc := &OntapRestProvider{}
+
+		params := LunGetParams{
+			SvmName:    "testSVM",
+			VolumeName: "testVol",
+			LunName:    "testLun",
+		}
+		resp, err := rc.LunList(params)
 
 		assert.Error(tt, err)
 		assert.Nil(tt, resp)

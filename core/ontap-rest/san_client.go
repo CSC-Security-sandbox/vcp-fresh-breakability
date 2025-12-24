@@ -17,7 +17,7 @@ type SANClient interface { // generate:mock
 	IGroupAddInitiator(params *IgroupAddInitiatorParams) error
 	IGroupDeleteInitiator(params *IgroupDeleteInitiatorParams) error
 	LunCreate(params *LunCreateParams) (*Lun, error)
-	LunGet(params *LunGetParams) (*Lun, error)
+	LunGet(params *LunGetParams) ([]*Lun, error)
 	LunUpdate(params *LunUpdateParams) (bool, *JobAccepted, error)
 	LunMapCreate(params *LunMapCreateParams) error
 	LunMapDelete(params *LunMapDeleteParams) error
@@ -93,8 +93,8 @@ func (t *sanClient) LunCreate(params *LunCreateParams) (*Lun, error) {
 	return &Lun{Lun: *created.Payload.LunResponseInlineRecords[0]}, nil
 }
 
-// LunGet invokes clients/ontap-rest/client/s_a_n/Client.LunCollectionGet to get a LUN
-func (t *sanClient) LunGet(params *LunGetParams) (*Lun, error) {
+// LunGet invokes clients/ontap-rest/client/s_a_n/Client.LunCollectionGet to get LUNs
+func (t *sanClient) LunGet(params *LunGetParams) ([]*Lun, error) {
 	response, err := t.api.LunCollectionGet(lunGetParamsToONTAP(params), nil)
 	if err != nil {
 		return nil, err
@@ -104,11 +104,12 @@ func (t *sanClient) LunGet(params *LunGetParams) (*Lun, error) {
 		return nil, errors.NewNotFoundErr("lun", nil)
 	}
 
-	if len(response.Payload.LunResponseInlineRecords) > 1 {
-		return nil, errors.New("unexpected response when querying lun")
+	luns := make([]*Lun, len(response.Payload.LunResponseInlineRecords))
+	for i, lun := range response.Payload.LunResponseInlineRecords {
+		luns[i] = &Lun{Lun: *lun}
 	}
 
-	return &Lun{Lun: *response.Payload.LunResponseInlineRecords[0]}, nil
+	return luns, nil
 }
 
 // LunUpdate invokes clients/ontap-rest/client/s_a_n/Client.LunModify to update a LUN

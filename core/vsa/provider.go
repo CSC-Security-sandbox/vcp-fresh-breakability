@@ -53,6 +53,7 @@ type Provider interface {
 	IgroupExists(name string, svm *string) (bool, *ontapRest.Igroup, error)
 	LunCreate(params LunCreateParams) (*LunResponse, error)
 	LunGet(params LunGetParams) (*LunResponse, error)
+	LunList(params LunGetParams) ([]*LunResponse, error)
 	LunUpdate(params LunUpdateParams) error
 	IgroupAddInitiator(params IgroupAddInitiator) error
 	IgroupDeleteInitiator(params IgroupDeleteInitiator) error

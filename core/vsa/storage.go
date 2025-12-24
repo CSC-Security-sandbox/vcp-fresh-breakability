@@ -186,18 +186,64 @@ func (rc *OntapRestProvider) LunGet(params LunGetParams) (*LunResponse, error) {
 	}
 	return &LunResponse{
 		ProviderResponse: ProviderResponse{
-			Name:         *lun.Name,
-			ExternalUUID: *lun.UUID,
+			Name:         *lun[0].Name,
+			ExternalUUID: *lun[0].UUID,
 		},
-		SerialNumber: *lun.SerialNumberHex,
-		Size:         *lun.Space.Size,
+		SerialNumber: *lun[0].SerialNumberHex,
+		Size:         *lun[0].Space.Size,
 		OSType: func() string {
-			if lun.OsType != nil {
-				return *lun.OsType
+			if lun[0].OsType != nil {
+				return *lun[0].OsType
 			}
 			return ""
 		}(),
 	}, nil
+}
+
+// LunList retrieves all LUNs by calling the ONTAP REST Client
+func (rc *OntapRestProvider) LunList(params LunGetParams) ([]*LunResponse, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	var lunName *string
+	if params.LunName != "" {
+		lunName = &params.LunName
+	}
+	luns, err := client.SAN().LunGet(&ontapRest.LunGetParams{
+		BaseParams: ontapRest.BaseParams{
+			Fields: []string{"status.*", "serial_number_hex", "class", "space.size", "location.*"},
+		},
+		SvmName:    &params.SvmName,
+		VolumeName: &params.VolumeName,
+		LunName:    lunName,
+	})
+
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+	}
+	if luns == nil || len(luns) == 0 {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, fmt.Errorf("lun not found: svm=%s, volume=%s, lun=%s", params.SvmName, params.VolumeName, params.LunName))
+	}
+
+	result := make([]*LunResponse, len(luns))
+	for i, lun := range luns {
+		result[i] = &LunResponse{
+			ProviderResponse: ProviderResponse{
+				Name:         *lun.Name,
+				ExternalUUID: *lun.UUID,
+			},
+			SerialNumber: *lun.SerialNumberHex,
+			Size:         *lun.Space.Size,
+			OSType: func() string {
+				if lun.OsType != nil {
+					return *lun.OsType
+				}
+				return ""
+			}(),
+		}
+	}
+	return result, nil
 }
 
 // LunUpdate updates the LUN by calling the ONTAP REST Client

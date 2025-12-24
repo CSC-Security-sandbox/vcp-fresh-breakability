@@ -117,17 +117,7 @@ func (wf *mountCheckWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, mountJobActivity.GetReplicationFromOntap, replication, node, accountName).Get(ctx, &replication)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
-	err = workflow.ExecuteActivity(ctx, mountJobActivity.UpdateReplicationInDB, replication).Get(ctx, nil)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
-	var lunDetails *vsa.LunResponse
+	var lunDetails []*vsa.LunResponse
 	if replication.Volume.VolumeAttributes.FileProperties != nil {
 		err = workflow.ExecuteActivity(ctx, mountJobActivity.MountVolume, replication, node).Get(ctx, nil)
 		if err != nil {
@@ -139,6 +129,27 @@ func (wf *mountCheckWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			return nil, workflows.ConvertToVSAError(err)
 		}
 	}
+	if lunDetails == nil || len(lunDetails) > 1 {
+		err = workflow.ExecuteActivity(ctx, mountJobActivity.AbortVolumeReplicationForMount, replication, node).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+		err = workflow.ExecuteActivity(ctx, mountJobActivity.BreakVolumeReplicationForMount, replication, node).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	}
+
+	err = workflow.ExecuteActivity(ctx, mountJobActivity.GetReplicationFromOntap, replication, node, accountName).Get(ctx, &replication)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	err = workflow.ExecuteActivity(ctx, mountJobActivity.UpdateReplicationInDB, replication, lunDetails).Get(ctx, nil)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
 	err = workflow.ExecuteActivity(ctx, mountJobActivity.UpdateVolumeDetailsInDB, replication, lunDetails).Get(ctx, nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)

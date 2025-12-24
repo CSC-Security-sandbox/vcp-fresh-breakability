@@ -5263,6 +5263,64 @@ func (_c *MockProvider_LunGet_Call) RunAndReturn(run func(LunGetParams) (*LunRes
 	return _c
 }
 
+// LunList provides a mock function with given fields: params
+func (_m *MockProvider) LunList(params LunGetParams) ([]*LunResponse, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LunList")
+	}
+
+	var r0 []*LunResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(LunGetParams) ([]*LunResponse, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(LunGetParams) []*LunResponse); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*LunResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(LunGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_LunList_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LunList'
+type MockProvider_LunList_Call struct {
+	*mock.Call
+}
+
+// LunList is a helper method to define mock.On call
+//   - params LunGetParams
+func (_e *MockProvider_Expecter) LunList(params interface{}) *MockProvider_LunList_Call {
+	return &MockProvider_LunList_Call{Call: _e.mock.On("LunList", params)}
+}
+
+func (_c *MockProvider_LunList_Call) Run(run func(params LunGetParams)) *MockProvider_LunList_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(LunGetParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_LunList_Call) Return(_a0 []*LunResponse, _a1 error) *MockProvider_LunList_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_LunList_Call) RunAndReturn(run func(LunGetParams) ([]*LunResponse, error)) *MockProvider_LunList_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // LunMapCreate provides a mock function with given fields: params
 func (_m *MockProvider) LunMapCreate(params LunMapCreateParams) error {
 	ret := _m.Called(params)

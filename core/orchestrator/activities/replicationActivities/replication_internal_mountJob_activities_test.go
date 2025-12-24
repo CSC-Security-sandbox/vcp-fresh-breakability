@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/gorm"
@@ -285,8 +286,16 @@ func TestUpdateReplicationInDB(t *testing.T) {
 
 		activity := &MountJobActivity{SE: mockStorage}
 		replication := &datamodel.VolumeReplication{}
+		lunDetails := []*vsa.LunResponse{
+			{
+				ProviderResponse: vsa.ProviderResponse{
+					Name:         "/test/vol/lun_vol",
+					ExternalUUID: "lun-uuid",
+				},
+			},
+		}
 
-		err := activity.UpdateReplicationInDB(context.Background(), replication)
+		err := activity.UpdateReplicationInDB(context.Background(), replication, lunDetails)
 
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
@@ -298,13 +307,103 @@ func TestUpdateReplicationInDB(t *testing.T) {
 
 		activity := &MountJobActivity{SE: mockStorage}
 		replication := &datamodel.VolumeReplication{}
+		lunDetails := []*vsa.LunResponse{
+			{
+				ProviderResponse: vsa.ProviderResponse{
+					Name:         "/test/vol/lun_vol",
+					ExternalUUID: "lun-uuid",
+				},
+			},
+		}
 
-		err := activity.UpdateReplicationInDB(context.Background(), replication)
+		err := activity.UpdateReplicationInDB(context.Background(), replication, lunDetails)
 
 		assert.Error(tt, err)
 		var customErr *errors2.CustomError
 		assert.True(tt, errors2.As(err, &customErr), "Expected a CustomError")
 		assert.ErrorContains(tt, customErr.OriginalErr, "update failed")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenLunDetailsIsNil", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("UpdateVolumeReplication", mock.Anything, mock.Anything).Return(nil)
+
+		activity := &MountJobActivity{SE: mockStorage}
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid",
+			},
+		}
+
+		err := activity.UpdateReplicationInDB(context.Background(), replication, nil)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, models.LifeCycleStateError, replication.State)
+		assert.Contains(tt, replication.StateDetails, "zero or multiple LUNs found")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenLunDetailsHasMultipleLUNs", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("UpdateVolumeReplication", mock.Anything, mock.Anything).Return(nil)
+
+		activity := &MountJobActivity{SE: mockStorage}
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid",
+			},
+		}
+		lunDetails := []*vsa.LunResponse{
+			{ProviderResponse: vsa.ProviderResponse{Name: "/test/vol/lun1"}},
+			{ProviderResponse: vsa.ProviderResponse{Name: "/test/vol/lun2"}},
+		}
+
+		err := activity.UpdateReplicationInDB(context.Background(), replication, lunDetails)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, models.LifeCycleStateError, replication.State)
+		assert.Contains(tt, replication.StateDetails, "zero or multiple LUNs found")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenLunDetailsIsEmpty", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("UpdateVolumeReplication", mock.Anything, mock.Anything).Return(nil)
+
+		activity := &MountJobActivity{SE: mockStorage}
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid",
+			},
+		}
+		lunDetails := []*vsa.LunResponse{}
+
+		err := activity.UpdateReplicationInDB(context.Background(), replication, lunDetails)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, models.LifeCycleStateError, replication.State)
+		assert.Contains(tt, replication.StateDetails, "zero or multiple LUNs found")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenUpdateVolumeReplicationFailsOnValidationError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("UpdateVolumeReplication", mock.Anything, mock.Anything).Return(errors.New("db update failed"))
+
+		activity := &MountJobActivity{SE: mockStorage}
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid",
+			},
+		}
+
+		err := activity.UpdateReplicationInDB(context.Background(), replication, nil)
+
+		assert.Error(tt, err)
+		var customErr *errors2.CustomError
+		assert.True(tt, errors2.As(err, &customErr), "Expected a CustomError")
+		assert.ErrorContains(tt, customErr.OriginalErr, "db update failed")
 		mockStorage.AssertExpectations(tt)
 	})
 }
@@ -367,11 +466,14 @@ func TestGetLunDetailsFromOntap(t *testing.T) {
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		mockProvider.On("LunGet", mock.Anything, mock.Anything).Return(nil, errors.New("failed to get LUN"))
+		mockProvider.On("LunList", mock.Anything).Return(nil, errors.New("failed to get LUN"))
 		activity := &MountJobActivity{SE: mockStorage}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
 		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid",
+			},
 			Volume: &datamodel.Volume{},
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				DestinationSvmName:    "svm-name",
@@ -381,6 +483,8 @@ func TestGetLunDetailsFromOntap(t *testing.T) {
 		}
 		_, err := activity.GetLunDetailsFromOntap(ctx, replication, node)
 		assert.Error(tt, err)
+		mockProvider.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		defer func() {
@@ -399,7 +503,7 @@ func TestGetLunDetailsFromOntap(t *testing.T) {
 			Size:         1073741824,
 			SerialNumber: "123412214",
 		}
-		mockProvider.On("LunGet", mock.Anything, mock.Anything).Return(lunDetails, nil)
+		mockProvider.On("LunList", mock.Anything).Return([]*vsa.LunResponse{lunDetails}, nil)
 		activity := &MountJobActivity{SE: mockStorage}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
@@ -417,7 +521,10 @@ func TestGetLunDetailsFromOntap(t *testing.T) {
 		}
 		res, err := activity.GetLunDetailsFromOntap(ctx, replication, node)
 		assert.NoError(tt, err)
-		assert.Equal(tt, lunDetails, res)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, 1, len(res))
+		assert.Equal(tt, lunDetails, res[0])
+		mockProvider.AssertExpectations(tt)
 	})
 	t.Run("WhenVolumeAttributesContainsLun", func(tt *testing.T) {
 		defer func() {
@@ -441,7 +548,7 @@ func TestGetLunDetailsFromOntap(t *testing.T) {
 			VolumeName: "volume-name",
 			LunName:    "lun_source-volume-name1",
 		}
-		mockProvider.On("LunGet", lunParams).Return(lunDetails, nil)
+		mockProvider.On("LunList", lunParams).Return([]*vsa.LunResponse{lunDetails}, nil)
 		activity := &MountJobActivity{SE: mockStorage}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
@@ -461,12 +568,12 @@ func TestGetLunDetailsFromOntap(t *testing.T) {
 		}
 		res, err := activity.GetLunDetailsFromOntap(ctx, replication, node)
 		assert.NoError(tt, err)
-		assert.Equal(tt, lunDetails, res)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, 1, len(res))
+		assert.Equal(tt, lunDetails, res[0])
+		mockProvider.AssertExpectations(tt)
 	})
-}
-
-func TestUpdateVolumeLunDetailsInDB(t *testing.T) {
-	t.Run("WhenUpdateVolumeFails", func(tt *testing.T) {
+	t.Run("WhenGetLunReturnsMultipleLUNs_Succeeds", func(tt *testing.T) {
 		defer func() {
 			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
 		}()
@@ -475,15 +582,234 @@ func TestUpdateVolumeLunDetailsInDB(t *testing.T) {
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		lunDetails := &vsa.LunResponse{
+		// Return multiple LUNs - GetLunDetailsFromOntap should return them successfully
+		// Validation of count happens in UpdateReplicationInDB, not here
+		lun1 := &vsa.LunResponse{
 			ProviderResponse: vsa.ProviderResponse{
-				Name:         "/test/vol/lun_vol",
-				ExternalUUID: "lun-uuid",
+				Name:         "/test/vol/lun1",
+				ExternalUUID: "lun-uuid-1",
 			},
-			Size:         1073741824,
-			SerialNumber: "123412214",
 		}
-		mockProvider.On("LunGet", mock.Anything, mock.Anything).Return(lunDetails, nil)
+		lun2 := &vsa.LunResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				Name:         "/test/vol/lun2",
+				ExternalUUID: "lun-uuid-2",
+			},
+		}
+		expectedLUNs := []*vsa.LunResponse{lun1, lun2}
+		mockProvider.On("LunList", mock.Anything).Return(expectedLUNs, nil)
+		activity := &MountJobActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid",
+			},
+			Volume: &datamodel.Volume{},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID:          "external-uuid",
+				DestinationSvmName:    "svm-name",
+				DestinationVolumeName: "volume-name",
+				SourceVolumeName:      "source-volume-name",
+			},
+		}
+		res, err := activity.GetLunDetailsFromOntap(ctx, replication, node)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, 2, len(res))
+		assert.Equal(tt, expectedLUNs, res)
+		mockProvider.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenGetLunFailsWithNotFoundErr_ReturnsNilNil", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		notFoundErr := utilErrors.NewNotFoundErr("LUN", nil)
+		customErr := &errors2.CustomError{
+			OriginalErr: notFoundErr,
+		}
+		mockProvider.On("LunList", mock.Anything).Return(nil, customErr)
+		activity := &MountJobActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid",
+			},
+			Volume: &datamodel.Volume{},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID:          "external-uuid",
+				DestinationSvmName:    "svm-name",
+				DestinationVolumeName: "volume-name",
+				SourceVolumeName:      "source-volume-name",
+			},
+		}
+		res, err := activity.GetLunDetailsFromOntap(ctx, replication, node)
+		assert.NoError(tt, err)
+		assert.Nil(tt, res)
+		mockProvider.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenGetLunFailsWithUnexpectedResponseError_ReturnsError", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		originalErr := errors.New("multiple LUNs are not supported")
+		customErr := &errors2.CustomError{
+			OriginalErr: originalErr,
+		}
+		mockProvider.On("LunList", mock.Anything).Return(nil, customErr)
+		activity := &MountJobActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid",
+			},
+			Volume: &datamodel.Volume{},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID:          "external-uuid",
+				DestinationSvmName:    "svm-name",
+				DestinationVolumeName: "volume-name",
+				SourceVolumeName:      "source-volume-name",
+			},
+		}
+		_, err := activity.GetLunDetailsFromOntap(ctx, replication, node)
+		assert.Error(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+	t.Run("WhenGetLunFailsWithNotFoundErr_ReturnsNilNil_NoAbortBreak", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		// Return NotFound error - should return nil, nil without calling abort/break
+		notFoundErr := utilErrors.NewNotFoundErr("LUN", nil)
+		customErr := &errors2.CustomError{
+			OriginalErr: notFoundErr,
+		}
+		mockProvider.On("LunList", mock.Anything).Return(nil, customErr)
+		activity := &MountJobActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid",
+			},
+			Volume: &datamodel.Volume{},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID:          "external-uuid",
+				DestinationSvmName:    "svm-name",
+				DestinationVolumeName: "volume-name",
+				SourceVolumeName:      "source-volume-name",
+			},
+		}
+		res, err := activity.GetLunDetailsFromOntap(ctx, replication, node)
+		assert.NoError(tt, err)
+		assert.Nil(tt, res)
+		mockProvider.AssertExpectations(tt)
+	})
+	t.Run("WhenGetLunFailsWithNotFoundErr_ReturnsNilNil_NoBreak", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		// Return NotFound error - should return nil, nil without calling break
+		notFoundErr := utilErrors.NewNotFoundErr("LUN", nil)
+		customErr := &errors2.CustomError{
+			OriginalErr: notFoundErr,
+		}
+		mockProvider.On("LunList", mock.Anything).Return(nil, customErr)
+		activity := &MountJobActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid",
+			},
+			Volume: &datamodel.Volume{},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID:          "external-uuid",
+				DestinationSvmName:    "svm-name",
+				DestinationVolumeName: "volume-name",
+				SourceVolumeName:      "source-volume-name",
+			},
+		}
+		res, err := activity.GetLunDetailsFromOntap(ctx, replication, node)
+		assert.NoError(tt, err)
+		assert.Nil(tt, res)
+		mockProvider.AssertExpectations(tt)
+	})
+	t.Run("WhenGetLunFailsWithNotFoundErr_ReturnsNilNil_NoUpdate", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		// Return NotFound error - should return nil, nil without calling update
+		notFoundErr := utilErrors.NewNotFoundErr("LUN", nil)
+		customErr := &errors2.CustomError{
+			OriginalErr: notFoundErr,
+		}
+		mockProvider.On("LunList", mock.Anything).Return(nil, customErr)
+		activity := &MountJobActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid",
+			},
+			Volume: &datamodel.Volume{},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID:          "external-uuid",
+				DestinationSvmName:    "svm-name",
+				DestinationVolumeName: "volume-name",
+				SourceVolumeName:      "source-volume-name",
+			},
+		}
+		res, err := activity.GetLunDetailsFromOntap(ctx, replication, node)
+		assert.NoError(tt, err)
+		assert.Nil(tt, res)
+		mockProvider.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestUpdateVolumeLunDetailsInDB(t *testing.T) {
+	t.Run("WhenUpdateVolumeFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		lunDetails := []*vsa.LunResponse{
+			{
+				ProviderResponse: vsa.ProviderResponse{
+					Name:         "/test/vol/lun_vol",
+					ExternalUUID: "lun-uuid",
+				},
+				Size:         1073741824,
+				SerialNumber: "123412214",
+			},
+		}
 		activity := &MountJobActivity{SE: mockStorage}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		replication := &datamodel.VolumeReplication{
@@ -506,21 +832,18 @@ func TestUpdateVolumeLunDetailsInDB(t *testing.T) {
 		defer func() {
 			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
 		}()
-		mockProvider := new(vsa.MockProvider)
 		mockStorage := database.NewMockStorage(tt)
-		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
-			return mockProvider, nil
-		}
-		lunDetails := &vsa.LunResponse{
-			ProviderResponse: vsa.ProviderResponse{
-				Name:         "/test/vol/lun_vol",
-				ExternalUUID: "lun-uuid",
+		lunDetails := []*vsa.LunResponse{
+			{
+				ProviderResponse: vsa.ProviderResponse{
+					Name:         "/test/vol/lun_vol",
+					ExternalUUID: "lun-uuid",
+				},
+				Size:         1073741824,
+				SerialNumber: "123412214",
+				OSType:       "LINUX",
 			},
-			Size:         1073741824,
-			SerialNumber: "123412214",
-			OSType:       "LINUX",
 		}
-		mockProvider.On("LunGet", mock.Anything, mock.Anything).Return(lunDetails, nil)
 		activity := &MountJobActivity{SE: mockStorage}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		replication := &datamodel.VolumeReplication{
@@ -583,13 +906,15 @@ func TestUpdateVolumeLunDetailsInDB(t *testing.T) {
 				DestinationVolumeUUID: "dest-volume-uuid",
 			},
 		}
-		lunDetails := &vsa.LunResponse{
-			ProviderResponse: vsa.ProviderResponse{
-				Name:         "/test/vol/lun_vol",
-				ExternalUUID: "lun-uuid",
+		lunDetails := []*vsa.LunResponse{
+			{
+				ProviderResponse: vsa.ProviderResponse{
+					Name:         "/test/vol/lun_vol",
+					ExternalUUID: "lun-uuid",
+				},
+				Size:         1073741824,
+				SerialNumber: "123412214",
 			},
-			Size:         1073741824,
-			SerialNumber: "123412214",
 		}
 
 		// Capture the updates made to the volume
@@ -635,13 +960,15 @@ func TestUpdateVolumeLunDetailsInDB(t *testing.T) {
 				DestinationVolumeUUID: "dest-volume-uuid",
 			},
 		}
-		lunDetails := &vsa.LunResponse{
-			ProviderResponse: vsa.ProviderResponse{
-				Name:         "/test/vol/lun_vol",
-				ExternalUUID: "lun-uuid",
+		lunDetails := []*vsa.LunResponse{
+			{
+				ProviderResponse: vsa.ProviderResponse{
+					Name:         "/test/vol/lun_vol",
+					ExternalUUID: "lun-uuid",
+				},
+				Size:         1073741824,
+				SerialNumber: "123412214",
 			},
-			Size:         1073741824,
-			SerialNumber: "123412214",
 		}
 
 		// Capture the updates made to the volume
@@ -864,6 +1191,356 @@ func TestMountVolume(t *testing.T) {
 
 		// Verify results
 		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+}
+
+func TestAbortVolumeReplicationForMount(t *testing.T) {
+	t.Run("Success_AbortsVolumeReplication", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activity := &MountJobActivity{SE: mockStorage}
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		replication := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "external-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		testReplication := &vsa.VolumeReplication{
+			ExternalUUID:       "external-uuid",
+			RelationshipStatus: models.SnapmirrorRelationshipTransferring,
+			TransferUUID:       "transfer-uuid",
+			RelationshipID:     "relationship-id",
+		}
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("GetVolumeReplication", mock.Anything).Return(testReplication, nil)
+		mockProvider.On("AbortVolumeReplication", mock.Anything).Return(testReplication, nil)
+
+		err := activity.AbortVolumeReplicationForMount(ctx, replication, node)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("Error_WhenAbortVolumeReplicationFails", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activity := &MountJobActivity{SE: mockStorage}
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		replication := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "external-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		testReplication := &vsa.VolumeReplication{
+			ExternalUUID:       "external-uuid",
+			RelationshipStatus: models.SnapmirrorRelationshipTransferring,
+			TransferUUID:       "transfer-uuid",
+			RelationshipID:     "relationship-id",
+		}
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("GetVolumeReplication", mock.Anything).Return(testReplication, nil)
+		mockProvider.On("AbortVolumeReplication", mock.Anything).Return(nil, errors.New("failed to abort"))
+
+		err := activity.AbortVolumeReplicationForMount(ctx, replication, node)
+		assert.Error(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("Error_WhenGetProviderFails", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := &MountJobActivity{SE: mockStorage}
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		replication := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "external-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("failed to get provider")
+		}
+
+		err := activity.AbortVolumeReplicationForMount(ctx, replication, node)
+		assert.Error(tt, err)
+	})
+
+	t.Run("Success_WhenReplicationNotInTransferringState", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activity := &MountJobActivity{SE: mockStorage}
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		replication := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "external-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		testReplication := &vsa.VolumeReplication{
+			ExternalUUID:       "external-uuid",
+			RelationshipStatus: models.SnapmirrorRelationshipIdle,
+		}
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("GetVolumeReplication", mock.Anything).Return(testReplication, nil)
+
+		err := activity.AbortVolumeReplicationForMount(ctx, replication, node)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("Error_WhenGetVolumeReplicationFails", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activity := &MountJobActivity{SE: mockStorage}
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		replication := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "external-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("GetVolumeReplication", mock.Anything).Return(nil, errors.New("failed to get replication"))
+
+		err := activity.AbortVolumeReplicationForMount(ctx, replication, node)
+		assert.Error(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+}
+
+func TestBreakVolumeReplicationForMount(t *testing.T) {
+	t.Run("Success_BreaksVolumeReplication", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activity := &MountJobActivity{SE: mockStorage}
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		replication := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "external-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		testReplication := &vsa.VolumeReplication{
+			ExternalUUID:       "external-uuid",
+			RelationshipStatus: models.SnapmirrorRelationshipIdle,
+			MirrorState:        models.OntapSnapmirrored,
+		}
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("GetVolumeReplication", mock.Anything).Return(testReplication, nil)
+		mockProvider.On("BreakVolumeReplication", mock.Anything).Return(testReplication, nil)
+
+		err := activity.BreakVolumeReplicationForMount(ctx, replication, node)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("Error_WhenBreakVolumeReplicationFails", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activity := &MountJobActivity{SE: mockStorage}
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		replication := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "external-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		testReplication := &vsa.VolumeReplication{
+			ExternalUUID:       "external-uuid",
+			RelationshipStatus: models.SnapmirrorRelationshipIdle,
+			MirrorState:        models.OntapSnapmirrored,
+		}
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("GetVolumeReplication", mock.Anything).Return(testReplication, nil)
+		mockProvider.On("BreakVolumeReplication", mock.Anything).Return(nil, errors.New("failed to break"))
+
+		err := activity.BreakVolumeReplicationForMount(ctx, replication, node)
+		assert.Error(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("Error_WhenGetProviderFails", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := &MountJobActivity{SE: mockStorage}
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		replication := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "external-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("failed to get provider")
+		}
+
+		err := activity.BreakVolumeReplicationForMount(ctx, replication, node)
+		assert.Error(tt, err)
+	})
+
+	t.Run("Success_WhenReplicationIsUninitialized", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activity := &MountJobActivity{SE: mockStorage}
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		replication := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "external-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		testReplication := &vsa.VolumeReplication{
+			ExternalUUID:       "external-uuid",
+			RelationshipStatus: models.SnapmirrorRelationshipIdle,
+			MirrorState:        models.OntapUninitialized,
+		}
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("GetVolumeReplication", mock.Anything).Return(testReplication, nil)
+
+		err := activity.BreakVolumeReplicationForMount(ctx, replication, node)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("Error_WhenReplicationIsInTransferringState", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activity := &MountJobActivity{SE: mockStorage}
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		replication := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "external-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		testReplication := &vsa.VolumeReplication{
+			ExternalUUID:       "external-uuid",
+			RelationshipStatus: models.SnapmirrorRelationshipTransferring,
+		}
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("GetVolumeReplication", mock.Anything).Return(testReplication, nil)
+
+		err := activity.BreakVolumeReplicationForMount(ctx, replication, node)
+		assert.Error(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("Error_WhenGetVolumeReplicationFails", func(tt *testing.T) {
+		defer func() {
+			activitiesGetProviderByNode = hyperscaler.GetProviderByNode
+		}()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activity := &MountJobActivity{SE: mockStorage}
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		replication := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "external-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("GetVolumeReplication", mock.Anything).Return(nil, errors.New("failed to get replication"))
+
+		err := activity.BreakVolumeReplicationForMount(ctx, replication, node)
+		assert.Error(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
 }

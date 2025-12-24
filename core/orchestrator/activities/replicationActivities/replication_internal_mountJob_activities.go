@@ -12,12 +12,14 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var (
-	failedStates = []string{models.SnapmirrorRelationshipFailed, models.SnapmirrorRelationshipAborted, models.SnapmirrorRelationshipHardAborted}
+	failedStates             = []string{models.SnapmirrorRelationshipFailed, models.SnapmirrorRelationshipAborted, models.SnapmirrorRelationshipHardAborted}
+	hybridReplicationEnabled = env.GetBool("HYBRID_REPLICATION_ENABLED", false)
 )
 
 type MountJobActivity struct {
@@ -71,11 +73,26 @@ func (j *MountJobActivity) GetReplicationFromOntap(ctx context.Context, dbReplic
 	return replication, nil
 }
 
-func (j *MountJobActivity) UpdateReplicationInDB(ctx context.Context, replication *datamodel.VolumeReplication) error {
-	se := j.SE
+func (j *MountJobActivity) UpdateReplicationInDB(ctx context.Context, replication *datamodel.VolumeReplication, lunDetails []*vsa.LunResponse) error {
 	logger := util.GetLogger(ctx)
 
-	err := se.UpdateVolumeReplicationTransferStats(ctx, replication)
+	// Validate LUN details
+	if lunDetails == nil || len(lunDetails) != 1 {
+		originalErr := errors.New("zero or multiple LUNs found on source volume")
+		replication.State = models.LifeCycleStateError
+		replication.StateDetails = originalErr.Error()
+
+		// Update database with error state before returning
+		if err := j.SE.UpdateVolumeReplication(ctx, replication); err != nil {
+			logger.Errorf("Failed to update replication %s error state in DB: %v", replication.UUID, err)
+			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+		}
+
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrFailedToGetLunDetailsFromOntap, originalErr))
+	}
+
+	// Update database with transfer stats when validation passes
+	err := j.SE.UpdateVolumeReplicationTransferStats(ctx, replication)
 	if err != nil {
 		logger.Errorf("Failed to update replication %s in DB: %v", replication.UUID, err)
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
@@ -94,33 +111,63 @@ func (j *MountJobActivity) GetReplication(ctx context.Context, uuid string) (*da
 	return replication, nil
 }
 
-func (j *MountJobActivity) GetLunDetailsFromOntap(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node) (*vsa.LunResponse, error) {
+func (j *MountJobActivity) GetLunDetailsFromOntap(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node) ([]*vsa.LunResponse, error) {
 	logger := util.GetLogger(ctx)
 	provider, err := activitiesGetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+
 	var lunName string
-	if replication.Volume.VolumeAttributes != nil && replication.Volume.VolumeAttributes.BlockDevices != nil {
-		blockDevices := *replication.Volume.VolumeAttributes.BlockDevices
-		if len(blockDevices) > 0 {
-			lunName = blockDevices[0].Name
+	// For hybrid replication, lunName should be empty
+	if !(hybridReplicationEnabled && replication.HybridReplicationAttributes != nil) {
+		if replication.Volume.VolumeAttributes != nil && replication.Volume.VolumeAttributes.BlockDevices != nil {
+			blockDevices := *replication.Volume.VolumeAttributes.BlockDevices
+			if len(blockDevices) > 0 {
+				lunName = blockDevices[0].Name
+			}
+		}
+		if lunName == "" {
+			lunName = "lun_" + replication.ReplicationAttributes.SourceVolumeName
 		}
 	}
-	if lunName == "" {
-		lunName = "lun_" + replication.ReplicationAttributes.SourceVolumeName
-	}
+
 	lunParams := vsa.LunGetParams{
 		SvmName:    replication.ReplicationAttributes.DestinationSvmName,
 		VolumeName: replication.ReplicationAttributes.DestinationVolumeName,
 		LunName:    lunName,
 	}
-	lunDetails, err := provider.LunGet(lunParams)
+	lunDetails, err := provider.LunList(lunParams)
 	if err != nil {
 		logger.Errorf("Failed to get LUN details from Ontap %v", err)
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrFailedToGetLunDetailsFromOntap, err)
+		originalErr := err
+		if customErr, ok := err.(*vsaerrors.CustomError); ok && customErr.OriginalErr != nil {
+			originalErr = customErr.OriginalErr
+			if utilErrors.IsNotFoundErr(originalErr) {
+				logger.Infof("LUN not found for replication %s. Attempting to abort and break replication.", replication.UUID)
+				return nil, nil
+			}
+		}
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrFailedToGetLunDetailsFromOntap, originalErr)
 	}
+
 	return lunDetails, nil
+}
+
+func (j *MountJobActivity) AbortVolumeReplicationForMount(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node) error {
+	stopActivity := &InternalStopVolumeReplicationActivity{SE: j.SE}
+	if _, err := stopActivity.AbortVolumeReplication(ctx, replication, node, true); err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return nil
+}
+
+func (j *MountJobActivity) BreakVolumeReplicationForMount(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node) error {
+	stopActivity := &InternalStopVolumeReplicationActivity{SE: j.SE}
+	if _, err := stopActivity.BreakVolumeReplication(ctx, replication, node); err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return nil
 }
 
 func (j *MountJobActivity) MountVolume(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node) error {
@@ -144,19 +191,19 @@ func (j *MountJobActivity) MountVolume(ctx context.Context, replication *datamod
 	return nil
 }
 
-func (j *MountJobActivity) UpdateVolumeDetailsInDB(ctx context.Context, replication *datamodel.VolumeReplication, lunDetails *vsa.LunResponse) error {
+func (j *MountJobActivity) UpdateVolumeDetailsInDB(ctx context.Context, replication *datamodel.VolumeReplication, lunDetails []*vsa.LunResponse) error {
 	se := j.SE
 	updates := make(map[string]interface{})
 	if replication.Volume.VolumeAttributes.Protocols != nil && replication.Volume.VolumeAttributes.Protocols[0] == "ISCSI" {
 		blockDevices := make([]datamodel.BlockDevice, 1)
 
-		lunPath := strings.Split(lunDetails.Name, "/")
+		lunPath := strings.Split(lunDetails[0].Name, "/")
 		lunName := lunPath[len(lunPath)-1]
 		blockDevices[0].Name = lunName
-		blockDevices[0].Size = lunDetails.Size
-		blockDevices[0].LunUUID = lunDetails.ExternalUUID
-		blockDevices[0].Identifier = lunDetails.SerialNumber
-		blockDevices[0].OSType = strings.ToUpper(lunDetails.OSType)
+		blockDevices[0].Size = lunDetails[0].Size
+		blockDevices[0].LunUUID = lunDetails[0].ExternalUUID
+		blockDevices[0].Identifier = lunDetails[0].SerialNumber
+		blockDevices[0].OSType = strings.ToUpper(lunDetails[0].OSType)
 
 		replication.Volume.VolumeAttributes.BlockDevices = &blockDevices
 	}

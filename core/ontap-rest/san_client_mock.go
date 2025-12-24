@@ -490,23 +490,23 @@ func (_c *MockSANClient_LunCreate_Call) RunAndReturn(run func(*LunCreateParams) 
 }
 
 // LunGet provides a mock function with given fields: params
-func (_m *MockSANClient) LunGet(params *LunGetParams) (*Lun, error) {
+func (_m *MockSANClient) LunGet(params *LunGetParams) ([]*Lun, error) {
 	ret := _m.Called(params)
 
 	if len(ret) == 0 {
 		panic("no return value specified for LunGet")
 	}
 
-	var r0 *Lun
+	var r0 []*Lun
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*LunGetParams) (*Lun, error)); ok {
+	if rf, ok := ret.Get(0).(func(*LunGetParams) ([]*Lun, error)); ok {
 		return rf(params)
 	}
-	if rf, ok := ret.Get(0).(func(*LunGetParams) *Lun); ok {
+	if rf, ok := ret.Get(0).(func(*LunGetParams) []*Lun); ok {
 		r0 = rf(params)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*Lun)
+			r0 = ret.Get(0).([]*Lun)
 		}
 	}
 
@@ -537,12 +537,12 @@ func (_c *MockSANClient_LunGet_Call) Run(run func(params *LunGetParams)) *MockSA
 	return _c
 }
 
-func (_c *MockSANClient_LunGet_Call) Return(_a0 *Lun, _a1 error) *MockSANClient_LunGet_Call {
+func (_c *MockSANClient_LunGet_Call) Return(_a0 []*Lun, _a1 error) *MockSANClient_LunGet_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockSANClient_LunGet_Call) RunAndReturn(run func(*LunGetParams) (*Lun, error)) *MockSANClient_LunGet_Call {
+func (_c *MockSANClient_LunGet_Call) RunAndReturn(run func(*LunGetParams) ([]*Lun, error)) *MockSANClient_LunGet_Call {
 	_c.Call.Return(run)
 	return _c
 }
