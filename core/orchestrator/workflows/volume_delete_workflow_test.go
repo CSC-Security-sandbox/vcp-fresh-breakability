@@ -1634,3 +1634,122 @@ func (s *VolumeDeleteTestSuite) Test_SmbTeardownWorkflow_DeleteDnsRecordIfUnused
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
 }
+
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_RestoreVolumeStateToPreviousState_WhenErrDeleteVolumeWhenInSplitState() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+
+	// Create error with ErrDeleteVolumeWhenInSplitState tracking ID and wrap it as Temporal application error
+	splitStateError := vsaerrors.NewVCPError(vsaerrors.ErrDeleteVolumeWhenInSplitState, errors.New("volume has clones/replication"))
+	wrappedError := vsaerrors.WrapAsTemporalApplicationError(splitStateError)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil, wrappedError)
+	// Mock UpdateVolumeStateInDB to succeed when restoring volume state (lines 201-203)
+	// Use Maybe() since the call might not happen if error extraction fails
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, "volume-uuid", models.LifeCycleStateREADY, "ready-details").Return(nil).Maybe()
+	// Also mock the error state update in case the error is not recognized (should not be called)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, "volume-uuid", models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Return(nil).Maybe()
+
+	// Execute workflow with volume that has State and StateDetails set
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		State:      models.LifeCycleStateREADY,
+		StateDetails: "ready-details",
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow completed with error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+
+	// Verify UpdateVolumeStateInDB was called with volume's previous state (not error state)
+	// Check that it was called with READY state (the else branch) and not ERROR state (the if branch)
+	s.env.AssertCalled(s.T(), "UpdateVolumeStateInDB", mock.Anything, "volume-uuid", models.LifeCycleStateREADY, "ready-details")
+	s.env.AssertNotCalled(s.T(), "UpdateVolumeStateInDB", mock.Anything, "volume-uuid", models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails)
+}
+
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_RestoreVolumeStateToPreviousState_Fails_WhenErrDeleteVolumeWhenInSplitState() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+
+	// Create error with ErrDeleteVolumeWhenInSplitState tracking ID and wrap it as Temporal application error
+	splitStateError := vsaerrors.NewVCPError(vsaerrors.ErrDeleteVolumeWhenInSplitState, errors.New("volume has clones/replication"))
+	wrappedError := vsaerrors.WrapAsTemporalApplicationError(splitStateError)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil, wrappedError)
+	// Mock UpdateVolumeStateInDB to fail when restoring volume state (lines 201-203)
+	// Use Maybe() since the call might not happen if error extraction fails
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, "volume-uuid", models.LifeCycleStateREADY, "ready-details").Return(errors.New("failed to restore volume state to previous state")).Maybe()
+	// Also mock the error state update in case the error is not recognized (should not be called)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, "volume-uuid", models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Return(nil).Maybe()
+
+	// Execute workflow with volume that has State and StateDetails set
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		State:      models.LifeCycleStateREADY,
+		StateDetails: "ready-details",
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow completed with error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+
+	// Verify UpdateVolumeStateInDB was called with volume's previous state (not error state)
+	// Even though it fails, the call should still be made (line 201)
+	// Check that it was called with READY state (the else branch) and not ERROR state (the if branch)
+	s.env.AssertCalled(s.T(), "UpdateVolumeStateInDB", mock.Anything, "volume-uuid", models.LifeCycleStateREADY, "ready-details")
+	s.env.AssertNotCalled(s.T(), "UpdateVolumeStateInDB", mock.Anything, "volume-uuid", models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails)
+}

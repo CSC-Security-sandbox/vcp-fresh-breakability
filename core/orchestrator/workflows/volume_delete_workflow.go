@@ -191,9 +191,17 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
 		if err != nil {
-			err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Get(ctx, nil)
-			if err2 != nil {
-				log.Errorf("Failed to update volume state in DB to error: %v", err2)
+			if shouldUpdateVolumeStateToError(err) {
+				err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Get(ctx, nil)
+				if err2 != nil {
+					log.Errorf("Failed to update volume state in DB to error: %v", err2)
+				}
+			} else {
+				// Updating volume state to previous state before deletion was initiated
+				err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, volume.State, volume.StateDetails).Get(ctx, nil)
+				if err2 != nil {
+					log.Errorf("Failed to restore volume state to previous state: %v", err2)
+				}
 			}
 			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
 			rollbackManager.ExecuteRollback(disconnectedCtx, err)
