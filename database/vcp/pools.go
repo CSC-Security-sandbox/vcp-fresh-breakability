@@ -101,7 +101,7 @@ func (d *DataStoreRepository) GetPool(ctx context.Context, poolUUID string, acco
 
 func (d *DataStoreRepository) GetPoolByUUID(ctx context.Context, poolUUID string) (*datamodel.Pool, error) {
 	var pool datamodel.Pool
-	err := d.db.GORM().WithContext(ctx).Where("uuid = ?", poolUUID).First(&pool).Error
+	err := d.db.GORM().WithContext(ctx).Where("uuid = ?", poolUUID).Take(&pool).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, customerrors.NewNotFoundErr("Pool", &poolUUID)
