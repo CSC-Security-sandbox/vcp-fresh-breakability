@@ -186,6 +186,7 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	ctx = workflow.WithActivityOptions(ctx, options)
 	ao1 := options
 	ao1.RetryPolicy.MaximumAttempts = int32(volumeDeleteJobsRetryMaxAttempts)
+	ao1.RetryPolicy.NonRetryableErrorTypes = append(ao1.RetryPolicy.NonRetryableErrorTypes, vsaerrors.DeleteVolumeInONTAPError)
 	ctx1 := workflow.WithActivityOptions(ctx, ao1)
 
 	rollbackManager := common.NewRollbackManager()

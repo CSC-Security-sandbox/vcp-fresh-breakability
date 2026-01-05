@@ -19,8 +19,10 @@ var (
 )
 
 const (
-	CustomErrorType     = "CustomError"
-	DefaultErrorMessage = "An internal error occurred"
+	CustomErrorType          = "CustomError"
+	DefaultErrorMessage      = "An internal error occurred"
+	DeleteVolumeInONTAPError = "DeleteVolumeInONTAPError"
+	OntapUnreachableError    = "retries exhausted when attempting to reach the storage server"
 
 	ErrWorkflowConfigurationError = 1001
 	ErrBadRequest                 = 1002

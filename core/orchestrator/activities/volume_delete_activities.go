@@ -36,9 +36,9 @@ func (va VolumeDeleteActivity) DeleteVolumeInONTAP(ctx context.Context, volumeEx
 		if strings.Contains(err.Error(), "volume is in use") {
 			return vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)
 		}
-		if strings.Contains(err.Error(), "Retries exhausted when attempting to reach the storage server") {
+		if strings.Contains(strings.ToLower(err.Error()), vsaerrors.OntapUnreachableError) {
 			logger.Errorf("DeleteVolumeInONTAP - Unable to reach node %s Error: %v", node.Name, err)
-			return temporal.NewNonRetryableApplicationError("Unable to delete volume: Node not reachable", "DeleteVolumeInONTAPError", utilErrors.New("unable to reach node"))
+			return temporal.NewNonRetryableApplicationError("Unable to delete volume: Node not reachable", vsaerrors.DeleteVolumeInONTAPError, utilErrors.New("unable to reach node"))
 		}
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
