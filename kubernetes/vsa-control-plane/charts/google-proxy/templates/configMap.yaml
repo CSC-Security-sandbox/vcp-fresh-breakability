@@ -107,7 +107,7 @@ data:
   SECRET_MANAGER_PROJECT_ID: "{{ index .Values "secretManagerProjectId" }}"
   AUTO_POOL_SCALING_LIMITS:  {{ index .Values "autoPoolScalingLimits" | toJson | quote }}
   NUMBER_OF_HA_PAIRS_LARGE_CAPACITY: {{ index .Values "numberOfHaPairsLargeCapacity" | quote }}
-  SNAPSHOT_API_SYNC_MODE: {{index .Values "snapshotAPISyncMode" | toString | quote}}
+  SNAPSHOT_API_SYNC_MODE: {{index .Values "snapshotApiSyncMode" | toString | quote}}
   SYNC_SNAPSHOT_ONTAP_JOB_POLL_TIMEOUT_MILLISECONDS: {{ index .Values "syncSnapshotOntapJobPollTimeoutMilliseconds" | quote }}
   SYNC_SNAPSHOT_ONTAP_JOB_POLL_INTERVAL_MILLISECONDS: {{ index .Values "syncSnapshotOntapJobPollIntervalMilliseconds" | quote }}
   CA_POOL_NAME: {{ index .Values "caPoolName" | quote }}

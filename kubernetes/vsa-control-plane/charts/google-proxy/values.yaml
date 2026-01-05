@@ -85,7 +85,7 @@ thinCloneGASupport: false
 enableCloneInfoRefresh: false
 maxThinClonesPerPool: 100
 enableAutoPoolScaling: true
-snapshotAPISyncMode: false
+snapshotApiSyncMode: false
 syncSnapshotOntapJobPollTimeoutMilliseconds: 40000
 syncSnapshotOntapJobPollIntervalMilliseconds: 2000
 caName: "20250718-pn6-boa"
