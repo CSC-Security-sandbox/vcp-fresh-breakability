@@ -143,9 +143,9 @@ spec:
             - name: RESULT_UPDATE_BATCH_SIZE
               value: {{ .Values.telemetryDeployer.resultUpdateBatchSize | default "100" | quote }}
             - name: INTERVAL_BACKFILL_LIMIT_MINUTES
-              value: {{ .Values.telemetryDeployer.intervalBackfillLimitMinutes | default "1440" | quote }}
+              value: {{ .Values.telemetryDeployer.intervalBackfillLimitMinutes | default "60" | quote }}
             - name: COUNTER_BACKFILL_LIMIT_MINUTES
-              value: {{ .Values.telemetryDeployer.counterBackfillLimitMinutes | default "120" | quote }}
+              value: {{ .Values.telemetryDeployer.counterBackfillLimitMinutes | default "0" | quote }}
             - name: PUSH_BATCH_SIZE
               value: {{ .Values.telemetryDeployer.pushBatchSize | default "1000" | quote }}
             - name: MAX_GOOGLE_BILLING_PUSH_RETRY

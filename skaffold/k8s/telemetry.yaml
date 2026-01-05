@@ -139,6 +139,6 @@ spec:
             - name: INTERVAL_BACKFILL_LIMIT_MINUTES
               value: "60"
             - name: COUNTER_BACKFILL_LIMIT_MINUTES
-              value: "120"
+              value: "0"
             - name: ENVIRONMENT
               value: "dev"

@@ -61,69 +61,6 @@ func (f CounterMetricsFormatter) trimMetricsBeforeStart(ctx context.Context, met
 		}
 	}
 
-	// If we made it here, it means there were no metrics at or before start time.
-	// Try to fetch the latest metric before start from the database if available
-	if f.MetricsDB != nil && len(metrics) > 0 {
-		// Get metadata from the first metric to query for the same resource
-		firstMetric := metrics[0]
-		// Check if required fields are missing
-		if firstMetric.Metadata.ResourceName == nil {
-			return metrics
-		}
-
-		if f.Logger != nil {
-			f.Logger.Infof("No previous metric found before aggregation start, fetching from database for resource: %s",
-				*firstMetric.Metadata.ResourceName)
-		}
-
-		// Fetch the latest metric before the aggregation start for this resource
-		conditions := [][]interface{}{
-			{"metric_timestamp < ?", start},
-			{"resource_name = ?", *firstMetric.Metadata.ResourceName},
-		}
-
-		// Add optional fields to filter if they are not nil
-		if firstMetric.Metadata.DeploymentName != nil {
-			conditions = append(conditions, []interface{}{"deployment_name = ?", *firstMetric.Metadata.DeploymentName})
-		}
-		if firstMetric.Metadata.AccountName != nil {
-			conditions = append(conditions, []interface{}{"consumer_id = ?", *firstMetric.Metadata.AccountName})
-		}
-		conditions = append(conditions, []interface{}{"resource_type = ?", firstMetric.Metadata.ResourceType})
-		conditions = append(conditions, []interface{}{"measured_type = ?", firstMetric.MeasuredType})
-
-		filter := map[string]interface{}{
-			"conditions": conditions,
-			"order":      "metric_timestamp DESC",
-			"limit":      1,
-		}
-
-		dbMetrics, err := f.MetricsDB.GetHydratedMetrics(ctx, filter)
-		if err != nil {
-			if f.Logger != nil {
-				f.Logger.Warnf("Failed to fetch previous metric from database: %v", err)
-			}
-			return metrics
-		}
-
-		if len(dbMetrics) > 0 {
-			// Convert database metric to entity.HydratedMetric
-			dbMetric := dbMetrics[0]
-			prevMetric := entity.HydratedMetric{
-				Timestamp:    entity.UnixNano(dbMetric.MetricTimestamp.UnixNano()),
-				Metadata:     firstMetric.Metadata,
-				MeasuredType: firstMetric.MeasuredType,
-				Quantity:     dbMetric.Quantity,
-			}
-
-			// Prepend the fetched metric to the metrics list
-			if f.Logger != nil {
-				f.Logger.Infof("Successfully fetched and added previous metric from database at timestamp: %v", dbMetric.MetricTimestamp)
-			}
-			return append([]entity.HydratedMetric{prevMetric}, metrics...)
-		}
-	}
-
 	return metrics
 }
 
