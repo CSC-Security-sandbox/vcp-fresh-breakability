@@ -1,12 +1,13 @@
 package common
 
 import (
-	"github.com/stretchr/testify/assert"
+	"context"
 	"reflect"
 	"sort"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -25,7 +26,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 	t.Run("00:-------|-----------|-------", func(t *testing.T) {
 		var want []TimeSeries
 
-		got := intervalFormatter.Format(nil, []entity.HydratedMetric{}, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, []entity.HydratedMetric{}, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -38,9 +39,10 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 		hydratedMetrics := []entity.HydratedMetric{
 			createHydratedMetric(timestamp, nil, 100, true, false, "low"),
 		}
+
 		var want []TimeSeries
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -53,6 +55,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 		hydratedMetrics := []entity.HydratedMetric{
 			createHydratedMetric(timestamp, nil, 100, true, false, "low"),
 		}
+
 		want := []TimeSeries{
 			{
 				AggregationStart: start,
@@ -68,7 +71,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -83,7 +86,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 		}
 		var want []TimeSeries
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -117,7 +120,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -151,7 +154,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -185,7 +188,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -219,7 +222,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -250,7 +253,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -284,7 +287,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -330,7 +333,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -376,7 +379,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -410,7 +413,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -453,7 +456,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -493,7 +496,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -533,7 +536,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -573,7 +576,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -613,7 +616,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -653,7 +656,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -705,7 +708,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -757,7 +760,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -809,7 +812,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -859,7 +862,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -899,7 +902,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -951,7 +954,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1003,7 +1006,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1067,7 +1070,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1119,7 +1122,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1160,7 +1163,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1186,7 +1189,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1199,7 +1202,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 		}
 		var want []TimeSeries
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1228,7 +1231,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1263,7 +1266,7 @@ func TestSampledMetricsFormatter_Format_Intervals(t *testing.T) {
 			},
 		}
 
-		got := intervalFormatter.Format(nil, hydratedMetrics, start, end)
+		got := intervalFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1304,7 +1307,7 @@ func TestSampledMetricsFormatter_Format_Intervals_Backfill_Limit_Exceeded(t *tes
 			},
 		}
 
-		got := sampledFormatter.Format(nil, hydratedMetrics, start, end)
+		got := sampledFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1346,7 +1349,7 @@ func TestSampledMetricsFormatter_Format_Intervals_Backfill_Limit_Exceeded(t *tes
 			},
 		}
 
-		got := sampledFormatter.Format(nil, hydratedMetrics, start, end)
+		got := sampledFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1376,7 +1379,7 @@ func TestSampledMetricsFormatter_Format_Intervals_Backfill_Limit_Exceeded(t *tes
 			},
 		}
 
-		got := sampledFormatter.Format(nil, hydratedMetrics, start, end)
+		got := sampledFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1406,7 +1409,7 @@ func TestSampledMetricsFormatter_Format_Intervals_Backfill_Limit_Exceeded(t *tes
 			},
 		}
 
-		got := sampledFormatter.Format(nil, hydratedMetrics, start, end)
+		got := sampledFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1448,7 +1451,7 @@ func TestSampledMetricsFormatter_Format_Intervals_Backfill_Limit_Exceeded(t *tes
 			},
 		}
 
-		got := sampledFormatter.Format(nil, hydratedMetrics, start, end)
+		got := sampledFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1478,7 +1481,7 @@ func TestSampledMetricsFormatter_Format_Intervals_Backfill_Limit_Exceeded(t *tes
 			},
 		}
 
-		got := sampledFormatter.Format(nil, hydratedMetrics, start, end)
+		got := sampledFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1495,7 +1498,7 @@ func TestSampledMetricsFormatter_Format_Intervals_Backfill_Limit_Exceeded(t *tes
 		}
 		var want []TimeSeries
 
-		got := sampledFormatter.Format(nil, hydratedMetrics, start, end)
+		got := sampledFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1512,7 +1515,7 @@ func TestSampledMetricsFormatter_Format_Intervals_Backfill_Limit_Exceeded(t *tes
 		}
 		var want []TimeSeries
 
-		got := sampledFormatter.Format(nil, hydratedMetrics, start, end)
+		got := sampledFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1538,7 +1541,7 @@ func TestSampledMetricsFormatterSpecificLines(t *testing.T) {
 			createHydratedMetric(start.Add(30*time.Minute), nil, 100, true, false, "low"),
 		}
 
-		result := formatter.Format(nil, metrics, start, end)
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
 
 		// Should handle nil logger gracefully
 		if result == nil {
@@ -1557,7 +1560,7 @@ func TestSampledMetricsFormatterSpecificLines(t *testing.T) {
 		end := time.Date(2022, 11, 22, 16, 0, 0, 0, time.UTC)
 
 		// Empty metrics slice
-		result := formatter.Format(nil, []entity.HydratedMetric{}, start, end)
+		result := formatter.Format(context.Background(), nil, []entity.HydratedMetric{}, start, end)
 
 		if result != nil {
 			t.Error("Expected nil result for empty metrics")
@@ -1581,7 +1584,7 @@ func TestSampledMetricsFormatterSpecificLines(t *testing.T) {
 			createHydratedMetric(timestampBefore, nil, 100, true, false, "low"),
 		}
 
-		result := formatter.Format(nil, metrics, start, end)
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
 
 		// Should handle metrics before start correctly
 		if len(result) != 0 {
@@ -1606,7 +1609,7 @@ func TestSampledMetricsFormatterSpecificLines(t *testing.T) {
 			createHydratedMetric(timestampAfter, nil, 100, true, false, "low"),
 		}
 
-		result := formatter.Format(nil, metrics, start, end)
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
 
 		// Should break immediately when first metric is after end and no lastMetric
 		if len(result) != 0 {
@@ -1631,7 +1634,7 @@ func TestSampledMetricsFormatterSpecificLines(t *testing.T) {
 			createHydratedMetric(timestampWithin, nil, 100, true, false, "low"),
 		}
 
-		result := formatter.Format(nil, metrics, start, end)
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
 
 		// Should create a time series with single data point
 		if len(result) != 1 {
@@ -1661,7 +1664,7 @@ func TestSampledMetricsFormatterSpecificLines(t *testing.T) {
 			createHydratedMetric(timestamp2, nil, 200, true, false, "low"),
 		}
 
-		result := formatter.Format(nil, metrics, start, end)
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
 
 		// Should create separate time series due to backfill limit exceeded
 		if len(result) != 2 {
@@ -1687,7 +1690,7 @@ func TestSampledMetricsFormatterSpecificLines(t *testing.T) {
 			createHydratedMetric(timestamp2, nil, 200, true, false, "low"),
 		}
 
-		result := formatter.Format(nil, metrics, start, end)
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
 
 		// Point mode should behave differently than Interval mode
 		if len(result) != 1 {
@@ -1713,7 +1716,7 @@ func TestSampledMetricsFormatterSpecificLines(t *testing.T) {
 			createHydratedMetric(timestampAfterEnd, nil, 200, true, false, "low"), // After end
 		}
 
-		result := formatter.Format(nil, metrics, start, end)
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
 
 		// Should stop processing when metric is after end but include end point in Interval mode
 		if len(result) != 1 {
@@ -1742,7 +1745,7 @@ func TestSampledMetricsFormatterSpecificLines(t *testing.T) {
 			createHydratedMetric(timestamp2, nil, 200, true, false, "high"), // Different service level
 		}
 
-		result := formatter.Format(nil, metrics, start, end)
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
 
 		// Should create separate time series due to metadata change
 		if len(result) != 2 {
@@ -1764,7 +1767,7 @@ func TestSampledMetricsFormatterBasicFunctions(t *testing.T) {
 		end := time.Date(2022, 11, 22, 16, 0, 0, 0, time.UTC)
 
 		emptyMetrics := []entity.HydratedMetric{}
-		result := formatter.Format(nil, emptyMetrics, start, end)
+		result := formatter.Format(context.Background(), nil, emptyMetrics, start, end)
 		assert.Nil(t, result, "Empty metrics should return nil")
 	})
 
@@ -1782,7 +1785,7 @@ func TestSampledMetricsFormatterBasicFunctions(t *testing.T) {
 		metric.MeasuredType = metadata.AllocatedSize
 
 		metrics := []entity.HydratedMetric{metric}
-		result := formatter.Format(nil, metrics, start, end)
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
 		assert.NotNil(t, result, "Should return result for valid metric")
 		assert.GreaterOrEqual(t, len(result), 0, "Should handle single metric")
 	})
@@ -1801,7 +1804,7 @@ func TestSampledMetricsFormatterBasicFunctions(t *testing.T) {
 		metric.MeasuredType = metadata.AllocatedSize
 
 		metrics := []entity.HydratedMetric{metric}
-		result := formatter.Format(nil, metrics, start, end)
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
 		// Metric before start with no metric in range may return nil
 		assert.True(t, result == nil || len(result) >= 0, "Should handle metric before start")
 	})
@@ -1820,7 +1823,7 @@ func TestSampledMetricsFormatterBasicFunctions(t *testing.T) {
 		metric.MeasuredType = metadata.AllocatedSize
 
 		metrics := []entity.HydratedMetric{metric}
-		result := formatter.Format(nil, metrics, start, end)
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
 		// Metric after end with no metric in range may return nil
 		assert.True(t, result == nil || len(result) >= 0, "Should handle metric after end")
 	})
@@ -1848,7 +1851,7 @@ func TestSampledMetricsFormatterBasicFunctions(t *testing.T) {
 		metric2.MeasuredType = metadata.AllocatedSize
 
 		metrics := []entity.HydratedMetric{metric1, metric2}
-		result := formatter.Format(nil, metrics, start, end)
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
 		assert.NotNil(t, result, "Should handle metrics with metadata changes")
 	})
 
@@ -1882,7 +1885,7 @@ func TestSampledMetricsFormatterBasicFunctions(t *testing.T) {
 		metric2.MeasuredType = metadata.AllocatedSize
 
 		metrics := []entity.HydratedMetric{metric1, metric2}
-		result := shortFormatter.Format(nil, metrics, start, end)
+		result := shortFormatter.Format(context.Background(), nil, metrics, start, end)
 		assert.NotNil(t, result, "Should handle backfill limit exceeded")
 	})
 
@@ -1905,7 +1908,7 @@ func TestSampledMetricsFormatterBasicFunctions(t *testing.T) {
 		metric.MeasuredType = metadata.AllocatedSize
 
 		metrics := []entity.HydratedMetric{metric}
-		result := pointFormatter.Format(nil, metrics, start, end)
+		result := pointFormatter.Format(context.Background(), nil, metrics, start, end)
 		assert.NotNil(t, result, "Point mode should work")
 	})
 }

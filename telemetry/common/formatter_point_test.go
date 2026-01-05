@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"reflect"
 	"sort"
 	"testing"
@@ -23,7 +24,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 	t.Run("00:-------|-----------|-------", func(t *testing.T) {
 		var want []TimeSeries
 
-		got := pointFormatter.Format(nil, []entity.HydratedMetric{}, start, end)
+		got := pointFormatter.Format(context.Background(), nil, []entity.HydratedMetric{}, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -39,7 +40,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 
 		var want []TimeSeries
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -68,7 +69,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -84,7 +85,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 
 		var want []TimeSeries
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -115,7 +116,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -150,7 +151,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -181,7 +182,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -199,7 +200,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 
 		var want []TimeSeries
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -227,7 +228,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -258,7 +259,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -301,7 +302,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -332,7 +333,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -350,7 +351,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 
 		var want []TimeSeries
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -378,7 +379,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -415,7 +416,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -456,7 +457,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -493,7 +494,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -526,7 +527,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -561,7 +562,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -606,7 +607,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -655,7 +656,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -692,7 +693,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -727,7 +728,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -764,7 +765,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -813,7 +814,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -858,7 +859,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -915,7 +916,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -948,7 +949,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -966,6 +967,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			createHydratedMetric(timestamp2, nil, 200, true, false, "low"),
 		}
 		sort.Sort(entity.ByTimestamp(hydratedMetrics))
+
 		want := []TimeSeries{
 			{
 				AggregationStart: start,
@@ -981,7 +983,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1008,7 +1010,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1022,7 +1024,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 
 		var want []TimeSeries
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1052,7 +1054,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)
@@ -1088,7 +1090,7 @@ func TestSampledMetricsFormatter_Format_Points(t *testing.T) {
 			},
 		}
 
-		got := pointFormatter.Format(nil, hydratedMetrics, start, end)
+		got := pointFormatter.Format(context.Background(), nil, hydratedMetrics, start, end)
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Got %+v, Want %+v", got, want)

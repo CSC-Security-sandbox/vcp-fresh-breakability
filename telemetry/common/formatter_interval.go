@@ -1,6 +1,8 @@
 package common
 
 import (
+	"context"
+	"sort"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
@@ -48,7 +50,7 @@ type SampledMetricsFormatter struct {
 
 // Format accepts a collection of sampled hydrated metrics and returns a collection of time series that
 // can be used to aggregate the metrics over the aggregation period specified by start and end.
-func (f SampledMetricsFormatter) Format(logger log.Logger, metrics []entity.HydratedMetric, start, end time.Time) []TimeSeries {
+func (f SampledMetricsFormatter) Format(ctx context.Context, logger log.Logger, metrics []entity.HydratedMetric, start, end time.Time) []TimeSeries {
 	if logger != nil {
 		logger.Debug("Formatting sampled metrics")
 	}
@@ -56,6 +58,9 @@ func (f SampledMetricsFormatter) Format(logger log.Logger, metrics []entity.Hydr
 	if len(metrics) < 1 {
 		return nil
 	}
+
+	// Sort the metrics in chronological order
+	sort.Sort(entity.ByTimestamp(metrics))
 
 	var timeSeries []TimeSeries
 	var dataPoints []DataPoint
@@ -149,9 +154,6 @@ func (f SampledMetricsFormatter) Format(logger log.Logger, metrics []entity.Hydr
 		// in interval mode, then we must preserve the interval between the metrics by adding a data point
 		// for the last hydratedMetric to the new set of data points.
 		if hasMetadataChanged(hydratedMetric, *lastMetric) && len(dataPoints) > 0 {
-			if f.Logger != nil {
-				f.Logger.Info("Time series created Rishabh")
-			}
 			timeSeries = append(timeSeries, TimeSeries{
 				AggregationStart: start,
 				AggregationEnd:   lastMetric.Timestamp.ToTime(),
@@ -210,4 +212,14 @@ func (f SampledMetricsFormatter) Format(logger log.Logger, metrics []entity.Hydr
 		f.Logger.Debugf("Time series created, %+v", timeSeries)
 	}
 	return timeSeries
+}
+
+// GetBackfillLimit returns the backfill limit of the formatter.
+func (f SampledMetricsFormatter) GetBackfillLimit() time.Duration {
+	return f.BackfillLimit
+}
+
+// SetBackfillLimit sets the backfill limit of the formatter.
+func (f SampledMetricsFormatter) SetBackfillLimit(limit time.Duration) {
+	f.BackfillLimit = limit
 }

@@ -33,6 +33,11 @@ type ResourceKey struct {
 	ConsumerID     string
 }
 
+type CounterAggregationCacheResourceKey struct {
+	ResourceUUID string
+	MeasuredType metadata.MeasuredType
+}
+
 type Labels map[string]interface{}
 
 type ResourceData struct {
@@ -96,6 +101,18 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 	if len(aggregatedRecordsToRetry) > 0 {
 		logger.Infof("Fetched %d aggregated usage records to retry sending to Google Cloud Billing", len(aggregatedRecordsToRetry))
 	}
+
+	// Populate BackfillLimit for all DefaultAggregationJobDefinitions based on config
+	p.populateBackfillLimit(logger)
+
+	// Pre-fetch all counter values for optimization
+	counterCache, cacheErr := p.preloadCounterValues(ctx, aggregationStartTime, aggregationEndTime, logger)
+	if cacheErr != nil {
+		logger.Warnf("Failed to preload counter values : %v", cacheErr)
+		counterCache = make(map[CounterAggregationCacheResourceKey]*float64) // Initialize empty cache
+	}
+	logger.Debugf("Counter cache loaded with %d entries: %v", len(counterCache), counterCache)
+
 	// Process each job definition
 	for key, jobDef := range common.DefaultAggregationJobDefinitions {
 		var metrics []datamodel2.HydratedMetrics
@@ -106,7 +123,7 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 			// 1. All records from current aggregation window
 			// 2. Only the latest record from previous period (closest to aggregation start)
 			// 3. Only the earliest record from next period (closest to aggregation end)
-			metrics, err = p.fetchMetricsForCounterAndIntegralAggregation(ctx, aggregationStartTime, aggregationEndTime, key.ResourceType.String(), key.MeasuredType.String())
+			metrics, err = p.fetchMetricsForCounterAndIntegralAggregation(ctx, aggregationStartTime, aggregationEndTime, key.ResourceType.String(), key.MeasuredType.String(), jobDef.TimeSeriesFormatter.GetBackfillLimit())
 			if err != nil {
 				logger.Error("Failed to list hydrated metrics", "error", err.Error())
 				continue
@@ -119,18 +136,23 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 
 		// Process each resource group
 		for resourceIdentifier, resourceMetrics := range resourceGroups {
+			// Inject metricsDB into CounterMetricsFormatter if applicable
+			if counterFormatter, ok := jobDef.TimeSeriesFormatter.(*common.CounterMetricsFormatter); ok {
+				counterFormatter.MetricsDB = p.metricsDB
+			}
+
 			// Format the raw metrics into time series using the job definition's formatter.
 			// The formatter groups metrics by metadata changes and applies trimming logic based on
 			// aggregation type (Counter/Integral/etc). For counter metrics, it includes the last
 			// datapoint from the previous period for delta calculation. For integral metrics, it
 			// may include the first datapoint from the next period. Returns a slice of TimeSeries,
 			// where each TimeSeries represents a continuous period with consistent metadata.
-			series := jobDef.TimeSeriesFormatter.Format(logger, resourceMetrics, aggregationStartTime, aggregationEndTime)
+			series := jobDef.TimeSeriesFormatter.Format(ctx, logger, resourceMetrics, aggregationStartTime, aggregationEndTime)
 
 			// loop through each series and process metrics
 			for _, metricseries := range series {
-				logger.Infof("Collected timeseries %s, %s, %v for resource %s and customer id %s ", metricseries.AggregationStart, metricseries.AggregationEnd, metricseries.DataPoints, resourceIdentifier.ResourceName, resourceIdentifier.ConsumerID)
-				if err := p.processMetricsWithJobDef(ctx, resourceIdentifier, metricseries, jobDef, metricseries.AggregationStart, metricseries.AggregationEnd, resourceCollection, &aggregatedRecords, logger); err != nil {
+				logger.Debugf("Collected timeseries %s, %s, %v for resource %s and customer id %s ", metricseries.AggregationStart, metricseries.AggregationEnd, metricseries.DataPoints, resourceIdentifier.ResourceName, resourceIdentifier.ConsumerID)
+				if err := p.processMetricsWithJobDef(ctx, resourceIdentifier, metricseries, jobDef, metricseries.AggregationStart, metricseries.AggregationEnd, resourceCollection, &aggregatedRecords, counterCache, logger); err != nil {
 					logger.Errorf("Failed to process metrics for resource %s and customer id %s : %v", resourceIdentifier.ResourceName, resourceIdentifier.ConsumerID, err)
 					continue
 				}
@@ -164,6 +186,22 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 		elapsed, elapsed.Seconds(), len(aggregatedRecords))
 
 	return nil
+}
+
+// populateBackfillLimit sets the BackfillLimit for all job definitions based on config
+func (p *BillingProvider) populateBackfillLimit(logger log.Logger) {
+	for key, jobDef := range common.DefaultAggregationJobDefinitions {
+		// Set BackfillLimit based on aggregation type
+		if jobDef.AggregationType == common.IntegralAggregation {
+			jobDef.TimeSeriesFormatter.SetBackfillLimit(time.Duration(p.config.IntervalBackfillLimitMinutes) * time.Minute)
+			logger.Debugf("Set BackfillLimit to %v for IntegralAggregation: %s/%s",
+				jobDef.TimeSeriesFormatter.GetBackfillLimit(), key.ResourceType, key.MeasuredType)
+		} else if jobDef.AggregationType == common.CounterAggregation {
+			jobDef.TimeSeriesFormatter.SetBackfillLimit(time.Duration(p.config.CounterBackfillLimitMinutes) * time.Minute)
+			logger.Debugf("Set BackfillLimit to %v for CounterAggregation: %s/%s",
+				jobDef.TimeSeriesFormatter.GetBackfillLimit(), key.ResourceType, key.MeasuredType)
+		}
+	}
 }
 
 // fetchResourceData fetches label values from pool and volume tables in VCP database
@@ -770,15 +808,15 @@ func (p *BillingProvider) groupMetricsByResource(metrics []datamodel2.HydratedMe
 
 // fetchMetricsForCounterAndIntegralAggregation fetches metrics for counter aggregation using a single query
 // This gets all records from the current aggregation window plus the latest record from the previous period
-func (p *BillingProvider) fetchMetricsForCounterAndIntegralAggregation(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, resourceType, measuredType string) ([]datamodel2.HydratedMetrics, error) {
+func (p *BillingProvider) fetchMetricsForCounterAndIntegralAggregation(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, resourceType, measuredType string, backfillLimit time.Duration) ([]datamodel2.HydratedMetrics, error) {
 	// Create a complex filter that sorts by resource and timestamp
 
 	//	Look ahead 1 hour before and after the currenbt aggregation cycle. This is used in Forward and Backward aggregation scenarios. Forward aggregation
 	//	is used for integral aggregation where we need the latest record after the aggregation end time. Backward aggregation is used for counter aggregation
 	//	where we need the latest record before the aggregation start time.
 	filter := p.CreateComplexFilter(map[string]interface{}{
-		"startTime":    aggregationStartTime.Add(-1 * time.Hour), // Look back 1 hour before aggregation start
-		"endTime":      aggregationEndTime.Add(1 * time.Hour),    // Look ahead 1 hour after aggregation end
+		"startTime":    aggregationStartTime.Add(-(backfillLimit / 60) * time.Hour), // Look back 1 hour before aggregation start
+		"endTime":      aggregationEndTime.Add((backfillLimit / 60) * time.Hour),    // Look ahead 1 hour after aggregation end
 		"resourceType": resourceType,
 		"measuredType": measuredType,
 		"order":        "resource_name, deployment_name, consumer_id, metric_timestamp DESC", // Database sorts for us
@@ -819,9 +857,16 @@ func (p *BillingProvider) filterMetricsForCounterAndIntegralAggregationSorted(me
 	return result
 }
 
-func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resourceKey ResourceKey, metrics common.TimeSeries, jobDef common.AggregationJobDefinition, start, end time.Time, resourceCollection *ResourceCollection, aggregatedRecords *[]datamodel2.AggregatedUsage, logger log.Logger) error {
+func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resourceKey ResourceKey, metrics common.TimeSeries, jobDef common.AggregationJobDefinition, start, end time.Time, resourceCollection *ResourceCollection, aggregatedRecords *[]datamodel2.AggregatedUsage, counterCache map[CounterAggregationCacheResourceKey]*float64, logger log.Logger) error {
 	if len(metrics.DataPoints) == 0 {
 		logger.Infof("No metrics found for resource key %s and customer id %s", resourceKey, resourceKey.ConsumerID)
+		return nil
+	}
+
+	// Get resource data for the resource
+	resourceData := p.getResourceDataForAggregationUsage(resourceKey, metrics.Metadata.ResourceType, resourceCollection)
+	if resourceData == nil {
+		logger.Warnf("No resource data found for resource name %s, deployment name :%s, customer ID : %s", resourceKey.ResourceName, resourceKey.DeploymentName, resourceKey.ConsumerID)
 		return nil
 	}
 
@@ -831,7 +876,8 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 	case common.IntegralAggregation:
 		quantity = common.Integral(metrics.DataPoints)
 	case common.CounterAggregation:
-		quantity = common.CounterDelta(metrics.DataPoints, logger)
+		// Use the new method that considers previous aggregated counter values
+		quantity = p.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, metrics.DataPoints, metrics.MeasuredType, start, counterCache, resourceData.UUID, logger)
 	case common.SumAggregation:
 		quantity = common.Sum(metrics.DataPoints)
 	case common.FirstAggregation:
@@ -846,9 +892,6 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		val := metrics.DataPoints[len(metrics.DataPoints)-1].Quantity
 		lastCounterValue = &val
 	}
-
-	// Get resource data for the resource
-	resourceData := p.getResourceDataForAggregationUsage(resourceKey, metrics.Metadata.ResourceType, resourceCollection)
 
 	// Initialize with default values
 	var billingLabelsJSON *string
@@ -992,4 +1035,104 @@ func setServiceLevelForCRR(schedule string) string {
 	default:
 		return ""
 	}
+}
+
+// fetchAndCacheCounterValues fetches all latest aggregated counter values using pagination and builds the cache
+func (p *BillingProvider) fetchAndCacheCounterValues(ctx context.Context, aggregationType string, pageSize int, logger log.Logger) (map[CounterAggregationCacheResourceKey]*float64, error) {
+	result := make(map[CounterAggregationCacheResourceKey]*float64)
+	offset := 0
+	totalProcessed := 0
+	batchCount := 0
+	cachedCount := 0
+
+	// Use pagination to fetch all records and build cache
+	for {
+		// Fetch paginated records using the database method
+		usageRecords, err := p.metricsDB.GetLatestAggregatedUsageForAllResources(ctx, aggregationType, pageSize, offset)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch latest counter records from aggregated_usages (offset %d): %v", offset, err)
+		}
+
+		// Break if no records returned
+		if len(usageRecords) == 0 {
+			break
+		}
+
+		// Process current batch and populate cache
+		for i := range usageRecords {
+			record := &usageRecords[i]
+			if record.LastCounterValue == nil {
+				continue
+			}
+
+			// Use CounterAggregationCacheResourceKey as the cache key
+			cacheKey := CounterAggregationCacheResourceKey{
+				ResourceUUID: record.ResourceUUID,
+				MeasuredType: record.MeasuredType,
+			}
+			result[cacheKey] = record.LastCounterValue
+			cachedCount++
+			logger.Debugf("Cached counter value %.2f for ResourceUUID %s, MeasuredType %s from DB query",
+				*record.LastCounterValue, record.ResourceUUID, record.MeasuredType)
+		}
+
+		totalProcessed += len(usageRecords)
+		batchCount++
+		logger.Debugf("Processed %d records in batch %d (offset: %d, total processed: %d, cached: %d)",
+			len(usageRecords), batchCount, offset, totalProcessed, cachedCount)
+
+		// Update offset for next iteration
+		offset += pageSize
+	}
+
+	logger.Infof("Preloaded %d counter values into cache from %d total records in %d batches", cachedCount, totalProcessed, batchCount)
+	return result, nil
+}
+
+// preloadCounterValues fetches the latest counter values for all resources directly from the database
+// using a single query with window functions and pagination
+func (p *BillingProvider) preloadCounterValues(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, logger log.Logger) (map[CounterAggregationCacheResourceKey]*float64, error) {
+	// Get page size from config
+	pageSize := p.config.PoolVolumeLabelPageSize
+
+	// Fetch and cache counter values with pagination
+	return p.fetchAndCacheCounterValues(ctx, "CounterAggregation", pageSize, logger)
+}
+
+// calculateCounterDeltaWithAggregatedHistory adds the last aggregated counter value
+// as first data point and uses the existing CounterDelta logic
+func (p *BillingProvider) calculateCounterDeltaWithAggregatedHistory(ctx context.Context, resourceKey ResourceKey, dataPoints []common.DataPoint, measuredType metadata.MeasuredType, aggregationStartTime time.Time, counterCache map[CounterAggregationCacheResourceKey]*float64, resourceUUID string, logger log.Logger) float64 {
+	if len(dataPoints) == 0 {
+		return 0
+	}
+
+	// Create the cache key using ResourceUUID and MeasuredType
+	cacheKey := CounterAggregationCacheResourceKey{
+		ResourceUUID: resourceUUID,
+		MeasuredType: measuredType,
+	}
+	lastAggregatedCounterValue := counterCache[cacheKey]
+
+	// If we have a previous aggregated counter value, add it as the first data point
+	if lastAggregatedCounterValue != nil {
+		// Create a synthetic data point with the last aggregated counter value
+		// Use aggregationStartTime - 1 minute to ensure it comes before current cycle data
+		lastCounterDataPoint := common.DataPoint{
+			Timestamp: aggregationStartTime.Add(-1 * time.Minute),
+			Quantity:  *lastAggregatedCounterValue,
+		}
+
+		// Prepend the last counter value to the data points
+		enhancedDataPoints := append([]common.DataPoint{lastCounterDataPoint}, dataPoints...)
+
+		logger.Debugf("Added last counter value %.2f from cache as starting point for resource %s, measured type %s",
+			*lastAggregatedCounterValue, resourceUUID, measuredType)
+
+		// Use existing CounterDelta logic with enhanced data points
+		return common.CounterDelta(enhancedDataPoints, logger)
+	}
+
+	// No previous aggregated value found, use standard counter delta calculation
+	logger.Debugf("No previous aggregated counter value found for resource %s, measured type %s, using standard CounterDelta", resourceUUID, measuredType)
+	return common.CounterDelta(dataPoints, logger)
 }

@@ -114,6 +114,35 @@ func (r *DataStoreRepository) GetAggregatedUsage(ctx context.Context, filter map
 	return result, err
 }
 
+// GetLatestAggregatedUsageForAllResources retrieves the latest aggregated usage records for all resources
+// filtered by aggregation type. It uses a window function to get the most recent record per resource_uuid
+// and measured_type combination.
+//
+// Performance optimization:
+// This query is optimized with a single composite index:
+// - idx_aggregated_usages_latest_for_resources: (aggregation_type, resource_uuid, measured_type, created_at DESC)
+//
+// This single index efficiently supports:
+// - WHERE clause filtering on aggregation_type (first column enables index scan)
+// - PARTITION BY resource_uuid, measured_type in the window function (columns 2-3)
+// - ORDER BY created_at DESC for selecting the latest record (column 4)
+//
+// See migration: database/metrics/migrations/post/0002_add_indexes_for_latest_aggregated_usage.up.sql
+func (r *DataStoreRepository) GetLatestAggregatedUsageForAllResources(ctx context.Context, aggregationType string, limit, offset int) ([]datamodel.AggregatedUsage, error) {
+	var results []datamodel.AggregatedUsage
+	query := `SELECT resource_uuid, measured_type, last_counter_value FROM (
+		SELECT resource_uuid, measured_type, last_counter_value, ROW_NUMBER() OVER (
+			PARTITION BY resource_uuid, measured_type 
+			ORDER BY created_at DESC
+		) as rn
+		FROM aggregated_usages 
+		WHERE aggregation_type = ? AND last_counter_value IS NOT NULL
+	) ranked WHERE rn = 1
+	LIMIT ? OFFSET ?`
+	err := r.db.GORM().WithContext(ctx).Raw(query, aggregationType, limit, offset).Scan(&results).Error
+	return results, err
+}
+
 func (r *DataStoreRepository) UpdateAggregatedUsage(ctx context.Context, id int64, updates map[string]interface{}) error {
 	return r.db.GORM().WithContext(ctx).Model(&datamodel.AggregatedUsage{}).Where("id = ?", id).Updates(updates).Error
 }
@@ -157,6 +186,7 @@ type (
 		CreateAggregatedUsage(ctx context.Context, a *datamodel.AggregatedUsage) error
 		CreateAggregatedUsageBatch(ctx context.Context, usages []datamodel.AggregatedUsage, batchSize int) error
 		GetAggregatedUsage(ctx context.Context, filter map[string]interface{}) ([]datamodel.AggregatedUsage, error)
+		GetLatestAggregatedUsageForAllResources(ctx context.Context, aggregationType string, limit, offset int) ([]datamodel.AggregatedUsage, error)
 		UpdateAggregatedUsage(ctx context.Context, id int64, updates map[string]interface{}) error
 		DeleteAggregatedUsage(ctx context.Context, id int64) error
 		DeleteAggregatedUsageOlderThan(ctx context.Context, olderThan time.Time) (int64, error)

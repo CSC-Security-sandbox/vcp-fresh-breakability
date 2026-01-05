@@ -232,7 +232,17 @@ func TestProcessMetrics_EmptyMetrics(t *testing.T) {
 	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
 	vcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
+	// Mock the counter cache preload call (returns empty list to stop pagination)
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
 	// Expect call to GetHydratedMetrics with empty results
+	// Mock the counter cache preload call (returns empty list to stop pagination)
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
 	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(
 		[]datamodel2.HydratedMetrics{}, nil,
 	).Times(len(common.DefaultAggregationJobDefinitions))
@@ -281,6 +291,11 @@ func TestProcessMetrics_DatabaseError(t *testing.T) {
 	).Once()
 
 	// Expect call to GetHydratedMetrics with an error (may be called multiple times for different job definitions)
+	// Mock the counter cache preload call (returns empty list to stop pagination)
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
 	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(
 		nil, errors.New("database error"),
 	).Maybe()
@@ -333,15 +348,16 @@ func TestProcessMetricsWithJobDef_UnsupportedAggregation(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now()
 	resourceID := ResourceKey{
-		ResourceType:   metadata.Volume,
-		ResourceName:   "test-resource",
-		DeploymentName: "test-deployment",
-		ConsumerID:     "test-customer",
+		ResourceType: metadata.Volume,
+		ResourceName: "test-resource-uuid",
+
+		ConsumerID: "test-customer",
 	}
 
 	metrics := []datamodel2.HydratedMetrics{
 		{
-			ResourceName: "test-resource",
+			ResourceName: "test-resource-uuid",
+			ResourceType: metadata.Volume,
 			Quantity:     100,
 		},
 	}
@@ -354,10 +370,16 @@ func TestProcessMetricsWithJobDef_UnsupportedAggregation(t *testing.T) {
 	// Test with unsupported aggregation type
 	var aggregatedRecords []datamodel2.AggregatedUsage
 	resourceCollection := &ResourceCollection{
-		PoolData:   make(map[ResourceKey]ResourceData),
-		VolumeData: make(map[ResourceKey]ResourceData),
+		PoolData: make(map[ResourceKey]ResourceData),
+		VolumeData: map[ResourceKey]ResourceData{
+			resourceID: {
+				UUID:      "test-uuid",
+				AccountID: 123,
+				Labels:    make(Labels),
+			},
+		},
 	}
-	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, now.Add(-1*time.Hour), now), jobDef, now.Add(-1*time.Hour), now, resourceCollection, &aggregatedRecords, logger)
+	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, now.Add(-1*time.Hour), now), jobDef, now.Add(-1*time.Hour), now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported job type")
 
@@ -450,19 +472,18 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 	startTime := now.Add(-1 * time.Hour)
 
 	resourceID := ResourceKey{
-		ResourceType:   metadata.Volume,
-		ResourceName:   "test-resource",
-		DeploymentName: "test-deployment",
-		ConsumerID:     "test-customer",
+		ResourceType: metadata.Volume,
+		ResourceName: "test-resource-uuid",
+
+		ConsumerID: "test-customer",
 	}
 
 	customerID := "test-customer"
-	resourceName := "test-resource"
 	location := "test-location"
 
 	metrics := []datamodel2.HydratedMetrics{
 		{
-			ResourceName:    resourceName,
+			ResourceName:    "test-uuid",
 			ConsumerID:      customerID,
 			Location:        location,
 			Quantity:        100,
@@ -471,7 +492,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			MeasuredType:    metadata.AllocatedSize,
 		},
 		{
-			ResourceName:    resourceName,
+			ResourceName:    "test-uuid",
 			ConsumerID:      customerID,
 			Location:        location,
 			Quantity:        200,
@@ -489,7 +510,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			PoolData:   make(map[ResourceKey]ResourceData),
 			VolumeData: make(map[ResourceKey]ResourceData),
 		}
-		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries([]datamodel2.HydratedMetrics{}, startTime, now), common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, logger)
+		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries([]datamodel2.HydratedMetrics{}, startTime, now), common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
 		assert.NoError(t, err)
 		// No DB call should be made, but record should be collected for batch
 		assert.Len(t, aggregatedUsageForDB, 0) // No metrics means no aggregated records
@@ -511,13 +532,13 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			Labels:    Labels{"env": "test"},
 		}
 
-		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, logger)
+		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
 		assert.NoError(t, err)
 		// Verify that the record was collected for batch saving
 		assert.Len(t, aggregatedRecords, 1)
 		assert.Equal(t, string(common.IntegralAggregation), aggregatedRecords[0].AggregationType)
 		assert.Equal(t, customerID, *aggregatedRecords[0].VendorCustomerID)
-		assert.Equal(t, resourceName, *aggregatedRecords[0].ResourceName)
+		assert.Equal(t, resourceID.ResourceName, *aggregatedRecords[0].ResourceName)
 	})
 
 	t.Run("CounterAggregation", func(t *testing.T) {
@@ -533,7 +554,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			AccountID: 123,
 			Labels:    Labels{"env": "test"},
 		}
-		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, logger)
+		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
 		assert.NoError(t, err)
 		// Verify that the record was collected and has LastCounterValue set
 		assert.Len(t, aggregatedRecords, 1)
@@ -555,12 +576,12 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			AccountID: 123,
 			Labels:    Labels{"env": "test"},
 		}
-		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords, logger)
+		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
 		assert.NoError(t, err)
 		// Verify that the record was collected for batch saving
 		assert.Len(t, aggregatedRecords, 1)
 		assert.Equal(t, string(common.SumAggregation), aggregatedRecords[0].AggregationType)
-		assert.Equal(t, resourceName, *aggregatedRecords[0].ResourceName)
+		assert.Equal(t, resourceID.ResourceName, *aggregatedRecords[0].ResourceName)
 	})
 
 	t.Run("FirstAggregation", func(t *testing.T) {
@@ -576,12 +597,12 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			AccountID: 123,
 			Labels:    Labels{"env": "test"},
 		}
-		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.FirstAggregation}, startTime, now, resourceCollection, &aggregatedRecords, logger)
+		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.FirstAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
 		assert.NoError(t, err)
 		// Verify that the record was collected for batch saving
 		assert.Len(t, aggregatedRecords, 1)
 		assert.Equal(t, string(common.FirstAggregation), aggregatedRecords[0].AggregationType)
-		assert.Equal(t, resourceName, *aggregatedRecords[0].ResourceName)
+		assert.Equal(t, resourceID.ResourceName, *aggregatedRecords[0].ResourceName)
 	})
 
 	t.Run("DatabaseError", func(t *testing.T) {
@@ -598,7 +619,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			AccountID: 123,
 			Labels:    Labels{"env": "test"},
 		}
-		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords, logger)
+		err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
 		assert.NoError(t, err) // No error in collection phase
 		// Verify that the record was collected for batch saving
 		assert.Len(t, aggregatedRecords, 1)
@@ -614,10 +635,10 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 		}
 
 		resourceIDRep := ResourceKey{
-			ResourceType:   metadata.VolumeReplicationRelationship,
-			ResourceName:   "test-resource",
-			DeploymentName: "test-deployment",
-			ConsumerID:     "test-customer",
+			ResourceType: metadata.VolumeReplicationRelationship,
+			ResourceName: "test-resource-uuid",
+
+			ConsumerID: "test-customer",
 		}
 
 		// Add the resource data to the collection
@@ -641,7 +662,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 
 		repMetrics := []datamodel2.HydratedMetrics{
 			{
-				ResourceName:    resourceName,
+				ResourceName:    "test-uuid",
 				ConsumerID:      customerID,
 				Location:        location,
 				Quantity:        150,
@@ -651,7 +672,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 			},
 		}
 
-		err := processor.processMetricsWithJobDef(ctx, resourceIDRep, hydratedMetricsToTimeSeries(repMetrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, logger)
+		err := processor.processMetricsWithJobDef(ctx, resourceIDRep, hydratedMetricsToTimeSeries(repMetrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
 		assert.NoError(t, err)
 		// Verify that the record was collected and has LastCounterValue set
 		assert.Len(t, aggregatedRecords, 1)
@@ -739,9 +760,19 @@ func TestProcessMetricsSuccess(t *testing.T) {
 	}
 
 	// Setup expectations for GetHydratedMetrics call - return metrics for one job only
+	// Mock the counter cache preload call (returns empty list to stop pagination)
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
 	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(metrics, nil).Once()
 
 	// For all other job definitions, return empty results
+	// Mock the counter cache preload call (returns empty list to stop pagination)
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
 	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(
 		[]datamodel2.HydratedMetrics{}, nil,
 	).Times(len(common.DefaultAggregationJobDefinitions) - 1)
@@ -841,9 +872,19 @@ func TestProcessMetricsWithJobDefErrors(t *testing.T) {
 	}
 
 	// Setup expectations for GetHydratedMetrics call
+	// Mock the counter cache preload call (returns empty list to stop pagination)
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
 	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(metrics, nil).Once()
 
 	// For all other job definitions, return empty results
+	// Mock the counter cache preload call (returns empty list to stop pagination)
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
 	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(
 		[]datamodel2.HydratedMetrics{}, nil,
 	).Times(len(common.DefaultAggregationJobDefinitions) - 1)
@@ -974,6 +1015,11 @@ func TestProcessMetrics_GetUnsentUsagesError(t *testing.T) {
 	).Once()
 
 	// Even with retry error, should continue and call GetHydratedMetrics
+	// Mock the counter cache preload call (returns empty list to stop pagination)
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
 	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(
 		[]datamodel2.HydratedMetrics{}, nil,
 	).Times(len(common.DefaultAggregationJobDefinitions))
@@ -1004,7 +1050,7 @@ func TestProcessMetrics_WithAggregatedRecordsDelivery(t *testing.T) {
 		{
 			ID:               1,
 			VendorCustomerID: stringPtr("retry-customer"),
-			ResourceName:     stringPtr("retry-resource"),
+			ResourceName:     stringPtr("retry-resource-uuid"),
 			Quantity:         100.0,
 			AggregationStart: startTime,
 			AggregationEnd:   now,
@@ -1063,9 +1109,19 @@ func TestProcessMetrics_WithAggregatedRecordsDelivery(t *testing.T) {
 	).Once()
 
 	// Setup expectations for GetHydratedMetrics call - return metrics for one job only
+	// Mock the counter cache preload call (returns empty list to stop pagination)
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
 	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(processedMetrics, nil).Once()
 
 	// For all other job definitions, return empty results
+	// Mock the counter cache preload call (returns empty list to stop pagination)
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
 	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(
 		[]datamodel2.HydratedMetrics{}, nil,
 	).Times(len(common.DefaultAggregationJobDefinitions) - 1)
@@ -1162,9 +1218,19 @@ func TestProcessMetrics_DeliveryError(t *testing.T) {
 	).Once()
 
 	// Setup expectations for GetHydratedMetrics call
+	// Mock the counter cache preload call (returns empty list to stop pagination)
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
 	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(metrics, nil).Once()
 
 	// For all other job definitions, return empty results
+	// Mock the counter cache preload call (returns empty list to stop pagination)
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
 	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(
 		[]datamodel2.HydratedMetrics{}, nil,
 	).Times(len(common.DefaultAggregationJobDefinitions) - 1)
@@ -1272,10 +1338,10 @@ func TestProcessMetricsWithJobDef_NonBillableRecord(t *testing.T) {
 	startTime := now.Add(-1 * time.Hour)
 
 	resourceID := ResourceKey{
-		ResourceType:   metadata.Volume,
-		ResourceName:   "test-resource",
-		DeploymentName: "test-deployment",
-		ConsumerID:     "test-customer",
+		ResourceType: metadata.Volume,
+		ResourceName: "test-resource-uuid",
+
+		ConsumerID: "test-customer",
 	}
 
 	metrics := []datamodel2.HydratedMetrics{
@@ -1303,7 +1369,7 @@ func TestProcessMetricsWithJobDef_NonBillableRecord(t *testing.T) {
 		AccountID: 123,
 		Labels:    Labels{"env": "test"},
 	}
-	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, now.Add(-1*time.Hour), now), common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords, util.GetLogger(ctx))
+	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, now.Add(-1*time.Hour), now), common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), util.GetLogger(ctx))
 
 	assert.NoError(t, err)
 	// With batch approach, records are collected regardless of billability
@@ -1586,16 +1652,14 @@ func TestFetchResourceData(t *testing.T) {
 
 func TestResourceKeyMapKeyEquality(t *testing.T) {
 	key1 := ResourceKey{
-		ResourceType:   metadata.Volume,
-		ResourceName:   "vol1",
-		DeploymentName: "dep1",
-		ConsumerID:     "acc1",
+		ResourceType: metadata.Volume,
+		ResourceName: "vol1",
+		ConsumerID:   "acc1",
 	}
 	key2 := ResourceKey{
-		ResourceType:   metadata.Volume,
-		ResourceName:   "vol1",
-		DeploymentName: "dep1",
-		ConsumerID:     "acc1",
+		ResourceType: metadata.Volume,
+		ResourceName: "vol1",
+		ConsumerID:   "acc1",
 	}
 
 	m := make(map[ResourceKey]string)
@@ -1670,6 +1734,11 @@ func TestFetchMetricsForCounterAggregation(t *testing.T) {
 	}
 
 	// Mock the database call
+	// Mock the counter cache preload call (returns empty list to stop pagination)
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
 	mockDB.On("GetHydratedMetrics", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
 		// Verify the filter includes the extended time range and ordering
 		if order, ok := filter["order"].(string); ok {
@@ -1685,6 +1754,7 @@ func TestFetchMetricsForCounterAggregation(t *testing.T) {
 		aggregationEndTime,
 		"VOLUME",
 		"ALLOCATED_SIZE",
+		60*time.Minute, // backfill limit
 	)
 
 	// Verify results
@@ -1818,6 +1888,11 @@ func TestFetchMetricsForCounterAggregation_DatabaseError(t *testing.T) {
 	aggregationEndTime := now
 
 	// Mock database error
+	// Mock the counter cache preload call (returns empty list to stop pagination)
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
 	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(nil, errors.New("database connection error"))
 
 	// Execute the method
@@ -1827,6 +1902,7 @@ func TestFetchMetricsForCounterAggregation_DatabaseError(t *testing.T) {
 		aggregationEndTime,
 		"VOLUME",
 		"ALLOCATED_SIZE",
+		60*time.Minute, // backfill limit
 	)
 
 	// Verify error handling
@@ -1847,8 +1923,14 @@ func TestFetchMetricsForCounterAggregation_FilterValidation(t *testing.T) {
 	now := time.Now()
 	aggregationStartTime := now.Add(-1 * time.Hour)
 	aggregationEndTime := now
+	backfillLimit := 60 * time.Minute
 
 	// Mock the database call with detailed filter validation
+	// Mock the counter cache preload call (returns empty list to stop pagination)
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
 	mockDB.On("GetHydratedMetrics", context.Background(), mock.MatchedBy(func(filter map[string]interface{}) bool {
 		// Verify all required filter components
 		conditions, hasConditions := filter["conditions"].([][]interface{})
@@ -1858,9 +1940,10 @@ func TestFetchMetricsForCounterAggregation_FilterValidation(t *testing.T) {
 			return false
 		}
 
-		// Verify time range extends 1 hour back and 1 hour forward
-		expectedStartTime := aggregationStartTime.Add(-1 * time.Hour) // 1 hour before aggregation start
-		expectedEndTime := aggregationEndTime.Add(1 * time.Hour)      // 1 hour after aggregation end
+		// Verify time range extends based on backfillLimit calculation
+		// The implementation does: aggregationStartTime.Add(-(backfillLimit / 60) * time.Hour)
+		expectedStartTime := aggregationStartTime.Add(-(backfillLimit / 60) * time.Hour)
+		expectedEndTime := aggregationEndTime.Add((backfillLimit / 60) * time.Hour)
 
 		// Check conditions
 		foundStartTime := false
@@ -1910,6 +1993,7 @@ func TestFetchMetricsForCounterAggregation_FilterValidation(t *testing.T) {
 		aggregationEndTime,
 		"VOLUME",
 		"ALLOCATED_SIZE",
+		backfillLimit,
 	)
 
 	// Verify no error
@@ -1991,6 +2075,11 @@ func TestProcessBillingMetrics_NonCounterAggregation(t *testing.T) {
 	})).Return([]datamodel2.AggregatedUsage{}, nil)
 
 	// Mock the GetHydratedMetrics for non-counter aggregation (this will hit the else branch on line 96)
+	// Mock the counter cache preload call (returns empty list to stop pagination)
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
 	mockDB.On("GetHydratedMetrics", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
 		// This should be called for FirstAggregation type which is not counter or integral
 		return true
@@ -2040,6 +2129,11 @@ func TestProcessBillingMetrics_FetchResourceDataError(t *testing.T) {
 	})).Return([]datamodel2.AggregatedUsage{}, nil)
 
 	// Mock the GetHydratedMetrics calls for all aggregation types
+	// Mock the counter cache preload call (returns empty list to stop pagination)
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
 	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil)
 
 	// Mock delivery - should not be called since no metrics to deliver
@@ -2160,31 +2254,31 @@ func TestGetResourceDataForAggregationUsage(t *testing.T) {
 
 	// Create test resource keys
 	poolKey := ResourceKey{
-		ResourceType:   metadata.VolumePool,
-		ResourceName:   "test-pool",
-		DeploymentName: "test-deployment",
-		ConsumerID:     "test-customer",
+		ResourceType: metadata.VolumePool,
+		ResourceName: "test-pool-uuid",
+
+		ConsumerID: "test-customer",
 	}
 
 	volumeKey := ResourceKey{
-		ResourceType:   metadata.Volume,
-		ResourceName:   "test-volume",
-		DeploymentName: "test-deployment",
-		ConsumerID:     "test-customer",
+		ResourceType: metadata.Volume,
+		ResourceName: "test-volume-uuid",
+
+		ConsumerID: "test-customer",
 	}
 
 	poolKeyRegionalHA := ResourceKey{
-		ResourceType:   metadata.VolumePoolRegionalHA,
-		ResourceName:   "test-pool",
-		DeploymentName: "test-deployment",
-		ConsumerID:     "test-customer",
+		ResourceType: metadata.VolumePoolRegionalHA,
+		ResourceName: "test-pool-uuid",
+
+		ConsumerID: "test-customer",
 	}
 
 	volumeKeyRegionalHA := ResourceKey{
-		ResourceType:   metadata.VolumeRegionalHA,
-		ResourceName:   "test-volume",
-		DeploymentName: "test-deployment",
-		ConsumerID:     "test-customer",
+		ResourceType: metadata.VolumeRegionalHA,
+		ResourceName: "test-volume-uuid",
+
+		ConsumerID: "test-customer",
 	}
 
 	// Create test resource data
@@ -2250,7 +2344,7 @@ func TestGetResourceDataForAggregationUsage(t *testing.T) {
 		},
 		{
 			name:         "Resource not found in collection",
-			id:           ResourceKey{ResourceType: metadata.Volume, ResourceName: "non-existent"},
+			id:           ResourceKey{ResourceType: metadata.Volume, ResourceName: "non-existent-uuid"},
 			resourceType: metadata.Volume,
 			collection:   resourceCollection,
 			expectNil:    true,

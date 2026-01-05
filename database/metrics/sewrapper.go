@@ -151,6 +151,22 @@ func (re *retryEngine) GetAggregatedUsage(ctx context.Context, filter map[string
 	return var0, err
 }
 
+func (re *retryEngine) GetLatestAggregatedUsageForAllResources(ctx context.Context, aggregationType string, limit, offset int) ([]datamodel.AggregatedUsage, error) {
+	var var0 []datamodel.AggregatedUsage
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetLatestAggregatedUsageForAllResources(ctx, aggregationType, limit, offset)
+		if err != nil {
+			re.logError("GetLatestAggregatedUsageForAllResources", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) UpdateAggregatedUsage(ctx context.Context, id int64, updates map[string]interface{}) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error

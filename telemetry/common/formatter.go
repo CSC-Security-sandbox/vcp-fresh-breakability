@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
@@ -24,7 +25,9 @@ import (
 //   - Each time series has the aggregation start set to the start of the aggregation period and the
 //     aggregation end set to the timestamp of the last data point in the time series.
 type TimeSeriesFormatter interface {
-	Format(logger log.Logger, metrics []entity.HydratedMetric, start, end time.Time) []TimeSeries
+	Format(ctx context.Context, logger log.Logger, metrics []entity.HydratedMetric, start, end time.Time) []TimeSeries
+	GetBackfillLimit() time.Duration
+	SetBackfillLimit(limit time.Duration)
 }
 
 // hasMetadataChanged determines whether two hydrated metrics have equal values in metadata properties that are

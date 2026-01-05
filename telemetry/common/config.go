@@ -41,6 +41,8 @@ type TelemetryConfig struct {
 	EnableBatchUsageUpdates               bool // Feature flag for batch usage updates
 	ResultUpdateBatchSize                 int
 	TargetMinute                          int
+	IntervalBackfillLimitMinutes          int
+	CounterBackfillLimitMinutes           int
 }
 
 type MetricItem struct {
@@ -81,6 +83,8 @@ func LoadConfig() *TelemetryConfig {
 	poolVolumeLabelPageSize := env.GetInt("POOL_VOLUME_LABEL_PAGE_SIZE", 5000)
 	enableBatchUsageUpdates := env.GetBool("ENABLE_BATCH_USAGE_UPDATES", false)
 	resultUpdateBatchSize := env.GetInt("RESULT_UPDATE_BATCH_SIZE", 100)
+	intervalBackfillLimitMinutes := env.GetInt("INTERVAL_BACKFILL_LIMIT_MINUTES", 60)
+	counterBackfillLimitMinutes := env.GetInt("COUNTER_BACKFILL_LIMIT_MINUTES", 120)
 	targetMinute := env.GetInt("TARGET_MINUTE", 15)
 
 	return &TelemetryConfig{
@@ -110,6 +114,8 @@ func LoadConfig() *TelemetryConfig {
 		EnableBatchUsageUpdates:               enableBatchUsageUpdates,
 		ResultUpdateBatchSize:                 resultUpdateBatchSize,
 		TargetMinute:                          targetMinute,
+		IntervalBackfillLimitMinutes:          intervalBackfillLimitMinutes,
+		CounterBackfillLimitMinutes:           counterBackfillLimitMinutes,
 	}
 }
 

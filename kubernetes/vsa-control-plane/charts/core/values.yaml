@@ -262,6 +262,8 @@ telemetryDeployer:
   enableReplicationBillingMetrics: false
   enableBatchUsageUpdates: false  # Feature flag for high-performance batch usage updates (PostgreSQL bulk operations)
   resultUpdateBatchSize: 100
+  intervalBackfillLimitMinutes: 60
+  counterBackfillLimitMinutes: 120
   pushBatchSize: 1000
   maxGoogleBillingPushRetry: 5
   pageSize: 1000

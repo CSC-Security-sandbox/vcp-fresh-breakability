@@ -73,6 +73,9 @@ func (m *MockMetricsStorage) CreateAggregatedUsageBatch(ctx context.Context, usa
 func (m *MockMetricsStorage) GetAggregatedUsage(ctx context.Context, filter map[string]interface{}) ([]datamodel.AggregatedUsage, error) {
 	return nil, nil
 }
+func (m *MockMetricsStorage) GetLatestAggregatedUsageForAllResources(ctx context.Context, aggregationType string, limit, offset int) ([]datamodel.AggregatedUsage, error) {
+	return nil, nil
+}
 func (m *MockMetricsStorage) UpdateAggregatedUsage(ctx context.Context, id int64, updates map[string]interface{}) error {
 	return nil
 }

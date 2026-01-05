@@ -587,6 +587,67 @@ func (_c *MockDataStore_GetHydratedMetrics_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// GetLatestAggregatedUsageForAllResources provides a mock function with given fields: ctx, aggregationType, limit, offset
+func (_m *MockDataStore) GetLatestAggregatedUsageForAllResources(ctx context.Context, aggregationType string, limit int, offset int) ([]datamodel.AggregatedUsage, error) {
+	ret := _m.Called(ctx, aggregationType, limit, offset)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLatestAggregatedUsageForAllResources")
+	}
+
+	var r0 []datamodel.AggregatedUsage
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int, int) ([]datamodel.AggregatedUsage, error)); ok {
+		return rf(ctx, aggregationType, limit, offset)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int, int) []datamodel.AggregatedUsage); ok {
+		r0 = rf(ctx, aggregationType, limit, offset)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]datamodel.AggregatedUsage)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int, int) error); ok {
+		r1 = rf(ctx, aggregationType, limit, offset)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetLatestAggregatedUsageForAllResources_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLatestAggregatedUsageForAllResources'
+type MockDataStore_GetLatestAggregatedUsageForAllResources_Call struct {
+	*mock.Call
+}
+
+// GetLatestAggregatedUsageForAllResources is a helper method to define mock.On call
+//   - ctx context.Context
+//   - aggregationType string
+//   - limit int
+//   - offset int
+func (_e *MockDataStore_Expecter) GetLatestAggregatedUsageForAllResources(ctx interface{}, aggregationType interface{}, limit interface{}, offset interface{}) *MockDataStore_GetLatestAggregatedUsageForAllResources_Call {
+	return &MockDataStore_GetLatestAggregatedUsageForAllResources_Call{Call: _e.mock.On("GetLatestAggregatedUsageForAllResources", ctx, aggregationType, limit, offset)}
+}
+
+func (_c *MockDataStore_GetLatestAggregatedUsageForAllResources_Call) Run(run func(ctx context.Context, aggregationType string, limit int, offset int)) *MockDataStore_GetLatestAggregatedUsageForAllResources_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int), args[3].(int))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetLatestAggregatedUsageForAllResources_Call) Return(_a0 []datamodel.AggregatedUsage, _a1 error) *MockDataStore_GetLatestAggregatedUsageForAllResources_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetLatestAggregatedUsageForAllResources_Call) RunAndReturn(run func(context.Context, string, int, int) ([]datamodel.AggregatedUsage, error)) *MockDataStore_GetLatestAggregatedUsageForAllResources_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateAggregatedUsage provides a mock function with given fields: ctx, id, updates
 func (_m *MockDataStore) UpdateAggregatedUsage(ctx context.Context, id int64, updates map[string]interface{}) error {
 	ret := _m.Called(ctx, id, updates)

@@ -1654,6 +1654,7 @@ func TestMetricsProcessor_ProcessUsageMetrics_AggregationTimingVerification(t *t
 	// Mock all the database calls that the billing provider will make
 	vcpStore.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	vcpStore.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil)
+	telemetryStore.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return([]metricsdm.AggregatedUsage{}, nil).Maybe()
 	telemetryStore.On("GetAggregatedUsage", mock.Anything, mock.Anything).Return([]metricsdm.AggregatedUsage{}, nil)
 	telemetryStore.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return([]metricsdm.HydratedMetrics{}, nil)
 	telemetryStore.On("CreateAggregatedUsageBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1744,6 +1745,9 @@ func TestMetricsProcessor_ProcessUsageMetrics_RetryRecordsAndNewRecords(t *testi
 	// Mock successful resource data fetching (pools and volumes)
 	vcpStore.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 	vcpStore.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil)
+
+	// Mock the counter cache preload call (returns empty list to stop pagination)
+	telemetryStore.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return([]metricsdm.AggregatedUsage{}, nil).Maybe()
 
 	// Mock GetAggregatedUsage for getUnsentGoogleUsages calls
 	// First call for Unsubmitted records
