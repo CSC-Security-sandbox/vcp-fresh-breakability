@@ -583,6 +583,22 @@ func (re *retryEngine) GetVolumeByNameAccountIDAndZone(ctx context.Context, name
 	return var0, err
 }
 
+func (re *retryEngine) GetVolumeByJunctionPath(ctx context.Context, junctionPath string, accountID int64, poolId int64) (*datamodel.Volume, error) {
+	var var0 *datamodel.Volume
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetVolumeByJunctionPath(ctx, junctionPath, accountID, poolId)
+		if err != nil {
+			re.logError("GetVolumeByJunctionPath", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetVolumeCount(ctx context.Context, accountName string) (int64, error) {
 	var var0 int64
 	err := retry.Do(func(attempt int) (bool, error) {

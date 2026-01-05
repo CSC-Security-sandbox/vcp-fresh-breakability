@@ -154,6 +154,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	if err != nil {
 		return nil, "", err
 	}
+	params.PoolDBID = pool.ID
 
 	if pool.APIAccessMode == workflows.ONTAPMode {
 		return nil, "", customerrors.NewUserInputValidationErr("Cannot create Volumes in ONTAP mode pool using GCNV API")
@@ -787,6 +788,14 @@ func (v *FileVolumeProcessor) Validate(ctx context.Context, se database.Storage,
 
 	if params.CreationToken == "" {
 		return customerrors.NewUserInputValidationErr("Creation Token cannot be empty")
+	}
+
+	existingVolume, err := se.GetVolumeByJunctionPath(ctx, params.CreationToken, accountID, params.PoolDBID)
+	if err != nil && !customerrors.IsNotFoundErr(err) {
+		return err
+	}
+	if existingVolume != nil {
+		return customerrors.NewConflictErr("A volume with the same creation token already exists")
 	}
 	return nil
 }

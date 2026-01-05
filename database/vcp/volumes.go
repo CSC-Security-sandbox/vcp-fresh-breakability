@@ -713,6 +713,26 @@ func (d *DataStoreRepository) GetVolumeByNameAccountIDAndZone(ctx context.Contex
 	return volume, nil
 }
 
+func (d *DataStoreRepository) GetVolumeByJunctionPath(ctx context.Context, junctionPath string, accountID int64, poolId int64) (*datamodel.Volume, error) {
+	db := d.db.GORM().WithContext(ctx)
+
+	var volume datamodel.Volume
+	query := db.Table("volumes").
+		Where("volume_attributes #>> '{file_properties,junction_path}' = ?", "/"+junctionPath).
+		Where("account_id = ?", accountID)
+
+	if poolId != 0 {
+		query = query.Where("pool_id = ?", poolId)
+	}
+
+	err := query.First(&volume).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrVolumeNotFound,
+			customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "volume", nil))
+	}
+	return &volume, nil
+}
+
 // GetActivePrepopulateJobs retrieves all active (NEW or PROCESSING) prepopulate jobs
 func (d *DataStoreRepository) GetActivePrepopulateJobs(ctx context.Context) ([]*datamodel.Job, error) {
 	return getActivePrepopulateJobs(d.db.GORM().WithContext(ctx))

@@ -16502,11 +16502,14 @@ func TestValidateDeleteVolumeParams(t *testing.T) {
 
 func TestFileVolumeProcessor_Validate(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-	mockStorage := &database.MockStorage{}
 	processor := &FileVolumeProcessor{}
 	accountID := int64(123)
 
 	t.Run("Success_WithValidExportPolicy", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		notFoundErr := customerrors.NewNotFoundErr("volume", nil)
+		mockStorage.On("GetVolumeByJunctionPath", mock.Anything, "test-token", accountID, int64(0)).Return(nil, notFoundErr)
+
 		params := &common.CreateVolumeParams{
 			Protocols:     []string{"NFSV3"},
 			CreationToken: "test-token",
@@ -16528,9 +16531,14 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 		err := processor.Validate(ctx, mockStorage, params, accountID)
 		assert.NoError(tt, err)
 		assert.Nil(tt, params.BlockProperties, "BlockProperties should be nil for file volumes")
+		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("Success_WithMultipleExportRules", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		notFoundErr := customerrors.NewNotFoundErr("volume", nil)
+		mockStorage.On("GetVolumeByJunctionPath", mock.Anything, "test-token", accountID, int64(0)).Return(nil, notFoundErr)
+
 		params := &common.CreateVolumeParams{
 			Protocols:     []string{"NFSV3", "NFSV4"},
 			CreationToken: "test-token",
@@ -16557,9 +16565,14 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 
 		err := processor.Validate(ctx, mockStorage, params, accountID)
 		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("Success_WithNilExportPolicy", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		notFoundErr := customerrors.NewNotFoundErr("volume", nil)
+		mockStorage.On("GetVolumeByJunctionPath", mock.Anything, "test-token", accountID, int64(0)).Return(nil, notFoundErr)
+
 		params := &common.CreateVolumeParams{
 			CreationToken: "test-token",
 			FileProperties: &models.FileProperties{
@@ -16569,9 +16582,11 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 
 		err := processor.Validate(ctx, mockStorage, params, accountID)
 		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("Error_NilFileProperties", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
 		params := &common.CreateVolumeParams{
 			CreationToken:  "test-token",
 			FileProperties: nil,
@@ -16582,6 +16597,7 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 	})
 
 	t.Run("Error_EmptyAllowedClients", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
 		params := &common.CreateVolumeParams{
 			CreationToken: "test-token",
 			FileProperties: &models.FileProperties{
@@ -16604,6 +16620,7 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 	})
 
 	t.Run("Error_InvalidAllowedClients", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
 		params := &common.CreateVolumeParams{
 			CreationToken: "test-token",
 			FileProperties: &models.FileProperties{
@@ -16626,6 +16643,7 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 	})
 
 	t.Run("Error_EmptyCreationToken", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
 		params := &common.CreateVolumeParams{
 			Protocols:     []string{"NFSV3"},
 			CreationToken: "",
@@ -16649,6 +16667,10 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 	})
 
 	t.Run("ClearsBlockProperties", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		notFoundErr := customerrors.NewNotFoundErr("volume", nil)
+		mockStorage.On("GetVolumeByJunctionPath", mock.Anything, "test-token", accountID, int64(0)).Return(nil, notFoundErr)
+
 		params := &common.CreateVolumeParams{
 			Protocols:     []string{"NFSV3"},
 			CreationToken: "test-token",
@@ -16673,9 +16695,11 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 		err := processor.Validate(ctx, mockStorage, params, accountID)
 		assert.NoError(tt, err)
 		assert.Nil(tt, params.BlockProperties, "BlockProperties should be cleared for file volumes")
+		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("MultipleExportRules_OneWithInvalidClients", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
 		params := &common.CreateVolumeParams{
 			Protocols:     []string{"NFSV3", "NFSV4"},
 			CreationToken: "test-token",
@@ -16705,6 +16729,7 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 	})
 
 	t.Run("MultipleExportRules_OneWithEmptyClients", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
 		params := &common.CreateVolumeParams{
 			Protocols:     []string{"NFSV3", "NFSV4"},
 			CreationToken: "test-token",
@@ -16733,8 +16758,90 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 		assert.EqualError(tt, err, "allowed clients cannot be nil in export rules")
 	})
 
+	// Junction Path Validation Tests
+	t.Run("JunctionPath_ConflictWhenVolumeExists", func(tt *testing.T) {
+		mockSe := &database.MockStorage{}
+		existingVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "existing-volume-uuid"},
+			Name:      "existing-volume",
+		}
+		mockSe.On("GetVolumeByJunctionPath", mock.Anything, "test-token", accountID, int64(100)).Return(existingVolume, nil)
+
+		params := &common.CreateVolumeParams{
+			Protocols:     []string{"NFSV3"},
+			CreationToken: "test-token",
+			PoolDBID:      int64(100),
+			FileProperties: &models.FileProperties{
+				ExportPolicy: nil,
+			},
+		}
+
+		err := processor.Validate(ctx, mockSe, params, accountID)
+		assert.EqualError(tt, err, "A volume with the same creation token already exists")
+		mockSe.AssertExpectations(tt)
+	})
+
+	t.Run("JunctionPath_SuccessWhenVolumeNotFound", func(tt *testing.T) {
+		mockSe := &database.MockStorage{}
+		notFoundErr := customerrors.NewNotFoundErr("volume", nil)
+		mockSe.On("GetVolumeByJunctionPath", mock.Anything, "test-token", accountID, int64(100)).Return(nil, notFoundErr)
+
+		params := &common.CreateVolumeParams{
+			Protocols:     []string{"NFSV3"},
+			CreationToken: "test-token",
+			PoolDBID:      int64(100),
+			FileProperties: &models.FileProperties{
+				ExportPolicy: nil,
+			},
+		}
+
+		err := processor.Validate(ctx, mockSe, params, accountID)
+		assert.NoError(tt, err)
+		mockSe.AssertExpectations(tt)
+	})
+
+	t.Run("JunctionPath_PropagatesNonNotFoundError", func(tt *testing.T) {
+		mockSe := &database.MockStorage{}
+		dbErr := errors.New("database connection error")
+		mockSe.On("GetVolumeByJunctionPath", mock.Anything, "test-token", accountID, int64(100)).Return(nil, dbErr)
+
+		params := &common.CreateVolumeParams{
+			Protocols:     []string{"NFSV3"},
+			CreationToken: "test-token",
+			PoolDBID:      int64(100),
+			FileProperties: &models.FileProperties{
+				ExportPolicy: nil,
+			},
+		}
+
+		err := processor.Validate(ctx, mockSe, params, accountID)
+		assert.EqualError(tt, err, "database connection error")
+		mockSe.AssertExpectations(tt)
+	})
+
+	t.Run("JunctionPath_WithPoolDBIDZero", func(tt *testing.T) {
+		mockSe := &database.MockStorage{}
+		notFoundErr := customerrors.NewNotFoundErr("volume", nil)
+		// When PoolDBID is 0, the query should still work (no pool filtering)
+		mockSe.On("GetVolumeByJunctionPath", mock.Anything, "test-token", accountID, int64(0)).Return(nil, notFoundErr)
+
+		params := &common.CreateVolumeParams{
+			Protocols:     []string{"NFSV3"},
+			CreationToken: "test-token",
+			PoolDBID:      int64(0),
+			FileProperties: &models.FileProperties{
+				ExportPolicy: nil,
+			},
+		}
+
+		err := processor.Validate(ctx, mockSe, params, accountID)
+		assert.NoError(tt, err)
+		mockSe.AssertExpectations(tt)
+	})
+
 	// NFSv3/NFSv4 Export Policy Validation Tests
 	t.Run("NFSv3Only_WithNFSv4True_ShouldFail", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
 		params := &common.CreateVolumeParams{
 			CreationToken: "test-token",
 			Protocols:     []string{utils.ProtocolNFSv3},
@@ -16759,6 +16866,10 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 	})
 
 	t.Run("NFSv3Only_WithNFSv4False_ShouldPass", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		notFoundErr := customerrors.NewNotFoundErr("volume", nil)
+		mockStorage.On("GetVolumeByJunctionPath", mock.Anything, "test-token", accountID, int64(0)).Return(nil, notFoundErr)
+
 		params := &common.CreateVolumeParams{
 			CreationToken: "test-token",
 			Protocols:     []string{utils.ProtocolNFSv3},
@@ -16780,9 +16891,14 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 
 		err := processor.Validate(ctx, mockStorage, params, accountID)
 		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("NFSv3Only_WithNFSv4DefaultFalse_ShouldPass", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		notFoundErr := customerrors.NewNotFoundErr("volume", nil)
+		mockStorage.On("GetVolumeByJunctionPath", mock.Anything, "test-token", accountID, int64(0)).Return(nil, notFoundErr)
+
 		params := &common.CreateVolumeParams{
 			CreationToken: "test-token",
 			Protocols:     []string{utils.ProtocolNFSv3},
@@ -16804,9 +16920,11 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 
 		err := processor.Validate(ctx, mockStorage, params, accountID)
 		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("NFSv4Only_WithNFSv3True_ShouldFail", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
 		params := &common.CreateVolumeParams{
 			CreationToken: "test-token",
 			Protocols:     []string{utils.ProtocolNFSv4},
@@ -16831,6 +16949,10 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 	})
 
 	t.Run("NFSv4Only_WithNFSv3False_ShouldPass", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		notFoundErr := customerrors.NewNotFoundErr("volume", nil)
+		mockStorage.On("GetVolumeByJunctionPath", mock.Anything, "test-token", accountID, int64(0)).Return(nil, notFoundErr)
+
 		params := &common.CreateVolumeParams{
 			CreationToken: "test-token",
 			Protocols:     []string{utils.ProtocolNFSv4},
@@ -16852,9 +16974,14 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 
 		err := processor.Validate(ctx, mockStorage, params, accountID)
 		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("NFSv4Only_WithNFSv3DefaultFalse_ShouldPass", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		notFoundErr := customerrors.NewNotFoundErr("volume", nil)
+		mockStorage.On("GetVolumeByJunctionPath", mock.Anything, "test-token", accountID, int64(0)).Return(nil, notFoundErr)
+
 		params := &common.CreateVolumeParams{
 			CreationToken: "test-token",
 			Protocols:     []string{utils.ProtocolNFSv4},
@@ -16876,9 +17003,14 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 
 		err := processor.Validate(ctx, mockStorage, params, accountID)
 		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("BothNFSv3AndNFSv4_WithAnyValues_ShouldPass", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		notFoundErr := customerrors.NewNotFoundErr("volume", nil)
+		mockStorage.On("GetVolumeByJunctionPath", mock.Anything, "test-token", accountID, int64(0)).Return(nil, notFoundErr)
+
 		params := &common.CreateVolumeParams{
 			CreationToken: "test-token",
 			Protocols:     []string{utils.ProtocolNFSv3, utils.ProtocolNFSv4},
@@ -16900,9 +17032,14 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 
 		err := processor.Validate(ctx, mockStorage, params, accountID)
 		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("BothNFSv3AndNFSv4_WithNFSv3Only_ShouldPass", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		notFoundErr := customerrors.NewNotFoundErr("volume", nil)
+		mockStorage.On("GetVolumeByJunctionPath", mock.Anything, "test-token", accountID, int64(0)).Return(nil, notFoundErr)
+
 		params := &common.CreateVolumeParams{
 			CreationToken: "test-token",
 			Protocols:     []string{utils.ProtocolNFSv3, utils.ProtocolNFSv4},
@@ -16924,9 +17061,14 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 
 		err := processor.Validate(ctx, mockStorage, params, accountID)
 		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("BothNFSv3AndNFSv4_WithNFSv4Only_ShouldPass", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		notFoundErr := customerrors.NewNotFoundErr("volume", nil)
+		mockStorage.On("GetVolumeByJunctionPath", mock.Anything, "test-token", accountID, int64(0)).Return(nil, notFoundErr)
+
 		params := &common.CreateVolumeParams{
 			CreationToken: "test-token",
 			Protocols:     []string{utils.ProtocolNFSv3, utils.ProtocolNFSv4},
@@ -16948,9 +17090,11 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 
 		err := processor.Validate(ctx, mockStorage, params, accountID)
 		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("NFSv3Only_MultipleRules_OneWithNFSv4True_ShouldFail", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
 		params := &common.CreateVolumeParams{
 			CreationToken: "test-token",
 			Protocols:     []string{utils.ProtocolNFSv3},
@@ -16982,6 +17126,7 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 	})
 
 	t.Run("NFSv4Only_MultipleRules_OneWithNFSv3True_ShouldFail", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
 		params := &common.CreateVolumeParams{
 			CreationToken: "test-token",
 			Protocols:     []string{utils.ProtocolNFSv4},

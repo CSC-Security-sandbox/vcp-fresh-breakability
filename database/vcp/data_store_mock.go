@@ -10150,6 +10150,67 @@ func (_c *MockDataStore_GetVolumeByIDAndAccountID_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// GetVolumeByJunctionPath provides a mock function with given fields: ctx, junctionPath, accountID, poolId
+func (_m *MockDataStore) GetVolumeByJunctionPath(ctx context.Context, junctionPath string, accountID int64, poolId int64) (*datamodel.Volume, error) {
+	ret := _m.Called(ctx, junctionPath, accountID, poolId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumeByJunctionPath")
+	}
+
+	var r0 *datamodel.Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, int64) (*datamodel.Volume, error)); ok {
+		return rf(ctx, junctionPath, accountID, poolId)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, int64) *datamodel.Volume); ok {
+		r0 = rf(ctx, junctionPath, accountID, poolId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64, int64) error); ok {
+		r1 = rf(ctx, junctionPath, accountID, poolId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetVolumeByJunctionPath_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeByJunctionPath'
+type MockDataStore_GetVolumeByJunctionPath_Call struct {
+	*mock.Call
+}
+
+// GetVolumeByJunctionPath is a helper method to define mock.On call
+//   - ctx context.Context
+//   - junctionPath string
+//   - accountID int64
+//   - poolId int64
+func (_e *MockDataStore_Expecter) GetVolumeByJunctionPath(ctx interface{}, junctionPath interface{}, accountID interface{}, poolId interface{}) *MockDataStore_GetVolumeByJunctionPath_Call {
+	return &MockDataStore_GetVolumeByJunctionPath_Call{Call: _e.mock.On("GetVolumeByJunctionPath", ctx, junctionPath, accountID, poolId)}
+}
+
+func (_c *MockDataStore_GetVolumeByJunctionPath_Call) Run(run func(ctx context.Context, junctionPath string, accountID int64, poolId int64)) *MockDataStore_GetVolumeByJunctionPath_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetVolumeByJunctionPath_Call) Return(_a0 *datamodel.Volume, _a1 error) *MockDataStore_GetVolumeByJunctionPath_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetVolumeByJunctionPath_Call) RunAndReturn(run func(context.Context, string, int64, int64) (*datamodel.Volume, error)) *MockDataStore_GetVolumeByJunctionPath_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVolumeByName provides a mock function with given fields: ctx, name
 func (_m *MockDataStore) GetVolumeByName(ctx context.Context, name string) (*datamodel.Volume, error) {
 	ret := _m.Called(ctx, name)

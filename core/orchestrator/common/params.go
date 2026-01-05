@@ -98,6 +98,7 @@ type CreateVolumeParams struct {
 	Description                 string
 	Network                     string
 	PoolID                      string
+	PoolDBID                    int64
 	VendorID                    string
 	CreationToken               string
 	DisplayName                 string

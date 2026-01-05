@@ -1505,3 +1505,7 @@ func (s *PersistenceStore) GetExpertModeVolumeByVolumeUUID(ctx context.Context, 
 func (s *PersistenceStore) UpdateExpertModeVolumeDataProtection(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) error {
 	return s.dataStore.UpdateExpertModeVolumeDataProtection(ctx, expertModeVolume)
 }
+
+func (s *PersistenceStore) GetVolumeByJunctionPath(ctx context.Context, junctionPath string, accountID int64, poolId int64) (*datamodel.Volume, error) {
+	return s.dataStore.GetVolumeByJunctionPath(ctx, junctionPath, accountID, poolId)
+}
