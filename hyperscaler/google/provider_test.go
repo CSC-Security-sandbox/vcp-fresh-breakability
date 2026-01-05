@@ -1834,7 +1834,7 @@ func TestGcpServices_GetBucket(t *testing.T) {
 	})
 }
 
-func TestGcpServices_GetBucketFile2(t *testing.T) {
+func TestGcpServices_GetBucketFile(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		// Create a test server
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

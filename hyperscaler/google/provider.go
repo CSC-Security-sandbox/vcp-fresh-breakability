@@ -2,7 +2,7 @@ package google
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -726,24 +726,20 @@ func (gcpService *GcpServices) GetFileFromBucket(ctx context.Context, bucketName
 		}
 	}(reader)
 
-	// Create hashers
-	md5Hasher := md5.New()
-
-	// Create a multi-writer to write to both hashers simultaneously
-	multiWriter := io.MultiWriter(md5Hasher)
+	sha256Hasher := sha256.New()
 
 	// Copy the object data to the hashers
-	if _, err = io.Copy(multiWriter, reader); err != nil {
+	if _, err = io.Copy(sha256Hasher, reader); err != nil {
 		logger.Errorf("failed to copy object reader: %s/%s: %v", bucketName, fileName, err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
 
-	// Compute the MD5 hashes
-	fileMD5Hash := base64.StdEncoding.EncodeToString(md5Hasher.Sum(nil))
+	// Compute the SHA256 hash
+	fileSHA256Hash := base64.StdEncoding.EncodeToString(sha256Hasher.Sum(nil))
 	bucketFileDetails := &hyperscalermodels.BucketFileDetails{
-		BucketName:  bucketName,
-		FileUrl:     fileName,
-		FileHashMD5: fileMD5Hash,
+		BucketName:     bucketName,
+		FileUrl:        fileName,
+		FileHashSHA256: fileSHA256Hash,
 	}
 
 	logger.Infof("Bucket file Hash fetched successfully for %s/%s", bucketName, fileName)

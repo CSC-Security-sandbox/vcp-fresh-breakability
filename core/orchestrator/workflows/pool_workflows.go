@@ -531,7 +531,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			return nil, ConvertToVSAError(err)
 		}
 
-		rbacFileDetails.FileHashMD5 = ontapExpertModeUserResponse.RbacFileChecksum
+		rbacFileDetails.FileHashSHA256 = ontapExpertModeUserResponse.RbacFileChecksum
 		err = workflow.ExecuteActivity(ctx, poolActivity.UpdateRbacCheckSumInPool, dbPool, rbacFileDetails).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)

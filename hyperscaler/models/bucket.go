@@ -15,7 +15,7 @@ type BucketDetails struct {
 }
 
 type BucketFileDetails struct {
-	BucketName  string `json:"bucketName"`
-	FileUrl     string `json:"fileUrl"`
-	FileHashMD5 string `json:"fileHashMD5"`
+	BucketName     string `json:"bucketName"`
+	FileUrl        string `json:"fileUrl"`
+	FileHashSHA256 string `json:"fileHashSHA256"`
 }

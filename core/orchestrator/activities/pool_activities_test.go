@@ -12776,9 +12776,9 @@ func TestPoolActivity_GetRbacHash(t *testing.T) {
 		mockGCPService := &google.GcpServices{}
 
 		expectedBucketFileDetails := &hyperscaler_models.BucketFileDetails{
-			BucketName:  bucketName,
-			FileUrl:     ontapversion,
-			FileHashMD5: "abc123def456",
+			BucketName:     bucketName,
+			FileUrl:        ontapversion,
+			FileHashSHA256: "abc123def456",
 		}
 
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
@@ -12796,7 +12796,7 @@ func TestPoolActivity_GetRbacHash(t *testing.T) {
 		assert.Equal(t, expectedBucketFileDetails, result)
 		assert.Equal(t, bucketName, result.BucketName)
 		assert.Equal(t, ontapversion, result.FileUrl)
-		assert.Equal(t, "abc123def456", result.FileHashMD5)
+		assert.Equal(t, "abc123def456", result.FileHashSHA256)
 		mockStorage.AssertExpectations(t)
 	})
 }
@@ -12821,9 +12821,9 @@ func Test_getBucketFile(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		mockService := new(hyperscaler2.MockGoogleServices)
 		expectedBucketFileDetails := &hyperscaler_models.BucketFileDetails{
-			BucketName:  bucketName,
-			FileUrl:     fileName,
-			FileHashMD5: "test-hash-123",
+			BucketName:     bucketName,
+			FileUrl:        fileName,
+			FileHashSHA256: "test-hash-123",
 		}
 
 		mockService.On("GetFileFromBucket", ctx, bucketName, fileName).Return(expectedBucketFileDetails, nil)
@@ -12835,7 +12835,7 @@ func Test_getBucketFile(t *testing.T) {
 		assert.Equal(t, expectedBucketFileDetails, result)
 		assert.Equal(t, bucketName, result.BucketName)
 		assert.Equal(t, fileName, result.FileUrl)
-		assert.Equal(t, "test-hash-123", result.FileHashMD5)
+		assert.Equal(t, "test-hash-123", result.FileHashSHA256)
 		mockService.AssertExpectations(t)
 	})
 }
@@ -12844,9 +12844,9 @@ func TestPoolActivity_UpdateRbacCheckSumInPool(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	bucketFileDetails := &hyperscaler_models.BucketFileDetails{
-		BucketName:  "test-bucket",
-		FileUrl:     "rbac.yaml",
-		FileHashMD5: "abc123def456",
+		BucketName:     "test-bucket",
+		FileUrl:        "rbac.yaml",
+		FileHashSHA256: "abc123def456",
 	}
 
 	pool := &datamodel.Pool{
@@ -13428,9 +13428,9 @@ func TestPoolActivity_PrepareCreateVSAExpertModeReq(t *testing.T) {
 		AdminPassword: "expert-password",
 	}
 	bucketFileDetails := &hyperscaler_models.BucketFileDetails{
-		BucketName:  "test-bucket",
-		FileUrl:     "GCNV/9.17.1/RBAC/gcnvadmin_create_cli",
-		FileHashMD5: "abc123def456",
+		BucketName:     "test-bucket",
+		FileUrl:        "GCNV/9.17.1/RBAC/gcnvadmin_create_cli",
+		FileHashSHA256: "abc123def456",
 	}
 
 	t.Run("Success with certificate authentication", func(t *testing.T) {
@@ -13578,7 +13578,7 @@ func TestPoolActivity_PrepareCreateVSAExpertModeReq(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 
-	t.Run("Error when bucketFileDetails FileHashMD5 is empty", func(t *testing.T) {
+	t.Run("Error when bucketFileDetails FileHashSHA256 is empty", func(t *testing.T) {
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-pool-uuid",
@@ -13596,9 +13596,9 @@ func TestPoolActivity_PrepareCreateVSAExpertModeReq(t *testing.T) {
 		}
 
 		invalidBucketFileDetails := &hyperscaler_models.BucketFileDetails{
-			BucketName:  "test-bucket",
-			FileUrl:     "GCNV/9.17.1/RBAC/gcnvadmin_create_cli",
-			FileHashMD5: "", // Empty hash
+			BucketName:     "test-bucket",
+			FileUrl:        "GCNV/9.17.1/RBAC/gcnvadmin_create_cli",
+			FileHashSHA256: "", // Empty hash
 		}
 
 		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, invalidBucketFileDetails)
@@ -13627,9 +13627,9 @@ func TestPoolActivity_PrepareCreateVSAExpertModeReq(t *testing.T) {
 		}
 
 		invalidBucketFileDetails := &hyperscaler_models.BucketFileDetails{
-			BucketName:  "test-bucket",
-			FileUrl:     "", // Empty file URL
-			FileHashMD5: "abc123def456",
+			BucketName:     "test-bucket",
+			FileUrl:        "", // Empty file URL
+			FileHashSHA256: "abc123def456",
 		}
 
 		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, invalidBucketFileDetails)
@@ -13658,9 +13658,9 @@ func TestPoolActivity_PrepareCreateVSAExpertModeReq(t *testing.T) {
 		}
 
 		invalidBucketFileDetails := &hyperscaler_models.BucketFileDetails{
-			BucketName:  "", // Empty bucket name
-			FileUrl:     "GCNV/9.17.1/RBAC/gcnvadmin_create_cli",
-			FileHashMD5: "abc123def456",
+			BucketName:     "", // Empty bucket name
+			FileUrl:        "GCNV/9.17.1/RBAC/gcnvadmin_create_cli",
+			FileHashSHA256: "abc123def456",
 		}
 
 		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, invalidBucketFileDetails)

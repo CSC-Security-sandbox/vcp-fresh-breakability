@@ -1037,11 +1037,11 @@ func (j *PoolActivity) PrepareCreateVSAExpertModeReq(vlmConfig vlm.VLMConfig, on
 	}
 	createVSAExpertModeRequest.Username = pool.ExpertModeCredentials.ExpertModeCredential[0].Username
 
-	if bucketFileDetails == nil || bucketFileDetails.FileHashMD5 == "" || bucketFileDetails.FileUrl == "" || bucketFileDetails.BucketName == "" {
+	if bucketFileDetails == nil || bucketFileDetails.FileHashSHA256 == "" || bucketFileDetails.FileUrl == "" || bucketFileDetails.BucketName == "" {
 		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("exp mode rbac file details are missing")))
 	}
 	createVSAExpertModeRequest.RbacFileURL = fmt.Sprintf("gs://%s/%s", bucketFileDetails.BucketName, bucketFileDetails.FileUrl)
-	createVSAExpertModeRequest.RbacFileChecksum = bucketFileDetails.FileHashMD5
+	createVSAExpertModeRequest.RbacFileChecksum = bucketFileDetails.FileHashSHA256
 	return createVSAExpertModeRequest, nil
 }
 
@@ -1072,7 +1072,7 @@ func (j *PoolActivity) UpdateRbacCheckSumInPool(ctx context.Context, pool *datam
 	if vsaBuildInfo == nil {
 		return vsaerrors.WrapAsTemporalApplicationError(errors.New("vsaBuildInfo is nil"))
 	}
-	vsaBuildInfo.RbacFileHash = bucketFileDetails.FileHashMD5
+	vsaBuildInfo.RbacFileHash = bucketFileDetails.FileHashSHA256
 	vsaBuildInfo.RbacFileUrl = fmt.Sprintf("gs://%s/%s", bucketFileDetails.BucketName, bucketFileDetails.FileUrl)
 	updates := map[string]interface{}{
 		"build_info": vsaBuildInfo,

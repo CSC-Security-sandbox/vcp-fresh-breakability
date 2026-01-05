@@ -476,9 +476,9 @@ func TestCreatePoolWorkflowWithExpertMode(t *testing.T) {
 	}, nil)
 	// Mock GetRbacHash to succeed
 	bucketFileDetails := &hyperscalermodels.BucketFileDetails{
-		BucketName:  "test-bucket",
-		FileUrl:     "GCNV/9.17.1/RBAC/gcnvadmin_create_cli",
-		FileHashMD5: "test-hash",
+		BucketName:     "test-bucket",
+		FileUrl:        "GCNV/9.17.1/RBAC/gcnvadmin_create_cli",
+		FileHashSHA256: "test-hash",
 	}
 	env.OnActivity("GetRbacHash", mock.Anything, mock.Anything).Return(bucketFileDetails, nil)
 
