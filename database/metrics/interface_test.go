@@ -16,6 +16,15 @@ import (
 func setupTestDataStoreRepository(t *testing.T) *DataStoreRepository {
 	db, err := SetupInMemoryDB()
 	require.NoError(t, err)
+
+	// Manually create the unique constraint that was removed from GORM tags
+	// This ensures duplicate prevention works in tests
+	sqlDB, err := db.DB()
+	require.NoError(t, err)
+	_, err = sqlDB.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_aggregated_usage_unique 
+		ON aggregated_usages (resource_uuid, aggregation_end, aggregation_start, measured_type, resource_type)`)
+	require.NoError(t, err)
+	
 	wrapper := gormWrapper.New(db)
 	return NewDataStoreRepository(wrapper)
 }
@@ -353,4 +362,76 @@ func TestGetHydratedMetrics_OrderAndLimit(t *testing.T) {
 	// Should return the metric with quantity 200.0 (smallest >= 150)
 	assert.Equal(t, "resource-2", metrics[0].ResourceName)
 	assert.Equal(t, 200.0, metrics[0].Quantity)
+}
+
+// TestCreateAggregatedUsageBatch_DuplicatePrevention tests duplicate prevention using composite unique constraint
+func TestCreateAggregatedUsageBatch_DuplicatePrevention(t *testing.T) {
+	repo := setupTestDataStoreRepository(t)
+	ctx := context.Background()
+
+	now := time.Now()
+
+	// Create a usage record
+	usage := datamodel.AggregatedUsage{
+		ID:               2001,
+		ResourceUUID:     "duplicate-test-uuid",
+		AccountID:        "duplicate-test-account",
+		VendorCustomerID: ptrString("duplicate-vendor-123"),
+		AggregationStart: now,
+		AggregationEnd:   now.Add(1 * time.Hour),
+		MeasuredType:     metadata.MeasuredType("test-measured-duplicate"),
+		ResourceType:     metadata.ResourceType("test-resource-duplicate"),
+		Quantity:         15.0,
+		AggregationType:  "sum",
+		IsBillable:       true,
+		State:            datamodel.Unsubmitted,
+		VolumeStyle:      "block",
+		ServiceLevel:     "gold",
+		ReplicationType:  "none",
+		IsUnified:        false,
+	}
+
+	// First batch - should succeed
+	err := repo.CreateAggregatedUsageBatch(ctx, []datamodel.AggregatedUsage{usage}, 1)
+	assert.NoError(t, err)
+
+	// Verify first record was created
+	usages, err := repo.GetAggregatedUsage(ctx, map[string]interface{}{"resource_uuid": "duplicate-test-uuid"})
+	assert.NoError(t, err)
+	assert.Len(t, usages, 1)
+	assert.Equal(t, "duplicate-test-uuid", usages[0].ResourceUUID)
+
+	// Second batch with same unique constraint fields but different ID and quantity - should be ignored due to ON CONFLICT DO NOTHING
+	duplicateUsage := usage
+	duplicateUsage.ID = 2002       // Different ID
+	duplicateUsage.Quantity = 25.0 // Different quantity
+	err = repo.CreateAggregatedUsageBatch(ctx, []datamodel.AggregatedUsage{duplicateUsage}, 1)
+	assert.NoError(t, err) // Should not error, but should not insert
+
+	// Verify still only one record exists (the original one)
+	usages, err = repo.GetAggregatedUsage(ctx, map[string]interface{}{"resource_uuid": "duplicate-test-uuid"})
+	assert.NoError(t, err)
+	assert.Len(t, usages, 1)
+	assert.Equal(t, "duplicate-test-uuid", usages[0].ResourceUUID)
+	assert.Equal(t, 15.0, usages[0].Quantity)  // Original quantity, not the duplicate's quantity
+	assert.Equal(t, int64(2001), usages[0].ID) // Original ID, not the duplicate's ID
+
+	// Different resource UUID should create a new record
+	differentUsage := usage
+	differentUsage.ID = 2003
+	differentUsage.ResourceUUID = "different-test-uuid"
+	err = repo.CreateAggregatedUsageBatch(ctx, []datamodel.AggregatedUsage{differentUsage}, 1)
+	assert.NoError(t, err)
+
+	// Verify two records exist now
+	allUsages, err := repo.GetAggregatedUsage(ctx, map[string]interface{}{})
+	assert.NoError(t, err)
+	// Filter for our test records to avoid interference from other tests
+	testUsages := make([]datamodel.AggregatedUsage, 0)
+	for _, u := range allUsages {
+		if u.ResourceUUID == "duplicate-test-uuid" || u.ResourceUUID == "different-test-uuid" {
+			testUsages = append(testUsages, u)
+		}
+	}
+	assert.Len(t, testUsages, 2)
 }

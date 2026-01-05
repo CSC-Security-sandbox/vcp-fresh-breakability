@@ -1,0 +1,1 @@
+-- No migration needed for down script
