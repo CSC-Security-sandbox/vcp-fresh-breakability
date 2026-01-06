@@ -3860,141 +3860,235 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 		AccountName: "test-account",
 	}
 
-	env := ts.NewTestWorkflowEnvironment()
-	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-	env.SetHeader(mockHeader)
+	// Test Case 1: BuildInfo.OntapVersion is empty string
+	t.Run("BuildInfo.OntapVersion is empty", func(t *testing.T) {
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		env.SetHeader(mockHeader)
 
-	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
-	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
-	enableMetrics = true
-	ginLoggingFeatureFlag = true
-	defer func() {
-		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
-		enableMetrics = envs.GetBool("ENABLE_METRICS", false)
-		ginLoggingFeatureFlag = false
-	}()
+		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+		enableMetrics = true
+		ginLoggingFeatureFlag = true
+		defer func() {
+			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+			enableMetrics = envs.GetBool("ENABLE_METRICS", false)
+			ginLoggingFeatureFlag = false
+		}()
 
-	env.RegisterActivity(&activities.CommonActivities{})
-	env.RegisterActivity(&activities.PoolActivity{})
-	env.RegisterWorkflow(DataSubnetSequentialPoller)
-	env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
-	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
-	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
+		env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
+		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
-	poolEmpty := &datamodel.Pool{
-		BaseModel: datamodel.BaseModel{ID: 123},
-		Name:      "test-pool",
-		AutoTieringConfig: &datamodel.AutoTieringConfig{
-			BucketName: "test-bucket",
-		},
-		ServiceAccountId: "test-service-account",
-		ClusterDetails: datamodel.ClusterDetails{
-			RegionalTenantProject: "test-tenant",
-			OntapVersion:          "",
-		},
-		BuildInfo: &datamodel.PoolBuildInfo{
-			OntapVersion: "",
-		},
-		PoolCredentials: &datamodel.PoolCredentials{
-			Password: "test-password",
-			SecretID: "",
-			AuthType: envs.USERNAME_PWD,
-		},
-		Account:     &datamodel.Account{Name: "test-account"},
-		KmsConfig:   &datamodel.KmsConfig{},
-		KmsConfigID: sql.NullInt64{Int64: 1, Valid: true},
-	}
+		poolEmpty := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 123},
+			Name:      "test-pool",
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				BucketName: "test-bucket",
+			},
+			ServiceAccountId: "test-service-account",
+			ClusterDetails: datamodel.ClusterDetails{
+				RegionalTenantProject: "test-tenant",
+				OntapVersion:          "",
+			},
+			BuildInfo: &datamodel.PoolBuildInfo{
+				OntapVersion: "",
+			},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+				AuthType: envs.USERNAME_PWD,
+			},
+			Account:     &datamodel.Account{Name: "test-account"},
+			KmsConfig:   &datamodel.KmsConfig{},
+			KmsConfigID: sql.NullInt64{Int64: 1, Valid: true},
+		}
 
-	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
-	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
-	}, nil).Maybe()
-	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(poolEmpty, nil)
-	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
-	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(poolEmpty, nil)
+		env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+		mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
 
-	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
-	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
+		env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
+		env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
 
-	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
-		return mockVSAClientWorkflowManager
-	}
+		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+			return mockVSAClientWorkflowManager
+		}
 
-	env.ExecuteWorkflow(DeletePoolWorkflow, params, poolEmpty)
-	assert.True(t, env.IsWorkflowCompleted())
-	assert.NoError(t, env.GetWorkflowError())
+		env.ExecuteWorkflow(DeletePoolWorkflow, params, poolEmpty)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+	})
 
-	env = ts.NewTestWorkflowEnvironment()
-	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
-	env.RegisterActivity(&activities.PoolActivity{})
-	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+	// Test Case 2: BuildInfo.OntapVersion has valid value
+	t.Run("BuildInfo.OntapVersion has valid value", func(t *testing.T) {
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		env.SetHeader(mockHeader)
 
-	poolNonEmpty := &datamodel.Pool{
-		BaseModel: datamodel.BaseModel{ID: 123},
-		Name:      "test-pool",
-		AutoTieringConfig: &datamodel.AutoTieringConfig{
-			BucketName: "test-bucket",
-		},
-		ServiceAccountId: "test-service-account",
-		ClusterDetails: datamodel.ClusterDetails{
-			RegionalTenantProject: "test-tenant",
-			OntapVersion:          "9.13.1P2",
-		},
-		BuildInfo: &datamodel.PoolBuildInfo{
-			OntapVersion: "9.13.1P2",
-		},
-		PoolCredentials: &datamodel.PoolCredentials{
-			Password: "test-password",
-			SecretID: "",
-			AuthType: envs.USERNAME_PWD,
-		},
-		Account:     &datamodel.Account{Name: "test-account"},
-		KmsConfig:   &datamodel.KmsConfig{},
-		KmsConfigID: sql.NullInt64{Int64: 1, Valid: true},
-	}
+		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+		enableMetrics = true
+		ginLoggingFeatureFlag = true
+		defer func() {
+			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+			enableMetrics = envs.GetBool("ENABLE_METRICS", false)
+			ginLoggingFeatureFlag = false
+		}()
 
-	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
-	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateNEW),
-	}, nil).Maybe()
-	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(poolNonEmpty, nil)
-	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
-	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
+		env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
+		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
 
-	// Mock child workflows
-	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
-	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
+		poolNonEmpty := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 123},
+			Name:      "test-pool",
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				BucketName: "test-bucket",
+			},
+			ServiceAccountId: "test-service-account",
+			ClusterDetails: datamodel.ClusterDetails{
+				RegionalTenantProject: "test-tenant",
+				OntapVersion:          "9.13.1P2",
+			},
+			BuildInfo: &datamodel.PoolBuildInfo{
+				OntapVersion: "9.13.1P2",
+			},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+				AuthType: envs.USERNAME_PWD,
+			},
+			Account:     &datamodel.Account{Name: "test-account"},
+			KmsConfig:   &datamodel.KmsConfig{},
+			KmsConfigID: sql.NullInt64{Int64: 1, Valid: true},
+		}
 
-	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
-		return mockVSAClientWorkflowManager
-	}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(poolNonEmpty, nil)
+		env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+		mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
 
-	env.ExecuteWorkflow(DeletePoolWorkflow, params, poolNonEmpty)
-	assert.True(t, env.IsWorkflowCompleted())
-	assert.NoError(t, env.GetWorkflowError())
-	env.AssertExpectations(t)
+		// Mock child workflows
+		env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
+		env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
+
+		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+			return mockVSAClientWorkflowManager
+		}
+
+		env.ExecuteWorkflow(DeletePoolWorkflow, params, poolNonEmpty)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	// Test Case 3: BuildInfo is nil - should use vlm.ExtractedOntapVersion
+	t.Run("BuildInfo is nil", func(t *testing.T) {
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		env.SetHeader(mockHeader)
+
+		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+		enableMetrics = true
+		ginLoggingFeatureFlag = true
+		defer func() {
+			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+			enableMetrics = envs.GetBool("ENABLE_METRICS", false)
+			ginLoggingFeatureFlag = false
+		}()
+
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
+		env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
+		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+
+		poolNilBuildInfo := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 123},
+			Name:      "test-pool",
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				BucketName: "test-bucket",
+			},
+			ServiceAccountId: "test-service-account",
+			ClusterDetails: datamodel.ClusterDetails{
+				RegionalTenantProject: "test-tenant",
+				OntapVersion:          "9.13.1P2",
+			},
+			BuildInfo: nil, // BuildInfo is nil
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+				AuthType: envs.USERNAME_PWD,
+			},
+			Account:     &datamodel.Account{Name: "test-account"},
+			KmsConfig:   &datamodel.KmsConfig{},
+			KmsConfigID: sql.NullInt64{Int64: 1, Valid: true},
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(poolNilBuildInfo, nil)
+		env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+		mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
+
+		env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
+		env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
+
+		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+			return mockVSAClientWorkflowManager
+		}
+
+		env.ExecuteWorkflow(DeletePoolWorkflow, params, poolNilBuildInfo)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
 }
 
 func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
