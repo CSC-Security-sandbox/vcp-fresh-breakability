@@ -103,6 +103,13 @@ type Invoker interface {
 	//
 	// GET /v1/pools
 	V1ListPools(ctx context.Context, params V1ListPoolsParams) (V1ListPoolsRes, error)
+	// V1RefreshRbacForExpertModePools invokes v1_refreshRbacForExpertModePools operation.
+	//
+	// Triggers a workflow to update RBAC hash for all active ONTAP mode pools by comparing with the
+	// latest RBAC file from GCS bucket.
+	//
+	// POST /v1/expertMode/rbac/refresh
+	V1RefreshRbacForExpertModePools(ctx context.Context, params V1RefreshRbacForExpertModePoolsParams) (V1RefreshRbacForExpertModePoolsRes, error)
 	// V1RotateGcpKmsConfig invokes v1_rotateGcpKmsConfig operation.
 	//
 	// Rotates service account key of a gcp kms config.
@@ -1065,6 +1072,59 @@ func (c *Client) sendV1ListPools(ctx context.Context, params V1ListPoolsParams) 
 	defer resp.Body.Close()
 
 	result, err := decodeV1ListPoolsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1RefreshRbacForExpertModePools invokes v1_refreshRbacForExpertModePools operation.
+//
+// Triggers a workflow to update RBAC hash for all active ONTAP mode pools by comparing with the
+// latest RBAC file from GCS bucket.
+//
+// POST /v1/expertMode/rbac/refresh
+func (c *Client) V1RefreshRbacForExpertModePools(ctx context.Context, params V1RefreshRbacForExpertModePoolsParams) (V1RefreshRbacForExpertModePoolsRes, error) {
+	res, err := c.sendV1RefreshRbacForExpertModePools(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1RefreshRbacForExpertModePools(ctx context.Context, params V1RefreshRbacForExpertModePoolsParams) (res V1RefreshRbacForExpertModePoolsRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v1/expertMode/rbac/refresh"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1RefreshRbacForExpertModePoolsResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

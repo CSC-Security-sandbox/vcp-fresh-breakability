@@ -3154,3 +3154,242 @@ func TestDataStoreRepository_GetPoolByUUID(t *testing.T) {
 		assert.Nil(tt, result)
 	})
 }
+
+func TestListExpertModePool(t *testing.T) {
+	t.Run("ReturnsAllOntapPools", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+		defer store.db.Delete(account)
+
+		// Create pools with different states and api_access_mode
+		pools := []*datamodel.Pool{
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-ready-ontap"},
+				Name:           "pool_ready_ontap",
+				AccountID:      account.ID,
+				State:          models.LifeCycleStateREADY,
+				APIAccessMode:  "ONTAP",
+				DeploymentName: "dep-ready-ontap",
+			},
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-available-ontap"},
+				Name:           "pool_available_ontap",
+				AccountID:      account.ID,
+				State:          models.LifeCycleStateAvailable,
+				APIAccessMode:  "ONTAP",
+				DeploymentName: "dep-available-ontap",
+			},
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-ready-nonontap"},
+				Name:           "pool_ready_nonontap",
+				AccountID:      account.ID,
+				State:          models.LifeCycleStateREADY,
+				APIAccessMode:  "NFS",
+				DeploymentName: "dep-ready-nonontap",
+			},
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-creating-ontap"},
+				Name:           "pool_creating_ontap",
+				AccountID:      account.ID,
+				State:          models.LifeCycleStateCreating,
+				APIAccessMode:  "ONTAP",
+				DeploymentName: "dep-creating-ontap",
+			},
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-deleting-ontap"},
+				Name:           "pool_deleting_ontap",
+				AccountID:      account.ID,
+				State:          models.LifeCycleStateDeleting,
+				APIAccessMode:  "ONTAP",
+				DeploymentName: "dep-deleting-ontap",
+			},
+		}
+
+		for _, pool := range pools {
+			err := store.db.Create(pool).Error()
+			require.NoError(tt, err)
+		}
+
+		// Call ListExpertModePools
+		result, err := store.ListExpertModePools(ctx)
+
+		// Should return all pools with api_access_mode = ONTAP (regardless of state)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 4) // All 4 ONTAP pools: ready, available, creating, deleting
+
+		// Verify the returned pools
+		poolUUIDs := make(map[string]bool)
+		for _, pool := range result {
+			poolUUIDs[pool.UUID] = true
+			assert.Equal(tt, "ONTAP", pool.APIAccessMode)
+		}
+
+		assert.True(tt, poolUUIDs["pool-ready-ontap"], "pool-ready-ontap should be in results")
+		assert.True(tt, poolUUIDs["pool-available-ontap"], "pool-available-ontap should be in results")
+		assert.True(tt, poolUUIDs["pool-creating-ontap"], "pool-creating-ontap should be in results")
+		assert.True(tt, poolUUIDs["pool-deleting-ontap"], "pool-deleting-ontap should be in results")
+		assert.False(tt, poolUUIDs["pool-ready-nonontap"], "pool-ready-nonontap should not be in results (wrong api_access_mode)")
+	})
+
+	t.Run("ReturnsEmptySliceWhenNoMatchingPools", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+		defer store.db.Delete(account)
+
+		// Create pools that don't match the criteria (only non-ONTAP pools)
+		pools := []*datamodel.Pool{
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-ready-nfs"},
+				Name:           "pool_ready_nfs",
+				AccountID:      account.ID,
+				State:          models.LifeCycleStateREADY,
+				APIAccessMode:  "NFS",
+				DeploymentName: "dep-ready-nfs",
+			},
+		}
+
+		for _, pool := range pools {
+			err := store.db.Create(pool).Error()
+			require.NoError(tt, err)
+		}
+
+		// Call ListExpertModePools
+		result, err := store.ListExpertModePools(ctx)
+
+		assert.NoError(tt, err)
+		assert.Empty(tt, result) // No ONTAP pools, so should be empty
+	})
+
+	t.Run("ReturnsEmptySliceWhenNoPoolsExist", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		result, err := store.ListExpertModePools(ctx)
+
+		assert.NoError(tt, err)
+		assert.Empty(tt, result)
+	})
+
+	t.Run("ExcludesDeletedPools", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+		defer store.db.Delete(account)
+
+		// Create active pool
+		activePool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "pool-active-ontap"},
+			Name:           "pool_active_ontap",
+			AccountID:      account.ID,
+			State:          models.LifeCycleStateREADY,
+			APIAccessMode:  "ONTAP",
+			DeploymentName: "dep-active-ontap",
+		}
+		err = store.db.Create(activePool).Error()
+		require.NoError(tt, err)
+
+		// Create deleted pool (soft delete)
+		deletedPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "pool-deleted-ontap",
+				DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true},
+			},
+			Name:           "pool_deleted_ontap",
+			AccountID:      account.ID,
+			State:          models.LifeCycleStateREADY,
+			APIAccessMode:  "ONTAP",
+			DeploymentName: "dep-deleted-ontap",
+		}
+		err = store.db.Create(deletedPool).Error()
+		require.NoError(tt, err)
+
+		// Call ListExpertModePools
+		result, err := store.ListExpertModePools(ctx)
+
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 1)
+		assert.Equal(tt, "pool-active-ontap", result[0].UUID)
+		assert.NotEqual(tt, "pool-deleted-ontap", result[0].UUID)
+	})
+
+	t.Run("ReturnsMultipleOntapPools", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		// Create test account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+		defer store.db.Delete(account)
+
+		// Create pools with ONTAP api_access_mode
+		pools := []*datamodel.Pool{
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-ready-1"},
+				Name:           "pool_ready_1",
+				AccountID:      account.ID,
+				State:          models.LifeCycleStateREADY,
+				APIAccessMode:  "ONTAP",
+				DeploymentName: "dep-ready-1",
+			},
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-ready-2"},
+				Name:           "pool_ready_2",
+				AccountID:      account.ID,
+				State:          models.LifeCycleStateREADY,
+				APIAccessMode:  "ONTAP",
+				DeploymentName: "dep-ready-2",
+			},
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "pool-available-1"},
+				Name:           "pool_available_1",
+				AccountID:      account.ID,
+				State:          models.LifeCycleStateAvailable,
+				APIAccessMode:  "ONTAP",
+				DeploymentName: "dep-available-1",
+			},
+		}
+
+		for _, pool := range pools {
+			err := store.db.Create(pool).Error()
+			require.NoError(tt, err)
+		}
+
+		// Call ListExpertModePools
+		result, err := store.ListExpertModePools(ctx)
+
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 3)
+
+		// Verify all returned pools have ONTAP api_access_mode (regardless of state)
+		for _, pool := range result {
+			assert.Equal(tt, "ONTAP", pool.APIAccessMode)
+		}
+	})
+}

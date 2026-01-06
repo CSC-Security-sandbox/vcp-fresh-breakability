@@ -19,6 +19,7 @@ const (
 	V1GetPoolOperation                               OperationName = "V1GetPool"
 	V1ListImageVersionsOperation                     OperationName = "V1ListImageVersions"
 	V1ListPoolsOperation                             OperationName = "V1ListPools"
+	V1RefreshRbacForExpertModePoolsOperation         OperationName = "V1RefreshRbacForExpertModePools"
 	V1RotateGcpKmsConfigOperation                    OperationName = "V1RotateGcpKmsConfig"
 	V1UpdatePoolOperation                            OperationName = "V1UpdatePool"
 	V1UpgradeClusterOperation                        OperationName = "V1UpgradeCluster"

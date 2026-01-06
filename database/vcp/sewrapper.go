@@ -4487,6 +4487,22 @@ func (re *retryEngine) CreateExpertModeVolume(ctx context.Context, expertModeVol
 	return var0, err
 }
 
+func (re *retryEngine) ListExpertModePools(ctx context.Context) ([]*datamodel.Pool, error) {
+	var var0 []*datamodel.Pool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListExpertModePools(ctx)
+		if err != nil {
+			re.logError("ListExpertModePools", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetExpertModePoolUsedCapacity(ctx context.Context, poolID int64) (int64, error) {
 	var var0 int64
 	err := retry.Do(func(attempt int) (bool, error) {

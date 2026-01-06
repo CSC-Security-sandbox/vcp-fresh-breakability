@@ -356,6 +356,7 @@ type (
 
 		// Expert Mode Volume operations
 		CreateExpertModeVolume(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) (*datamodel.ExpertModeVolumes, error)
+		ListExpertModePools(ctx context.Context) ([]*datamodel.Pool, error)
 		GetExpertModePoolUsedCapacity(ctx context.Context, poolID int64) (int64, error)
 		GetExpertModeVolumeByNameAndPoolID(ctx context.Context, name string, poolID int64) (*datamodel.ExpertModeVolumes, error)
 		GetExpertModeVolumeByUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error)

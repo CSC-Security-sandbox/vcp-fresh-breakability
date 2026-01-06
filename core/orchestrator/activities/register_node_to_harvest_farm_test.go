@@ -167,7 +167,7 @@ func TestUploadHarvestTemplate_PoolFetchOtherError_ReturnsError(t *testing.T) {
 	assert.Contains(t, err.Error(), "db down")
 }
 
-// Below test case will test when auth type is default creds(userName and Password)
+// Below test case will test when auth type is default creds(userName and password)
 func TestUploadHarvestTemplate_WithCredentials(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseMultipartForm(10 << 20)

@@ -277,6 +277,26 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 						}
 
+					case 'r': // Prefix: "rbac/refresh"
+
+						if l := len("rbac/refresh"); len(elem) >= l && elem[0:l] == "rbac/refresh" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "POST":
+								s.handleV1RefreshRbacForExpertModePoolsRequest([0]string{}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, "POST")
+							}
+
+							return
+						}
+
 					case 'v': // Prefix: "volumes"
 
 						if l := len("volumes"); len(elem) >= l && elem[0:l] == "volumes" {
@@ -864,6 +884,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								}
 							}
 
+						}
+
+					case 'r': // Prefix: "rbac/refresh"
+
+						if l := len("rbac/refresh"); len(elem) >= l && elem[0:l] == "rbac/refresh" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "POST":
+								r.name = V1RefreshRbacForExpertModePoolsOperation
+								r.summary = "Refresh RBAC hash for all pools"
+								r.operationID = "v1_refreshRbacForExpertModePools"
+								r.pathPattern = "/v1/expertMode/rbac/refresh"
+								r.args = args
+								r.count = 0
+								return r, true
+							default:
+								return
+							}
 						}
 
 					case 'v': // Prefix: "volumes"

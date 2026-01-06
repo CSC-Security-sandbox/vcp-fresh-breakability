@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -400,4 +401,156 @@ func newExpertModeVolumeRequest(poolUUID string, action oasgenserver.ExpertModeV
 	}
 
 	return req
+}
+
+func TestV1RefreshRbacForExpertModePools(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		// Setup
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		// Test data
+		jobID := "test-job-uuid-12345"
+		params := oasgenserver.V1RefreshRbacForExpertModePoolsParams{}
+
+		// Set up expectations
+		mockOrch.EXPECT().UpdateRbacForPools(mock.Anything).Return(jobID, nil)
+
+		// Execute
+		ctx := context.Background()
+		result, err := handler.V1RefreshRbacForExpertModePools(ctx, params)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		operation, ok := result.(*oasgenserver.OperationV1)
+		assert.True(t, ok, "Expected OperationV1 response")
+		assert.False(t, operation.Done.Or(true), "Operation should not be done")
+		expectedOperationName := fmt.Sprintf("/v1/expertMode/rbac/refresh/operations/%s", jobID)
+		assert.Equal(t, expectedOperationName, operation.Name.Or(""))
+
+		// Verify mock expectations
+		mockOrch.AssertExpectations(t)
+	})
+
+	t.Run("BadRequestError", func(t *testing.T) {
+		// Setup
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		// Test data
+		params := oasgenserver.V1RefreshRbacForExpertModePoolsParams{}
+
+		// Set up expectations - orchestrator returns bad request error
+		badRequestErr := customerrors.NewBadRequestErr("invalid request: missing required parameters")
+		mockOrch.EXPECT().UpdateRbacForPools(mock.Anything).Return("", badRequestErr)
+
+		// Execute
+		ctx := context.Background()
+		result, err := handler.V1RefreshRbacForExpertModePools(ctx, params)
+
+		// Assert
+		assert.NoError(t, err) // Handler converts error to response
+		assert.NotNil(t, result)
+
+		badRequest, ok := result.(*oasgenserver.V1RefreshRbacForExpertModePoolsBadRequest)
+		assert.True(t, ok)
+		assert.Equal(t, float64(http.StatusBadRequest), badRequest.Code)
+		assert.Contains(t, badRequest.Message, "invalid request")
+
+		// Verify mock expectations
+		mockOrch.AssertExpectations(t)
+	})
+
+	t.Run("InternalServerError_WorkflowExecutionFailed", func(t *testing.T) {
+		// Setup
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		// Test data
+		params := oasgenserver.V1RefreshRbacForExpertModePoolsParams{}
+
+		// Set up expectations - orchestrator returns generic error (not BadRequest)
+		workflowErr := errors.New("failed to start RBAC update workflow: temporal connection error")
+		mockOrch.EXPECT().UpdateRbacForPools(mock.Anything).Return("", workflowErr)
+
+		// Execute
+		ctx := context.Background()
+		result, err := handler.V1RefreshRbacForExpertModePools(ctx, params)
+
+		// Assert
+		assert.NoError(t, err) // Handler converts error to response
+		assert.NotNil(t, result)
+
+		internalError, ok := result.(*oasgenserver.V1RefreshRbacForExpertModePoolsInternalServerError)
+		assert.True(t, ok)
+		assert.Equal(t, float64(http.StatusInternalServerError), internalError.Code)
+		assert.Contains(t, internalError.Message, "failed to start RBAC update workflow")
+
+		// Verify mock expectations
+		mockOrch.AssertExpectations(t)
+	})
+
+	t.Run("InternalServerError_JobCreationFailed", func(t *testing.T) {
+		// Setup
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		// Test data
+		params := oasgenserver.V1RefreshRbacForExpertModePoolsParams{}
+
+		// Set up expectations - orchestrator returns database error
+		jobCreationErr := errors.New("failed to create job: database connection failed")
+		mockOrch.EXPECT().UpdateRbacForPools(mock.Anything).Return("", jobCreationErr)
+
+		// Execute
+		ctx := context.Background()
+		result, err := handler.V1RefreshRbacForExpertModePools(ctx, params)
+
+		// Assert
+		assert.NoError(t, err) // Handler converts error to response
+		assert.NotNil(t, result)
+
+		internalError, ok := result.(*oasgenserver.V1RefreshRbacForExpertModePoolsInternalServerError)
+		assert.True(t, ok)
+		assert.Equal(t, float64(http.StatusInternalServerError), internalError.Code)
+		assert.Contains(t, internalError.Message, "failed to create job")
+
+		// Verify mock expectations
+		mockOrch.AssertExpectations(t)
+	})
+
+	t.Run("Success_WithCorrelationID", func(t *testing.T) {
+		// Setup
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		// Test data
+		jobID := "test-job-uuid-67890"
+		correlationID := "test-correlation-id-12345"
+		params := oasgenserver.V1RefreshRbacForExpertModePoolsParams{
+			XCorrelationID: oasgenserver.NewOptString(correlationID),
+		}
+
+		// Set up expectations
+		mockOrch.EXPECT().UpdateRbacForPools(mock.Anything).Return(jobID, nil)
+
+		// Execute with correlation ID in params
+		ctx := context.Background()
+		result, err := handler.V1RefreshRbacForExpertModePools(ctx, params)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		operation, ok := result.(*oasgenserver.OperationV1)
+		assert.True(t, ok, "Expected OperationV1 response")
+		assert.False(t, operation.Done.Or(true), "Operation should not be done")
+		expectedOperationName := fmt.Sprintf("/v1/expertMode/rbac/refresh/operations/%s", jobID)
+		assert.Equal(t, expectedOperationName, operation.Name.Or(""))
+
+		// Verify mock expectations
+		mockOrch.AssertExpectations(t)
+	})
 }

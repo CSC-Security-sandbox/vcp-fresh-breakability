@@ -3015,7 +3015,7 @@ func TestUpdateOntapVersionDuringUpgrade(t *testing.T) {
 					Password:      "password",
 					SecretID:      "secret-id",
 					CertificateID: "cert-id",
-					AuthType:      1, // Password auth type
+					AuthType:      1, // password auth type
 				},
 				DeploymentName: "test-deployment",
 				ClusterDetails: datamodel.ClusterDetails{

@@ -100,8 +100,8 @@ var (
 	VsaInstanceTypeOverride  = env.GetBool("VSA_INSTANCE_TYPE_OVERRIDE_LSSD", false)
 	IsIntegrationTest        = env.GetBool("INTEGRATION_TEST", false)
 	maxNestedCloneLimit      = env.GetInt("MAX_NESTED_CLONE_LIMIT", 499)
-	expertModeRbacBucketName = env.GetString("EXPERT_MODE_RBAC_BUCKET_NAME", "gcnv-autopush-images-bucket")
-	expertModeRbacFilePath   = env.GetString("EXPERT_MODE_RBAC_FILE_PATH", "GCNV/%s/RBAC/gcnvadmin_create_cli")
+	ExpertModeRbacBucketName = env.GetString("EXPERT_MODE_RBAC_BUCKET_NAME", "gcnv-autopush-images-bucket")
+	ExpertModeRbacFilePath   = env.GetString("EXPERT_MODE_RBAC_FILE_PATH", "GCNV/%s/RBAC/gcnvadmin_create_cli")
 
 	ValidateImageDigestFlag = env.GetBool("VALIDATE_IMAGE_DIGEST", false)
 	VsaImageChecksums       = env.GetString("VSA_IMAGE_CHECKSUMS", "")
@@ -862,7 +862,7 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 		credentials.AdminPassword = secret.SecretVersion.Value
-		activity.RecordHeartbeat(ctx, "Password generated successfully")
+		activity.RecordHeartbeat(ctx, "password generated successfully")
 	default:
 		activity.RecordHeartbeat(ctx, "Using default password for ONTAP credentials")
 		credentials.AdminPassword = pool.PoolCredentials.Password
@@ -942,7 +942,7 @@ func (j *PoolActivity) DeleteOnTapCredentials(ctx context.Context, pool *datamod
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
-		activity.RecordHeartbeat(ctx, "Certificate revoked and deleted successfully")
+		activity.RecordHeartbeat(ctx, "certificate revoked and deleted successfully")
 		fallthrough
 	case env.USERNAME_PWD_SEC_MGR:
 		activity.RecordHeartbeat(ctx, "Deleting password from Secret Manager")
@@ -984,7 +984,7 @@ func (j *PoolActivity) DeleteExpertModeCredentials(ctx context.Context, pool *da
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
-		activity.RecordHeartbeat(ctx, "Certificate revoked and deleted successfully")
+		activity.RecordHeartbeat(ctx, "certificate revoked and deleted successfully")
 	case env.USERNAME_PWD_SEC_MGR:
 		activity.RecordHeartbeat(ctx, "Deleting password from Secret Manager for expert mode")
 		err = hyperscaler2.DeletePasswordFromCacheAndSecretManager(gcpService, pool.ExpertModeCredentials.ExpertModeCredential[0].SecretID)
@@ -1046,12 +1046,12 @@ func (j *PoolActivity) PrepareCreateVSAExpertModeReq(vlmConfig vlm.VLMConfig, on
 }
 
 func (j *PoolActivity) GetRbacHash(ctx context.Context, ontapVersion string) (*hyperscaler_models.BucketFileDetails, error) {
-	rbacFileurl := utils.GenerateRbacFilePath(expertModeRbacFilePath, ontapVersion)
+	rbacFileurl := utils.GenerateRbacFilePath(ExpertModeRbacFilePath, ontapVersion)
 	gcpService, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err))
 	}
-	bucketFileDetails, err := GetBucketFile(gcpService, ctx, expertModeRbacBucketName, rbacFileurl)
+	bucketFileDetails, err := GetBucketFile(gcpService, ctx, ExpertModeRbacBucketName, rbacFileurl)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -1068,16 +1068,25 @@ func _getBucketFile(service hyperscaler2.GoogleServices, ctx context.Context, bu
 
 func (j *PoolActivity) UpdateRbacCheckSumInPool(ctx context.Context, pool *datamodel.Pool, bucketFileDetails *hyperscaler_models.BucketFileDetails) error {
 	se := j.SE
-	vsaBuildInfo := pool.BuildInfo
+	// Fetch the latest pool data to avoid overwriting concurrent changes to BuildInfo
+	// (e.g., from upgrade workflows that may update VSABuildImage, MediatorBuildImage, etc.)
+	latestPool, err := se.GetPoolByUUID(ctx, pool.UUID)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Use the latest BuildInfo to preserve any concurrent updates
+	vsaBuildInfo := latestPool.BuildInfo
 	if vsaBuildInfo == nil {
 		return vsaerrors.WrapAsTemporalApplicationError(errors.New("vsaBuildInfo is nil"))
 	}
 	vsaBuildInfo.RbacFileHash = bucketFileDetails.FileHashSHA256
 	vsaBuildInfo.RbacFileUrl = fmt.Sprintf("gs://%s/%s", bucketFileDetails.BucketName, bucketFileDetails.FileUrl)
+
 	updates := map[string]interface{}{
 		"build_info": vsaBuildInfo,
 	}
-	err := se.UpdatePoolFields(ctx, pool.UUID, updates)
+	err = se.UpdatePoolFields(ctx, pool.UUID, updates)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}

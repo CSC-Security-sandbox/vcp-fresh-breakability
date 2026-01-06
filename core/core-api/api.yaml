@@ -1056,6 +1056,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1/expertMode/rbac/refresh:
+    post:
+      tags:
+        - expertMode
+      summary: Refresh RBAC hash for all pools
+      description: Triggers a workflow to update RBAC hash for all active ONTAP mode pools by comparing with the latest RBAC file from GCS bucket
+      operationId: v1_refreshRbacForExpertModePools
+      parameters:
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        "202":
+          description: RBAC refresh workflow initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1'
+              example:
+                done: false
+                name: /v1/expertMode/rbac/refresh/operations/6bed33e1-cc9c-e0b5-ac63-24e9410e64c1
+        "400":
+          $ref: '#/components/responses/StandardError-400'
+        "401":
+          $ref: '#/components/responses/StandardError-401'
+        "403":
+          $ref: '#/components/responses/StandardError-403'
+        "404":
+          $ref: '#/components/responses/StandardError-404'
+        "422":
+          $ref: '#/components/responses/StandardError-422'
+        "429":
+          $ref: '#/components/responses/StandardError-429'
+        "500":
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots:
     post:
       operationId: v1_createSnapshot

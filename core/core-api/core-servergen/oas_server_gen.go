@@ -90,6 +90,13 @@ type Handler interface {
 	//
 	// GET /v1/pools
 	V1ListPools(ctx context.Context, params V1ListPoolsParams) (V1ListPoolsRes, error)
+	// V1RefreshRbacForExpertModePools implements v1_refreshRbacForExpertModePools operation.
+	//
+	// Triggers a workflow to update RBAC hash for all active ONTAP mode pools by comparing with the
+	// latest RBAC file from GCS bucket.
+	//
+	// POST /v1/expertMode/rbac/refresh
+	V1RefreshRbacForExpertModePools(ctx context.Context, params V1RefreshRbacForExpertModePoolsParams) (V1RefreshRbacForExpertModePoolsRes, error)
 	// V1RotateGcpKmsConfig implements v1_rotateGcpKmsConfig operation.
 	//
 	// Rotates service account key of a gcp kms config.

@@ -12859,9 +12859,31 @@ func TestPoolActivity_UpdateRbacCheckSumInPool(t *testing.T) {
 		},
 	}
 
+	t.Run("GetPoolByUUID fails", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+
+		mockStorage.On("GetPoolByUUID", ctx, pool.UUID).Return(nil, errors.New("pool not found"))
+
+		err := activity.UpdateRbacCheckSumInPool(ctx, pool, bucketFileDetails)
+
+		assert.Error(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
 	t.Run("UpdatePoolFields fails", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.PoolActivity{SE: mockStorage}
+
+		// Mock GetPoolByUUID to return the pool with BuildInfo
+		latestPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: pool.UUID},
+			BuildInfo: &datamodel.PoolBuildInfo{
+				RbacFileHash: "",
+				RbacFileUrl:  "",
+			},
+		}
+		mockStorage.On("GetPoolByUUID", ctx, pool.UUID).Return(latestPool, nil)
 
 		expectedUpdates := map[string]interface{}{
 			"build_info": &datamodel.PoolBuildInfo{
@@ -12883,6 +12905,16 @@ func TestPoolActivity_UpdateRbacCheckSumInPool(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.PoolActivity{SE: mockStorage}
 
+		// Mock GetPoolByUUID to return the pool with BuildInfo
+		latestPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: pool.UUID},
+			BuildInfo: &datamodel.PoolBuildInfo{
+				RbacFileHash: "",
+				RbacFileUrl:  "",
+			},
+		}
+		mockStorage.On("GetPoolByUUID", ctx, pool.UUID).Return(latestPool, nil)
+
 		expectedUpdates := map[string]interface{}{
 			"build_info": &datamodel.PoolBuildInfo{
 				RbacFileHash: "abc123def456",
@@ -12895,8 +12927,7 @@ func TestPoolActivity_UpdateRbacCheckSumInPool(t *testing.T) {
 		err := activity.UpdateRbacCheckSumInPool(ctx, pool, bucketFileDetails)
 
 		assert.NoError(t, err)
-		assert.Equal(t, "abc123def456", pool.BuildInfo.RbacFileHash)
-		assert.Equal(t, "gs://test-bucket/rbac.yaml", pool.BuildInfo.RbacFileUrl)
+		// Note: pool.BuildInfo is not modified in place since we fetch latest data
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -12915,11 +12946,24 @@ func TestPoolActivity_UpdateRbacCheckSumInPool(t *testing.T) {
 			},
 		}
 
+		// Mock GetPoolByUUID to return the latest pool with BuildInfo (simulating concurrent update)
+		latestPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: poolWithBuildInfo.UUID},
+			BuildInfo: &datamodel.PoolBuildInfo{
+				RbacFileHash:  "old-hash",
+				RbacFileUrl:   "gs://old-bucket/old-file.yaml",
+				VSABuildImage: "test-image-updated", // Simulate concurrent update
+				OntapVersion:  "9.18.1",
+			},
+		}
+		mockStorage.On("GetPoolByUUID", ctx, poolWithBuildInfo.UUID).Return(latestPool, nil)
+
 		expectedUpdates := map[string]interface{}{
 			"build_info": &datamodel.PoolBuildInfo{
 				RbacFileHash:  "abc123def456",
 				RbacFileUrl:   "gs://test-bucket/rbac.yaml",
-				VSABuildImage: "test-image",
+				VSABuildImage: "test-image-updated", // Preserved from latest pool
+				OntapVersion:  "9.18.1",             // Preserved from latest pool
 			},
 		}
 
@@ -12928,9 +12972,7 @@ func TestPoolActivity_UpdateRbacCheckSumInPool(t *testing.T) {
 		err := activity.UpdateRbacCheckSumInPool(ctx, poolWithBuildInfo, bucketFileDetails)
 
 		assert.NoError(t, err)
-		assert.Equal(t, "abc123def456", poolWithBuildInfo.BuildInfo.RbacFileHash)
-		assert.Equal(t, "gs://test-bucket/rbac.yaml", poolWithBuildInfo.BuildInfo.RbacFileUrl)
-		assert.Equal(t, "test-image", poolWithBuildInfo.BuildInfo.VSABuildImage) // Verify other fields are preserved
+		// Verify that concurrent changes (VSABuildImage, OntapVersion) are preserved
 		mockStorage.AssertExpectations(t)
 	})
 }
@@ -13416,15 +13458,15 @@ func TestPoolActivity_PrepareCreateVSAExpertModeReq(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
 
-	vlmConfig := vlm.VLMConfig{
+	vlmConfig := &vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
 			NumHAPair: 1,
 		},
 	}
-	ontapCredentials := vlm.OntapCredentials{
+	ontapCredentials := &vlm.OntapCredentials{
 		AdminPassword: "admin-password",
 	}
-	expertModeCredentials := vlm.OntapCredentials{
+	expertModeCredentials := &vlm.OntapCredentials{
 		AdminPassword: "expert-password",
 	}
 	bucketFileDetails := &hyperscaler_models.BucketFileDetails{
@@ -13450,12 +13492,12 @@ func TestPoolActivity_PrepareCreateVSAExpertModeReq(t *testing.T) {
 			},
 		}
 
-		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, bucketFileDetails)
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(*vlmConfig, *ontapCredentials, *expertModeCredentials, pool, bucketFileDetails)
 
 		assert.NoError(t, err)
-		assert.Equal(t, vlmConfig, createVSAExpertModeRequest.VLMConfig)
-		assert.Equal(t, ontapCredentials, createVSAExpertModeRequest.OntapCredentials)
-		assert.Equal(t, expertModeCredentials, createVSAExpertModeRequest.ExpertModeUserCredentials)
+		assert.Equal(t, *vlmConfig, createVSAExpertModeRequest.VLMConfig)
+		assert.Equal(t, *ontapCredentials, createVSAExpertModeRequest.OntapCredentials)
+		assert.Equal(t, *expertModeCredentials, createVSAExpertModeRequest.ExpertModeUserCredentials)
 		assert.Equal(t, "certificate", createVSAExpertModeRequest.AuthenticationType)
 		assert.Equal(t, "gcnvadmin", createVSAExpertModeRequest.Username)
 		assert.Equal(t, "gs://test-bucket/GCNV/9.17.1/RBAC/gcnvadmin_create_cli", createVSAExpertModeRequest.RbacFileURL)
@@ -13480,12 +13522,12 @@ func TestPoolActivity_PrepareCreateVSAExpertModeReq(t *testing.T) {
 			},
 		}
 
-		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, bucketFileDetails)
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(*vlmConfig, *ontapCredentials, *expertModeCredentials, pool, bucketFileDetails)
 
 		assert.NoError(t, err)
-		assert.Equal(t, vlmConfig, createVSAExpertModeRequest.VLMConfig)
-		assert.Equal(t, ontapCredentials, createVSAExpertModeRequest.OntapCredentials)
-		assert.Equal(t, expertModeCredentials, createVSAExpertModeRequest.ExpertModeUserCredentials)
+		assert.Equal(t, *vlmConfig, createVSAExpertModeRequest.VLMConfig)
+		assert.Equal(t, *ontapCredentials, createVSAExpertModeRequest.OntapCredentials)
+		assert.Equal(t, *expertModeCredentials, createVSAExpertModeRequest.ExpertModeUserCredentials)
 		assert.Equal(t, "password", createVSAExpertModeRequest.AuthenticationType)
 		assert.Equal(t, "gcnvadmin", createVSAExpertModeRequest.Username)
 		assert.Equal(t, "gs://test-bucket/GCNV/9.17.1/RBAC/gcnvadmin_create_cli", createVSAExpertModeRequest.RbacFileURL)
@@ -13504,7 +13546,7 @@ func TestPoolActivity_PrepareCreateVSAExpertModeReq(t *testing.T) {
 			ExpertModeCredentials: nil,
 		}
 
-		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, bucketFileDetails)
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(*vlmConfig, *ontapCredentials, *expertModeCredentials, pool, bucketFileDetails)
 
 		assert.Error(t, err)
 		assert.Nil(t, createVSAExpertModeRequest)
@@ -13525,7 +13567,7 @@ func TestPoolActivity_PrepareCreateVSAExpertModeReq(t *testing.T) {
 			},
 		}
 
-		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, bucketFileDetails)
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(*vlmConfig, *ontapCredentials, *expertModeCredentials, pool, bucketFileDetails)
 
 		assert.Error(t, err)
 		assert.Nil(t, createVSAExpertModeRequest)
@@ -13546,7 +13588,7 @@ func TestPoolActivity_PrepareCreateVSAExpertModeReq(t *testing.T) {
 			},
 		}
 
-		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, bucketFileDetails)
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(*vlmConfig, *ontapCredentials, *expertModeCredentials, pool, bucketFileDetails)
 
 		assert.Error(t, err)
 		assert.Nil(t, createVSAExpertModeRequest)
@@ -13570,7 +13612,7 @@ func TestPoolActivity_PrepareCreateVSAExpertModeReq(t *testing.T) {
 				},
 			},
 		}
-		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, nil)
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(*vlmConfig, *ontapCredentials, *expertModeCredentials, pool, nil)
 
 		assert.Error(t, err)
 		assert.Nil(t, createVSAExpertModeRequest)
@@ -13601,7 +13643,7 @@ func TestPoolActivity_PrepareCreateVSAExpertModeReq(t *testing.T) {
 			FileHashSHA256: "", // Empty hash
 		}
 
-		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, invalidBucketFileDetails)
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(*vlmConfig, *ontapCredentials, *expertModeCredentials, pool, invalidBucketFileDetails)
 
 		assert.Error(t, err)
 		assert.Nil(t, createVSAExpertModeRequest)
@@ -13632,7 +13674,7 @@ func TestPoolActivity_PrepareCreateVSAExpertModeReq(t *testing.T) {
 			FileHashSHA256: "abc123def456",
 		}
 
-		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, invalidBucketFileDetails)
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(*vlmConfig, *ontapCredentials, *expertModeCredentials, pool, invalidBucketFileDetails)
 
 		assert.Error(t, err)
 		assert.Nil(t, createVSAExpertModeRequest)
@@ -13663,7 +13705,7 @@ func TestPoolActivity_PrepareCreateVSAExpertModeReq(t *testing.T) {
 			FileHashSHA256: "abc123def456",
 		}
 
-		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, invalidBucketFileDetails)
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(*vlmConfig, *ontapCredentials, *expertModeCredentials, pool, invalidBucketFileDetails)
 
 		assert.Error(t, err)
 		assert.Nil(t, createVSAExpertModeRequest)
@@ -13688,7 +13730,7 @@ func TestPoolActivity_PrepareCreateVSAExpertModeReq(t *testing.T) {
 			},
 		}
 
-		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(vlmConfig, ontapCredentials, expertModeCredentials, pool, bucketFileDetails)
+		createVSAExpertModeRequest, err := activity.PrepareCreateVSAExpertModeReq(*vlmConfig, *ontapCredentials, *expertModeCredentials, pool, bucketFileDetails)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "password", createVSAExpertModeRequest.AuthenticationType) // Should default to password for non-certificate auth

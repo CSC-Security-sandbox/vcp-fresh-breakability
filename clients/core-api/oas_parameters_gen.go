@@ -113,6 +113,12 @@ type V1ListPoolsParams struct {
 	IncludeDeleted OptBool
 }
 
+// V1RefreshRbacForExpertModePoolsParams is parameters of v1_refreshRbacForExpertModePools operation.
+type V1RefreshRbacForExpertModePoolsParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1RotateGcpKmsConfigParams is parameters of v1_rotateGcpKmsConfig operation.
 type V1RotateGcpKmsConfigParams struct {
 	// UUID v4 used to identify the kmsConfig.

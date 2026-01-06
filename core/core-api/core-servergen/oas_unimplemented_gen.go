@@ -134,6 +134,16 @@ func (UnimplementedHandler) V1ListPools(ctx context.Context, params V1ListPoolsP
 	return r, ht.ErrNotImplemented
 }
 
+// V1RefreshRbacForExpertModePools implements v1_refreshRbacForExpertModePools operation.
+//
+// Triggers a workflow to update RBAC hash for all active ONTAP mode pools by comparing with the
+// latest RBAC file from GCS bucket.
+//
+// POST /v1/expertMode/rbac/refresh
+func (UnimplementedHandler) V1RefreshRbacForExpertModePools(ctx context.Context, params V1RefreshRbacForExpertModePoolsParams) (r V1RefreshRbacForExpertModePoolsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1RotateGcpKmsConfig implements v1_rotateGcpKmsConfig operation.
 //
 // Rotates service account key of a gcp kms config.

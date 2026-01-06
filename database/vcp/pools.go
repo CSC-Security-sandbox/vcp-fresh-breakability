@@ -303,6 +303,23 @@ func (d *DataStoreRepository) ListPoolsWithPagination(ctx context.Context, condi
 	return listPoolWithDetailsPagination(d.db.ApplyFilter(conditions).Unscoped().GORM().WithContext(ctx), pagination)
 }
 
+// ListExpertModePools ListExpertModePool retrieves active pools that are running in ONTAP mode, optimized to only query necessary fields (uuid, build_info, state, api_access_mode) without preloads
+func (d *DataStoreRepository) ListExpertModePools(ctx context.Context) ([]*datamodel.Pool, error) {
+	var pools []*datamodel.Pool
+	db := d.db.GORM().WithContext(ctx)
+
+	err := db.Table("pools").
+		Select("uuid", "build_info", "state", "api_access_mode").
+		Where("api_access_mode = ?", "ONTAP").
+		Find(&pools).Error
+
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	return pools, nil
+}
+
 func (d *DataStoreRepository) GetPoolByVendorID(ctx context.Context, vendorID string, accountID int64) (*datamodel.PoolView, error) {
 	return getPoolWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Pool{VendorID: vendorID, AccountID: accountID})
 }

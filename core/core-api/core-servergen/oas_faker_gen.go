@@ -2113,6 +2113,69 @@ func (s *V1ListPoolsUnauthorized) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1RefreshRbacForExpertModePoolsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1RefreshRbacForExpertModePoolsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1RefreshRbacForExpertModePoolsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1RefreshRbacForExpertModePoolsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1RefreshRbacForExpertModePoolsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1RefreshRbacForExpertModePoolsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1RefreshRbacForExpertModePoolsNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1RefreshRbacForExpertModePoolsNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1RefreshRbacForExpertModePoolsTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1RefreshRbacForExpertModePoolsTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1RefreshRbacForExpertModePoolsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1RefreshRbacForExpertModePoolsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1RefreshRbacForExpertModePoolsUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1RefreshRbacForExpertModePoolsUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1RotateGcpKmsConfigBadRequest) SetFake() {
 	var unwrapped Error
 	{

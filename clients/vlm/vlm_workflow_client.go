@@ -117,10 +117,10 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAExpertModeUser(ctx workflow
 	}
 
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
-		WorkflowID:            createVSAExpertModeUserRequest.VLMConfig.Deployment.DeploymentID + expertMode, // This ensures that each child workflow has a unique identifier, even if the same Deployment ID is used across different zones
-		TaskQueue:             GetVLMWorkerQueue(logger, accountId),                                          // As VLM workflows are executed in a VSALifecycleManagerQueue queue
-		WaitForCancellation:   true,                                                                          // The parent workflow waits until the child workflow is fully canceled (it finishes whatever it needs to do after being canceled).
-		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,                    // Allows reuse only if the previous execution did not complete successfully (e.g., failed, timed out, terminated, or cancelled)
+		WorkflowID:            createVSAExpertModeUserRequest.VLMConfig.Deployment.DeploymentID + expertMode,
+		TaskQueue:             GetVLMWorkerQueue(logger, accountId),           // As VLM workflows are executed in a VSALifecycleManagerQueue queue
+		WaitForCancellation:   true,                                           // The parent workflow waits until the child workflow is fully canceled (it finishes whatever it needs to do after being canceled).
+		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE, // Allows reuse of workflow ID
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:    retryPolicy.InitialInterval,
 			BackoffCoefficient: retryPolicy.BackoffCoefficient,

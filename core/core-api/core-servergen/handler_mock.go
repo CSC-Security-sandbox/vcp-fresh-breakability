@@ -840,6 +840,65 @@ func (_c *MockHandler_V1ListPools_Call) RunAndReturn(run func(context.Context, V
 	return _c
 }
 
+// V1RefreshRbacForExpertModePools provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1RefreshRbacForExpertModePools(ctx context.Context, params V1RefreshRbacForExpertModePoolsParams) (V1RefreshRbacForExpertModePoolsRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1RefreshRbacForExpertModePools")
+	}
+
+	var r0 V1RefreshRbacForExpertModePoolsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1RefreshRbacForExpertModePoolsParams) (V1RefreshRbacForExpertModePoolsRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1RefreshRbacForExpertModePoolsParams) V1RefreshRbacForExpertModePoolsRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1RefreshRbacForExpertModePoolsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1RefreshRbacForExpertModePoolsParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1RefreshRbacForExpertModePools_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1RefreshRbacForExpertModePools'
+type MockHandler_V1RefreshRbacForExpertModePools_Call struct {
+	*mock.Call
+}
+
+// V1RefreshRbacForExpertModePools is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1RefreshRbacForExpertModePoolsParams
+func (_e *MockHandler_Expecter) V1RefreshRbacForExpertModePools(ctx interface{}, params interface{}) *MockHandler_V1RefreshRbacForExpertModePools_Call {
+	return &MockHandler_V1RefreshRbacForExpertModePools_Call{Call: _e.mock.On("V1RefreshRbacForExpertModePools", ctx, params)}
+}
+
+func (_c *MockHandler_V1RefreshRbacForExpertModePools_Call) Run(run func(ctx context.Context, params V1RefreshRbacForExpertModePoolsParams)) *MockHandler_V1RefreshRbacForExpertModePools_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1RefreshRbacForExpertModePoolsParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1RefreshRbacForExpertModePools_Call) Return(_a0 V1RefreshRbacForExpertModePoolsRes, _a1 error) *MockHandler_V1RefreshRbacForExpertModePools_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1RefreshRbacForExpertModePools_Call) RunAndReturn(run func(context.Context, V1RefreshRbacForExpertModePoolsParams) (V1RefreshRbacForExpertModePoolsRes, error)) *MockHandler_V1RefreshRbacForExpertModePools_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1RotateGcpKmsConfig provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1RotateGcpKmsConfig(ctx context.Context, req *GcpKmsKeyRotateV1, params V1RotateGcpKmsConfigParams) (V1RotateGcpKmsConfigRes, error) {
 	ret := _m.Called(ctx, req, params)

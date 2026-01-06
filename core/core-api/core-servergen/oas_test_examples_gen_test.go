@@ -773,6 +773,7 @@ func TestOperationV1_Examples(t *testing.T) {
 		Input string
 	}{
 		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1/projects/123456789/locations/some-location1/operations/6bed33e1-cc9c-e0b5-ac63-24e9410e64c1\",\"response\":{\"created\":\"0001-01-01T00:00:00.000Z\",\"description\":\"My Resource Description\",\"resourceId\":\"my-resource\",\"snapshotId\":\"1829d6e1-fbe0-87cb-150d-a32290162f0c\",\"snapshotState\":\"CREATING\",\"snapshotStateDetails\":\"Creation in progress\",\"storageClass\":\"SOFTWARE\",\"usedBytes\":0,\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\"}}}"},
+		{Input: "{\"done\":false,\"name\":\"/v1/expertMode/rbac/refresh/operations/6bed33e1-cc9c-e0b5-ac63-24e9410e64c1\"}"},
 		{Input: "{\"done\":true,\"name\":\"/v1/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"activeDirectoryConfigId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryResourceId\":\"projects/123456789/locations/some-location1/activeDirectories/active-directory\",\"allocatedBytes\":10995116277760,\"allowAutoTiering\":false,\"createdAt\":\"2024-01-24T13:54:14.374Z\",\"description\":\"My Pool description\",\"encryptionType\":\"SERVICE_MANAGED\",\"globalAccessAllowed\":true,\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"ldapEnabled\":false,\"network\":\"projects/123456789/global/networks/systemic-qa-vpc\",\"numberOfVolumes\":2,\"poolId\":\"bfa46013-1a1e-587b-ef9a-619bae6ba25d\",\"resourceId\":\"my-pool\",\"serviceLevel\":\"PREMIUM\",\"sizeInBytes\":12094627905536,\"storageClass\":\"HARDWARE\",\"storagePoolState\":\"READY\",\"storagePoolStateDetails\":\"Available for use\",\"updatedAt\":\"2024-01-24T13:54:14.374Z\",\"zone\":\"us-east1-b\"}}"},
 		{Input: "{\"done\":true,\"name\":\"/v1/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"activeDirectoryConfigId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryResourceId\":\"projects/123456789/locations/some-location1/activeDirectories/my-active-directory\",\"allocatedBytes\":0,\"allowAutoTiering\":false,\"createdAt\":\"2024-01-24T13:54:14.374Z\",\"description\":\"My Pool description\",\"encryptionType\":\"SERVICE_MANAGED\",\"globalAccessAllowed\":true,\"kmsConfigId\":\"6aae31f1-f685-4fda-b875-db0ea99235fc\",\"kmsConfigResourceId\":\"projects/123456789/locations/some-location1/kmsConfigs/my-resource\",\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"ldapEnabled\":false,\"network\":\"projects/123456789/global/networks/network-to-netapp2\",\"numberOfVolumes\":0,\"poolId\":\"bfa46013-1a1e-587b-ef9a-619bae6ba25d\",\"resourceId\":\"some-pool-name\",\"secondaryZone\":\"us-east1-c\",\"serviceLevel\":\"PREMIUM\",\"sizeInBytes\":2199023255552,\"storageClass\":\"HARDWARE\",\"storagePoolState\":\"READY\",\"storagePoolStateDetails\":\"Available for use\",\"updatedAt\":\"2024-01-24T13:54:14.374Z\",\"zone\":\"us-east1-b\"}}"},
 		{Input: "{\"done\":true,\"name\":\"/v1/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\"}"},
@@ -2337,6 +2338,90 @@ func TestV1ListPoolsUnauthorized_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1ListPoolsUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1RefreshRbacForExpertModePoolsBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1RefreshRbacForExpertModePoolsBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1RefreshRbacForExpertModePoolsBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1RefreshRbacForExpertModePoolsForbidden_EncodeDecode(t *testing.T) {
+	var typ V1RefreshRbacForExpertModePoolsForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1RefreshRbacForExpertModePoolsForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1RefreshRbacForExpertModePoolsInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1RefreshRbacForExpertModePoolsInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1RefreshRbacForExpertModePoolsInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1RefreshRbacForExpertModePoolsNotFound_EncodeDecode(t *testing.T) {
+	var typ V1RefreshRbacForExpertModePoolsNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1RefreshRbacForExpertModePoolsNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1RefreshRbacForExpertModePoolsTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1RefreshRbacForExpertModePoolsTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1RefreshRbacForExpertModePoolsTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1RefreshRbacForExpertModePoolsUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1RefreshRbacForExpertModePoolsUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1RefreshRbacForExpertModePoolsUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1RefreshRbacForExpertModePoolsUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1RefreshRbacForExpertModePoolsUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1RefreshRbacForExpertModePoolsUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1RotateGcpKmsConfigBadRequest_EncodeDecode(t *testing.T) {

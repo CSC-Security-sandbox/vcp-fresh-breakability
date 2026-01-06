@@ -444,6 +444,10 @@ func (s *PersistenceStore) ListPoolsWithPagination(ctx context.Context, conditio
 	return s.dataStore.ListPoolsWithPagination(ctx, conditions, pagination)
 }
 
+func (s *PersistenceStore) ListExpertModePools(ctx context.Context) ([]*datamodel.Pool, error) {
+	return s.dataStore.ListExpertModePools(ctx)
+}
+
 func (s *PersistenceStore) ListPoolUUIDs(ctx context.Context, filter *dbutils.Filter) ([]*PoolIdentifier, error) {
 	return s.dataStore.ListPoolUUIDs(ctx, filter)
 }

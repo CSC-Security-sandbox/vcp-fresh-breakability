@@ -294,10 +294,13 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterWorkflow(replicationWorkflows.ReverseHybridReplicationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.ReverseHybridReplicationPollWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.ReverseHybridFallbackReplicationWorkflow)
+	worker.RegisterWorkflow(expertmodeworkflows.UpdateRbacForPoolsWorkflow)
+	worker.RegisterWorkflow(expertmodeworkflows.UpdateSinglePoolRbacChildWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
+	worker.RegisterActivity(&expertmodeactivities.RBACUpdateActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.PSCActivity{SE: dbcon})
 	worker.RegisterActivity(&workflows.SubnetActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: dbcon, Scheduler: temporalScheduler})

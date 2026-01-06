@@ -1674,10 +1674,11 @@ func (s *OperationV1) SetResponse(val jx.Raw) {
 	s.Response = val
 }
 
-func (*OperationV1) v1CreatePoolRes()     {}
-func (*OperationV1) v1CreateSnapshotRes() {}
-func (*OperationV1) v1DeletePoolRes()     {}
-func (*OperationV1) v1UpdatePoolRes()     {}
+func (*OperationV1) v1CreatePoolRes()                    {}
+func (*OperationV1) v1CreateSnapshotRes()                {}
+func (*OperationV1) v1DeletePoolRes()                    {}
+func (*OperationV1) v1RefreshRbacForExpertModePoolsRes() {}
+func (*OperationV1) v1UpdatePoolRes()                    {}
 
 // NewOptAnyV1 returns new OptAnyV1 with value set to v.
 func NewOptAnyV1(v AnyV1) OptAnyV1 {
@@ -4837,6 +4838,34 @@ func (*V1ListPoolsTooManyRequests) v1ListPoolsRes() {}
 type V1ListPoolsUnauthorized Error
 
 func (*V1ListPoolsUnauthorized) v1ListPoolsRes() {}
+
+type V1RefreshRbacForExpertModePoolsBadRequest Error
+
+func (*V1RefreshRbacForExpertModePoolsBadRequest) v1RefreshRbacForExpertModePoolsRes() {}
+
+type V1RefreshRbacForExpertModePoolsForbidden Error
+
+func (*V1RefreshRbacForExpertModePoolsForbidden) v1RefreshRbacForExpertModePoolsRes() {}
+
+type V1RefreshRbacForExpertModePoolsInternalServerError Error
+
+func (*V1RefreshRbacForExpertModePoolsInternalServerError) v1RefreshRbacForExpertModePoolsRes() {}
+
+type V1RefreshRbacForExpertModePoolsNotFound Error
+
+func (*V1RefreshRbacForExpertModePoolsNotFound) v1RefreshRbacForExpertModePoolsRes() {}
+
+type V1RefreshRbacForExpertModePoolsTooManyRequests Error
+
+func (*V1RefreshRbacForExpertModePoolsTooManyRequests) v1RefreshRbacForExpertModePoolsRes() {}
+
+type V1RefreshRbacForExpertModePoolsUnauthorized Error
+
+func (*V1RefreshRbacForExpertModePoolsUnauthorized) v1RefreshRbacForExpertModePoolsRes() {}
+
+type V1RefreshRbacForExpertModePoolsUnprocessableEntity Error
+
+func (*V1RefreshRbacForExpertModePoolsUnprocessableEntity) v1RefreshRbacForExpertModePoolsRes() {}
 
 type V1RotateGcpKmsConfigBadRequest Error
 

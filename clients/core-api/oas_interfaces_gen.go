@@ -53,6 +53,10 @@ type V1ListPoolsRes interface {
 	v1ListPoolsRes()
 }
 
+type V1RefreshRbacForExpertModePoolsRes interface {
+	v1RefreshRbacForExpertModePoolsRes()
+}
+
 type V1RotateGcpKmsConfigRes interface {
 	v1RotateGcpKmsConfigRes()
 }

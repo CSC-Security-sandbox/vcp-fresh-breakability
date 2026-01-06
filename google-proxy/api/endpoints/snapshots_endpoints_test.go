@@ -1589,6 +1589,10 @@ func (m *mockInvoker) V1UpgradeCluster(ctx context.Context, request *coreapi.Clu
 	return nil, nil
 }
 
+func (m *mockInvoker) V1RefreshRbacForExpertModePools(ctx context.Context, params coreapi.V1RefreshRbacForExpertModePoolsParams) (coreapi.V1RefreshRbacForExpertModePoolsRes, error) {
+	return nil, nil
+}
+
 func TestV1betaCreateSnapshot_WithSyncModeEnabled(t *testing.T) {
 	t.Run("WhenSyncModeEnabled_ForwardsToCoreAPI", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
