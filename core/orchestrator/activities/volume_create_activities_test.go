@@ -315,7 +315,9 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 			Account: &datamodel.Account{Name: "test-account"},
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				IsDataProtection: false,
-				SecurityStyle:    securityStyle,
+				FileProperties: &datamodel.FileProperties{
+					SecurityStyle: securityStyle,
+				},
 			},
 		}
 		node := &models.Node{}
@@ -324,6 +326,52 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		// Mock the CreateVolume method and verify SecurityStyle is set
 		mockProvider.On("CreateVolume", mock.MatchedBy(func(params vsa.CreateVolumeParams) bool {
 			return params.SecurityStyle != nil && *params.SecurityStyle == securityStyle
+		})).Return(expectedResponse, nil)
+
+		// Act
+		val, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
+
+		// Assert
+		assert.NoError(t, err)
+		var result *vsa.VolumeResponse
+		_ = val.Get(&result)
+		assert.Equal(t, expectedResponse, result)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("TestCreateVolumeInONTAP_WithSecurityStyleOutsideFileProperties_SecurityStyleIsNotSet", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		// Arrange
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := activities.VolumeCreateActivity{
+			SE: database.NewMockStorage(t),
+		}
+		env.RegisterActivity(activity.CreateVolumeInONTAP)
+
+		volume := &datamodel.Volume{
+			Name:    "test-volume",
+			Svm:     &datamodel.Svm{Name: "test-svm"},
+			Account: &datamodel.Account{Name: "test-account"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+				SecurityStyle:    "ntfs",
+			},
+		}
+		node := &models.Node{}
+		expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024}
+
+		// Mock the CreateVolume method and verify SecurityStyle is not set without FileProperties.SecurityStyle
+		mockProvider.On("CreateVolume", mock.MatchedBy(func(params vsa.CreateVolumeParams) bool {
+			return params.SecurityStyle == nil
 		})).Return(expectedResponse, nil)
 
 		// Act

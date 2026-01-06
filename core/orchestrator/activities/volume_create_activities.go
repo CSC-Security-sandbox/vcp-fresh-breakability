@@ -165,8 +165,8 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 			CoolAccessTieringPolicy: ontapModels.VolumeInlineTieringPolicyNone,
 		},
 		SecurityStyle: func() *string {
-			if volume.VolumeAttributes.SecurityStyle != "" {
-				return &volume.VolumeAttributes.SecurityStyle
+			if volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil && volume.VolumeAttributes.FileProperties.SecurityStyle != "" {
+				return &volume.VolumeAttributes.FileProperties.SecurityStyle
 			}
 			return nil
 		}(),
