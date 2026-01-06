@@ -2242,13 +2242,14 @@ func TestRotateKmsConfig_PoolInCreatingState(t *testing.T) {
 		State: string(cvpModels.KmsConfigV1betaKmsStateREADY),
 	}
 
-	// Create a pool in CREATING state
+	// Create a pool in CREATING state with valid KmsConfigID
 	pools := []*datamodel.PoolView{
 		{
 			Pool: datamodel.Pool{
-				BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-				Name:      "test-pool",
-				State:     string(gcpserver.PoolV1betaStoragePoolStateCREATING),
+				BaseModel:   datamodel.BaseModel{UUID: "pool-uuid"},
+				Name:        "test-pool",
+				State:       string(gcpserver.PoolV1betaStoragePoolStateCREATING),
+				KmsConfigID: sql.NullInt64{Int64: 1, Valid: true},
 			},
 		},
 	}
@@ -2271,7 +2272,90 @@ func TestRotateKmsConfig_PoolInCreatingState(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Nil(t, job)
-	assert.Contains(t, err.Error(), "Storage pool present which is in creating state: test-pool")
+	assert.Contains(t, err.Error(), "Cannot rotate KMS config while CMEK-enabled storage pool is in creating state: test-pool")
+
+	// Verify expectations
+	mockStorage.AssertExpectations(t)
+	mockTemporal.AssertExpectations(t)
+}
+
+func TestRotateKmsConfig_PoolInCreatingStateWithoutKmsConfigID(t *testing.T) {
+	// Setup mocks
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+	// Test data
+	params := &common.RotateKmsConfigParams{
+		KmsConfigID:    "test-kms-config-uuid",
+		AccountName:    "test-account",
+		XCorrelationID: "test-correlation-id",
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-account",
+	}
+
+	kmsConfig := &datamodel.KmsConfig{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "test-kms-config-uuid",
+			ID:        1,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		Name:  "test-kms-config",
+		State: string(cvpModels.KmsConfigV1betaKmsStateREADY),
+	}
+
+	// Create a pool in CREATING state but WITHOUT valid KmsConfigID (should not block rotation)
+	pools := []*datamodel.PoolView{
+		{
+			Pool: datamodel.Pool{
+				BaseModel:   datamodel.BaseModel{UUID: "pool-uuid"},
+				Name:        "test-pool",
+				State:       string(gcpserver.PoolV1betaStoragePoolStateCREATING),
+				KmsConfigID: sql.NullInt64{Valid: false}, // No valid KMS config ID
+			},
+		},
+	}
+
+	createdJob := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "test-job-uuid"},
+		WorkflowID: "test-workflow-id",
+		Type:       string(models.JobTypeRotateKmsConfig),
+		State:      string(models.JobsStateNEW),
+	}
+
+	// Mock the getAccountFromUUID function
+	originalGetAccountFromUUID := getAccountFromUUID
+	getAccountFromUUID = func(ctx context.Context, se database.Storage, accountUUID string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getAccountFromUUID = originalGetAccountFromUUID }()
+
+	// Set up expectations
+	mockStorage.On("GetKmsConfig", context.Background(), "test-kms-config-uuid").Return(kmsConfig, nil)
+	mockStorage.On("ListPools", context.Background(), mock.Anything).Return(pools, nil)
+	mockStorage.On("CreateJob", context.Background(), mock.Anything).Return(createdJob, nil)
+
+	mockTemporal.On("ExecuteWorkflow",
+		mock.Anything,
+		mock.Anything,
+		mock.AnythingOfType("func(internal.Context, *common.RotateKmsConfigParams) (interface {}, error)"),
+		mock.Anything,
+	).Return(nil, nil)
+
+	// Execute
+	result, job, err := rotateKmsConfig(context.Background(), mockStorage, mockTemporal, params)
+
+	// Assert - rotation should proceed since pool doesn't have valid KmsConfigID
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotNil(t, job)
+	assert.Equal(t, "test-job-uuid", job.UUID)
+	assert.Equal(t, models.JobTypeRotateKmsConfig, job.Type)
+	assert.Equal(t, models.JobsStateNEW, job.State)
+	assert.Equal(t, "test-workflow-id", job.WorkflowID)
 
 	// Verify expectations
 	mockStorage.AssertExpectations(t)

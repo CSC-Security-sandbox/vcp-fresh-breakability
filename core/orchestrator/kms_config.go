@@ -508,8 +508,8 @@ func rotateKmsConfig(ctx context.Context, se database.Storage, temporal client.C
 	}
 
 	for _, pool := range pools {
-		if pool.State == string(gcpserver.PoolV1betaStoragePoolStateCREATING) {
-			return nil, nil, errors.NewConflictErr("Storage pool present which is in creating state: " + pool.Name)
+		if pool.State == string(gcpserver.PoolV1betaStoragePoolStateCREATING) && pool.KmsConfigID.Valid {
+			return nil, nil, errors.NewConflictErr("Cannot rotate KMS config while CMEK-enabled storage pool is in creating state: " + pool.Name)
 		}
 	}
 
