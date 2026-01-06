@@ -435,6 +435,7 @@ type ResourceNames struct {
 
 type CreateBackupParams struct {
 	AccountName              string
+	Region                   string
 	BackupVaultID            string
 	VolumeUUID               string
 	BackupName               string

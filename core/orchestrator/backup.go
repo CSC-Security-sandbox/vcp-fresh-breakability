@@ -38,6 +38,7 @@ var (
 	validateSnapshotForBackup   = _validateSnapshotForBackup
 	fetchRemoteBackupFromVCP    = _fetchRemoteBackupFromVCP
 	hydrateDeletedBackupsToCCFE = _hydrateDeletedBackupsToCCFE
+	hydrateCreatedBackupsToCCFE = _hydrateCreatedBackupsToCCFE
 )
 
 // CreateBackup creates the specified backup and adds it to the list of backup belonging to the specified BackupVault
@@ -558,6 +559,20 @@ func (o *Orchestrator) DeleteBackupInternal(ctx context.Context, params *common.
 	return "", nil
 }
 
+func _hydrateCreatedBackupsToCCFE(ctx context.Context, params *common.CreateBackupParams, backup *datamodel.Backup) error {
+	logger := util.GetLogger(ctx)
+	token, err := auth.GenerateCallbackToken(ctx)
+	if err != nil {
+		return err
+	}
+	requests := common.ConvertToGCPHydrateBackupCreateRequests([]*datamodel.Backup{backup})
+	err = common.HydrateCreatedBackups(ctx, logger, requests, backup.BackupVault.Name, params.Region, params.AccountName, token)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func _hydrateDeletedBackupsToCCFE(ctx context.Context, params *common.DeleteBackupParams, backup *datamodel.Backup) error {
 	logger := util.GetLogger(ctx)
 	token, err := auth.GenerateCallbackToken(ctx)
@@ -972,6 +987,17 @@ func _createBackupInternal(ctx context.Context, se database.Storage, temporal cl
 	dbBackup, err = se.FinishBackup(ctx, dbBackup)
 	if err != nil {
 		return nil, "", err
+	}
+
+	if hydrationEnabled {
+		if dbBackup.BackupVault == nil {
+			return nil, "", vsaerrors.New("Could not find the backup vault associated with the backup. Could not hydrate created cross-region backup")
+		}
+
+		err = hydrateCreatedBackupsToCCFE(ctx, params, dbBackup)
+		if err != nil {
+			return nil, "", err
+		}
 	}
 
 	return convertDatastoreBackupToModel(dbBackup), "", nil

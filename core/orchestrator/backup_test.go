@@ -4656,6 +4656,157 @@ func Test_hydrateDeletedBackupsToCCFE(t *testing.T) {
 	})
 }
 
+func Test_hydrateCreatedBackupsToCCFE(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		// Arrange
+		params := &common.CreateBackupParams{
+			AccountName:   "test-account",
+			Region:        "us-central1",
+			BackupVaultID: "backup-vault-uuid",
+			BackupName:    "test-backup",
+			BackupUUID:    "backup-uuid",
+		}
+		regionName := "us-central1"
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			Name: "test-backup",
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "test-account",
+				VolumeName:        "test-volume",
+				SourceVolumeZone:  "",
+			},
+			BackupVault: &datamodel.BackupVault{
+				Name:             "test-backup-vault",
+				SourceRegionName: &regionName,
+			},
+		}
+
+		// Mock auth.GenerateCallbackToken
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		defer func() { auth.GenerateCallbackToken = originalGenerateCallbackToken }()
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "mock-token", nil
+		}
+
+		// Mock common.HydrateCreatedBackups
+		originalHydrateCreatedBackups := common.HydrateCreatedBackups
+		defer func() { common.HydrateCreatedBackups = originalHydrateCreatedBackups }()
+		common.HydrateCreatedBackups = func(ctx context.Context, logger log.Logger, requests []models.Request, backupVaultName string, location string, projectId string, token string) error {
+			assert.Equal(tt, "test-backup-vault", backupVaultName)
+			assert.Equal(tt, "us-central1", location)
+			assert.Equal(tt, "test-account", projectId)
+			assert.Equal(tt, "mock-token", token)
+			assert.NotEmpty(tt, requests)
+			return nil
+		}
+
+		// Act
+		err := _hydrateCreatedBackupsToCCFE(ctx, params, backup)
+
+		// Assert
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenTokenGenerationFails", func(tt *testing.T) {
+		// Arrange
+		params := &common.CreateBackupParams{
+			AccountName:   "test-account",
+			Region:        "us-central1",
+			BackupVaultID: "backup-vault-uuid",
+			BackupName:    "test-backup",
+			BackupUUID:    "backup-uuid",
+		}
+		regionName := "us-central1"
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			Name: "test-backup",
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "test-account",
+				VolumeName:        "test-volume",
+				SourceVolumeZone:  "",
+			},
+			BackupVault: &datamodel.BackupVault{
+				Name:             "test-backup-vault",
+				SourceRegionName: &regionName,
+			},
+		}
+
+		expectedError := errors.New("token generation failed")
+
+		// Mock auth.GenerateCallbackToken to return error
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		defer func() { auth.GenerateCallbackToken = originalGenerateCallbackToken }()
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "", expectedError
+		}
+
+		// Act
+		err := _hydrateCreatedBackupsToCCFE(ctx, params, backup)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+
+	t.Run("WhenHydrationFails", func(tt *testing.T) {
+		// Arrange
+		params := &common.CreateBackupParams{
+			AccountName:   "test-account",
+			Region:        "us-central1",
+			BackupVaultID: "backup-vault-uuid",
+			BackupName:    "test-backup",
+			BackupUUID:    "backup-uuid",
+		}
+		regionName := "us-central1"
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			Name: "test-backup",
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "test-account",
+				VolumeName:        "test-volume",
+				SourceVolumeZone:  "",
+			},
+			BackupVault: &datamodel.BackupVault{
+				Name:             "test-backup-vault",
+				SourceRegionName: &regionName,
+			},
+		}
+
+		expectedError := errors.New("hydration failed")
+
+		// Mock auth.GenerateCallbackToken
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		defer func() { auth.GenerateCallbackToken = originalGenerateCallbackToken }()
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "mock-token", nil
+		}
+
+		// Mock common.HydrateCreatedBackups to return error
+		originalHydrateCreatedBackups := common.HydrateCreatedBackups
+		defer func() { common.HydrateCreatedBackups = originalHydrateCreatedBackups }()
+		common.HydrateCreatedBackups = func(ctx context.Context, logger log.Logger, requests []models.Request, backupVaultName string, location string, projectId string, token string) error {
+			return expectedError
+		}
+
+		// Act
+		err := _hydrateCreatedBackupsToCCFE(ctx, params, backup)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+}
+
 func TestOrchestrator_CreateBackupInternal(t *testing.T) {
 	t.Run("CallsCreateBackupInternal", func(tt *testing.T) {
 		ctx := context.Background()
@@ -4842,16 +4993,32 @@ func Test_createBackupInternal(t *testing.T) {
 			SnapshotCreationTime:     "2024-01-01T00:00:00Z",
 			ConstituentCountOfBackup: 2,
 			UseExistingSnapshot:      false,
+			Region:                   "us-central1",
 		}
 
+		regionName := "us-central1"
 		backup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:         params.BackupName,
 			State:        models.LifeCycleStateAvailable,
 			StateDetails: models.LifeCycleStateAvailableDetails,
-			BackupVault:  backupVault,
-			Attributes:   &datamodel.BackupAttributes{VolumeName: params.VolumeName},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "test-vault-uuid"},
+				Name:             "test-vault",
+				SourceRegionName: &regionName,
+			},
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:        params.VolumeName,
+				AccountIdentifier: account.Name,
+			},
 		}
+
+		// Mock hydrateCreatedBackupsToCCFE to avoid calling real auth function
+		originalHydrateCreatedBackupsToCCFE := hydrateCreatedBackupsToCCFE
+		hydrateCreatedBackupsToCCFE = func(ctx context.Context, params *common.CreateBackupParams, backup *datamodel.Backup) error {
+			return nil
+		}
+		defer func() { hydrateCreatedBackupsToCCFE = originalHydrateCreatedBackupsToCCFE }()
 
 		store.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, params.BackupVaultID, int64(1)).Return(backupVault, nil)
 		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultID, params.BackupUUID, params.AccountName).Return(nil, vsaerror.NewNotFoundErr("backup", &params.BackupUUID))
@@ -5068,6 +5235,236 @@ func Test_createBackupInternal(t *testing.T) {
 		_, _, err := _createBackupInternal(ctx, store, temporal, params)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "failed to finish backup")
+		store.AssertExpectations(tt)
+	})
+
+	t.Run("WhenHydrationDisabled_SkipsHydration", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+
+		// Override hydrationEnabled to false
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = false
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		params := &common.CreateBackupParams{
+			BackupName:    "testBackup",
+			BackupUUID:    "backup-uuid",
+			BackupVaultID: "testVaultID",
+			AccountName:   "testAccount",
+			VolumeName:    "testVolume",
+			Protocols:     []string{"NFS"},
+			Region:        "us-central1",
+		}
+
+		backup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         params.BackupName,
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			BackupVault:  backupVault,
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:        params.VolumeName,
+				AccountIdentifier: account.Name,
+			},
+		}
+
+		origGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+		store.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, params.BackupVaultID, int64(1)).Return(backupVault, nil)
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultID, params.BackupUUID, params.AccountName).Return(nil, vsaerror.NewNotFoundErr("backup", &params.BackupUUID))
+		store.On("CreateBackup", ctx, mock.Anything).Return(backup, nil)
+		store.On("FinishBackup", ctx, backup).Return(backup, nil)
+
+		result, jobID, err := _createBackupInternal(ctx, store, temporal, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "", jobID)
+		store.AssertExpectations(tt)
+	})
+
+	t.Run("WhenHydrationEnabledAndBackupVaultIsNil_ReturnsError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+
+		// Override hydrationEnabled to true
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		params := &common.CreateBackupParams{
+			BackupName:    "testBackup",
+			BackupUUID:    "backup-uuid",
+			BackupVaultID: "testVaultID",
+			AccountName:   "testAccount",
+			VolumeName:    "testVolume",
+			Protocols:     []string{"NFS"},
+			Region:        "us-central1",
+		}
+
+		backup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         params.BackupName,
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			BackupVault:  nil, // This should trigger the error
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:        params.VolumeName,
+				AccountIdentifier: account.Name,
+			},
+		}
+
+		origGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+		store.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, params.BackupVaultID, int64(1)).Return(backupVault, nil)
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultID, params.BackupUUID, params.AccountName).Return(nil, vsaerror.NewNotFoundErr("backup", &params.BackupUUID))
+		store.On("CreateBackup", ctx, mock.Anything).Return(backup, nil)
+		store.On("FinishBackup", ctx, backup).Return(backup, nil)
+
+		_, _, err := _createBackupInternal(ctx, store, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Could not find the backup vault associated with the backup")
+		store.AssertExpectations(tt)
+	})
+
+	t.Run("WhenHydrationEnabledAndBackupVaultExistsButHydrationFails_ReturnsError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+
+		// Override hydrationEnabled to true
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		// Override hydrateCreatedBackupsToCCFE to return an error
+		originalHydrateCreatedBackupsToCCFE := hydrateCreatedBackupsToCCFE
+		hydrateCreatedBackupsToCCFE = func(ctx context.Context, params *common.CreateBackupParams, backup *datamodel.Backup) error {
+			return errors.New("failed to hydrate created backup to CCFE")
+		}
+		defer func() { hydrateCreatedBackupsToCCFE = originalHydrateCreatedBackupsToCCFE }()
+
+		params := &common.CreateBackupParams{
+			BackupName:    "testBackup",
+			BackupUUID:    "backup-uuid",
+			BackupVaultID: "testVaultID",
+			AccountName:   "testAccount",
+			VolumeName:    "testVolume",
+			Protocols:     []string{"NFS"},
+			Region:        "us-central1",
+		}
+
+		regionName := "us-central1"
+		backup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         params.BackupName,
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "test-vault-uuid"},
+				Name:             "test-vault",
+				SourceRegionName: &regionName,
+			},
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:        params.VolumeName,
+				AccountIdentifier: account.Name,
+			},
+		}
+
+		origGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+		store.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, params.BackupVaultID, int64(1)).Return(backupVault, nil)
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultID, params.BackupUUID, params.AccountName).Return(nil, vsaerror.NewNotFoundErr("backup", &params.BackupUUID))
+		store.On("CreateBackup", ctx, mock.Anything).Return(backup, nil)
+		store.On("FinishBackup", ctx, backup).Return(backup, nil)
+
+		_, _, err := _createBackupInternal(ctx, store, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to hydrate created backup to CCFE")
+		store.AssertExpectations(tt)
+	})
+
+	t.Run("WhenHydrationEnabledAndBackupVaultExistsAndHydrationSucceeds_ReturnsNoError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		store := database.NewMockStorage(tt)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+
+		// Override hydrationEnabled to true
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() { hydrationEnabled = originalHydrationEnabled }()
+
+		// Override hydrateCreatedBackupsToCCFE to return success
+		originalHydrateCreatedBackupsToCCFE := hydrateCreatedBackupsToCCFE
+		hydrateCreatedBackupsToCCFE = func(ctx context.Context, params *common.CreateBackupParams, backup *datamodel.Backup) error {
+			return nil
+		}
+		defer func() { hydrateCreatedBackupsToCCFE = originalHydrateCreatedBackupsToCCFE }()
+
+		params := &common.CreateBackupParams{
+			BackupName:    "testBackup",
+			BackupUUID:    "backup-uuid",
+			BackupVaultID: "testVaultID",
+			AccountName:   "testAccount",
+			VolumeName:    "testVolume",
+			Protocols:     []string{"NFS"},
+			Region:        "us-central1",
+		}
+
+		regionName := "us-central1"
+		backup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         params.BackupName,
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "test-vault-uuid"},
+				Name:             "test-vault",
+				SourceRegionName: &regionName,
+			},
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:        params.VolumeName,
+				AccountIdentifier: account.Name,
+			},
+		}
+
+		origGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = origGetOrCreateAccount }()
+
+		store.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, params.BackupVaultID, int64(1)).Return(backupVault, nil)
+		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultID, params.BackupUUID, params.AccountName).Return(nil, vsaerror.NewNotFoundErr("backup", &params.BackupUUID))
+		store.On("CreateBackup", ctx, mock.Anything).Return(backup, nil)
+		store.On("FinishBackup", ctx, backup).Return(backup, nil)
+
+		result, jobID, err := _createBackupInternal(ctx, store, temporal, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "", jobID)
 		store.AssertExpectations(tt)
 	})
 }

@@ -997,6 +997,7 @@ func createInternalBackupParams(req *gcpgenserver.InternalBackupCreateV1beta, pa
 	// Initialize backupParams with all fields, using correct values from request
 	backupParams := commonparams.CreateBackupParams{
 		AccountName:   params.ProjectNumber,
+		Region:        params.LocationId,
 		BackupVaultID: params.BackupVaultId,
 		VolumeUUID:    req.VolumeId,
 		BackupName:    req.ResourceId,
