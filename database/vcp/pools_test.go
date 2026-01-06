@@ -3106,3 +3106,51 @@ func TestDataStoreRepository_GetPoolByID(t *testing.T) {
 		assert.Nil(tt, result)
 	})
 }
+
+// Unit tests for GetPoolByUUID
+func TestDataStoreRepository_GetPoolByUUID(t *testing.T) {
+	db, err := SetupTestDB()
+	require.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	err = ClearInMemoryDB(store.db.GORM())
+	require.NoError(t, err)
+
+	// Create test account and pool
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"}, Name: "test_account"}
+	require.NoError(t, store.db.Create(account).Error())
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}, Name: "test_pool", AccountID: account.ID, Account: account}
+	require.NoError(t, store.db.Create(pool).Error())
+
+	t.Run("ReturnsPoolWhenExists", func(tt *testing.T) {
+		result, err := store.GetPoolByUUID(context.Background(), pool.UUID)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, pool.UUID, result.UUID)
+		assert.Equal(tt, pool.Name, result.Name)
+	})
+
+	t.Run("ReturnsNotFoundErrorWhenPoolDoesNotExist", func(tt *testing.T) {
+		// This test case covers line 113 in pools.go
+		// When Find doesn't find a record, it returns no error but pool.UUID is empty
+		result, err := store.GetPoolByUUID(context.Background(), "non-existent-uuid")
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.True(tt, customerrors.IsNotFoundErr(err))
+		assert.Contains(tt, err.Error(), "not found")
+	})
+
+	t.Run("ReturnsErrorOnDBFailure", func(tt *testing.T) {
+		db, mock, err := sqlmock.New()
+		require.NoError(tt, err)
+		gdb, err := gorm.Open(postgres.New(postgres.Config{Conn: db}), &gorm.Config{})
+		require.NoError(tt, err)
+		wrapper := gormwrapper.New(gdb)
+		store := NewDataStoreRepository(wrapper)
+
+		mock.ExpectQuery("SELECT .* FROM \"pools\" WHERE uuid = .*").WillReturnError(errors.New("db error"))
+		result, err := store.GetPoolByUUID(context.Background(), "test-uuid")
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
+}
