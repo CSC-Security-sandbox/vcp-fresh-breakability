@@ -163,7 +163,7 @@ func (a ActiveDirectoryUpdateActivity) PollSdeUpdateActivity(ctx context.Context
 	}
 
 	logger.Debugf("Polling async operation: %s", result.Name)
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	jwtToken := utils.GetCVPJWTFromContext(ctx)
 	cvpClient := CvpClient(logger, jwtToken)
 
 	// Extract the operation UUID
@@ -312,7 +312,7 @@ func (a ActiveDirectoryUpdateActivity) UpdateSdeActiveDirectory(ctx context.Cont
 		Body:              body,
 	}
 
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	jwtToken := utils.GetCVPJWTFromContext(ctx)
 	cvpClient := CvpClient(logger, jwtToken)
 	sdeResponse, err := cvpClient.ActiveDirectories.V1betaUpdateActiveDirectory(updateParams)
 	if err != nil {

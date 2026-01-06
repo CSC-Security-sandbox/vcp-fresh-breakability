@@ -1761,6 +1761,31 @@ func TestGetAuthTokenFromContext(t *testing.T) {
 	})
 }
 
+func TestGetCVPJWTFromContext(t *testing.T) {
+	t.Run("TokenFromAuthToken", func(tt *testing.T) {
+		// Test when GetAuthTokenFromContext returns a token (line 669)
+		ctx := context.WithValue(context.Background(), middleware.AuthorizationToken, "auth-token")
+		got := GetCVPJWTFromContext(ctx)
+		assert.Equal(tt, "auth-token", got)
+	})
+
+	t.Run("TokenFromJWTTokenWhenAuthTokenEmpty", func(tt *testing.T) {
+		// Test when GetAuthTokenFromContext returns empty and GetJWTTokenFromContext returns a token (lines 666-667)
+		header := make(http.Header)
+		header.Set("Authorization", "Bearer jwt-token")
+		ctx := context.WithValue(context.Background(), middleware.HeaderContextKey, header)
+		got := GetCVPJWTFromContext(ctx)
+		assert.Equal(tt, "Bearer jwt-token", got)
+	})
+
+	t.Run("NoToken", func(tt *testing.T) {
+		// Test when both return empty
+		ctx := context.Background()
+		got := GetCVPJWTFromContext(ctx)
+		assert.Equal(tt, "", got)
+	})
+}
+
 func TestGetVPCNameFromSubnetID(t *testing.T) {
 	tests := []struct {
 		name           string

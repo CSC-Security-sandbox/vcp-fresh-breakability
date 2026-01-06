@@ -660,6 +660,15 @@ func GetAuthTokenFromContext(ctx context.Context) string {
 	return ""
 }
 
+// GetCVPJWTFromContext gets the JWT token from the context
+func GetCVPJWTFromContext(ctx context.Context) string {
+	jwtToken := GetAuthTokenFromContext(ctx)
+	if jwtToken == "" {
+		jwtToken = GetJWTTokenFromContext(ctx)
+	}
+	return jwtToken
+}
+
 // GetResourcesNameForBackup generates unique service account name, email, and bucket name
 func GetResourcesNameForBackup(gcpRegion, tenantProjectRegion, tenantProjectNumber, backupVaultUUID string) (email, bucketName, serviceAccountId string, err error) {
 	const maxServiceAccountLength = 30
