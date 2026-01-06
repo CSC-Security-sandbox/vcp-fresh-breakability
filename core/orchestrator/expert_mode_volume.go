@@ -25,12 +25,12 @@ const (
 )
 
 // CreateExpertModeVolume creates a new expert mode volume
-func (o *Orchestrator) CreateExpertModeVolume(ctx context.Context, params *commonparams.CreateExpertModeVolumeParams) error {
+func (o *Orchestrator) CreateExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error {
 	return _createExpertModeVolume(ctx, o.storage, o.temporal, params)
 }
 
 // createExpertModeVolume creates a new expert mode volume and triggers reconciliation workflow
-func _createExpertModeVolume(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.CreateExpertModeVolumeParams) error {
+func _createExpertModeVolume(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.ExpertModeVolumeParams) error {
 	logger := util.GetLogger(ctx)
 
 	account, err := getAccountWithName(ctx, se, params.AccountName)
@@ -149,6 +149,15 @@ func _createExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 		return err
 	}
 
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
+
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.BackgroundTaskQueue,
@@ -162,9 +171,105 @@ func _createExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 
 	if err != nil {
 		logger.Error("Failed to start volume reconciliation workflow", "workflowID", createdJob.WorkflowID, "error", err)
-		if updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error()); updateErr != nil {
-			logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", updateErr)
+		return err
+	}
+
+	return nil
+}
+
+// DeleteExpertModeVolume deletes an expert mode volume
+func (o *Orchestrator) DeleteExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error {
+	return _deleteExpertModeVolume(ctx, o.storage, o.temporal, params)
+}
+
+// _deleteExpertModeVolume deletes an expert mode volume and triggers reconciliation workflow
+func _deleteExpertModeVolume(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.ExpertModeVolumeParams) error {
+	logger := util.GetLogger(ctx)
+
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		return err
+	}
+
+	// VolumeUUID is required for delete
+	if params.VolumeUUID == "" {
+		logger.Error("VolumeUUID is required for delete operation")
+		return customerrors.NewBadRequestErr("VolumeUUID is required for delete operation")
+	}
+
+	// Fetch volume by external UUID
+	volume, err := se.GetExpertModeVolumeByExternalUUID(ctx, params.VolumeUUID)
+	if err != nil {
+		logger.Error("Failed to find volume by external UUID", "volumeUUID", params.VolumeUUID, "error", err)
+		if customerrors.IsNotFoundErr(err) {
+			return customerrors.NewBadRequestErr(fmt.Sprintf("volume with UUID '%s' not found", params.VolumeUUID))
 		}
+		return err
+	}
+
+	// Check if volume is already deleted
+	if volume.State == models.LifeCycleStateDeleted {
+		return nil
+	}
+
+	previousState := volume.State
+	volume.State = models.LifeCycleStateDeleting
+	_, err = se.UpdateExpertModeVolume(ctx, volume)
+	if err != nil {
+		logger.Error("Failed to update volume state to DELETING", "volumeUUID", volume.UUID, "error", err)
+		return err
+	}
+
+	var volumeMarkedAsDeleting bool = true
+
+	// Create a job for the volume deletion workflow
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeDeleteExpertModeVolume),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  volume.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: volume.UUID, PoolUUID: volume.Pool.UUID},
+		CorrelationID: correlationID,
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job for expert mode volume deletion", "error", err)
+		return err
+	}
+
+	// Defer statement to mark job as errored and revert volume state if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+			// Revert volume state only if it was successfully marked as deleting
+			if volumeMarkedAsDeleting {
+				volume.State = previousState
+				if _, revertErr := se.UpdateExpertModeVolume(ctx, volume); revertErr != nil {
+					logger.Error("Failed to revert volume state", "volumeUUID", volume.UUID, "previousState", previousState, "error", revertErr)
+				}
+			}
+		}
+	}()
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.BackgroundTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetExpertModeSyncWorkflowTimeout(),
+		},
+		expertModeWorkflows.VolumeDeleteReconciliationWorkflow,
+		volume,
+	)
+
+	if err != nil {
+		logger.Error("Failed to start volume deletion reconciliation workflow", "workflowID", createdJob.WorkflowID, "error", err)
+		return err
 	}
 
 	return nil

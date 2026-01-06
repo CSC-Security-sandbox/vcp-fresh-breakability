@@ -63,6 +63,47 @@ func (a *ExpertModeVolumeActivity) FetchOntapVolumeByName(ctx context.Context, v
 	return volume, nil
 }
 
+// CheckVolumeDeletedInOntap checks if a volume is deleted in ONTAP.
+// If the volume is found, it returns an error to trigger activity retry.
+// If the volume is not found, it returns nil (success) indicating deletion is complete.
+func (a *ExpertModeVolumeActivity) CheckVolumeDeletedInOntap(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Checking if volume %s is deleted in ONTAP", volume.Name))
+
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		logger.Errorf("Failed to get ONTAP provider from node: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	var svmName string
+	if volume.Svm != nil {
+		svmName = volume.Svm.Name
+	}
+
+	getVolumeParams := vsa.GetVolumeParams{
+		VolumeName: volume.Name,
+		SvmName:    svmName,
+		IsRestore:  false,
+	}
+
+	volumeResponse, err := provider.GetVolumeForExpertMode(getVolumeParams)
+	if err != nil {
+		if utilErrors.IsNotFoundErr(err) || strings.Contains(strings.ToLower(err.Error()), "not found") {
+			// Volume is not found - deletion is complete, return success
+			logger.Infof("Volume %s not found in ONTAP, deletion is complete", volume.Name)
+			return nil
+		}
+		// Other errors (network, etc.) should be retried
+		logger.Errorf("Failed to get volume %s from ONTAP: %v", volume.Name, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Volume is still found - return error to trigger activity retry
+	logger.Infof("Volume %s still exists in ONTAP (UUID: %s), deletion may be in progress. Will retry.", volume.Name, volumeResponse.ExternalUUID)
+	return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, fmt.Errorf("volume %s still exists in ONTAP, deletion may be in progress", volume.Name)))
+}
+
 // UpdateExpertModeVolumeInDB updates the expert mode volume in the database using UpdateExpertModeVolume.
 func (a *ExpertModeVolumeActivity) UpdateExpertModeVolumeInDB(ctx context.Context, volume *datamodel.ExpertModeVolumes) error {
 	logger := util.GetLogger(ctx)

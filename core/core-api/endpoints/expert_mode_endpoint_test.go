@@ -30,7 +30,7 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 		req := newExpertModeVolumeRequest(poolUUID, oasgenserver.ExpertModeVolumeV1ActionCreate, volumeName, sizeInBytes, oasgenserver.ExpertModeVolumeV1StyleFlexvol, &svmUUID, nil, projectNumber)
 		params := oasgenserver.V1CreateExpertModeVolumeParams{}
 
-		expectedParams := &commonparams.CreateExpertModeVolumeParams{
+		expectedParams := &commonparams.ExpertModeVolumeParams{
 			PoolUUID:    poolUUID,
 			Action:      string(oasgenserver.ExpertModeVolumeV1ActionCreate),
 			VolumeName:  volumeName,
@@ -72,7 +72,7 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 		req := newExpertModeVolumeRequest(poolUUID, oasgenserver.ExpertModeVolumeV1ActionCreate, volumeName, sizeInBytes, oasgenserver.ExpertModeVolumeV1StyleFlexgroup, nil, &svmName, projectNumber)
 		params := oasgenserver.V1CreateExpertModeVolumeParams{}
 
-		expectedParams := &commonparams.CreateExpertModeVolumeParams{
+		expectedParams := &commonparams.ExpertModeVolumeParams{
 			PoolUUID:    poolUUID,
 			Action:      string(oasgenserver.ExpertModeVolumeV1ActionCreate),
 			VolumeName:  volumeName,
@@ -115,7 +115,7 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 		req := newExpertModeVolumeRequest(poolUUID, oasgenserver.ExpertModeVolumeV1ActionCreate, volumeName, sizeInBytes, oasgenserver.ExpertModeVolumeV1StyleFlexvol, &svmUUID, nil, projectNumber)
 		params := oasgenserver.V1CreateExpertModeVolumeParams{}
 
-		expectedParams := &commonparams.CreateExpertModeVolumeParams{
+		expectedParams := &commonparams.ExpertModeVolumeParams{
 			PoolUUID:    poolUUID,
 			Action:      string(oasgenserver.ExpertModeVolumeV1ActionCreate),
 			VolumeName:  volumeName,
@@ -157,7 +157,7 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 		req := newExpertModeVolumeRequest(poolUUID, oasgenserver.ExpertModeVolumeV1ActionCreate, volumeName, sizeInBytes, oasgenserver.ExpertModeVolumeV1StyleFlexvol, &svmUUID, nil, projectNumber)
 		params := oasgenserver.V1CreateExpertModeVolumeParams{}
 
-		expectedParams := &commonparams.CreateExpertModeVolumeParams{
+		expectedParams := &commonparams.ExpertModeVolumeParams{
 			PoolUUID:    poolUUID,
 			Action:      string(oasgenserver.ExpertModeVolumeV1ActionCreate),
 			VolumeName:  volumeName,
@@ -205,7 +205,7 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 		req := newExpertModeVolumeRequest(poolUUID, oasgenserver.ExpertModeVolumeV1ActionCreate, volumeName, sizeInBytes, oasgenserver.ExpertModeVolumeV1StyleFlexvol, &svmUUID, nil, projectNumber)
 		params := oasgenserver.V1CreateExpertModeVolumeParams{}
 
-		expectedParams := &commonparams.CreateExpertModeVolumeParams{
+		expectedParams := &commonparams.ExpertModeVolumeParams{
 			PoolUUID:    poolUUID,
 			Action:      string(oasgenserver.ExpertModeVolumeV1ActionCreate),
 			VolumeName:  volumeName,
@@ -251,7 +251,7 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 		req := newExpertModeVolumeRequest(poolUUID, oasgenserver.ExpertModeVolumeV1ActionCreate, volumeName, sizeInBytes, oasgenserver.ExpertModeVolumeV1StyleFlexvol, nil, nil, projectNumber)
 		params := oasgenserver.V1CreateExpertModeVolumeParams{}
 
-		expectedParams := &commonparams.CreateExpertModeVolumeParams{
+		expectedParams := &commonparams.ExpertModeVolumeParams{
 			PoolUUID:    poolUUID,
 			Action:      string(oasgenserver.ExpertModeVolumeV1ActionCreate),
 			VolumeName:  volumeName,
@@ -298,7 +298,7 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 		req := newExpertModeVolumeRequest(poolUUID, oasgenserver.ExpertModeVolumeV1ActionCreate, volumeName, sizeInBytes, oasgenserver.ExpertModeVolumeV1StyleFlexvol, &svmUUID, nil, projectNumber)
 		params := oasgenserver.V1CreateExpertModeVolumeParams{}
 
-		expectedParams := &commonparams.CreateExpertModeVolumeParams{
+		expectedParams := &commonparams.ExpertModeVolumeParams{
 			PoolUUID:    poolUUID,
 			Action:      string(oasgenserver.ExpertModeVolumeV1ActionCreate),
 			VolumeName:  volumeName,
@@ -345,7 +345,7 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 		req := newExpertModeVolumeRequest(poolUUID, oasgenserver.ExpertModeVolumeV1ActionCreate, volumeName, sizeInBytes, oasgenserver.ExpertModeVolumeV1StyleFlexvol, &svmUUID, nil, projectNumber)
 		params := oasgenserver.V1CreateExpertModeVolumeParams{}
 
-		expectedParams := &commonparams.CreateExpertModeVolumeParams{
+		expectedParams := &commonparams.ExpertModeVolumeParams{
 			PoolUUID:    poolUUID,
 			Action:      string(oasgenserver.ExpertModeVolumeV1ActionCreate),
 			VolumeName:  volumeName,

@@ -563,3 +563,382 @@ func TestUpdateExpertModeVolumeInDB(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 }
+
+func TestCheckVolumeDeletedInOntap(t *testing.T) {
+	t.Run("WhenVolumeIsNotFound_IsNotFoundErr", func(tt *testing.T) {
+		// Arrange
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		// Mock GetProviderByNode to return the mock provider
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.CheckVolumeDeletedInOntap)
+
+		volume := &datamodel.ExpertModeVolumes{
+			Name:         "test-volume",
+			SizeInBytes:  1099511627776,
+			Style:        "flexvol",
+			State:        models.LifeCycleStateDeleting,
+			ExternalUUID: "original-uuid",
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		node := &models.Node{
+			Name: "test-node",
+		}
+
+		notFoundError := utilErrors.NewNotFoundErr("volume", nil)
+
+		// Mock GetVolumeForExpertMode to return not found error
+		mockProvider.On("GetVolumeForExpertMode", vsa.GetVolumeParams{
+			VolumeName: "test-volume",
+			SvmName:    "test-svm",
+			IsRestore:  false,
+		}).Return(nil, notFoundError)
+
+		// Act
+		_, err := env.ExecuteActivity(activity.CheckVolumeDeletedInOntap, volume, node)
+
+		// Assert
+		// When volume is not found, deletion is complete, should return nil (success)
+		assert.NoError(tt, err, "Expected no error when volume is not found (deletion complete)")
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenVolumeIsNotFound_ContainsNotfoundString", func(tt *testing.T) {
+		// Arrange
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		// Mock GetProviderByNode to return the mock provider
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.CheckVolumeDeletedInOntap)
+
+		volume := &datamodel.ExpertModeVolumes{
+			Name:         "test-volume",
+			SizeInBytes:  1099511627776,
+			Style:        "flexvol",
+			State:        models.LifeCycleStateDeleting,
+			ExternalUUID: "original-uuid",
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		node := &models.Node{
+			Name: "test-node",
+		}
+
+		// Error message contains "not found" but is not a utilErrors.NotFoundErr
+		notFoundStringError := errors.New("volume not found in ONTAP")
+
+		// Mock GetVolumeForExpertMode to return error with "not found" string
+		mockProvider.On("GetVolumeForExpertMode", vsa.GetVolumeParams{
+			VolumeName: "test-volume",
+			SvmName:    "test-svm",
+			IsRestore:  false,
+		}).Return(nil, notFoundStringError)
+
+		// Act
+		_, err := env.ExecuteActivity(activity.CheckVolumeDeletedInOntap, volume, node)
+
+		// Assert
+		// When volume is not found (even if error contains "not found" string), deletion is complete, should return nil (success)
+		assert.NoError(tt, err, "Expected no error when volume is not found (deletion complete)")
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenVolumeIsStillFound", func(tt *testing.T) {
+		// Arrange
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		// Mock GetProviderByNode to return the mock provider
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.CheckVolumeDeletedInOntap)
+
+		volume := &datamodel.ExpertModeVolumes{
+			Name:         "test-volume",
+			SizeInBytes:  1099511627776,
+			Style:        "flexvol",
+			State:        models.LifeCycleStateDeleting,
+			ExternalUUID: "original-uuid",
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		node := &models.Node{
+			Name: "test-node",
+		}
+
+		expectedVolumeResponse := &vsa.VolumeResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				Name:         "test-volume",
+				ExternalUUID: "ontap-uuid-123",
+			},
+			Size:  1099511627776,
+			Style: "flexvol",
+			State: "online",
+		}
+
+		// Mock GetVolumeForExpertMode to return volume (still exists)
+		mockProvider.On("GetVolumeForExpertMode", vsa.GetVolumeParams{
+			VolumeName: "test-volume",
+			SvmName:    "test-svm",
+			IsRestore:  false,
+		}).Return(expectedVolumeResponse, nil)
+
+		// Act
+		_, err := env.ExecuteActivity(activity.CheckVolumeDeletedInOntap, volume, node)
+
+		// Assert
+		// When volume is still found, should return error to trigger activity retry
+		assert.Error(tt, err, "Expected error when volume is still found")
+		if err != nil {
+			errMsg := err.Error()
+			assert.True(tt,
+				containsIgnoreCase(errMsg, "still exists") || containsIgnoreCase(errMsg, "deletion may be in progress") || containsIgnoreCase(errMsg, "resource state conflict") || containsIgnoreCase(errMsg, "invalid state"),
+				"Expected error to contain 'still exists', 'deletion may be in progress', 'resource state conflict', or 'invalid state', got: %v", err)
+		}
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetProviderByNodeFails", func(tt *testing.T) {
+		// Arrange
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(tt)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		// Mock GetProviderByNode to return an error
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("failed to get provider")
+		}
+
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.CheckVolumeDeletedInOntap)
+
+		volume := &datamodel.ExpertModeVolumes{
+			Name:         "test-volume",
+			SizeInBytes:  1099511627776,
+			Style:        "flexvol",
+			State:        models.LifeCycleStateDeleting,
+			ExternalUUID: "original-uuid",
+		}
+
+		node := &models.Node{
+			Name: "test-node",
+		}
+
+		// Act
+		_, err := env.ExecuteActivity(activity.CheckVolumeDeletedInOntap, volume, node)
+
+		// Assert
+		assert.Error(tt, err, "Expected error when GetProviderByNode fails")
+		if err != nil {
+			errMsg := err.Error()
+			assert.True(tt, containsIgnoreCase(errMsg, "failed to get provider"),
+				"Expected error to contain 'failed to get provider', got: %v", err)
+		}
+	})
+
+	t.Run("WhenGetVolumeForExpertModeReturnsNonNotFoundError", func(tt *testing.T) {
+		// Arrange
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		// Mock GetProviderByNode to return the mock provider
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.CheckVolumeDeletedInOntap)
+
+		volume := &datamodel.ExpertModeVolumes{
+			Name:         "test-volume",
+			SizeInBytes:  1099511627776,
+			Style:        "flexvol",
+			State:        models.LifeCycleStateDeleting,
+			ExternalUUID: "original-uuid",
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		node := &models.Node{
+			Name: "test-node",
+		}
+
+		otherError := errors.New("network timeout error")
+
+		// Mock GetVolumeForExpertMode to return a non-not-found error
+		mockProvider.On("GetVolumeForExpertMode", vsa.GetVolumeParams{
+			VolumeName: "test-volume",
+			SvmName:    "test-svm",
+			IsRestore:  false,
+		}).Return(nil, otherError)
+
+		// Act
+		_, err := env.ExecuteActivity(activity.CheckVolumeDeletedInOntap, volume, node)
+
+		// Assert
+		// Other errors (network, etc.) should be retried - should return error
+		assert.Error(tt, err, "Expected error when GetVolumeForExpertMode returns non-not-found error")
+		if err != nil {
+			errMsg := err.Error()
+			assert.True(tt, containsIgnoreCase(errMsg, "network timeout error"),
+				"Expected error to contain 'network timeout error', got: %v", err)
+		}
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenVolumeHasNoSvm", func(tt *testing.T) {
+		// Arrange
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		// Mock GetProviderByNode to return the mock provider
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.CheckVolumeDeletedInOntap)
+
+		volume := &datamodel.ExpertModeVolumes{
+			Name:         "test-volume",
+			SizeInBytes:  1099511627776,
+			Style:        "flexvol",
+			State:        models.LifeCycleStateDeleting,
+			ExternalUUID: "original-uuid",
+			Svm:          nil, // No SVM
+		}
+
+		node := &models.Node{
+			Name: "test-node",
+		}
+
+		notFoundError := utilErrors.NewNotFoundErr("volume", nil)
+
+		// Mock GetVolumeForExpertMode with empty SvmName
+		mockProvider.On("GetVolumeForExpertMode", vsa.GetVolumeParams{
+			VolumeName: "test-volume",
+			SvmName:    "",
+			IsRestore:  false,
+		}).Return(nil, notFoundError)
+
+		// Act
+		_, err := env.ExecuteActivity(activity.CheckVolumeDeletedInOntap, volume, node)
+
+		// Assert
+		// When volume is not found, deletion is complete, should return nil (success)
+		assert.NoError(tt, err, "Expected no error when volume is not found (deletion complete)")
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenVolumeHasNoSvm_StillExists", func(tt *testing.T) {
+		// Arrange
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		// Mock GetProviderByNode to return the mock provider
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.CheckVolumeDeletedInOntap)
+
+		volume := &datamodel.ExpertModeVolumes{
+			Name:         "test-volume",
+			SizeInBytes:  1099511627776,
+			Style:        "flexvol",
+			State:        models.LifeCycleStateDeleting,
+			ExternalUUID: "original-uuid",
+			Svm:          nil, // No SVM
+		}
+
+		node := &models.Node{
+			Name: "test-node",
+		}
+
+		expectedVolumeResponse := &vsa.VolumeResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				Name:         "test-volume",
+				ExternalUUID: "ontap-uuid-123",
+			},
+			Size:  1099511627776,
+			Style: "flexvol",
+			State: "online",
+		}
+
+		// Mock GetVolumeForExpertMode with empty SvmName, volume still exists
+		mockProvider.On("GetVolumeForExpertMode", vsa.GetVolumeParams{
+			VolumeName: "test-volume",
+			SvmName:    "",
+			IsRestore:  false,
+		}).Return(expectedVolumeResponse, nil)
+
+		// Act
+		_, err := env.ExecuteActivity(activity.CheckVolumeDeletedInOntap, volume, node)
+
+		// Assert
+		// When volume is still found, should return error to trigger activity retry
+		assert.Error(tt, err, "Expected error when volume is still found")
+		if err != nil {
+			errMsg := err.Error()
+			assert.True(tt,
+				containsIgnoreCase(errMsg, "still exists") || containsIgnoreCase(errMsg, "deletion may be in progress") || containsIgnoreCase(errMsg, "resource state conflict") || containsIgnoreCase(errMsg, "invalid state"),
+				"Expected error to contain 'still exists', 'deletion may be in progress', 'resource state conflict', or 'invalid state', got: %v", err)
+		}
+		mockProvider.AssertExpectations(tt)
+	})
+}

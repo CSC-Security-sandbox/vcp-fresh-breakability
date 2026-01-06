@@ -12,10 +12,11 @@ import (
 // V1CreateExpertModeVolume implements the expert mode volume creation endpoint
 func (h Handler) V1CreateExpertModeVolume(ctx context.Context, req *oasgenserver.ExpertModeVolumeV1, params oasgenserver.V1CreateExpertModeVolumeParams) (oasgenserver.V1CreateExpertModeVolumeRes, error) {
 	// Create orchestrator parameters
-	createParams := &commonparams.CreateExpertModeVolumeParams{
+	createParams := &commonparams.ExpertModeVolumeParams{
 		PoolUUID:    req.PoolUUID,
 		Action:      string(req.Action),
 		VolumeName:  req.VolumeName,
+		VolumeUUID:  req.VolumeUuid.Or(""),
 		SizeInBytes: int64(req.SizeInBytes),
 		Style:       string(req.Style),
 		SvmUuid:     req.SvmUuid.Or(""),
@@ -23,8 +24,16 @@ func (h Handler) V1CreateExpertModeVolume(ctx context.Context, req *oasgenserver
 		AccountName: req.ProjectNumber,
 	}
 
-	// Execute the expert mode volume creation
-	err := h.Orchestrator.CreateExpertModeVolume(ctx, createParams)
+	var err error
+	// Check if action is delete
+	if req.Action == oasgenserver.ExpertModeVolumeV1ActionDelete {
+		// Execute the expert mode volume deletion
+		err = h.Orchestrator.DeleteExpertModeVolume(ctx, createParams)
+	} else {
+		// Execute the expert mode volume creation
+		err = h.Orchestrator.CreateExpertModeVolume(ctx, createParams)
+	}
+
 	if err != nil {
 		if customerrors.IsBadRequestErr(err) {
 			return &oasgenserver.V1CreateExpertModeVolumeBadRequest{

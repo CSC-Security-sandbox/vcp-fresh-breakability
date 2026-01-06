@@ -149,8 +149,9 @@ type OrchestratorFactory interface {
 	GetSDEActiveDirectory(ctx context.Context, getADParams *commonparams.GetADParams) (*cvpmodels.ActiveDirectoryV1beta, error)
 	DeleteActiveDirectory(ctx context.Context, params *commonparams.DeleteActiveDirectoryParams) (string, error)
 
-	CreateExpertModeVolume(ctx context.Context, params *commonparams.CreateExpertModeVolumeParams) error
 	GetExpertModeVolumeByUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error)
+	CreateExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error
+	DeleteExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error
 }
 
 type Orchestrator struct {

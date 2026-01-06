@@ -212,11 +212,11 @@ type CreateSnapshotParams struct {
 	IsAppConsistent bool
 }
 
-// CreateExpertModeVolumeParams describes parameters supplied to CreateExpertModeVolume
-type CreateExpertModeVolumeParams struct {
+type ExpertModeVolumeParams struct {
 	PoolUUID    string
 	Action      string
 	VolumeName  string
+	VolumeUUID  string
 	SizeInBytes int64
 	Style       string // flexvol|flexgroup
 	SvmUuid     string

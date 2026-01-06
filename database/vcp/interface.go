@@ -359,6 +359,7 @@ type (
 		GetExpertModePoolUsedCapacity(ctx context.Context, poolID int64) (int64, error)
 		GetExpertModeVolumeByNameAndPoolID(ctx context.Context, name string, poolID int64) (*datamodel.ExpertModeVolumes, error)
 		GetExpertModeVolumeByUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error)
+		GetExpertModeVolumeByExternalUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error)
 		UpdateExpertModeVolume(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) (*datamodel.ExpertModeVolumes, error)
 		GetExpertModeVolumeByVolumeUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error)
 		UpdateExpertModeVolumeDataProtection(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) error

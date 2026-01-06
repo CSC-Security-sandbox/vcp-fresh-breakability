@@ -48,23 +48,19 @@ func (d *DataStoreRepository) GetExpertModePoolUsedCapacity(ctx context.Context,
 
 // GetExpertModeVolumeByNameAndPoolID retrieves an expert mode volume by its name and pool ID
 func (d *DataStoreRepository) GetExpertModeVolumeByNameAndPoolID(ctx context.Context, name string, poolID int64) (*datamodel.ExpertModeVolumes, error) {
-	var volume datamodel.ExpertModeVolumes
-
-	// Query the database for the volume with the given name and pool ID
-	err := d.db.GORM().WithContext(ctx).
-		Where("name = ? AND pool_id = ?", name, poolID).
-		First(&volume).Error
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &volume, nil // Return the found volume
+	return getExpertModeVolumeWithDetails(d.db.GORM().WithContext(ctx), &datamodel.ExpertModeVolumes{
+		Name:   name,
+		PoolID: poolID,
+	})
 }
 
 // GetExpertModeVolumeByUUID retrieves an expert mode volume by UUID with details
 func (d *DataStoreRepository) GetExpertModeVolumeByUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error) {
 	return getExpertModeVolumeWithDetails(d.db.GORM().WithContext(ctx), &datamodel.ExpertModeVolumes{BaseModel: datamodel.BaseModel{UUID: volumeUUID}})
+}
+
+func (d *DataStoreRepository) GetExpertModeVolumeByExternalUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error) {
+	return getExpertModeVolumeWithDetails(d.db.GORM().WithContext(ctx), &datamodel.ExpertModeVolumes{ExternalUUID: volumeUUID})
 }
 
 func getExpertModeVolumeWithDetails(db *gorm.DB, query *datamodel.ExpertModeVolumes) (*datamodel.ExpertModeVolumes, error) {

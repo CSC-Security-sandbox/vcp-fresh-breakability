@@ -392,6 +392,10 @@ func (s *PersistenceStore) GetExpertModeVolumeByUUID(ctx context.Context, volume
 	return s.dataStore.GetExpertModeVolumeByUUID(ctx, volumeUUID)
 }
 
+func (s *PersistenceStore) GetExpertModeVolumeByExternalUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error) {
+	return s.dataStore.GetExpertModeVolumeByExternalUUID(ctx, volumeUUID)
+}
+
 func (s *PersistenceStore) UpdateExpertModeVolume(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) (*datamodel.ExpertModeVolumes, error) {
 	return s.dataStore.UpdateExpertModeVolume(ctx, expertModeVolume)
 }
