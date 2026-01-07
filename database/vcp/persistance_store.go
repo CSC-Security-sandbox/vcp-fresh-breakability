@@ -1490,6 +1490,27 @@ func (s *PersistenceStore) ListClusterPeeringRowsByPoolID(ctx context.Context, p
 	return s.dataStore.ListClusterPeeringRowsByPoolID(ctx, poolID)
 }
 
+// Volume Performance Group (Manual QoS) methods
+func (s *PersistenceStore) CreateVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) (*datamodel.VolumePerformanceGroup, error) {
+	return s.dataStore.CreateVolumePerformanceGroup(ctx, vpg)
+}
+
+func (s *PersistenceStore) UpdateVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error {
+	return s.dataStore.UpdateVolumePerformanceGroup(ctx, vpg)
+}
+
+func (s *PersistenceStore) DeleteVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error {
+	return s.dataStore.DeleteVolumePerformanceGroup(ctx, vpg)
+}
+
+func (s *PersistenceStore) GetVolumePerformanceGroupByUUID(ctx context.Context, uuid string) (*datamodel.VolumePerformanceGroup, error) {
+	return s.dataStore.GetVolumePerformanceGroupByUUID(ctx, uuid)
+}
+
+func (s *PersistenceStore) ListVolumePerformanceGroupsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.VolumePerformanceGroup, error) {
+	return s.dataStore.ListVolumePerformanceGroupsByPoolID(ctx, poolID)
+}
+
 func (s *PersistenceStore) GetActivePrepopulateJobs(ctx context.Context) ([]*datamodel.Job, error) {
 	return s.dataStore.GetActivePrepopulateJobs(ctx)
 }

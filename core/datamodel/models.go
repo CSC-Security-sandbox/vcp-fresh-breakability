@@ -294,32 +294,48 @@ func (am AssetMetadata) Value() (driver.Value, error) {
 
 type Volume struct {
 	BaseModel
-	Name                  string                 `gorm:"column:name"`
-	Description           string                 `gorm:"column:description"`
-	State                 string                 `gorm:"column:state"`
-	StateDetails          string                 `gorm:"column:state_details"`
-	Health                string                 `gorm:"column:health"`
-	MountPath             string                 `gorm:"column:mount_path"`
-	SizeInBytes           int64                  `gorm:"column:size_in_bytes"`
-	Throughput            int64                  `gorm:"column:throughput"`
-	AccountID             int64                  `gorm:"column:account_id"`
-	PoolID                int64                  `gorm:"column:pool_id"`
-	SvmID                 int64                  `gorm:"column:svm_id"`
-	Account               *Account               `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	Pool                  *Pool                  `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	Svm                   *Svm                   `gorm:"ForeignKey:SvmID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	VolumeAttributes      *VolumeAttributes      `gorm:"column:volume_attributes;type:jsonb"`
-	DataProtection        *DataProtection        `gorm:"column:data_protection;type:jsonb"`
-	SnapshotPolicy        *SnapshotPolicy        `gorm:"column:snapshot_policy;type:jsonb"`
-	UsedBytes             uint64                 `gorm:"column:used_bytes"`
-	AutoTieringEnabled    bool                   `gorm:"column:auto_tiering_enabled"`
-	AutoTieringPolicy     *AutoTieringPolicy     `gorm:"column:auto_tiering_policy;type:jsonb"`
-	HotTierSizeGib        uint64                 `gorm:"column:hot_tier_size_gib"`
-	ColdTierSizeGib       uint64                 `gorm:"column:cold_tier_size_gib"`
-	CacheParameters       *CacheParameters       `gorm:"column:cache_parameters;type:jsonb"`
-	LargeVolumeAttributes *LargeVolumeAttributes `gorm:"column:large_volume_attributes;type:jsonb"`
-	ClonesSharedBytes     uint64                 `gorm:"column:clones_shared_bytes"`
-	ClusterPeerID         sql.NullInt64          `gorm:"column:cluster_peer_id"`
+	Name                     string                  `gorm:"column:name"`
+	Description              string                  `gorm:"column:description"`
+	State                    string                  `gorm:"column:state"`
+	StateDetails             string                  `gorm:"column:state_details"`
+	Health                   string                  `gorm:"column:health"`
+	MountPath                string                  `gorm:"column:mount_path"`
+	SizeInBytes              int64                   `gorm:"column:size_in_bytes"`
+	Throughput               int64                   `gorm:"column:throughput"`
+	AccountID                int64                   `gorm:"column:account_id"`
+	PoolID                   int64                   `gorm:"column:pool_id"`
+	SvmID                    int64                   `gorm:"column:svm_id"`
+	VolumePerformanceGroupID sql.NullInt64           `gorm:"column:volume_performance_group_id"`
+	Account                  *Account                `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	Pool                     *Pool                   `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	Svm                      *Svm                    `gorm:"ForeignKey:SvmID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	VolumePerformanceGroup   *VolumePerformanceGroup `gorm:"ForeignKey:VolumePerformanceGroupID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	VolumeAttributes         *VolumeAttributes       `gorm:"column:volume_attributes;type:jsonb"`
+	DataProtection           *DataProtection         `gorm:"column:data_protection;type:jsonb"`
+	SnapshotPolicy           *SnapshotPolicy         `gorm:"column:snapshot_policy;type:jsonb"`
+	UsedBytes                uint64                  `gorm:"column:used_bytes"`
+	AutoTieringEnabled       bool                    `gorm:"column:auto_tiering_enabled"`
+	AutoTieringPolicy        *AutoTieringPolicy      `gorm:"column:auto_tiering_policy;type:jsonb"`
+	HotTierSizeGib           uint64                  `gorm:"column:hot_tier_size_gib"`
+	ColdTierSizeGib          uint64                  `gorm:"column:cold_tier_size_gib"`
+	CacheParameters          *CacheParameters        `gorm:"column:cache_parameters;type:jsonb"`
+	LargeVolumeAttributes    *LargeVolumeAttributes  `gorm:"column:large_volume_attributes;type:jsonb"`
+	ClonesSharedBytes        uint64                  `gorm:"column:clones_shared_bytes"`
+	ClusterPeerID            sql.NullInt64           `gorm:"column:cluster_peer_id"`
+}
+
+// VolumePerformanceGroup represents a pool-scoped performance policy group used for manual QoS.
+// It maps to the `volume_performance_groups` table.
+type VolumePerformanceGroup struct {
+	BaseModel
+	Name             string `gorm:"column:name"`
+	PoolID           int64  `gorm:"column:pool_id"`
+	Pool             *Pool  `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	IsShared         bool   `gorm:"column:is_shared;not null;default:true"`
+	IsAutoGen        bool   `gorm:"column:is_auto_gen;not null;default:false"`
+	ThroughputMibps  int64  `gorm:"column:throughput_mibps"`
+	Iops             int64  `gorm:"column:iops"`
+	OntapQosPolicyID string `gorm:"column:ontap_qos_policy_id"`
 }
 
 // JSONB is a custom type to handle JSONB columns in PostgreSQL

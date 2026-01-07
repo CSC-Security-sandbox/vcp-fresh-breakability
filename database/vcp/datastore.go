@@ -13,6 +13,7 @@ func getVcpModels() []interface{} {
 	return []interface{}{
 		&datamodel.Pool{},
 		&datamodel.Volume{},
+		&datamodel.VolumePerformanceGroup{},
 		&datamodel.VolumeReplication{},
 		&datamodel.Account{},
 		&datamodel.Node{},

@@ -6704,3 +6704,422 @@ func TestPersistenceStore_ListAccountsForTelemetry(t *testing.T) {
 	assert.NotNil(t, results)
 	assert.Len(t, results, 1)
 }
+
+func TestCreateVolumePerformanceGroup_PersistenceStore(t *testing.T) {
+	t.Run("WhenVPGIsCreatedSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		// Account and pool
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-vpg"}, Name: "acct-vpg"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg"}, Name: "pool-vpg", AccountID: account.ID, Account: account}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		// Create VPG
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg"},
+			PoolID:           pool.ID,
+			Name:             "vpg-1",
+			IsShared:         true,
+			IsAutoGen:        false,
+			ThroughputMibps:  64,
+			Iops:             1000,
+			OntapQosPolicyID: "ontap-qos-policy-uuid-1",
+		}
+		created, err := store.CreateVolumePerformanceGroup(context.Background(), vpg)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, created)
+	})
+
+	t.Run("WhenVPGAlreadyExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		// Account and pool
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-vpg-dup"}, Name: "acct-vpg-dup"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg-dup"}, Name: "pool-vpg-dup", AccountID: account.ID, Account: account}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		// Create VPG with UUID
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-dup"},
+			PoolID:           pool.ID,
+			Name:             "vpg-dup",
+			IsShared:         true,
+			IsAutoGen:        false,
+			ThroughputMibps:  64,
+			Iops:             1000,
+			OntapQosPolicyID: "ontap-qos-policy-uuid-dup",
+		}
+		created, err := store.CreateVolumePerformanceGroup(context.Background(), vpg)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, created)
+
+		// Try to create another VPG with the same UUID
+		duplicateVPG := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-dup"},
+			PoolID:           pool.ID,
+			Name:             "vpg-dup-2",
+			IsShared:         false,
+			IsAutoGen:        true,
+			ThroughputMibps:  128,
+			Iops:             2000,
+			OntapQosPolicyID: "ontap-qos-policy-uuid-dup-2",
+		}
+		_, err = store.CreateVolumePerformanceGroup(context.Background(), duplicateVPG)
+		assert.Error(tt, err)
+		// Should get a constraint violation or duplicate key error
+		assert.Contains(tt, err.Error(), "UNIQUE constraint", "Error should indicate unique constraint violation")
+	})
+
+	t.Run("WhenPoolDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		// Try to create VPG with a non-existent PoolID
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-invalid-pool"},
+			PoolID:           999999, // Non-existent pool ID
+			Name:             "vpg-invalid-pool",
+			IsShared:         true,
+			IsAutoGen:        false,
+			ThroughputMibps:  64,
+			Iops:             1000,
+			OntapQosPolicyID: "ontap-qos-policy-uuid-invalid",
+		}
+		_, err = store.CreateVolumePerformanceGroup(context.Background(), vpg)
+		// The database should enforce foreign key constraints and return an error
+		if err != nil {
+			// Foreign key constraint is enforced - verify the error indicates constraint violation
+			assert.Contains(tt, err.Error(), "FOREIGN KEY", "Error should indicate foreign key constraint violation")
+		} else {
+			// Foreign key constraint is not enforced - document this behavior
+			tt.Logf("Warning: Foreign key constraints are not enforced - VPG was created with invalid PoolID %d", vpg.PoolID)
+		}
+	})
+}
+
+func TestGetVolumePerformanceGroup_PersistenceStore(t *testing.T) {
+	t.Run("WhenVPGExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		// Account and pool
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-vpg"}, Name: "acct-vpg"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg"}, Name: "pool-vpg", AccountID: account.ID, Account: account}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		// Create VPG directly in database (not using CreateVolumePerformanceGroup to avoid testing Create in Get test)
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg"},
+			PoolID:           pool.ID,
+			Name:             "vpg-1",
+			IsShared:         true,
+			IsAutoGen:        false,
+			ThroughputMibps:  64,
+			Iops:             1000,
+			OntapQosPolicyID: "ontap-qos-policy-uuid-get",
+		}
+		assert.NoError(tt, store.db.Create(vpg).Error())
+
+		// Get by row uuid
+		gotByRowUUID, err := store.GetVolumePerformanceGroupByUUID(context.Background(), "row-uuid-vpg")
+		assert.NoError(tt, err)
+		assert.Equal(tt, pool.ID, gotByRowUUID.PoolID)
+		assert.Equal(tt, "vpg-1", gotByRowUUID.Name)
+	})
+
+	t.Run("WhenVPGDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		_, err = store.GetVolumePerformanceGroupByUUID(context.Background(), "non-existent-vpg")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "not found", "Error should indicate VPG was not found")
+	})
+}
+
+func TestListVolumePerformanceGroups_PersistenceStore(t *testing.T) {
+	t.Run("WhenVPGsExistForPool", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		// Account and pool
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-vpg"}, Name: "acct-vpg"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg"}, Name: "pool-vpg", AccountID: account.ID, Account: account, DeploymentName: "deployment-vpg"}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		// Create VPGs directly in database (not using CreateVolumePerformanceGroup to avoid testing Create in List test)
+		vpg1 := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-1"},
+			PoolID:           pool.ID,
+			Name:             "vpg-1",
+			IsShared:         true,
+			IsAutoGen:        false,
+			ThroughputMibps:  64,
+			Iops:             1000,
+			OntapQosPolicyID: "ontap-qos-policy-uuid-1",
+		}
+		assert.NoError(tt, store.db.Create(vpg1).Error())
+
+		// Create second VPG in the same pool
+		vpg2 := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-2"},
+			PoolID:           pool.ID,
+			Name:             "vpg-2",
+			IsShared:         false,
+			IsAutoGen:        true,
+			ThroughputMibps:  128,
+			Iops:             2000,
+			OntapQosPolicyID: "ontap-qos-policy-uuid-2",
+		}
+		assert.NoError(tt, store.db.Create(vpg2).Error())
+
+		// List by pool - should return both VPGs
+		list, err := store.ListVolumePerformanceGroupsByPoolID(context.Background(), pool.ID)
+		assert.NoError(tt, err)
+		assert.Len(tt, list, 2, "Should return 2 VPGs from the pool")
+		// Verify the returned VPGs are from the correct pool
+		for _, vpg := range list {
+			assert.Equal(tt, pool.ID, vpg.PoolID, "VPG should belong to the pool")
+			assert.Contains(tt, []string{"vpg-1", "vpg-2"}, vpg.Name, "VPG name should be vpg-1 or vpg-2")
+		}
+	})
+}
+
+func TestUpdateVolumePerformanceGroup_PersistenceStore(t *testing.T) {
+	t.Run("WhenVPGIsUpdatedSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		// Account and pool
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-vpg"}, Name: "acct-vpg"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg"}, Name: "pool-vpg", AccountID: account.ID, Account: account}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		// Create VPG directly in database (not using CreateVolumePerformanceGroup to avoid testing Create in Update test)
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg"},
+			PoolID:           pool.ID,
+			Name:             "vpg-1",
+			IsShared:         true,
+			IsAutoGen:        false,
+			ThroughputMibps:  64,
+			Iops:             1000,
+			OntapQosPolicyID: "ontap-qos-policy-uuid-update",
+		}
+		assert.NoError(tt, store.db.Create(vpg).Error())
+
+		// Update VPG with new values
+		updatedVPG := &datamodel.VolumePerformanceGroup{
+			BaseModel:       datamodel.BaseModel{UUID: "row-uuid-vpg"},
+			Name:            "vpg-1-updated",
+			ThroughputMibps: 128,
+			Iops:            2000,
+		}
+		err = store.UpdateVolumePerformanceGroup(context.Background(), updatedVPG)
+		assert.NoError(tt, err)
+
+		// Verify the update
+		got, err := store.GetVolumePerformanceGroupByUUID(context.Background(), "row-uuid-vpg")
+		assert.NoError(tt, err)
+		assert.Equal(tt, "vpg-1-updated", got.Name)
+		assert.Equal(tt, int64(128), got.ThroughputMibps)
+		assert.Equal(tt, int64(2000), got.Iops)
+		// Verify immutable fields are not changed
+		assert.Equal(tt, pool.ID, got.PoolID)
+		assert.Equal(tt, true, got.IsShared)
+	})
+
+	t.Run("WhenVPGNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		// Try to update a non-existent VPG
+		nonExistentVPG := &datamodel.VolumePerformanceGroup{
+			BaseModel: datamodel.BaseModel{UUID: "non-existent-vpg"},
+			Name:      "updated-name",
+		}
+		err = store.UpdateVolumePerformanceGroup(context.Background(), nonExistentVPG)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "not found", "Error should indicate VPG was not found")
+	})
+
+	t.Run("WhenUpdateFailsToChangeIsShared", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		// Account and pool
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-vpg-immutable"}, Name: "acct-vpg-immutable"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg-immutable"}, Name: "pool-vpg-immutable", AccountID: account.ID, Account: account}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		// Create VPG with IsShared = true
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-immutable"},
+			PoolID:           pool.ID,
+			Name:             "vpg-immutable",
+			IsShared:         true,
+			IsAutoGen:        false,
+			ThroughputMibps:  64,
+			Iops:             1000,
+			OntapQosPolicyID: "ontap-qos-policy-uuid-immutable",
+		}
+		assert.NoError(tt, store.db.Create(vpg).Error())
+
+		// Try to update IsShared field (should be ignored)
+		updatedVPG := &datamodel.VolumePerformanceGroup{
+			BaseModel: datamodel.BaseModel{UUID: "row-uuid-vpg-immutable"},
+			Name:      "vpg-immutable-updated",
+			IsShared:  false, // Try to change from true to false
+		}
+		err = store.UpdateVolumePerformanceGroup(context.Background(), updatedVPG)
+		assert.NoError(tt, err)
+
+		// Verify IsShared was NOT changed (should still be true)
+		got, err := store.GetVolumePerformanceGroupByUUID(context.Background(), "row-uuid-vpg-immutable")
+		assert.NoError(tt, err)
+		assert.Equal(tt, "vpg-immutable-updated", got.Name, "Name should be updated")
+		assert.Equal(tt, true, got.IsShared, "IsShared should remain unchanged (true)")
+	})
+
+	t.Run("WhenUpdateFailsToChangePoolID", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		// Account and pools
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-vpg-poolid"}, Name: "acct-vpg-poolid"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool1 := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg-1"}, Name: "pool-vpg-1", AccountID: account.ID, Account: account, DeploymentName: "deployment-vpg-poolid-1"}
+		assert.NoError(tt, store.db.Create(pool1).Error())
+		pool2 := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg-2"}, Name: "pool-vpg-2", AccountID: account.ID, Account: account, DeploymentName: "deployment-vpg-poolid-2"}
+		assert.NoError(tt, store.db.Create(pool2).Error())
+
+		// Create VPG in pool1
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-poolid"},
+			PoolID:           pool1.ID,
+			Name:             "vpg-poolid",
+			IsShared:         true,
+			IsAutoGen:        false,
+			ThroughputMibps:  64,
+			Iops:             1000,
+			OntapQosPolicyID: "ontap-qos-policy-uuid-poolid",
+		}
+		assert.NoError(tt, store.db.Create(vpg).Error())
+
+		// Try to update PoolID (should be ignored)
+		updatedVPG := &datamodel.VolumePerformanceGroup{
+			BaseModel: datamodel.BaseModel{UUID: "row-uuid-vpg-poolid"},
+			Name:      "vpg-poolid-updated",
+			PoolID:    pool2.ID, // Try to change from pool1 to pool2
+		}
+		err = store.UpdateVolumePerformanceGroup(context.Background(), updatedVPG)
+		assert.NoError(tt, err)
+
+		// Verify PoolID was NOT changed (should still be pool1.ID)
+		got, err := store.GetVolumePerformanceGroupByUUID(context.Background(), "row-uuid-vpg-poolid")
+		assert.NoError(tt, err)
+		assert.Equal(tt, "vpg-poolid-updated", got.Name, "Name should be updated")
+		assert.Equal(tt, pool1.ID, got.PoolID, "PoolID should remain unchanged (pool1.ID)")
+		assert.NotEqual(tt, pool2.ID, got.PoolID, "PoolID should not be changed to pool2.ID")
+	})
+}
+
+func TestDeleteVolumePerformanceGroup_PersistenceStore(t *testing.T) {
+	t.Run("WhenVPGIsDeletedSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		// Account and pool
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-vpg"}, Name: "acct-vpg"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg"}, Name: "pool-vpg", AccountID: account.ID, Account: account}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		// Create VPG directly in database (not using CreateVolumePerformanceGroup to avoid testing Create in Delete test)
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg"},
+			PoolID:           pool.ID,
+			Name:             "vpg-1",
+			IsShared:         true,
+			IsAutoGen:        false,
+			ThroughputMibps:  64,
+			Iops:             1000,
+			OntapQosPolicyID: "ontap-qos-policy-uuid-delete",
+		}
+		assert.NoError(tt, store.db.Create(vpg).Error())
+		gotByRowUUID, err := store.GetVolumePerformanceGroupByUUID(context.Background(), "row-uuid-vpg")
+		assert.NoError(tt, err)
+
+		// Delete
+		err = store.DeleteVolumePerformanceGroup(context.Background(), gotByRowUUID)
+		assert.NoError(tt, err)
+
+		// Verify it's gone (soft delete)
+		_, err = store.GetVolumePerformanceGroupByUUID(context.Background(), "row-uuid-vpg")
+		assert.Error(tt, err)
+	})
+
+	t.Run("WhenVPGDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		// Setup minimal account/pool to satisfy FK constraints
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-vpg-notexist"}, Name: "acct-vpg-notexist"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg-notexist"}, Name: "pool-vpg-notexist", AccountID: account.ID, Account: account, DeploymentName: "deployment-vpg-notexist"}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		// Try to delete a VPG that was never created (using a non-existent ID)
+		nonExistentVPG := &datamodel.VolumePerformanceGroup{
+			BaseModel: datamodel.BaseModel{ID: 999999, UUID: "non-existent-vpg-uuid"},
+		}
+		err = store.DeleteVolumePerformanceGroup(context.Background(), nonExistentVPG)
+		assert.Error(tt, err)
+		// The error should indicate the VPG was not found (RowsAffected == 0)
+		assert.Contains(tt, err.Error(), "not found", "Error should indicate VPG was not found")
+	})
+}

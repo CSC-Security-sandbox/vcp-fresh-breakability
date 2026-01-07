@@ -17355,3 +17355,131 @@ func NewMockStorage(t interface {
 
 	return mock
 }
+
+// --- Volume Performance Group (Manual QoS) methods ---
+
+// CreateVolumePerformanceGroup provides a mock function with given fields: ctx, vpg
+func (_m *MockStorage) CreateVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) (*datamodel.VolumePerformanceGroup, error) {
+	ret := _m.Called(ctx, vpg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateVolumePerformanceGroup")
+	}
+
+	var r0 *datamodel.VolumePerformanceGroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.VolumePerformanceGroup) (*datamodel.VolumePerformanceGroup, error)); ok {
+		return rf(ctx, vpg)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.VolumePerformanceGroup) *datamodel.VolumePerformanceGroup); ok {
+		r0 = rf(ctx, vpg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.VolumePerformanceGroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.VolumePerformanceGroup) error); ok {
+		r1 = rf(ctx, vpg)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UpdateVolumePerformanceGroup provides a mock function with given fields: ctx, vpg
+func (_m *MockStorage) UpdateVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error {
+	ret := _m.Called(ctx, vpg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateVolumePerformanceGroup")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.VolumePerformanceGroup) error); ok {
+		r0 = rf(ctx, vpg)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DeleteVolumePerformanceGroup provides a mock function with given fields: ctx, vpg
+func (_m *MockStorage) DeleteVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error {
+	ret := _m.Called(ctx, vpg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteVolumePerformanceGroup")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.VolumePerformanceGroup) error); ok {
+		r0 = rf(ctx, vpg)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// GetVolumePerformanceGroupByUUID provides a mock function with given fields: ctx, uuid
+func (_m *MockStorage) GetVolumePerformanceGroupByUUID(ctx context.Context, uuid string) (*datamodel.VolumePerformanceGroup, error) {
+	ret := _m.Called(ctx, uuid)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumePerformanceGroupByUUID")
+	}
+
+	var r0 *datamodel.VolumePerformanceGroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.VolumePerformanceGroup, error)); ok {
+		return rf(ctx, uuid)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.VolumePerformanceGroup); ok {
+		r0 = rf(ctx, uuid)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.VolumePerformanceGroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, uuid)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListVolumePerformanceGroupsByPoolID provides a mock function with given fields: ctx, poolID
+func (_m *MockStorage) ListVolumePerformanceGroupsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.VolumePerformanceGroup, error) {
+	ret := _m.Called(ctx, poolID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVolumePerformanceGroupsByPoolID")
+	}
+
+	var r0 []*datamodel.VolumePerformanceGroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) ([]*datamodel.VolumePerformanceGroup, error)); ok {
+		return rf(ctx, poolID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) []*datamodel.VolumePerformanceGroup); ok {
+		r0 = rf(ctx, poolID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.VolumePerformanceGroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, poolID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
