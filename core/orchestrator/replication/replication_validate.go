@@ -38,25 +38,25 @@ var (
 	utilsParseProjectNumberFromURI  = utils.ParseProjectNumberFromURI
 	convertLabelsMapToJSONB         = utils.ConvertLabelsMapToJSONB
 
-	validateStoragePoolUri      = _validateStoragePoolUri
-	getDestinationPool          = _getDestinationPool
-	getVolume                   = _getVolume
-	describeVolume              = _describeVolume
-	verifyHybridParameters      = _verifyHybridParameters
-	isClusterPeeringStateValid  = _isClusterPeeringStateValid
-	createReplicationObjects    = _createReplicationObjects
-	replicationJobInProcess     = _replicationJobInProcess
-	internalGetReplicationCount = _internalGetReplicationCount
-	internalGetVolumeCount      = _internalGetVolumeCount
-	getReplicationJobs          = _getReplicationJobs
-	getReplication              = _getReplication
-	VerifyDstReplicationResume  = _verifyDstReplicationResume
-	ValidateReplicationUpdate   = _validateReplicationUpdate
-	VerifyDstReplicationStop    = _verifyDstReplicationStop
-	VerifyDstVolume             = _verifyDstVolume
-	VerifyReplication           = _verifyReplication
-	VerifyDstReplicationSync    = _verifyDstReplicationSync
-	VerifyDstReplicationReverse = _verifyDstReplicationReverse
+	validateStoragePoolUri          = _validateStoragePoolUri
+	getDestinationPool              = _getDestinationPool
+	getVolume                       = _getVolume
+	describeVolume                  = _describeVolume
+	verifyHybridParameters          = _verifyHybridParameters
+	isClusterPeeringStateValid      = _isClusterPeeringStateValid
+	createReplicationObjects        = _createReplicationObjects
+	replicationJobInProcess         = _replicationJobInProcess
+	internalGetReplicationCount     = _internalGetReplicationCount
+	internalGetVolumeCount          = _internalGetVolumeCount
+	getReplicationJobs              = _getReplicationJobs
+	getReplication                  = _getReplication
+	VerifyDstReplicationResume      = _verifyDstReplicationResume
+	ValidateReplicationUpdate       = _validateReplicationUpdate
+	VerifyDstReplicationStop        = _verifyDstReplicationStop
+	VerifyDstVolume                 = _verifyDstVolume
+	VerifyReplication               = _verifyReplication
+	VerifyDstReplicationSync        = _verifyDstReplicationSync
+	VerifyDstReplicationReverse     = _verifyDstReplicationReverse
 	VerifyEstablishPeering          = _verifyEstablishPeering
 	HybridReplicationJobsInProcess  = _hybridReplicationJobsInProcess
 	listVolumeReplicationsByCCFEURI = _listVolumeReplicationsByCCFEURI
@@ -205,6 +205,13 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		return nil, errors.NewVCPError(errors.ErrValidateCreateSourceVolumeNotReady, errors.New("sourceVolume is not in a READY state"))
 	}
 
+	if !isPoolHealthy(event.SourcePool.State) {
+		typeErr := errors.NewVCPError(
+			errors.ErrValidateSourceStoragePoolState, errors.New("source pool is in unhealthy state, please try after some time"))
+		logger.Error("Source pool is in unhealthy state, Please try after some time", "error", typeErr)
+		return nil, typeErr
+	}
+
 	err = validateStoragePoolUri(*event.CreateReplicationParams.DestinationVolumeParameters.StoragePool)
 	if err != nil {
 		logger.Error("validateStoragePoolUri error", "error", err)
@@ -222,9 +229,9 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		logger.Error("Destination pool is in transition state, Please try after some time", "error", typeErr)
 		return nil, typeErr
 	}
-	if !isPoolHealthy(destPool) {
+	if !isPoolHealthy(string(destPool.StoragePoolState.Value)) {
 		typeErr := errors.NewVCPError(
-			errors.ErrValidateDestinationStoragePoolState, errors.New("Destination pool is in unhealthy state, Please try after some time"))
+			errors.ErrValidateDestinationStoragePoolState, errors.New("destination pool is in unhealthy state, please try after some time"))
 		logger.Error("Destination pool is in unhealthy state, Please try after some time", "error", typeErr)
 		return nil, typeErr
 	}
@@ -347,8 +354,8 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 	return expectedDbReplication, nil
 }
 
-func isPoolHealthy(dstPool *googleproxyclient.PoolV1beta) bool {
-	if dstPool.StoragePoolState.Value == googleproxyclient.PoolV1betaStoragePoolStateERROR || dstPool.StoragePoolState.Value == googleproxyclient.PoolV1betaStoragePoolStateDISABLED {
+func isPoolHealthy(poolState string) bool {
+	if poolState == string(googleproxyclient.PoolV1betaStoragePoolStateERROR) || poolState == string(googleproxyclient.PoolV1betaStoragePoolStateDISABLED) || poolState == string(googleproxyclient.PoolV1betaStoragePoolStateDEGRADED) {
 		return false
 	}
 	return true

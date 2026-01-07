@@ -284,6 +284,7 @@ const (
 	ErrGoogleProxyUpdateReplicationState                                                     = 6219
 	ErrVolumePoolTypeMismatch                                                                = 6220
 	ErrCleanupSvmPeering                                                                     = 6221
+	ErrValidateSourceStoragePoolState                                                        = 6222
 
 	ErrKMSRotate                        = 8001
 	ErrServiceAccountNotFound           = 8002

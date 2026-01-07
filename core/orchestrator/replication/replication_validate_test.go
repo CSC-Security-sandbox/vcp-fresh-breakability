@@ -1070,6 +1070,50 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.AssertExpectations(t)
 	})
 
+	t.Run("WhenSourcePoolUnhealthy", func(t *testing.T) {
+		unhealthyStates := []struct {
+			name  string
+			state googleproxyclient.PoolV1betaStoragePoolState
+		}{
+			{"ERROR", googleproxyclient.PoolV1betaStoragePoolStateERROR},
+			{"DISABLED", googleproxyclient.PoolV1betaStoragePoolStateDISABLED},
+			{"DEGRADED", googleproxyclient.PoolV1betaStoragePoolStateDEGRADED},
+		}
+
+		for _, tc := range unhealthyStates {
+			t.Run(tc.name, func(t *testing.T) {
+				mockStorage := &database.MockStorage{}
+				mm := &monkeyMock{}
+				mm.Test(t)
+				mm.Patch()
+				defer mm.Unpatch()
+
+				mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+				mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+				mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+				mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+				mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
+				mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+
+				// Reset volume state
+				event.SourceVolume.VolumeAttributes.IsDataProtection = false
+				event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+
+				// Set source pool to unhealthy state
+				event.SourcePool.State = string(tc.state)
+				defer func() {
+					// Reset source pool state after test
+					event.SourcePool.State = string(googleproxyclient.PoolV1betaStoragePoolStateREADY)
+				}()
+
+				_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+				assert.Error(t, err)
+				assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrValidateSourceStoragePoolState, errors.New("source pool is in unhealthy state, please try after some time")), err)
+				mm.AssertExpectations(t)
+			})
+		}
+	})
+
 	t.Run("WhenValidateStoragePoolUriFails", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
 		mm := &monkeyMock{}
@@ -1188,7 +1232,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
 		assert.Error(t, err)
-		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrValidateDestinationStoragePoolState, errors.New("Destination pool is in unhealthy state, Please try after some time")), err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrValidateDestinationStoragePoolState, errors.New("destination pool is in unhealthy state, please try after some time")), err)
 		mm.AssertExpectations(t)
 	})
 
@@ -5612,6 +5656,38 @@ func TestIsPoolInTransitionState(t *testing.T) {
 		}
 		resp := isPoolInTransitionState(pool)
 		assert.False(tt, resp, "Should be false")
+	})
+}
+
+func TestIsPoolHealthy(t *testing.T) {
+	t.Run("ReturnsFalse_WhenPoolStateIsERROR", func(tt *testing.T) {
+		poolState := string(googleproxyclient.PoolV1betaStoragePoolStateERROR)
+		result := isPoolHealthy(poolState)
+		assert.False(tt, result, "Pool with ERROR state should be unhealthy")
+	})
+
+	t.Run("ReturnsFalse_WhenPoolStateIsDISABLED", func(tt *testing.T) {
+		poolState := string(googleproxyclient.PoolV1betaStoragePoolStateDISABLED)
+		result := isPoolHealthy(poolState)
+		assert.False(tt, result, "Pool with DISABLED state should be unhealthy")
+	})
+
+	t.Run("ReturnsFalse_WhenPoolStateIsDEGRADED", func(tt *testing.T) {
+		poolState := string(googleproxyclient.PoolV1betaStoragePoolStateDEGRADED)
+		result := isPoolHealthy(poolState)
+		assert.False(tt, result, "Pool with DEGRADED state should be unhealthy")
+	})
+
+	t.Run("ReturnsTrue_WhenPoolStateIsREADY", func(tt *testing.T) {
+		poolState := string(googleproxyclient.PoolV1betaStoragePoolStateREADY)
+		result := isPoolHealthy(poolState)
+		assert.True(tt, result, "Pool with READY state should be healthy")
+	})
+
+	t.Run("ReturnsTrue_WhenPoolStateIsUPDATING", func(tt *testing.T) {
+		poolState := string(googleproxyclient.PoolV1betaStoragePoolStateUPDATING)
+		result := isPoolHealthy(poolState)
+		assert.True(tt, result, "Pool with UPDATING state should be healthy")
 	})
 }
 

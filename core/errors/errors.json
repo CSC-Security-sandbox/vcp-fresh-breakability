@@ -967,7 +967,7 @@
   },
   "6133": {
     "description": "Validate Destination Storage Pool State Error",
-    "message": "Invalid destination storage pool state",
+    "message": "Destination pool is in unhealthy state, Please try after some time",
     "retriable": false,
     "http_code": 400
   },
@@ -1484,6 +1484,12 @@
   "6221": {
     "description": "SVM peering cannot be deleted",
     "message": "Relationship is in use by SnapMirror in peer cluster, Delete the replication first on on-prem cluster and then try again",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6222": {
+    "description": "Validate Source Storage Pool State Error",
+    "message": "Source pool is in unhealthy state, Please try after some time",
     "retriable": false,
     "http_code": 400
   },
