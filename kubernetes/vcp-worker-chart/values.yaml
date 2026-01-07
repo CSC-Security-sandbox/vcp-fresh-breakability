@@ -391,7 +391,7 @@ configMapCleanup:
     # Forbid: Skip new job if previous is still running
     backoffLimit: 2  # Number of retries on failure
     activeDeadlineSeconds: 300  # Job timeout in seconds (5 minutes)
-    imageSHA: "sha256:49181cda819f6a3285452a260130b3bea20e359bd42314b8a84480fea3f64879"
+    imageSHA: "sha256:ae4bb851c280dae99fc2f0ca15eb7719a92721f2c13d757e63bf6e2e557a8cfc"
 
 # Make sure to update the regionNumberMap if new regions are added. In both Google proxy and vcp-worker-chart
 regionNumberMap:
