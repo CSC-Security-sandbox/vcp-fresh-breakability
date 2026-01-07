@@ -1,0 +1,392 @@
+{{- if .Values.configMapCleanup.cronJob.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-configmap-cleanup-cronjob
+  namespace: {{ .Release.Namespace }}
+spec:
+  schedule: {{ .Values.configMapCleanup.cronJob.schedule | quote }}
+  successfulJobsHistoryLimit: {{ .Values.configMapCleanup.cronJob.successfulJobsHistoryLimit | default 3 }}
+  failedJobsHistoryLimit: {{ .Values.configMapCleanup.cronJob.failedJobsHistoryLimit | default 3 }}
+  concurrencyPolicy: {{ .Values.configMapCleanup.cronJob.concurrencyPolicy | default "Forbid" }}
+  {{- if .Values.configMapCleanup.cronJob.startingDeadlineSeconds }}
+  startingDeadlineSeconds: {{ .Values.configMapCleanup.cronJob.startingDeadlineSeconds }}
+  {{- end }}
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: {{ .Release.Name }}-configmap-cleanup-cronjob
+        spec:
+          restartPolicy: Never
+          serviceAccountName: {{ .Values.serviceAccount.name | default "vcp-worker-ksa" }}
+          containers:
+          - name: cleanup
+            image: "{{ include "secondImageRegistryFullPath" . }}/vcp-worker/kubectl@{{ .Values.configMapCleanup.cronJob.imageSHA | default "latest" }}"
+            command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+
+              echo "=========================================="
+              echo "ConfigMap Cleanup CronJob Started"
+              echo "Namespace: {{ .Release.Namespace }}"
+              echo "Schedule: {{ .Values.configMapCleanup.cronJob.schedule }}"
+              echo "=========================================="
+
+              # Get all ConfigMaps matching the pattern
+              echo ""
+              echo "Step 1: Finding all ConfigMaps matching pattern..."
+              echo "Pattern: {{ .Values.configMapCleanup.pattern | default "^(vcp-background-worker|vcp-customer-worker).*-config$" }}"
+
+              # Get all ConfigMaps and filter by pattern
+              ALL_CONFIGMAPS=$(kubectl get configmaps -n {{ .Release.Namespace }} -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | tr ' ' '\n' | grep -E '{{ .Values.configMapCleanup.pattern | default "^(vcp-background-worker|vcp-customer-worker).*-config$" }}' | sort -u || true)
+              echo $ALL_CONFIGMAPS
+              if [ -z "$ALL_CONFIGMAPS" ]; then
+                echo "No ConfigMaps found matching the pattern. Exiting."
+                exit 0
+              fi
+
+              # Count ConfigMaps found
+              TOTAL_FOUND=$(echo "$ALL_CONFIGMAPS" | grep -v '^$' | wc -l | tr -d ' ')
+              echo "Found $TOTAL_FOUND ConfigMap(s) matching pattern:"
+              echo "$ALL_CONFIGMAPS" | while IFS= read -r cm; do
+                if [ -n "$cm" ]; then
+                  echo "  - $cm"
+                fi
+              done
+
+              # Get all active ConfigMap references from ALL workload types
+              echo ""
+              echo "Step 2: Finding ConfigMaps referenced by active workloads..."
+              echo "  Checking Deployments, StatefulSets, DaemonSets, Jobs, CronJobs..."
+
+              # Extract ConfigMaps from all possible sources using jq
+              # This checks: envFrom.configMapRef, env.valueFrom.configMapKeyRef, volumes.configMap
+              # in all containers and initContainers
+              # Using -e flag to exit on error, but we'll catch it
+              WORKLOAD_JSON=$(kubectl get deployments,statefulsets,daemonsets,jobs,cronjobs -n {{ .Release.Namespace }} -o json 2>/dev/null || echo '{"items":[]}')
+
+              WORKLOAD_CONFIGMAPS=$(echo "$WORKLOAD_JSON" | jq -r '
+                .items[]? |
+                .spec.template.spec.containers[]? // empty |
+                .envFrom[]? // empty |
+                .configMapRef.name // empty
+              ' 2>/dev/null | grep -v '^$' || true)
+
+              # Also check env.valueFrom.configMapKeyRef
+              WORKLOAD_CONFIGMAPS_ENV=$(echo "$WORKLOAD_JSON" | jq -r '
+                .items[]? |
+                .spec.template.spec.containers[]? // empty |
+                .env[]? // empty |
+                .valueFrom.configMapKeyRef.name // empty
+              ' 2>/dev/null | grep -v '^$' || true)
+
+              # Check initContainers
+              WORKLOAD_CONFIGMAPS_INIT=$(echo "$WORKLOAD_JSON" | jq -r '
+                .items[]? |
+                .spec.template.spec.initContainers[]? // empty |
+                .envFrom[]? // empty |
+                .configMapRef.name // empty
+              ' 2>/dev/null | grep -v '^$' || true)
+
+              # Check volumes
+              WORKLOAD_CONFIGMAPS_VOL=$(echo "$WORKLOAD_JSON" | jq -r '
+                .items[]? |
+                .spec.template.spec.volumes[]? // empty |
+                .configMap.name // empty
+              ' 2>/dev/null | grep -v '^$' || true)
+
+              # Combine all sources
+              WORKLOAD_CONFIGMAPS=$(printf "%s\n%s\n%s\n%s" \
+                "${WORKLOAD_CONFIGMAPS}" \
+                "${WORKLOAD_CONFIGMAPS_ENV}" \
+                "${WORKLOAD_CONFIGMAPS_INIT}" \
+                "${WORKLOAD_CONFIGMAPS_VOL}" | sort -u | grep -v '^$' || true)
+
+              if [ $? -ne 0 ]; then
+                echo "  ⚠️  ERROR: Failed to parse workload ConfigMaps. Aborting cleanup for safety."
+                echo "  This prevents accidental deletion of active ConfigMaps."
+                exit 1
+              fi
+
+              # Additional safety: Check if any Pods are currently using ConfigMaps
+              echo "  Checking running Pods for ConfigMap usage..."
+              POD_JSON=$(kubectl get pods -n {{ .Release.Namespace }} -o json 2>/dev/null || echo '{"items":[]}')
+
+              POD_CONFIGMAPS=$(echo "$POD_JSON" | jq -r '
+                .items[]? |
+                .spec.containers[]? // empty |
+                .envFrom[]? // empty |
+                .configMapRef.name // empty
+              ' 2>/dev/null | grep -v '^$' || true)
+
+              # Also check env.valueFrom.configMapKeyRef for pods
+              POD_CONFIGMAPS_ENV=$(echo "$POD_JSON" | jq -r '
+                .items[]? |
+                .spec.containers[]? // empty |
+                .env[]? // empty |
+                .valueFrom.configMapKeyRef.name // empty
+              ' 2>/dev/null | grep -v '^$' || true)
+
+              # Check initContainers for pods
+              POD_CONFIGMAPS_INIT=$(echo "$POD_JSON" | jq -r '
+                .items[]? |
+                .spec.initContainers[]? // empty |
+                .envFrom[]? // empty |
+                .configMapRef.name // empty
+              ' 2>/dev/null | grep -v '^$' || true)
+
+              # Check volumes for pods
+              POD_CONFIGMAPS_VOL=$(echo "$POD_JSON" | jq -r '
+                .items[]? |
+                .spec.volumes[]? // empty |
+                .configMap.name // empty
+              ' 2>/dev/null | grep -v '^$' || true)
+
+              # Combine all sources
+              POD_CONFIGMAPS=$(printf "%s\n%s\n%s\n%s" \
+                "${POD_CONFIGMAPS}" \
+                "${POD_CONFIGMAPS_ENV}" \
+                "${POD_CONFIGMAPS_INIT}" \
+                "${POD_CONFIGMAPS_VOL}" | sort -u | grep -v '^$' || true)
+
+              if [ $? -ne 0 ]; then
+                echo "  ⚠️  ERROR: Failed to parse pod ConfigMaps. Aborting cleanup for safety."
+                echo "  This prevents accidental deletion of active ConfigMaps."
+                exit 1
+              fi
+
+              # Merge workload and pod ConfigMaps, remove duplicates
+              ACTIVE_CONFIGMAPS=$(printf "%s\n%s" "${WORKLOAD_CONFIGMAPS}" "${POD_CONFIGMAPS}" | sort -u | grep -v '^$' || true)
+
+              if [ -z "$ACTIVE_CONFIGMAPS" ]; then
+                echo "  ⚠️  WARNING: No active ConfigMap references found in workloads or pods."
+                echo "  This could mean:"
+                echo "    1. No workloads are using ConfigMaps (safe to proceed)"
+                echo "    2. Error parsing workloads (UNSAFE - should have exited above)"
+                echo "  Proceeding with caution..."
+                ACTIVE_CONFIGMAPS=""
+              else
+                echo "  ✓ Active ConfigMaps found (referenced by workloads/pods):"
+                echo "$ACTIVE_CONFIGMAPS" | while IFS= read -r cm; do
+                  if [ -n "$cm" ]; then
+                    echo "    - $cm"
+                  fi
+                done
+              fi
+
+              # Find ConfigMaps to delete (not in active list)
+              echo ""
+              echo "Step 3: Identifying ConfigMaps to delete..."
+              echo "  Grace period: 1 day (ConfigMaps created within last 24 hours will be skipped)"
+
+              # Calculate grace period threshold (1 day = 86400 seconds)
+              GRACE_PERIOD_SECONDS=86400
+              CURRENT_TIMESTAMP=$(date +%s)
+
+              # CRITICAL SAFETY CHECK: If we have ConfigMaps but couldn't parse any active ones,
+              # and there are workloads/pods, we should NOT proceed
+              if [ -n "$ALL_CONFIGMAPS" ] && [ -z "$ACTIVE_CONFIGMAPS" ]; then
+                # Check if there are any workloads that might be using ConfigMaps
+                WORKLOAD_COUNT=$(echo "$WORKLOAD_JSON" | jq -r '.items | length' 2>/dev/null || echo "0")
+                POD_COUNT=$(echo "$POD_JSON" | jq -r '.items | length' 2>/dev/null || echo "0")
+
+                if [ "$WORKLOAD_COUNT" -gt 0 ] || [ "$POD_COUNT" -gt 0 ]; then
+                  echo ""
+                  echo "  ⛔ CRITICAL SAFETY CHECK FAILED ⛔"
+                  echo "  Found $WORKLOAD_COUNT workload(s) and $POD_COUNT pod(s), but could not determine active ConfigMaps."
+                  echo "  This suggests a parsing error occurred."
+                  echo "  ABORTING cleanup to prevent accidental deletion of active ConfigMaps."
+                  echo ""
+                  echo "  To debug:"
+                  echo "    1. Check if jq is working: jq --version"
+                  echo "    2. Manually check workloads: kubectl get deployments,statefulsets,daemonsets,jobs,cronjobs -n {{ .Release.Namespace }} -o json | jq ."
+                  echo "    3. Check job logs for jq errors"
+                  exit 1
+                fi
+              fi
+
+              # Use a temp file to track deletions (since while loop runs in subshell)
+              TEMP_DIR=$(mktemp -d)
+              DELETED_FILE="$TEMP_DIR/deleted.txt"
+              SKIPPED_FILE="$TEMP_DIR/skipped.txt"
+              ERROR_FILE="$TEMP_DIR/errors.txt"
+              touch "$DELETED_FILE" "$SKIPPED_FILE" "$ERROR_FILE"
+
+              # Process each ConfigMap and delete unused ones
+              echo "$ALL_CONFIGMAPS" | while IFS= read -r cm; do
+                if [ -z "$cm" ]; then
+                  continue
+                fi
+
+                # Check if this ConfigMap is referenced by any active workload/pod
+                IS_ACTIVE=false
+                if [ -n "$ACTIVE_CONFIGMAPS" ]; then
+                  # Use exact match to avoid partial matches
+                  if echo "$ACTIVE_CONFIGMAPS" | grep -qFx "$cm"; then
+                    IS_ACTIVE=true
+                  fi
+                fi
+
+                if [ "$IS_ACTIVE" = "true" ]; then
+                  echo "  ✓ SKIP: $cm (referenced by active workload/pod - SAFE TO KEEP)"
+                  echo "$cm" >> "$SKIPPED_FILE"
+                else
+                  # Double-check: Verify ConfigMap still exists and is not referenced
+                  if ! kubectl get configmap "$cm" -n {{ .Release.Namespace }} &>/dev/null; then
+                    echo "  ⊘ SKIP: $cm (already deleted or doesn't exist)"
+                    continue
+                  fi
+
+                  # Triple-check: One more verification that it's not in active list
+                  if [ -n "$ACTIVE_CONFIGMAPS" ] && echo "$ACTIVE_CONFIGMAPS" | grep -qFx "$cm"; then
+                    echo "  ⚠️  SKIP: $cm (found in active list during verification - SAFETY CHECK)"
+                    echo "$cm" >> "$SKIPPED_FILE"
+                    continue
+                  fi
+
+                  # Grace period check: Skip if ConfigMap was created within last 24 hours
+                  CREATION_TIMESTAMP=$(kubectl get configmap "$cm" -n {{ .Release.Namespace }} -o jsonpath='{.metadata.creationTimestamp}' 2>/dev/null || echo "")
+                  GRACE_PERIOD_CHECK_PASSED=true
+
+                  if [ -n "$CREATION_TIMESTAMP" ]; then
+                    # Convert creation timestamp to Unix timestamp
+                    # Kubernetes returns RFC3339 format (e.g., "2024-01-15T10:30:00Z")
+                    # Use date -d for GNU date (works on Debian/Ubuntu-based images like bitnami/kubectl)
+                    CREATION_UNIX=""
+                    if date -d "$CREATION_TIMESTAMP" +%s >/dev/null 2>&1; then
+                      CREATION_UNIX=$(date -d "$CREATION_TIMESTAMP" +%s 2>/dev/null)
+                    fi
+
+                    # Check if date parsing succeeded and result is valid
+                    if [ -n "$CREATION_UNIX" ] && [ "$CREATION_UNIX" -gt 0 ] 2>/dev/null; then
+                      AGE_SECONDS=$((CURRENT_TIMESTAMP - CREATION_UNIX)) 2>/dev/null || AGE_SECONDS=0
+
+                      # Only check grace period if age is positive (ConfigMap was created in the past)
+                      if [ "$AGE_SECONDS" -ge 0 ] && [ "$AGE_SECONDS" -lt "$GRACE_PERIOD_SECONDS" ]; then
+                        AGE_HOURS=$((AGE_SECONDS / 3600))
+                        AGE_MINUTES=$(((AGE_SECONDS % 3600) / 60))
+                        echo "  ⏳ SKIP: $cm (created $AGE_HOURS hours $AGE_MINUTES minutes ago - within 1 day grace period)"
+                        echo "$cm" >> "$SKIPPED_FILE"
+                        GRACE_PERIOD_CHECK_PASSED=false
+                      fi
+                    else
+                      # If timestamp parsing fails, skip deletion for safety (conservative approach)
+                      # We cannot determine the age, so we err on the side of caution
+                      echo "  ⚠️  SKIP: $cm (could not parse creation timestamp: $CREATION_TIMESTAMP - skipping deletion for safety)"
+                      echo "$cm" >> "$SKIPPED_FILE"
+                      GRACE_PERIOD_CHECK_PASSED=false
+                    fi
+                  else
+                    # If no creation timestamp found, skip deletion for safety (conservative approach)
+                    echo "  ⚠️  SKIP: $cm (no creation timestamp found - skipping deletion for safety)"
+                    echo "$cm" >> "$SKIPPED_FILE"
+                    GRACE_PERIOD_CHECK_PASSED=false
+                  fi
+
+                  # Skip deletion if grace period check determined we should keep this ConfigMap
+                  if [ "$GRACE_PERIOD_CHECK_PASSED" = "false" ]; then
+                    continue
+                  fi
+
+                  echo "  🗑️  DELETE: $cm (not referenced by any active workload/pod and older than 1 day)"
+
+                  # Delete the ConfigMap with verification
+                  DELETE_OUTPUT=$(kubectl delete configmap "$cm" -n {{ .Release.Namespace }} --ignore-not-found=true 2>&1)
+                  DELETE_EXIT_CODE=$?
+
+                  if [ $DELETE_EXIT_CODE -eq 0 ]; then
+                    # Wait a moment for deletion to propagate
+                    sleep 1
+
+                    # Verify deletion succeeded
+                    if kubectl get configmap "$cm" -n {{ .Release.Namespace }} &>/dev/null 2>&1; then
+                      echo "    ⚠️  WARNING: ConfigMap still exists after deletion attempt (may have finalizers)"
+                      echo "$cm" >> "$ERROR_FILE"
+                    else
+                      echo "    ✓ Successfully deleted: $cm"
+                      echo "$cm" >> "$DELETED_FILE"
+                    fi
+                  else
+                    echo "    ✗ ERROR: Failed to delete: $cm"
+                    echo "    Error details: $DELETE_OUTPUT"
+                    echo "$cm" >> "$ERROR_FILE"
+                    # Don't exit on error - continue with other ConfigMaps
+                  fi
+                fi
+              done
+
+              # Calculate summary counts
+              TOTAL_COUNT=$(echo "$ALL_CONFIGMAPS" | grep -v '^$' | wc -l | tr -d ' ')
+
+              ACTIVE_COUNT=0
+              if [ -n "$ACTIVE_CONFIGMAPS" ]; then
+                ACTIVE_COUNT=$(echo "$ACTIVE_CONFIGMAPS" | grep -v '^$' | wc -l | tr -d ' ')
+              fi
+
+              DELETED_COUNT=$(wc -l < "$DELETED_FILE" | tr -d ' ')
+              SKIPPED_COUNT=$(wc -l < "$SKIPPED_FILE" | tr -d ' ')
+              ERROR_COUNT=$(wc -l < "$ERROR_FILE" | tr -d ' ')
+
+              # Cleanup temp files
+              rm -rf "$TEMP_DIR"
+
+              echo ""
+              echo "=========================================="
+              echo "Cleanup Summary:"
+              echo "  Total ConfigMaps found: $TOTAL_COUNT"
+              echo "  Active ConfigMaps (kept): $ACTIVE_COUNT"
+              echo "  ConfigMaps deleted: $DELETED_COUNT"
+              echo "  ConfigMaps skipped (active): $SKIPPED_COUNT"
+              if [ "$ERROR_COUNT" -gt 0 ]; then
+                echo "  ConfigMaps with errors: $ERROR_COUNT"
+              fi
+              echo "=========================================="
+
+              # Final verification: List remaining ConfigMaps matching pattern
+              echo ""
+              echo "Step 4: Verifying cleanup results..."
+              REMAINING_CONFIGMAPS=$(kubectl get configmaps -n {{ .Release.Namespace }} -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | tr ' ' '\n' | grep -E '{{ .Values.configMapCleanup.pattern | default "^(vcp-background-worker|vcp-customer-worker).*-config$" }}' | sort -u || true)
+
+              if [ -n "$REMAINING_CONFIGMAPS" ]; then
+                REMAINING_COUNT=$(echo "$REMAINING_CONFIGMAPS" | grep -v '^$' | wc -l | tr -d ' ')
+                echo "Remaining ConfigMaps after cleanup: $REMAINING_COUNT"
+                echo "$REMAINING_CONFIGMAPS" | while IFS= read -r cm; do
+                  if [ -n "$cm" ]; then
+                    echo "  - $cm"
+                  fi
+                done
+              else
+                echo "No ConfigMaps remaining (all cleaned up or none matched pattern)"
+              fi
+
+              echo ""
+              echo "=========================================="
+              echo "ConfigMap Cleanup CronJob Completed"
+              echo "=========================================="
+
+              # Exit with success even if some deletions failed (non-blocking)
+              # This ensures the cronjob continues to run even if cleanup has issues
+              if [ "$ERROR_COUNT" -gt 0 ]; then
+                echo "⚠️  Warning: $ERROR_COUNT ConfigMap(s) could not be deleted (may have finalizers or other protections)"
+                echo "This is non-blocking - cronjob will continue to run on schedule"
+              fi
+
+              exit 0
+
+            resources:
+              limits:
+                cpu: "200m"
+                memory: "256Mi"
+              requests:
+                cpu: "100m"
+                memory: "128Mi"
+          {{- if .Values.configMapCleanup.cronJob.activeDeadlineSeconds }}
+          activeDeadlineSeconds: {{ .Values.configMapCleanup.cronJob.activeDeadlineSeconds }}
+          {{- end }}
+      backoffLimit: {{ .Values.configMapCleanup.cronJob.backoffLimit | default 2 }}
+{{- end }}
+

@@ -366,6 +366,33 @@ secretManagerEnabled: false
 service:
   type: ClusterIP
 
+# ConfigMap cleanup job configuration
+# This job runs before all other resources to clean up old/unused ConfigMaps
+configMapCleanup:
+  # RBAC configuration for ConfigMap cleanup
+  # Set to true to create Role and RoleBinding for ConfigMap cleanup permissions
+  rbac:
+    enabled: false  # Set to false to disable RBAC creation for ConfigMap cleanup
+  # Regex pattern to match ConfigMaps to check
+  # Matches only vcp-background-worker and vcp-customer-worker ConfigMaps ending with -config
+  # Examples: vcp-customer-worker-v0-1-0-config, vcp-background-worker-v0-2-0-config
+  pattern: "^(vcp-background-worker|vcp-customer-worker).*-config$"  # Matches ConfigMaps with specified prefixes ending with -config
+  backoffLimit: 2  # Number of retries on failure
+  activeDeadlineSeconds: 300  # Job timeout in seconds (5 minutes)
+  
+  # CronJob configuration for scheduled cleanup
+  # This runs independently of Helm install/upgrade hooks
+  cronJob:
+    enabled: false  # Set to false to disable the CronJob
+    schedule: "0 2 * * 0" # Default: Every Sunday at 2:00 AM (weekly)
+    successfulJobsHistoryLimit: 3  # Number of successful job history to keep
+    failedJobsHistoryLimit: 3  # Number of failed job history to keep
+    concurrencyPolicy: "Forbid"  # Options: Allow, Forbid, Replace
+    # Forbid: Skip new job if previous is still running
+    backoffLimit: 2  # Number of retries on failure
+    activeDeadlineSeconds: 300  # Job timeout in seconds (5 minutes)
+    imageSHA: "sha256:49181cda819f6a3285452a260130b3bea20e359bd42314b8a84480fea3f64879"
+
 # Make sure to update the regionNumberMap if new regions are added. In both Google proxy and vcp-worker-chart
 regionNumberMap:
   africa-south1: "01"
