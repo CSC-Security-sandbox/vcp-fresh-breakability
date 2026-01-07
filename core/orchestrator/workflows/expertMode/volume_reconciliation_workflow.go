@@ -273,13 +273,10 @@ func (wf *volumeDeleteReconciliationWorkflow) Run(ctx workflow.Context, args ...
 		return nil, vsaErr
 	}
 
-	// Activity returned nil - volume is deleted (not found), mark as deleted in DB
 	log.Infof("Volume %s not found in ONTAP, deletion is complete. Marking as DELETED in DB", volume.Name)
-	volume.State = models.LifeCycleStateDeleted
-	volume.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
-	err = workflow.ExecuteActivity(ctx, activity.UpdateExpertModeVolumeInDB, volume).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, activity.DeleteExpertModeVolumeInDB, volume.UUID).Get(ctx, nil)
 	if err != nil {
-		log.Errorf("UpdateExpertModeVolumeInDB activity failed: %v", err)
+		log.Errorf("DeleteExpertModeVolumeInDB activity failed: %v", err)
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	return nil, nil

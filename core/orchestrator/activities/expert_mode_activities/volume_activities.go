@@ -120,3 +120,20 @@ func (a *ExpertModeVolumeActivity) UpdateExpertModeVolumeInDB(ctx context.Contex
 
 	return nil
 }
+
+// DeleteExpertModeVolumeInDB soft deletes the expert mode volume in the database.
+// It sets the DeletedAt timestamp and updates the state to deleted.
+func (a *ExpertModeVolumeActivity) DeleteExpertModeVolumeInDB(ctx context.Context, volumeUUID string) error {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Deleting volume %s in DB", volumeUUID))
+
+	err := a.SE.DeleteExpertModeVolume(ctx, volumeUUID)
+	if err != nil {
+		logger.Errorf("Failed to delete expert mode volume %s: %v", volumeUUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Successfully deleted expert mode volume (UUID: %s)", volumeUUID)
+
+	return nil
+}

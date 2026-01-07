@@ -1203,3 +1203,174 @@ func TestUpdateExpertModeVolume_WhenVolumeNotFound_ReturnsError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, retrievedVolume)
 }
+
+func TestDeleteExpertModeVolume(t *testing.T) {
+	t.Run("WhenVolumeIsDeletedSuccessfully", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+		account, pool := createTestAccountAndPoolForExpertMode(tt, store)
+		svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+		svmExternalUUID := utils.RandomUUID()
+		svm := createTestSVMForExpertMode(tt, store, pool.ID, account.ID, svmName, svmExternalUUID)
+
+		// Create a volume in DELETING state
+		expertModeVolume := &datamodel.ExpertModeVolumes{
+			Name:         "test-volume-to-delete",
+			SizeInBytes:  1099511627776, // 1TB
+			PoolID:       pool.ID,
+			AccountID:    account.ID,
+			SvmID:        svm.ID,
+			Style:        "flexvol",
+			ExternalUUID: utils.RandomUUID(),
+			State:        models.LifeCycleStateDeleting,
+		}
+
+		createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, createdVolume)
+
+		// Delete the volume
+		err = store.DeleteExpertModeVolume(ctx, createdVolume.UUID)
+		assert.NoError(tt, err)
+
+		// Verify volume is soft-deleted (not retrievable via normal query)
+		retrievedVolume, err := store.GetExpertModeVolumeByUUID(ctx, createdVolume.UUID)
+		assert.Error(tt, err)
+		assert.Nil(tt, retrievedVolume)
+	})
+
+	t.Run("WhenVolumeDoesNotExist", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		nonExistentUUID := utils.RandomUUID()
+
+		// Try to delete non-existent volume
+		err := store.DeleteExpertModeVolume(ctx, nonExistentUUID)
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.Is(err, gorm.ErrRecordNotFound) || customerrors.IsNotFoundErr(err))
+	})
+
+	t.Run("WhenVolumeInDifferentStates", func(tt *testing.T) {
+		states := []string{
+			models.LifeCycleStateCreating,
+			models.LifeCycleStateAvailable,
+			models.LifeCycleStateDeleting,
+		}
+
+		for _, initialState := range states {
+			tt.Run(initialState, func(ttt *testing.T) {
+				store := setup(ttt)
+				ctx := context.Background()
+				account, pool := createTestAccountAndPoolForExpertMode(ttt, store)
+				svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+				svmExternalUUID := utils.RandomUUID()
+				svm := createTestSVMForExpertMode(ttt, store, pool.ID, account.ID, svmName, svmExternalUUID)
+
+				expertModeVolume := &datamodel.ExpertModeVolumes{
+					Name:         fmt.Sprintf("test-volume-%s", initialState),
+					SizeInBytes:  1099511627776,
+					PoolID:       pool.ID,
+					AccountID:    account.ID,
+					SvmID:        svm.ID,
+					Style:        "flexvol",
+					ExternalUUID: utils.RandomUUID(),
+					State:        initialState,
+				}
+
+				createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
+				assert.NoError(ttt, err)
+
+				err = store.DeleteExpertModeVolume(ctx, createdVolume.UUID)
+				assert.NoError(ttt, err)
+
+				// Verify volume is soft-deleted
+				retrievedVolume, err := store.GetExpertModeVolumeByUUID(ctx, createdVolume.UUID)
+				assert.Error(ttt, err)
+				assert.Nil(ttt, retrievedVolume)
+			})
+		}
+	})
+
+	t.Run("WhenVolumeIsDeleted_VerifyNotRetrievable", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+		account, pool := createTestAccountAndPoolForExpertMode(tt, store)
+		svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+		svmExternalUUID := utils.RandomUUID()
+		svm := createTestSVMForExpertMode(tt, store, pool.ID, account.ID, svmName, svmExternalUUID)
+
+		expertModeVolume := &datamodel.ExpertModeVolumes{
+			Name:         "test-volume-with-relationships",
+			SizeInBytes:  1099511627776,
+			PoolID:       pool.ID,
+			AccountID:    account.ID,
+			SvmID:        svm.ID,
+			Style:        "flexvol",
+			ExternalUUID: utils.RandomUUID(),
+			State:        models.LifeCycleStateDeleting,
+		}
+
+		createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
+		assert.NoError(tt, err)
+
+		err = store.DeleteExpertModeVolume(ctx, createdVolume.UUID)
+		assert.NoError(tt, err)
+
+		// Verify volume is not retrievable after deletion
+		retrievedVolume, err := store.GetExpertModeVolumeByUUID(ctx, createdVolume.UUID)
+		assert.Error(tt, err)
+		assert.Nil(tt, retrievedVolume)
+	})
+
+	t.Run("WhenDeletingVolumeDoesNotAffectPoolCapacity", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+		account, pool := createTestAccountAndPoolForExpertMode(tt, store)
+		svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+		svmExternalUUID := utils.RandomUUID()
+		svm := createTestSVMForExpertMode(tt, store, pool.ID, account.ID, svmName, svmExternalUUID)
+
+		// Create two volumes
+		volume1 := &datamodel.ExpertModeVolumes{
+			Name:         "volume-1",
+			SizeInBytes:  1099511627776, // 1TB
+			PoolID:       pool.ID,
+			AccountID:    account.ID,
+			SvmID:        svm.ID,
+			Style:        "flexvol",
+			ExternalUUID: utils.RandomUUID(),
+			State:        models.LifeCycleStateAvailable,
+		}
+		volume2 := &datamodel.ExpertModeVolumes{
+			Name:         "volume-2",
+			SizeInBytes:  536870912000, // 500GB
+			PoolID:       pool.ID,
+			AccountID:    account.ID,
+			SvmID:        svm.ID,
+			Style:        "flexvol",
+			ExternalUUID: utils.RandomUUID(),
+			State:        models.LifeCycleStateAvailable,
+		}
+
+		createdVolume1, err := store.CreateExpertModeVolume(ctx, volume1)
+		assert.NoError(tt, err)
+		_, err = store.CreateExpertModeVolume(ctx, volume2)
+		assert.NoError(tt, err)
+
+		// Check initial capacity
+		initialCapacity, err := store.GetExpertModePoolUsedCapacity(ctx, pool.ID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(1099511627776+536870912000), initialCapacity)
+
+		// Delete volume1
+		err = store.DeleteExpertModeVolume(ctx, createdVolume1.UUID)
+		assert.NoError(tt, err)
+
+		// Check capacity after deletion - should only include volume2
+		finalCapacity, err := store.GetExpertModePoolUsedCapacity(ctx, pool.ID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(536870912000), finalCapacity) // Only volume2 size
+	})
+}

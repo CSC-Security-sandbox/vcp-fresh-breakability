@@ -4599,6 +4599,21 @@ func (re *retryEngine) GetExpertModeVolumeByVolumeUUID(ctx context.Context, volu
 	return var0, err
 }
 
+func (re *retryEngine) DeleteExpertModeVolume(ctx context.Context, volumeUUID string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.DeleteExpertModeVolume(ctx, volumeUUID)
+		if err != nil {
+			re.logError("DeleteExpertModeVolume", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
 func (re *retryEngine) UpdateExpertModeVolumeDataProtection(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error

@@ -942,3 +942,77 @@ func TestCheckVolumeDeletedInOntap(t *testing.T) {
 		mockProvider.AssertExpectations(tt)
 	})
 }
+
+func TestDeleteExpertModeVolumeInDB(t *testing.T) {
+	t.Run("WhenVolumeIsDeletedSuccessfully", func(tt *testing.T) {
+		// Arrange
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.DeleteExpertModeVolumeInDB)
+
+		volumeUUID := "volume-uuid-123"
+
+		// Mock DeleteExpertModeVolume to return success
+		mockStorage.On("DeleteExpertModeVolume", mock.Anything, volumeUUID).Return(nil)
+
+		// Act
+		_, err := env.ExecuteActivity(activity.DeleteExpertModeVolumeInDB, volumeUUID)
+
+		// Assert
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenDeleteExpertModeVolumeFails", func(tt *testing.T) {
+		// Arrange
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.DeleteExpertModeVolumeInDB)
+
+		volumeUUID := "volume-uuid-123"
+
+		expectedError := errors.New("database delete failed")
+
+		// Mock DeleteExpertModeVolume to return error
+		mockStorage.On("DeleteExpertModeVolume", mock.Anything, volumeUUID).Return(expectedError)
+
+		// Act
+		_, err := env.ExecuteActivity(activity.DeleteExpertModeVolumeInDB, volumeUUID)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "database delete failed")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenVolumeNotFound", func(tt *testing.T) {
+		// Arrange
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.DeleteExpertModeVolumeInDB)
+
+		volumeUUID := "non-existent-uuid"
+
+		notFoundError := errors.New("record not found")
+
+		// Mock DeleteExpertModeVolume to return not found error
+		mockStorage.On("DeleteExpertModeVolume", mock.Anything, volumeUUID).Return(notFoundError)
+
+		// Act
+		_, err := env.ExecuteActivity(activity.DeleteExpertModeVolumeInDB, volumeUUID)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "record not found")
+		mockStorage.AssertExpectations(tt)
+	})
+}

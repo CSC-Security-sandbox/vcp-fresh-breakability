@@ -469,6 +469,63 @@ func (_c *MockDataStore_DeleteHydratedMetricsOlderThan_Call) RunAndReturn(run fu
 	return _c
 }
 
+// DeleteJobsOlderThan provides a mock function with given fields: ctx, olderThan
+func (_m *MockDataStore) DeleteJobsOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
+	ret := _m.Called(ctx, olderThan)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteJobsOlderThan")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time) (int64, error)); ok {
+		return rf(ctx, olderThan)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time) int64); ok {
+		r0 = rf(ctx, olderThan)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
+		r1 = rf(ctx, olderThan)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_DeleteJobsOlderThan_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteJobsOlderThan'
+type MockDataStore_DeleteJobsOlderThan_Call struct {
+	*mock.Call
+}
+
+// DeleteJobsOlderThan is a helper method to define mock.On call
+//   - ctx context.Context
+//   - olderThan time.Time
+func (_e *MockDataStore_Expecter) DeleteJobsOlderThan(ctx interface{}, olderThan interface{}) *MockDataStore_DeleteJobsOlderThan_Call {
+	return &MockDataStore_DeleteJobsOlderThan_Call{Call: _e.mock.On("DeleteJobsOlderThan", ctx, olderThan)}
+}
+
+func (_c *MockDataStore_DeleteJobsOlderThan_Call) Run(run func(ctx context.Context, olderThan time.Time)) *MockDataStore_DeleteJobsOlderThan_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(time.Time))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_DeleteJobsOlderThan_Call) Return(_a0 int64, _a1 error) *MockDataStore_DeleteJobsOlderThan_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_DeleteJobsOlderThan_Call) RunAndReturn(run func(context.Context, time.Time) (int64, error)) *MockDataStore_DeleteJobsOlderThan_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAggregatedUsage provides a mock function with given fields: ctx, filter
 func (_m *MockDataStore) GetAggregatedUsage(ctx context.Context, filter map[string]interface{}) ([]datamodel.AggregatedUsage, error) {
 	ret := _m.Called(ctx, filter)

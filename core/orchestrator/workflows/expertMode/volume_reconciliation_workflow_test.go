@@ -524,7 +524,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(expertModeActivity.CheckVolumeDeletedInOntap)
-		env.RegisterActivity(expertModeActivity.UpdateExpertModeVolumeInDB)
+		env.RegisterActivity(expertModeActivity.DeleteExpertModeVolumeInDB)
 
 		volume := &datamodel.ExpertModeVolumes{
 			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -558,7 +558,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		// CheckVolumeDeletedInOntap returns nil when volume is not found (deleted)
 		env.OnActivity("CheckVolumeDeletedInOntap", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateExpertModeVolumeInDB", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteExpertModeVolumeInDB", mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(VolumeDeleteReconciliationWorkflow, volume)
 
@@ -690,7 +690,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("Failure_UpdateExpertModeVolumeInDBFails", func(tt *testing.T) {
+	t.Run("Failure_DeleteExpertModeVolumeInDBFails", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -708,7 +708,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(expertModeActivity.CheckVolumeDeletedInOntap)
-		env.RegisterActivity(expertModeActivity.UpdateExpertModeVolumeInDB)
+		env.RegisterActivity(expertModeActivity.DeleteExpertModeVolumeInDB)
 
 		volume := &datamodel.ExpertModeVolumes{
 			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -741,7 +741,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("CheckVolumeDeletedInOntap", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateExpertModeVolumeInDB", mock.Anything, mock.Anything).Return(assert.AnError)
+		env.OnActivity("DeleteExpertModeVolumeInDB", mock.Anything, mock.Anything).Return(assert.AnError)
 
 		env.ExecuteWorkflow(VolumeDeleteReconciliationWorkflow, volume)
 
@@ -917,7 +917,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(expertModeActivity.CheckVolumeDeletedInOntap)
-		env.RegisterActivity(expertModeActivity.UpdateExpertModeVolumeInDB)
+		env.RegisterActivity(expertModeActivity.DeleteExpertModeVolumeInDB)
 
 		volume := &datamodel.ExpertModeVolumes{
 			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -950,7 +950,7 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, DONE
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("CheckVolumeDeletedInOntap", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateExpertModeVolumeInDB", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteExpertModeVolumeInDB", mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(VolumeDeleteReconciliationWorkflow, volume)
 

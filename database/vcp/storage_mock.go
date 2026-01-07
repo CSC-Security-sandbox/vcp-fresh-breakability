@@ -3011,6 +3011,53 @@ func (_c *MockStorage_DeleteClusterPeeringRow_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// DeleteExpertModeVolume provides a mock function with given fields: ctx, volumeUUID
+func (_m *MockStorage) DeleteExpertModeVolume(ctx context.Context, volumeUUID string) error {
+	ret := _m.Called(ctx, volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteExpertModeVolume")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, volumeUUID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_DeleteExpertModeVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteExpertModeVolume'
+type MockStorage_DeleteExpertModeVolume_Call struct {
+	*mock.Call
+}
+
+// DeleteExpertModeVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+func (_e *MockStorage_Expecter) DeleteExpertModeVolume(ctx interface{}, volumeUUID interface{}) *MockStorage_DeleteExpertModeVolume_Call {
+	return &MockStorage_DeleteExpertModeVolume_Call{Call: _e.mock.On("DeleteExpertModeVolume", ctx, volumeUUID)}
+}
+
+func (_c *MockStorage_DeleteExpertModeVolume_Call) Run(run func(ctx context.Context, volumeUUID string)) *MockStorage_DeleteExpertModeVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_DeleteExpertModeVolume_Call) Return(_a0 error) *MockStorage_DeleteExpertModeVolume_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_DeleteExpertModeVolume_Call) RunAndReturn(run func(context.Context, string) error) *MockStorage_DeleteExpertModeVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteHostGroup provides a mock function with given fields: ctx, hostGroupUUID, accountID
 func (_m *MockStorage) DeleteHostGroup(ctx context.Context, hostGroupUUID string, accountID int64) (*datamodel.HostGroup, error) {
 	ret := _m.Called(ctx, hostGroupUUID, accountID)

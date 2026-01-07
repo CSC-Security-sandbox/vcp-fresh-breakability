@@ -3,8 +3,10 @@ package database
 import (
 	"context"
 	"gorm.io/gorm"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -119,6 +121,32 @@ func (d *DataStoreRepository) GetExpertModeVolumeByVolumeUUID(ctx context.Contex
 	}
 
 	return &volume, nil
+}
+
+// DeleteExpertModeVolume soft deletes an expert mode volume by setting DeletedAt and State
+func (d *DataStoreRepository) DeleteExpertModeVolume(ctx context.Context, volumeUUID string) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	volume, err := getExpertModeVolumeWithDetails(tx, &datamodel.ExpertModeVolumes{BaseModel: datamodel.BaseModel{UUID: volumeUUID}})
+	if err != nil {
+		return err
+	}
+
+	volume.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
+	volume.State = models.LifeCycleStateDeleted
+
+	err = tx.Save(volume).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // UpdateExpertModeVolume updates an expert mode volume in the database
