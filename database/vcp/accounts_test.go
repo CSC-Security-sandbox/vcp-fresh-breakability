@@ -296,6 +296,79 @@ func TestGetAccounts(t *testing.T) {
 	})
 }
 
+// TestListAccountsForTelemetry tests the optimized account query for telemetry/bizops
+func TestListAccountsForTelemetry(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err, "Failed to set up test database")
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err, "Failed to clean up test database")
+
+	accounts := []*datamodel.Account{
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "uuid-1"},
+			Name:        "account1",
+			State:       "ENABLED",
+			Description: "Account 1 description - this field should not be returned",
+		},
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "uuid-2"},
+			Name:        "account2",
+			State:       "DISABLED",
+			Description: "Account 2 description - this field should not be returned",
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "uuid-3", DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true}},
+			Name:      "account3",
+			State:     "DELETED",
+		},
+	}
+	for _, acc := range accounts {
+		err := store.db.Create(acc).Error()
+		assert.NoError(t, err, "Failed to create account")
+	}
+
+	t.Run("Returns only active accounts with minimal fields", func(tt *testing.T) {
+		result, err := store.ListAccountsForTelemetry(context.Background(), nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 2) // Should not include soft-deleted account
+
+		// Verify the returned data contains only the expected fields
+		for _, acc := range result {
+			assert.NotZero(tt, acc.ID)
+			assert.NotEmpty(tt, acc.Name)
+			assert.NotEmpty(tt, acc.State)
+		}
+	})
+
+	t.Run("Pagination works correctly", func(tt *testing.T) {
+		pagination := &dbutils.Pagination{Limit: 1, Offset: 0}
+		result, err := store.ListAccountsForTelemetry(context.Background(), pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 1)
+		assert.Equal(tt, "account1", result[0].Name)
+		assert.Equal(tt, "ENABLED", result[0].State)
+	})
+
+	t.Run("Pagination with offset", func(tt *testing.T) {
+		pagination := &dbutils.Pagination{Limit: 1, Offset: 1}
+		result, err := store.ListAccountsForTelemetry(context.Background(), pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 1)
+		assert.Equal(tt, "account2", result[0].Name)
+		assert.Equal(tt, "DISABLED", result[0].State)
+	})
+
+	t.Run("Empty records with high offset", func(tt *testing.T) {
+		pagination := &dbutils.Pagination{Limit: 10, Offset: 100}
+		result, err := store.ListAccountsForTelemetry(context.Background(), pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 0)
+	})
+}
+
 func TestUpdateAccountStateForHandleResource(t *testing.T) {
 	t.Run("WhenAccountStateIsUpdatedSuccessfully", func(tt *testing.T) {
 		db, err := SetupTestDB()

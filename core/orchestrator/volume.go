@@ -284,6 +284,9 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			SnapReserve:       params.SnapReserve,
 			SnapshotDirectory: params.SnapshotDirectory,
 			Labels:            params.Labels,
+			AccountName:       getAccountName(account),
+			DeploymentName:    getPoolDeploymentName(dbPool),
+			IsRegionalHA:      getPoolIsRegionalHA(dbPool),
 		},
 		ClonesSharedBytes: clonesSharedBytes,
 	}
@@ -378,7 +381,11 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 
 	if params.BackupPath != "" {
 		if volumeObj.VolumeAttributes == nil {
-			volumeObj.VolumeAttributes = &datamodel.VolumeAttributes{}
+			volumeObj.VolumeAttributes = &datamodel.VolumeAttributes{
+				AccountName:    getAccountName(account),
+				DeploymentName: getPoolDeploymentName(dbPool),
+				IsRegionalHA:   getPoolIsRegionalHA(dbPool),
+			}
 		}
 		logger.Debugf("params.BackupPath: %s", params.BackupPath)
 		volumeObj.VolumeAttributes.RestoredBackupPath = params.BackupPath

@@ -12851,3 +12851,27 @@ func setupPoolBuildInfoTestMocks(env *testsuite.TestWorkflowEnvironment, mockVSA
 	mockStorage.EXPECT().CreatePendingResourceDeletion(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.PendingResourceDeletions{}, nil).Maybe()
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
 }
+
+// TestGetPoolAttributesAccountName tests the getPoolAttributesAccountName helper function
+func TestGetPoolAttributesAccountName(t *testing.T) {
+	t.Run("WhenPoolAttributesIsNil", func(tt *testing.T) {
+		result := getPoolAttributesAccountName(nil)
+		assert.Equal(tt, "", result)
+	})
+
+	t.Run("WhenAccountNameIsEmpty", func(tt *testing.T) {
+		poolAttributes := &datamodel.PoolAttributes{
+			AccountName: "",
+		}
+		result := getPoolAttributesAccountName(poolAttributes)
+		assert.Equal(tt, "", result)
+	})
+
+	t.Run("WhenAccountNameIsSet", func(tt *testing.T) {
+		poolAttributes := &datamodel.PoolAttributes{
+			AccountName: "test-account-name",
+		}
+		result := getPoolAttributesAccountName(poolAttributes)
+		assert.Equal(tt, "test-account-name", result)
+	})
+}

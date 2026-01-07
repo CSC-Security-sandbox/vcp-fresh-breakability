@@ -6069,3 +6069,63 @@ func Test_mergeUpdateParamsIntoPoolModel(t *testing.T) {
 		assert.Equal(tt, poolModel.AutoTieringConfig.EnableHotTierAutoResize, result.AutoTieringConfig.EnableHotTierAutoResize)
 	})
 }
+
+// TestGetPoolDeploymentName tests the getPoolDeploymentName helper function
+func TestGetPoolDeploymentName(t *testing.T) {
+	t.Run("WhenPoolIsNil", func(tt *testing.T) {
+		result := getPoolDeploymentName(nil)
+		assert.Equal(tt, "", result)
+	})
+
+	t.Run("WhenDeploymentNameIsEmpty", func(tt *testing.T) {
+		pool := &datamodel.Pool{
+			DeploymentName: "",
+		}
+		result := getPoolDeploymentName(pool)
+		assert.Equal(tt, "", result)
+	})
+
+	t.Run("WhenDeploymentNameIsSet", func(tt *testing.T) {
+		pool := &datamodel.Pool{
+			DeploymentName: "test-deployment-name",
+		}
+		result := getPoolDeploymentName(pool)
+		assert.Equal(tt, "test-deployment-name", result)
+	})
+}
+
+// TestGetPoolIsRegionalHA tests the getPoolIsRegionalHA helper function
+func TestGetPoolIsRegionalHA(t *testing.T) {
+	t.Run("WhenPoolIsNil", func(tt *testing.T) {
+		result := getPoolIsRegionalHA(nil)
+		assert.False(tt, result)
+	})
+
+	t.Run("WhenPoolAttributesIsNil", func(tt *testing.T) {
+		pool := &datamodel.Pool{
+			PoolAttributes: nil,
+		}
+		result := getPoolIsRegionalHA(pool)
+		assert.False(tt, result)
+	})
+
+	t.Run("WhenIsRegionalHAIsFalse", func(tt *testing.T) {
+		pool := &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				IsRegionalHA: false,
+			},
+		}
+		result := getPoolIsRegionalHA(pool)
+		assert.False(tt, result)
+	})
+
+	t.Run("WhenIsRegionalHAIsTrue", func(tt *testing.T) {
+		pool := &datamodel.Pool{
+			PoolAttributes: &datamodel.PoolAttributes{
+				IsRegionalHA: true,
+			},
+		}
+		result := getPoolIsRegionalHA(pool)
+		assert.True(tt, result)
+	})
+}

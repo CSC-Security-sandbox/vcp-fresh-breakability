@@ -6475,3 +6475,232 @@ func TestGetVolumeByJunctionPath_PersistenceStore(t *testing.T) {
 		assert.Nil(tt, volume, "Expected nil volume")
 	})
 }
+
+// Tests for ListPoolsForMetrics delegate method
+func TestPersistenceStore_ListPoolsForMetrics(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+
+	// Create test account and pool
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	require.NoError(t, err)
+
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: utils.RandomUUID()},
+		Name:           "test_pool",
+		SizeInBytes:    1000000,
+		AccountID:      account.ID,
+		DeploymentName: "deployment-1",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: "test_account",
+		},
+	}
+	err = store.DB().Create(pool).Error
+	require.NoError(t, err)
+
+	// Test successful call
+	results, err := store.ListPoolsForMetrics(ctx)
+	assert.NoError(t, err)
+	assert.NotNil(t, results)
+	assert.Len(t, results, 1)
+	assert.Equal(t, "test_pool", results[0].Name)
+}
+
+// Tests for ListPoolsForResourceData delegate method
+func TestPersistenceStore_ListPoolsForResourceData(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+
+	// Create test account and pool
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	require.NoError(t, err)
+
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: utils.RandomUUID()},
+		Name:           "test_pool",
+		AccountID:      account.ID,
+		DeploymentName: "deployment-1",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: "test_account",
+		},
+	}
+	err = store.DB().Create(pool).Error
+	require.NoError(t, err)
+
+	// Test successful call
+	startTime := time.Now().Add(-1 * time.Hour)
+	endTime := time.Now().Add(1 * time.Hour)
+	pagination := &dbutils.Pagination{Limit: 10, Offset: 0}
+
+	results, err := store.ListPoolsForResourceData(ctx, startTime, endTime, pagination)
+	assert.NoError(t, err)
+	assert.NotNil(t, results)
+}
+
+// Tests for ListVolumesForResourceData delegate method
+func TestPersistenceStore_ListVolumesForResourceData(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+
+	// Create test account, pool and volume
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	require.NoError(t, err)
+
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: utils.RandomUUID()},
+		Name:           "test_pool",
+		AccountID:      account.ID,
+		DeploymentName: "deployment-1",
+	}
+	err = store.DB().Create(pool).Error
+	require.NoError(t, err)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
+		Name:      "test_volume",
+		PoolID:    pool.ID,
+		AccountID: account.ID,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			AccountName:    "test_account",
+			DeploymentName: "deployment-1",
+		},
+	}
+	err = store.DB().Create(volume).Error
+	require.NoError(t, err)
+
+	// Test successful call
+	startTime := time.Now().Add(-1 * time.Hour)
+	endTime := time.Now().Add(1 * time.Hour)
+	pagination := &dbutils.Pagination{Limit: 10, Offset: 0}
+
+	results, err := store.ListVolumesForResourceData(ctx, startTime, endTime, pagination)
+	assert.NoError(t, err)
+	assert.NotNil(t, results)
+}
+
+// Tests for ListVolumesForTelemetryMetrics delegate method
+func TestPersistenceStore_ListVolumesForTelemetryMetrics(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+
+	// Create test account, pool and volume
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	require.NoError(t, err)
+
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: utils.RandomUUID()},
+		Name:           "test_pool",
+		AccountID:      account.ID,
+		DeploymentName: "deployment-1",
+	}
+	err = store.DB().Create(pool).Error
+	require.NoError(t, err)
+
+	volume := &datamodel.Volume{
+		BaseModel:   datamodel.BaseModel{UUID: utils.RandomUUID()},
+		Name:        "test_volume",
+		SizeInBytes: 1000000,
+		Throughput:  1024,
+		PoolID:      pool.ID,
+		AccountID:   account.ID,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			AccountName:    "test_account",
+			DeploymentName: "deployment-1",
+			Protocols:      []string{"NFS"},
+		},
+	}
+	err = store.DB().Create(volume).Error
+	require.NoError(t, err)
+
+	// Test successful call
+	results, err := store.ListVolumesForTelemetryMetrics(ctx)
+	assert.NoError(t, err)
+	assert.NotNil(t, results)
+	assert.Len(t, results, 1)
+	assert.Equal(t, "test_volume", results[0].Name)
+}
+
+// Tests for ListAccountsForTelemetry delegate method
+func TestPersistenceStore_ListAccountsForTelemetry(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+
+	// Create test account
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
+		Name:      "test_account",
+		State:     "ENABLED",
+	}
+	err = store.DB().Create(account).Error
+	require.NoError(t, err)
+
+	// Test successful call without pagination
+	results, err := store.ListAccountsForTelemetry(ctx, nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, results)
+	assert.Len(t, results, 1)
+	assert.Equal(t, "test_account", results[0].Name)
+
+	// Test with pagination
+	pagination := &dbutils.Pagination{Limit: 10, Offset: 0}
+	results, err = store.ListAccountsForTelemetry(ctx, pagination)
+	assert.NoError(t, err)
+	assert.NotNil(t, results)
+	assert.Len(t, results, 1)
+}

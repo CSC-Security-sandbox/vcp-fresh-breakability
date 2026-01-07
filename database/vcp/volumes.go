@@ -756,3 +756,158 @@ func getActivePrepopulateJobs(db *gorm.DB) ([]*datamodel.Job, error) {
 
 	return jobs, nil
 }
+
+// VolumeResourceData contains only the fields required for aggregator resource data collection.
+// This is an optimized structure for fetchVolumeData in telemetry aggregator.
+// Account name, deployment name, labels, and IsRegionalHA are extracted from volume_attributes JSONB.
+type VolumeResourceData struct {
+	UUID             string                      `gorm:"column:uuid"`
+	Name             string                      `gorm:"column:name"`
+	AccountID        int64                       `gorm:"column:account_id"`
+	VolumeAttributes *datamodel.VolumeAttributes `gorm:"column:volume_attributes;type:jsonb"`
+}
+
+// GetAccountName returns the account name from VolumeAttributes
+func (v *VolumeResourceData) GetAccountName() string {
+	if v.VolumeAttributes != nil {
+		return v.VolumeAttributes.AccountName
+	}
+	return ""
+}
+
+// GetDeploymentName returns the deployment name from VolumeAttributes
+func (v *VolumeResourceData) GetDeploymentName() string {
+	if v.VolumeAttributes != nil {
+		return v.VolumeAttributes.DeploymentName
+	}
+	return ""
+}
+
+// GetLabels returns labels from VolumeAttributes
+func (v *VolumeResourceData) GetLabels() *datamodel.JSONB {
+	if v.VolumeAttributes != nil {
+		return v.VolumeAttributes.Labels
+	}
+	return nil
+}
+
+// IsRegionalHA returns whether volume is in a regional HA pool
+func (v *VolumeResourceData) IsRegionalHA() bool {
+	if v.VolumeAttributes != nil {
+		return v.VolumeAttributes.IsRegionalHA
+	}
+	return false
+}
+
+// ListVolumesForResourceData retrieves volumes with only the fields required for aggregator resource data collection.
+// This is an optimized query with pagination support for fetchVolumeData in telemetry aggregator.
+// Account name, deployment name, labels and IsRegionalHA are extracted from volume_attributes JSONB (no JOINs needed).
+// Includes support for deleted_at filter to include recently deleted volumes.
+func (d *DataStoreRepository) ListVolumesForResourceData(ctx context.Context, startTime, endTime time.Time, pagination *dbutils.Pagination) ([]*VolumeResourceData, error) {
+	db := d.db.GORM().WithContext(ctx)
+
+	var results []*VolumeResourceData
+
+	// Select only the required columns from volumes table
+	// Account name, deployment name, labels and IsRegionalHA are in volume_attributes JSONB, no JOIN needed
+	query := db.Table("volumes").
+		Select(`
+			uuid,
+			name,
+			account_id,
+			volume_attributes
+		`).
+		Where("(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", startTime, endTime)
+
+	// Apply pagination
+	if pagination != nil {
+		if pagination.Limit > 0 {
+			query = query.Limit(pagination.Limit)
+		}
+		if pagination.Offset > 0 {
+			query = query.Offset(pagination.Offset)
+		}
+	}
+
+	err := query.Find(&results).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	return results, nil
+}
+
+// VolumeMetricsData contains only the fields required for telemetry volume metrics collection.
+// This is an optimized structure that avoids JOINs with Account and Pool tables.
+// Account name, deployment name, and protocols are extracted from volume_attributes JSONB.
+type VolumeMetricsData struct {
+	UUID             string                      `gorm:"column:uuid"`
+	Name             string                      `gorm:"column:name"`
+	SizeInBytes      int64                       `gorm:"column:size_in_bytes"`
+	Throughput       int64                       `gorm:"column:throughput"`
+	PoolID           int64                       `gorm:"column:pool_id"`
+	VolumeAttributes *datamodel.VolumeAttributes `gorm:"column:volume_attributes;type:jsonb"`
+	DataProtection   *datamodel.DataProtection   `gorm:"column:data_protection;type:jsonb"`
+}
+
+// GetAccountName returns the account name from VolumeAttributes
+func (v *VolumeMetricsData) GetAccountName() string {
+	if v.VolumeAttributes != nil {
+		return v.VolumeAttributes.AccountName
+	}
+	return ""
+}
+
+// GetDeploymentName returns the deployment name from VolumeAttributes
+func (v *VolumeMetricsData) GetDeploymentName() string {
+	if v.VolumeAttributes != nil {
+		return v.VolumeAttributes.DeploymentName
+	}
+	return ""
+}
+
+// GetProtocols returns protocols from VolumeAttributes
+func (v *VolumeMetricsData) GetProtocols() []string {
+	if v.VolumeAttributes != nil {
+		return v.VolumeAttributes.Protocols
+	}
+	return nil
+}
+
+// IsRegionalHA returns whether volume is in a regional HA pool
+func (v *VolumeMetricsData) IsRegionalHA() bool {
+	if v.VolumeAttributes != nil {
+		return v.VolumeAttributes.IsRegionalHA
+	}
+	return false
+}
+
+// ListVolumesForTelemetryMetrics retrieves volumes with only the fields required for telemetry metrics collection.
+// This is an optimized query that avoids JOINs with Account and Pool tables.
+// Account name, deployment name, and protocols are extracted from volume_attributes JSONB.
+func (d *DataStoreRepository) ListVolumesForTelemetryMetrics(ctx context.Context) ([]*VolumeMetricsData, error) {
+	db := d.db.GORM().WithContext(ctx)
+
+	var results []*VolumeMetricsData
+
+	// Select only the required columns from volumes table
+	// Account name, deployment name, and protocols are in volume_attributes JSONB, no JOIN needed
+	err := db.Table("volumes").
+		Select(`
+			uuid,
+			name,
+			size_in_bytes,
+			throughput,
+			pool_id,
+			volume_attributes,
+			data_protection
+		`).
+		Where("deleted_at IS NULL").
+		Find(&results).Error
+
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	return results, nil
+}

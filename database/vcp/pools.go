@@ -629,6 +629,27 @@ type PoolIdentifier struct {
 	AccountID int64
 }
 
+// PoolMetricsData contains only the fields required for metrics collection
+// This is an optimized structure that fetches minimal data from the database
+type PoolMetricsData struct {
+	ID             int64                     `gorm:"column:id"`
+	UUID           string                    `gorm:"column:uuid"`
+	Name           string                    `gorm:"column:name"`
+	SizeInBytes    int64                     `gorm:"column:size_in_bytes"`
+	DeploymentName string                    `gorm:"column:deployment_name"`
+	PoolAttributes *datamodel.PoolAttributes `gorm:"column:pool_attributes;type:jsonb"`
+	// QuotaInBytes mirrors the original ListPools behavior (always 0 in PoolView)
+	QuotaInBytes uint64 `gorm:"-"`
+}
+
+// GetAccountName returns the account name from PoolAttributes
+func (p *PoolMetricsData) GetAccountName() string {
+	if p.PoolAttributes != nil {
+		return p.PoolAttributes.AccountName
+	}
+	return ""
+}
+
 // ListPoolUUIDs retrieves pool identifiers that match the provided filter
 func (d *DataStoreRepository) ListPoolUUIDs(ctx context.Context, filter *utils2.Filter) ([]*PoolIdentifier, error) {
 	var db *gorm.DB
@@ -721,4 +742,110 @@ func _getPoolsByKmsConfigID(db *gorm.DB, kmsConfigID int64) ([]*datamodel.Pool, 
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	return pools, nil
+}
+
+// ListPoolsForMetrics retrieves pools with only the fields required for metrics collection.
+// This is an optimized query that selects only required columns from the pools table.
+// Account name is extracted from pool_attributes JSONB column (no JOIN needed).
+// This significantly reduces data transfer compared to ListPools which fetches all fields and preloads related entities.
+func (d *DataStoreRepository) ListPoolsForMetrics(ctx context.Context) ([]*PoolMetricsData, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debug("ListPoolsForMetrics: Starting optimized pool metrics query")
+
+	db := d.db.GORM().WithContext(ctx)
+
+	var results []*PoolMetricsData
+
+	// Select only the required columns from pools table
+	err := db.Table("pools").
+		Select(`
+			id,
+			uuid,
+			name,
+			size_in_bytes,
+			deployment_name,
+			pool_attributes
+		`).
+		Where("deleted_at IS NULL").
+		Find(&results).Error
+
+	if err != nil {
+		logger.Error("ListPoolsForMetrics: Query failed", "error", err.Error())
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	logger.Infof(fmt.Sprintf("ListPoolsForMetrics: Successfully fetched %d pools with only required fields for metrics.", len(results)))
+	return results, nil
+}
+
+// PoolResourceData contains only the fields required for aggregator resource data collection.
+// This is an optimized structure for fetchPoolData in telemetry aggregator.
+type PoolResourceData struct {
+	UUID           string                    `gorm:"column:uuid"`
+	Name           string                    `gorm:"column:name"`
+	AccountID      int64                     `gorm:"column:account_id"`
+	DeploymentName string                    `gorm:"column:deployment_name"`
+	PoolAttributes *datamodel.PoolAttributes `gorm:"column:pool_attributes;type:jsonb"`
+}
+
+// GetAccountName returns the account name from PoolAttributes
+func (p *PoolResourceData) GetAccountName() string {
+	if p.PoolAttributes != nil {
+		return p.PoolAttributes.AccountName
+	}
+	return ""
+}
+
+// GetLabels returns labels from PoolAttributes
+func (p *PoolResourceData) GetLabels() *datamodel.JSONB {
+	if p.PoolAttributes != nil {
+		return p.PoolAttributes.Labels
+	}
+	return nil
+}
+
+// IsRegionalHA returns whether pool is regional HA
+func (p *PoolResourceData) IsRegionalHA() bool {
+	if p.PoolAttributes != nil {
+		return p.PoolAttributes.IsRegionalHA
+	}
+	return false
+}
+
+// ListPoolsForResourceData retrieves pools with only the fields required for aggregator resource data collection.
+// This is an optimized query with pagination support for fetchPoolData in telemetry aggregator.
+// Includes support for deleted_at filter to include recently deleted pools.
+func (d *DataStoreRepository) ListPoolsForResourceData(ctx context.Context, startTime, endTime time.Time, pagination *utils2.Pagination) ([]*PoolResourceData, error) {
+	db := d.db.GORM().WithContext(ctx)
+
+	var results []*PoolResourceData
+
+	// Select only the required columns from pools table
+	// Account name and labels are available in pool_attributes JSONB, no JOIN needed
+	query := db.Table("pools").
+		Select(`
+			uuid,
+			name,
+			account_id,
+			deployment_name,
+			pool_attributes
+		`).
+		Where("(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", startTime, endTime)
+
+	// Apply pagination
+	if pagination != nil {
+		if pagination.Limit > 0 {
+			query = query.Limit(pagination.Limit)
+		}
+		if pagination.Offset > 0 {
+			query = query.Offset(pagination.Offset)
+		}
+	}
+
+	err := query.Find(&results).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	return results, nil
 }

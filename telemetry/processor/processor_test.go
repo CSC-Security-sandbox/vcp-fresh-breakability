@@ -35,6 +35,20 @@ func waitForAsyncOperations(t *testing.T, timeout time.Duration) {
 	t.Logf("Waited for async operations for %v", timeout)
 }
 
+// createTestPoolMetricsData returns a standard pool metrics data for testing
+func createTestPoolMetricsData(name, accountName string) *database.PoolMetricsData {
+	return &database.PoolMetricsData{
+		ID:             1,
+		UUID:           "pool-uuid-1",
+		Name:           name,
+		SizeInBytes:    100,
+		DeploymentName: "deployment1",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: accountName,
+		},
+	}
+}
+
 // MockBillingProvider is a mock implementation of BillingProvider for testing
 type MockBillingProvider struct {
 	mock.Mock
@@ -72,35 +86,12 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_MetricClientWrapperIsNil(t *
 	sink := &performance.MockSink{}
 	mockProvider := &collector.MockVolumeMetricsProvider{}
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink, googleMetricProvider: mockProvider}
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
-		Pool: datamodel.Pool{
-			Name:         "dummy-pool",
-			Description:  "desc",
-			State:        "active",
-			VendorID:     "vendor",
-			ServiceLevel: "standard",
-			SizeInBytes:  100,
-			UsedBytes:    10,
-			Network:      "net",
-			QosType:      "qos",
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-			},
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{
-					UUID: "account-uuid-test",
-				},
-				Name: "test-account",
-			},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
-		},
-	}}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
+		createTestPoolMetricsData("dummy-pool", "test-account"),
+	}, nil)
 
-	// Mock ListVolumesWithAccounts to return empty list since we expect early return
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	// Mock ListVolumesForTelemetryMetrics to return empty list since we expect early return
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -117,7 +108,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_MetricClientWrapperIsNil(t *
 	waitForAsyncOperations(t, 200*time.Millisecond)
 
 	// Verify that the main processing still happened (pool metrics collection)
-	vcpStore.AssertCalled(t, "ListPools", mock.Anything, mock.Anything)
+	vcpStore.AssertCalled(t, "ListPoolsForMetrics", mock.Anything)
 	sink.AssertCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
 	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
 }
@@ -128,36 +119,13 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_Success(t *testing.T) {
 	telemetryStore := &metricdb.MockStorage{}
 	sink := &performance.MockSink{}
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
-	// Mock ListPools to return a non-empty, fully initialized PoolView with all pointer fields set
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
-		Pool: datamodel.Pool{
-			Name:         "dummy-pool",
-			Description:  "desc",
-			State:        "active",
-			VendorID:     "vendor",
-			ServiceLevel: "standard",
-			SizeInBytes:  100,
-			UsedBytes:    10,
-			Network:      "net",
-			QosType:      "qos",
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{
-					UUID: "account-uuid-success",
-				},
-				Name: "success-account",
-			},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-			},
-		},
-	}}, nil)
+	// Mock ListPoolsForMetrics to return a non-empty pool data
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
+		createTestPoolMetricsData("dummy-pool", "success-account"),
+	}, nil)
 
-	// Mock ListVolumesWithAccounts for volume metrics collection
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -171,7 +139,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_Success(t *testing.T) {
 
 	// Verify that the expected calls were made
 	sink.AssertCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
-	vcpStore.AssertCalled(t, "ListPools", mock.Anything, mock.Anything)
+	vcpStore.AssertCalled(t, "ListPoolsForMetrics", mock.Anything)
 	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
 }
 
@@ -181,7 +149,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_GetPoolMetricsError(t *testi
 	sink := &performance.MockSink{}
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(0)
 	// Mock ListPools to return error
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return(nil, context.DeadlineExceeded)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return(nil, context.DeadlineExceeded)
 
 	// Since ListPools will return error, CreateHydratedMetricsBatch won't be reached, so nil is OK
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: nil, sink: sink}
@@ -193,7 +161,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_GetPoolMetricsError(t *testi
 	waitForAsyncOperations(t, 200*time.Millisecond)
 
 	// Verify that ListPools was called but DeliverMetrics was not called due to error
-	vcpStore.AssertCalled(t, "ListPools", mock.Anything, mock.Anything)
+	vcpStore.AssertCalled(t, "ListPoolsForMetrics", mock.Anything)
 	sink.AssertNotCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
 }
 
@@ -203,35 +171,12 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_DeliverMetricsReturnsZero(t 
 	telemetryStore := &metricdb.MockStorage{}
 	sink := &performance.MockSink{}
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(0)
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
-		Pool: datamodel.Pool{
-			Name:         "dummy-pool",
-			Description:  "desc",
-			State:        "active",
-			VendorID:     "vendor",
-			ServiceLevel: "standard",
-			SizeInBytes:  100,
-			UsedBytes:    10,
-			Network:      "net",
-			QosType:      "qos",
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-			},
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{
-					UUID: "account-uuid-zero",
-				},
-				Name: "zero-account",
-			},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
-		},
-	}}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
+		createTestPoolMetricsData("dummy-pool", "zero-account"),
+	}, nil)
 
-	// Mock ListVolumesWithAccounts for volume metrics collection
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -245,7 +190,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_DeliverMetricsReturnsZero(t 
 
 	// Verify that DeliverMetrics was called even though it returns 0
 	sink.AssertCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
-	vcpStore.AssertCalled(t, "ListPools", mock.Anything, mock.Anything)
+	vcpStore.AssertCalled(t, "ListPoolsForMetrics", mock.Anything)
 	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
 }
 
@@ -254,7 +199,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_EmptyPools(t *testing.T) {
 	vcpStore := &database.MockStorage{}
 	sink := &performance.MockSink{}
 	// Should not call DeliverMetrics if no pools
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{}, nil)
 
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: nil, sink: sink}
 	err := mp.ProcessPerformanceMetrics(ctx)
@@ -265,7 +210,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_EmptyPools(t *testing.T) {
 	waitForAsyncOperations(t, 200*time.Millisecond)
 
 	// Verify that ListPools was called but DeliverMetrics was not called due to empty pools
-	vcpStore.AssertCalled(t, "ListPools", mock.Anything, mock.Anything)
+	vcpStore.AssertCalled(t, "ListPoolsForMetrics", mock.Anything)
 	sink.AssertNotCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
 }
 
@@ -274,7 +219,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_ListPoolsNilSlice(t *testing
 	vcpStore := &database.MockStorage{}
 	sink := &performance.MockSink{}
 	// ListPools returns nil slice, should be treated as no pools
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return(nil, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return(nil, nil)
 
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: nil, sink: sink}
 	err := mp.ProcessPerformanceMetrics(ctx)
@@ -285,7 +230,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_ListPoolsNilSlice(t *testing
 	waitForAsyncOperations(t, 200*time.Millisecond)
 
 	// Verify that ListPools was called but DeliverMetrics was not called due to nil pools
-	vcpStore.AssertCalled(t, "ListPools", mock.Anything, mock.Anything)
+	vcpStore.AssertCalled(t, "ListPoolsForMetrics", mock.Anything)
 	sink.AssertNotCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
 }
 
@@ -294,7 +239,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_ListPoolsPanics(t *testing.T
 	vcpStore := &database.MockStorage{}
 	sink := &performance.MockSink{}
 	// ListPools returns an error instead of panicking (more realistic scenario)
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return(nil, errors.New("database connection failed"))
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return(nil, errors.New("database connection failed"))
 
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: nil, sink: sink}
 	err := mp.ProcessPerformanceMetrics(ctx)
@@ -305,7 +250,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_ListPoolsPanics(t *testing.T
 	waitForAsyncOperations(t, 200*time.Millisecond)
 
 	// Verify that ListPools was called but DeliverMetrics was not called due to error
-	vcpStore.AssertCalled(t, "ListPools", mock.Anything, mock.Anything)
+	vcpStore.AssertCalled(t, "ListPoolsForMetrics", mock.Anything)
 	sink.AssertNotCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
 }
 
@@ -315,34 +260,11 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_DeliverMetricsPanics(t *test
 	telemetryStore := &metricdb.MockStorage{}
 	sink := &performance.MockSink{}
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(-1) // Return error instead of panic
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
-		Pool: datamodel.Pool{
-			Name:         "dummy-pool",
-			Description:  "desc",
-			State:        "active",
-			VendorID:     "vendor",
-			ServiceLevel: "standard",
-			SizeInBytes:  100,
-			UsedBytes:    10,
-			Network:      "net",
-			QosType:      "qos",
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-			},
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{
-					UUID: "account-uuid-panic",
-				},
-				Name: "panic-account",
-			},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
-		},
-	}}, nil)
-	// Mock ListVolumesWithAccounts for volume metrics collection
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
+		createTestPoolMetricsData("dummy-pool", "panic-account"),
+	}, nil)
+	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink}
@@ -355,8 +277,8 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_DeliverMetricsPanics(t *test
 
 	// Verify that DeliverMetrics was called (even though it returns an error)
 	sink.AssertCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
-	vcpStore.AssertCalled(t, "ListPools", mock.Anything, mock.Anything)
-	vcpStore.AssertCalled(t, "ListVolumesWithAccounts", mock.Anything)
+	vcpStore.AssertCalled(t, "ListPoolsForMetrics", mock.Anything)
+	vcpStore.AssertCalled(t, "ListVolumesForTelemetryMetrics", mock.Anything)
 	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
 }
 
@@ -366,63 +288,22 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_MultiplePools(t *testing.T) 
 	telemetryStore := &metricdb.MockStorage{}
 	sink := &performance.MockSink{}
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(2)
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
+		createTestPoolMetricsData("pool1", "account-1"),
 		{
-			Pool: datamodel.Pool{
-				Name:         "pool1",
-				Description:  "desc1",
-				State:        "active",
-				VendorID:     "vendor1",
-				ServiceLevel: "standard",
-				SizeInBytes:  100,
-				UsedBytes:    10,
-				Network:      "net1",
-				QosType:      "qos1",
-				PoolCredentials: &datamodel.PoolCredentials{
-					Password:      "password",
-					SecretID:      "",
-					CertificateID: "",
-				},
-				Account: &datamodel.Account{
-					BaseModel: datamodel.BaseModel{
-						UUID: "account-uuid-1",
-					},
-					Name: "account-1",
-				},
-				PoolAttributes: &datamodel.PoolAttributes{},
-				ClusterDetails: datamodel.ClusterDetails{},
-			},
-		},
-		{
-			Pool: datamodel.Pool{
-				Name:         "pool2",
-				Description:  "desc2",
-				State:        "active",
-				VendorID:     "vendor2",
-				ServiceLevel: "premium",
-				SizeInBytes:  200,
-				UsedBytes:    20,
-				Network:      "net2",
-				QosType:      "qos2",
-				PoolCredentials: &datamodel.PoolCredentials{
-					Password:      "password",
-					SecretID:      "",
-					CertificateID: "",
-				},
-				Account: &datamodel.Account{
-					BaseModel: datamodel.BaseModel{
-						UUID: "account-uuid-2",
-					},
-					Name: "account-2",
-				},
-				PoolAttributes: &datamodel.PoolAttributes{},
-				ClusterDetails: datamodel.ClusterDetails{},
+			ID:             2,
+			UUID:           "pool-uuid-2",
+			Name:           "pool2",
+			SizeInBytes:    200,
+			DeploymentName: "deployment2",
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName: "account-2",
 			},
 		},
 	}, nil)
 
-	// Mock ListVolumesWithAccounts for volume metrics collection
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -436,8 +317,8 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_MultiplePools(t *testing.T) 
 
 	// Verify that DeliverMetrics was called
 	sink.AssertCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
-	vcpStore.AssertCalled(t, "ListPools", mock.Anything, mock.Anything)
-	vcpStore.AssertCalled(t, "ListVolumesWithAccounts", mock.Anything)
+	vcpStore.AssertCalled(t, "ListPoolsForMetrics", mock.Anything)
+	vcpStore.AssertCalled(t, "ListVolumesForTelemetryMetrics", mock.Anything)
 	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
 }
 
@@ -447,35 +328,12 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_DeliverMetricsReturnsNegativ
 	telemetryStore := &metricdb.MockStorage{}
 	sink := &performance.MockSink{}
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(-1)
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
-		Pool: datamodel.Pool{
-			Name:         "dummy-pool",
-			Description:  "desc",
-			State:        "active",
-			VendorID:     "vendor",
-			ServiceLevel: "standard",
-			SizeInBytes:  100,
-			UsedBytes:    10,
-			Network:      "net",
-			QosType:      "qos",
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-			},
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{
-					UUID: "account-uuid-negative",
-				},
-				Name: "negative-account",
-			},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
-		},
-	}}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
+		createTestPoolMetricsData("dummy-pool", "negative-account"),
+	}, nil)
 
-	// Mock ListVolumesWithAccounts for volume metrics collection
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -489,8 +347,8 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_DeliverMetricsReturnsNegativ
 
 	// Verify that DeliverMetrics was called (even though it returns negative)
 	sink.AssertCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
-	vcpStore.AssertCalled(t, "ListPools", mock.Anything, mock.Anything)
-	vcpStore.AssertCalled(t, "ListVolumesWithAccounts", mock.Anything)
+	vcpStore.AssertCalled(t, "ListPoolsForMetrics", mock.Anything)
+	vcpStore.AssertCalled(t, "ListVolumesForTelemetryMetrics", mock.Anything)
 	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
 }
 
@@ -499,35 +357,12 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_NilSink(t *testing.T) {
 	vcpStore := &database.MockStorage{}
 	telemetryStore := &metricdb.MockStorage{}
 	// Sink is nil, should log error when called
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
-		Pool: datamodel.Pool{
-			Name:         "dummy-pool",
-			Description:  "desc",
-			State:        "active",
-			VendorID:     "vendor",
-			ServiceLevel: "standard",
-			SizeInBytes:  100,
-			UsedBytes:    10,
-			Network:      "net",
-			QosType:      "qos",
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-			},
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{
-					UUID: "account-uuid-nil-sink",
-				},
-				Name: "nil-sink-account",
-			},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
-		},
-	}}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
+		createTestPoolMetricsData("dummy-pool", "nil-sink-account"),
+	}, nil)
 
-	// Mock ListVolumesWithAccounts for volume metrics collection
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -552,35 +387,12 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_VolumeMetricsDisabled(t *tes
 	telemetryStore := &metricdb.MockStorage{}
 	sink := &performance.MockSink{}
 
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
-		Pool: datamodel.Pool{
-			Name:         "dummy-pool",
-			Description:  "desc",
-			State:        "active",
-			VendorID:     "vendor",
-			ServiceLevel: "standard",
-			SizeInBytes:  100,
-			UsedBytes:    10,
-			Network:      "net",
-			QosType:      "qos",
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-			},
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{
-					UUID: "account-uuid-disabled",
-				},
-				Name: "disabled-account",
-			},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
-		},
-	}}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
+		createTestPoolMetricsData("dummy-pool", "disabled-account"),
+	}, nil)
 
-	// Mock ListVolumesWithAccounts even when volume metrics disabled - throughput still needs it
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	// Mock ListVolumesForTelemetryMetrics even when volume metrics disabled - throughput still needs it
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -597,8 +409,8 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_VolumeMetricsDisabled(t *tes
 
 	// Verify that the expected calls were made
 	sink.AssertCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
-	vcpStore.AssertCalled(t, "ListPools", mock.Anything, mock.Anything)
-	vcpStore.AssertCalled(t, "ListVolumesWithAccounts", mock.Anything)
+	vcpStore.AssertCalled(t, "ListPoolsForMetrics", mock.Anything)
+	vcpStore.AssertCalled(t, "ListVolumesForTelemetryMetrics", mock.Anything)
 	// Note: CreateHydratedMetricsBatch is still called for pool metrics, not volume metrics
 	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
 }
@@ -621,30 +433,12 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_VolumeMetricsEnabledValidCli
 	}
 
 	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics, nil)
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
-		Pool: datamodel.Pool{
-			Name:         "dummy-pool",
-			Description:  "desc",
-			State:        "active",
-			VendorID:     "vendor",
-			ServiceLevel: "standard",
-			SizeInBytes:  100,
-			UsedBytes:    10,
-			Network:      "net",
-			QosType:      "qos",
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-			},
-			Account:        &datamodel.Account{},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
-		},
-	}}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
+		createTestPoolMetricsData("dummy-pool", "test-account"),
+	}, nil)
 
-	// Mock ListVolumesWithAccounts for volume metrics collection
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -681,31 +475,12 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CollectVolumeMetricsError(t 
 	}
 	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics, nil)
 
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
-		Pool: datamodel.Pool{
-			Name:         "dummy-pool",
-			Description:  "desc",
-			State:        "active",
-			VendorID:     "vendor",
-			ServiceLevel: "standard",
-			SizeInBytes:  100,
-			UsedBytes:    10,
-			Network:      "net",
-			QosType:      "qos",
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-			},
-			Account:        &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "account-uuid"}},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
-			SnHostProject:  "sn_host_project",
-		},
-	}}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
+		createTestPoolMetricsData("dummy-pool", "test-account"),
+	}, nil)
 
-	// Mock ListVolumesWithAccounts for volume metrics collection
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
@@ -744,31 +519,12 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CreateHydratedMetricsError(t
 	}
 	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics, nil)
 
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
-		Pool: datamodel.Pool{
-			Name:         "dummy-pool",
-			Description:  "desc",
-			State:        "active",
-			VendorID:     "vendor",
-			ServiceLevel: "standard",
-			SizeInBytes:  100,
-			UsedBytes:    10,
-			Network:      "net",
-			QosType:      "qos",
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-			},
-			Account:        &datamodel.Account{},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
-			SnHostProject:  "sn_host_project",
-		},
-	}}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
+		createTestPoolMetricsData("dummy-pool", "test-account"),
+	}, nil)
 
-	// Mock ListVolumesWithAccounts for volume metrics collection
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("database error"))
@@ -804,17 +560,11 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_ProcessesAllMetricTypes(t *t
 	}
 	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics, nil)
 
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
-		Pool: datamodel.Pool{
-			Name: "dummy-pool", Description: "desc", State: "active", VendorID: "vendor",
-			ServiceLevel: "standard", SizeInBytes: 100, UsedBytes: 10, Network: "net", QosType: "qos",
-			PoolCredentials: &datamodel.PoolCredentials{Password: "password", SecretID: "", CertificateID: ""},
-			Account:         &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "account-uuid"}},
-			PoolAttributes:  &datamodel.PoolAttributes{}, ClusterDetails: datamodel.ClusterDetails{},
-		},
-	}}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
+		createTestPoolMetricsData("dummy-pool", "test-account"),
+	}, nil)
 
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.MatchedBy(func(ctx context.Context) bool {
 		return true
@@ -873,31 +623,12 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CollectVolumeMetricsReturnsE
 	}
 	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics, nil)
 
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
-		Pool: datamodel.Pool{
-			Name:         "dummy-pool",
-			Description:  "desc",
-			State:        "active",
-			VendorID:     "vendor",
-			ServiceLevel: "standard",
-			SizeInBytes:  100,
-			UsedBytes:    10,
-			Network:      "net",
-			QosType:      "qos",
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-			},
-			Account:        &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "account-uuid"}},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
-			SnHostProject:  "sn_host_project",
-		},
-	}}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
+		createTestPoolMetricsData("dummy-pool", "test-account"),
+	}, nil)
 
-	// Mock ListVolumesWithAccounts for volume metrics collection
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
@@ -937,31 +668,12 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CollectVolumeMetricsReturnsE
 		},
 	}
 	provider := collector.NewGoogleProvider(mockTenantProvider, mockClient, testMetrics, nil)
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{
-		Pool: datamodel.Pool{
-			Name:         "dummy-pool",
-			Description:  "desc",
-			State:        "active",
-			VendorID:     "vendor",
-			ServiceLevel: "standard",
-			SizeInBytes:  100,
-			UsedBytes:    10,
-			Network:      "net",
-			QosType:      "qos",
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-			},
-			Account:        &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "account-uuid"}},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
-			SnHostProject:  "sn_host_project",
-		},
-	}}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
+		createTestPoolMetricsData("dummy-pool", "test-account"),
+	}, nil)
 
-	// Mock ListVolumesWithAccounts for volume metrics collection
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
@@ -992,39 +704,19 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CreateHydratedMetricsBatch_S
 	sink := &performance.MockSink{}
 
 	// Setup pool data with Account information needed for hydrated metrics
-	testPool := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{
-				UUID: "pool-uuid-123",
-			},
-			Name:         "test-pool",
-			Description:  "Test pool for hydrated metrics",
-			State:        "active",
-			VendorID:     "vendor",
-			ServiceLevel: "standard",
-			SizeInBytes:  1000,
-			UsedBytes:    500,
-			Network:      "test-network",
-			QosType:      "qos",
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-			},
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{
-					UUID: "account-uuid-456",
-				},
-				Name: "test-account",
-			},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
+	testPoolData := &database.PoolMetricsData{
+		ID:             1,
+		UUID:           "pool-uuid-123",
+		Name:           "test-pool",
+		SizeInBytes:    1000,
+		DeploymentName: "test-deployment",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: "test-account",
 		},
-		QuotaInBytes: 500,
 	}
 
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{testPool}, nil)
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(4) // 4 metrics: PoolAllocatedSize, AllocatedUsed, PoolTotalThroughputMiBps, PoolTotalIOPS
 
 	// Mock successful CreateHydratedMetricsBatch call
@@ -1037,7 +729,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CreateHydratedMetricsBatch_S
 		// Check for expected metrics
 		expectedMetrics := map[metadata.MeasuredType]float64{
 			metadata.PoolAllocatedSize:        1000,
-			metadata.AllocatedUsed:            500,
+			metadata.AllocatedUsed:            0, // PoolMetricsData doesn't have UsedBytes
 			metadata.PoolTotalThroughputMibps: 0,
 			metadata.PoolTotalIops:            0,
 		}
@@ -1077,27 +769,19 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CreateHydratedMetricsBatch_D
 	telemetryStore := &metricdb.MockStorage{}
 	sink := &performance.MockSink{}
 
-	testPool := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{
-				UUID: "pool-uuid-123",
-			},
-			Name:        "test-pool",
-			SizeInBytes: 1000,
-			UsedBytes:   500,
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{
-					UUID: "account-uuid-456",
-				},
-				Name: "test-account",
-			},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
+	testPoolData := &database.PoolMetricsData{
+		ID:             1,
+		UUID:           "pool-uuid-123",
+		Name:           "test-pool",
+		SizeInBytes:    1000,
+		DeploymentName: "test-deployment",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: "test-account",
 		},
 	}
 
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{testPool}, nil)
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	// Mock database error on CreateHydratedMetricsBatch
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("database connection failed"))
@@ -1125,39 +809,31 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_MultiplePoolsHydratedMetrics
 	sink := &performance.MockSink{}
 
 	// Setup multiple pools with different accounts
-	testPools := []*datamodel.PoolView{
+	testPools := []*database.PoolMetricsData{
 		{
-			Pool: datamodel.Pool{
-				BaseModel:   datamodel.BaseModel{UUID: "pool-uuid-1"},
-				Name:        "pool-1",
-				SizeInBytes: 1000,
-				UsedBytes:   300,
-				Account: &datamodel.Account{
-					BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
-					Name:      "account-1",
-				},
-				PoolAttributes: &datamodel.PoolAttributes{},
-				ClusterDetails: datamodel.ClusterDetails{},
+			ID:             1,
+			UUID:           "pool-uuid-1",
+			Name:           "pool-1",
+			SizeInBytes:    1000,
+			DeploymentName: "deployment-1",
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName: "account-1",
 			},
 		},
 		{
-			Pool: datamodel.Pool{
-				BaseModel:   datamodel.BaseModel{UUID: "pool-uuid-2"},
-				Name:        "pool-2",
-				SizeInBytes: 2000,
-				UsedBytes:   800,
-				Account: &datamodel.Account{
-					BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
-					Name:      "account-2",
-				},
-				PoolAttributes: &datamodel.PoolAttributes{},
-				ClusterDetails: datamodel.ClusterDetails{},
+			ID:             2,
+			UUID:           "pool-uuid-2",
+			Name:           "pool-2",
+			SizeInBytes:    2000,
+			DeploymentName: "deployment-2",
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName: "account-2",
 			},
 		},
 	}
 
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return(testPools, nil)
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return(testPools, nil)
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(4) // 2 pools * 2 metrics each
 
 	// Mock successful CreateHydratedMetricsBatch call for multiple pools
@@ -1213,8 +889,8 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_MultiplePoolsHydratedMetrics
 	// Verify that the expected calls were made
 	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
 	sink.AssertCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
-	vcpStore.AssertCalled(t, "ListPools", mock.Anything, mock.Anything)
-	vcpStore.AssertCalled(t, "ListVolumesWithAccounts", mock.Anything)
+	vcpStore.AssertCalled(t, "ListPoolsForMetrics", mock.Anything)
+	vcpStore.AssertCalled(t, "ListVolumesForTelemetryMetrics", mock.Anything)
 }
 
 func TestMetricsProcessor_ProcessPerformanceMetrics_HydratedMetricsWithNilTelemetryStore(t *testing.T) {
@@ -1222,23 +898,19 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_HydratedMetricsWithNilTeleme
 	vcpStore := &database.MockStorage{}
 	sink := &performance.MockSink{}
 
-	testPool := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel:   datamodel.BaseModel{UUID: "pool-uuid-123"},
-			Name:        "test-pool",
-			SizeInBytes: 1000,
-			UsedBytes:   500,
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-456"},
-				Name:      "test-account",
-			},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
+	testPoolData := &database.PoolMetricsData{
+		ID:             1,
+		UUID:           "pool-uuid-123",
+		Name:           "test-pool",
+		SizeInBytes:    1000,
+		DeploymentName: "test-deployment",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: "test-account",
 		},
 	}
 
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{testPool}, nil)
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(2)
 
 	// With nil telemetryDatastore, should handle gracefully with error logging
@@ -1253,8 +925,8 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_HydratedMetricsWithNilTeleme
 	waitForAsyncOperations(t, 200*time.Millisecond)
 
 	// Verify that ListPools was called but CreateHydratedMetricsBatch was not called due to nil datastore
-	vcpStore.AssertCalled(t, "ListPools", mock.Anything, mock.Anything)
-	vcpStore.AssertCalled(t, "ListVolumesWithAccounts", mock.Anything)
+	vcpStore.AssertCalled(t, "ListPoolsForMetrics", mock.Anything)
+	vcpStore.AssertCalled(t, "ListVolumesForTelemetryMetrics", mock.Anything)
 }
 
 func TestMetricsProcessor_ProcessPerformanceMetrics_HydratedMetricsValidation(t *testing.T) {
@@ -1269,24 +941,19 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_HydratedMetricsValidation(t 
 	sink := &performance.MockSink{}
 
 	// Test pool with specific values to validate setupHydratedMetricsDataModel functionality
-	testPool := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel:   datamodel.BaseModel{UUID: "pool-uuid-test"},
-			Name:        "validation-pool",
-			SizeInBytes: poolSizeInBytes,
-			UsedBytes:   usedBytes,
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-validation"},
-				Name:      "validation-account",
-			},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
+	testPoolData := &database.PoolMetricsData{
+		ID:             1,
+		UUID:           "pool-uuid-test",
+		Name:           "validation-pool",
+		SizeInBytes:    poolSizeInBytes,
+		DeploymentName: "validation-deployment",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: "validation-account",
 		},
-		QuotaInBytes: usedBytes,
 	}
 
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{testPool}, nil)
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(2)
 
 	// Detailed validation of hydrated metrics structure
@@ -1324,7 +991,7 @@ func validateHydratedMetrics(metrics []metricsdm.HydratedMetrics) bool {
 			ResourceType:    metadata.VolumePool,
 			ConsumerID:      "validation-account",
 			ResourceName:    "validation-pool",
-			Quantity:        float64(2147483648),
+			Quantity:        0,          // PoolMetricsData.QuotaInBytes is always 0
 			MetricTimestamp: time.Now(), // This needs to be checked more precisely
 		},
 		metadata.PoolTotalThroughputMibps: {
@@ -1377,23 +1044,19 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_GetPoolMetricsDualReturn(t *
 	telemetryStore := &metricdb.MockStorage{}
 	sink := &performance.MockSink{}
 
-	testPool := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel:   datamodel.BaseModel{UUID: "pool-uuid-dual"},
-			Name:        "dual-return-pool",
-			SizeInBytes: 3000,
-			UsedBytes:   1500,
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-dual"},
-				Name:      "dual-account",
-			},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
+	testPoolData := &database.PoolMetricsData{
+		ID:             1,
+		UUID:           "pool-uuid-dual",
+		Name:           "dual-return-pool",
+		SizeInBytes:    3000,
+		DeploymentName: "dual-deployment",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: "dual-account",
 		},
 	}
 
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{testPool}, nil)
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	// Mock both metrics delivery and hydrated metrics batch creation
 	sink.On("DeliverMetrics", mock.Anything, mock.MatchedBy(func(metrics []entity.HydratedMetric) bool {
@@ -1579,22 +1242,20 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_BackupMetricsError(t *testin
 	sink := &performance.MockSink{}
 
 	// Setup test data
-	testPool := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "pool-uuid-backup-error"},
-			Name:      "backup-error-pool",
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-backup-error"},
-				Name:      "backup-error-account",
-			},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
+	testPoolData := &database.PoolMetricsData{
+		ID:             1,
+		UUID:           "pool-uuid-backup-error",
+		Name:           "backup-error-pool",
+		SizeInBytes:    1000,
+		DeploymentName: "backup-error-deployment",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: "backup-error-account",
 		},
 	}
 
 	// Mock successful pool metrics collection
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{testPool}, nil)
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	// Mock backup metrics collection to return error
 	vcpStore.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("backup metrics collection failed"))
@@ -1610,7 +1271,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_BackupMetricsError(t *testin
 	waitForAsyncOperations(t, 200*time.Millisecond)
 
 	// Verify that ListPools was called and backup metrics collection was attempted
-	vcpStore.AssertCalled(t, "ListPools", mock.Anything, mock.Anything)
+	vcpStore.AssertCalled(t, "ListPoolsForMetrics", mock.Anything)
 	vcpStore.AssertCalled(t, "GetBackupMetrics", mock.Anything, mock.Anything, mock.Anything)
 	// Since backup metrics collection fails, CreateHydratedMetricsBatch should not be called
 	telemetryStore.AssertNotCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
@@ -1624,24 +1285,22 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_VolumeMetricsError(t *testin
 	sink := &performance.MockSink{}
 
 	// Setup test data
-	testPool := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "pool-uuid-volume-error"},
-			Name:      "volume-error-pool",
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-volume-error"},
-				Name:      "volume-error-account",
-			},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
+	testPoolData := &database.PoolMetricsData{
+		ID:             1,
+		UUID:           "pool-uuid-volume-error",
+		Name:           "volume-error-pool",
+		SizeInBytes:    1000,
+		DeploymentName: "volume-error-deployment",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: "volume-error-account",
 		},
 	}
 
 	// Mock successful pool metrics collection
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{testPool}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
 
 	// Mock volume metrics collection to return error
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return(nil, errors.New("volume metrics collection failed"))
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(nil, errors.New("volume metrics collection failed"))
 
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink}
 
@@ -1654,8 +1313,8 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_VolumeMetricsError(t *testin
 	waitForAsyncOperations(t, 200*time.Millisecond)
 
 	// Verify that ListPools was called but CreateHydratedMetricsBatch was not called due to volume metrics error
-	vcpStore.AssertCalled(t, "ListPools", mock.Anything, mock.Anything)
-	vcpStore.AssertCalled(t, "ListVolumesWithAccounts", mock.Anything)
+	vcpStore.AssertCalled(t, "ListPoolsForMetrics", mock.Anything)
+	vcpStore.AssertCalled(t, "ListVolumesForTelemetryMetrics", mock.Anything)
 	telemetryStore.AssertNotCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
 }
 
@@ -1682,8 +1341,8 @@ func TestMetricsProcessor_ProcessUsageMetrics_AggregationTimingVerification(t *t
 	beforeCall := time.Now()
 
 	// Mock all the database calls that the billing provider will make
-	vcpStore.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
-	vcpStore.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil)
+	vcpStore.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database.PoolResourceData{}, nil)
+	vcpStore.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database.VolumeResourceData{}, nil)
 	// Allow multiple calls to GetAggregatedUsageWithPagination with any parameters (billing provider makes many calls)
 	telemetryStore.On("GetAggregatedUsageWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]metricsdm.AggregatedUsage{}, nil).Maybe()
 	telemetryStore.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return([]metricsdm.AggregatedUsage{}, nil).Maybe()
@@ -1703,8 +1362,8 @@ func TestMetricsProcessor_ProcessUsageMetrics_AggregationTimingVerification(t *t
 	assert.True(t, elapsed < 5*time.Second, "ProcessUsageMetrics should complete reasonably quickly")
 
 	// Verify core database operations were called
-	vcpStore.AssertCalled(t, "ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything)
-	vcpStore.AssertCalled(t, "ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything)
+	vcpStore.AssertCalled(t, "ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	vcpStore.AssertCalled(t, "ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	// GetAggregatedUsageWithPagination is called multiple times by the billing provider, so just verify expectations are met
 	telemetryStore.AssertExpectations(t)
 }
@@ -1746,8 +1405,8 @@ func TestMetricsProcessor_ProcessUsageMetrics_RetryRecordsAndNewRecords(t *testi
 	}
 
 	// Mock successful resource data fetching (pools and volumes)
-	vcpStore.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
-	vcpStore.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil)
+	vcpStore.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database.PoolResourceData{}, nil)
+	vcpStore.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database.VolumeResourceData{}, nil)
 
 	// Mock the counter cache preload call (returns empty list to stop pagination)
 	telemetryStore.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return([]metricsdm.AggregatedUsage{}, nil).Maybe()
@@ -1785,30 +1444,25 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_SFRMetricsEnabled(t *testing
 	sink := &performance.MockSink{}
 
 	// Setup test data
-	testPool := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "pool-uuid-sfr"},
-			Name:      "sfr-pool",
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-sfr"},
-				Name:      "sfr-account",
-			},
-			PoolAttributes: &datamodel.PoolAttributes{},
-			ClusterDetails: datamodel.ClusterDetails{},
+	testPoolData := &database.PoolMetricsData{
+		ID:             1,
+		UUID:           "pool-uuid-sfr",
+		Name:           "sfr-pool",
+		SizeInBytes:    1000,
+		DeploymentName: "sfr-deployment",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: "sfr-account",
 		},
 	}
 
 	backupChainBytes := int64(1024)
-	testVolume := &datamodel.Volume{
-		BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-sfr"},
+	testVolume := &database.VolumeMetricsData{
+		UUID:        "volume-uuid-sfr",
 		Name:        "sfr-volume",
 		SizeInBytes: 2048,
-		Account: &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "account-uuid-sfr"},
-			Name:      "sfr-account",
-		},
-		Pool: &datamodel.Pool{
-			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-sfr"},
+		PoolID:      1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			AccountName:    "sfr-account",
 			DeploymentName: "sfr-deployment",
 		},
 		DataProtection: &datamodel.DataProtection{
@@ -1817,10 +1471,10 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_SFRMetricsEnabled(t *testing
 	}
 
 	// Mock pool metrics collection
-	vcpStore.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{testPool}, nil)
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
 
 	// Mock volume metrics collection
-	vcpStore.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{testVolume}, nil)
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{testVolume}, nil)
 
 	// Mock SFR metrics
 	sfrMetricsMap := map[string]datamodel.SfrMetricsAggregate{

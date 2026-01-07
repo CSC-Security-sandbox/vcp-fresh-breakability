@@ -448,6 +448,14 @@ func (s *PersistenceStore) ListExpertModePools(ctx context.Context) ([]*datamode
 	return s.dataStore.ListExpertModePools(ctx)
 }
 
+func (s *PersistenceStore) ListPoolsForMetrics(ctx context.Context) ([]*PoolMetricsData, error) {
+	return s.dataStore.ListPoolsForMetrics(ctx)
+}
+
+func (s *PersistenceStore) ListPoolsForResourceData(ctx context.Context, startTime, endTime time.Time, pagination *dbutils.Pagination) ([]*PoolResourceData, error) {
+	return s.dataStore.ListPoolsForResourceData(ctx, startTime, endTime, pagination)
+}
+
 func (s *PersistenceStore) ListPoolUUIDs(ctx context.Context, filter *dbutils.Filter) ([]*PoolIdentifier, error) {
 	return s.dataStore.ListPoolUUIDs(ctx, filter)
 }
@@ -610,6 +618,10 @@ func (s *PersistenceStore) ListAllVolumes(ctx context.Context, conditions [][]in
 
 func (s *PersistenceStore) ListVolumesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {
 	return s.dataStore.ListVolumesWithPagination(ctx, conditions, pagination)
+}
+
+func (s *PersistenceStore) ListVolumesForResourceData(ctx context.Context, startTime, endTime time.Time, pagination *dbutils.Pagination) ([]*VolumeResourceData, error) {
+	return s.dataStore.ListVolumesForResourceData(ctx, startTime, endTime, pagination)
 }
 
 func (s *PersistenceStore) GetVolumeCount(ctx context.Context, accountName string) (int64, error) {
@@ -1312,6 +1324,10 @@ func (s *PersistenceStore) ListVolumesWithAccounts(ctx context.Context) ([]*data
 	return s.dataStore.ListVolumesWithAccounts(ctx)
 }
 
+func (s *PersistenceStore) ListVolumesForTelemetryMetrics(ctx context.Context) ([]*VolumeMetricsData, error) {
+	return s.dataStore.ListVolumesForTelemetryMetrics(ctx)
+}
+
 func (s *PersistenceStore) UpdateBackupFields(ctx context.Context, backupUUID string, updates map[string]interface{}) error {
 	return s.dataStore.UpdateBackupFields(ctx, backupUUID, updates)
 }
@@ -1322,6 +1338,10 @@ func (s *PersistenceStore) GetLatestBackupsGroupedByVolumeUUID(ctx context.Conte
 
 func (s *PersistenceStore) GetAccounts(ctx context.Context, includeDelete bool, pagination *dbutils.Pagination) ([]*datamodel.Account, error) {
 	return s.dataStore.GetAccounts(ctx, includeDelete, pagination)
+}
+
+func (s *PersistenceStore) ListAccountsForTelemetry(ctx context.Context, pagination *dbutils.Pagination) ([]*AccountTelemetryData, error) {
+	return s.dataStore.ListAccountsForTelemetry(ctx, pagination)
 }
 
 func (s *PersistenceStore) CreatePendingResourceDeletion(ctx context.Context, resourceType, resourceName, errorMessage, accountName string, poolID int64) (*datamodel.PendingResourceDeletions, error) {

@@ -89,3 +89,11 @@ func _getAccountFromUUID(ctx context.Context, se database.Storage, accountUUID s
 	}
 	return account, nil
 }
+
+// getAccountName safely gets the account name, returning empty string if account is nil
+func getAccountName(account *datamodel.Account) string {
+	if account == nil {
+		return ""
+	}
+	return account.Name
+}

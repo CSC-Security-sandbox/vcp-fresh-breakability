@@ -54,6 +54,11 @@ type (
 		ListPoolsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.PoolView, error)
 		ListPoolUUIDs(ctx context.Context, filter *dbutils.Filter) ([]*PoolIdentifier, error)
 		ListPoolUUIDsPaginated(ctx context.Context, filter *dbutils.Filter, offset, limit int) ([]*PoolIdentifier, error)
+		// ListPoolsForMetrics retrieves pools with only the fields required for telemetry metrics collection.
+		// This is an optimized query that fetches minimal data compared to ListPools.
+		ListPoolsForMetrics(ctx context.Context) ([]*PoolMetricsData, error)
+		// ListPoolsForResourceData returns only the fields needed for aggregator resource data, optimized for telemetry with pagination.
+		ListPoolsForResourceData(ctx context.Context, startTime, endTime time.Time, pagination *dbutils.Pagination) ([]*PoolResourceData, error)
 		ListPendingResourceDeletions(ctx context.Context, offset, limit int) ([]*datamodel.PendingResourceDeletions, error)
 		GetResourcesCount(ctx context.Context) (int64, error)
 		GetPoolsCount(ctx context.Context, filter *dbutils.Filter) (int64, error)
@@ -88,6 +93,8 @@ type (
 		ListAllVolumes(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Volume, error)
 		// ListVolumesWithPagination retrieves volumes with pagination support including deleted volumes
 		ListVolumesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Volume, error)
+		// ListVolumesForResourceData returns only the fields needed for aggregator resource data, optimized for telemetry with pagination.
+		ListVolumesForResourceData(ctx context.Context, startTime, endTime time.Time, pagination *dbutils.Pagination) ([]*VolumeResourceData, error)
 		GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error)
 		GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error)
 		GetFlexCacheVolumeCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error)
@@ -119,6 +126,9 @@ type (
 		DeleteAccount(ctx context.Context, accountID int64) error
 		RollBackDeletedAccount(ctx context.Context, accountID int64) error
 		GetAccounts(ctx context.Context, includeDelete bool, pagination *dbutils.Pagination) ([]*datamodel.Account, error)
+		// ListAccountsForTelemetry retrieves accounts with only the fields required for telemetry/bizops operations.
+		// This is an optimized query that selects only id, name, and state columns.
+		ListAccountsForTelemetry(ctx context.Context, pagination *dbutils.Pagination) ([]*AccountTelemetryData, error)
 		UpdateAccountStateForHandleResource(ctx context.Context, accountUUID string, newState string) error
 		UpdateAccountVolumeRefreshTimestamp(ctx context.Context, accountUUID string, completionTime time.Time) error
 
@@ -275,7 +285,11 @@ type (
 		UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.Context, volumeUUID, excludeBackupUUID string) error
 		GetBackupMetrics(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error)
 		GetBackupMetadata(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupMetadata, error)
+		// TODO: remove ListVolumesWithAccounts as it has been replaced by ListVolumesForTelemetryMetrics
 		ListVolumesWithAccounts(ctx context.Context) ([]*datamodel.Volume, error)
+		// ListVolumesForTelemetryMetrics retrieves volumes with only the fields required for telemetry metrics.
+		// This is an optimized query that avoids JOINs with Account and Pool tables.
+		ListVolumesForTelemetryMetrics(ctx context.Context) ([]*VolumeMetricsData, error)
 		UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, newLogicalSize int64) error
 		GetVolumeLatestBackupMap(ctx context.Context) (map[int64]*datamodel.VolumeLatestBackup, error)
 		GetLatestBackupsGroupedByVolumeUUID(ctx context.Context) ([]datamodel.Backup, error)

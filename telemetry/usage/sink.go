@@ -97,8 +97,7 @@ func (s *GoogleUsageSink) DeliverMetrics(ctx context.Context, aggregatedRecords 
 		return 0, err
 	}
 	if len(validUsage) != len(aggregatedRecords) {
-		s.logger.Errorf("In total, records were dropped during mapping because they were invalid.",
-			"Dropped Records", len(aggregatedRecords)-len(validUsage))
+		s.logger.Errorf("In total, %d records were dropped during mapping because they were invalid.", len(aggregatedRecords)-len(validUsage))
 	}
 	googleMetrics := s.completeRecords(validUsage)
 	var failed int

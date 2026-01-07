@@ -165,6 +165,7 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 			Labels:          params.Labels,
 			IsRegionalHA:    params.IsRegionalHA,
 			LdapEnabled:     params.LdapEnabled,
+			AccountName:     getAccountName(account),
 		},
 		APIAccessMode: params.Mode,
 	}
@@ -934,4 +935,20 @@ func buildOntapEndpoints(nodes []*datamodel.Node, useHostDNS bool) []models.Onta
 		endpointMappings = append(endpointMappings, mapping)
 	}
 	return endpointMappings
+}
+
+// getPoolDeploymentName safely gets the deployment name from pool, returning empty string if pool or deployment name is empty
+func getPoolDeploymentName(pool *datamodel.Pool) string {
+	if pool == nil {
+		return ""
+	}
+	return pool.DeploymentName
+}
+
+// getPoolIsRegionalHA safely gets the IsRegionalHA flag from pool attributes, returning false if pool or pool attributes is nil
+func getPoolIsRegionalHA(pool *datamodel.Pool) bool {
+	if pool == nil || pool.PoolAttributes == nil {
+		return false
+	}
+	return pool.PoolAttributes.IsRegionalHA
 }

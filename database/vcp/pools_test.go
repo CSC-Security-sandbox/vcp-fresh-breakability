@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 	"time"
 
@@ -3391,5 +3392,498 @@ func TestListExpertModePool(t *testing.T) {
 		for _, pool := range result {
 			assert.Equal(tt, "ONTAP", pool.APIAccessMode)
 		}
+	})
+}
+
+// Tests for ListPoolsForResourceData
+func TestListPoolsForResourceData(t *testing.T) {
+	t.Run("ReturnsPoolsWithPagination", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		// Create test account and pools
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		// Create pools with PoolAttributes
+		pool1 := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-1"},
+			Name:           "test_pool_1",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-1",
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName:  "test_account",
+				Labels:       &datamodel.JSONB{"env": "prod"},
+				IsRegionalHA: false,
+			},
+		}
+		pool2 := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-2"},
+			Name:           "test_pool_2",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-2",
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName:  "test_account",
+				Labels:       &datamodel.JSONB{"env": "staging"},
+				IsRegionalHA: true,
+			},
+		}
+
+		err = store.db.Create(pool1).Error()
+		require.NoError(tt, err)
+		err = store.db.Create(pool2).Error()
+		require.NoError(tt, err)
+
+		// Test with pagination - fetch first pool
+		startTime := time.Now().Add(-1 * time.Hour)
+		endTime := time.Now().Add(1 * time.Hour)
+		pagination := &utils.Pagination{Limit: 1, Offset: 0}
+
+		results, err := store.ListPoolsForResourceData(ctx, startTime, endTime, pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+		assert.Equal(tt, "test-pool-uuid-1", results[0].UUID)
+		assert.Equal(tt, "test_account", results[0].GetAccountName())
+	})
+
+	t.Run("ReturnsPoolsWithOffset", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		// Create test account and pools
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		pool1 := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-1"},
+			Name:           "test_pool_1",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-1",
+			PoolAttributes: &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+		pool2 := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-2"},
+			Name:           "test_pool_2",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-2",
+			PoolAttributes: &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+
+		err = store.db.Create(pool1).Error()
+		require.NoError(tt, err)
+		err = store.db.Create(pool2).Error()
+		require.NoError(tt, err)
+
+		// Test with offset
+		startTime := time.Now().Add(-1 * time.Hour)
+		endTime := time.Now().Add(1 * time.Hour)
+		pagination := &utils.Pagination{Limit: 1, Offset: 1}
+
+		results, err := store.ListPoolsForResourceData(ctx, startTime, endTime, pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+		assert.Equal(tt, "test-pool-uuid-2", results[0].UUID)
+	})
+
+	t.Run("IncludesDeletedPoolsWithinTimeRange", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		// Create an active pool
+		activePool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "active-pool-uuid"},
+			Name:           "active_pool",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-active",
+			PoolAttributes: &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+		err = store.db.Create(activePool).Error()
+		require.NoError(tt, err)
+
+		// Create a deleted pool within the time range
+		deletedTime := time.Now()
+		deletedPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "deleted-pool-uuid",
+				DeletedAt: &gorm.DeletedAt{Time: deletedTime, Valid: true},
+			},
+			Name:           "deleted_pool",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-deleted",
+			PoolAttributes: &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+		err = store.db.Create(deletedPool).Error()
+		require.NoError(tt, err)
+
+		// Query with time range that includes the deleted pool
+		startTime := deletedTime.Add(-1 * time.Hour)
+		endTime := deletedTime.Add(1 * time.Hour)
+
+		results, err := store.ListPoolsForResourceData(ctx, startTime, endTime, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 2) // Should include both active and deleted pool
+
+		// Verify both pools are present
+		uuids := make(map[string]bool)
+		for _, r := range results {
+			uuids[r.UUID] = true
+		}
+		assert.True(tt, uuids["active-pool-uuid"])
+		assert.True(tt, uuids["deleted-pool-uuid"])
+	})
+
+	t.Run("ExcludesDeletedPoolsOutsideTimeRange", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		// Create a deleted pool outside the time range
+		deletedTime := time.Now().Add(-24 * time.Hour)
+		deletedPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "old-deleted-pool-uuid",
+				DeletedAt: &gorm.DeletedAt{Time: deletedTime, Valid: true},
+			},
+			Name:           "old_deleted_pool",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-old-deleted",
+			PoolAttributes: &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+		err = store.db.Create(deletedPool).Error()
+		require.NoError(tt, err)
+
+		// Query with time range that excludes the deleted pool
+		startTime := time.Now().Add(-1 * time.Hour)
+		endTime := time.Now().Add(1 * time.Hour)
+
+		results, err := store.ListPoolsForResourceData(ctx, startTime, endTime, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 0) // Should not include the old deleted pool
+	})
+
+	t.Run("ReturnsEmptySliceWhenNoPoolsExist", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		startTime := time.Now().Add(-1 * time.Hour)
+		endTime := time.Now().Add(1 * time.Hour)
+
+		results, err := store.ListPoolsForResourceData(ctx, startTime, endTime, nil)
+		assert.NoError(tt, err)
+		assert.Empty(tt, results)
+	})
+
+	t.Run("NilPaginationReturnsAllPools", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		// Create multiple pools
+		for i := 1; i <= 3; i++ {
+			pool := &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: fmt.Sprintf("pool-uuid-%d", i)},
+				Name:           fmt.Sprintf("pool_%d", i),
+				AccountID:      account.ID,
+				DeploymentName: fmt.Sprintf("deployment-%d", i),
+				PoolAttributes: &datamodel.PoolAttributes{AccountName: "test_account"},
+			}
+			err = store.db.Create(pool).Error()
+			require.NoError(tt, err)
+		}
+
+		startTime := time.Now().Add(-1 * time.Hour)
+		endTime := time.Now().Add(1 * time.Hour)
+
+		results, err := store.ListPoolsForResourceData(ctx, startTime, endTime, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 3)
+	})
+}
+
+// Tests for PoolResourceData helper methods
+func TestPoolResourceData_HelperMethods(t *testing.T) {
+	t.Run("GetAccountName_ReturnsAccountNameWhenAttributesExist", func(tt *testing.T) {
+		pool := &PoolResourceData{
+			UUID: "test-uuid",
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName: "my-account",
+			},
+		}
+		assert.Equal(tt, "my-account", pool.GetAccountName())
+	})
+
+	t.Run("GetAccountName_ReturnsEmptyStringWhenAttributesNil", func(tt *testing.T) {
+		pool := &PoolResourceData{
+			UUID:           "test-uuid",
+			PoolAttributes: nil,
+		}
+		assert.Equal(tt, "", pool.GetAccountName())
+	})
+
+	t.Run("GetLabels_ReturnsLabelsWhenAttributesExist", func(tt *testing.T) {
+		labels := &datamodel.JSONB{"env": "prod", "team": "backend"}
+		pool := &PoolResourceData{
+			UUID: "test-uuid",
+			PoolAttributes: &datamodel.PoolAttributes{
+				Labels: labels,
+			},
+		}
+		assert.Equal(tt, labels, pool.GetLabels())
+	})
+
+	t.Run("GetLabels_ReturnsNilWhenAttributesNil", func(tt *testing.T) {
+		pool := &PoolResourceData{
+			UUID:           "test-uuid",
+			PoolAttributes: nil,
+		}
+		assert.Nil(tt, pool.GetLabels())
+	})
+
+	t.Run("IsRegionalHA_ReturnsTrueWhenRegionalHA", func(tt *testing.T) {
+		pool := &PoolResourceData{
+			UUID: "test-uuid",
+			PoolAttributes: &datamodel.PoolAttributes{
+				IsRegionalHA: true,
+			},
+		}
+		assert.True(tt, pool.IsRegionalHA())
+	})
+
+	t.Run("IsRegionalHA_ReturnsFalseWhenAttributesNil", func(tt *testing.T) {
+		pool := &PoolResourceData{
+			UUID:           "test-uuid",
+			PoolAttributes: nil,
+		}
+		assert.False(tt, pool.IsRegionalHA())
+	})
+
+	t.Run("IsRegionalHA_ReturnsFalseWhenNotRegionalHA", func(tt *testing.T) {
+		pool := &PoolResourceData{
+			UUID: "test-uuid",
+			PoolAttributes: &datamodel.PoolAttributes{
+				IsRegionalHA: false,
+			},
+		}
+		assert.False(tt, pool.IsRegionalHA())
+	})
+}
+
+// Tests for PoolMetricsData.GetAccountName
+func TestPoolMetricsData_GetAccountName(t *testing.T) {
+	t.Run("ReturnsAccountNameWhenPoolAttributesExist", func(tt *testing.T) {
+		pool := &PoolMetricsData{
+			UUID: "test-uuid",
+			Name: "test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName: "test_account",
+			},
+		}
+		result := pool.GetAccountName()
+		assert.Equal(tt, "test_account", result)
+	})
+
+	t.Run("ReturnsEmptyStringWhenPoolAttributesIsNil", func(tt *testing.T) {
+		pool := &PoolMetricsData{
+			UUID:           "test-uuid",
+			Name:           "test-pool",
+			PoolAttributes: nil,
+		}
+		result := pool.GetAccountName()
+		assert.Equal(tt, "", result)
+	})
+
+	t.Run("ReturnsEmptyStringWhenAccountNameIsEmpty", func(tt *testing.T) {
+		pool := &PoolMetricsData{
+			UUID: "test-uuid",
+			Name: "test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName: "",
+			},
+		}
+		result := pool.GetAccountName()
+		assert.Equal(tt, "", result)
+	})
+}
+
+// Tests for ListPoolsForMetrics
+func TestListPoolsForMetrics(t *testing.T) {
+	t.Run("ReturnsPoolsWithMinimalFields", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		// Create test account and pools
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		pool1 := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-1"},
+			Name:           "test_pool_1",
+			SizeInBytes:    1000000,
+			AccountID:      account.ID,
+			DeploymentName: "deployment-1",
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName: "test_account",
+			},
+		}
+
+		err = store.db.Create(pool1).Error()
+		require.NoError(tt, err)
+
+		results, err := store.ListPoolsForMetrics(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+		assert.Equal(tt, "test-pool-uuid-1", results[0].UUID)
+		assert.Equal(tt, "test_pool_1", results[0].Name)
+		assert.Equal(tt, int64(1000000), results[0].SizeInBytes)
+		assert.Equal(tt, "deployment-1", results[0].DeploymentName)
+		assert.Equal(tt, "test_account", results[0].GetAccountName())
+	})
+
+	t.Run("ExcludesDeletedPools", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		// Create an active pool
+		activePool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "active-pool-uuid"},
+			Name:           "active_pool",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-1",
+			PoolAttributes: &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+
+		// Create a deleted pool
+		deletedTime := time.Now().Add(-1 * time.Hour)
+		deletedPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "deleted-pool-uuid",
+				DeletedAt: &gorm.DeletedAt{Time: deletedTime, Valid: true},
+			},
+			Name:           "deleted_pool",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-2",
+			PoolAttributes: &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+
+		err = store.db.Create(activePool).Error()
+		require.NoError(tt, err)
+		err = store.db.GORM().Create(deletedPool).Error
+		require.NoError(tt, err)
+
+		results, err := store.ListPoolsForMetrics(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+		assert.Equal(tt, "active-pool-uuid", results[0].UUID)
+	})
+
+	t.Run("ReturnsEmptyWhenNoPools", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		results, err := store.ListPoolsForMetrics(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 0)
+	})
+
+	t.Run("ReturnsMultiplePools", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		pool1 := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-1"},
+			Name:           "test_pool_1",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-1",
+			PoolAttributes: &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+		pool2 := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-2"},
+			Name:           "test_pool_2",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-2",
+			PoolAttributes: &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+
+		err = store.db.Create(pool1).Error()
+		require.NoError(tt, err)
+		err = store.db.Create(pool2).Error()
+		require.NoError(tt, err)
+
+		results, err := store.ListPoolsForMetrics(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 2)
+	})
+
+	t.Run("HandlesNilPoolAttributes", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-1"},
+			Name:           "test_pool_1",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-1",
+			PoolAttributes: nil,
+		}
+
+		err = store.db.Create(pool).Error()
+		require.NoError(tt, err)
+
+		results, err := store.ListPoolsForMetrics(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+		assert.Equal(tt, "", results[0].GetAccountName())
 	})
 }

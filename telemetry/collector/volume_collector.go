@@ -31,7 +31,8 @@ type VolumeMetricsResult struct {
 // GetVolumeMetrics retrieves volume allocated size metrics for volumes with backup data from the database and returns them in a structured result.
 func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *common.TelemetryConfig, poolMetadataMap map[int64]metadata.ResourceMetadata, timestamp time.Time) (*VolumeMetricsResult, error) {
 	logger := util.GetLogger(ctx)
-	volumes, err := vcpDB.ListVolumesWithAccounts(ctx)
+	// Use optimized query that fetches only required fields without JOINs
+	volumes, err := vcpDB.ListVolumesForTelemetryMetrics(ctx)
 	if err != nil {
 		logger.Error("Failed to get volume metrics", "error", err.Error())
 		return &VolumeMetricsResult{}, err
@@ -81,8 +82,11 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 	// Iterate over all volumes and generate metrics
 	for _, volume := range volumes {
 		var volumeAllocatedThroughputMetric entity.HydratedMetric
-		// Assemble metadata for the volume
+		// Assemble metadata for the volume using optimized struct
 		volumeMetadata := assembleVolumeMetadata(volume, config)
+
+		// Get account name from VolumeAttributes
+		accountName := volume.GetAccountName()
 
 		// Validate volume attributes before processing
 		if volume.UUID == "" {
@@ -93,11 +97,7 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 			logger.Error(fmt.Sprintf("Volume name is missing for volume %s", volume.UUID))
 			continue
 		}
-		if volume.Account == nil {
-			logger.Error(fmt.Sprintf("Volume account is missing for volume %s", volume.UUID))
-			continue
-		}
-		if volume.Account.Name == "" {
+		if accountName == "" {
 			logger.Error(fmt.Sprintf("Volume account name is missing for volume %s", volume.UUID))
 			continue
 		}
@@ -142,11 +142,6 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 			if config.EnableFilesBackupBilling || isSANProtocol {
 				if volume.DataProtection != nil && volume.DataProtection.BackupChainBytes != nil && *volume.DataProtection.BackupChainBytes > 0 {
 					metric := setupHydratedMetric(timestamp, volumeMetadata, metadata.BackupEnabledVolumeAllocatedSize, float64(allocatedSize))
-					// Use actual account name from the preloaded account
-					accountName := ""
-					if volume.Account != nil {
-						accountName = volume.Account.Name
-					}
 					metric.Metadata.ResourceType = resourceType
 
 					// Skip BMF billing metrics for volume with cross-region backupVaults
@@ -201,7 +196,8 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 	}, nil
 }
 
-func assembleVolumeMetadata(volume *datamodel.Volume, config *common.TelemetryConfig) metadata.ResourceMetadata {
+// assembleVolumeMetadata creates metadata from optimized VolumeMetricsData struct
+func assembleVolumeMetadata(volume *database.VolumeMetricsData, config *common.TelemetryConfig) metadata.ResourceMetadata {
 	met := metadata.ResourceMetadata{}
 	met.SetResourceUUID(volume.UUID)
 	met.SetResourceName(volume.Name)
@@ -210,11 +206,8 @@ func assembleVolumeMetadata(volume *datamodel.Volume, config *common.TelemetryCo
 	// Use the allocated size (size_in_bytes) for billing
 	met.SetSizeInBytes(volume.SizeInBytes)
 	met.SetRegionName(config.RegionName)
-	if volume.Account != nil {
-		met.SetAccountName(volume.Account.Name)
-	}
-	if volume.Pool != nil {
-		met.SetDeploymentName(volume.Pool.DeploymentName)
-	}
+	// Get account name and deployment name from VolumeAttributes JSONB
+	met.SetAccountName(volume.GetAccountName())
+	met.SetDeploymentName(volume.GetDeploymentName())
 	return met
 }

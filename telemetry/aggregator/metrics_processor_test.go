@@ -223,8 +223,8 @@ func TestProcessMetrics_EmptyMetrics(t *testing.T) {
 	now := time.Now()
 
 	// Mock VCP database calls for label fetching - now uses conditions approach
-	vcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
-	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+	vcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 	vcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
 	// Mock the counter cache preload call (returns empty list to stop pagination)
@@ -267,8 +267,8 @@ func TestProcessMetrics_DatabaseError(t *testing.T) {
 	now := time.Now()
 
 	// Mock VCP database calls for label fetching
-	vcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
-	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+	vcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 	vcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
 	// Expect call to GetHydratedMetrics with an error (may be called multiple times for different job definitions)
@@ -677,30 +677,32 @@ func TestProcessMetricsSuccess(t *testing.T) {
 	startTime := now.Add(-1 * time.Hour)
 
 	// Mock VCP database calls for label fetching - return resource data that matches the metrics
-	vcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
-	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{
+	vcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{
 		{
-			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
+			UUID:      "vol-uuid-1",
 			Name:      "resource1",
 			AccountID: 123,
 			VolumeAttributes: &datamodel.VolumeAttributes{
-				Labels: &datamodel.JSONB{"env": "test"},
+				AccountName:    "customer1",
+				DeploymentName: "deployment1",
+				Labels:         &datamodel.JSONB{"env": "test"},
+				IsRegionalHA:   false,
 			},
-			Pool:    &datamodel.Pool{DeploymentName: "", PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: false}},
-			Account: &datamodel.Account{Name: "customer1"},
 		},
 		{
-			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-2"},
+			UUID:      "vol-uuid-2",
 			Name:      "resource2",
 			AccountID: 123,
 			VolumeAttributes: &datamodel.VolumeAttributes{
-				Labels: &datamodel.JSONB{"env": "test"},
+				AccountName:    "customer1",
+				DeploymentName: "deployment2",
+				Labels:         &datamodel.JSONB{"env": "test"},
+				IsRegionalHA:   true,
 			},
-			Pool:    &datamodel.Pool{DeploymentName: "", PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: true}},
-			Account: &datamodel.Account{Name: "customer1"},
 		},
 	}, nil).Once()
-	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 	vcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{
 		{
 			BaseModel: datamodel.BaseModel{UUID: "vol-rep-uuid"},
@@ -728,6 +730,7 @@ func TestProcessMetricsSuccess(t *testing.T) {
 			MetricTimestamp: startTime.Add(10 * time.Minute),
 			ResourceType:    metadata.Volume,
 			MeasuredType:    metadata.AllocatedSize,
+			DeploymentName:  "deployment1",
 		},
 		{
 			ResourceName:    "resource1",
@@ -737,6 +740,7 @@ func TestProcessMetricsSuccess(t *testing.T) {
 			MetricTimestamp: startTime.Add(20 * time.Minute),
 			ResourceType:    metadata.Volume,
 			MeasuredType:    metadata.AllocatedSize,
+			DeploymentName:  "deployment1",
 		},
 	}
 
@@ -790,30 +794,32 @@ func TestProcessMetricsWithJobDefErrors(t *testing.T) {
 	startTime := now.Add(-1 * time.Hour)
 
 	// Mock VCP database calls for label fetching - return resource data that matches the metrics
-	vcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
-	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{
+	vcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{
 		{
-			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
+			UUID:      "vol-uuid-1",
 			Name:      "resource1",
 			AccountID: 123,
 			VolumeAttributes: &datamodel.VolumeAttributes{
-				Labels: &datamodel.JSONB{"env": "test"},
+				AccountName:    "customer1",
+				DeploymentName: "deployment1",
+				Labels:         &datamodel.JSONB{"env": "test"},
+				IsRegionalHA:   false,
 			},
-			Pool:    &datamodel.Pool{DeploymentName: "", PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: false}},
-			Account: &datamodel.Account{Name: "customer1"},
 		},
 		{
-			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-2"},
+			UUID:      "vol-uuid-2",
 			Name:      "resource2",
 			AccountID: 123,
 			VolumeAttributes: &datamodel.VolumeAttributes{
-				Labels: &datamodel.JSONB{"env": "test"},
+				AccountName:    "customer1",
+				DeploymentName: "deployment2",
+				Labels:         &datamodel.JSONB{"env": "test"},
+				IsRegionalHA:   true,
 			},
-			Pool:    &datamodel.Pool{DeploymentName: "", PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: true}},
-			Account: &datamodel.Account{Name: "customer1"},
 		},
 	}, nil).Once()
-	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 	vcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{
 		{
 			BaseModel: datamodel.BaseModel{UUID: "vol-rep-uuid"},
@@ -841,6 +847,7 @@ func TestProcessMetricsWithJobDefErrors(t *testing.T) {
 			MetricTimestamp: startTime,
 			ResourceType:    metadata.Volume,
 			MeasuredType:    metadata.AllocatedSize,
+			DeploymentName:  "deployment1",
 		},
 	}
 
@@ -972,8 +979,8 @@ func TestProcessMetrics_GetUnsentUsagesError(t *testing.T) {
 	now := time.Now()
 
 	// Mock VCP database calls for label fetching
-	vcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
-	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+	vcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 	vcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
 	// Even with retry error, should continue and call GetHydratedMetrics
@@ -1022,30 +1029,32 @@ func TestProcessMetrics_WithAggregatedRecordsDelivery(t *testing.T) {
 	}
 
 	// Mock VCP database calls for label fetching - return resource data that matches the metrics
-	vcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
-	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{
+	vcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{
 		{
-			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
+			UUID:      "vol-uuid-1",
 			Name:      "resource1",
 			AccountID: 123,
 			VolumeAttributes: &datamodel.VolumeAttributes{
-				Labels: &datamodel.JSONB{"env": "test"},
+				AccountName:    "customer1",
+				DeploymentName: "deployment1",
+				Labels:         &datamodel.JSONB{"env": "test"},
+				IsRegionalHA:   false,
 			},
-			Pool:    &datamodel.Pool{DeploymentName: "deployment1", PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: false}},
-			Account: &datamodel.Account{Name: "customer1"},
 		},
 		{
-			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-2"},
+			UUID:      "vol-uuid-2",
 			Name:      "resource2",
 			AccountID: 123,
 			VolumeAttributes: &datamodel.VolumeAttributes{
-				Labels: &datamodel.JSONB{"env": "test"},
+				AccountName:    "customer1",
+				DeploymentName: "deployment1",
+				Labels:         &datamodel.JSONB{"env": "test"},
+				IsRegionalHA:   true,
 			},
-			Pool:    &datamodel.Pool{DeploymentName: "deployment1", PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: true}},
-			Account: &datamodel.Account{Name: "customer1"},
 		},
 	}, nil).Once()
-	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 	vcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
 	// Setup expectations for GetHydratedMetrics call - return metrics for one job only
@@ -1093,30 +1102,32 @@ func TestProcessMetrics_DeliveryError(t *testing.T) {
 	startTime := now.Add(-1 * time.Hour)
 
 	// Mock VCP database calls for label fetching - return resource data that matches the metrics
-	vcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
-	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{
+	vcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{
 		{
-			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
+			UUID:      "vol-uuid-1",
 			Name:      "resource1",
 			AccountID: 123,
 			VolumeAttributes: &datamodel.VolumeAttributes{
-				Labels: &datamodel.JSONB{"env": "test"},
+				AccountName:    "customer1",
+				DeploymentName: "test-deployment",
+				Labels:         &datamodel.JSONB{"env": "test"},
+				IsRegionalHA:   false,
 			},
-			Pool:    &datamodel.Pool{DeploymentName: "test-deployment", PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: false}},
-			Account: &datamodel.Account{Name: "customer1"},
 		},
 		{
-			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-2"},
+			UUID:      "vol-uuid-2",
 			Name:      "resource2",
 			AccountID: 123,
 			VolumeAttributes: &datamodel.VolumeAttributes{
-				Labels: &datamodel.JSONB{"env": "test"},
+				AccountName:    "customer1",
+				DeploymentName: "test-deployment",
+				Labels:         &datamodel.JSONB{"env": "test"},
+				IsRegionalHA:   true,
 			},
-			Pool:    &datamodel.Pool{DeploymentName: "test-deployment", PoolAttributes: &datamodel.PoolAttributes{IsRegionalHA: true}},
-			Account: &datamodel.Account{Name: "customer1"},
 		},
 	}, nil).Once()
-	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 	vcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
 	// Create test metrics that will be processed
@@ -1409,39 +1420,35 @@ func TestFetchResourceData(t *testing.T) {
 
 	t.Run("When succeed", func(t *testing.T) {
 		// First call returns one pool, second call returns empty slice (pagination end)
-		mockVcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{
+		mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{
 			{
-				Pool: datamodel.Pool{
-					BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
-					Name:           "pool1",
-					AccountID:      1,
-					VendorID:       "/projects/12345/",
-					DeploymentName: "dep1",
-					PoolAttributes: &datamodel.PoolAttributes{
-						Labels:       &datamodel.JSONB{"test": "test"},
-						PrimaryZone:  "us-central1",
-						IsRegionalHA: true,
-					},
-					Account: &datamodel.Account{Name: "account1"},
+				UUID:           "pool-uuid",
+				Name:           "pool1",
+				AccountID:      1,
+				DeploymentName: "dep1",
+				PoolAttributes: &datamodel.PoolAttributes{
+					AccountName:  "account1",
+					Labels:       &datamodel.JSONB{"test": "test"},
+					PrimaryZone:  "us-central1",
+					IsRegionalHA: true,
 				},
 			},
 		}, nil).Once()
-		mockVcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
+		mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
 		// First call returns one volume, second call returns empty slice (pagination end)
-		mockVcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{
+		mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{
 			{
-				BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+				UUID:      "vol-uuid",
 				Name:      "vol1",
 				AccountID: 2,
 				VolumeAttributes: &datamodel.VolumeAttributes{
+					AccountName:    "account1",
+					DeploymentName: "dep2",
 					Labels:         &datamodel.JSONB{"key": "value"},
-					VendorSubnetID: "projects/54321/",
 				},
-				Pool:    &datamodel.Pool{DeploymentName: "dep2"},
-				Account: &datamodel.Account{Name: "account1"},
 			},
 		}, nil).Once()
-		mockVcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+		mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 		mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{
 			{
 				BaseModel: datamodel.BaseModel{UUID: "vol-rep-uuid"},
@@ -1471,21 +1478,20 @@ func TestFetchResourceData(t *testing.T) {
 	})
 
 	t.Run("Pool fetch fails, volume and volume replication fetch succeeds", func(t *testing.T) {
-		mockVcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("pool error")).Once()
-		mockVcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{
+		mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("pool error")).Once()
+		mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{
 			{
-				BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+				UUID:      "vol-uuid",
 				Name:      "vol1",
 				AccountID: 2,
 				VolumeAttributes: &datamodel.VolumeAttributes{
+					AccountName:    "account1",
+					DeploymentName: "dep2",
 					Labels:         &datamodel.JSONB{"key": "value"},
-					VendorSubnetID: "projects/54321/",
 				},
-				Pool:    &datamodel.Pool{DeploymentName: "dep2"},
-				Account: &datamodel.Account{Name: "account1"},
 			},
 		}, nil).Once()
-		mockVcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+		mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 		mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{
 			{
 				BaseModel: datamodel.BaseModel{UUID: "vol-rep-uuid"},
@@ -1531,21 +1537,20 @@ func TestFetchResourceData(t *testing.T) {
 	})
 
 	t.Run("Volume fetch fails, pool and volume replication fetch succeeds", func(t *testing.T) {
-		mockVcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{
+		mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{
 			{
-				Pool: datamodel.Pool{
-					BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
-					Name:           "pool1",
-					AccountID:      1,
-					VendorID:       "/projects/12345/",
-					DeploymentName: "dep1",
-					PoolAttributes: &datamodel.PoolAttributes{Labels: &datamodel.JSONB{"key": "value"}},
-					Account:        &datamodel.Account{Name: "account1"},
+				UUID:           "pool-uuid",
+				Name:           "pool1",
+				AccountID:      1,
+				DeploymentName: "dep1",
+				PoolAttributes: &datamodel.PoolAttributes{
+					AccountName: "account1",
+					Labels:      &datamodel.JSONB{"key": "value"},
 				},
 			},
 		}, nil).Once()
-		mockVcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
-		mockVcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("volume error")).Once()
+		mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+		mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("volume error")).Once()
 		mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{
 			{
 				BaseModel: datamodel.BaseModel{UUID: "vol-rep-uuid"},
@@ -1574,8 +1579,8 @@ func TestFetchResourceData(t *testing.T) {
 	})
 
 	t.Run("Both pool and volume fetch fail", func(t *testing.T) {
-		mockVcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("pool error")).Once()
-		mockVcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("volume error")).Once()
+		mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("pool error")).Once()
+		mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("volume error")).Once()
 		mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("volume replication error")).Once()
 		resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour), time.Now())
 		assert.Error(t, err)
@@ -1586,35 +1591,33 @@ func TestFetchResourceData(t *testing.T) {
 
 	t.Run("Volume Replication fetch fail", func(t *testing.T) {
 		// Mock successful pool and volume fetches
-		mockVcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{
+		mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{
 			{
-				Pool: datamodel.Pool{
-					BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
-					Name:           "pool1",
-					AccountID:      1,
-					VendorID:       "/projects/12345/",
-					DeploymentName: "dep1",
-					PoolAttributes: &datamodel.PoolAttributes{Labels: &datamodel.JSONB{"key": "value"}},
-					Account:        &datamodel.Account{Name: "account1"},
+				UUID:           "pool-uuid",
+				Name:           "pool1",
+				AccountID:      1,
+				DeploymentName: "dep1",
+				PoolAttributes: &datamodel.PoolAttributes{
+					AccountName: "account1",
+					Labels:      &datamodel.JSONB{"key": "value"},
 				},
 			},
 		}, nil).Once()
-		mockVcpDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil).Once()
+		mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
 
-		mockVcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{
+		mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{
 			{
-				BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+				UUID:      "vol-uuid",
 				Name:      "vol1",
 				AccountID: 2,
 				VolumeAttributes: &datamodel.VolumeAttributes{
+					AccountName:    "account1",
+					DeploymentName: "dep2",
 					Labels:         &datamodel.JSONB{"key": "value"},
-					VendorSubnetID: "projects/54321/",
 				},
-				Pool:    &datamodel.Pool{DeploymentName: "dep2"},
-				Account: &datamodel.Account{Name: "account1"},
 			},
 		}, nil).Once()
-		mockVcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+		mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 
 		mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("volume replication error")).Once()
 
@@ -2041,8 +2044,8 @@ func TestProcessBillingMetrics_NonCounterAggregation(t *testing.T) {
 	now := time.Now()
 
 	// Mock the VCP database calls for resource data
-	mockVCPDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	mockVCPDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	mockVCPDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Mock the GetHydratedMetrics for non-counter aggregation (this will hit the else branch on line 96)
@@ -2086,9 +2089,9 @@ func TestProcessBillingMetrics_FetchResourceDataError(t *testing.T) {
 	now := time.Now()
 
 	// Mock pool data fetch failure (should hit line 102)
-	mockVCPDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("pool fetch error"))
+	mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("pool fetch error"))
 	// Mock volume data fetch failure
-	mockVCPDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("volume fetch error"))
+	mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("volume fetch error"))
 	mockVCPDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Mock the GetHydratedMetrics calls for all aggregation types
@@ -2557,8 +2560,8 @@ func TestFetchResourceData_BackupBillingDisabled(t *testing.T) {
 	aggregationEndTime := time.Now()
 
 	// Mock the calls that fetchResourceData makes
-	mockVCPDB.On("ListPoolsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
-	mockVCPDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil)
+	mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil)
+	mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
 
 	resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
 	assert.NoError(t, err)
@@ -3107,4 +3110,187 @@ func TestFetchBackupData_MultipleBatches(t *testing.T) {
 	assert.Equal(t, Labels{"env": "prod"}, data2.Labels)
 
 	mockVCPDB.AssertExpectations(t)
+}
+
+// TestFetchResourceData_SkipsPoolWithEmptyAccountName tests that pools with empty account names are skipped
+func TestFetchResourceData_SkipsPoolWithEmptyAccountName(t *testing.T) {
+	ctx := context.Background()
+	mockVcpDB := &database2.MockStorage{}
+	mockMetricsDB := &database.MockStorage{}
+	mockSink := &MockUsageSink{}
+	config := &common.TelemetryConfig{PoolVolumeLabelPageSize: 10, GoogleBillingLabelsMaxEntries: 10, EnableReplicationBillingMetrics: true}
+	provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+	// First call returns pools where one has empty account name
+	mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{
+		{
+			UUID:           "pool-uuid-1",
+			Name:           "pool1",
+			AccountID:      1,
+			DeploymentName: "dep1",
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName: "account1",
+				Labels:      &datamodel.JSONB{"test": "test"},
+			},
+		},
+		{
+			UUID:           "pool-uuid-2",
+			Name:           "pool2",
+			AccountID:      2,
+			DeploymentName: "dep2",
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName: "", // Empty account name - should be skipped
+				Labels:      &datamodel.JSONB{"test": "test"},
+			},
+		},
+	}, nil).Once()
+	mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
+	mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
+
+	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour), time.Now())
+	assert.NoError(t, err)
+	assert.Len(t, resourceCollection.PoolData, 1) // Only one pool should be added
+	mockVcpDB.AssertExpectations(t)
+}
+
+// TestFetchResourceData_SkipsVolumeWithEmptyAccountName tests that volumes with empty account names are skipped
+func TestFetchResourceData_SkipsVolumeWithEmptyAccountName(t *testing.T) {
+	ctx := context.Background()
+	mockVcpDB := &database2.MockStorage{}
+	mockMetricsDB := &database.MockStorage{}
+	mockSink := &MockUsageSink{}
+	config := &common.TelemetryConfig{PoolVolumeLabelPageSize: 10, GoogleBillingLabelsMaxEntries: 10, EnableReplicationBillingMetrics: true}
+	provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+	mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+	// First call returns volumes where one has empty account name
+	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{
+		{
+			UUID:      "vol-uuid-1",
+			Name:      "vol1",
+			AccountID: 1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "account1",
+				DeploymentName: "dep1",
+				Labels:         &datamodel.JSONB{"key": "value"},
+			},
+		},
+		{
+			UUID:      "vol-uuid-2",
+			Name:      "vol2",
+			AccountID: 2,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "", // Empty account name - should be skipped
+				DeploymentName: "dep2",
+				Labels:         &datamodel.JSONB{"key": "value"},
+			},
+		},
+	}, nil).Once()
+	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
+	mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
+
+	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour), time.Now())
+	assert.NoError(t, err)
+	assert.Len(t, resourceCollection.VolumeData, 1) // Only one volume should be added
+	mockVcpDB.AssertExpectations(t)
+}
+
+// TestFetchResourceData_SkipsVolumeWithEmptyDeploymentName tests that volumes with empty deployment names are skipped
+func TestFetchResourceData_SkipsVolumeWithEmptyDeploymentName(t *testing.T) {
+	ctx := context.Background()
+	mockVcpDB := &database2.MockStorage{}
+	mockMetricsDB := &database.MockStorage{}
+	mockSink := &MockUsageSink{}
+	config := &common.TelemetryConfig{PoolVolumeLabelPageSize: 10, GoogleBillingLabelsMaxEntries: 10, EnableReplicationBillingMetrics: true}
+	provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+	mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+	// First call returns volumes where one has empty deployment name
+	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{
+		{
+			UUID:      "vol-uuid-1",
+			Name:      "vol1",
+			AccountID: 1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "account1",
+				DeploymentName: "dep1",
+				Labels:         &datamodel.JSONB{"key": "value"},
+			},
+		},
+		{
+			UUID:      "vol-uuid-2",
+			Name:      "vol2",
+			AccountID: 2,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "account2",
+				DeploymentName: "", // Empty deployment name - should be skipped
+				Labels:         &datamodel.JSONB{"key": "value"},
+			},
+		},
+	}, nil).Once()
+	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
+	mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
+
+	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour), time.Now())
+	assert.NoError(t, err)
+	assert.Len(t, resourceCollection.VolumeData, 1) // Only one volume should be added
+	mockVcpDB.AssertExpectations(t)
+}
+
+// TestFetchResourceData_PoolWithNilPoolAttributes tests that pools with nil PoolAttributes are skipped (empty account name)
+func TestFetchResourceData_PoolWithNilPoolAttributes(t *testing.T) {
+	ctx := context.Background()
+	mockVcpDB := &database2.MockStorage{}
+	mockMetricsDB := &database.MockStorage{}
+	mockSink := &MockUsageSink{}
+	config := &common.TelemetryConfig{PoolVolumeLabelPageSize: 10, GoogleBillingLabelsMaxEntries: 10, EnableReplicationBillingMetrics: true}
+	provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+	// Pool with nil PoolAttributes - GetAccountName() returns empty string
+	mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{
+		{
+			UUID:           "pool-uuid-1",
+			Name:           "pool1",
+			AccountID:      1,
+			DeploymentName: "dep1",
+			PoolAttributes: nil, // nil PoolAttributes - should be skipped
+		},
+	}, nil).Once()
+	mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
+	mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
+
+	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour), time.Now())
+	assert.NoError(t, err)
+	assert.Len(t, resourceCollection.PoolData, 0) // Pool should be skipped
+	mockVcpDB.AssertExpectations(t)
+}
+
+// TestFetchResourceData_VolumeWithNilVolumeAttributes tests that volumes with nil VolumeAttributes are skipped
+func TestFetchResourceData_VolumeWithNilVolumeAttributes(t *testing.T) {
+	ctx := context.Background()
+	mockVcpDB := &database2.MockStorage{}
+	mockMetricsDB := &database.MockStorage{}
+	mockSink := &MockUsageSink{}
+	config := &common.TelemetryConfig{PoolVolumeLabelPageSize: 10, GoogleBillingLabelsMaxEntries: 10, EnableReplicationBillingMetrics: true}
+	provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+	mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+	// Volume with nil VolumeAttributes - GetAccountName() and GetDeploymentName() return empty string
+	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{
+		{
+			UUID:             "vol-uuid-1",
+			Name:             "vol1",
+			AccountID:        1,
+			VolumeAttributes: nil, // nil VolumeAttributes - should be skipped
+		},
+	}, nil).Once()
+	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
+	mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
+
+	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour), time.Now())
+	assert.NoError(t, err)
+	assert.Len(t, resourceCollection.VolumeData, 0) // Volume should be skipped
+	mockVcpDB.AssertExpectations(t)
 }

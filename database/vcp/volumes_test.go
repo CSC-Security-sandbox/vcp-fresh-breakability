@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -4741,5 +4743,773 @@ func TestGetActivePrepopulateJobs(t *testing.T) {
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Len(tt, jobs, 1, "Expected 1 job even with null attributes")
 		assert.Nil(tt, jobs[0].JobAttributes, "Expected job attributes to be nil")
+	})
+}
+
+// Tests for ListVolumesForResourceData
+func TestListVolumesForResourceData(t *testing.T) {
+	t.Run("ReturnsVolumesWithPagination", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+
+		// Create test account and volumes
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		// Create volumes with VolumeAttributes
+		vol1 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid-1"},
+			Name:      "test_volume_1",
+			AccountID: account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "test_account",
+				DeploymentName: "deployment-1",
+				Labels:         &datamodel.JSONB{"env": "prod"},
+				IsRegionalHA:   false,
+			},
+		}
+		vol2 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid-2"},
+			Name:      "test_volume_2",
+			AccountID: account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "test_account",
+				DeploymentName: "deployment-2",
+				Labels:         &datamodel.JSONB{"env": "staging"},
+				IsRegionalHA:   true,
+			},
+		}
+
+		assert.NoError(tt, store.db.Create(vol1).Error())
+		assert.NoError(tt, store.db.Create(vol2).Error())
+
+		// Test with pagination - fetch first volume
+		startTime := time.Now().Add(-1 * time.Hour)
+		endTime := time.Now().Add(1 * time.Hour)
+		pagination := &dbutils.Pagination{Limit: 1, Offset: 0}
+
+		results, err := store.ListVolumesForResourceData(ctx, startTime, endTime, pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+		assert.Equal(tt, "test-volume-uuid-1", results[0].UUID)
+		assert.Equal(tt, "test_account", results[0].GetAccountName())
+		assert.Equal(tt, "deployment-1", results[0].GetDeploymentName())
+	})
+
+	t.Run("ReturnsVolumesWithOffset", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		vol1 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid-1"},
+			Name:      "test_volume_1",
+			AccountID: account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "test_account",
+				DeploymentName: "deployment-1",
+			},
+		}
+		vol2 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid-2"},
+			Name:      "test_volume_2",
+			AccountID: account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "test_account",
+				DeploymentName: "deployment-2",
+			},
+		}
+
+		assert.NoError(tt, store.db.Create(vol1).Error())
+		assert.NoError(tt, store.db.Create(vol2).Error())
+
+		// Test with offset
+		startTime := time.Now().Add(-1 * time.Hour)
+		endTime := time.Now().Add(1 * time.Hour)
+		pagination := &dbutils.Pagination{Limit: 1, Offset: 1}
+
+		results, err := store.ListVolumesForResourceData(ctx, startTime, endTime, pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+		assert.Equal(tt, "test-volume-uuid-2", results[0].UUID)
+	})
+
+	t.Run("IncludesDeletedVolumesWithinTimeRange", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		// Create an active volume
+		activeVol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "active-volume-uuid"},
+			Name:      "active_volume",
+			AccountID: account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "test_account",
+				DeploymentName: "deployment-active",
+			},
+		}
+		assert.NoError(tt, store.db.Create(activeVol).Error())
+
+		// Create a deleted volume within the time range
+		deletedTime := time.Now()
+		deletedVol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "deleted-volume-uuid",
+				DeletedAt: &gorm.DeletedAt{Time: deletedTime, Valid: true},
+			},
+			Name:      "deleted_volume",
+			AccountID: account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "test_account",
+				DeploymentName: "deployment-deleted",
+			},
+		}
+		assert.NoError(tt, store.db.Create(deletedVol).Error())
+
+		// Query with time range that includes the deleted volume
+		startTime := deletedTime.Add(-1 * time.Hour)
+		endTime := deletedTime.Add(1 * time.Hour)
+
+		results, err := store.ListVolumesForResourceData(ctx, startTime, endTime, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 2) // Should include both active and deleted volume
+
+		// Verify both volumes are present
+		uuids := make(map[string]bool)
+		for _, r := range results {
+			uuids[r.UUID] = true
+		}
+		assert.True(tt, uuids["active-volume-uuid"])
+		assert.True(tt, uuids["deleted-volume-uuid"])
+	})
+
+	t.Run("ExcludesDeletedVolumesOutsideTimeRange", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		// Create a deleted volume outside the time range
+		deletedTime := time.Now().Add(-24 * time.Hour)
+		deletedVol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "old-deleted-volume-uuid",
+				DeletedAt: &gorm.DeletedAt{Time: deletedTime, Valid: true},
+			},
+			Name:      "old_deleted_volume",
+			AccountID: account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "test_account",
+				DeploymentName: "deployment-old-deleted",
+			},
+		}
+		assert.NoError(tt, store.db.Create(deletedVol).Error())
+
+		// Query with time range that excludes the deleted volume
+		startTime := time.Now().Add(-1 * time.Hour)
+		endTime := time.Now().Add(1 * time.Hour)
+
+		results, err := store.ListVolumesForResourceData(ctx, startTime, endTime, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 0) // Should not include the old deleted volume
+	})
+
+	t.Run("ReturnsEmptySliceWhenNoVolumesExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+		startTime := time.Now().Add(-1 * time.Hour)
+		endTime := time.Now().Add(1 * time.Hour)
+
+		results, err := store.ListVolumesForResourceData(ctx, startTime, endTime, nil)
+		assert.NoError(tt, err)
+		assert.Empty(tt, results)
+	})
+
+	t.Run("NilPaginationReturnsAllVolumes", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		// Create multiple volumes
+		for i := 1; i <= 3; i++ {
+			vol := &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: fmt.Sprintf("volume-uuid-%d", i)},
+				Name:      fmt.Sprintf("volume_%d", i),
+				AccountID: account.ID,
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					AccountName:    "test_account",
+					DeploymentName: fmt.Sprintf("deployment-%d", i),
+				},
+			}
+			assert.NoError(tt, store.db.Create(vol).Error())
+		}
+
+		startTime := time.Now().Add(-1 * time.Hour)
+		endTime := time.Now().Add(1 * time.Hour)
+
+		results, err := store.ListVolumesForResourceData(ctx, startTime, endTime, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 3)
+	})
+}
+
+// Tests for VolumeResourceData helper methods
+func TestVolumeResourceData_HelperMethods(t *testing.T) {
+	t.Run("GetAccountName_ReturnsAccountNameWhenAttributesExist", func(tt *testing.T) {
+		vol := &VolumeResourceData{
+			UUID: "test-uuid",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName: "my-account",
+			},
+		}
+		assert.Equal(tt, "my-account", vol.GetAccountName())
+	})
+
+	t.Run("GetAccountName_ReturnsEmptyStringWhenAttributesNil", func(tt *testing.T) {
+		vol := &VolumeResourceData{
+			UUID:             "test-uuid",
+			VolumeAttributes: nil,
+		}
+		assert.Equal(tt, "", vol.GetAccountName())
+	})
+
+	t.Run("GetDeploymentName_ReturnsDeploymentNameWhenAttributesExist", func(tt *testing.T) {
+		vol := &VolumeResourceData{
+			UUID: "test-uuid",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				DeploymentName: "my-deployment",
+			},
+		}
+		assert.Equal(tt, "my-deployment", vol.GetDeploymentName())
+	})
+
+	t.Run("GetDeploymentName_ReturnsEmptyStringWhenAttributesNil", func(tt *testing.T) {
+		vol := &VolumeResourceData{
+			UUID:             "test-uuid",
+			VolumeAttributes: nil,
+		}
+		assert.Equal(tt, "", vol.GetDeploymentName())
+	})
+
+	t.Run("GetLabels_ReturnsLabelsWhenAttributesExist", func(tt *testing.T) {
+		labels := &datamodel.JSONB{"env": "prod", "team": "backend"}
+		vol := &VolumeResourceData{
+			UUID: "test-uuid",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Labels: labels,
+			},
+		}
+		assert.Equal(tt, labels, vol.GetLabels())
+	})
+
+	t.Run("GetLabels_ReturnsNilWhenAttributesNil", func(tt *testing.T) {
+		vol := &VolumeResourceData{
+			UUID:             "test-uuid",
+			VolumeAttributes: nil,
+		}
+		assert.Nil(tt, vol.GetLabels())
+	})
+
+	t.Run("IsRegionalHA_ReturnsTrueWhenRegionalHA", func(tt *testing.T) {
+		vol := &VolumeResourceData{
+			UUID: "test-uuid",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsRegionalHA: true,
+			},
+		}
+		assert.True(tt, vol.IsRegionalHA())
+	})
+
+	t.Run("IsRegionalHA_ReturnsFalseWhenAttributesNil", func(tt *testing.T) {
+		vol := &VolumeResourceData{
+			UUID:             "test-uuid",
+			VolumeAttributes: nil,
+		}
+		assert.False(tt, vol.IsRegionalHA())
+	})
+
+	t.Run("IsRegionalHA_ReturnsFalseWhenNotRegionalHA", func(tt *testing.T) {
+		vol := &VolumeResourceData{
+			UUID: "test-uuid",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsRegionalHA: false,
+			},
+		}
+		assert.False(tt, vol.IsRegionalHA())
+	})
+}
+
+// Tests for VolumeMetricsData helper methods
+func TestVolumeMetricsData_GetAccountName(t *testing.T) {
+	t.Run("ReturnsAccountNameWhenVolumeAttributesExist", func(tt *testing.T) {
+		vol := &VolumeMetricsData{
+			UUID: "test-uuid",
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName: "test_account",
+			},
+		}
+		result := vol.GetAccountName()
+		assert.Equal(tt, "test_account", result)
+	})
+
+	t.Run("ReturnsEmptyStringWhenVolumeAttributesIsNil", func(tt *testing.T) {
+		vol := &VolumeMetricsData{
+			UUID:             "test-uuid",
+			Name:             "test-volume",
+			VolumeAttributes: nil,
+		}
+		result := vol.GetAccountName()
+		assert.Equal(tt, "", result)
+	})
+
+	t.Run("ReturnsEmptyStringWhenAccountNameIsEmpty", func(tt *testing.T) {
+		vol := &VolumeMetricsData{
+			UUID: "test-uuid",
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName: "",
+			},
+		}
+		result := vol.GetAccountName()
+		assert.Equal(tt, "", result)
+	})
+}
+
+func TestVolumeMetricsData_GetDeploymentName(t *testing.T) {
+	t.Run("ReturnsDeploymentNameWhenVolumeAttributesExist", func(tt *testing.T) {
+		vol := &VolumeMetricsData{
+			UUID: "test-uuid",
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				DeploymentName: "deployment-1",
+			},
+		}
+		result := vol.GetDeploymentName()
+		assert.Equal(tt, "deployment-1", result)
+	})
+
+	t.Run("ReturnsEmptyStringWhenVolumeAttributesIsNil", func(tt *testing.T) {
+		vol := &VolumeMetricsData{
+			UUID:             "test-uuid",
+			Name:             "test-volume",
+			VolumeAttributes: nil,
+		}
+		result := vol.GetDeploymentName()
+		assert.Equal(tt, "", result)
+	})
+
+	t.Run("ReturnsEmptyStringWhenDeploymentNameIsEmpty", func(tt *testing.T) {
+		vol := &VolumeMetricsData{
+			UUID: "test-uuid",
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				DeploymentName: "",
+			},
+		}
+		result := vol.GetDeploymentName()
+		assert.Equal(tt, "", result)
+	})
+}
+
+func TestVolumeMetricsData_GetProtocols(t *testing.T) {
+	t.Run("ReturnsProtocolsWhenVolumeAttributesExist", func(tt *testing.T) {
+		vol := &VolumeMetricsData{
+			UUID: "test-uuid",
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"NFS", "SMB"},
+			},
+		}
+		result := vol.GetProtocols()
+		assert.Equal(tt, []string{"NFS", "SMB"}, result)
+	})
+
+	t.Run("ReturnsNilWhenVolumeAttributesIsNil", func(tt *testing.T) {
+		vol := &VolumeMetricsData{
+			UUID:             "test-uuid",
+			Name:             "test-volume",
+			VolumeAttributes: nil,
+		}
+		result := vol.GetProtocols()
+		assert.Nil(tt, result)
+	})
+
+	t.Run("ReturnsNilWhenProtocolsIsNil", func(tt *testing.T) {
+		vol := &VolumeMetricsData{
+			UUID: "test-uuid",
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: nil,
+			},
+		}
+		result := vol.GetProtocols()
+		assert.Nil(tt, result)
+	})
+
+	t.Run("ReturnsEmptySliceWhenProtocolsIsEmpty", func(tt *testing.T) {
+		vol := &VolumeMetricsData{
+			UUID: "test-uuid",
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{},
+			},
+		}
+		result := vol.GetProtocols()
+		assert.Equal(tt, []string{}, result)
+	})
+}
+
+func TestVolumeMetricsData_IsRegionalHA(t *testing.T) {
+	t.Run("ReturnsTrueWhenIsRegionalHA", func(tt *testing.T) {
+		vol := &VolumeMetricsData{
+			UUID: "test-uuid",
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsRegionalHA: true,
+			},
+		}
+		result := vol.IsRegionalHA()
+		assert.True(tt, result)
+	})
+
+	t.Run("ReturnsFalseWhenVolumeAttributesIsNil", func(tt *testing.T) {
+		vol := &VolumeMetricsData{
+			UUID:             "test-uuid",
+			Name:             "test-volume",
+			VolumeAttributes: nil,
+		}
+		result := vol.IsRegionalHA()
+		assert.False(tt, result)
+	})
+
+	t.Run("ReturnsFalseWhenNotRegionalHA", func(tt *testing.T) {
+		vol := &VolumeMetricsData{
+			UUID: "test-uuid",
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsRegionalHA: false,
+			},
+		}
+		result := vol.IsRegionalHA()
+		assert.False(tt, result)
+	})
+}
+
+// Tests for ListVolumesForTelemetryMetrics
+func TestListVolumesForTelemetryMetrics(t *testing.T) {
+	t.Run("ReturnsVolumesWithMinimalFields", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		// Create test account and pool
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-1",
+		}
+		err = store.db.Create(pool).Error()
+		require.NoError(tt, err)
+
+		// Create a volume with VolumeAttributes
+		volume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid-1"},
+			Name:        "test_volume_1",
+			SizeInBytes: 1000000,
+			Throughput:  1024,
+			PoolID:      pool.ID,
+			AccountID:   account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "test_account",
+				DeploymentName: "deployment-1",
+				Protocols:      []string{"NFS"},
+				IsRegionalHA:   false,
+			},
+		}
+		err = store.db.Create(volume).Error()
+		require.NoError(tt, err)
+
+		results, err := store.ListVolumesForTelemetryMetrics(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+		assert.Equal(tt, "test-volume-uuid-1", results[0].UUID)
+		assert.Equal(tt, "test_volume_1", results[0].Name)
+		assert.Equal(tt, int64(1000000), results[0].SizeInBytes)
+		assert.Equal(tt, int64(1024), results[0].Throughput)
+		assert.Equal(tt, pool.ID, results[0].PoolID)
+		assert.Equal(tt, "test_account", results[0].GetAccountName())
+		assert.Equal(tt, "deployment-1", results[0].GetDeploymentName())
+		assert.Equal(tt, []string{"NFS"}, results[0].GetProtocols())
+		assert.False(tt, results[0].IsRegionalHA())
+	})
+
+	t.Run("ExcludesDeletedVolumes", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-1",
+		}
+		err = store.db.Create(pool).Error()
+		require.NoError(tt, err)
+
+		// Create an active volume
+		activeVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "active-volume-uuid"},
+			Name:      "active_volume",
+			PoolID:    pool.ID,
+			AccountID: account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "test_account",
+				DeploymentName: "deployment-1",
+			},
+		}
+
+		// Create a deleted volume
+		deletedTime := time.Now().Add(-1 * time.Hour)
+		deletedVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "deleted-volume-uuid",
+				DeletedAt: &gorm.DeletedAt{Time: deletedTime, Valid: true},
+			},
+			Name:      "deleted_volume",
+			PoolID:    pool.ID,
+			AccountID: account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "test_account",
+				DeploymentName: "deployment-1",
+			},
+		}
+
+		err = store.db.Create(activeVolume).Error()
+		require.NoError(tt, err)
+		err = store.db.GORM().Create(deletedVolume).Error
+		require.NoError(tt, err)
+
+		results, err := store.ListVolumesForTelemetryMetrics(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+		assert.Equal(tt, "active-volume-uuid", results[0].UUID)
+	})
+
+	t.Run("ReturnsEmptyWhenNoVolumes", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		results, err := store.ListVolumesForTelemetryMetrics(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 0)
+	})
+
+	t.Run("ReturnsMultipleVolumes", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-1",
+		}
+		err = store.db.Create(pool).Error()
+		require.NoError(tt, err)
+
+		vol1 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid-1"},
+			Name:      "test_volume_1",
+			PoolID:    pool.ID,
+			AccountID: account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "test_account",
+				DeploymentName: "deployment-1",
+			},
+		}
+		vol2 := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid-2"},
+			Name:      "test_volume_2",
+			PoolID:    pool.ID,
+			AccountID: account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "test_account",
+				DeploymentName: "deployment-1",
+			},
+		}
+
+		err = store.db.Create(vol1).Error()
+		require.NoError(tt, err)
+		err = store.db.Create(vol2).Error()
+		require.NoError(tt, err)
+
+		results, err := store.ListVolumesForTelemetryMetrics(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 2)
+	})
+
+	t.Run("HandlesNilVolumeAttributes", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-1",
+		}
+		err = store.db.Create(pool).Error()
+		require.NoError(tt, err)
+
+		volume := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{UUID: "test-volume-uuid-1"},
+			Name:             "test_volume_1",
+			PoolID:           pool.ID,
+			AccountID:        account.ID,
+			VolumeAttributes: nil,
+		}
+
+		err = store.db.Create(volume).Error()
+		require.NoError(tt, err)
+
+		results, err := store.ListVolumesForTelemetryMetrics(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+		assert.Equal(tt, "", results[0].GetAccountName())
+		assert.Equal(tt, "", results[0].GetDeploymentName())
+		assert.Nil(tt, results[0].GetProtocols())
+		assert.False(tt, results[0].IsRegionalHA())
+	})
+
+	t.Run("IncludesDataProtectionField", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-1",
+		}
+		err = store.db.Create(pool).Error()
+		require.NoError(tt, err)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid-1"},
+			Name:      "test_volume_1",
+			PoolID:    pool.ID,
+			AccountID: account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "test_account",
+				DeploymentName: "deployment-1",
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: "backup-vault-uuid",
+			},
+		}
+
+		err = store.db.Create(volume).Error()
+		require.NoError(tt, err)
+
+		results, err := store.ListVolumesForTelemetryMetrics(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+		assert.NotNil(tt, results[0].DataProtection)
+		assert.Equal(tt, "backup-vault-uuid", results[0].DataProtection.BackupVaultID)
 	})
 }

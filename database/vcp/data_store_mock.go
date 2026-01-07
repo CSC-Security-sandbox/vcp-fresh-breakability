@@ -11646,6 +11646,65 @@ func (_c *MockDataStore_IsLatestBackupAnyState_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// ListAccountsForTelemetry provides a mock function with given fields: ctx, pagination
+func (_m *MockDataStore) ListAccountsForTelemetry(ctx context.Context, pagination *utils.Pagination) ([]*AccountTelemetryData, error) {
+	ret := _m.Called(ctx, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListAccountsForTelemetry")
+	}
+
+	var r0 []*AccountTelemetryData
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Pagination) ([]*AccountTelemetryData, error)); ok {
+		return rf(ctx, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Pagination) []*AccountTelemetryData); ok {
+		r0 = rf(ctx, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*AccountTelemetryData)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *utils.Pagination) error); ok {
+		r1 = rf(ctx, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListAccountsForTelemetry_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListAccountsForTelemetry'
+type MockDataStore_ListAccountsForTelemetry_Call struct {
+	*mock.Call
+}
+
+// ListAccountsForTelemetry is a helper method to define mock.On call
+//   - ctx context.Context
+//   - pagination *utils.Pagination
+func (_e *MockDataStore_Expecter) ListAccountsForTelemetry(ctx interface{}, pagination interface{}) *MockDataStore_ListAccountsForTelemetry_Call {
+	return &MockDataStore_ListAccountsForTelemetry_Call{Call: _e.mock.On("ListAccountsForTelemetry", ctx, pagination)}
+}
+
+func (_c *MockDataStore_ListAccountsForTelemetry_Call) Run(run func(ctx context.Context, pagination *utils.Pagination)) *MockDataStore_ListAccountsForTelemetry_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListAccountsForTelemetry_Call) Return(_a0 []*AccountTelemetryData, _a1 error) *MockDataStore_ListAccountsForTelemetry_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListAccountsForTelemetry_Call) RunAndReturn(run func(context.Context, *utils.Pagination) ([]*AccountTelemetryData, error)) *MockDataStore_ListAccountsForTelemetry_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListActiveDirectories provides a mock function with given fields: ctx, accountID
 func (_m *MockDataStore) ListActiveDirectories(ctx context.Context, accountID int64) ([]*datamodel.ActiveDirectory, error) {
 	ret := _m.Called(ctx, accountID)
@@ -12773,6 +12832,125 @@ func (_c *MockDataStore_ListPools_Call) RunAndReturn(run func(context.Context, *
 	return _c
 }
 
+// ListPoolsForMetrics provides a mock function with given fields: ctx
+func (_m *MockDataStore) ListPoolsForMetrics(ctx context.Context) ([]*PoolMetricsData, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListPoolsForMetrics")
+	}
+
+	var r0 []*PoolMetricsData
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]*PoolMetricsData, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []*PoolMetricsData); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*PoolMetricsData)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListPoolsForMetrics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListPoolsForMetrics'
+type MockDataStore_ListPoolsForMetrics_Call struct {
+	*mock.Call
+}
+
+// ListPoolsForMetrics is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockDataStore_Expecter) ListPoolsForMetrics(ctx interface{}) *MockDataStore_ListPoolsForMetrics_Call {
+	return &MockDataStore_ListPoolsForMetrics_Call{Call: _e.mock.On("ListPoolsForMetrics", ctx)}
+}
+
+func (_c *MockDataStore_ListPoolsForMetrics_Call) Run(run func(ctx context.Context)) *MockDataStore_ListPoolsForMetrics_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListPoolsForMetrics_Call) Return(_a0 []*PoolMetricsData, _a1 error) *MockDataStore_ListPoolsForMetrics_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListPoolsForMetrics_Call) RunAndReturn(run func(context.Context) ([]*PoolMetricsData, error)) *MockDataStore_ListPoolsForMetrics_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListPoolsForResourceData provides a mock function with given fields: ctx, startTime, endTime, pagination
+func (_m *MockDataStore) ListPoolsForResourceData(ctx context.Context, startTime time.Time, endTime time.Time, pagination *utils.Pagination) ([]*PoolResourceData, error) {
+	ret := _m.Called(ctx, startTime, endTime, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListPoolsForResourceData")
+	}
+
+	var r0 []*PoolResourceData
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time, *utils.Pagination) ([]*PoolResourceData, error)); ok {
+		return rf(ctx, startTime, endTime, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time, *utils.Pagination) []*PoolResourceData); ok {
+		r0 = rf(ctx, startTime, endTime, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*PoolResourceData)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time, time.Time, *utils.Pagination) error); ok {
+		r1 = rf(ctx, startTime, endTime, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListPoolsForResourceData_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListPoolsForResourceData'
+type MockDataStore_ListPoolsForResourceData_Call struct {
+	*mock.Call
+}
+
+// ListPoolsForResourceData is a helper method to define mock.On call
+//   - ctx context.Context
+//   - startTime time.Time
+//   - endTime time.Time
+//   - pagination *utils.Pagination
+func (_e *MockDataStore_Expecter) ListPoolsForResourceData(ctx interface{}, startTime interface{}, endTime interface{}, pagination interface{}) *MockDataStore_ListPoolsForResourceData_Call {
+	return &MockDataStore_ListPoolsForResourceData_Call{Call: _e.mock.On("ListPoolsForResourceData", ctx, startTime, endTime, pagination)}
+}
+
+func (_c *MockDataStore_ListPoolsForResourceData_Call) Run(run func(ctx context.Context, startTime time.Time, endTime time.Time, pagination *utils.Pagination)) *MockDataStore_ListPoolsForResourceData_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(time.Time), args[2].(time.Time), args[3].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListPoolsForResourceData_Call) Return(_a0 []*PoolResourceData, _a1 error) *MockDataStore_ListPoolsForResourceData_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListPoolsForResourceData_Call) RunAndReturn(run func(context.Context, time.Time, time.Time, *utils.Pagination) ([]*PoolResourceData, error)) *MockDataStore_ListPoolsForResourceData_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListPoolsWithPagination provides a mock function with given fields: ctx, conditions, pagination
 func (_m *MockDataStore) ListPoolsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.PoolView, error) {
 	ret := _m.Called(ctx, conditions, pagination)
@@ -13125,6 +13303,125 @@ func (_c *MockDataStore_ListVolumes_Call) Return(_a0 []*datamodel.Volume, _a1 er
 }
 
 func (_c *MockDataStore_ListVolumes_Call) RunAndReturn(run func(context.Context, [][]interface{}) ([]*datamodel.Volume, error)) *MockDataStore_ListVolumes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListVolumesForResourceData provides a mock function with given fields: ctx, startTime, endTime, pagination
+func (_m *MockDataStore) ListVolumesForResourceData(ctx context.Context, startTime time.Time, endTime time.Time, pagination *utils.Pagination) ([]*VolumeResourceData, error) {
+	ret := _m.Called(ctx, startTime, endTime, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVolumesForResourceData")
+	}
+
+	var r0 []*VolumeResourceData
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time, *utils.Pagination) ([]*VolumeResourceData, error)); ok {
+		return rf(ctx, startTime, endTime, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time, *utils.Pagination) []*VolumeResourceData); ok {
+		r0 = rf(ctx, startTime, endTime, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*VolumeResourceData)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time, time.Time, *utils.Pagination) error); ok {
+		r1 = rf(ctx, startTime, endTime, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListVolumesForResourceData_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVolumesForResourceData'
+type MockDataStore_ListVolumesForResourceData_Call struct {
+	*mock.Call
+}
+
+// ListVolumesForResourceData is a helper method to define mock.On call
+//   - ctx context.Context
+//   - startTime time.Time
+//   - endTime time.Time
+//   - pagination *utils.Pagination
+func (_e *MockDataStore_Expecter) ListVolumesForResourceData(ctx interface{}, startTime interface{}, endTime interface{}, pagination interface{}) *MockDataStore_ListVolumesForResourceData_Call {
+	return &MockDataStore_ListVolumesForResourceData_Call{Call: _e.mock.On("ListVolumesForResourceData", ctx, startTime, endTime, pagination)}
+}
+
+func (_c *MockDataStore_ListVolumesForResourceData_Call) Run(run func(ctx context.Context, startTime time.Time, endTime time.Time, pagination *utils.Pagination)) *MockDataStore_ListVolumesForResourceData_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(time.Time), args[2].(time.Time), args[3].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListVolumesForResourceData_Call) Return(_a0 []*VolumeResourceData, _a1 error) *MockDataStore_ListVolumesForResourceData_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListVolumesForResourceData_Call) RunAndReturn(run func(context.Context, time.Time, time.Time, *utils.Pagination) ([]*VolumeResourceData, error)) *MockDataStore_ListVolumesForResourceData_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListVolumesForTelemetryMetrics provides a mock function with given fields: ctx
+func (_m *MockDataStore) ListVolumesForTelemetryMetrics(ctx context.Context) ([]*VolumeMetricsData, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVolumesForTelemetryMetrics")
+	}
+
+	var r0 []*VolumeMetricsData
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]*VolumeMetricsData, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []*VolumeMetricsData); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*VolumeMetricsData)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListVolumesForTelemetryMetrics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVolumesForTelemetryMetrics'
+type MockDataStore_ListVolumesForTelemetryMetrics_Call struct {
+	*mock.Call
+}
+
+// ListVolumesForTelemetryMetrics is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockDataStore_Expecter) ListVolumesForTelemetryMetrics(ctx interface{}) *MockDataStore_ListVolumesForTelemetryMetrics_Call {
+	return &MockDataStore_ListVolumesForTelemetryMetrics_Call{Call: _e.mock.On("ListVolumesForTelemetryMetrics", ctx)}
+}
+
+func (_c *MockDataStore_ListVolumesForTelemetryMetrics_Call) Run(run func(ctx context.Context)) *MockDataStore_ListVolumesForTelemetryMetrics_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListVolumesForTelemetryMetrics_Call) Return(_a0 []*VolumeMetricsData, _a1 error) *MockDataStore_ListVolumesForTelemetryMetrics_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListVolumesForTelemetryMetrics_Call) RunAndReturn(run func(context.Context) ([]*VolumeMetricsData, error)) *MockDataStore_ListVolumesForTelemetryMetrics_Call {
 	_c.Call.Return(run)
 	return _c
 }

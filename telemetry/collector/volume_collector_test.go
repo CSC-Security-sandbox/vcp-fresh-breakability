@@ -28,6 +28,14 @@ func (m *mockVolumeStorage) ListVolumesWithAccounts(ctx context.Context) ([]*dat
 	return args.Get(0).([]*datamodel.Volume), args.Error(1)
 }
 
+func (m *mockVolumeStorage) ListVolumesForTelemetryMetrics(ctx context.Context) ([]*database.VolumeMetricsData, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*database.VolumeMetricsData), args.Error(1)
+}
+
 func (m *mockVolumeStorage) GetBackupVault(ctx context.Context, backupVaultID string) (*datamodel.BackupVault, error) {
 	args := m.Called(ctx, backupVaultID)
 	if args.Get(0) == nil {
@@ -64,27 +72,23 @@ func Test_GetVolumeMetrics_ReturnsMetrics(t *testing.T) {
 	}
 
 	backupChainBytes := int64(1024)
-	volumes := []*datamodel.Volume{
+	volumes := []*database.VolumeMetricsData{
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
+			UUID:        "volume-uuid-1",
 			Name:        "Volume1",
 			SizeInBytes: 2048,
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
-				Name:      "Account1",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account1",
 				DeploymentName: "test-deployment",
 			},
-			PoolID: 1,
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes,
 			},
 		},
 	}
 
-	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -123,17 +127,14 @@ func Test_GetVolumeMetrics_MultipleVolumes(t *testing.T) {
 
 	backupChainBytes1 := int64(1024)
 	backupChainBytes2 := int64(2048)
-	volumes := []*datamodel.Volume{
+	volumes := []*database.VolumeMetricsData{
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
+			UUID:        "volume-uuid-1",
 			Name:        "Volume1",
 			SizeInBytes: 2048,
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
-				Name:      "Account1",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account1",
 				DeploymentName: "test-deployment-1",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -141,15 +142,12 @@ func Test_GetVolumeMetrics_MultipleVolumes(t *testing.T) {
 			},
 		},
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-2"},
+			UUID:        "volume-uuid-2",
 			Name:        "Volume2",
 			SizeInBytes: 4096,
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
-				Name:      "Account2",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+			PoolID:      2,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account2",
 				DeploymentName: "test-deployment-2",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -158,7 +156,7 @@ func Test_GetVolumeMetrics_MultipleVolumes(t *testing.T) {
 		},
 	}
 
-	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -193,7 +191,7 @@ func Test_GetVolumeMetrics_EmptyVolumes(t *testing.T) {
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
 	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
-	m.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{}, nil)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
@@ -207,7 +205,7 @@ func Test_GetVolumeMetrics_ListVolumesWithAccountsError(t *testing.T) {
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
 	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
-	m.On("ListVolumesWithAccounts", mock.Anything).Return(nil, assert.AnError)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(nil, assert.AnError)
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.Error(t, err)
@@ -224,17 +222,14 @@ func Test_GetVolumeMetrics_FiltersVolumesWithZeroBackupChainBytes(t *testing.T) 
 
 	zeroBackupChainBytes := int64(0)
 	positiveBackupChainBytes := int64(1024)
-	volumes := []*datamodel.Volume{
+	volumes := []*database.VolumeMetricsData{
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
+			UUID:        "volume-uuid-1",
 			Name:        "Volume1",
 			SizeInBytes: 2048,
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
-				Name:      "Account1",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account1",
 				DeploymentName: "test-deployment-1",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -242,15 +237,12 @@ func Test_GetVolumeMetrics_FiltersVolumesWithZeroBackupChainBytes(t *testing.T) 
 			},
 		},
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-2"},
+			UUID:        "volume-uuid-2",
 			Name:        "Volume2",
 			SizeInBytes: 4096,
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
-				Name:      "Account2",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+			PoolID:      2,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account2",
 				DeploymentName: "test-deployment-2",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -259,7 +251,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithZeroBackupChainBytes(t *testing.T) 
 		},
 	}
 
-	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -288,33 +280,27 @@ func Test_GetVolumeMetrics_ProcessesVolumesWithNilDataProtection(t *testing.T) {
 	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 
 	positiveBackupChainBytes := int64(1024)
-	volumes := []*datamodel.Volume{
+	volumes := []*database.VolumeMetricsData{
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
+			UUID:        "volume-uuid-1",
 			Name:        "Volume1",
 			SizeInBytes: 2048,
 			Throughput:  100, // Add throughput so VolumeAllocatedThroughput metric is generated
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
-				Name:      "Account1",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account1",
 				DeploymentName: "test-deployment-1",
 			},
 			DataProtection: nil, // Should be processed (not filtered out)
 		},
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-2"},
+			UUID:        "volume-uuid-2",
 			Name:        "Volume2",
 			SizeInBytes: 4096,
 			Throughput:  200, // Add throughput so VolumeAllocatedThroughput metric is generated
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
-				Name:      "Account2",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+			PoolID:      2,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account2",
 				DeploymentName: "test-deployment-2",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -323,7 +309,7 @@ func Test_GetVolumeMetrics_ProcessesVolumesWithNilDataProtection(t *testing.T) {
 		},
 	}
 
-	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -355,15 +341,15 @@ func Test_GetVolumeMetrics_FiltersVolumesWithNilAccount(t *testing.T) {
 	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 
 	backupChainBytes := int64(1024)
-	volumes := []*datamodel.Volume{
+	volumes := []*database.VolumeMetricsData{
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
+			UUID:        "volume-uuid-1",
 			Name:        "Volume1",
 			SizeInBytes: 2048,
-			Throughput:  100, // Won't matter since account is nil, but added for consistency
-			Account:     nil, // Nil account should be filtered out
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+			Throughput:  100,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "", // Empty account name should be filtered out
 				DeploymentName: "test-deployment-1",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -371,16 +357,13 @@ func Test_GetVolumeMetrics_FiltersVolumesWithNilAccount(t *testing.T) {
 			},
 		},
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-2"},
+			UUID:        "volume-uuid-2",
 			Name:        "Volume2",
 			SizeInBytes: 4096,
-			Throughput:  200, // Add throughput so VolumeAllocatedThroughput metric is generated
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
-				Name:      "Account2",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+			Throughput:  200,
+			PoolID:      2,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account2",
 				DeploymentName: "test-deployment-2",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -389,7 +372,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithNilAccount(t *testing.T) {
 		},
 	}
 
-	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -420,18 +403,15 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingUUID(t *testing.T) {
 	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 
 	backupChainBytes := int64(1024)
-	volumes := []*datamodel.Volume{
+	volumes := []*database.VolumeMetricsData{
 		{
-			BaseModel:   datamodel.BaseModel{UUID: ""}, // Missing UUID
+			UUID:        "", // Missing UUID
 			Name:        "Volume1",
 			SizeInBytes: 2048,
-			Throughput:  100, // Won't matter since UUID is missing, but added for consistency
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
-				Name:      "Account1",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+			Throughput:  100,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account1",
 				DeploymentName: "test-deployment-1",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -439,16 +419,13 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingUUID(t *testing.T) {
 			},
 		},
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-2"},
+			UUID:        "volume-uuid-2",
 			Name:        "Volume2",
 			SizeInBytes: 4096,
-			Throughput:  200, // Add throughput so VolumeAllocatedThroughput metric is generated
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
-				Name:      "Account2",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+			Throughput:  200,
+			PoolID:      2,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account2",
 				DeploymentName: "test-deployment-2",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -457,7 +434,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingUUID(t *testing.T) {
 		},
 	}
 
-	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -488,18 +465,15 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingName(t *testing.T) {
 	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 
 	backupChainBytes := int64(1024)
-	volumes := []*datamodel.Volume{
+	volumes := []*database.VolumeMetricsData{
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
+			UUID:        "volume-uuid-1",
 			Name:        "", // Missing name
 			SizeInBytes: 2048,
-			Throughput:  100, // Won't matter since name is missing, but added for consistency
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
-				Name:      "Account1",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+			Throughput:  100,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account1",
 				DeploymentName: "test-deployment-1",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -507,16 +481,13 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingName(t *testing.T) {
 			},
 		},
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-2"},
+			UUID:        "volume-uuid-2",
 			Name:        "Volume2",
 			SizeInBytes: 4096,
-			Throughput:  200, // Add throughput so VolumeAllocatedThroughput metric is generated
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
-				Name:      "Account2",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+			Throughput:  200,
+			PoolID:      2,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account2",
 				DeploymentName: "test-deployment-2",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -525,7 +496,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingName(t *testing.T) {
 		},
 	}
 
-	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -556,18 +527,15 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingAccountName(t *testing.T) {
 	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 
 	backupChainBytes := int64(1024)
-	volumes := []*datamodel.Volume{
+	volumes := []*database.VolumeMetricsData{
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
+			UUID:        "volume-uuid-1",
 			Name:        "Volume1",
 			SizeInBytes: 2048,
-			Throughput:  100, // Won't matter since account name is missing, but added for consistency
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
-				Name:      "", // Missing account name
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+			Throughput:  100,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "", // Missing account name
 				DeploymentName: "test-deployment-1",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -575,16 +543,13 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingAccountName(t *testing.T) {
 			},
 		},
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-2"},
+			UUID:        "volume-uuid-2",
 			Name:        "Volume2",
 			SizeInBytes: 4096,
-			Throughput:  200, // Add throughput so VolumeAllocatedThroughput metric is generated
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
-				Name:      "Account2",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+			Throughput:  200,
+			PoolID:      2,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account2",
 				DeploymentName: "test-deployment-2",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -593,7 +558,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingAccountName(t *testing.T) {
 		},
 	}
 
-	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -617,20 +582,16 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingAccountName(t *testing.T) {
 	assert.Equal(t, float64(4096), result.HydratedMetricsDataModel[0].Quantity)
 }
 
-// Test for the assembleVolumeMetadata function
+// Test for the assembleVolumeMetadata function with VolumeMetricsData
 func TestAssembleVolumeMetadata(t *testing.T) {
-	// Create test volume
+	// Create test volume using VolumeMetricsData
 	backupChainBytes := int64(1024)
-	volume := &datamodel.Volume{
-		BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+	volume := &database.VolumeMetricsData{
+		UUID:        "test-volume-uuid",
 		Name:        "test-volume",
 		SizeInBytes: 2048,
-		Account: &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-			Name:      "test-account",
-		},
-		Pool: &datamodel.Pool{
-			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			AccountName:    "test-account",
 			DeploymentName: "test-deployment",
 		},
 		DataProtection: &datamodel.DataProtection{
@@ -654,6 +615,7 @@ func TestAssembleVolumeMetadata(t *testing.T) {
 	assert.Equal(t, "test-volume", derefString(resourceMetadata.ResourceName))
 	assert.Equal(t, "test-volume", derefString(resourceMetadata.ResourceDisplayName))
 	assert.Equal(t, "test-account", derefString(resourceMetadata.AccountName))
+	assert.Equal(t, "test-deployment", derefString(resourceMetadata.DeploymentName))
 }
 
 // Test that verifies the integration between GetVolumeMetrics and setupHydratedMetricsDataModel
@@ -667,19 +629,15 @@ func TestGetVolumeMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 	}
 
 	backupChainBytes := int64(5000)
-	volumes := []*datamodel.Volume{
+	volumes := []*database.VolumeMetricsData{
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-integration"},
+			UUID:        "volume-uuid-integration",
 			Name:        "IntegrationVolume",
 			SizeInBytes: 10000,
 			Throughput:  150, // Add throughput so VolumeAllocatedThroughput metric is generated
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-integration"},
-				Name:      "IntegrationAccount",
-			},
-			PoolID: 1,
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-integration"},
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "IntegrationAccount",
 				DeploymentName: "integration-deployment",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -688,7 +646,7 @@ func TestGetVolumeMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 		},
 	}
 
-	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -737,19 +695,15 @@ func Test_GetVolumeMetrics_WithThroughputMapping(t *testing.T) {
 	}
 
 	backupChainBytes := int64(1024)
-	volumes := []*datamodel.Volume{
+	volumes := []*database.VolumeMetricsData{
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-throughput"},
+			UUID:        "volume-uuid-throughput",
 			Name:        "ThroughputVolume",
 			SizeInBytes: 2048,
 			Throughput:  100, // Volume has its own throughput, should use volume throughput
 			PoolID:      10,  // Matches the pool in metadata map
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-throughput"},
-				Name:      "ThroughputAccount",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-throughput"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "ThroughputAccount",
 				DeploymentName: "throughput-deployment",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -758,7 +712,7 @@ func Test_GetVolumeMetrics_WithThroughputMapping(t *testing.T) {
 		},
 	}
 
-	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -800,19 +754,15 @@ func Test_GetVolumeMetrics_WithZeroVolumeThroughput(t *testing.T) {
 	}
 
 	backupChainBytes := int64(1024)
-	volumes := []*datamodel.Volume{
+	volumes := []*database.VolumeMetricsData{
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-zero-throughput"},
+			UUID:        "volume-uuid-zero-throughput",
 			Name:        "ZeroThroughputVolume",
 			SizeInBytes: 2048,
 			Throughput:  0, // Zero throughput should use pool throughput
 			PoolID:      20,
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-zero"},
-				Name:      "ZeroAccount",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-zero"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "ZeroAccount",
 				DeploymentName: "zero-deployment",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -821,7 +771,7 @@ func Test_GetVolumeMetrics_WithZeroVolumeThroughput(t *testing.T) {
 		},
 	}
 
-	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -857,19 +807,15 @@ func Test_GetVolumeMetrics_WithNilPoolThroughput(t *testing.T) {
 	}
 
 	backupChainBytes := int64(1024)
-	volumes := []*datamodel.Volume{
+	volumes := []*database.VolumeMetricsData{
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-nil-pool-throughput"},
+			UUID:        "volume-uuid-nil-pool-throughput",
 			Name:        "NilPoolThroughputVolume",
 			SizeInBytes: 2048,
 			Throughput:  150, // Non-zero volume throughput, should use volume throughput
 			PoolID:      30,
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-nil"},
-				Name:      "NilAccount",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-nil"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "NilAccount",
 				DeploymentName: "nil-deployment",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -878,7 +824,7 @@ func Test_GetVolumeMetrics_WithNilPoolThroughput(t *testing.T) {
 		},
 	}
 
-	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -916,18 +862,14 @@ func Test_GetVolumeMetrics_WithResourceTypeMapping(t *testing.T) {
 	}
 
 	backupChainBytes := int64(1024)
-	volume := &datamodel.Volume{
-		BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-regional"},
+	volume := &database.VolumeMetricsData{
+		UUID:        "volume-uuid-regional",
 		Name:        "RegionalVolume",
 		SizeInBytes: 3000,
 		Throughput:  150,
 		PoolID:      100, // Maps to regional HA pool
-		Account: &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "account-uuid-regional"},
-			Name:      "RegionalAccount",
-		},
-		Pool: &datamodel.Pool{
-			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-regional"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			AccountName:    "RegionalAccount",
 			DeploymentName: "regional-deployment",
 		},
 		DataProtection: &datamodel.DataProtection{
@@ -935,7 +877,7 @@ func Test_GetVolumeMetrics_WithResourceTypeMapping(t *testing.T) {
 		},
 	}
 
-	m.On("ListVolumesWithAccounts", mock.Anything).Return([]*datamodel.Volume{volume}, nil)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{volume}, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -966,18 +908,15 @@ func Test_GetVolumeMetrics_BackupChainBytesEdgeCases(t *testing.T) {
 	zeroBackupChainBytes := int64(0)
 	positiveBackupChainBytes := int64(1)
 
-	volumes := []*datamodel.Volume{
+	volumes := []*database.VolumeMetricsData{
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-negative"},
+			UUID:        "volume-uuid-negative",
 			Name:        "VolumeNegative",
 			SizeInBytes: 2000,
 			Throughput:  100,
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
-				Name:      "Account1",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account1",
 				DeploymentName: "test-deployment-1",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -985,16 +924,13 @@ func Test_GetVolumeMetrics_BackupChainBytesEdgeCases(t *testing.T) {
 			},
 		},
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-zero"},
+			UUID:        "volume-uuid-zero",
 			Name:        "VolumeZero",
 			SizeInBytes: 3000,
 			Throughput:  150,
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
-				Name:      "Account2",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+			PoolID:      2,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account2",
 				DeploymentName: "test-deployment-2",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -1002,16 +938,13 @@ func Test_GetVolumeMetrics_BackupChainBytesEdgeCases(t *testing.T) {
 			},
 		},
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-one"},
+			UUID:        "volume-uuid-one",
 			Name:        "VolumeOne",
 			SizeInBytes: 4000,
 			Throughput:  200,
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-3"},
-				Name:      "Account3",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-3"},
+			PoolID:      3,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account3",
 				DeploymentName: "test-deployment-3",
 			},
 			DataProtection: &datamodel.DataProtection{
@@ -1020,7 +953,7 @@ func Test_GetVolumeMetrics_BackupChainBytesEdgeCases(t *testing.T) {
 		},
 	}
 
-	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -1055,27 +988,23 @@ func Test_GetVolumeMetrics_SFRMetricsEnabled(t *testing.T) {
 	}
 
 	backupChainBytes := int64(1024)
-	volumes := []*datamodel.Volume{
+	volumes := []*database.VolumeMetricsData{
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
+			UUID:        "volume-uuid-1",
 			Name:        "Volume1",
 			SizeInBytes: 2048,
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
-				Name:      "Account1",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account1",
 				DeploymentName: "test-deployment",
 			},
-			PoolID: 1,
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes,
 			},
 		},
 	}
 
-	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
 
 	// Mock GetMultipleBackupVaults for backup billing metrics
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
@@ -1133,27 +1062,23 @@ func Test_GetVolumeMetrics_SFRMetricsEnabled_Error(t *testing.T) {
 	}
 
 	backupChainBytes := int64(1024)
-	volumes := []*datamodel.Volume{
+	volumes := []*database.VolumeMetricsData{
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
+			UUID:        "volume-uuid-1",
 			Name:        "Volume1",
 			SizeInBytes: 2048,
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
-				Name:      "Account1",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account1",
 				DeploymentName: "test-deployment",
 			},
-			PoolID: 1,
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes,
 			},
 		},
 	}
 
-	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
 
 	// Mock GetMultipleBackupVaults for backup billing metrics
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
@@ -1185,27 +1110,23 @@ func Test_GetVolumeMetrics_SFRMetricsEnabled_NoMetricsForVolume(t *testing.T) {
 	}
 
 	backupChainBytes := int64(1024)
-	volumes := []*datamodel.Volume{
+	volumes := []*database.VolumeMetricsData{
 		{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
+			UUID:        "volume-uuid-1",
 			Name:        "Volume1",
 			SizeInBytes: 2048,
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
-				Name:      "Account1",
-			},
-			Pool: &datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account1",
 				DeploymentName: "test-deployment",
 			},
-			PoolID: 1,
 			DataProtection: &datamodel.DataProtection{
 				BackupChainBytes: &backupChainBytes,
 			},
 		},
 	}
 
-	m.On("ListVolumesWithAccounts", mock.Anything).Return(volumes, nil)
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
 
 	// Mock GetMultipleBackupVaults for backup billing metrics
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
@@ -1229,7 +1150,7 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 	tests := []struct {
 		name                                  string
 		enableCrossRegionBackupBillingMetrics bool
-		volumes                               []*datamodel.Volume
+		volumes                               []*database.VolumeMetricsData
 		backupVault                           *datamodel.BackupVault
 		backupVaultError                      error
 		expectedHydratedMetricsCount          int
@@ -1240,18 +1161,15 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 		{
 			name:                                  "Flag disabled - skip cross-region volume BMF billing metrics",
 			enableCrossRegionBackupBillingMetrics: false,
-			volumes: []*datamodel.Volume{
+			volumes: []*database.VolumeMetricsData{
 				{
-					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-1"},
+					UUID:        "volume-uuid-1",
 					Name:        "CrossRegionVolume1",
 					SizeInBytes: 2048,
 					Throughput:  100,
-					Account: &datamodel.Account{
-						BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
-						Name:      "Account1",
-					},
-					Pool: &datamodel.Pool{
-						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
+					PoolID:      1,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						AccountName:    "Account1",
 						DeploymentName: "test-deployment-1",
 					},
 					DataProtection: &datamodel.DataProtection{
@@ -1274,18 +1192,15 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 		{
 			name:                                  "Flag enabled - include cross-region volume BMF billing metrics",
 			enableCrossRegionBackupBillingMetrics: true,
-			volumes: []*datamodel.Volume{
+			volumes: []*database.VolumeMetricsData{
 				{
-					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-2"},
+					UUID:        "volume-uuid-2",
 					Name:        "CrossRegionVolume2",
 					SizeInBytes: 3072,
 					Throughput:  150,
-					Account: &datamodel.Account{
-						BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
-						Name:      "Account2",
-					},
-					Pool: &datamodel.Pool{
-						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
+					PoolID:      2,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						AccountName:    "Account2",
 						DeploymentName: "test-deployment-2",
 					},
 					DataProtection: &datamodel.DataProtection{
@@ -1308,18 +1223,15 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 		{
 			name:                                  "Flag disabled - same region volume BMF billing metrics still included",
 			enableCrossRegionBackupBillingMetrics: false,
-			volumes: []*datamodel.Volume{
+			volumes: []*database.VolumeMetricsData{
 				{
-					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-3"},
+					UUID:        "volume-uuid-3",
 					Name:        "SameRegionVolume",
 					SizeInBytes: 4096,
 					Throughput:  200,
-					Account: &datamodel.Account{
-						BaseModel: datamodel.BaseModel{UUID: "account-uuid-3"},
-						Name:      "Account3",
-					},
-					Pool: &datamodel.Pool{
-						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-3"},
+					PoolID:      3,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						AccountName:    "Account3",
 						DeploymentName: "test-deployment-3",
 					},
 					DataProtection: &datamodel.DataProtection{
@@ -1342,18 +1254,15 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 		{
 			name:                                  "Flag disabled - nil BackupVaultID should include billing metrics",
 			enableCrossRegionBackupBillingMetrics: false,
-			volumes: []*datamodel.Volume{
+			volumes: []*database.VolumeMetricsData{
 				{
-					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-4"},
+					UUID:        "volume-uuid-4",
 					Name:        "NoVaultVolume",
 					SizeInBytes: 5120,
 					Throughput:  250,
-					Account: &datamodel.Account{
-						BaseModel: datamodel.BaseModel{UUID: "account-uuid-4"},
-						Name:      "Account4",
-					},
-					Pool: &datamodel.Pool{
-						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-4"},
+					PoolID:      4,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						AccountName:    "Account4",
 						DeploymentName: "test-deployment-4",
 					},
 					DataProtection: &datamodel.DataProtection{
@@ -1370,18 +1279,15 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 		{
 			name:                                  "Flag disabled - nil DataProtection should include billing metrics",
 			enableCrossRegionBackupBillingMetrics: false,
-			volumes: []*datamodel.Volume{
+			volumes: []*database.VolumeMetricsData{
 				{
-					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-5"},
+					UUID:        "volume-uuid-5",
 					Name:        "NoDataProtectionVolume",
 					SizeInBytes: 6144,
 					Throughput:  300,
-					Account: &datamodel.Account{
-						BaseModel: datamodel.BaseModel{UUID: "account-uuid-5"},
-						Name:      "Account5",
-					},
-					Pool: &datamodel.Pool{
-						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-5"},
+					PoolID:      5,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						AccountName:    "Account5",
 						DeploymentName: "test-deployment-5",
 					},
 					DataProtection: &datamodel.DataProtection{
@@ -1398,18 +1304,15 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 		{
 			name:                                  "Flag disabled - GetBackupVault error should skip BMF billing metrics",
 			enableCrossRegionBackupBillingMetrics: false,
-			volumes: []*datamodel.Volume{
+			volumes: []*database.VolumeMetricsData{
 				{
-					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-6"},
+					UUID:        "volume-uuid-6",
 					Name:        "ErrorVaultVolume",
 					SizeInBytes: 7168,
 					Throughput:  350,
-					Account: &datamodel.Account{
-						BaseModel: datamodel.BaseModel{UUID: "account-uuid-6"},
-						Name:      "Account6",
-					},
-					Pool: &datamodel.Pool{
-						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-6"},
+					PoolID:      6,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						AccountName:    "Account6",
 						DeploymentName: "test-deployment-6",
 					},
 					DataProtection: &datamodel.DataProtection{
@@ -1427,18 +1330,15 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 		{
 			name:                                  "Flag disabled - nil region names should include billing metrics",
 			enableCrossRegionBackupBillingMetrics: false,
-			volumes: []*datamodel.Volume{
+			volumes: []*database.VolumeMetricsData{
 				{
-					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-7"},
+					UUID:        "volume-uuid-7",
 					Name:        "NilRegionVolume",
 					SizeInBytes: 8192,
 					Throughput:  400,
-					Account: &datamodel.Account{
-						BaseModel: datamodel.BaseModel{UUID: "account-uuid-7"},
-						Name:      "Account7",
-					},
-					Pool: &datamodel.Pool{
-						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-7"},
+					PoolID:      7,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						AccountName:    "Account7",
 						DeploymentName: "test-deployment-7",
 					},
 					DataProtection: &datamodel.DataProtection{
@@ -1461,18 +1361,15 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 		{
 			name:                                  "Flag disabled - mixed cross-region and same-region volumes",
 			enableCrossRegionBackupBillingMetrics: false,
-			volumes: []*datamodel.Volume{
+			volumes: []*database.VolumeMetricsData{
 				{
-					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-8"},
+					UUID:        "volume-uuid-8",
 					Name:        "SameRegionVolume1",
 					SizeInBytes: 9216,
 					Throughput:  450,
-					Account: &datamodel.Account{
-						BaseModel: datamodel.BaseModel{UUID: "account-uuid-8"},
-						Name:      "Account8",
-					},
-					Pool: &datamodel.Pool{
-						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-8"},
+					PoolID:      8,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						AccountName:    "Account8",
 						DeploymentName: "test-deployment-8",
 					},
 					DataProtection: &datamodel.DataProtection{
@@ -1481,16 +1378,13 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 					},
 				},
 				{
-					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-9"},
+					UUID:        "volume-uuid-9",
 					Name:        "CrossRegionVolume2",
 					SizeInBytes: 10240,
 					Throughput:  500,
-					Account: &datamodel.Account{
-						BaseModel: datamodel.BaseModel{UUID: "account-uuid-9"},
-						Name:      "Account9",
-					},
-					Pool: &datamodel.Pool{
-						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-9"},
+					PoolID:      9,
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						AccountName:    "Account9",
 						DeploymentName: "test-deployment-9",
 					},
 					DataProtection: &datamodel.DataProtection{
@@ -1523,7 +1417,7 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 				EnableCrossRegionBackupBillingMetrics: tt.enableCrossRegionBackupBillingMetrics,
 			}
 			poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
-			m.On("ListVolumesWithAccounts", mock.Anything).Return(tt.volumes, nil)
+			m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(tt.volumes, nil)
 
 			// Mock GetMultipleBackupVaults call - fetches all backup vaults at once
 			if tt.backupVaultError != nil {
@@ -1603,7 +1497,7 @@ func Test_GetVolumeMetrics_CRB_With_SFR_Metrics(t *testing.T) {
 		name                                  string
 		enableCrossRegionBackupBillingMetrics bool
 		enableSFRMetrics                      bool
-		volumes                               []*datamodel.Volume
+		volumes                               []*database.VolumeMetricsData
 		backupVault                           *datamodel.BackupVault
 		sfrMetricsMap                         map[string]datamodel.SfrMetricsAggregate
 		expectedHydratedMetricsCount          int
@@ -1615,21 +1509,16 @@ func Test_GetVolumeMetrics_CRB_With_SFR_Metrics(t *testing.T) {
 			name:                                  "CRB volume - billing metrics skipped but SFR metrics collected",
 			enableCrossRegionBackupBillingMetrics: false,
 			enableSFRMetrics:                      true,
-			volumes: []*datamodel.Volume{
+			volumes: []*database.VolumeMetricsData{
 				{
-					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-crb-sfr"},
+					UUID:        "volume-uuid-crb-sfr",
 					Name:        "CRBVolumeWithSFR",
 					SizeInBytes: 2048,
-					Account: &datamodel.Account{
-						BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
-						Name:      "Account1",
-					},
-					Pool: &datamodel.Pool{
-						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
-						DeploymentName: "test-deployment-1",
-					},
+					PoolID:      1,
 					VolumeAttributes: &datamodel.VolumeAttributes{
-						Protocols: []string{"ISCSI"}, // SAN protocol volume
+						AccountName:    "Account1",
+						DeploymentName: "test-deployment-1",
+						Protocols:      []string{"ISCSI"}, // SAN protocol volume
 					},
 					DataProtection: &datamodel.DataProtection{
 						BackupChainBytes: intPtr(1024),
@@ -1658,21 +1547,16 @@ func Test_GetVolumeMetrics_CRB_With_SFR_Metrics(t *testing.T) {
 			name:                                  "CRB volume - SFR disabled, billing metrics skipped",
 			enableCrossRegionBackupBillingMetrics: false,
 			enableSFRMetrics:                      false,
-			volumes: []*datamodel.Volume{
+			volumes: []*database.VolumeMetricsData{
 				{
-					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-crb-no-sfr"},
+					UUID:        "volume-uuid-crb-no-sfr",
 					Name:        "CRBVolumeNoSFR",
 					SizeInBytes: 2048,
-					Account: &datamodel.Account{
-						BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
-						Name:      "Account2",
-					},
-					Pool: &datamodel.Pool{
-						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
-						DeploymentName: "test-deployment-2",
-					},
+					PoolID:      2,
 					VolumeAttributes: &datamodel.VolumeAttributes{
-						Protocols: []string{"ISCSI"}, // SAN protocol volume
+						AccountName:    "Account2",
+						DeploymentName: "test-deployment-2",
+						Protocols:      []string{"ISCSI"}, // SAN protocol volume
 					},
 					DataProtection: &datamodel.DataProtection{
 						BackupChainBytes: intPtr(1024),
@@ -1696,21 +1580,16 @@ func Test_GetVolumeMetrics_CRB_With_SFR_Metrics(t *testing.T) {
 			name:                                  "Same region volume - billing and SFR metrics both collected",
 			enableCrossRegionBackupBillingMetrics: false,
 			enableSFRMetrics:                      true,
-			volumes: []*datamodel.Volume{
+			volumes: []*database.VolumeMetricsData{
 				{
-					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-same-region-sfr"},
+					UUID:        "volume-uuid-same-region-sfr",
 					Name:        "SameRegionVolumeWithSFR",
 					SizeInBytes: 3072,
-					Account: &datamodel.Account{
-						BaseModel: datamodel.BaseModel{UUID: "account-uuid-3"},
-						Name:      "Account3",
-					},
-					Pool: &datamodel.Pool{
-						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-3"},
-						DeploymentName: "test-deployment-3",
-					},
+					PoolID:      3,
 					VolumeAttributes: &datamodel.VolumeAttributes{
-						Protocols: []string{"ISCSI"}, // SAN protocol volume
+						AccountName:    "Account3",
+						DeploymentName: "test-deployment-3",
+						Protocols:      []string{"ISCSI"}, // SAN protocol volume
 					},
 					DataProtection: &datamodel.DataProtection{
 						BackupChainBytes: intPtr(2048),
@@ -1739,21 +1618,16 @@ func Test_GetVolumeMetrics_CRB_With_SFR_Metrics(t *testing.T) {
 			name:                                  "CRB flag enabled - billing and SFR metrics both collected",
 			enableCrossRegionBackupBillingMetrics: true,
 			enableSFRMetrics:                      true,
-			volumes: []*datamodel.Volume{
+			volumes: []*database.VolumeMetricsData{
 				{
-					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-crb-enabled"},
+					UUID:        "volume-uuid-crb-enabled",
 					Name:        "CRBEnabledVolume",
 					SizeInBytes: 4096,
-					Account: &datamodel.Account{
-						BaseModel: datamodel.BaseModel{UUID: "account-uuid-4"},
-						Name:      "Account4",
-					},
-					Pool: &datamodel.Pool{
-						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-4"},
-						DeploymentName: "test-deployment-4",
-					},
+					PoolID:      4,
 					VolumeAttributes: &datamodel.VolumeAttributes{
-						Protocols: []string{"ISCSI"}, // SAN protocol volume
+						AccountName:    "Account4",
+						DeploymentName: "test-deployment-4",
+						Protocols:      []string{"ISCSI"}, // SAN protocol volume
 					},
 					DataProtection: &datamodel.DataProtection{
 						BackupChainBytes: intPtr(3072),
@@ -1782,21 +1656,16 @@ func Test_GetVolumeMetrics_CRB_With_SFR_Metrics(t *testing.T) {
 			name:                                  "Mixed volumes - CRB skips billing but all collect SFR",
 			enableCrossRegionBackupBillingMetrics: false,
 			enableSFRMetrics:                      true,
-			volumes: []*datamodel.Volume{
+			volumes: []*database.VolumeMetricsData{
 				{
-					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-mixed-1"},
+					UUID:        "volume-uuid-mixed-1",
 					Name:        "MixedVolume1CRB",
 					SizeInBytes: 2048,
-					Account: &datamodel.Account{
-						BaseModel: datamodel.BaseModel{UUID: "account-uuid-5"},
-						Name:      "Account5",
-					},
-					Pool: &datamodel.Pool{
-						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-5"},
-						DeploymentName: "test-deployment-5",
-					},
+					PoolID:      5,
 					VolumeAttributes: &datamodel.VolumeAttributes{
-						Protocols: []string{"ISCSI"}, // SAN protocol volume
+						AccountName:    "Account5",
+						DeploymentName: "test-deployment-5",
+						Protocols:      []string{"ISCSI"}, // SAN protocol volume
 					},
 					DataProtection: &datamodel.DataProtection{
 						BackupChainBytes: intPtr(1024),
@@ -1804,19 +1673,14 @@ func Test_GetVolumeMetrics_CRB_With_SFR_Metrics(t *testing.T) {
 					},
 				},
 				{
-					BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-mixed-2"},
+					UUID:        "volume-uuid-mixed-2",
 					Name:        "MixedVolume2Same",
 					SizeInBytes: 3072,
-					Account: &datamodel.Account{
-						BaseModel: datamodel.BaseModel{UUID: "account-uuid-6"},
-						Name:      "Account6",
-					},
-					Pool: &datamodel.Pool{
-						BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-6"},
-						DeploymentName: "test-deployment-6",
-					},
+					PoolID:      6,
 					VolumeAttributes: &datamodel.VolumeAttributes{
-						Protocols: []string{"ISCSI"}, // SAN protocol volume
+						AccountName:    "Account6",
+						DeploymentName: "test-deployment-6",
+						Protocols:      []string{"ISCSI"}, // SAN protocol volume
 					},
 					DataProtection: &datamodel.DataProtection{
 						BackupChainBytes: intPtr(2048),
@@ -1859,7 +1723,7 @@ func Test_GetVolumeMetrics_CRB_With_SFR_Metrics(t *testing.T) {
 			}
 			poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 
-			m.On("ListVolumesWithAccounts", mock.Anything).Return(tt.volumes, nil)
+			m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(tt.volumes, nil)
 
 			// Mock GetMultipleBackupVaults
 			if tt.backupVault != nil {

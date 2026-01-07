@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	telemetrydb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	vcpdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -115,7 +114,7 @@ func (bp *bizOpsProvider) ProcessBizOps(ctx context.Context, logger log.Logger, 
 	return errs
 }
 
-func prepareAccountInfo(accounts []*datamodel.Account) []*metricModel.AccountInfo {
+func prepareAccountInfo(accounts []*vcpdb.AccountTelemetryData) []*metricModel.AccountInfo {
 	var accountsInfo []*metricModel.AccountInfo
 	for _, account := range accounts {
 		var isActive bool
@@ -151,7 +150,8 @@ func (bp *bizOpsProvider) getAccountsInfo(ctx context.Context) ([]*metricModel.A
 			Limit:  paginationLimit,
 			Offset: totalFetched,
 		}
-		accounts, err := bp.vcpDB.GetAccounts(ctx, false, pagination)
+		// Use optimized query that fetches only id, name, and state fields
+		accounts, err := bp.vcpDB.ListAccountsForTelemetry(ctx, pagination)
 		if err != nil {
 			return accountsInfo, err
 		}

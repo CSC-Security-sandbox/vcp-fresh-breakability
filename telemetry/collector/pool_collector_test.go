@@ -37,47 +37,44 @@ func (m *mockStorage) ListPools(ctx context.Context, filter *utils.Filter) ([]*d
 	return args.Get(0).([]*datamodel.PoolView), args.Error(1)
 }
 
+func (m *mockStorage) ListPoolsForMetrics(ctx context.Context) ([]*database.PoolMetricsData, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*database.PoolMetricsData), args.Error(1)
+}
+
 func Test_GetPoolMetrics_ReturnsMetrics(t *testing.T) {
 	m := new(mockStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
 
-	var pools []*datamodel.PoolView
+	var pools []*database.PoolMetricsData
 	pools = append(
 		pools,
-		&datamodel.PoolView{
-			Pool: datamodel.Pool{
-				BaseModel: datamodel.BaseModel{
-					ID:   1,
-					UUID: "pool-uuid-1",
-				},
-				Name:           "Pool1",
-				SizeInBytes:    1000,
-				UsedBytes:      500,
-				DeploymentName: "gcp-deployment-1",
-				Account: &datamodel.Account{
-					BaseModel: datamodel.BaseModel{
-						UUID: "account-uuid-1",
-					},
-					Name: "Account1",
-				},
-				PoolAttributes: &datamodel.PoolAttributes{
-					ThroughputMibps: 100,
-					Iops:            1000,
-				},
+		&database.PoolMetricsData{
+			ID:             1,
+			UUID:           "pool-uuid-1",
+			Name:           "Pool1",
+			SizeInBytes:    1000,
+			DeploymentName: "gcp-deployment-1",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 100,
+				Iops:            1000,
+				AccountName:     "Account1",
 			},
-			Throughput:   100.0,
 			QuotaInBytes: 500,
 		},
 	)
 
-	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Len(t, result.HydratedMetrics, 4)          // Should have 2 metrics: PoolAllocatedSize and AllocatedUsed
-	assert.Len(t, result.HydratedMetricsDataModel, 4) // Should have 2 hydrated metrics (both PoolAllocatedSize and AllocatedUsed)
+	assert.Len(t, result.HydratedMetrics, 4)          // Should have 4 metrics: PoolAllocatedSize, AllocatedUsed, ThroughputMibps, Iops
+	assert.Len(t, result.HydratedMetricsDataModel, 4) // Should have 4 hydrated metrics
 
 	// Test new PoolMetadataMap field
 	assert.NotNil(t, result.PoolMetadataMap, "PoolMetadataMap should not be nil")
@@ -127,52 +124,42 @@ func Test_GetPoolMetrics_MultiplePools(t *testing.T) {
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
 
-	pools := []*datamodel.PoolView{
+	pools := []*database.PoolMetricsData{
 		{
-			Pool: datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-1"},
-				Name:           "Pool1",
-				SizeInBytes:    1000,
-				UsedBytes:      300,
-				DeploymentName: "gcp-deployment-1",
-				Account: &datamodel.Account{
-					BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
-					Name:      "Account1",
-				},
-				PoolAttributes: &datamodel.PoolAttributes{
-					ThroughputMibps: 0,
-					Iops:            0,
-				},
+			ID:             1,
+			UUID:           "pool-uuid-1",
+			Name:           "Pool1",
+			SizeInBytes:    1000,
+			DeploymentName: "gcp-deployment-1",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 0,
+				Iops:            0,
+				AccountName:     "Account1",
 			},
 			QuotaInBytes: 300,
 		},
 		{
-			Pool: datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-2"},
-				Name:           "Pool2",
-				SizeInBytes:    2000,
-				UsedBytes:      800,
-				DeploymentName: "gcp-deployment-2",
-				Account: &datamodel.Account{
-					BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
-					Name:      "Account2",
-				},
-				PoolAttributes: &datamodel.PoolAttributes{
-					ThroughputMibps: 0,
-					Iops:            0,
-				},
+			ID:             2,
+			UUID:           "pool-uuid-2",
+			Name:           "Pool2",
+			SizeInBytes:    2000,
+			DeploymentName: "gcp-deployment-2",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 0,
+				Iops:            0,
+				AccountName:     "Account2",
 			},
 			QuotaInBytes: 800,
 		},
 	}
 
-	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Len(t, result.HydratedMetrics, 8)          // Should have 4 metrics: 2 pools * 2 metric types each
-	assert.Len(t, result.HydratedMetricsDataModel, 8) // Should have 4 hydrated metrics (2 per pool for both PoolAllocatedSize and AllocatedUsed)
+	assert.Len(t, result.HydratedMetrics, 8)          // Should have 8 metrics: 2 pools * 4 metric types each
+	assert.Len(t, result.HydratedMetricsDataModel, 8) // Should have 8 hydrated metrics
 
 	// Check first pool metrics
 	assert.Equal(t, metadata.PoolAllocatedSize, result.HydratedMetrics[0].MeasuredType)
@@ -222,7 +209,7 @@ func Test_GetPoolMetrics_EmptyPools(t *testing.T) {
 	m := new(mockStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
-	m.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+	m.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{}, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.Error(t, err)
@@ -231,11 +218,11 @@ func Test_GetPoolMetrics_EmptyPools(t *testing.T) {
 	assert.Empty(t, result.HydratedMetricsDataModel)
 }
 
-func Test_GetPoolMetrics_ListPoolsError(t *testing.T) {
+func Test_GetPoolMetrics_ListPoolsForMetricsError(t *testing.T) {
 	m := new(mockStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
-	m.On("ListPools", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+	m.On("ListPoolsForMetrics", mock.Anything).Return(nil, assert.AnError)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.Error(t, err)
@@ -408,27 +395,22 @@ func TestGetPoolMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "ap-south-1"}
 
-	pools := []*datamodel.PoolView{
+	pools := []*database.PoolMetricsData{
 		{
-			Pool: datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{UUID: "pool-uuid-integration"},
-				Name:           "IntegrationPool",
-				SizeInBytes:    5000,
-				UsedBytes:      1500,
-				DeploymentName: "gcp-integration-deployment",
-				Account: &datamodel.Account{
-					BaseModel: datamodel.BaseModel{UUID: "account-uuid-integration"},
-					Name:      "IntegrationAccount",
-				},
-				PoolAttributes: &datamodel.PoolAttributes{
-					ThroughputMibps: 0,
-				},
+			ID:             1,
+			UUID:           "pool-uuid-integration",
+			Name:           "IntegrationPool",
+			SizeInBytes:    5000,
+			DeploymentName: "gcp-integration-deployment",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 0,
+				AccountName:     "IntegrationAccount",
 			},
 			QuotaInBytes: 1500,
 		},
 	}
 
-	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -478,35 +460,22 @@ func Test_GetPoolMetrics_WithThroughputAndMetadataMap(t *testing.T) {
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
 
-	var pools []*datamodel.PoolView
-	pools = append(
-		pools,
-		&datamodel.PoolView{
-			Pool: datamodel.Pool{
-				BaseModel: datamodel.BaseModel{
-					ID:   42,
-					UUID: "pool-uuid-throughput",
-				},
-				Name:           "ThroughputPool",
-				SizeInBytes:    2048,
-				UsedBytes:      1024,
-				DeploymentName: "gcp-deployment-throughput",
-				Account: &datamodel.Account{
-					BaseModel: datamodel.BaseModel{
-						UUID: "account-uuid-throughput",
-					},
-					Name: "ThroughputAccount",
-				},
-				PoolAttributes: &datamodel.PoolAttributes{
-					ThroughputMibps: 150,
-				},
+	pools := []*database.PoolMetricsData{
+		{
+			ID:             42,
+			UUID:           "pool-uuid-throughput",
+			Name:           "ThroughputPool",
+			SizeInBytes:    2048,
+			DeploymentName: "gcp-deployment-throughput",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 150,
+				AccountName:     "ThroughputAccount",
 			},
-			Throughput:   150.5,
 			QuotaInBytes: 1024,
 		},
-	)
+	}
 
-	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -536,46 +505,34 @@ func Test_GetPoolMetrics_MultiplePoolsWithDifferentThroughput(t *testing.T) {
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-west-2"}
 
-	pools := []*datamodel.PoolView{
+	pools := []*database.PoolMetricsData{
 		{
-			Pool: datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{ID: 100, UUID: "pool-uuid-1"},
-				Name:           "Pool1",
-				SizeInBytes:    1000,
-				UsedBytes:      300,
-				DeploymentName: "gcp-deployment-1",
-				Account: &datamodel.Account{
-					BaseModel: datamodel.BaseModel{UUID: "account-uuid-1"},
-					Name:      "Account1",
-				},
-				PoolAttributes: &datamodel.PoolAttributes{
-					ThroughputMibps: 200,
-				},
+			ID:             100,
+			UUID:           "pool-uuid-1",
+			Name:           "Pool1",
+			SizeInBytes:    1000,
+			DeploymentName: "gcp-deployment-1",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 200,
+				AccountName:     "Account1",
 			},
-			Throughput:   200.0,
 			QuotaInBytes: 300,
 		},
 		{
-			Pool: datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{ID: 200, UUID: "pool-uuid-2"},
-				Name:           "Pool2",
-				SizeInBytes:    2000,
-				UsedBytes:      800,
-				DeploymentName: "gcp-deployment-2",
-				Account: &datamodel.Account{
-					BaseModel: datamodel.BaseModel{UUID: "account-uuid-2"},
-					Name:      "Account2",
-				},
-				PoolAttributes: &datamodel.PoolAttributes{
-					ThroughputMibps: 350,
-				},
+			ID:             200,
+			UUID:           "pool-uuid-2",
+			Name:           "Pool2",
+			SizeInBytes:    2000,
+			DeploymentName: "gcp-deployment-2",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 350,
+				AccountName:     "Account2",
 			},
-			Throughput:   350.5,
 			QuotaInBytes: 800,
 		},
 	}
 
-	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -602,35 +559,22 @@ func Test_GetPoolMetrics_ZeroThroughput(t *testing.T) {
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
 
-	var pools []*datamodel.PoolView
-	pools = append(
-		pools,
-		&datamodel.PoolView{
-			Pool: datamodel.Pool{
-				BaseModel: datamodel.BaseModel{
-					ID:   1,
-					UUID: "pool-uuid-zero-throughput",
-				},
-				Name:           "ZeroThroughputPool",
-				SizeInBytes:    1000,
-				UsedBytes:      500,
-				DeploymentName: "gcp-deployment-zero",
-				Account: &datamodel.Account{
-					BaseModel: datamodel.BaseModel{
-						UUID: "account-uuid-zero",
-					},
-					Name: "ZeroAccount",
-				},
-				PoolAttributes: &datamodel.PoolAttributes{
-					ThroughputMibps: 0,
-				},
+	pools := []*database.PoolMetricsData{
+		{
+			ID:             1,
+			UUID:           "pool-uuid-zero-throughput",
+			Name:           "ZeroThroughputPool",
+			SizeInBytes:    1000,
+			DeploymentName: "gcp-deployment-zero",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 0,
+				AccountName:     "ZeroAccount",
 			},
-			Throughput:   0.0, // Zero throughput
 			QuotaInBytes: 500,
 		},
-	)
+	}
 
-	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -649,36 +593,22 @@ func Test_GetPoolMetrics_IncludesThroughputAndResourceID(t *testing.T) {
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-west-2"}
 
-	throughput := 500.75
-	var pools []*datamodel.PoolView
-	pools = append(
-		pools,
-		&datamodel.PoolView{
-			Pool: datamodel.Pool{
-				BaseModel: datamodel.BaseModel{
-					ID:   42,
-					UUID: "pool-uuid-throughput",
-				},
-				Name:           "ThroughputPool",
-				SizeInBytes:    5000,
-				UsedBytes:      2500,
-				DeploymentName: "throughput-deployment",
-				Account: &datamodel.Account{
-					BaseModel: datamodel.BaseModel{
-						UUID: "account-uuid-throughput",
-					},
-					Name: "ThroughputAccount",
-				},
-				PoolAttributes: &datamodel.PoolAttributes{
-					ThroughputMibps: 500,
-				},
+	pools := []*database.PoolMetricsData{
+		{
+			ID:             42,
+			UUID:           "pool-uuid-throughput",
+			Name:           "ThroughputPool",
+			SizeInBytes:    5000,
+			DeploymentName: "throughput-deployment",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 500,
+				AccountName:     "ThroughputAccount",
 			},
-			Throughput:   throughput,
 			QuotaInBytes: 2500,
 		},
-	)
+	}
 
-	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -714,25 +644,17 @@ func Test_GetPoolMetrics_IncludesThroughputAndResourceID(t *testing.T) {
 // Test assemblePoolMetadata function with throughput and resource ID
 func Test_AssemblePoolMetadata_WithThroughputAndResourceID(t *testing.T) {
 	config := &common.TelemetryConfig{RegionName: "eu-west-1"}
-	throughput := 1000.5
 
-	pool := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{
-				ID:   123,
-				UUID: "test-pool-uuid",
-			},
-			Name:           "TestPool",
-			SizeInBytes:    8192,
-			DeploymentName: "test-deployment",
-			Account: &datamodel.Account{
-				Name: "TestAccount",
-			},
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 1000,
-			},
+	pool := &database.PoolMetricsData{
+		ID:             123,
+		UUID:           "test-pool-uuid",
+		Name:           "TestPool",
+		SizeInBytes:    8192,
+		DeploymentName: "test-deployment",
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 1000,
+			AccountName:     "TestAccount",
 		},
-		Throughput: throughput,
 	}
 
 	result := assemblePoolMetadata(pool, config)
@@ -760,24 +682,19 @@ func Test_GetPoolMetrics_NilPoolAttributes(t *testing.T) {
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
 
 	// Pool with nil PoolAttributes
-	pools := []*datamodel.PoolView{
+	pools := []*database.PoolMetricsData{
 		{
-			Pool: datamodel.Pool{
-				BaseModel:      datamodel.BaseModel{ID: 123, UUID: "pool-uuid-1"},
-				Name:           "Pool1",
-				SizeInBytes:    1000,
-				DeploymentName: "test-deployment",
-				Account: &datamodel.Account{
-					BaseModel: datamodel.BaseModel{ID: 1},
-					Name:      "Account1",
-				},
-				PoolAttributes: nil, // This should trigger the skip condition
-			},
-			QuotaInBytes: 500,
+			ID:             123,
+			UUID:           "pool-uuid-1",
+			Name:           "Pool1",
+			SizeInBytes:    1000,
+			DeploymentName: "test-deployment",
+			PoolAttributes: nil, // This should trigger the skip condition
+			QuotaInBytes:   500,
 		},
 	}
 
-	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -797,34 +714,23 @@ func Test_GetPoolMetrics_RegionalHAPool(t *testing.T) {
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-central1"}
 
-	pools := []*datamodel.PoolView{
+	pools := []*database.PoolMetricsData{
 		{
-			Pool: datamodel.Pool{
-				BaseModel: datamodel.BaseModel{
-					ID:   1,
-					UUID: "pool-uuid-regional-ha",
-				},
-				Name:           "RegionalHAPool",
-				SizeInBytes:    2000000,
-				UsedBytes:      1000000,
-				DeploymentName: "regional-deployment-1",
-				Account: &datamodel.Account{
-					BaseModel: datamodel.BaseModel{
-						UUID: "account-uuid-regional",
-					},
-					Name: "RegionalAccount",
-				},
-				PoolAttributes: &datamodel.PoolAttributes{
-					ThroughputMibps: 250,
-					IsRegionalHA:    true, // This should map to VolumePoolRegionalHA
-				},
+			ID:             1,
+			UUID:           "pool-uuid-regional-ha",
+			Name:           "RegionalHAPool",
+			SizeInBytes:    2000000,
+			DeploymentName: "regional-deployment-1",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 250,
+				IsRegionalHA:    true, // This should map to VolumePoolRegionalHA
+				AccountName:     "RegionalAccount",
 			},
-			Throughput:   250.0,
 			QuotaInBytes: 1500000,
 		},
 	}
 
-	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -861,34 +767,23 @@ func Test_GetPoolMetrics_ZonalPool(t *testing.T) {
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-west1"}
 
-	pools := []*datamodel.PoolView{
+	pools := []*database.PoolMetricsData{
 		{
-			Pool: datamodel.Pool{
-				BaseModel: datamodel.BaseModel{
-					ID:   2,
-					UUID: "pool-uuid-zonal",
-				},
-				Name:           "ZonalPool",
-				SizeInBytes:    1500000,
-				UsedBytes:      750000,
-				DeploymentName: "zonal-deployment-1",
-				Account: &datamodel.Account{
-					BaseModel: datamodel.BaseModel{
-						UUID: "account-uuid-zonal",
-					},
-					Name: "ZonalAccount",
-				},
-				PoolAttributes: &datamodel.PoolAttributes{
-					ThroughputMibps: 150,
-					IsRegionalHA:    false, // This should map to VolumePool
-				},
+			ID:             2,
+			UUID:           "pool-uuid-zonal",
+			Name:           "ZonalPool",
+			SizeInBytes:    1500000,
+			DeploymentName: "zonal-deployment-1",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 150,
+				IsRegionalHA:    false, // This should map to VolumePool
+				AccountName:     "ZonalAccount",
 			},
-			Throughput:   150.0,
 			QuotaInBytes: 900000,
 		},
 	}
 
-	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -919,58 +814,36 @@ func Test_GetPoolMetrics_MixedPoolTypes(t *testing.T) {
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "europe-west1"}
 
-	pools := []*datamodel.PoolView{
+	pools := []*database.PoolMetricsData{
 		{
-			Pool: datamodel.Pool{
-				BaseModel: datamodel.BaseModel{
-					ID:   1,
-					UUID: "pool-uuid-regional-mixed",
-				},
-				Name:           "RegionalPool",
-				SizeInBytes:    3000000,
-				UsedBytes:      1500000,
-				DeploymentName: "mixed-deployment-1",
-				Account: &datamodel.Account{
-					BaseModel: datamodel.BaseModel{
-						UUID: "account-uuid-mixed-1",
-					},
-					Name: "MixedAccount1",
-				},
-				PoolAttributes: &datamodel.PoolAttributes{
-					ThroughputMibps: 300,
-					IsRegionalHA:    true,
-				},
+			ID:             1,
+			UUID:           "pool-uuid-regional-mixed",
+			Name:           "RegionalPool",
+			SizeInBytes:    3000000,
+			DeploymentName: "mixed-deployment-1",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 300,
+				IsRegionalHA:    true,
+				AccountName:     "MixedAccount1",
 			},
-			Throughput:   300.0,
 			QuotaInBytes: 2000000,
 		},
 		{
-			Pool: datamodel.Pool{
-				BaseModel: datamodel.BaseModel{
-					ID:   2,
-					UUID: "pool-uuid-zonal-mixed",
-				},
-				Name:           "ZonalPool",
-				SizeInBytes:    2000000,
-				UsedBytes:      1000000,
-				DeploymentName: "mixed-deployment-2",
-				Account: &datamodel.Account{
-					BaseModel: datamodel.BaseModel{
-						UUID: "account-uuid-mixed-2",
-					},
-					Name: "MixedAccount2",
-				},
-				PoolAttributes: &datamodel.PoolAttributes{
-					ThroughputMibps: 200,
-					IsRegionalHA:    false,
-				},
+			ID:             2,
+			UUID:           "pool-uuid-zonal-mixed",
+			Name:           "ZonalPool",
+			SizeInBytes:    2000000,
+			DeploymentName: "mixed-deployment-2",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 200,
+				IsRegionalHA:    false,
+				AccountName:     "MixedAccount2",
 			},
-			Throughput:   200.0,
 			QuotaInBytes: 1200000,
 		},
 	}
 
-	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -1009,27 +882,17 @@ func Test_GetPoolMetrics_MixedPoolTypes(t *testing.T) {
 
 // Test_AssemblePoolMetadata_RegionalHA tests assemblePoolMetadata function for regional HA pools
 func Test_AssemblePoolMetadata_RegionalHA(t *testing.T) {
-	pool := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{
-				ID:   123,
-				UUID: "test-pool-uuid-regional",
-			},
-			Name:           "TestRegionalPool",
-			SizeInBytes:    5000000,
-			DeploymentName: "test-deployment-regional",
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{
-					UUID: "test-account-uuid-regional",
-				},
-				Name: "TestRegionalAccount",
-			},
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 400,
-				IsRegionalHA:    true,
-			},
+	pool := &database.PoolMetricsData{
+		ID:             123,
+		UUID:           "test-pool-uuid-regional",
+		Name:           "TestRegionalPool",
+		SizeInBytes:    5000000,
+		DeploymentName: "test-deployment-regional",
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 400,
+			IsRegionalHA:    true,
+			AccountName:     "TestRegionalAccount",
 		},
-		Throughput: 400.0,
 	}
 
 	config := &common.TelemetryConfig{
@@ -1053,27 +916,17 @@ func Test_AssemblePoolMetadata_RegionalHA(t *testing.T) {
 
 // Test_AssemblePoolMetadata_Zonal tests assemblePoolMetadata function for zonal pools
 func Test_AssemblePoolMetadata_Zonal(t *testing.T) {
-	pool := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{
-				ID:   456,
-				UUID: "test-pool-uuid-zonal",
-			},
-			Name:           "TestZonalPool",
-			SizeInBytes:    3000000,
-			DeploymentName: "test-deployment-zonal",
-			Account: &datamodel.Account{
-				BaseModel: datamodel.BaseModel{
-					UUID: "test-account-uuid-zonal",
-				},
-				Name: "TestZonalAccount",
-			},
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 100,
-				IsRegionalHA:    false,
-			},
+	pool := &database.PoolMetricsData{
+		ID:             456,
+		UUID:           "test-pool-uuid-zonal",
+		Name:           "TestZonalPool",
+		SizeInBytes:    3000000,
+		DeploymentName: "test-deployment-zonal",
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 100,
+			IsRegionalHA:    false,
+			AccountName:     "TestZonalAccount",
 		},
-		Throughput: 100.0,
 	}
 
 	config := &common.TelemetryConfig{
@@ -1110,22 +963,16 @@ func Test_AssemblePoolMetadata_ThroughputEdgeCases(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			pool := &datamodel.PoolView{
-				Pool: datamodel.Pool{
-					BaseModel: datamodel.BaseModel{
-						ID:   1,
-						UUID: "test-pool-uuid",
-					},
-					Name:           "TestPool",
-					SizeInBytes:    1000000,
-					DeploymentName: "test-deployment",
-					Account: &datamodel.Account{
-						Name: "TestAccount",
-					},
-					PoolAttributes: &datamodel.PoolAttributes{
-						ThroughputMibps: tc.throughputMibps,
-						IsRegionalHA:    false,
-					},
+			pool := &database.PoolMetricsData{
+				ID:             1,
+				UUID:           "test-pool-uuid",
+				Name:           "TestPool",
+				SizeInBytes:    1000000,
+				DeploymentName: "test-deployment",
+				PoolAttributes: &datamodel.PoolAttributes{
+					ThroughputMibps: tc.throughputMibps,
+					IsRegionalHA:    false,
+					AccountName:     "TestAccount",
 				},
 			}
 

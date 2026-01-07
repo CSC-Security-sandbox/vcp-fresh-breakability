@@ -3,15 +3,23 @@ package database
 import (
 	"context"
 	"errors"
-	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
 )
+
+// AccountTelemetryData contains only the fields needed for telemetry/bizops operations.
+// This is an optimized struct that avoids fetching unnecessary columns from the accounts table.
+type AccountTelemetryData struct {
+	ID    int64  `gorm:"column:id"`
+	Name  string `gorm:"column:name"`
+	State string `gorm:"column:state"`
+}
 
 func (d *DataStoreRepository) GetSoftDeleteAccount(ctx context.Context, name string) (*datamodel.Account, error) {
 	return getSoftDeleteAccount(d.db.GORM().WithContext(ctx), name)
@@ -43,6 +51,33 @@ func (d *DataStoreRepository) GetAccounts(ctx context.Context, includeDelete boo
 		db = d.db.GORM().Unscoped().WithContext(ctx)
 	}
 	return getAccounts(db, pagination)
+}
+
+// ListAccountsForTelemetry retrieves accounts with only the fields required for telemetry/bizops operations.
+// This is an optimized query that selects only id, name, and state columns.
+// Parameters:
+//   - ctx: context for the operation
+//   - pagination: pagination parameters (offset and limit)
+//
+// Returns only active (non-deleted) accounts.
+func (d *DataStoreRepository) ListAccountsForTelemetry(ctx context.Context, pagination *dbutils.Pagination) ([]*AccountTelemetryData, error) {
+	db := d.db.GORM().WithContext(ctx)
+
+	var accounts []*AccountTelemetryData
+	query := db.Model(&datamodel.Account{}).
+		Select("id, name, state")
+
+	// Apply pagination if provided
+	if pagination != nil {
+		query = query.Offset(pagination.Offset).Limit(pagination.Limit)
+	}
+
+	err := query.Find(&accounts).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	return accounts, nil
 }
 
 // getAccount retrieves an account by the query

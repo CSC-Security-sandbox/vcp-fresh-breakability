@@ -875,6 +875,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			Labels:          dbPool.PoolAttributes.Labels,
 			IsRegionalHA:    dbPool.PoolAttributes.IsRegionalHA,
 			LdapEnabled:     dbPool.PoolAttributes.LdapEnabled,
+			AccountName:     getPoolAttributesAccountName(dbPool.PoolAttributes),
 		}
 		// Update pool in DB to reflect QoS changes
 		err = workflow.ExecuteActivity(dbHbCtx, poolActivity.UpdatePoolFields, dbPool.UUID, map[string]interface{}{
@@ -2231,4 +2232,12 @@ func (wf *syncPoolComplianceForPoolWorkflow) Run(ctx workflow.Context, args ...i
 		"satisfyZS", satisfyZS)
 
 	return nil, nil
+}
+
+// getPoolAttributesAccountName safely gets the account name from pool attributes, returning empty string if pool attributes is nil
+func getPoolAttributesAccountName(poolAttributes *datamodel.PoolAttributes) string {
+	if poolAttributes == nil {
+		return ""
+	}
+	return poolAttributes.AccountName
 }

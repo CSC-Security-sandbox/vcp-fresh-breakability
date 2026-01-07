@@ -8,7 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -168,6 +168,29 @@ func TestCreateAccount(t *testing.T) {
 		if err.Error() != "account already exists" {
 			tt.Errorf("Expected error 'account already exists', got %v", err)
 		}
+	})
+}
+
+func TestGetAccountName(t *testing.T) {
+	t.Run("WhenAccountIsNil", func(tt *testing.T) {
+		result := getAccountName(nil)
+		assert.Equal(tt, "", result, "Expected empty string when account is nil")
+	})
+
+	t.Run("WhenAccountIsNotNil", func(tt *testing.T) {
+		account := &datamodel.Account{
+			Name: "test_account",
+		}
+		result := getAccountName(account)
+		assert.Equal(tt, "test_account", result, "Expected account name 'test_account'")
+	})
+
+	t.Run("WhenAccountHasEmptyName", func(tt *testing.T) {
+		account := &datamodel.Account{
+			Name: "",
+		}
+		result := getAccountName(account)
+		assert.Equal(tt, "", result, "Expected empty string when account name is empty")
 	})
 }
 

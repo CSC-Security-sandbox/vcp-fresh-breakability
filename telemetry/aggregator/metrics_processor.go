@@ -282,13 +282,9 @@ func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStar
 	return resourceCollection, nil
 }
 
-// fetchPoolData fetches labels from pool table using pagination
+// fetchPoolData fetches labels from pool table using pagination with optimized query
 func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, resourceCollection *ResourceCollection) error {
 	logger := util.GetLogger(ctx)
-
-	conditions := [][]interface{}{
-		{"(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", aggregationStartTime, aggregationEndTime},
-	}
 
 	offset := 0
 	// Use configurable limit from config
@@ -303,8 +299,8 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTim
 			Limit:  limit,
 		}
 
-		// Fetch paginated pools using ListPoolsWithPagination
-		pools, err := p.vcpDataStore.ListPoolsWithPagination(ctx, conditions, pagination)
+		// Fetch paginated pools using optimized ListPoolsForResourceData
+		pools, err := p.vcpDataStore.ListPoolsForResourceData(ctx, aggregationStartTime, aggregationEndTime, pagination)
 		if err != nil {
 			return fmt.Errorf("failed to list pools (offset %d): %w", offset, err)
 		}
@@ -316,16 +312,17 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTim
 
 		// Process current batch
 		for _, pool := range pools {
-			// Skip pools with nil Account to prevent panic
-			if pool.Account == nil {
-				logger.Warnf("Skipping pool %s (%s) due to nil Account relationship", pool.Name, pool.UUID)
+			// Skip pools with empty account name
+			accountName := pool.GetAccountName()
+			if accountName == "" {
+				logger.Warnf("Skipping pool %s (%s) due to missing account name", pool.Name, pool.UUID)
 				continue
 			}
 
-			// Extract and limit labels (handle nil PoolAttributes)
+			// Extract and limit labels
 			var limitedLabels Labels
-			if pool.PoolAttributes != nil && pool.PoolAttributes.Labels != nil {
-				limitedLabels = p.limitLabels(pool.PoolAttributes.Labels)
+			if labels := pool.GetLabels(); labels != nil {
+				limitedLabels = p.limitLabels(labels)
 			} else {
 				limitedLabels = make(Labels)
 			}
@@ -336,14 +333,14 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTim
 				Labels:    limitedLabels,
 			}
 			resourceType := metadata.VolumePool
-			if pool.PoolAttributes != nil && pool.PoolAttributes.IsRegionalHA {
+			if pool.IsRegionalHA() {
 				resourceType = metadata.VolumePoolRegionalHA
 			}
 			id := ResourceKey{
 				ResourceType:   resourceType,
 				ResourceName:   pool.Name,
 				DeploymentName: pool.DeploymentName,
-				ConsumerID:     pool.Account.Name,
+				ConsumerID:     accountName,
 			}
 			resourceCollection.PoolData[id] = poolResourceData
 		}
@@ -360,14 +357,9 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTim
 	return nil
 }
 
-// fetchVolumeData fetches labels from volume table using pagination
+// fetchVolumeData fetches labels from volume table using pagination with optimized query
 func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, resourceCollection *ResourceCollection) error {
 	logger := util.GetLogger(ctx)
-
-	// Create conditions for volumes including deleted volumes where deleted_at is between aggregation times
-	conditions := [][]interface{}{
-		{"(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", aggregationStartTime, aggregationEndTime},
-	}
 
 	offset := 0
 	// Use configurable limit from config
@@ -382,8 +374,8 @@ func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartT
 			Limit:  limit,
 		}
 
-		// Fetch paginated volumes using ListVolumesWithPagination
-		volumes, err := p.vcpDataStore.ListVolumesWithPagination(ctx, conditions, pagination)
+		// Fetch paginated volumes using optimized ListVolumesForResourceData
+		volumes, err := p.vcpDataStore.ListVolumesForResourceData(ctx, aggregationStartTime, aggregationEndTime, pagination)
 		if err != nil {
 			return fmt.Errorf("failed to list volumes (offset %d): %w", offset, err)
 		}
@@ -395,20 +387,22 @@ func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartT
 
 		// Process current batch
 		for _, volume := range volumes {
-			// Skip volumes with nil Account or Pool to prevent panic
-			if volume.Account == nil {
-				logger.Warnf("Skipping volume %s (%s) due to nil Account relationship", volume.Name, volume.UUID)
+			// Skip volumes with missing account name or deployment name
+			accountName := volume.GetAccountName()
+			deploymentName := volume.GetDeploymentName()
+			if accountName == "" {
+				logger.Warnf("Skipping volume %s (%s) due to missing account name", volume.Name, volume.UUID)
 				continue
 			}
-			if volume.Pool == nil {
-				logger.Warnf("Skipping volume %s (%s) due to nil Pool relationship", volume.Name, volume.UUID)
+			if deploymentName == "" {
+				logger.Warnf("Skipping volume %s (%s) due to missing deployment name", volume.Name, volume.UUID)
 				continue
 			}
 
-			// Extract and limit labels (handle nil VolumeAttributes)
+			// Extract and limit labels
 			var limitedLabels Labels
-			if volume.VolumeAttributes != nil && volume.VolumeAttributes.Labels != nil {
-				limitedLabels = p.limitLabels(volume.VolumeAttributes.Labels)
+			if labels := volume.GetLabels(); labels != nil {
+				limitedLabels = p.limitLabels(labels)
 			} else {
 				limitedLabels = make(Labels)
 			}
@@ -419,14 +413,14 @@ func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartT
 				Labels:    limitedLabels,
 			}
 			resourceType := metadata.Volume
-			if volume.Pool.PoolAttributes != nil && volume.Pool.PoolAttributes.IsRegionalHA {
+			if volume.IsRegionalHA() {
 				resourceType = metadata.VolumeRegionalHA
 			}
 			id := ResourceKey{
 				ResourceType:   resourceType,
 				ResourceName:   volume.Name,
-				DeploymentName: volume.Pool.DeploymentName,
-				ConsumerID:     volume.Account.Name,
+				DeploymentName: deploymentName,
+				ConsumerID:     accountName,
 			}
 			resourceCollection.VolumeData[id] = volumeResourceData
 		}

@@ -3,15 +3,14 @@ package collector
 import (
 	"context"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -33,9 +32,12 @@ type PoolMetricsResult struct {
 // GetPoolMetrics retrieves metrics for all pools from the database and returns them in a structured result.
 func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.TelemetryConfig, timestamp time.Time) (*PoolMetricsResult, error) {
 	logger := util.GetLogger(ctx)
-	pools, err := vcpDB.ListPools(ctx, nil)
+	logger.Debug("Starting pool metrics collection")
+
+	// Use optimized ListPoolsForMetrics which fetches only required fields
+	pools, err := vcpDB.ListPoolsForMetrics(ctx)
 	if err != nil {
-		logger.Error("Failed to list pools", "error", err.Error())
+		logger.Error("Failed to list pools for metrics", "error", err.Error())
 		return &PoolMetricsResult{}, err
 	}
 	logger.Info(fmt.Sprintf("Found %d pools", len(pools)))
@@ -53,7 +55,8 @@ func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.
 
 	// Iterate over all pools and generate metrics
 	for _, pool := range pools {
-		if pool.Account == nil || pool.PoolAttributes == nil {
+		accountName := pool.GetAccountName()
+		if accountName == "" || pool.PoolAttributes == nil {
 			logger.Warnf("Skipping pool %s (ID: %d) as it has no associated account or pool attributes", pool.Name, pool.ID)
 			continue
 		}
@@ -75,7 +78,7 @@ func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.
 		}
 
 		for _, m := range metricsToCollect {
-			setupPoolMetric(&metrics, &hydratedMetrics, timestamp, poolMetadata, m.measureType, m.value, pool.Account.Name)
+			setupPoolMetric(&metrics, &hydratedMetrics, timestamp, poolMetadata, m.measureType, m.value, accountName)
 		}
 	}
 
@@ -87,7 +90,8 @@ func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.
 	}, nil
 }
 
-func assemblePoolMetadata(pool *datamodel.PoolView, config *common.TelemetryConfig) metadata.ResourceMetadata {
+// assemblePoolMetadata creates ResourceMetadata from the optimized PoolMetricsData structure
+func assemblePoolMetadata(pool *database.PoolMetricsData, config *common.TelemetryConfig) metadata.ResourceMetadata {
 	met := metadata.ResourceMetadata{}
 	met.SetResourceUUID(pool.UUID)
 	met.SetResourceName(pool.Name)
@@ -99,9 +103,7 @@ func assemblePoolMetadata(pool *datamodel.PoolView, config *common.TelemetryConf
 	}
 	met.SetSizeInBytes(pool.SizeInBytes)
 	met.SetRegionName(config.RegionName)
-	if pool.Account != nil {
-		met.SetAccountName(pool.Account.Name)
-	}
+	met.SetAccountName(pool.GetAccountName())
 	met.SetDeploymentName(pool.DeploymentName)
 	met.SetThroughput(float64(pool.PoolAttributes.ThroughputMibps))
 	met.SetResourceID(pool.ID)

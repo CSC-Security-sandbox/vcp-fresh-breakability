@@ -296,6 +296,38 @@ func (re *retryEngine) ListPoolUUIDsPaginated(ctx context.Context, filter *dbuti
 	return var0, err
 }
 
+func (re *retryEngine) ListPoolsForMetrics(ctx context.Context) ([]*PoolMetricsData, error) {
+	var var0 []*PoolMetricsData
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListPoolsForMetrics(ctx)
+		if err != nil {
+			re.logError("ListPoolsForMetrics", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) ListPoolsForResourceData(ctx context.Context, startTime, endTime time.Time, pagination *dbutils.Pagination) ([]*PoolResourceData, error) {
+	var var0 []*PoolResourceData
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListPoolsForResourceData(ctx, startTime, endTime, pagination)
+		if err != nil {
+			re.logError("ListPoolsForResourceData", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) ListPendingResourceDeletions(ctx context.Context, offset, limit int) ([]*datamodel.PendingResourceDeletions, error) {
 	var var0 []*datamodel.PendingResourceDeletions
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -803,6 +835,22 @@ func (re *retryEngine) ListVolumesWithPagination(ctx context.Context, conditions
 	return var0, err
 }
 
+func (re *retryEngine) ListVolumesForResourceData(ctx context.Context, startTime, endTime time.Time, pagination *dbutils.Pagination) ([]*VolumeResourceData, error) {
+	var var0 []*VolumeResourceData
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListVolumesForResourceData(ctx, startTime, endTime, pagination)
+		if err != nil {
+			re.logError("ListVolumesForResourceData", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error) {
 	var var0 []*datamodel.Volume
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -1252,6 +1300,22 @@ func (re *retryEngine) GetAccounts(ctx context.Context, includeDelete bool, pagi
 		var0, err = re.dataStore.GetAccounts(ctx, includeDelete, pagination)
 		if err != nil {
 			re.logError("GetAccounts", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) ListAccountsForTelemetry(ctx context.Context, pagination *dbutils.Pagination) ([]*AccountTelemetryData, error) {
+	var var0 []*AccountTelemetryData
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListAccountsForTelemetry(ctx, pagination)
+		if err != nil {
+			re.logError("ListAccountsForTelemetry", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
@@ -3547,6 +3611,22 @@ func (re *retryEngine) ListVolumesWithAccounts(ctx context.Context) ([]*datamode
 		var0, err = re.dataStore.ListVolumesWithAccounts(ctx)
 		if err != nil {
 			re.logError("ListVolumesWithAccounts", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) ListVolumesForTelemetryMetrics(ctx context.Context) ([]*VolumeMetricsData, error) {
+	var var0 []*VolumeMetricsData
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListVolumesForTelemetryMetrics(ctx)
+		if err != nil {
+			re.logError("ListVolumesForTelemetryMetrics", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

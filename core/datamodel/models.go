@@ -184,6 +184,7 @@ type PoolAttributes struct {
 	Labels          *JSONB `json:"labels"`
 	IsRegionalHA    bool   `json:"is_regional_ha"`
 	LdapEnabled     bool   `json:"ldap_enabled"`
+	AccountName     string `json:"account_name"`
 }
 
 // Node represents the public.nodes table in the database
@@ -392,6 +393,9 @@ type VolumeAttributes struct {
 	Labels             *JSONB           `json:"labels"`
 	RestoredBackupID   string           `json:"restored_backup_id"`
 	RestoredBackupPath string           `json:"restored_backup_path"`
+	AccountName        string           `json:"account_name"`
+	DeploymentName     string           `json:"deployment_name"`
+	IsRegionalHA       bool             `json:"is_regional_ha"`
 	CloneParentInfo    *CloneParentInfo `json:"clone_parent_info"`
 	SecurityStyle      string           `json:"security_style"`
 }

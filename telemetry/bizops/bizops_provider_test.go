@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	telemetrydb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	vcpdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -37,15 +36,12 @@ func Test_ProcessBizOps(t *testing.T) {
 	googleContinents = "northamerica:northamerica,latinamerica:latinamerica,southamerica:latinamerica"
 	region = "au-se1"
 
-	testAccount := &datamodel.Account{
-		BaseModel: datamodel.BaseModel{
-			ID:   1,
-			UUID: "test-account-id",
-		},
+	testAccount := &vcpdb.AccountTelemetryData{
+		ID:    1,
 		Name:  "Test Account",
 		State: accountEnabled,
 	}
-	testAccounts := []*datamodel.Account{testAccount}
+	testAccounts := []*vcpdb.AccountTelemetryData{testAccount}
 	ctx := context.Background()
 	aggrErr := errors.New("bizops aggr error")
 	ingestErr := errors.New("ingest error")
@@ -58,11 +54,11 @@ func Test_ProcessBizOps(t *testing.T) {
 		mockVCPDB := &vcpdb.MockStorage{}
 		mockLogger.On("Debugf", mock.Anything, mock.Anything).Return("Processing BizOps Report")
 
-		// mock DB calls
-		mockVCPDB.On("GetAccounts", ctx, mock.Anything,
+		// mock DB calls - using optimized ListAccountsForTelemetry
+		mockVCPDB.On("ListAccountsForTelemetry", ctx,
 			&dbutils.Pagination{Limit: paginationLimit, Offset: 0}).Return(testAccounts, nil)
-		mockVCPDB.On("GetAccounts", ctx, mock.Anything,
-			&dbutils.Pagination{Limit: paginationLimit, Offset: 1}).Return([]*datamodel.Account{}, nil)
+		mockVCPDB.On("ListAccountsForTelemetry", ctx,
+			&dbutils.Pagination{Limit: paginationLimit, Offset: 1}).Return([]*vcpdb.AccountTelemetryData{}, nil)
 		mockMetricDB.On("AggregateUsageForBizOps", ctx, mock.Anything).Return(nil)
 		// mock Sink
 		mockBizOpsSink.On("Ingest", ctx, mock.Anything).Return(nil)
@@ -128,8 +124,8 @@ func Test_ProcessBizOps(t *testing.T) {
 		// mock sink calls
 		mockBizOpsSink.On("Type").Return("terminal")
 
-		// mock DB calls
-		mockVCPDB.On("GetAccounts", ctx, mock.Anything, mock.Anything).Return(nil, errors.New("db failure"))
+		// mock DB calls - using optimized ListAccountsForTelemetry
+		mockVCPDB.On("ListAccountsForTelemetry", ctx, mock.Anything).Return(nil, errors.New("db failure"))
 
 		// mock logger call
 		mockLogger.On("Errorf", mock.Anything, mock.Anything).Return("")
@@ -146,8 +142,8 @@ func Test_ProcessBizOps(t *testing.T) {
 		mockBizOpsSink := &sink.MockBizOpsSink{}
 		mockMetricDB := &telemetrydb.MockStorage{}
 		mockVCPDB := &vcpdb.MockStorage{}
-		// mock DB calls
-		mockVCPDB.On("GetAccounts", ctx, mock.Anything, mock.Anything).Return([]*datamodel.Account{}, nil)
+		// mock DB calls - using optimized ListAccountsForTelemetry
+		mockVCPDB.On("ListAccountsForTelemetry", ctx, mock.Anything).Return([]*vcpdb.AccountTelemetryData{}, nil)
 		mockMetricDB.On("AggregateUsageForBizOps", ctx, mock.Anything).Return(aggrErr)
 
 		// mock logger call
@@ -171,8 +167,8 @@ func Test_ProcessBizOps(t *testing.T) {
 		mockBizOpsSink := &sink.MockBizOpsSink{}
 		mockMetricDB := &telemetrydb.MockStorage{}
 		mockVCPDB := &vcpdb.MockStorage{}
-		// mock DB calls
-		mockVCPDB.On("GetAccounts", ctx, mock.Anything, mock.Anything).Return([]*datamodel.Account{}, nil)
+		// mock DB calls - using optimized ListAccountsForTelemetry
+		mockVCPDB.On("ListAccountsForTelemetry", ctx, mock.Anything).Return([]*vcpdb.AccountTelemetryData{}, nil)
 		mockMetricDB.On("AggregateUsageForBizOps", ctx, mock.Anything).Return(nil)
 
 		// mock logger call

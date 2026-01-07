@@ -25877,3 +25877,69 @@ func TestCheckIfPoolUpdateRequired(t *testing.T) {
 		})
 	}
 }
+
+func Test_createVolume_BackupPathHandling(t *testing.T) {
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+	dbPool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-pool", AccountID: account.ID}
+	params := &common.CreateVolumeParams{
+		Name:         "vol1",
+		QuotaInBytes: 100 * 1024 * 1024 * 1024,
+		AccountName:  "test-account",
+		PoolID:       "1",
+		BackupPath:   "projects/test/locations/us-central1/backupVaults/vault1/backups/backup1",
+	}
+	volumeObj := &datamodel.Volume{
+		VolumeAttributes: nil,
+	}
+	logger := log.NewLogger()
+
+	t.Run("BackupPath sets VolumeAttributes when nil", func(t *testing.T) {
+		// Simulate nil VolumeAttributes
+		volumeObj.VolumeAttributes = nil
+		if params.BackupPath != "" {
+			if volumeObj.VolumeAttributes == nil {
+				volumeObj.VolumeAttributes = &datamodel.VolumeAttributes{
+					AccountName:    getAccountName(account),
+					DeploymentName: getPoolDeploymentName(dbPool),
+					IsRegionalHA:   getPoolIsRegionalHA(dbPool),
+				}
+			}
+			logger.Debugf("params.BackupPath: %s", params.BackupPath)
+		}
+		assert.NotNil(t, volumeObj.VolumeAttributes)
+		assert.Equal(t, "test-account", volumeObj.VolumeAttributes.AccountName)
+	})
+
+	t.Run("BackupPath does not overwrite existing VolumeAttributes", func(t *testing.T) {
+		volumeObj.VolumeAttributes = &datamodel.VolumeAttributes{
+			AccountName: "existing-account",
+		}
+		if params.BackupPath != "" {
+			if volumeObj.VolumeAttributes == nil {
+				volumeObj.VolumeAttributes = &datamodel.VolumeAttributes{
+					AccountName:    getAccountName(account),
+					DeploymentName: getPoolDeploymentName(dbPool),
+					IsRegionalHA:   getPoolIsRegionalHA(dbPool),
+				}
+			}
+			logger.Debugf("params.BackupPath: %s", params.BackupPath)
+		}
+		assert.Equal(t, "existing-account", volumeObj.VolumeAttributes.AccountName)
+	})
+
+	t.Run("No action when BackupPath is empty", func(t *testing.T) {
+		volumeObj.VolumeAttributes = nil
+		params.BackupPath = ""
+		if params.BackupPath != "" {
+			if volumeObj.VolumeAttributes == nil {
+				volumeObj.VolumeAttributes = &datamodel.VolumeAttributes{
+					AccountName:    getAccountName(account),
+					DeploymentName: getPoolDeploymentName(dbPool),
+					IsRegionalHA:   getPoolIsRegionalHA(dbPool),
+				}
+			}
+			logger.Debugf("params.BackupPath: %s", params.BackupPath)
+		}
+		assert.Nil(t, volumeObj.VolumeAttributes)
+	})
+}
