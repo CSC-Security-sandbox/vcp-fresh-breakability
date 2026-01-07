@@ -23,7 +23,7 @@ spec:
           serviceAccountName: {{ .Values.serviceAccount.name | default "vcp-worker-ksa" }}
           containers:
           - name: cleanup
-            image: "{{ include "secondImageRegistryFullPath" . }}/vcp-worker/kubectl@{{ .Values.configMapCleanup.cronJob.imageSHA | default "latest" }}"
+            image: "{{- include "secondImageRegistryFullPath" . | trim }}/vcp-worker/kubectl@{{ .Values.configMapCleanup.cronJob.imageSHA | default "latest" | trim -}}"
             command:
             - /bin/bash
             - -c
