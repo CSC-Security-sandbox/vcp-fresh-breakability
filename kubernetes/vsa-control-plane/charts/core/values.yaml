@@ -260,6 +260,7 @@ telemetryDeployer:
   enableFilesBackupBilling: false
   enableCrossRegionBackupBillingMetrics: false
   enableReplicationBillingMetrics: false
+  enableFilesReplicationBillingMetrics: false
   enableBatchUsageUpdates: false  # Feature flag for high-performance batch usage updates (PostgreSQL bulk operations)
   resultUpdateBatchSize: 100
   intervalBackfillLimitMinutes: 60

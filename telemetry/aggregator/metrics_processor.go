@@ -556,6 +556,18 @@ func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggreg
 				continue
 			}
 
+			// Check if we need to skip files volumes
+			if !p.config.EnableFilesReplicationBillingMetrics {
+				if volumeReplication.Volume == nil || volumeReplication.Volume.VolumeAttributes == nil || volumeReplication.Volume.VolumeAttributes.Protocols == nil {
+					logger.Warnf("Skipping volume replication %s (%s) due to missing volume or volume attributes", volumeReplication.Name, volumeReplication.UUID)
+					continue
+				}
+				if !slices.Contains(volumeReplication.Volume.VolumeAttributes.Protocols, "ISCSI") {
+					logger.Debugf("Skipping volume replication %s (%s) - volume protocol is not ISCSI (protocols: %v)", volumeReplication.Name, volumeReplication.UUID, volumeReplication.Volume.VolumeAttributes.Protocols)
+					continue
+				}
+			}
+
 			var limitedLabels Labels
 			var volRepInfo *VolumeReplicationInfo
 			if volumeReplication.ReplicationAttributes != nil {

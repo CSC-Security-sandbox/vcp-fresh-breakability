@@ -27,6 +27,7 @@ type TelemetryConfig struct {
 	EnableFilesBackupBilling              bool
 	EnableCrossRegionBackupBillingMetrics bool
 	EnableReplicationBillingMetrics       bool
+	EnableFilesReplicationBillingMetrics  bool
 	SFRMetricsEnabled                     bool
 	PushBatchSize                         int64
 	Environment                           string
@@ -69,6 +70,7 @@ func LoadConfig() *TelemetryConfig {
 	enableBackupBillingMetrics := env.GetBool("ENABLE_BACKUP_BILLING_METRICS", false)
 	enableFilesBackupBilling := env.GetBool("ENABLE_FILES_BACKUP_BILLING", false)
 	enableReplicationBillingMetrics := env.GetBool("ENABLE_REPLICATION_BILLING_METRICS", false)
+	enableFilesReplicationBillingMetrics := env.GetBool("ENABLE_FILES_REPLICATION_BILLING_METRICS", false)
 	sfrMetricsEnabled := env.GetBool("ENABLE_SFR_METRICS", false)
 	enableCrossRegionBackupBillingMetrics := env.GetBool("ENABLE_CROSS_REGION_BACKUP_BILLING_METRICS", false)
 	pushBatchSize := env.GetInt64("PUSH_BATCH_SIZE", 1000)
@@ -104,6 +106,7 @@ func LoadConfig() *TelemetryConfig {
 		EnableFilesBackupBilling:              enableFilesBackupBilling,
 		EnableCrossRegionBackupBillingMetrics: enableCrossRegionBackupBillingMetrics,
 		EnableReplicationBillingMetrics:       enableReplicationBillingMetrics,
+		EnableFilesReplicationBillingMetrics:  enableFilesReplicationBillingMetrics,
 		SFRMetricsEnabled:                     sfrMetricsEnabled,
 		NumWorkersPerformance:                 numWorkersPerformance,
 		NumWorkersUsage:                       numWorkersUsage,

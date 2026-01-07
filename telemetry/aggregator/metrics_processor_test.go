@@ -1497,6 +1497,9 @@ func TestFetchResourceData(t *testing.T) {
 					BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
 					Name:      "vol1",
 					Pool:      &datamodel.Pool{DeploymentName: "dep1"},
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						Protocols: []string{"ISCSI"},
+					},
 				},
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					ReplicationType: "CROSS_REGION_REPLICATION",
@@ -1538,10 +1541,29 @@ func TestFetchResourceData(t *testing.T) {
 					BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
 					Name:      "vol1",
 					Pool:      &datamodel.Pool{DeploymentName: "dep1"},
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						Protocols: []string{"ISCSI"},
+					},
 				},
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					ReplicationType: "CROSS_REGION_REPLICATION",
 					Labels:          &datamodel.JSONB{"key": "value"},
+				},
+				Account: &datamodel.Account{Name: "account1"},
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "vol-rep-uuid-2"},
+				Volume: &datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "vol-uuid-2"},
+					Name:      "vol2",
+					Pool:      &datamodel.Pool{DeploymentName: "dep1"},
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						Protocols: []string{"NFSV3"},
+					},
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					ReplicationType: "CROSS_REGION_REPLICATION",
+					Labels:          &datamodel.JSONB{"key1": "value1"},
 				},
 				Account: &datamodel.Account{Name: "account1"},
 			},
@@ -1579,6 +1601,9 @@ func TestFetchResourceData(t *testing.T) {
 					BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
 					Name:      "vol1",
 					Pool:      &datamodel.Pool{DeploymentName: "dep1"},
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						Protocols: []string{"ISCSI"},
+					},
 				},
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					ReplicationType: "CROSS_REGION_REPLICATION",

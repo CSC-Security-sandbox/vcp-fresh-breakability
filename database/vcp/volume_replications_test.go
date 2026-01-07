@@ -1582,6 +1582,9 @@ func TestListVolumeReplicationsWithPagination(t *testing.T) {
 			Account:   account,
 			Pool:      pool,
 			PoolID:    pool.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"ISCSI"},
+			},
 		}
 		err = store.db.Create(volume).Error()
 		assert.NoError(tt, err, "Failed to create volume")
@@ -1680,6 +1683,9 @@ func TestListVolumeReplicationsWithPagination(t *testing.T) {
 			Account:   account,
 			Pool:      pool,
 			PoolID:    pool.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"ISCSI"},
+			},
 		}
 		err = store.db.Create(volume).Error()
 		assert.NoError(tt, err, "Failed to create volume")
@@ -1741,6 +1747,9 @@ func TestListVolumeReplicationsWithPagination(t *testing.T) {
 			Account:   account,
 			Pool:      pool,
 			PoolID:    pool.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"ISCSI"},
+			},
 		}
 		err = store.db.Create(volume).Error()
 		assert.NoError(tt, err, "Failed to create volume")
@@ -1829,6 +1838,9 @@ func TestListVolumeReplicationsWithPagination(t *testing.T) {
 			Account:   account,
 			Pool:      pool,
 			PoolID:    pool.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"ISCSI"},
+			},
 		}
 		err = store.db.Create(volume).Error()
 		assert.NoError(tt, err, "Failed to create volume")
@@ -1892,6 +1904,9 @@ func TestListVolumeReplicationsWithPagination(t *testing.T) {
 			Account:   account,
 			Pool:      pool,
 			PoolID:    pool.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"NFSv3"},
+			},
 		}
 		err = store.db.Create(volume).Error()
 		assert.NoError(tt, err, "Failed to create volume")
@@ -1989,6 +2004,9 @@ func TestListVolumeReplicationsWithPagination(t *testing.T) {
 			Description: "volume description",
 			State:       "active",
 			SizeInBytes: 500000,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"ISCSI"},
+			},
 		}
 		err = store.db.Create(volume).Error()
 		assert.NoError(tt, err, "Failed to create volume")
