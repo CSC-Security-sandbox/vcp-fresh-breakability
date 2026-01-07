@@ -414,3 +414,7 @@ func (s *PersistenceStore) DeleteAggregatedUsageOlderThan(ctx context.Context, o
 func (s *PersistenceStore) AggregateUsageForBizOps(ctx context.Context, bizopsAggrParams *datamodel.BizOpsAggregateParams) error {
 	return s.dataStore.dataStore.AggregateUsageForBizOps(ctx, bizopsAggrParams)
 }
+
+func (s *PersistenceStore) DeleteJobsOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
+	return s.dataStore.dataStore.DeleteJobsOlderThan(ctx, olderThan)
+}

@@ -159,6 +159,11 @@ func (r *DataStoreRepository) DeleteAggregatedUsageOlderThan(ctx context.Context
 	return result.RowsAffected, result.Error
 }
 
+func (r *DataStoreRepository) DeleteJobsOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
+	result := r.db.GORM().WithContext(ctx).Where("finished_at < ?", olderThan).Delete(&datamodel.Job{})
+	return result.RowsAffected, result.Error
+}
+
 type (
 	Storage interface {
 		Connect(isAdmin bool) error
@@ -194,5 +199,6 @@ type (
 		DeleteAggregatedUsage(ctx context.Context, id int64) error
 		DeleteAggregatedUsageOlderThan(ctx context.Context, olderThan time.Time) (int64, error)
 		AggregateUsageForBizOps(ctx context.Context, bizopsAggrParams *datamodel.BizOpsAggregateParams) error
+		DeleteJobsOlderThan(ctx context.Context, olderThan time.Time) (int64, error)
 	}
 )

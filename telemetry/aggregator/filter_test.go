@@ -84,6 +84,10 @@ func (m *MockMetricsStorage) DeleteAggregatedUsageOlderThan(ctx context.Context,
 	return 0, nil
 }
 
+func (m *MockMetricsStorage) DeleteJobsOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
+	return 0, nil
+}
+
 func (m *MockMetricsStorage) UpdateBillingGcpUsage(ctx context.Context, id int64, updates map[string]interface{}) error {
 	return nil
 }

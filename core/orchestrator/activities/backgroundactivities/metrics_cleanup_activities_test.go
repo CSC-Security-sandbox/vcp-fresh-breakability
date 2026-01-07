@@ -100,3 +100,48 @@ func TestMetricsCleanupActivity_CleanupAggregatedUsageTableActivity_Error(t *tes
 	assert.Equal(t, expectedError, err)
 	mockDB.AssertExpectations(t)
 }
+
+func TestMetricsCleanupActivity_CleanupJobsTableActivity_Success(t *testing.T) {
+	// Setup
+	mockDB := metricsdb.NewMockStorage(t)
+	activity := &MetricsCleanupActivity{MetricsDB: mockDB}
+	ctx := context.Background()
+
+	// Expected cutoff time (approximately 1 day ago)
+	expectedRowsDeleted := int64(50)
+
+	// Mock the delete operation
+	mockDB.On("DeleteJobsOlderThan", mock.Anything, mock.MatchedBy(func(cutoff time.Time) bool {
+		// Verify cutoff is approximately 1 day ago (within 1 minute tolerance)
+		dayAgo := time.Now().AddDate(0, 0, -1)
+		diff := cutoff.Sub(dayAgo).Abs()
+		return diff < time.Minute
+	})).Return(expectedRowsDeleted, nil)
+
+	// Execute
+	err := activity.CleanupJobsTableActivity(ctx)
+
+	// Assert
+	assert.NoError(t, err)
+	mockDB.AssertExpectations(t)
+}
+
+func TestMetricsCleanupActivity_CleanupJobsTableActivity_Error(t *testing.T) {
+	// Setup
+	mockDB := metricsdb.NewMockStorage(t)
+	activity := &MetricsCleanupActivity{MetricsDB: mockDB}
+	ctx := context.Background()
+
+	expectedError := errors.New("database error")
+
+	// Mock the delete operation to return error
+	mockDB.On("DeleteJobsOlderThan", mock.Anything, mock.AnythingOfType("time.Time")).Return(int64(0), expectedError)
+
+	// Execute
+	err := activity.CleanupJobsTableActivity(ctx)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Equal(t, expectedError, err)
+	mockDB.AssertExpectations(t)
+}

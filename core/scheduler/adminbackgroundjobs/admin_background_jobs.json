@@ -39,6 +39,11 @@
     "cronExpression": "0 3 * * *",
     "state": "CREATING"
   },
+  "CLEANUP_JOBS_TABLE": {
+    "jobType": "CLEANUP_JOBS_TABLE",
+    "cronExpression": "0 1 * * *",
+    "state": "CREATING"
+  },
   "SYNC_VSA_AUTO_TIERING": {
     "jobType": "SYNC_VSA_AUTO_TIERING",
     "cronExpression": "*/5 * * * *",

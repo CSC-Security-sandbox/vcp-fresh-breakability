@@ -227,3 +227,19 @@ func (re *retryEngine) AggregateUsageForBizOps(ctx context.Context, bizopsAggrPa
 	})
 	return err
 }
+
+func (re *retryEngine) DeleteJobsOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.DeleteJobsOlderThan(ctx, olderThan)
+		if err != nil {
+			re.logError("DeleteJobsOlderThan", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}

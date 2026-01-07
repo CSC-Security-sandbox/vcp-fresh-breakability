@@ -70,3 +70,31 @@ func (m *MetricsCleanupActivity) CleanupAggregatedUsageTableActivity(ctx context
 	logger.Infof("Number of Aggregated Usage Records Deleted %d and Query execution time: %v", rowsAffected, queryDuration)
 	return nil
 }
+
+// CleanupJobsTableActivity removes jobs records older than 1 day
+func (m *MetricsCleanupActivity) CleanupJobsTableActivity(ctx context.Context) error {
+	logger := util.GetLogger(ctx)
+
+	// Record start time and timestamp
+	startTime := time.Now()
+	logger.Infof("Starting cleanup of jobs table - Start timestamp: %s", startTime.Format("2006-01-02 15:04:05.000 MST"))
+
+	// Calculate cutoff time (1 day ago) and record time range for deletion
+	cutoffTime := time.Now().AddDate(0, 0, -1) // 1 day ago
+	logger.Infof("Cleanup configuration - Deleting records older than: %s", cutoffTime.Format("2006-01-02 15:04:05.000 MST"))
+
+	// Perform deletion
+	queryStartTime := time.Now()
+	logger.Info("Executing DELETE query for jobs table...")
+	rowsAffected, err := m.MetricsDB.DeleteJobsOlderThan(ctx, cutoffTime)
+	queryDuration := time.Since(queryStartTime)
+	if err != nil {
+		logger.Errorf("Failed to perform cleanup of jobs table after %v: %v", queryDuration, err)
+		return err
+	}
+
+	// Log comprehensive cleanup results
+	logger.Infof("Jobs table cleanup completed successfully:")
+	logger.Infof("Number of Jobs Records Deleted %d and Query execution time: %v", rowsAffected, queryDuration)
+	return nil
+}

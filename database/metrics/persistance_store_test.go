@@ -569,6 +569,64 @@ func TestPersistenceStore_AggregatedUsageCRUD(t *testing.T) {
 	_ = ps.Close()
 }
 
+func TestPersistenceStore_DeleteJobsOlderThan(t *testing.T) {
+	logger := log.NewLogger()
+	storage, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+
+	ps := storage.(*PersistenceStore)
+	ctx := context.Background()
+
+	// Create some test jobs with different finished_at timestamps
+	t.Run("delete jobs older than cutoff", func(t *testing.T) {
+		now := time.Now()
+		oldTime := now.AddDate(0, 0, -2)    // 2 days ago
+		newTime := now.Add(-12 * time.Hour) // 12 hours ago
+
+		// Create old job (should be deleted)
+		oldJob := &datamodel.Job{
+			TypeName:   "test-job-old",
+			Status:     "completed",
+			Queue:      "test-queue",
+			FinishedAt: oldTime,
+		}
+		err := ps.DB().WithContext(ctx).Create(oldJob).Error
+		require.NoError(t, err)
+
+		// Create new job (should NOT be deleted)
+		newJob := &datamodel.Job{
+			TypeName:   "test-job-new",
+			Status:     "completed",
+			Queue:      "test-queue",
+			FinishedAt: newTime,
+		}
+		err = ps.DB().WithContext(ctx).Create(newJob).Error
+		require.NoError(t, err)
+
+		// Delete jobs older than 1 day
+		cutoffTime := now.AddDate(0, 0, -1)
+		rowsAffected, err := ps.DeleteJobsOlderThan(ctx, cutoffTime)
+		assert.NoError(t, err)
+		assert.GreaterOrEqual(t, rowsAffected, int64(1)) // At least the old job should be deleted
+
+		// Verify old job is deleted
+		var count int64
+		err = ps.DB().WithContext(ctx).Model(&datamodel.Job{}).Where("id = ?", oldJob.ID).Count(&count).Error
+		assert.NoError(t, err)
+		assert.Equal(t, int64(0), count, "Old job should be deleted")
+
+		// Verify new job still exists
+		err = ps.DB().WithContext(ctx).Model(&datamodel.Job{}).Where("id = ?", newJob.ID).Count(&count).Error
+		assert.NoError(t, err)
+		assert.Equal(t, int64(1), count, "New job should still exist")
+
+		// Cleanup: delete the new job
+		_ = ps.DB().WithContext(ctx).Where("id = ?", newJob.ID).Delete(&datamodel.Job{})
+	})
+
+	_ = ps.Close()
+}
+
 func TestIsDatabaseExistsError(t *testing.T) {
 	tests := []struct {
 		name     string

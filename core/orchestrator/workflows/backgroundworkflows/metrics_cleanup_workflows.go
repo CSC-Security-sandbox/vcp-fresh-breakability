@@ -82,3 +82,41 @@ func CleanupAggregatedUsageTableWorkflow(ctx workflow.Context) error {
 	logger.Info("CleanupAggregatedUsageTableWorkflow completed successfully")
 	return nil
 }
+
+// CleanupJobsTableWorkflow performs cleanup of jobs records older than 1 day
+func CleanupJobsTableWorkflow(ctx workflow.Context) error {
+	logger := workflow.GetLogger(ctx)
+	logger.Info("Starting CleanupJobsTableWorkflow")
+
+	retryPolicy, err := workflows.PopulateRetryPolicyParams()
+	if err != nil {
+		logger.Error("Failed to populate retry policy params", "error", err)
+		return err
+	}
+
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    retryPolicy.StartToCloseTimeout / 2, // For progress reporting
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	// Create activity instance
+	metricsCleanupActivity := &backgroundactivities.MetricsCleanupActivity{}
+
+	// Execute the jobs table cleanup activity
+	err = workflow.ExecuteActivity(ctx, metricsCleanupActivity.CleanupJobsTableActivity).Get(ctx, nil)
+	if err != nil {
+		logger.Error("Failed to execute jobs table cleanup", "error", err)
+		return err
+	}
+
+	logger.Info("CleanupJobsTableWorkflow completed successfully")
+	return nil
+}

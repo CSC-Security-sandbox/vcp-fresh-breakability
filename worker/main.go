@@ -387,6 +387,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(backgroundworkflows.HardDeleteResourcesAndAccountWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.CleanupHydratedMetricsTableWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.CleanupAggregatedUsageTableWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.CleanupJobsTableWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SyncVSAAutoTieringWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SyncPoolZIZSDetailsWorkflow)
 	worker.RegisterWorkflow(workflows.SyncPoolComplianceForPoolWorkflow)

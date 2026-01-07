@@ -55,6 +55,7 @@ func LoadJobSpecs() error {
 	if !env.GetBool("METRICS_DB_CLEANUP_ENABLED", false) {
 		delete(adminJobSpecs, "CLEANUP_HYDRATED_METRICS_TABLE")
 		delete(adminJobSpecs, "CLEANUP_AGGREGATED_USAGE_TABLE")
+		delete(adminJobSpecs, "CLEANUP_JOBS_TABLE")
 	}
 
 	return nil

@@ -82,3 +82,39 @@ func TestCleanupAggregatedUsageTableWorkflow_ActivityFails(t *testing.T) {
 	assert.Error(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
 }
+
+func TestCleanupJobsTableWorkflow_Success(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	// Mock the activity
+	metricsCleanupActivity := &backgroundactivities.MetricsCleanupActivity{}
+	env.OnActivity(metricsCleanupActivity.CleanupJobsTableActivity, mock.Anything).Return(nil).Once()
+
+	// Execute the workflow
+	env.ExecuteWorkflow(CleanupJobsTableWorkflow)
+
+	// Verify
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func TestCleanupJobsTableWorkflow_ActivityFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	// Mock the activity to fail
+	metricsCleanupActivity := &backgroundactivities.MetricsCleanupActivity{}
+	env.OnActivity(metricsCleanupActivity.CleanupJobsTableActivity, mock.Anything).Return(assert.AnError).Once()
+
+	// Execute the workflow
+	env.ExecuteWorkflow(CleanupJobsTableWorkflow)
+
+	// Verify
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
