@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -20,7 +21,6 @@ const (
 	JOB_STATUS_SCHEDULED = "new"
 	JOB_STATUS_FINISHED  = "finished"
 	JOB_STATUS_FAILED    = "failed"
-	MAX_RETRY            = 3
 )
 
 var PollInterval = 1 * time.Second
@@ -252,13 +252,14 @@ func (j *JobQueue) Dequeue(ctx context.Context, queues []string) error {
 		return err
 	}
 
+	maxRetry := env.GetInt64("MAX_GOOGLE_BILLING_PUSH_RETRY", 5)
 	row := tx.QueryRowContext(
 		ctx,
 		sqlStmt,
 		JOB_STATUS_FINISHED,
 		JOB_STATUS_SCHEDULED,
 		JOB_STATUS_FAILED,
-		MAX_RETRY,
+		int(maxRetry),
 		queueArray,
 		typesArray,
 	)

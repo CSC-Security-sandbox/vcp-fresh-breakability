@@ -90,7 +90,7 @@ func (s *GoogleUsageSink) initializeTableName() {
 	s.logger.Debugf("Initialized AggregatedUsage table name: %s", s.aggregatedUsageTable)
 }
 
-func (s *GoogleUsageSink) DeliverMetrics(ctx context.Context, aggregatedRecords []datamodel.AggregatedUsage) (count int, err error) {
+func (s *GoogleUsageSink) DeliverMetrics(ctx context.Context, aggregatedRecords []datamodel.AggregatedUsage) (failedCount int, err error) {
 	s.logger.Debugf("MapAggregatedRecordsToBilling: Received Number of records to map", "Number of records:", len(aggregatedRecords))
 	validUsage, err := s.filterValidUsage(aggregatedRecords)
 	if err != nil {
@@ -101,8 +101,9 @@ func (s *GoogleUsageSink) DeliverMetrics(ctx context.Context, aggregatedRecords 
 			"Dropped Records", len(aggregatedRecords)-len(validUsage))
 	}
 	googleMetrics := s.completeRecords(validUsage)
-	s.processGcpUnifiedMetrics(ctx, googleMetrics)
-	return len(validUsage), nil
+	var failed int
+	s.processGcpUnifiedMetrics(ctx, googleMetrics, &failed)
+	return failed, nil
 }
 
 func (s *GoogleUsageSink) completeRecords(records []datamodel.AggregatedUsage) []common.GoogleMetric {
@@ -165,33 +166,38 @@ func (s *GoogleUsageSink) isValid(usage datamodel.AggregatedUsage) bool {
 	return true
 }
 
-func (s *GoogleUsageSink) processGcpUnifiedMetrics(ctx context.Context, googleMetrics []common.GoogleMetric) {
+func (s *GoogleUsageSink) processGcpUnifiedMetrics(ctx context.Context, googleMetrics []common.GoogleMetric, failedCount *int) {
 	if len(googleMetrics) == 0 {
 		s.logger.Info("No Google usage metrics processed in this run.")
+		*failedCount = 0
 		return
 	}
 
-	s.push(ctx, googleMetrics)
+	s.push(ctx, googleMetrics, failedCount)
 }
 
-func (s *GoogleUsageSink) push(ctx context.Context, googleMetrics []common.GoogleMetric) {
+func (s *GoogleUsageSink) push(ctx context.Context, googleMetrics []common.GoogleMetric, failedCount *int) {
+	if len(googleMetrics) == 0 {
+		s.logger.Warn("Google first party billing metrics not found, hence not reporting anything.")
+		*failedCount = 0
+		return
+	}
+
 	wg := sync.WaitGroup{}
 	fpResultChan := make(chan []common.MetricsResult)
-	if len(googleMetrics) > 0 {
-		wg.Add(3)
-		go func() {
-			defer wg.Done()
-			s.logger.Debugf("Reporting First Party Google Billing Metrics", "Google Metric First Party list count: ", len(googleMetrics))
-			go s.metricClient.ReportMetrics(ctx, googleMetrics, time.Now().Unix(), time.Now().Unix(), &wg, fpResultChan)
-			go s.processResponse(ctx, &wg, fpResultChan)
-		}()
-	} else {
-		s.logger.Warn("Google first party billing metrics not found, hence not reporting anything.")
-	}
+
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		s.logger.Debugf("Reporting First Party Google Billing Metrics", "Google Metric First Party list count: ", len(googleMetrics))
+		go s.metricClient.ReportMetrics(ctx, googleMetrics, time.Now().Unix(), time.Now().Unix(), &wg, fpResultChan)
+		go s.processResponse(ctx, &wg, fpResultChan, failedCount)
+	}()
+
 	wg.Wait()
 }
 
-func (s *GoogleUsageSink) processResponse(ctx context.Context, wg *sync.WaitGroup, resultChan chan []common.MetricsResult) {
+func (s *GoogleUsageSink) processResponse(ctx context.Context, wg *sync.WaitGroup, resultChan chan []common.MetricsResult, failedCount *int) {
 	defer wg.Done()
 
 	// Extract correlation ID from context for logging
@@ -205,24 +211,40 @@ func (s *GoogleUsageSink) processResponse(ctx context.Context, wg *sync.WaitGrou
 
 	logger.Infof("Processing usage metrics results with correlation ID: %s", correlationID)
 
+	totalFailedCount := 0
 	for result := range resultChan {
-		s.processMetricsResults(ctx, result)
+		var batchFailedCount int
+		s.processMetricsResults(ctx, result, &batchFailedCount)
+		totalFailedCount += batchFailedCount
 	}
 
 	logger.Info("Finished processing Google Usage Metrics Results")
+
+	// Set failed count if pointer was provided
+	if failedCount != nil {
+		*failedCount = totalFailedCount
+	}
 }
 
-func (s *GoogleUsageSink) processMetricsResults(ctx context.Context, gcpResults []common.MetricsResult) {
+func (s *GoogleUsageSink) processMetricsResults(ctx context.Context, gcpResults []common.MetricsResult, failedCount *int) {
 	goodResults, errorResults, exceptionResults := common.FilterErrorResults(gcpResults)
 
 	s.logger.Infof("%d metrics were successfully reported.", len(goodResults))
 	s.logger.Infof("%d metrics were not reported.", len(errorResults)+len(exceptionResults))
+
+	// Count failed records (both errors and exceptions)
+	failedRecordsCount := len(errorResults) + len(exceptionResults)
 
 	// Check feature flag to determine update strategy
 	if s.config.EnableBatchUsageUpdates {
 		s.processMetricsResultsBatch(ctx, gcpResults)
 	} else {
 		s.processMetricsResultsSingle(ctx, gcpResults)
+	}
+
+	// Set failed count if pointer is provided
+	if failedCount != nil {
+		*failedCount = failedRecordsCount
 	}
 }
 

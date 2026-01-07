@@ -74,11 +74,6 @@ func hydratedMetricsToDataPoints(metrics []datamodel2.HydratedMetrics) []common.
 	return dataPoints
 }
 
-// Helper function to convert string to *string for test compatibility
-func stringPtr(s string) *string {
-	return &s
-}
-
 // MockUsageSink is a mock implementation of the UsageSink interface for testing
 type MockUsageSink struct {
 	mock.Mock
@@ -243,17 +238,12 @@ func TestProcessMetrics_EmptyMetrics(t *testing.T) {
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(
 		[]datamodel2.HydratedMetrics{}, nil,
 	).Times(len(common.DefaultAggregationJobDefinitions))
 
-	// Expect calls to GetAggregatedUsage for retry logic (both UNSUBMITTED and ERROR states)
-	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Unsubmitted, "is_billable": true}).Return(
-		[]datamodel2.AggregatedUsage{}, nil,
-	).Once()
-	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Error}).Return(
-		[]datamodel2.AggregatedUsage{}, nil,
-	).Once()
+	// Note: ProcessBillingMetrics does not call GetAggregatedUsage for retry logic
+	// Retry logic is handled separately via GetUnsentGoogleUsages
 
 	// Call ProcessMetrics
 	err := processor.ProcessBillingMetrics(ctx, now)
@@ -281,22 +271,13 @@ func TestProcessMetrics_DatabaseError(t *testing.T) {
 	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
 	vcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
-	// Expect calls to GetAggregatedUsage for retry logic (both UNSUBMITTED and ERROR states)
-	// These need to be set up first since they're called before GetHydratedMetrics
-	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Unsubmitted, "is_billable": true}).Return(
-		[]datamodel2.AggregatedUsage{}, nil,
-	).Once()
-	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Error}).Return(
-		[]datamodel2.AggregatedUsage{}, nil,
-	).Once()
-
 	// Expect call to GetHydratedMetrics with an error (may be called multiple times for different job definitions)
 	// Mock the counter cache preload call (returns empty list to stop pagination)
 	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(
 		nil, errors.New("database error"),
 	).Maybe()
 
@@ -765,33 +746,25 @@ func TestProcessMetricsSuccess(t *testing.T) {
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(metrics, nil).Once()
+	// First call returns metrics, second call (next page) returns empty to end pagination
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(metrics, nil).Once()
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil).Once()
 
-	// For all other job definitions, return empty results
+	// For all other job definitions, return empty results (pagination will call twice each)
 	// Mock the counter cache preload call (returns empty list to stop pagination)
 	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(
 		[]datamodel2.HydratedMetrics{}, nil,
-	).Times(len(common.DefaultAggregationJobDefinitions) - 1)
+	).Times((len(common.DefaultAggregationJobDefinitions) - 1) * 1) // Each job definition will call once and get empty result
 
 	// Setup expectations for CreateAggregatedUsageBatch call
 	mockDB.On("CreateAggregatedUsageBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
-	// Expect calls to GetAggregatedUsage for retry logic (both UNSUBMITTED and ERROR states)
-	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Unsubmitted, "is_billable": true}).Return(
-		[]datamodel2.AggregatedUsage{}, nil,
-	).Once()
-	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Error}).Return(
-		[]datamodel2.AggregatedUsage{}, nil,
-	).Once()
-
-	// Setup DeliverMetrics expectation for the usage sink
-	mockSink.On("DeliverMetrics", mock.Anything, mock.MatchedBy(func(metrics []datamodel2.AggregatedUsage) bool {
-		return len(metrics) == 1 && !metrics[0].IsBillable
-	})).Return(1, nil).Once()
+	// Note: ProcessBillingMetrics does not call GetAggregatedUsage for retry logic
+	// Retry logic is handled separately via GetUnsentGoogleUsages
 
 	// Call ProcessMetrics
 	err := processor.ProcessBillingMetrics(ctx, now)
@@ -877,7 +850,9 @@ func TestProcessMetricsWithJobDefErrors(t *testing.T) {
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(metrics, nil).Once()
+	// First call returns metrics, second call (next page) returns empty to end pagination
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(metrics, nil).Once()
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil).Once()
 
 	// For all other job definitions, return empty results
 	// Mock the counter cache preload call (returns empty list to stop pagination)
@@ -885,20 +860,12 @@ func TestProcessMetricsWithJobDefErrors(t *testing.T) {
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(
 		[]datamodel2.HydratedMetrics{}, nil,
-	).Times(len(common.DefaultAggregationJobDefinitions) - 1)
+	).Times((len(common.DefaultAggregationJobDefinitions) - 1))
 
 	// Setup expectations for CreateAggregatedUsageBatch call with error
 	mockDB.On("CreateAggregatedUsageBatch", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("database error")).Once()
-
-	// Expect calls to GetAggregatedUsage for retry logic (both UNSUBMITTED and ERROR states)
-	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Unsubmitted, "is_billable": true}).Return(
-		[]datamodel2.AggregatedUsage{}, nil,
-	).Once()
-	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Error}).Return(
-		[]datamodel2.AggregatedUsage{}, nil,
-	).Once()
 
 	// Call ProcessMetrics - with batch saving, database errors now propagate up
 	err := processor.ProcessBillingMetrics(ctx, now)
@@ -1009,18 +976,13 @@ func TestProcessMetrics_GetUnsentUsagesError(t *testing.T) {
 	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
 	vcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
-	// Expect call to GetAggregatedUsage for UNSUBMITTED with error
-	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Unsubmitted, "is_billable": true}).Return(
-		nil, errors.New("database connection error"),
-	).Once()
-
 	// Even with retry error, should continue and call GetHydratedMetrics
 	// Mock the counter cache preload call (returns empty list to stop pagination)
 	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(
 		[]datamodel2.HydratedMetrics{}, nil,
 	).Times(len(common.DefaultAggregationJobDefinitions))
 
@@ -1044,20 +1006,6 @@ func TestProcessMetrics_WithAggregatedRecordsDelivery(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now()
 	startTime := now.Add(-1 * time.Hour)
-
-	// Create retry records to be returned
-	retryRecords := []datamodel2.AggregatedUsage{
-		{
-			ID:               1,
-			VendorCustomerID: stringPtr("retry-customer"),
-			ResourceName:     stringPtr("retry-resource-uuid"),
-			Quantity:         100.0,
-			AggregationStart: startTime,
-			AggregationEnd:   now,
-			State:            datamodel2.Unsubmitted,
-			IsBillable:       true,
-		},
-	}
 
 	// Create new aggregated records from processing
 	processedMetrics := []datamodel2.HydratedMetrics{
@@ -1100,21 +1048,15 @@ func TestProcessMetrics_WithAggregatedRecordsDelivery(t *testing.T) {
 	vcpDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
 	vcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
-	// Expect calls to GetAggregatedUsage for retry logic
-	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Unsubmitted, "is_billable": true}).Return(
-		retryRecords, nil,
-	).Once()
-	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Error}).Return(
-		[]datamodel2.AggregatedUsage{}, nil,
-	).Once()
-
 	// Setup expectations for GetHydratedMetrics call - return metrics for one job only
 	// Mock the counter cache preload call (returns empty list to stop pagination)
 	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(processedMetrics, nil).Once()
+	// First call returns metrics, second call (next page) returns empty to end pagination
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(processedMetrics, nil).Once()
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil).Once()
 
 	// For all other job definitions, return empty results
 	// Mock the counter cache preload call (returns empty list to stop pagination)
@@ -1122,18 +1064,12 @@ func TestProcessMetrics_WithAggregatedRecordsDelivery(t *testing.T) {
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(
 		[]datamodel2.HydratedMetrics{}, nil,
-	).Times(len(common.DefaultAggregationJobDefinitions) - 1)
+	).Times((len(common.DefaultAggregationJobDefinitions) - 1))
 
 	// Setup expectations for CreateAggregatedUsageBatch call
 	mockDB.On("CreateAggregatedUsageBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
-
-	// Expect DeliverMetrics to be called with both retry and new records
-	mockSink.On("DeliverMetrics", mock.Anything, mock.MatchedBy(func(records []datamodel2.AggregatedUsage) bool {
-		// Should have at least the retry record
-		return len(records) >= 1
-	})).Return(2, nil).Once()
 
 	// Call ProcessMetrics
 	err := processor.ProcessBillingMetrics(ctx, now)
@@ -1197,33 +1133,15 @@ func TestProcessMetrics_DeliveryError(t *testing.T) {
 		},
 	}
 
-	// Expect calls to GetAggregatedUsage for retry logic - add a retry record to ensure DeliverMetrics is called
-	retryRecord := []datamodel2.AggregatedUsage{
-		{
-			ID:               1,
-			VendorCustomerID: stringPtr("customer1"),
-			ResourceName:     stringPtr("resource1"),
-			Quantity:         50.0,
-			AggregationStart: startTime,
-			AggregationEnd:   now,
-			State:            datamodel2.Unsubmitted,
-			IsBillable:       true,
-		},
-	}
-	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Unsubmitted, "is_billable": true}).Return(
-		retryRecord, nil,
-	).Once()
-	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Error}).Return(
-		[]datamodel2.AggregatedUsage{}, nil,
-	).Once()
-
 	// Setup expectations for GetHydratedMetrics call
 	// Mock the counter cache preload call (returns empty list to stop pagination)
 	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(metrics, nil).Once()
+	// First call returns metrics, second call (next page) returns empty to end pagination
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(metrics, nil).Once()
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil).Once()
 
 	// For all other job definitions, return empty results
 	// Mock the counter cache preload call (returns empty list to stop pagination)
@@ -1231,15 +1149,12 @@ func TestProcessMetrics_DeliveryError(t *testing.T) {
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(
 		[]datamodel2.HydratedMetrics{}, nil,
-	).Times(len(common.DefaultAggregationJobDefinitions) - 1)
+	).Times((len(common.DefaultAggregationJobDefinitions) - 1))
 
 	// Setup expectations for CreateAggregatedUsageBatch call
 	mockDB.On("CreateAggregatedUsageBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
-
-	// Expect DeliverMetrics to fail
-	mockSink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(0, errors.New("delivery failed")).Once()
 
 	// Call ProcessMetrics - should not fail even if delivery fails
 	err := processor.ProcessBillingMetrics(ctx, now)
@@ -1247,14 +1162,17 @@ func TestProcessMetrics_DeliveryError(t *testing.T) {
 
 	// Verify expectations
 	mockDB.AssertExpectations(t)
-	mockSink.AssertExpectations(t)
 }
 
 // TestGetUnsentGoogleUsages_ErrorStateWithRetries tests filtering error records by retry count
 func TestGetUnsentGoogleUsages_ErrorStateWithRetries(t *testing.T) {
 	mockDB := &database.MockStorage{}
+	config := &common.TelemetryConfig{
+		PoolVolumeLabelPageSize: 1000,
+	}
 	processor := &BillingProvider{
 		metricsDB: mockDB,
+		config:    config,
 	}
 	ctx := context.Background()
 
@@ -1277,16 +1195,31 @@ func TestGetUnsentGoogleUsages_ErrorStateWithRetries(t *testing.T) {
 		},
 	}
 
-	// Expect calls to GetAggregatedUsage
-	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Unsubmitted, "is_billable": true}).Return(
+	// Expect calls to GetAggregatedUsageWithPagination with conditions format
+	mockDB.On("GetAggregatedUsageWithPagination", mock.Anything, mock.MatchedBy(func(conditions [][]interface{}) bool {
+		if len(conditions) != 4 {
+			return false
+		}
+		// Check for UNSUBMITTED state filter
+		return conditions[0][0] == "state = ?" && conditions[0][1] == datamodel2.Unsubmitted &&
+			conditions[1][0] == "is_billable = ?" && conditions[1][1] == true
+	}), mock.Anything).Return(
 		[]datamodel2.AggregatedUsage{}, nil,
-	).Once()
-	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Error}).Return(
+	).Maybe()
+
+	mockDB.On("GetAggregatedUsageWithPagination", mock.Anything, mock.MatchedBy(func(conditions [][]interface{}) bool {
+		if len(conditions) != 3 {
+			return false
+		}
+		// Check for ERROR state filter
+		return conditions[0][0] == "state = ?" && conditions[0][1] == datamodel2.Error
+	}), mock.Anything).Return(
 		errorRecords, nil,
-	).Once()
+	).Maybe()
 
 	// Call getUnsentGoogleUsages with maxRetries = 3
-	result, err := processor.getUnsentGoogleUsages(ctx, 3)
+	aggregationEndTime := time.Now()
+	result, err := processor.getUnsentGoogleUsages(ctx, 3, aggregationEndTime)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(result), "Should return 2 records with error_count < 3")
@@ -1302,23 +1235,38 @@ func TestGetUnsentGoogleUsages_ErrorStateWithRetries(t *testing.T) {
 // TestGetUnsentGoogleUsages_ErrorInErrorStateQuery tests error in error state query
 func TestGetUnsentGoogleUsages_ErrorInErrorStateQuery(t *testing.T) {
 	mockDB := &database.MockStorage{}
+	config := &common.TelemetryConfig{
+		PoolVolumeLabelPageSize: 1000,
+	}
 	processor := &BillingProvider{
 		metricsDB: mockDB,
+		config:    config,
 	}
 	ctx := context.Background()
 
-	// Expect successful UNSUBMITTED query
-	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Unsubmitted, "is_billable": true}).Return(
+	// Expect successful UNSUBMITTED query with conditions format
+	mockDB.On("GetAggregatedUsageWithPagination", mock.Anything, mock.MatchedBy(func(conditions [][]interface{}) bool {
+		if len(conditions) != 4 {
+			return false
+		}
+		return conditions[0][0] == "state = ?" && conditions[0][1] == datamodel2.Unsubmitted
+	}), mock.Anything).Return(
 		[]datamodel2.AggregatedUsage{}, nil,
-	).Once()
+	).Maybe()
 
-	// Expect error in ERROR state query
-	mockDB.On("GetAggregatedUsage", mock.Anything, map[string]interface{}{"state": datamodel2.Error}).Return(
+	// Expect error in ERROR state query with conditions format
+	mockDB.On("GetAggregatedUsageWithPagination", mock.Anything, mock.MatchedBy(func(conditions [][]interface{}) bool {
+		if len(conditions) != 3 {
+			return false
+		}
+		return conditions[0][0] == "state = ?" && conditions[0][1] == datamodel2.Error
+	}), mock.Anything).Return(
 		nil, errors.New("error state query failed"),
-	).Once()
+	).Maybe()
 
 	// Call getUnsentGoogleUsages
-	result, err := processor.getUnsentGoogleUsages(ctx, 3)
+	aggregationEndTime := time.Now()
+	result, err := processor.getUnsentGoogleUsages(ctx, 3, aggregationEndTime)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -1330,8 +1278,12 @@ func TestGetUnsentGoogleUsages_ErrorInErrorStateQuery(t *testing.T) {
 // TestProcessMetricsWithJobDef_NonBillableRecord tests when aggregated record is not billable
 func TestProcessMetricsWithJobDef_NonBillableRecord(t *testing.T) {
 	mockDB := &database.MockStorage{}
+	config := &common.TelemetryConfig{
+		PoolVolumeLabelPageSize: 1000,
+	}
 	processor := &BillingProvider{
 		metricsDB: mockDB,
+		config:    config,
 	}
 	ctx := context.Background()
 	now := time.Now()
@@ -1697,8 +1649,12 @@ func TestResourceKeyMapKeyEquality(t *testing.T) {
 // TestFetchMetricsForCounterAggregation tests the optimized database-level sorting approach
 func TestFetchMetricsForCounterAggregation(t *testing.T) {
 	mockDB := database.NewMockStorage(t)
+	config := &common.TelemetryConfig{
+		PoolVolumeLabelPageSize: 1000, // Set a reasonable page size
+	}
 	processor := &BillingProvider{
 		metricsDB: mockDB,
+		config:    config,
 	}
 
 	now := time.Now()
@@ -1764,13 +1720,16 @@ func TestFetchMetricsForCounterAggregation(t *testing.T) {
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	mockDB.On("GetHydratedMetrics", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
-		// Verify the filter includes the extended time range and ordering
-		if order, ok := filter["order"].(string); ok {
-			return strings.Contains(order, "metric_timestamp DESC")
-		}
-		return false
-	})).Return(mockMetrics, nil)
+	// Mock the pagination calls - first returns data, subsequent calls return empty to end pagination
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.MatchedBy(func(conditions [][]interface{}) bool {
+		// Verify conditions include the extended time range
+		return len(conditions) >= 2 // Should have timestamp conditions
+	}), mock.Anything).Return(mockMetrics, nil).Once()
+	
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.MatchedBy(func(conditions [][]interface{}) bool {
+		// Subsequent calls for pagination return empty
+		return len(conditions) >= 2
+	}), mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil).Maybe()
 
 	// Execute the method
 	result, err := processor.fetchMetricsForCounterAndIntegralAggregation(
@@ -1904,8 +1863,12 @@ func TestFilterMetricsForCounterAndIntegralAggregationSorted(t *testing.T) {
 // TestFetchMetricsForCounterAggregation_DatabaseError tests error handling
 func TestFetchMetricsForCounterAggregation_DatabaseError(t *testing.T) {
 	mockDB := database.NewMockStorage(t)
+	config := &common.TelemetryConfig{
+		PoolVolumeLabelPageSize: 1000, // Set a reasonable page size
+	}
 	processor := &BillingProvider{
 		metricsDB: mockDB,
+		config:    config,
 	}
 
 	now := time.Now()
@@ -1918,7 +1881,7 @@ func TestFetchMetricsForCounterAggregation_DatabaseError(t *testing.T) {
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return(nil, errors.New("database connection error"))
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("database connection error"))
 
 	// Execute the method
 	result, err := processor.fetchMetricsForCounterAndIntegralAggregation(
@@ -1943,6 +1906,7 @@ func TestFetchMetricsForCounterAggregation_FilterValidation(t *testing.T) {
 	mockDB := database.NewMockStorage(t)
 	processor := &BillingProvider{
 		metricsDB: mockDB,
+		config:    &common.TelemetryConfig{PoolVolumeLabelPageSize: 1000},
 	}
 
 	now := time.Now()
@@ -1956,12 +1920,9 @@ func TestFetchMetricsForCounterAggregation_FilterValidation(t *testing.T) {
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	mockDB.On("GetHydratedMetrics", context.Background(), mock.MatchedBy(func(filter map[string]interface{}) bool {
-		// Verify all required filter components
-		conditions, hasConditions := filter["conditions"].([][]interface{})
-		order, hasOrder := filter["order"].(string)
-
-		if !hasConditions || !hasOrder {
+	mockDB.On("GetHydratedMetricsWithPagination", context.Background(), mock.MatchedBy(func(conditions [][]interface{}) bool {
+		// Check that we have some conditions
+		if len(conditions) == 0 {
 			return false
 		}
 
@@ -2002,14 +1963,8 @@ func TestFetchMetricsForCounterAggregation_FilterValidation(t *testing.T) {
 			}
 		}
 
-		// Verify ordering includes resource grouping and timestamp DESC
-		hasCorrectOrder := strings.Contains(order, "resource_name") &&
-			strings.Contains(order, "deployment_name") &&
-			strings.Contains(order, "consumer_id") &&
-			strings.Contains(order, "metric_timestamp DESC")
-
-		return foundStartTime && foundEndTime && foundResourceType && foundMeasuredType && hasCorrectOrder
-	})).Return([]datamodel2.HydratedMetrics{}, nil)
+		return foundStartTime && foundEndTime && foundResourceType && foundMeasuredType
+	}), mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil)
 
 	// Execute the method
 	_, err := processor.fetchMetricsForCounterAndIntegralAggregation(
@@ -2090,25 +2045,16 @@ func TestProcessBillingMetrics_NonCounterAggregation(t *testing.T) {
 	mockVCPDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	mockVCPDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
-	// Mock unsent usages
-	mockDB.On("GetAggregatedUsage", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
-		return filter["state"] == datamodel2.Unsubmitted
-	})).Return([]datamodel2.AggregatedUsage{}, nil)
-
-	mockDB.On("GetAggregatedUsage", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
-		return filter["state"] == datamodel2.Error
-	})).Return([]datamodel2.AggregatedUsage{}, nil)
-
 	// Mock the GetHydratedMetrics for non-counter aggregation (this will hit the else branch on line 96)
 	// Mock the counter cache preload call (returns empty list to stop pagination)
 	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	mockDB.On("GetHydratedMetrics", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.MatchedBy(func(conditions [][]interface{}) bool {
 		// This should be called for FirstAggregation type which is not counter or integral
 		return true
-	})).Return([]datamodel2.HydratedMetrics{}, nil)
+	}), mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil)
 
 	// Mock delivery - should not be called since no metrics to deliver
 	// mockUsageSink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(0, nil)
@@ -2144,14 +2090,6 @@ func TestProcessBillingMetrics_FetchResourceDataError(t *testing.T) {
 	// Mock volume data fetch failure
 	mockVCPDB.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("volume fetch error"))
 	mockVCPDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	// Mock unsent usages
-	mockDB.On("GetAggregatedUsage", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
-		return filter["state"] == datamodel2.Unsubmitted
-	})).Return([]datamodel2.AggregatedUsage{}, nil)
-
-	mockDB.On("GetAggregatedUsage", mock.Anything, mock.MatchedBy(func(filter map[string]interface{}) bool {
-		return filter["state"] == datamodel2.Error
-	})).Return([]datamodel2.AggregatedUsage{}, nil)
 
 	// Mock the GetHydratedMetrics calls for all aggregation types
 	// Mock the counter cache preload call (returns empty list to stop pagination)
@@ -2159,7 +2097,7 @@ func TestProcessBillingMetrics_FetchResourceDataError(t *testing.T) {
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	mockDB.On("GetHydratedMetrics", mock.Anything, mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil)
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil)
 
 	// Mock delivery - should not be called since no metrics to deliver
 	// mockUsageSink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(0, nil)

@@ -59,6 +59,22 @@ func (re *retryEngine) GetHydratedMetrics(ctx context.Context, filter map[string
 	return var0, err
 }
 
+func (re *retryEngine) GetHydratedMetricsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]datamodel.HydratedMetrics, error) {
+	var var0 []datamodel.HydratedMetrics
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetHydratedMetricsWithPagination(ctx, conditions, pagination)
+		if err != nil {
+			re.logError("GetHydratedMetricsWithPagination", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) UpdateHydratedMetrics(ctx context.Context, id string, updates map[string]interface{}) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
@@ -158,6 +174,22 @@ func (re *retryEngine) GetLatestAggregatedUsageForAllResources(ctx context.Conte
 		var0, err = re.dataStore.GetLatestAggregatedUsageForAllResources(ctx, aggregationType, limit, offset)
 		if err != nil {
 			re.logError("GetLatestAggregatedUsageForAllResources", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetAggregatedUsageWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]datamodel.AggregatedUsage, error) {
+	var var0 []datamodel.AggregatedUsage
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetAggregatedUsageWithPagination(ctx, conditions, pagination)
+		if err != nil {
+			re.logError("GetAggregatedUsageWithPagination", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

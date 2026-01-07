@@ -129,7 +129,7 @@ func (mq *MockJobQueue) Dequeue(ctx context.Context, queues []string) error {
 
 	// Status condition
 	whereConditions = append(whereConditions, "(status = ? OR (status = ? AND attempt < ?))")
-	args = append(args, JOB_STATUS_SCHEDULED, JOB_STATUS_FAILED, MAX_RETRY)
+	args = append(args, JOB_STATUS_SCHEDULED, JOB_STATUS_FAILED, 5) // Default max retry value
 
 	// Queue condition
 	if len(queues) > 0 {
@@ -506,8 +506,8 @@ func TestJobQueue_Dequeue_RetryLogic(t *testing.T) {
 	err := queue.Enqueue(ctx, job, "test_queue")
 	require.NoError(t, err)
 
-	// Process the job multiple times (it should retry up to MAX_RETRY times)
-	for i := 0; i < MAX_RETRY; i++ {
+	// Process the job multiple times (it should retry up to 5 times - default max retry)
+	for i := 0; i < 5; i++ {
 		err = queue.Dequeue(ctx, []string{"test_queue"})
 		assert.NoError(t, err)
 	}
@@ -516,7 +516,7 @@ func TestJobQueue_Dequeue_RetryLogic(t *testing.T) {
 	var attempt int32
 	err = db.QueryRow("SELECT attempt FROM jobs WHERE queue = ?", "test_queue").Scan(&attempt)
 	assert.NoError(t, err)
-	assert.Equal(t, int32(MAX_RETRY), attempt)
+	assert.Equal(t, int32(5), attempt) // Default max retry value
 
 	// Try one more time - should not process as max retries reached
 	err = queue.Dequeue(ctx, []string{"test_queue"})
@@ -525,7 +525,7 @@ func TestJobQueue_Dequeue_RetryLogic(t *testing.T) {
 	// Verify attempt count didn't increase
 	err = db.QueryRow("SELECT attempt FROM jobs WHERE queue = ?", "test_queue").Scan(&attempt)
 	assert.NoError(t, err)
-	assert.Equal(t, int32(MAX_RETRY), attempt)
+	assert.Equal(t, int32(5), attempt) // Default max retry value
 }
 
 func TestJobQueue_Worker(t *testing.T) {
@@ -822,7 +822,6 @@ func TestJobQueue_Constants(t *testing.T) {
 	assert.Equal(t, "new", JOB_STATUS_SCHEDULED)
 	assert.Equal(t, "finished", JOB_STATUS_FINISHED)
 	assert.Equal(t, "failed", JOB_STATUS_FAILED)
-	assert.Equal(t, 3, MAX_RETRY)
 	assert.Equal(t, "jobs", JobsTableName)
 }
 
@@ -1153,7 +1152,6 @@ func TestJobQueue_Constants_Values(t *testing.T) {
 	assert.Equal(t, "new", JOB_STATUS_SCHEDULED)
 	assert.Equal(t, "finished", JOB_STATUS_FINISHED)
 	assert.Equal(t, "failed", JOB_STATUS_FAILED)
-	assert.Equal(t, 3, MAX_RETRY)
 	assert.Equal(t, "jobs", JobsTableName)
 
 	// Test that PollInterval has a reasonable default

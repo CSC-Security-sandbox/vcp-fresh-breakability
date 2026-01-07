@@ -79,6 +79,22 @@ func (r *DataStoreRepository) GetHydratedMetrics(ctx context.Context, filter map
 	return result, err
 }
 
+func (r *DataStoreRepository) GetHydratedMetricsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]datamodel.HydratedMetrics, error) {
+	return r.getHydratedMetricsWithPagination(r.db.ApplyFilter(conditions).GORM().WithContext(ctx), pagination)
+}
+
+func (r *DataStoreRepository) getHydratedMetricsWithPagination(db *gorm.DB, pagination *dbutils.Pagination) ([]datamodel.HydratedMetrics, error) {
+	var result []datamodel.HydratedMetrics
+
+	// Apply pagination using the dbutils.Paginate scope
+	err := db.Scopes(dbutils.Paginate(pagination)).Find(&result).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 func (r *DataStoreRepository) UpdateHydratedMetrics(ctx context.Context, id string, updates map[string]interface{}) error {
 	return r.db.GORM().WithContext(ctx).Model(&datamodel.HydratedMetrics{}).Where("id = ?", id).Updates(updates).Error
 }
@@ -109,11 +125,48 @@ func (r *DataStoreRepository) CreateAggregatedUsageBatch(ctx context.Context, us
 
 func (r *DataStoreRepository) GetAggregatedUsage(ctx context.Context, filter map[string]interface{}) ([]datamodel.AggregatedUsage, error) {
 	var result []datamodel.AggregatedUsage
-	tx := r.db.GORM().WithContext(ctx)
+	db := r.db.GORM().WithContext(ctx)
+
 	if len(filter) > 0 {
-		tx = tx.Where(filter)
+		// Check if we have complex conditions
+		if conditions, ok := filter["conditions"]; ok {
+			// Process each condition
+			if condArr, ok := conditions.([][]interface{}); ok {
+				for _, condition := range condArr {
+					if len(condition) > 0 {
+						// Apply each condition to the query
+						db = db.Where(condition[0], condition[1:]...)
+					}
+				}
+			}
+			// Remove the conditions key from filter
+			delete(filter, "conditions")
+		}
+
+		// Handle ordering if present
+		if order, ok := filter["order"]; ok {
+			if orderStr, ok := order.(string); ok && orderStr != "" {
+				db = db.Order(orderStr)
+			}
+			// Remove the order key from filter
+			delete(filter, "order")
+		}
+
+		// Handle limit if present
+		if limit, ok := filter["limit"]; ok {
+			if limitVal, ok := limit.(int); ok && limitVal > 0 {
+				db = db.Limit(limitVal)
+			}
+			// Remove the limit key from filter
+			delete(filter, "limit")
+		}
+
+		// Apply any remaining simple filters
+		if len(filter) > 0 {
+			db = db.Where(filter)
+		}
 	}
-	err := tx.Find(&result).Error
+	err := db.Find(&result).Error
 	return result, err
 }
 
@@ -164,6 +217,23 @@ func (r *DataStoreRepository) DeleteJobsOlderThan(ctx context.Context, olderThan
 	return result.RowsAffected, result.Error
 }
 
+// GetAggregatedUsageWithPagination retrieves aggregated usage with dedicated pagination support
+func (r *DataStoreRepository) GetAggregatedUsageWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]datamodel.AggregatedUsage, error) {
+	return r.getAggregatedUsageWithPagination(r.db.ApplyFilter(conditions).GORM().WithContext(ctx), pagination)
+}
+
+func (r *DataStoreRepository) getAggregatedUsageWithPagination(db *gorm.DB, pagination *dbutils.Pagination) ([]datamodel.AggregatedUsage, error) {
+	var result []datamodel.AggregatedUsage
+
+	// Apply pagination using the dbutils.Paginate scope
+	err := db.Scopes(dbutils.Paginate(pagination)).Find(&result).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 type (
 	Storage interface {
 		Connect(isAdmin bool) error
@@ -186,6 +256,7 @@ type (
 		CreateHydratedMetrics(ctx context.Context, m *datamodel.HydratedMetrics) error
 		CreateHydratedMetricsBatch(ctx context.Context, metrics []datamodel.HydratedMetrics, batchSize int) error
 		GetHydratedMetrics(ctx context.Context, filter map[string]interface{}) ([]datamodel.HydratedMetrics, error)
+		GetHydratedMetricsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]datamodel.HydratedMetrics, error)
 		UpdateHydratedMetrics(ctx context.Context, id string, updates map[string]interface{}) error
 		DeleteHydratedMetrics(ctx context.Context, id string) error
 		DeleteHydratedMetricsOlderThan(ctx context.Context, olderThan time.Time) (int64, error)
@@ -195,6 +266,7 @@ type (
 		CreateAggregatedUsageBatch(ctx context.Context, usages []datamodel.AggregatedUsage, batchSize int) error
 		GetAggregatedUsage(ctx context.Context, filter map[string]interface{}) ([]datamodel.AggregatedUsage, error)
 		GetLatestAggregatedUsageForAllResources(ctx context.Context, aggregationType string, limit, offset int) ([]datamodel.AggregatedUsage, error)
+		GetAggregatedUsageWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]datamodel.AggregatedUsage, error)
 		UpdateAggregatedUsage(ctx context.Context, id int64, updates map[string]interface{}) error
 		DeleteAggregatedUsage(ctx context.Context, id int64) error
 		DeleteAggregatedUsageOlderThan(ctx context.Context, olderThan time.Time) (int64, error)

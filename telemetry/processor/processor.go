@@ -2,8 +2,10 @@ package processor
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	metricdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/aggregator"
@@ -200,5 +202,48 @@ func (mp *MetricsProcessor) ProcessBizOps(ctx context.Context, params *utils.Biz
 		return err
 	}
 	logger.Infof("Successfully processed BizOps Report for start time: '%v' with timezone:'%s' ", params.StartDate, params.TimeZone)
+	return nil
+}
+
+func (mp *MetricsProcessor) ProcessBillingSubmission(ctx context.Context, aggregationEndTime time.Time) error {
+	logger := util.GetLogger(ctx)
+	config := common.LoadConfig()
+	maxRetries := config.MaxGoogleBillingPushRetry
+	retryInterval := config.RetryIntervalSeconds
+	logger.Infof("Processing Billing Retry for aggregation window ending at %v", aggregationEndTime)
+	// Get unsent records from current aggregation window
+	unsentRecords, err := mp.billingProvider.GetUnsentGoogleUsages(ctx, int64(maxRetries), aggregationEndTime)
+	if err != nil {
+		logger.Error("Failed to get unsent Google usages", "error", err)
+		return err
+	}
+
+	if len(unsentRecords) == 0 {
+		logger.Info("All billing records Submitted successfully")
+		return nil
+	}
+
+	logger.Debugf("Starting retry processing for %d unsent billing records. Records: %s", len(unsentRecords), spew.Sdump(unsentRecords))
+	// Deliver the metrics to sink
+	failedCount, err := mp.billingProvider.GetUsageSink().DeliverMetrics(ctx, unsentRecords)
+	if err != nil {
+		logger.Error("Failed to deliver metrics in retry attempt", "error", err)
+		return err
+	}
+
+	successfulCount := len(unsentRecords) - failedCount
+	logger.Info("Completed retry processing, ", "processedRecords: ", len(unsentRecords), ",successfulRecords: ", successfulCount, " ,failedRecords:", failedCount)
+
+	if failedCount > 0 {
+		select {
+		case <-time.After(time.Duration(retryInterval) * time.Second):
+			// Normal wait completed
+		case <-ctx.Done():
+			// Context cancelled, exit early
+			return fmt.Errorf("billing retry interrupted by context cancellation: %w", ctx.Err())
+		}
+		return fmt.Errorf("billing retry processing completed with %d failed records", failedCount)
+	}
+
 	return nil
 }

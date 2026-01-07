@@ -17,7 +17,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/jobs"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -68,6 +70,7 @@ type BillingProvider struct {
 	vcpDataStore database.Storage
 	config       *common.TelemetryConfig
 	usageSink    common.UsageSink
+	jobQueue     *utils.JobQueue
 }
 
 func NewBillingProvider(db database2.Storage, vcpDB database.Storage, config *common.TelemetryConfig, usageSink common.UsageSink) *BillingProvider {
@@ -77,6 +80,24 @@ func NewBillingProvider(db database2.Storage, vcpDB database.Storage, config *co
 		config:       config,
 		usageSink:    usageSink,
 	}
+}
+
+// GetUnsentGoogleUsages retrieves unsent Google usage records within the aggregation time window
+func (p *BillingProvider) GetUnsentGoogleUsages(ctx context.Context, maxRetries int64, aggregationEndTime time.Time) ([]datamodel2.AggregatedUsage, error) {
+	return p.getUnsentGoogleUsages(ctx, maxRetries, aggregationEndTime)
+}
+
+// GetUsageSink returns the usage sink for delivering metrics
+func (p *BillingProvider) GetUsageSink() common.UsageSink {
+	return p.usageSink
+}
+
+func (p *BillingProvider) SetJobQueue(q *utils.JobQueue) {
+	p.jobQueue = q
+}
+
+func (p *BillingProvider) GetJobQueue() *utils.JobQueue {
+	return p.jobQueue
 }
 
 // ProcessBillingMetrics processes raw metrics from cvt_metrics table and aggregates them
@@ -91,15 +112,6 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 	resourceCollection, err := p.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
 	if err != nil {
 		logger.Errorf("Failed to fetch resource data: %v", err)
-	}
-
-	// Get unsent/retry records from database
-	aggregatedRecordsToRetry, err := p.getUnsentGoogleUsages(ctx, p.config.MaxGoogleBillingPushRetry)
-	if err != nil {
-		logger.Errorf("error getting unsent google usages", "error", err)
-	}
-	if len(aggregatedRecordsToRetry) > 0 {
-		logger.Infof("Fetched %d aggregated usage records to retry sending to Google Cloud Billing", len(aggregatedRecordsToRetry))
 	}
 
 	// Populate BackfillLimit for all DefaultAggregationJobDefinitions based on config
@@ -172,12 +184,13 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 		logger.Infof("Successfully saved %d aggregated usage records in batches of %d", len(aggregatedRecords), batchSize)
 	}
 
-	aggregatedRecords = append(aggregatedRecords, aggregatedRecordsToRetry...)
-
 	// Deliver all aggregated metrics at the end
-	if len(aggregatedRecords) > 0 {
-		if _, err := p.usageSink.DeliverMetrics(ctx, aggregatedRecords); err != nil {
-			logger.Errorf("Failed to deliver aggregated metrics: %v", err)
+	if len(aggregatedRecords) > 0 && p.jobQueue != nil {
+		j := jobs.NewDeliverBillingMetrics(aggregationEndTime)
+		err = p.jobQueue.Enqueue(ctx, j, utils.BillingRetryQueue)
+		if err != nil {
+			logger.Errorf("Failed to enqueue BillingRetry jobs: %v", err)
+			return err
 		}
 	}
 
@@ -818,7 +831,7 @@ func (p *BillingProvider) groupMetricsByResource(metrics []datamodel2.HydratedMe
 	return groups
 }
 
-// fetchMetricsForCounterAndIntegralAggregation fetches metrics for counter aggregation using a single query
+// fetchMetricsForCounterAndIntegralAggregation fetches metrics for counter aggregation using pagination
 // This gets all records from the current aggregation window plus the latest record from the previous period
 func (p *BillingProvider) fetchMetricsForCounterAndIntegralAggregation(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, resourceType, measuredType string, backfillLimit time.Duration) ([]datamodel2.HydratedMetrics, error) {
 	// Create a complex filter that sorts by resource and timestamp
@@ -834,8 +847,8 @@ func (p *BillingProvider) fetchMetricsForCounterAndIntegralAggregation(ctx conte
 		"order":        "resource_name, deployment_name, consumer_id, metric_timestamp DESC", // Database sorts for us
 	})
 
-	// Fetch all metrics within the extended time range, already sorted by the database
-	allMetrics, err := p.metricsDB.GetHydratedMetrics(ctx, filter)
+	// Fetch all metrics using pagination to handle large datasets efficiently
+	allMetrics, err := p.fetchAllHydratedMetricsWithPagination(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -995,27 +1008,30 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 	return nil
 }
 
-func (p *BillingProvider) getUnsentGoogleUsages(ctx context.Context, maxRetries int64) ([]datamodel2.AggregatedUsage, error) {
+func (p *BillingProvider) getUnsentGoogleUsages(ctx context.Context, maxRetries int64, aggregationEndTime time.Time) ([]datamodel2.AggregatedUsage, error) {
+	aggregationStartTime := aggregationEndTime.Add(-1 * time.Hour)
 	var allRecords []datamodel2.AggregatedUsage
 
-	// Get records with UNSUBMITTED state
-	unsubmittedFilter := map[string]interface{}{
-		"state":       datamodel2.Unsubmitted,
-		"is_billable": true,
+	// Get records with UNSUBMITTED state within the aggregation time window
+	unsubmittedConditions := [][]interface{}{
+		{"state = ?", datamodel2.Unsubmitted},
+		{"is_billable = ?", true},
+		{"aggregation_end <= ?", aggregationEndTime},
+		{"aggregation_start >= ?", aggregationStartTime},
 	}
-	unsubmittedRecords, err := p.metricsDB.GetAggregatedUsage(ctx, unsubmittedFilter)
+	unsubmittedRecords, err := p.fetchAllRecordsWithPagination(ctx, unsubmittedConditions)
 	if err != nil {
 		return nil, err
 	}
 	allRecords = append(allRecords, unsubmittedRecords...)
 
-	// Get records with ERROR state and error_count <= maxRetries
-	// Since we can't do complex comparisons with current interface, we'll fetch all ERROR records
-	// and filter in memory
-	errorFilter := map[string]interface{}{
-		"state": datamodel2.Error,
+	// Get records with ERROR state within the aggregation time window
+	errorConditions := [][]interface{}{
+		{"state = ?", datamodel2.Error},
+		{"aggregation_end <= ?", aggregationEndTime},
+		{"aggregation_start >= ?", aggregationStartTime},
 	}
-	errorRecords, err := p.metricsDB.GetAggregatedUsage(ctx, errorFilter)
+	errorRecords, err := p.fetchAllRecordsWithPagination(ctx, errorConditions)
 	if err != nil {
 		return nil, err
 	}
@@ -1028,6 +1044,80 @@ func (p *BillingProvider) getUnsentGoogleUsages(ctx context.Context, maxRetries 
 	}
 
 	return allRecords, nil
+}
+
+// fetchAllRecordsWithPagination fetches all aggregated usage records with pagination to handle large datasets efficiently
+func (p *BillingProvider) fetchAllRecordsWithPagination(ctx context.Context, conditions [][]interface{}) ([]datamodel2.AggregatedUsage, error) {
+	var allRecords []datamodel2.AggregatedUsage
+	pageSize := p.config.PoolVolumeLabelPageSize
+	offset := 0
+
+	for {
+		pagination := &dbutils.Pagination{
+			Limit:  pageSize,
+			Offset: offset,
+		}
+
+		records, err := p.metricsDB.GetAggregatedUsageWithPagination(ctx, conditions, pagination)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(records) == 0 {
+			break // No more records
+		}
+
+		allRecords = append(allRecords, records...)
+		offset += len(records)
+
+		// Break if we get fewer records than page size (last page)
+		if len(records) < pageSize {
+			break
+		}
+	}
+
+	return allRecords, nil
+}
+
+// fetchAllHydratedMetricsWithPagination fetches all hydrated metrics with pagination to handle large datasets efficiently
+func (p *BillingProvider) fetchAllHydratedMetricsWithPagination(ctx context.Context, filter map[string]interface{}) ([]datamodel2.HydratedMetrics, error) {
+	var allMetrics []datamodel2.HydratedMetrics
+	pageSize := p.config.PoolVolumeLabelPageSize
+	offset := 0
+
+	// Extract conditions from filter if present
+	var conditions [][]interface{}
+	if conditionsFromFilter, ok := filter["conditions"]; ok {
+		if condArr, ok := conditionsFromFilter.([][]interface{}); ok {
+			conditions = condArr
+		}
+	}
+
+	for {
+		pagination := &dbutils.Pagination{
+			Limit:  pageSize,
+			Offset: offset,
+		}
+
+		metrics, err := p.metricsDB.GetHydratedMetricsWithPagination(ctx, conditions, pagination)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(metrics) == 0 {
+			break // No more records
+		}
+
+		allMetrics = append(allMetrics, metrics...)
+		offset += len(metrics)
+
+		// Break if we get fewer records than page size (last page)
+		if len(metrics) < pageSize {
+			break
+		}
+	}
+
+	return allMetrics, nil
 }
 
 // BytesToMiB converts bytes to MiB (Mebibytes)

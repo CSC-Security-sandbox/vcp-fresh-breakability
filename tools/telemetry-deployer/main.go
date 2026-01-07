@@ -470,6 +470,8 @@ func getDefaultEnvVars() map[string]string {
 		"TARGET_MINUTE":                              getEnvOrDefault("TARGET_MINUTE", "15"),
 		"PERFORMANCE_ROOT_URL":                       getEnvOrDefault("PERFORMANCE_ROOT_URL", "https://servicecontrol.googleapis.com"),
 		"USAGE_ROOT_URL":                             getEnvOrDefault("USAGE_ROOT_URL", "https://servicecontrol.googleapis.com"),
+		"RETRY_INTERVAL_SECONDS":                     getEnvOrDefault("RETRY_INTERVAL_SECONDS", "300"),
+		"NUM_WORKERS_BILLING_RETRY":                  getEnvOrDefault("NUM_WORKERS_BILLING_RETRY", "5"),
 	}
 }
 

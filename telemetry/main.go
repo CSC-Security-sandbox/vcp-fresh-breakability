@@ -101,6 +101,7 @@ func main() {
 
 	queue := utils.NewQueue(tdb, &metricsProcessor)
 	provider.SetJobQueue(queue)
+	billingProvider.SetJobQueue(queue)
 	// provider.SetJobQueue(queue)
 	// Create a new server instance with the API handler
 	var gcpServer *coreapiserver.Server
@@ -194,6 +195,15 @@ func main() {
 		go func() {
 			queues := []string{utils.BizOpsReportQueue}
 			if err := queue.Worker(context.Background(), queues, &jobs.BizOpsReport{}); err != nil {
+				logger.Errorf(err.Error())
+			}
+		}()
+	}
+
+	for i := 0; i < telemetryConfig.NumWorkersBillingRetry; i++ {
+		go func() {
+			queues := []string{utils.BillingRetryQueue}
+			if err := queue.Worker(context.Background(), queues, &jobs.ProcessBillingSubmission{}); err != nil {
 				logger.Errorf(err.Error())
 			}
 		}()

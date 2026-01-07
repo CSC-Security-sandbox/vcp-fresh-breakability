@@ -277,6 +277,8 @@ telemetryDeployer:
   cloudSqlConnector: "netapp-au-se1-autopush-sde-tst:australia-southeast1:netapp-au-se1-autopush-sde-tst-db-postgres"
   cloudSqlImage: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1"
   enableScheduler: true
+  retryIntervalSeconds: 30
+  numWorkersBillingRetry: 5
 
   numWorkersPerformance: "10"
   numWorkersUsage: "1"

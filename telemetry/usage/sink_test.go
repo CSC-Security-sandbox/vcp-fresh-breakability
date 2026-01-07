@@ -278,8 +278,9 @@ func TestGoogleUsageSink_processGcpUnifiedMetrics(t *testing.T) {
 		ml.On("Info", "No Google usage metrics processed in this run.").Once()
 
 		var googleMetrics []common.GoogleMetric // Empty slice
+		var failedCount int
 
-		sink.processGcpUnifiedMetrics(ctx, googleMetrics)
+		sink.processGcpUnifiedMetrics(ctx, googleMetrics, &failedCount)
 		ml.AssertExpectations(t)
 	})
 
@@ -302,8 +303,9 @@ func TestGoogleUsageSink_push(t *testing.T) {
 		ml.On("Warn", "Google first party billing metrics not found, hence not reporting anything.").Once()
 
 		var googleMetrics []common.GoogleMetric // Empty slice
+		var failedCount int
 
-		sink.push(ctx, googleMetrics)
+		sink.push(ctx, googleMetrics, &failedCount)
 		ml.AssertExpectations(t)
 	})
 
@@ -312,8 +314,9 @@ func TestGoogleUsageSink_push(t *testing.T) {
 		sink.logger = ml
 
 		ml.On("Warn", "Google first party billing metrics not found, hence not reporting anything.").Once()
+		var failedCount int
 
-		sink.push(ctx, nil)
+		sink.push(ctx, nil, &failedCount)
 		ml.AssertExpectations(t)
 	})
 
@@ -344,10 +347,10 @@ func TestGoogleUsageSink_DeliverMetrics(t *testing.T) {
 			},
 		}
 
-		mappedUsage, err := sink.DeliverMetrics(ctx, aggregatedRecords)
+		failedCount, err := sink.DeliverMetrics(ctx, aggregatedRecords)
 
 		assert.NoError(t, err)
-		assert.Equal(t, 1, mappedUsage)
+		assert.Equal(t, 0, failedCount, "Should have no failed metrics for valid input")
 	})
 }
 
@@ -394,10 +397,10 @@ func TestGoogleUsageSink_DeliverMetrics_WithDroppedRecords(t *testing.T) {
 	}
 
 	// This should trigger the dropped records logging (line 45)
-	delivered, err := sink.DeliverMetrics(ctx, aggregatedRecords)
+	failedCount, err := sink.DeliverMetrics(ctx, aggregatedRecords)
 
 	assert.NoError(t, err)
-	assert.Equal(t, 2, delivered, "Should deliver 2 valid records")
+	assert.Equal(t, 0, failedCount, "Should have no failed metrics for valid records")
 }
 
 // TestGoogleUsageSink_processResponse_WithResults tests processResponse with actual results
@@ -439,7 +442,8 @@ func TestGoogleUsageSink_processResponse_WithResults(t *testing.T) {
 	}()
 
 	// This should test the processResponse method (lines 132, 139)
-	sink.processResponse(ctx, &wg, resultChan)
+	var failedCount int
+	sink.processResponse(ctx, &wg, resultChan, &failedCount)
 	wg.Wait()
 }
 
@@ -472,7 +476,8 @@ func TestGoogleUsageSink_processMetricsResults_WithGoodResults(t *testing.T) {
 	}
 
 	// This should test the processMetricsResults method (lines 141-187)
-	sink.processMetricsResults(ctx, gcpResults)
+	var failedCount int
+	sink.processMetricsResults(ctx, gcpResults, &failedCount)
 }
 
 // TestGoogleUsageSink_processMetricsResults_WithErrorResults tests processMetricsResults with error results
@@ -504,7 +509,8 @@ func TestGoogleUsageSink_processMetricsResults_WithErrorResults(t *testing.T) {
 	}
 
 	// This should test the processMetricsResults method with error paths
-	sink.processMetricsResults(ctx, gcpResults)
+	var failedCount int
+	sink.processMetricsResults(ctx, gcpResults, &failedCount)
 }
 
 // TestGoogleUsageSink_processMetricsResults_WithExceptionResults tests processMetricsResults with exception results
@@ -536,7 +542,8 @@ func TestGoogleUsageSink_processMetricsResults_WithExceptionResults(t *testing.T
 	}
 
 	// This should test the processMetricsResults method with exception paths
-	sink.processMetricsResults(ctx, gcpResults)
+	var failedCount int
+	sink.processMetricsResults(ctx, gcpResults, &failedCount)
 }
 
 // TestGoogleUsageSink_processMetricsResults_GetAsUsageBillingMetricError tests error in GetAsUsageBillingMetric
@@ -559,7 +566,8 @@ func TestGoogleUsageSink_processMetricsResults_GetAsUsageBillingMetricError(t *t
 	}
 
 	// This should test the error path in processMetricsResults (line 144)
-	sink.processMetricsResults(ctx, gcpResults)
+	var failedCount int
+	sink.processMetricsResults(ctx, gcpResults, &failedCount)
 }
 
 // TestGoogleUsageSink_isSuccessful tests the isSuccessful function
@@ -631,7 +639,8 @@ func TestGoogleUsageSink_processMetricsResults_WithErrorLogging(t *testing.T) {
 	ml.On("Infof", "%d metrics were not reported.", 1).Once()
 
 	// This should test the error logging paths (lines 137-138)
-	sink.processMetricsResults(ctx, gcpResults)
+	var failedCount int
+	sink.processMetricsResults(ctx, gcpResults, &failedCount)
 
 	ml.AssertExpectations(t)
 }
@@ -675,7 +684,8 @@ func TestGoogleUsageSink_processMetricsResults_WithSuccessfulLogging(t *testing.
 	ml.On("Infof", "%d metrics were not reported.", 0).Once()
 
 	// This should test the success logging path (line 200)
-	sink.processMetricsResults(ctx, gcpResults)
+	var failedCount int
+	sink.processMetricsResults(ctx, gcpResults, &failedCount)
 
 	ml.AssertExpectations(t)
 }
@@ -1028,7 +1038,8 @@ func TestGoogleUsageSink_processMetricsResults_BatchEnabled(t *testing.T) {
 		ml.On("Infof", "%d metrics were successfully reported.", 0).Once()
 		ml.On("Infof", "%d metrics were not reported.", 0).Once()
 
-		sink.processMetricsResults(ctx, []common.MetricsResult{})
+		var failedCount int
+		sink.processMetricsResults(ctx, []common.MetricsResult{}, &failedCount)
 		ml.AssertExpectations(t)
 	})
 
@@ -1043,7 +1054,8 @@ func TestGoogleUsageSink_processMetricsResults_BatchEnabled(t *testing.T) {
 		ml.On("Infof", "%d metrics were successfully reported.", 0).Once()
 		ml.On("Infof", "%d metrics were not reported.", 0).Once()
 
-		sink.processMetricsResults(ctx, []common.MetricsResult{})
+		var failedCount int
+		sink.processMetricsResults(ctx, []common.MetricsResult{}, &failedCount)
 		ml.AssertExpectations(t)
 	})
 }

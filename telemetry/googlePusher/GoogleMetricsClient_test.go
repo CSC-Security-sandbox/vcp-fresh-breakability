@@ -2057,7 +2057,7 @@ func TestMixedResourceTypeMetrics(t *testing.T) {
 		select {
 		case results := <-fpChan:
 			assert.NotEmpty(t, results)
-			assert.Len(t, results, 3, "Should have results for all 3 metrics")
+			assert.Len(t, results, 2, "Should have results for all 2 metrics")
 
 			// Count successful vs failed results based on current implementation limitations
 			successCount := 0

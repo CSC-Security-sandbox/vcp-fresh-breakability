@@ -54,6 +54,9 @@ func (m *MockMetricsStorage) CreateHydratedMetrics(ctx context.Context, met *dat
 func (m *MockMetricsStorage) GetHydratedMetrics(ctx context.Context, filter map[string]interface{}) ([]datamodel.HydratedMetrics, error) {
 	return nil, nil
 }
+func (m *MockMetricsStorage) GetHydratedMetricsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]datamodel.HydratedMetrics, error) {
+	return nil, nil
+}
 func (m *MockMetricsStorage) UpdateHydratedMetrics(ctx context.Context, id string, updates map[string]interface{}) error {
 	return nil
 }
@@ -74,6 +77,9 @@ func (m *MockMetricsStorage) GetAggregatedUsage(ctx context.Context, filter map[
 	return nil, nil
 }
 func (m *MockMetricsStorage) GetLatestAggregatedUsageForAllResources(ctx context.Context, aggregationType string, limit, offset int) ([]datamodel.AggregatedUsage, error) {
+	return nil, nil
+}
+func (m *MockMetricsStorage) GetAggregatedUsageWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]datamodel.AggregatedUsage, error) {
 	return nil, nil
 }
 func (m *MockMetricsStorage) UpdateAggregatedUsage(ctx context.Context, id int64, updates map[string]interface{}) error {

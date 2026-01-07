@@ -34,6 +34,10 @@ func (m *MockVCPProcessor) ProcessBizOps(ctx context.Context, params *utils.BizO
 	return nil
 }
 
+func (m *MockVCPProcessor) ProcessBillingSubmission(ctx context.Context, aggregationEndTime time.Time) error {
+	return nil
+}
+
 func setupTestDB(t *testing.T) (metricsdb.Storage, func()) {
 	logger := log.NewLogger()
 	store, err := metricsdb.SetupStorageForTest(logger)

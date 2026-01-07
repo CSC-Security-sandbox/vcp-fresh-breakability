@@ -18,6 +18,7 @@ var (
 	UsageQueue        = "usage"
 	CollectionQueue   = "collection"
 	BizOpsReportQueue = "bizops"
+	BillingRetryQueue = "billing-retry"
 )
 
 type BizOpsReportParams struct {

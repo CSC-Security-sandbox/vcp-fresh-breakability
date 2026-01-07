@@ -38,6 +38,11 @@ func (m *MockVCPProcessor) ProcessBizOps(ctx context.Context, params *utils.BizO
 	return args.Error(0)
 }
 
+func (m *MockVCPProcessor) ProcessBillingSubmission(ctx context.Context, aggregationEndTime time.Time) error {
+	args := m.Called(ctx, aggregationEndTime)
+	return args.Error(0)
+}
+
 // Compile-time check to ensure MockVCPProcessor implements common.VCPProcessor
 var _ common.VCPProcessor = (*MockVCPProcessor)(nil)
 

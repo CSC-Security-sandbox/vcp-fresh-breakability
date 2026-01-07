@@ -32,11 +32,13 @@ type TelemetryConfig struct {
 	PushBatchSize                         int64
 	Environment                           string
 	MaxGoogleBillingPushRetry             int64
+	RetryIntervalSeconds                  int64
 	PageSize                              int32
 	NumWorkersPerformance                 int
 	NumWorkersUsage                       int
 	NumWorkersCollection                  int
 	NumWorkersBizOps                      int
+	NumWorkersBillingRetry                int
 	GoogleBillingLabelsMaxEntries         int
 	PoolVolumeLabelPageSize               int
 	EnableBatchUsageUpdates               bool // Feature flag for batch usage updates
@@ -76,11 +78,13 @@ func LoadConfig() *TelemetryConfig {
 	pushBatchSize := env.GetInt64("PUSH_BATCH_SIZE", 1000)
 	environment := env.GetString("ENVIRONMENT", Dev)
 	maxGoogleBillingPushRetry := env.GetInt64("MAX_GOOGLE_BILLING_PUSH_RETRY", 5)
+	retryInterval := env.GetInt64("RETRY_INTERVAL_SECONDS", 300)
 	pageSize := env.GetInt64("PAGE_SIZE", 1000)
 	numWorkersPerformance := env.GetInt("NUM_WORKERS_PERFORMANCE", 10)
 	numWorkersUsage := env.GetInt("NUM_WORKERS_USAGE", 1)
 	numWorkersCollection := env.GetInt("NUM_WORKERS_COLLECTION", 10)
 	numWorkersBizOps := env.GetInt("NUM_WORKERS_BIZOPS", 10)
+	numWorkersBillingRetry := env.GetInt("NUM_WORKERS_BILLING_RETRY", 5)
 	googleBillingLabelsMaxEntries := env.GetInt("GOOGLE_BILLING_LABELS_MAX_ENTRIES", 64)
 	poolVolumeLabelPageSize := env.GetInt("POOL_VOLUME_LABEL_PAGE_SIZE", 5000)
 	enableBatchUsageUpdates := env.GetBool("ENABLE_BATCH_USAGE_UPDATES", false)
@@ -112,7 +116,9 @@ func LoadConfig() *TelemetryConfig {
 		NumWorkersUsage:                       numWorkersUsage,
 		NumWorkersCollection:                  numWorkersCollection,
 		NumWorkersBizOps:                      numWorkersBizOps,
+		NumWorkersBillingRetry:                numWorkersBillingRetry,
 		GoogleBillingLabelsMaxEntries:         googleBillingLabelsMaxEntries,
+		RetryIntervalSeconds:                  retryInterval,
 		PoolVolumeLabelPageSize:               poolVolumeLabelPageSize,
 		EnableBatchUsageUpdates:               enableBatchUsageUpdates,
 		ResultUpdateBatchSize:                 resultUpdateBatchSize,

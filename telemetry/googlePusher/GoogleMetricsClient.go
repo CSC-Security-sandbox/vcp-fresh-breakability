@@ -245,18 +245,22 @@ func (client *GoogleMetricsClient) createOperationsForMetrics(metrics []common.G
 		totalDropCount := 0
 		partitionedMetrics := partitionMetrics(googleMetrics, client.logger)
 		for _, partition := range partitionedMetrics {
-			operation, droppedMetrics, err := client.createOperationForMetric(uuid.New().String(), partition, info.CustomerId, info.ResourceId, opStart, opEnd)
-			if err != nil {
-				client.logger.Errorf("Operation creation for %s failed: %v", info.ResourceId, err)
-				continue
-			}
+			// Create separate operation for each metric in the partition
+			for _, metric := range partition {
+				operationId := client.generateOperationId(metric, opStart, opEnd)
+				operation, droppedMetrics, err := client.createOperationForMetric(operationId, []common.GoogleMetric{metric}, info.CustomerId, info.ResourceId, opStart, opEnd)
+				if err != nil {
+					client.logger.Errorf("Operation creation for %s failed: %v", info.ResourceId, err)
+					continue
+				}
 
-			totalDropCount += len(droppedMetrics)
+				totalDropCount += len(droppedMetrics)
 
-			if operation != nil && len(operation.MetricValueSets) > 0 {
-				operationAndMetrics[operation] = partition
-			} else {
-				client.logger.Warnf("Operation creation method succeeded, but no operation returned. ResourceId", info.ResourceId)
+				if operation != nil && len(operation.MetricValueSets) > 0 {
+					operationAndMetrics[operation] = []common.GoogleMetric{metric}
+				} else {
+					client.logger.Warnf("Operation creation method succeeded, but no operation returned. ResourceId", info.ResourceId)
+				}
 			}
 		}
 
@@ -265,6 +269,60 @@ func (client *GoogleMetricsClient) createOperationsForMetrics(metrics []common.G
 		}
 	}
 	return operationAndMetrics
+}
+
+// generateOperationId creates a consistent UUIDv5-based operation ID from metric properties
+func (client *GoogleMetricsClient) generateOperationId(metric common.GoogleMetric, opStart, opEnd int64) string {
+	// Use a namespace UUID for VSA Control Plane metrics
+	// This is a fixed namespace UUID that we define for this purpose
+	namespace := uuid.MustParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8") // DNS namespace UUID as base
+
+	// Build a deterministic name string from metric properties
+	// Use explicit placeholder for missing values to avoid collisions
+	var nameBuilder strings.Builder
+
+	// Resource UUID (required for uniqueness)
+	if resourceUUID, err := metric.GetResourceUUID(); err == nil {
+		nameBuilder.WriteString(resourceUUID)
+	}
+	nameBuilder.WriteString("|")
+
+	// Resource Type (required for differentiation)
+	if resourceType, err := metric.GetResourceType(); err == nil {
+		nameBuilder.WriteString(string(resourceType))
+	}
+	nameBuilder.WriteString("|")
+
+	// Measured Type (required for differentiation)
+	if measuredType, err := metric.GetMeasuredType(); err == nil {
+		nameBuilder.WriteString(string(measuredType))
+	}
+	nameBuilder.WriteString("|")
+
+	// Start Time (required for temporal uniqueness)
+	if startTime, err := metric.GetStartTime(); err == nil {
+		nameBuilder.WriteString(fmt.Sprintf("%d", startTime))
+	}
+	nameBuilder.WriteString("|")
+
+	// Customer ID (required for tenant isolation)
+	if customerId, err := metric.GetCustomerId(); err == nil {
+		nameBuilder.WriteString(customerId)
+	}
+	nameBuilder.WriteString("|")
+
+	// Resource Name (required for resource identification)
+	if resourceName, err := metric.GetResourceName(); err == nil {
+		nameBuilder.WriteString(resourceName)
+	}
+	nameBuilder.WriteString("|")
+
+	// Include operation time window (always available)
+	nameBuilder.WriteString(fmt.Sprintf("%d-%d", opStart, opEnd))
+
+	// Generate UUIDv5 based on namespace and name
+	operationUUID := uuid.NewSHA1(namespace, []byte(nameBuilder.String()))
+	return operationUUID.String()
 }
 
 func (client *GoogleMetricsClient) createOperationForMetric(operationId string, googleMetrics []common.GoogleMetric, customerId string, resourceUuid string, opStart int64, opEnd int64) (*Operation, []common.GoogleMetric, error) {
