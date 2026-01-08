@@ -309,7 +309,7 @@ type Volume struct {
 	Account                  *Account                `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 	Pool                     *Pool                   `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 	Svm                      *Svm                    `gorm:"ForeignKey:SvmID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	VolumePerformanceGroup   *VolumePerformanceGroup `gorm:"ForeignKey:VolumePerformanceGroupID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	VolumePerformanceGroup   *VolumePerformanceGroup `gorm:"ForeignKey:VolumePerformanceGroupID;AssociationForeignKey:ID"`
 	VolumeAttributes         *VolumeAttributes       `gorm:"column:volume_attributes;type:jsonb"`
 	DataProtection           *DataProtection         `gorm:"column:data_protection;type:jsonb"`
 	SnapshotPolicy           *SnapshotPolicy         `gorm:"column:snapshot_policy;type:jsonb"`
