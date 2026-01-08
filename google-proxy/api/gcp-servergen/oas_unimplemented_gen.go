@@ -143,6 +143,15 @@ func (UnimplementedHandler) V1betaCreateVolume(ctx context.Context, req *VolumeC
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaCreateVolumePerformanceGroup implements v1beta_createVolumePerformanceGroup operation.
+//
+// Create a new volume performance group within the specified pool.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups
+func (UnimplementedHandler) V1betaCreateVolumePerformanceGroup(ctx context.Context, req *VolumePerformanceGroupCreateV1beta, params V1betaCreateVolumePerformanceGroupParams) (r V1betaCreateVolumePerformanceGroupRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaDeleteActiveDirectory implements v1beta_deleteActiveDirectory operation.
 //
 // Deletes the Active Directory credentials for the active user. This operation will never return
@@ -261,6 +270,16 @@ func (UnimplementedHandler) V1betaDeleteVolume(ctx context.Context, req OptV1bet
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaDeleteVolumePerformanceGroup implements v1beta_deleteVolumePerformanceGroup operation.
+//
+// Warning! This operation will permanently delete the volume performance group. This operation will
+// fail if the volume performance group still has assigned volumes.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups/{volumePerformanceGroupId}
+func (UnimplementedHandler) V1betaDeleteVolumePerformanceGroup(ctx context.Context, params V1betaDeleteVolumePerformanceGroupParams) (r V1betaDeleteVolumePerformanceGroupRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaDescribeActiveDirectory implements v1beta_describeActiveDirectory operation.
 //
 // Returns the description of the specified Active Directory credentials by active-directory Id.
@@ -366,6 +385,15 @@ func (UnimplementedHandler) V1betaDescribeSnapshot(ctx context.Context, params V
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 func (UnimplementedHandler) V1betaDescribeVolume(ctx context.Context, params V1betaDescribeVolumeParams) (r V1betaDescribeVolumeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaDescribeVolumePerformanceGroup implements v1beta_describeVolumePerformanceGroup operation.
+//
+// Returns the description of the specified volume performance group by volume performance group Id.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups/{volumePerformanceGroupId}
+func (UnimplementedHandler) V1betaDescribeVolumePerformanceGroup(ctx context.Context, params V1betaDescribeVolumePerformanceGroupParams) (r V1betaDescribeVolumePerformanceGroupRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -878,6 +906,15 @@ func (UnimplementedHandler) V1betaListSnapshot(ctx context.Context, params V1bet
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaListVolumePerformanceGroups implements v1beta_listVolumePerformanceGroups operation.
+//
+// Returns descriptions of all volume performance groups within the specified pool.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups
+func (UnimplementedHandler) V1betaListVolumePerformanceGroups(ctx context.Context, params V1betaListVolumePerformanceGroupsParams) (r V1betaListVolumePerformanceGroupsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaListVolumes implements v1beta_listVolumes operation.
 //
 // Returns descriptions of all volumes owned by the caller.
@@ -1083,5 +1120,14 @@ func (UnimplementedHandler) V1betaUpdateSnapshot(ctx context.Context, req *Volum
 //
 // PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 func (UnimplementedHandler) V1betaUpdateVolume(ctx context.Context, req *VolumeUpdateV1beta, params V1betaUpdateVolumeParams) (r V1betaUpdateVolumeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaUpdateVolumePerformanceGroup implements v1beta_updateVolumePerformanceGroup operation.
+//
+// Update the volume performance group.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups/{volumePerformanceGroupId}
+func (UnimplementedHandler) V1betaUpdateVolumePerformanceGroup(ctx context.Context, req *VolumePerformanceGroupUpdateV1beta, params V1betaUpdateVolumePerformanceGroupParams) (r V1betaUpdateVolumePerformanceGroupRes, _ error) {
 	return r, ht.ErrNotImplemented
 }

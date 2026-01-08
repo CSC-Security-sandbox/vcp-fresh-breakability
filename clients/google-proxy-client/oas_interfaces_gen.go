@@ -53,6 +53,10 @@ type V1betaCreateSnapshotRes interface {
 	v1betaCreateSnapshotRes()
 }
 
+type V1betaCreateVolumePerformanceGroupRes interface {
+	v1betaCreateVolumePerformanceGroupRes()
+}
+
 type V1betaCreateVolumeRes interface {
 	v1betaCreateVolumeRes()
 }
@@ -101,6 +105,10 @@ type V1betaDeleteSnapshotRes interface {
 	v1betaDeleteSnapshotRes()
 }
 
+type V1betaDeleteVolumePerformanceGroupRes interface {
+	v1betaDeleteVolumePerformanceGroupRes()
+}
+
 type V1betaDeleteVolumeRes interface {
 	v1betaDeleteVolumeRes()
 }
@@ -147,6 +155,10 @@ type V1betaDescribeQuotaRuleVCPRes interface {
 
 type V1betaDescribeSnapshotRes interface {
 	v1betaDescribeSnapshotRes()
+}
+
+type V1betaDescribeVolumePerformanceGroupRes interface {
+	v1betaDescribeVolumePerformanceGroupRes()
 }
 
 type V1betaDescribeVolumeRes interface {
@@ -373,6 +385,10 @@ type V1betaListSnapshotRes interface {
 	v1betaListSnapshotRes()
 }
 
+type V1betaListVolumePerformanceGroupsRes interface {
+	v1betaListVolumePerformanceGroupsRes()
+}
+
 type V1betaListVolumesRes interface {
 	v1betaListVolumesRes()
 }
@@ -459,6 +475,10 @@ type V1betaUpdateReplicationRes interface {
 
 type V1betaUpdateSnapshotRes interface {
 	v1betaUpdateSnapshotRes()
+}
+
+type V1betaUpdateVolumePerformanceGroupRes interface {
+	v1betaUpdateVolumePerformanceGroupRes()
 }
 
 type V1betaUpdateVolumeRes interface {

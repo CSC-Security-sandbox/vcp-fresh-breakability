@@ -1685,16 +1685,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									}
 
 									// Param: "poolId"
-									// Leaf parameter, slashes are prohibited
+									// Match until "/"
 									idx := strings.IndexByte(elem, '/')
-									if idx >= 0 {
-										break
+									if idx < 0 {
+										idx = len(elem)
 									}
-									args[2] = elem
-									elem = ""
+									args[2] = elem[:idx]
+									elem = elem[idx:]
 
 									if len(elem) == 0 {
-										// Leaf node.
 										switch r.Method {
 										case "DELETE":
 											s.handleV1betaDeletePoolRequest([3]string{
@@ -1719,6 +1718,87 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										}
 
 										return
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/volumePerformanceGroups"
+
+										if l := len("/volumePerformanceGroups"); len(elem) >= l && elem[0:l] == "/volumePerformanceGroups" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											switch r.Method {
+											case "GET":
+												s.handleV1betaListVolumePerformanceGroupsRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											case "POST":
+												s.handleV1betaCreateVolumePerformanceGroupRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "GET,POST")
+											}
+
+											return
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/"
+
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											// Param: "volumePerformanceGroupId"
+											// Leaf parameter, slashes are prohibited
+											idx := strings.IndexByte(elem, '/')
+											if idx >= 0 {
+												break
+											}
+											args[3] = elem
+											elem = ""
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "DELETE":
+													s.handleV1betaDeleteVolumePerformanceGroupRequest([4]string{
+														args[0],
+														args[1],
+														args[2],
+														args[3],
+													}, elemIsEscaped, w, r)
+												case "GET":
+													s.handleV1betaDescribeVolumePerformanceGroupRequest([4]string{
+														args[0],
+														args[1],
+														args[2],
+														args[3],
+													}, elemIsEscaped, w, r)
+												case "PUT":
+													s.handleV1betaUpdateVolumePerformanceGroupRequest([4]string{
+														args[0],
+														args[1],
+														args[2],
+														args[3],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "DELETE,GET,PUT")
+												}
+
+												return
+											}
+
+										}
+
 									}
 
 								}
@@ -4525,16 +4605,15 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									}
 
 									// Param: "poolId"
-									// Leaf parameter, slashes are prohibited
+									// Match until "/"
 									idx := strings.IndexByte(elem, '/')
-									if idx >= 0 {
-										break
+									if idx < 0 {
+										idx = len(elem)
 									}
-									args[2] = elem
-									elem = ""
+									args[2] = elem[:idx]
+									elem = elem[idx:]
 
 									if len(elem) == 0 {
-										// Leaf node.
 										switch method {
 										case "DELETE":
 											r.name = V1betaDeletePoolOperation
@@ -4563,6 +4642,90 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										default:
 											return
 										}
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/volumePerformanceGroups"
+
+										if l := len("/volumePerformanceGroups"); len(elem) >= l && elem[0:l] == "/volumePerformanceGroups" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											switch method {
+											case "GET":
+												r.name = V1betaListVolumePerformanceGroupsOperation
+												r.summary = "List all volume performance groups"
+												r.operationID = "v1beta_listVolumePerformanceGroups"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups"
+												r.args = args
+												r.count = 3
+												return r, true
+											case "POST":
+												r.name = V1betaCreateVolumePerformanceGroupOperation
+												r.summary = "Create a new volume performance group"
+												r.operationID = "v1beta_createVolumePerformanceGroup"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups"
+												r.args = args
+												r.count = 3
+												return r, true
+											default:
+												return
+											}
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/"
+
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											// Param: "volumePerformanceGroupId"
+											// Leaf parameter, slashes are prohibited
+											idx := strings.IndexByte(elem, '/')
+											if idx >= 0 {
+												break
+											}
+											args[3] = elem
+											elem = ""
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "DELETE":
+													r.name = V1betaDeleteVolumePerformanceGroupOperation
+													r.summary = "Delete a volume performance group"
+													r.operationID = "v1beta_deleteVolumePerformanceGroup"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups/{volumePerformanceGroupId}"
+													r.args = args
+													r.count = 4
+													return r, true
+												case "GET":
+													r.name = V1betaDescribeVolumePerformanceGroupOperation
+													r.summary = "Describe a volume performance group"
+													r.operationID = "v1beta_describeVolumePerformanceGroup"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups/{volumePerformanceGroupId}"
+													r.args = args
+													r.count = 4
+													return r, true
+												case "PUT":
+													r.name = V1betaUpdateVolumePerformanceGroupOperation
+													r.summary = "Update a volume performance group"
+													r.operationID = "v1beta_updateVolumePerformanceGroup"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups/{volumePerformanceGroupId}"
+													r.args = args
+													r.count = 4
+													return r, true
+												default:
+													return
+												}
+											}
+
+										}
+
 									}
 
 								}

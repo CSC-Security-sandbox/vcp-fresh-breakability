@@ -858,6 +858,66 @@ func (_c *MockInvoker_V1betaCreateVolume_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// V1betaCreateVolumePerformanceGroup provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1betaCreateVolumePerformanceGroup(ctx context.Context, request *VolumePerformanceGroupCreateV1beta, params V1betaCreateVolumePerformanceGroupParams) (V1betaCreateVolumePerformanceGroupRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaCreateVolumePerformanceGroup")
+	}
+
+	var r0 V1betaCreateVolumePerformanceGroupRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumePerformanceGroupCreateV1beta, V1betaCreateVolumePerformanceGroupParams) (V1betaCreateVolumePerformanceGroupRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumePerformanceGroupCreateV1beta, V1betaCreateVolumePerformanceGroupParams) V1betaCreateVolumePerformanceGroupRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaCreateVolumePerformanceGroupRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *VolumePerformanceGroupCreateV1beta, V1betaCreateVolumePerformanceGroupParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaCreateVolumePerformanceGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaCreateVolumePerformanceGroup'
+type MockInvoker_V1betaCreateVolumePerformanceGroup_Call struct {
+	*mock.Call
+}
+
+// V1betaCreateVolumePerformanceGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *VolumePerformanceGroupCreateV1beta
+//   - params V1betaCreateVolumePerformanceGroupParams
+func (_e *MockInvoker_Expecter) V1betaCreateVolumePerformanceGroup(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1betaCreateVolumePerformanceGroup_Call {
+	return &MockInvoker_V1betaCreateVolumePerformanceGroup_Call{Call: _e.mock.On("V1betaCreateVolumePerformanceGroup", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1betaCreateVolumePerformanceGroup_Call) Run(run func(ctx context.Context, request *VolumePerformanceGroupCreateV1beta, params V1betaCreateVolumePerformanceGroupParams)) *MockInvoker_V1betaCreateVolumePerformanceGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*VolumePerformanceGroupCreateV1beta), args[2].(V1betaCreateVolumePerformanceGroupParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaCreateVolumePerformanceGroup_Call) Return(_a0 V1betaCreateVolumePerformanceGroupRes, _a1 error) *MockInvoker_V1betaCreateVolumePerformanceGroup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaCreateVolumePerformanceGroup_Call) RunAndReturn(run func(context.Context, *VolumePerformanceGroupCreateV1beta, V1betaCreateVolumePerformanceGroupParams) (V1betaCreateVolumePerformanceGroupRes, error)) *MockInvoker_V1betaCreateVolumePerformanceGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaDeleteActiveDirectory provides a mock function with given fields: ctx, params
 func (_m *MockInvoker) V1betaDeleteActiveDirectory(ctx context.Context, params V1betaDeleteActiveDirectoryParams) (V1betaDeleteActiveDirectoryRes, error) {
 	ret := _m.Called(ctx, params)
@@ -1568,6 +1628,65 @@ func (_c *MockInvoker_V1betaDeleteVolume_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// V1betaDeleteVolumePerformanceGroup provides a mock function with given fields: ctx, params
+func (_m *MockInvoker) V1betaDeleteVolumePerformanceGroup(ctx context.Context, params V1betaDeleteVolumePerformanceGroupParams) (V1betaDeleteVolumePerformanceGroupRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaDeleteVolumePerformanceGroup")
+	}
+
+	var r0 V1betaDeleteVolumePerformanceGroupRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDeleteVolumePerformanceGroupParams) (V1betaDeleteVolumePerformanceGroupRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDeleteVolumePerformanceGroupParams) V1betaDeleteVolumePerformanceGroupRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaDeleteVolumePerformanceGroupRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaDeleteVolumePerformanceGroupParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaDeleteVolumePerformanceGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaDeleteVolumePerformanceGroup'
+type MockInvoker_V1betaDeleteVolumePerformanceGroup_Call struct {
+	*mock.Call
+}
+
+// V1betaDeleteVolumePerformanceGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaDeleteVolumePerformanceGroupParams
+func (_e *MockInvoker_Expecter) V1betaDeleteVolumePerformanceGroup(ctx interface{}, params interface{}) *MockInvoker_V1betaDeleteVolumePerformanceGroup_Call {
+	return &MockInvoker_V1betaDeleteVolumePerformanceGroup_Call{Call: _e.mock.On("V1betaDeleteVolumePerformanceGroup", ctx, params)}
+}
+
+func (_c *MockInvoker_V1betaDeleteVolumePerformanceGroup_Call) Run(run func(ctx context.Context, params V1betaDeleteVolumePerformanceGroupParams)) *MockInvoker_V1betaDeleteVolumePerformanceGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaDeleteVolumePerformanceGroupParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaDeleteVolumePerformanceGroup_Call) Return(_a0 V1betaDeleteVolumePerformanceGroupRes, _a1 error) *MockInvoker_V1betaDeleteVolumePerformanceGroup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaDeleteVolumePerformanceGroup_Call) RunAndReturn(run func(context.Context, V1betaDeleteVolumePerformanceGroupParams) (V1betaDeleteVolumePerformanceGroupRes, error)) *MockInvoker_V1betaDeleteVolumePerformanceGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaDescribeActiveDirectory provides a mock function with given fields: ctx, params
 func (_m *MockInvoker) V1betaDescribeActiveDirectory(ctx context.Context, params V1betaDescribeActiveDirectoryParams) (V1betaDescribeActiveDirectoryRes, error) {
 	ret := _m.Called(ctx, params)
@@ -2272,6 +2391,65 @@ func (_c *MockInvoker_V1betaDescribeVolume_Call) Return(_a0 V1betaDescribeVolume
 }
 
 func (_c *MockInvoker_V1betaDescribeVolume_Call) RunAndReturn(run func(context.Context, V1betaDescribeVolumeParams) (V1betaDescribeVolumeRes, error)) *MockInvoker_V1betaDescribeVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaDescribeVolumePerformanceGroup provides a mock function with given fields: ctx, params
+func (_m *MockInvoker) V1betaDescribeVolumePerformanceGroup(ctx context.Context, params V1betaDescribeVolumePerformanceGroupParams) (V1betaDescribeVolumePerformanceGroupRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaDescribeVolumePerformanceGroup")
+	}
+
+	var r0 V1betaDescribeVolumePerformanceGroupRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDescribeVolumePerformanceGroupParams) (V1betaDescribeVolumePerformanceGroupRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaDescribeVolumePerformanceGroupParams) V1betaDescribeVolumePerformanceGroupRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaDescribeVolumePerformanceGroupRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaDescribeVolumePerformanceGroupParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaDescribeVolumePerformanceGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaDescribeVolumePerformanceGroup'
+type MockInvoker_V1betaDescribeVolumePerformanceGroup_Call struct {
+	*mock.Call
+}
+
+// V1betaDescribeVolumePerformanceGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaDescribeVolumePerformanceGroupParams
+func (_e *MockInvoker_Expecter) V1betaDescribeVolumePerformanceGroup(ctx interface{}, params interface{}) *MockInvoker_V1betaDescribeVolumePerformanceGroup_Call {
+	return &MockInvoker_V1betaDescribeVolumePerformanceGroup_Call{Call: _e.mock.On("V1betaDescribeVolumePerformanceGroup", ctx, params)}
+}
+
+func (_c *MockInvoker_V1betaDescribeVolumePerformanceGroup_Call) Run(run func(ctx context.Context, params V1betaDescribeVolumePerformanceGroupParams)) *MockInvoker_V1betaDescribeVolumePerformanceGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaDescribeVolumePerformanceGroupParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaDescribeVolumePerformanceGroup_Call) Return(_a0 V1betaDescribeVolumePerformanceGroupRes, _a1 error) *MockInvoker_V1betaDescribeVolumePerformanceGroup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaDescribeVolumePerformanceGroup_Call) RunAndReturn(run func(context.Context, V1betaDescribeVolumePerformanceGroupParams) (V1betaDescribeVolumePerformanceGroupRes, error)) *MockInvoker_V1betaDescribeVolumePerformanceGroup_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -5548,6 +5726,65 @@ func (_c *MockInvoker_V1betaListSnapshot_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// V1betaListVolumePerformanceGroups provides a mock function with given fields: ctx, params
+func (_m *MockInvoker) V1betaListVolumePerformanceGroups(ctx context.Context, params V1betaListVolumePerformanceGroupsParams) (V1betaListVolumePerformanceGroupsRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaListVolumePerformanceGroups")
+	}
+
+	var r0 V1betaListVolumePerformanceGroupsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaListVolumePerformanceGroupsParams) (V1betaListVolumePerformanceGroupsRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaListVolumePerformanceGroupsParams) V1betaListVolumePerformanceGroupsRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaListVolumePerformanceGroupsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaListVolumePerformanceGroupsParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaListVolumePerformanceGroups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaListVolumePerformanceGroups'
+type MockInvoker_V1betaListVolumePerformanceGroups_Call struct {
+	*mock.Call
+}
+
+// V1betaListVolumePerformanceGroups is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaListVolumePerformanceGroupsParams
+func (_e *MockInvoker_Expecter) V1betaListVolumePerformanceGroups(ctx interface{}, params interface{}) *MockInvoker_V1betaListVolumePerformanceGroups_Call {
+	return &MockInvoker_V1betaListVolumePerformanceGroups_Call{Call: _e.mock.On("V1betaListVolumePerformanceGroups", ctx, params)}
+}
+
+func (_c *MockInvoker_V1betaListVolumePerformanceGroups_Call) Run(run func(ctx context.Context, params V1betaListVolumePerformanceGroupsParams)) *MockInvoker_V1betaListVolumePerformanceGroups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaListVolumePerformanceGroupsParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaListVolumePerformanceGroups_Call) Return(_a0 V1betaListVolumePerformanceGroupsRes, _a1 error) *MockInvoker_V1betaListVolumePerformanceGroups_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaListVolumePerformanceGroups_Call) RunAndReturn(run func(context.Context, V1betaListVolumePerformanceGroupsParams) (V1betaListVolumePerformanceGroupsRes, error)) *MockInvoker_V1betaListVolumePerformanceGroups_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaListVolumes provides a mock function with given fields: ctx, params
 func (_m *MockInvoker) V1betaListVolumes(ctx context.Context, params V1betaListVolumesParams) (V1betaListVolumesRes, error) {
 	ret := _m.Called(ctx, params)
@@ -6919,6 +7156,66 @@ func (_c *MockInvoker_V1betaUpdateVolume_Call) Return(_a0 V1betaUpdateVolumeRes,
 }
 
 func (_c *MockInvoker_V1betaUpdateVolume_Call) RunAndReturn(run func(context.Context, *VolumeUpdateV1beta, V1betaUpdateVolumeParams) (V1betaUpdateVolumeRes, error)) *MockInvoker_V1betaUpdateVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaUpdateVolumePerformanceGroup provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1betaUpdateVolumePerformanceGroup(ctx context.Context, request *VolumePerformanceGroupUpdateV1beta, params V1betaUpdateVolumePerformanceGroupParams) (V1betaUpdateVolumePerformanceGroupRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaUpdateVolumePerformanceGroup")
+	}
+
+	var r0 V1betaUpdateVolumePerformanceGroupRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumePerformanceGroupUpdateV1beta, V1betaUpdateVolumePerformanceGroupParams) (V1betaUpdateVolumePerformanceGroupRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumePerformanceGroupUpdateV1beta, V1betaUpdateVolumePerformanceGroupParams) V1betaUpdateVolumePerformanceGroupRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaUpdateVolumePerformanceGroupRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *VolumePerformanceGroupUpdateV1beta, V1betaUpdateVolumePerformanceGroupParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaUpdateVolumePerformanceGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaUpdateVolumePerformanceGroup'
+type MockInvoker_V1betaUpdateVolumePerformanceGroup_Call struct {
+	*mock.Call
+}
+
+// V1betaUpdateVolumePerformanceGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *VolumePerformanceGroupUpdateV1beta
+//   - params V1betaUpdateVolumePerformanceGroupParams
+func (_e *MockInvoker_Expecter) V1betaUpdateVolumePerformanceGroup(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1betaUpdateVolumePerformanceGroup_Call {
+	return &MockInvoker_V1betaUpdateVolumePerformanceGroup_Call{Call: _e.mock.On("V1betaUpdateVolumePerformanceGroup", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1betaUpdateVolumePerformanceGroup_Call) Run(run func(ctx context.Context, request *VolumePerformanceGroupUpdateV1beta, params V1betaUpdateVolumePerformanceGroupParams)) *MockInvoker_V1betaUpdateVolumePerformanceGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*VolumePerformanceGroupUpdateV1beta), args[2].(V1betaUpdateVolumePerformanceGroupParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaUpdateVolumePerformanceGroup_Call) Return(_a0 V1betaUpdateVolumePerformanceGroupRes, _a1 error) *MockInvoker_V1betaUpdateVolumePerformanceGroup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaUpdateVolumePerformanceGroup_Call) RunAndReturn(run func(context.Context, *VolumePerformanceGroupUpdateV1beta, V1betaUpdateVolumePerformanceGroupParams) (V1betaUpdateVolumePerformanceGroupRes, error)) *MockInvoker_V1betaUpdateVolumePerformanceGroup_Call {
 	_c.Call.Return(run)
 	return _c
 }

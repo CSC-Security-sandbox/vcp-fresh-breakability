@@ -96,6 +96,12 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes
 	V1betaCreateVolume(ctx context.Context, req *VolumeCreateV1beta, params V1betaCreateVolumeParams) (V1betaCreateVolumeRes, error)
+	// V1betaCreateVolumePerformanceGroup implements v1beta_createVolumePerformanceGroup operation.
+	//
+	// Create a new volume performance group within the specified pool.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups
+	V1betaCreateVolumePerformanceGroup(ctx context.Context, req *VolumePerformanceGroupCreateV1beta, params V1betaCreateVolumePerformanceGroupParams) (V1betaCreateVolumePerformanceGroupRes, error)
 	// V1betaDeleteActiveDirectory implements v1beta_deleteActiveDirectory operation.
 	//
 	// Deletes the Active Directory credentials for the active user. This operation will never return
@@ -178,6 +184,13 @@ type Handler interface {
 	//
 	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 	V1betaDeleteVolume(ctx context.Context, req OptV1betaDeleteVolumeReq, params V1betaDeleteVolumeParams) (V1betaDeleteVolumeRes, error)
+	// V1betaDeleteVolumePerformanceGroup implements v1beta_deleteVolumePerformanceGroup operation.
+	//
+	// Warning! This operation will permanently delete the volume performance group. This operation will
+	// fail if the volume performance group still has assigned volumes.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups/{volumePerformanceGroupId}
+	V1betaDeleteVolumePerformanceGroup(ctx context.Context, params V1betaDeleteVolumePerformanceGroupParams) (V1betaDeleteVolumePerformanceGroupRes, error)
 	// V1betaDescribeActiveDirectory implements v1beta_describeActiveDirectory operation.
 	//
 	// Returns the description of the specified Active Directory credentials by active-directory Id.
@@ -250,6 +263,12 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 	V1betaDescribeVolume(ctx context.Context, params V1betaDescribeVolumeParams) (V1betaDescribeVolumeRes, error)
+	// V1betaDescribeVolumePerformanceGroup implements v1beta_describeVolumePerformanceGroup operation.
+	//
+	// Returns the description of the specified volume performance group by volume performance group Id.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups/{volumePerformanceGroupId}
+	V1betaDescribeVolumePerformanceGroup(ctx context.Context, params V1betaDescribeVolumePerformanceGroupParams) (V1betaDescribeVolumePerformanceGroupRes, error)
 	// V1betaEncryptVolumes implements v1beta_encryptVolumes operation.
 	//
 	// Migrates all volumes to VSA CMEK encryption.
@@ -594,6 +613,12 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots
 	V1betaListSnapshot(ctx context.Context, params V1betaListSnapshotParams) (V1betaListSnapshotRes, error)
+	// V1betaListVolumePerformanceGroups implements v1beta_listVolumePerformanceGroups operation.
+	//
+	// Returns descriptions of all volume performance groups within the specified pool.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups
+	V1betaListVolumePerformanceGroups(ctx context.Context, params V1betaListVolumePerformanceGroupsParams) (V1betaListVolumePerformanceGroupsRes, error)
 	// V1betaListVolumes implements v1beta_listVolumes operation.
 	//
 	// Returns descriptions of all volumes owned by the caller.
@@ -733,6 +758,12 @@ type Handler interface {
 	//
 	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 	V1betaUpdateVolume(ctx context.Context, req *VolumeUpdateV1beta, params V1betaUpdateVolumeParams) (V1betaUpdateVolumeRes, error)
+	// V1betaUpdateVolumePerformanceGroup implements v1beta_updateVolumePerformanceGroup operation.
+	//
+	// Update the volume performance group.
+	//
+	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups/{volumePerformanceGroupId}
+	V1betaUpdateVolumePerformanceGroup(ctx context.Context, req *VolumePerformanceGroupUpdateV1beta, params V1betaUpdateVolumePerformanceGroupParams) (V1betaUpdateVolumePerformanceGroupRes, error)
 }
 
 // Server implements http server based on OpenAPI v3 specification and

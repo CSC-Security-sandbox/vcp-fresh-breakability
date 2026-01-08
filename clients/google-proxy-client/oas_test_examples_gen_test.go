@@ -5606,6 +5606,114 @@ func TestV1betaCreateVolumeInternalServerError_EncodeDecode(t *testing.T) {
 	var typ2 V1betaCreateVolumeInternalServerError
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaCreateVolumePerformanceGroupBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateVolumePerformanceGroupBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateVolumePerformanceGroupBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateVolumePerformanceGroupConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateVolumePerformanceGroupConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateVolumePerformanceGroupConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateVolumePerformanceGroupForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateVolumePerformanceGroupForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateVolumePerformanceGroupForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateVolumePerformanceGroupInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateVolumePerformanceGroupInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateVolumePerformanceGroupInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateVolumePerformanceGroupNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateVolumePerformanceGroupNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateVolumePerformanceGroupNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateVolumePerformanceGroupNotImplemented_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateVolumePerformanceGroupNotImplemented
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateVolumePerformanceGroupNotImplemented
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateVolumePerformanceGroupTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateVolumePerformanceGroupTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateVolumePerformanceGroupTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateVolumePerformanceGroupUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateVolumePerformanceGroupUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateVolumePerformanceGroupUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaCreateVolumePerformanceGroupUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateVolumePerformanceGroupUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateVolumePerformanceGroupUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaCreateVolumeTooManyRequests_EncodeDecode(t *testing.T) {
 	var typ V1betaCreateVolumeTooManyRequests
 	typ.SetFake()
@@ -6818,6 +6926,114 @@ func TestV1betaDeleteVolumeNotFound_EncodeDecode(t *testing.T) {
 	var typ2 V1betaDeleteVolumeNotFound
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaDeleteVolumePerformanceGroupBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteVolumePerformanceGroupBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteVolumePerformanceGroupBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteVolumePerformanceGroupConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteVolumePerformanceGroupConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteVolumePerformanceGroupConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteVolumePerformanceGroupForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteVolumePerformanceGroupForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteVolumePerformanceGroupForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteVolumePerformanceGroupInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteVolumePerformanceGroupInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteVolumePerformanceGroupInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteVolumePerformanceGroupNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteVolumePerformanceGroupNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteVolumePerformanceGroupNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteVolumePerformanceGroupNotImplemented_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteVolumePerformanceGroupNotImplemented
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteVolumePerformanceGroupNotImplemented
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteVolumePerformanceGroupTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteVolumePerformanceGroupTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteVolumePerformanceGroupTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteVolumePerformanceGroupUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteVolumePerformanceGroupUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteVolumePerformanceGroupUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDeleteVolumePerformanceGroupUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteVolumePerformanceGroupUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteVolumePerformanceGroupUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaDeleteVolumeReq_EncodeDecode(t *testing.T) {
 	var typ V1betaDeleteVolumeReq
 	typ.SetFake()
@@ -7968,6 +8184,102 @@ func TestV1betaDescribeVolumeNotFound_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaDescribeVolumeNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeVolumePerformanceGroupBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeVolumePerformanceGroupBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeVolumePerformanceGroupBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeVolumePerformanceGroupForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeVolumePerformanceGroupForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeVolumePerformanceGroupForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeVolumePerformanceGroupInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeVolumePerformanceGroupInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeVolumePerformanceGroupInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeVolumePerformanceGroupNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeVolumePerformanceGroupNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeVolumePerformanceGroupNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeVolumePerformanceGroupNotImplemented_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeVolumePerformanceGroupNotImplemented
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeVolumePerformanceGroupNotImplemented
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeVolumePerformanceGroupTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeVolumePerformanceGroupTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeVolumePerformanceGroupTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeVolumePerformanceGroupUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeVolumePerformanceGroupUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeVolumePerformanceGroupUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeVolumePerformanceGroupUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeVolumePerformanceGroupUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeVolumePerformanceGroupUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaDescribeVolumeTooManyRequests_EncodeDecode(t *testing.T) {
@@ -13226,6 +13538,102 @@ func TestV1betaListSnapshotUnprocessableEntity_EncodeDecode(t *testing.T) {
 	var typ2 V1betaListSnapshotUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaListVolumePerformanceGroupsBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaListVolumePerformanceGroupsBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListVolumePerformanceGroupsBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListVolumePerformanceGroupsForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaListVolumePerformanceGroupsForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListVolumePerformanceGroupsForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListVolumePerformanceGroupsInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaListVolumePerformanceGroupsInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListVolumePerformanceGroupsInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListVolumePerformanceGroupsNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaListVolumePerformanceGroupsNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListVolumePerformanceGroupsNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListVolumePerformanceGroupsNotImplemented_EncodeDecode(t *testing.T) {
+	var typ V1betaListVolumePerformanceGroupsNotImplemented
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListVolumePerformanceGroupsNotImplemented
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListVolumePerformanceGroupsOK_EncodeDecode(t *testing.T) {
+	var typ V1betaListVolumePerformanceGroupsOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListVolumePerformanceGroupsOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListVolumePerformanceGroupsTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaListVolumePerformanceGroupsTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListVolumePerformanceGroupsTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaListVolumePerformanceGroupsUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaListVolumePerformanceGroupsUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaListVolumePerformanceGroupsUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaListVolumesBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1betaListVolumesBadRequest
 	typ.SetFake()
@@ -15506,6 +15914,114 @@ func TestV1betaUpdateVolumeNotFound_EncodeDecode(t *testing.T) {
 	var typ2 V1betaUpdateVolumeNotFound
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaUpdateVolumePerformanceGroupBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateVolumePerformanceGroupBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateVolumePerformanceGroupBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateVolumePerformanceGroupConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateVolumePerformanceGroupConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateVolumePerformanceGroupConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateVolumePerformanceGroupForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateVolumePerformanceGroupForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateVolumePerformanceGroupForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateVolumePerformanceGroupInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateVolumePerformanceGroupInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateVolumePerformanceGroupInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateVolumePerformanceGroupNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateVolumePerformanceGroupNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateVolumePerformanceGroupNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateVolumePerformanceGroupNotImplemented_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateVolumePerformanceGroupNotImplemented
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateVolumePerformanceGroupNotImplemented
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateVolumePerformanceGroupTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateVolumePerformanceGroupTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateVolumePerformanceGroupTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateVolumePerformanceGroupUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateVolumePerformanceGroupUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateVolumePerformanceGroupUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateVolumePerformanceGroupUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateVolumePerformanceGroupUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateVolumePerformanceGroupUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaUpdateVolumeTooManyRequests_EncodeDecode(t *testing.T) {
 	var typ V1betaUpdateVolumeTooManyRequests
 	typ.SetFake()
@@ -15589,6 +16105,71 @@ func TestVolumeIdListV1beta_EncodeDecode(t *testing.T) {
 
 	var typ2 VolumeIdListV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestVolumePerformanceGroupCreateV1beta_EncodeDecode(t *testing.T) {
+	var typ VolumePerformanceGroupCreateV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 VolumePerformanceGroupCreateV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestVolumePerformanceGroupUpdateV1beta_EncodeDecode(t *testing.T) {
+	var typ VolumePerformanceGroupUpdateV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 VolumePerformanceGroupUpdateV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestVolumePerformanceGroupV1beta_EncodeDecode(t *testing.T) {
+	var typ VolumePerformanceGroupV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 VolumePerformanceGroupV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestVolumePerformanceGroupV1beta_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"iops\":20,\"isShared\":true,\"poolId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"resourceId\":\"some-volume-performance-group-name\",\"throughputMibps\":200,\"volumePerformanceGroupId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ VolumePerformanceGroupV1beta
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 VolumePerformanceGroupV1beta
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
 }
 func TestVolumeReplicationCreateInternalV1beta_EncodeDecode(t *testing.T) {
 	var typ VolumeReplicationCreateInternalV1beta

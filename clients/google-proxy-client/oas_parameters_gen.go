@@ -146,6 +146,18 @@ type V1betaCreateVolumeParams struct {
 	XNetappBackupSchedule OptString
 }
 
+// V1betaCreateVolumePerformanceGroupParams is parameters of v1beta_createVolumePerformanceGroup operation.
+type V1betaCreateVolumePerformanceGroupParams struct {
+	// Uuid v4 used to identify the pool.
+	PoolId string
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaDeleteActiveDirectoryParams is parameters of v1beta_deleteActiveDirectory operation.
 type V1betaDeleteActiveDirectoryParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -298,6 +310,20 @@ type V1betaDeleteVolumeParams struct {
 	XCorrelationID OptString
 	// Uuid v4 used to identify the volume.
 	VolumeId string
+}
+
+// V1betaDeleteVolumePerformanceGroupParams is parameters of v1beta_deleteVolumePerformanceGroup operation.
+type V1betaDeleteVolumePerformanceGroupParams struct {
+	// Uuid v4 used to identify the pool.
+	PoolId string
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+	// Uuid v4 used to identify the volume performance group.
+	VolumePerformanceGroupId string
 }
 
 // V1betaDescribeActiveDirectoryParams is parameters of v1beta_describeActiveDirectory operation.
@@ -454,6 +480,20 @@ type V1betaDescribeVolumeParams struct {
 	XCorrelationID OptString
 	// Uuid v4 used to identify the volume.
 	VolumeId string
+}
+
+// V1betaDescribeVolumePerformanceGroupParams is parameters of v1beta_describeVolumePerformanceGroup operation.
+type V1betaDescribeVolumePerformanceGroupParams struct {
+	// Uuid v4 used to identify the pool.
+	PoolId string
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+	// Uuid v4 used to identify the volume performance group.
+	VolumePerformanceGroupId string
 }
 
 // V1betaEncryptVolumesParams is parameters of v1beta_encryptVolumes operation.
@@ -1102,6 +1142,18 @@ type V1betaListSnapshotParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaListVolumePerformanceGroupsParams is parameters of v1beta_listVolumePerformanceGroups operation.
+type V1betaListVolumePerformanceGroupsParams struct {
+	// Uuid v4 used to identify the pool.
+	PoolId string
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaListVolumesParams is parameters of v1beta_listVolumes operation.
 type V1betaListVolumesParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -1398,4 +1450,18 @@ type V1betaUpdateVolumeParams struct {
 	XNetappBackupSchedule OptString
 	// Uuid v4 used to identify the volume.
 	VolumeId string
+}
+
+// V1betaUpdateVolumePerformanceGroupParams is parameters of v1beta_updateVolumePerformanceGroup operation.
+type V1betaUpdateVolumePerformanceGroupParams struct {
+	// Uuid v4 used to identify the pool.
+	PoolId string
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+	// Uuid v4 used to identify the volume performance group.
+	VolumePerformanceGroupId string
 }

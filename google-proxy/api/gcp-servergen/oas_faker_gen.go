@@ -3203,6 +3203,15 @@ func (s *OptFlexCacheV1betaPreviousCacheState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptFloat32) SetFake() {
+	var elem float32
+	{
+		elem = float32(0)
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptFloat64) SetFake() {
 	var elem float64
 	{
@@ -6511,6 +6520,87 @@ func (s *V1betaCreateVolumeInternalServerError) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaCreateVolumePerformanceGroupBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateVolumePerformanceGroupBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateVolumePerformanceGroupConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateVolumePerformanceGroupConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateVolumePerformanceGroupForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateVolumePerformanceGroupForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateVolumePerformanceGroupInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateVolumePerformanceGroupInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateVolumePerformanceGroupNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateVolumePerformanceGroupNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateVolumePerformanceGroupNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateVolumePerformanceGroupNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateVolumePerformanceGroupTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateVolumePerformanceGroupTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateVolumePerformanceGroupUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateVolumePerformanceGroupUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaCreateVolumePerformanceGroupUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateVolumePerformanceGroupUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaCreateVolumeTooManyRequests) SetFake() {
 	var unwrapped Error
 	{
@@ -7420,6 +7510,87 @@ func (s *V1betaDeleteVolumeNotFound) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaDeleteVolumePerformanceGroupBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteVolumePerformanceGroupBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteVolumePerformanceGroupConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteVolumePerformanceGroupConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteVolumePerformanceGroupForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteVolumePerformanceGroupForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteVolumePerformanceGroupInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteVolumePerformanceGroupInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteVolumePerformanceGroupNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteVolumePerformanceGroupNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteVolumePerformanceGroupNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteVolumePerformanceGroupNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteVolumePerformanceGroupTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteVolumePerformanceGroupTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteVolumePerformanceGroupUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteVolumePerformanceGroupUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteVolumePerformanceGroupUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteVolumePerformanceGroupUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaDeleteVolumeReq) SetFake() {
 	{
 		{
@@ -8288,6 +8459,78 @@ func (s *V1betaDescribeVolumeNotFound) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaDescribeVolumeNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeVolumePerformanceGroupBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeVolumePerformanceGroupBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeVolumePerformanceGroupForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeVolumePerformanceGroupForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeVolumePerformanceGroupInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeVolumePerformanceGroupInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeVolumePerformanceGroupNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeVolumePerformanceGroupNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeVolumePerformanceGroupNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeVolumePerformanceGroupNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeVolumePerformanceGroupTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeVolumePerformanceGroupTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeVolumePerformanceGroupUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeVolumePerformanceGroupUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeVolumePerformanceGroupUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeVolumePerformanceGroupUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.
@@ -12401,6 +12644,85 @@ func (s *V1betaListSnapshotUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaListVolumePerformanceGroupsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListVolumePerformanceGroupsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListVolumePerformanceGroupsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListVolumePerformanceGroupsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListVolumePerformanceGroupsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListVolumePerformanceGroupsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListVolumePerformanceGroupsNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListVolumePerformanceGroupsNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListVolumePerformanceGroupsNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListVolumePerformanceGroupsNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListVolumePerformanceGroupsOK) SetFake() {
+	{
+		{
+			s.VolumePerformanceGroups = nil
+			for i := 0; i < 0; i++ {
+				var elem VolumePerformanceGroupV1beta
+				{
+					elem.SetFake()
+				}
+				s.VolumePerformanceGroups = append(s.VolumePerformanceGroups, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaListVolumePerformanceGroupsTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListVolumePerformanceGroupsTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaListVolumePerformanceGroupsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaListVolumePerformanceGroupsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaListVolumesBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -14118,6 +14440,87 @@ func (s *V1betaUpdateVolumeNotFound) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaUpdateVolumePerformanceGroupBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateVolumePerformanceGroupBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateVolumePerformanceGroupConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateVolumePerformanceGroupConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateVolumePerformanceGroupForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateVolumePerformanceGroupForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateVolumePerformanceGroupInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateVolumePerformanceGroupInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateVolumePerformanceGroupNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateVolumePerformanceGroupNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateVolumePerformanceGroupNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateVolumePerformanceGroupNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateVolumePerformanceGroupTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateVolumePerformanceGroupTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateVolumePerformanceGroupUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateVolumePerformanceGroupUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateVolumePerformanceGroupUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateVolumePerformanceGroupUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaUpdateVolumeTooManyRequests) SetFake() {
 	var unwrapped Error
 	{
@@ -14214,6 +14617,83 @@ func (s *VolumeIdListV1beta) SetFake() {
 				}
 				s.VolumeUuids = append(s.VolumeUuids, elem)
 			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *VolumePerformanceGroupCreateV1beta) SetFake() {
+	{
+		{
+			s.ResourceId = "string"
+		}
+	}
+	{
+		{
+			s.ThroughputMibps.SetFake()
+		}
+	}
+	{
+		{
+			s.Iops.SetFake()
+		}
+	}
+	{
+		{
+			s.IsShared.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *VolumePerformanceGroupUpdateV1beta) SetFake() {
+	{
+		{
+			s.ResourceId = "string"
+		}
+	}
+	{
+		{
+			s.ThroughputMibps.SetFake()
+		}
+	}
+	{
+		{
+			s.Iops.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *VolumePerformanceGroupV1beta) SetFake() {
+	{
+		{
+			s.ResourceId = "string"
+		}
+	}
+	{
+		{
+			s.VolumePerformanceGroupId.SetFake()
+		}
+	}
+	{
+		{
+			s.PoolId = "string"
+		}
+	}
+	{
+		{
+			s.ThroughputMibps.SetFake()
+		}
+	}
+	{
+		{
+			s.Iops.SetFake()
+		}
+	}
+	{
+		{
+			s.IsShared.SetFake()
 		}
 	}
 }

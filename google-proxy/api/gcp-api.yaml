@@ -35,6 +35,8 @@ tags:
     description: Backup operations
   - name: quota-rules
     description: Quota rule operations
+  - name: volume-performance-groups
+    description: Volume performance group operations
 paths:
   /health:
     get:
@@ -476,6 +478,295 @@ paths:
           $ref: '#/components/responses/StandardError-429'
         '500':
           $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups:
+    get:
+      tags:
+        - volume-performance-groups
+      summary: List all volume performance groups
+      description: Returns descriptions of all volume performance groups within the specified pool.
+      operationId: v1beta_listVolumePerformanceGroups
+      parameters:
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      volumePerformanceGroups:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/VolumePerformanceGroup_v1beta'
+              example:
+                volumePerformanceGroups:
+                  - volumePerformanceGroupId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                    resourceId: some-volume-performance-group-name
+                    poolId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                    throughputMibps: 200
+                    iops: 20
+                    isShared: true
+                  - volumePerformanceGroupId: 5fca0679-4638-11e7-9bdb-020073ca7774
+                    resourceId: another-performance-group
+                    poolId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                    throughputMibps: 150
+                    iops: 15
+                    isShared: false
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags:
+        - volume-performance-groups
+      summary: Create a new volume performance group
+      description: Create a new volume performance group within the specified pool.
+      operationId: v1beta_createVolumePerformanceGroup
+      parameters:
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to create a new volume performance group.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VolumePerformanceGroupCreate_v1beta'
+        required: true
+      responses:
+        "201":
+          description: Created volume performance group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumePerformanceGroup_v1beta'
+              example:
+                volumePerformanceGroupId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                resourceId: some-volume-performance-group-name
+                poolId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                throughputMibps: 200
+                iops: 20
+                isShared: true
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups/{volumePerformanceGroupId}:
+    get:
+      tags:
+        - volume-performance-groups
+      summary: Describe a volume performance group
+      description: Returns the description of the specified volume performance group by volume performance group Id.
+      operationId: v1beta_describeVolumePerformanceGroup
+      parameters:
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - name: volumePerformanceGroupId
+          in: path
+          description: Uuid v4 used to identify the volume performance group
+          required: true
+          schema:
+            maxLength: 36
+            minLength: 36
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumePerformanceGroup_v1beta'
+              example:
+                volumePerformanceGroupId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                resourceId: some-volume-performance-group-name
+                poolId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                throughputMibps: 200
+                iops: 20
+                isShared: true
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags:
+        - volume-performance-groups
+      summary: Update a volume performance group
+      description: Update the volume performance group
+      operationId: v1beta_updateVolumePerformanceGroup
+      parameters:
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - name: volumePerformanceGroupId
+          in: path
+          description: Uuid v4 used to identify the volume performance group
+          required: true
+          schema:
+            maxLength: 36
+            minLength: 36
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            type: string
+      requestBody:
+        description: The parameters that can be updated
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VolumePerformanceGroupUpdate_v1beta'
+        required: true
+      responses:
+        "202":
+          description: Updating volume performance group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+        "204":
+          description: No content
+          content: {}
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+    delete:
+      tags:
+        - volume-performance-groups
+      summary: Delete a volume performance group
+      description: "Warning! This operation will permanently delete the volume performance group. This operation will fail if the volume performance group still has assigned volumes." 
+      operationId: v1beta_deleteVolumePerformanceGroup
+      parameters:
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - name: volumePerformanceGroupId
+          in: path
+          description: Uuid v4 used to identify the volume performance group
+          required: true
+          schema:
+            maxLength: 36
+            minLength: 36
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            type: string
+      responses:
+        "202":
+          description: Deleting volume performance group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+        "204":
+          description: No content
+          content: {}
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
         default:
           description: Unexpected error
           content:
@@ -9488,6 +9779,122 @@ components:
             type: string
             description: Uuid v4 used to identify the volume
             example: 9760acf5-4638-11e7-9bdb-020073ca3333
+    VolumePerformanceGroup_v1beta:
+      title: Volume Performance Group v1beta model definition
+      required:
+        - poolId
+        - resourceId
+      type: object
+      properties:
+        resourceId:
+          title: resourceId
+          maxLength: 63
+          pattern: "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
+          type: string
+          description: "A human readable label for the resource which is restricted\
+            \ to letters, numbers, and hyphen, with the first character a letter,\
+            \ the last a letter or a number, and a 63 character maximum"
+          example: some-volume-performance-group-name
+        volumePerformanceGroupId:
+          title: volumePerformanceGroupId
+          type: string
+          description: UUID v4 used to identify the performance group
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        poolId:
+          title: poolId
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: Uuid of the pool under which this VPG exists.
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        throughputMibps:
+          title: mibps
+          type: number
+          format: float
+          description: Throughput in MiB/s (non-null)
+          minimum: 1
+          example: 200
+        iops:
+          title: iops
+          type: integer
+          format: int32
+          description: IOPS limit for throughput (nullable)
+          minimum: 1
+          example: 20
+        isShared:
+          title: isShared
+          type: boolean
+          description: Specifies whether volumes assigned to this Volume Performance Group share or split all of the throughput available to the parent pool.
+          default: true
+          example: true
+    VolumePerformanceGroupCreate_v1beta:
+      title: Volume Performance Group Create v1beta model definition
+      required:
+        - resourceId
+      type: object
+      properties:
+        resourceId:
+          title: resourceId
+          maxLength: 63
+          pattern: "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
+          type: string
+          description: "A human readable label for the resource which is restricted\
+            \ to letters, numbers, and hyphen, with the first character a letter,\
+            \ the last a letter or a number, and a 63 character maximum"
+          example: some-volume-performance-group-name
+        throughputMibps:
+          title: mibps
+          type: number
+          format: float
+          description: Throughput in MiB/s (non-null)
+          minimum: 1
+          example: 200
+        iops:
+          title: iops
+          type: integer
+          format: int32
+          description: IOPS limit for throughput (nullable)
+          minimum: 1
+          example: 20
+        isShared:
+          title: isShared
+          type: boolean
+          description: Specifies whether volumes assigned to this Volume Performance Group share or split all of the throughput available to the parent pool.
+          default: true
+          example: true
+    VolumePerformanceGroupUpdate_v1beta:
+      title: Volume Performance Group Update v1beta model definition
+      required:
+        - resourceId
+      type: object
+      properties:
+        resourceId:
+          title: resourceId
+          maxLength: 63
+          pattern: "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
+          type: string
+          description: "A human readable label for the resource which is restricted\
+            \ to letters, numbers, and hyphen, with the first character a letter,\
+            \ the last a letter or a number, and a 63 character maximum"
+          example: some-volume-performance-group-name
+        throughputMibps:
+          title: mibps
+          type: number
+          format: float
+          description: Throughput in MiB/s (non-null)
+          minimum: 1
+          example: 200
+        iops:
+          title: iops
+          type: integer
+          format: int32
+          description: IOPS limit for throughput (nullable)
+          minimum: 1
+          example: 20
     VolumeCreate_v1beta:
       title: VolumeCreate
       required:

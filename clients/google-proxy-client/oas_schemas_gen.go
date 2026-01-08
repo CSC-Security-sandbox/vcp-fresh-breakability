@@ -3927,6 +3927,7 @@ func (*ErrorStatusCode) v1betaCreateQuotaRuleRes()                           {}
 func (*ErrorStatusCode) v1betaCreateQuotaRuleVCPRes()                        {}
 func (*ErrorStatusCode) v1betaCreateReplicationRes()                         {}
 func (*ErrorStatusCode) v1betaCreateSnapshotRes()                            {}
+func (*ErrorStatusCode) v1betaCreateVolumePerformanceGroupRes()              {}
 func (*ErrorStatusCode) v1betaCreateVolumeRes()                              {}
 func (*ErrorStatusCode) v1betaDeleteActiveDirectoryRes()                     {}
 func (*ErrorStatusCode) v1betaDeleteBackupPolicyRes()                        {}
@@ -3939,6 +3940,7 @@ func (*ErrorStatusCode) v1betaDeleteQuotaRuleRes()                           {}
 func (*ErrorStatusCode) v1betaDeleteQuotaRuleVCPRes()                        {}
 func (*ErrorStatusCode) v1betaDeleteReplicationRes()                         {}
 func (*ErrorStatusCode) v1betaDeleteSnapshotRes()                            {}
+func (*ErrorStatusCode) v1betaDeleteVolumePerformanceGroupRes()              {}
 func (*ErrorStatusCode) v1betaDeleteVolumeRes()                              {}
 func (*ErrorStatusCode) v1betaDescribeActiveDirectoryRes()                   {}
 func (*ErrorStatusCode) v1betaDescribeBackupPolicyRes()                      {}
@@ -3951,6 +3953,7 @@ func (*ErrorStatusCode) v1betaDescribePoolRes()                              {}
 func (*ErrorStatusCode) v1betaDescribeQuotaRuleRes()                         {}
 func (*ErrorStatusCode) v1betaDescribeQuotaRuleVCPRes()                      {}
 func (*ErrorStatusCode) v1betaDescribeSnapshotRes()                          {}
+func (*ErrorStatusCode) v1betaDescribeVolumePerformanceGroupRes()            {}
 func (*ErrorStatusCode) v1betaDescribeVolumeRes()                            {}
 func (*ErrorStatusCode) v1betaEncryptVolumesRes()                            {}
 func (*ErrorStatusCode) v1betaEstablishPeeringRes()                          {}
@@ -4006,6 +4009,7 @@ func (*ErrorStatusCode) v1betaListKmsConfigurationsRes()                     {}
 func (*ErrorStatusCode) v1betaListPoolsRes()                                 {}
 func (*ErrorStatusCode) v1betaListReplicationsRes()                          {}
 func (*ErrorStatusCode) v1betaListSnapshotRes()                              {}
+func (*ErrorStatusCode) v1betaListVolumePerformanceGroupsRes()               {}
 func (*ErrorStatusCode) v1betaListVolumesRes()                               {}
 func (*ErrorStatusCode) v1betaResourceStateUpdateRes()                       {}
 func (*ErrorStatusCode) v1betaRestoreBackupFilesRes()                        {}
@@ -4028,6 +4032,7 @@ func (*ErrorStatusCode) v1betaUpdateQuotaRuleRes()                           {}
 func (*ErrorStatusCode) v1betaUpdateQuotaRuleVCPRes()                        {}
 func (*ErrorStatusCode) v1betaUpdateReplicationRes()                         {}
 func (*ErrorStatusCode) v1betaUpdateSnapshotRes()                            {}
+func (*ErrorStatusCode) v1betaUpdateVolumePerformanceGroupRes()              {}
 func (*ErrorStatusCode) v1betaUpdateVolumeRes()                              {}
 
 // Parameters to establish peering for a FlexCache / hybrid replication relationship.
@@ -7962,6 +7967,7 @@ func (*OperationV1beta) v1betaDeletePoolRes()                                {}
 func (*OperationV1beta) v1betaDeleteQuotaRuleRes()                           {}
 func (*OperationV1beta) v1betaDeleteReplicationRes()                         {}
 func (*OperationV1beta) v1betaDeleteSnapshotRes()                            {}
+func (*OperationV1beta) v1betaDeleteVolumePerformanceGroupRes()              {}
 func (*OperationV1beta) v1betaDeleteVolumeRes()                              {}
 func (*OperationV1beta) v1betaDescribeOperationRes()                         {}
 func (*OperationV1beta) v1betaEncryptVolumesRes()                            {}
@@ -7995,6 +8001,7 @@ func (*OperationV1beta) v1betaUpdateQuotaRuleRes()                           {}
 func (*OperationV1beta) v1betaUpdateQuotaRuleVCPRes()                        {}
 func (*OperationV1beta) v1betaUpdateReplicationRes()                         {}
 func (*OperationV1beta) v1betaUpdateSnapshotRes()                            {}
+func (*OperationV1beta) v1betaUpdateVolumePerformanceGroupRes()              {}
 func (*OperationV1beta) v1betaUpdateVolumeRes()                              {}
 
 // NewOptActiveDirectoryV1betaActiveDirectoryState returns new OptActiveDirectoryV1betaActiveDirectoryState with value set to v.
@@ -9417,6 +9424,52 @@ func (o OptFlexCacheV1betaPreviousCacheState) Get() (v FlexCacheV1betaPreviousCa
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFlexCacheV1betaPreviousCacheState) Or(d FlexCacheV1betaPreviousCacheState) FlexCacheV1betaPreviousCacheState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFloat32 returns new OptFloat32 with value set to v.
+func NewOptFloat32(v float32) OptFloat32 {
+	return OptFloat32{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFloat32 is optional float32.
+type OptFloat32 struct {
+	Value float32
+	Set   bool
+}
+
+// IsSet returns true if OptFloat32 was set.
+func (o OptFloat32) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFloat32) Reset() {
+	var v float32
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFloat32) SetTo(v float32) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFloat32) Get() (v float32, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFloat32) Or(d float32) float32 {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -19748,6 +19801,44 @@ type V1betaCreateVolumeInternalServerError Error
 
 func (*V1betaCreateVolumeInternalServerError) v1betaCreateVolumeRes() {}
 
+type V1betaCreateVolumePerformanceGroupBadRequest Error
+
+func (*V1betaCreateVolumePerformanceGroupBadRequest) v1betaCreateVolumePerformanceGroupRes() {}
+
+type V1betaCreateVolumePerformanceGroupConflict Error
+
+func (*V1betaCreateVolumePerformanceGroupConflict) v1betaCreateVolumePerformanceGroupRes() {}
+
+type V1betaCreateVolumePerformanceGroupForbidden Error
+
+func (*V1betaCreateVolumePerformanceGroupForbidden) v1betaCreateVolumePerformanceGroupRes() {}
+
+type V1betaCreateVolumePerformanceGroupInternalServerError Error
+
+func (*V1betaCreateVolumePerformanceGroupInternalServerError) v1betaCreateVolumePerformanceGroupRes() {
+}
+
+type V1betaCreateVolumePerformanceGroupNotFound Error
+
+func (*V1betaCreateVolumePerformanceGroupNotFound) v1betaCreateVolumePerformanceGroupRes() {}
+
+type V1betaCreateVolumePerformanceGroupNotImplemented Error
+
+func (*V1betaCreateVolumePerformanceGroupNotImplemented) v1betaCreateVolumePerformanceGroupRes() {}
+
+type V1betaCreateVolumePerformanceGroupTooManyRequests Error
+
+func (*V1betaCreateVolumePerformanceGroupTooManyRequests) v1betaCreateVolumePerformanceGroupRes() {}
+
+type V1betaCreateVolumePerformanceGroupUnauthorized Error
+
+func (*V1betaCreateVolumePerformanceGroupUnauthorized) v1betaCreateVolumePerformanceGroupRes() {}
+
+type V1betaCreateVolumePerformanceGroupUnprocessableEntity Error
+
+func (*V1betaCreateVolumePerformanceGroupUnprocessableEntity) v1betaCreateVolumePerformanceGroupRes() {
+}
+
 type V1betaCreateVolumeTooManyRequests Error
 
 func (*V1betaCreateVolumeTooManyRequests) v1betaCreateVolumeRes() {}
@@ -20194,6 +20285,49 @@ type V1betaDeleteVolumeNotFound Error
 
 func (*V1betaDeleteVolumeNotFound) v1betaDeleteVolumeRes() {}
 
+type V1betaDeleteVolumePerformanceGroupBadRequest Error
+
+func (*V1betaDeleteVolumePerformanceGroupBadRequest) v1betaDeleteVolumePerformanceGroupRes() {}
+
+type V1betaDeleteVolumePerformanceGroupConflict Error
+
+func (*V1betaDeleteVolumePerformanceGroupConflict) v1betaDeleteVolumePerformanceGroupRes() {}
+
+type V1betaDeleteVolumePerformanceGroupForbidden Error
+
+func (*V1betaDeleteVolumePerformanceGroupForbidden) v1betaDeleteVolumePerformanceGroupRes() {}
+
+type V1betaDeleteVolumePerformanceGroupInternalServerError Error
+
+func (*V1betaDeleteVolumePerformanceGroupInternalServerError) v1betaDeleteVolumePerformanceGroupRes() {
+}
+
+// V1betaDeleteVolumePerformanceGroupNoContent is response for V1betaDeleteVolumePerformanceGroup operation.
+type V1betaDeleteVolumePerformanceGroupNoContent struct{}
+
+func (*V1betaDeleteVolumePerformanceGroupNoContent) v1betaDeleteVolumePerformanceGroupRes() {}
+
+type V1betaDeleteVolumePerformanceGroupNotFound Error
+
+func (*V1betaDeleteVolumePerformanceGroupNotFound) v1betaDeleteVolumePerformanceGroupRes() {}
+
+type V1betaDeleteVolumePerformanceGroupNotImplemented Error
+
+func (*V1betaDeleteVolumePerformanceGroupNotImplemented) v1betaDeleteVolumePerformanceGroupRes() {}
+
+type V1betaDeleteVolumePerformanceGroupTooManyRequests Error
+
+func (*V1betaDeleteVolumePerformanceGroupTooManyRequests) v1betaDeleteVolumePerformanceGroupRes() {}
+
+type V1betaDeleteVolumePerformanceGroupUnauthorized Error
+
+func (*V1betaDeleteVolumePerformanceGroupUnauthorized) v1betaDeleteVolumePerformanceGroupRes() {}
+
+type V1betaDeleteVolumePerformanceGroupUnprocessableEntity Error
+
+func (*V1betaDeleteVolumePerformanceGroupUnprocessableEntity) v1betaDeleteVolumePerformanceGroupRes() {
+}
+
 type V1betaDeleteVolumeReq struct {
 	// Delete all the associated backups for the given volume Id or not.
 	DeleteAssociatedBackups OptBool `json:"deleteAssociatedBackups"`
@@ -20600,6 +20734,42 @@ func (*V1betaDescribeVolumeInternalServerError) v1betaDescribeVolumeRes() {}
 type V1betaDescribeVolumeNotFound Error
 
 func (*V1betaDescribeVolumeNotFound) v1betaDescribeVolumeRes() {}
+
+type V1betaDescribeVolumePerformanceGroupBadRequest Error
+
+func (*V1betaDescribeVolumePerformanceGroupBadRequest) v1betaDescribeVolumePerformanceGroupRes() {}
+
+type V1betaDescribeVolumePerformanceGroupForbidden Error
+
+func (*V1betaDescribeVolumePerformanceGroupForbidden) v1betaDescribeVolumePerformanceGroupRes() {}
+
+type V1betaDescribeVolumePerformanceGroupInternalServerError Error
+
+func (*V1betaDescribeVolumePerformanceGroupInternalServerError) v1betaDescribeVolumePerformanceGroupRes() {
+}
+
+type V1betaDescribeVolumePerformanceGroupNotFound Error
+
+func (*V1betaDescribeVolumePerformanceGroupNotFound) v1betaDescribeVolumePerformanceGroupRes() {}
+
+type V1betaDescribeVolumePerformanceGroupNotImplemented Error
+
+func (*V1betaDescribeVolumePerformanceGroupNotImplemented) v1betaDescribeVolumePerformanceGroupRes() {
+}
+
+type V1betaDescribeVolumePerformanceGroupTooManyRequests Error
+
+func (*V1betaDescribeVolumePerformanceGroupTooManyRequests) v1betaDescribeVolumePerformanceGroupRes() {
+}
+
+type V1betaDescribeVolumePerformanceGroupUnauthorized Error
+
+func (*V1betaDescribeVolumePerformanceGroupUnauthorized) v1betaDescribeVolumePerformanceGroupRes() {}
+
+type V1betaDescribeVolumePerformanceGroupUnprocessableEntity Error
+
+func (*V1betaDescribeVolumePerformanceGroupUnprocessableEntity) v1betaDescribeVolumePerformanceGroupRes() {
+}
 
 type V1betaDescribeVolumeTooManyRequests Error
 
@@ -22778,6 +22948,50 @@ type V1betaListSnapshotUnprocessableEntity Error
 
 func (*V1betaListSnapshotUnprocessableEntity) v1betaListSnapshotRes() {}
 
+type V1betaListVolumePerformanceGroupsBadRequest Error
+
+func (*V1betaListVolumePerformanceGroupsBadRequest) v1betaListVolumePerformanceGroupsRes() {}
+
+type V1betaListVolumePerformanceGroupsForbidden Error
+
+func (*V1betaListVolumePerformanceGroupsForbidden) v1betaListVolumePerformanceGroupsRes() {}
+
+type V1betaListVolumePerformanceGroupsInternalServerError Error
+
+func (*V1betaListVolumePerformanceGroupsInternalServerError) v1betaListVolumePerformanceGroupsRes() {}
+
+type V1betaListVolumePerformanceGroupsNotFound Error
+
+func (*V1betaListVolumePerformanceGroupsNotFound) v1betaListVolumePerformanceGroupsRes() {}
+
+type V1betaListVolumePerformanceGroupsNotImplemented Error
+
+func (*V1betaListVolumePerformanceGroupsNotImplemented) v1betaListVolumePerformanceGroupsRes() {}
+
+type V1betaListVolumePerformanceGroupsOK struct {
+	VolumePerformanceGroups []VolumePerformanceGroupV1beta `json:"volumePerformanceGroups"`
+}
+
+// GetVolumePerformanceGroups returns the value of VolumePerformanceGroups.
+func (s *V1betaListVolumePerformanceGroupsOK) GetVolumePerformanceGroups() []VolumePerformanceGroupV1beta {
+	return s.VolumePerformanceGroups
+}
+
+// SetVolumePerformanceGroups sets the value of VolumePerformanceGroups.
+func (s *V1betaListVolumePerformanceGroupsOK) SetVolumePerformanceGroups(val []VolumePerformanceGroupV1beta) {
+	s.VolumePerformanceGroups = val
+}
+
+func (*V1betaListVolumePerformanceGroupsOK) v1betaListVolumePerformanceGroupsRes() {}
+
+type V1betaListVolumePerformanceGroupsTooManyRequests Error
+
+func (*V1betaListVolumePerformanceGroupsTooManyRequests) v1betaListVolumePerformanceGroupsRes() {}
+
+type V1betaListVolumePerformanceGroupsUnauthorized Error
+
+func (*V1betaListVolumePerformanceGroupsUnauthorized) v1betaListVolumePerformanceGroupsRes() {}
+
 type V1betaListVolumesBadRequest Error
 
 func (*V1betaListVolumesBadRequest) v1betaListVolumesRes() {}
@@ -23590,6 +23804,49 @@ type V1betaUpdateVolumeNotFound Error
 
 func (*V1betaUpdateVolumeNotFound) v1betaUpdateVolumeRes() {}
 
+type V1betaUpdateVolumePerformanceGroupBadRequest Error
+
+func (*V1betaUpdateVolumePerformanceGroupBadRequest) v1betaUpdateVolumePerformanceGroupRes() {}
+
+type V1betaUpdateVolumePerformanceGroupConflict Error
+
+func (*V1betaUpdateVolumePerformanceGroupConflict) v1betaUpdateVolumePerformanceGroupRes() {}
+
+type V1betaUpdateVolumePerformanceGroupForbidden Error
+
+func (*V1betaUpdateVolumePerformanceGroupForbidden) v1betaUpdateVolumePerformanceGroupRes() {}
+
+type V1betaUpdateVolumePerformanceGroupInternalServerError Error
+
+func (*V1betaUpdateVolumePerformanceGroupInternalServerError) v1betaUpdateVolumePerformanceGroupRes() {
+}
+
+// V1betaUpdateVolumePerformanceGroupNoContent is response for V1betaUpdateVolumePerformanceGroup operation.
+type V1betaUpdateVolumePerformanceGroupNoContent struct{}
+
+func (*V1betaUpdateVolumePerformanceGroupNoContent) v1betaUpdateVolumePerformanceGroupRes() {}
+
+type V1betaUpdateVolumePerformanceGroupNotFound Error
+
+func (*V1betaUpdateVolumePerformanceGroupNotFound) v1betaUpdateVolumePerformanceGroupRes() {}
+
+type V1betaUpdateVolumePerformanceGroupNotImplemented Error
+
+func (*V1betaUpdateVolumePerformanceGroupNotImplemented) v1betaUpdateVolumePerformanceGroupRes() {}
+
+type V1betaUpdateVolumePerformanceGroupTooManyRequests Error
+
+func (*V1betaUpdateVolumePerformanceGroupTooManyRequests) v1betaUpdateVolumePerformanceGroupRes() {}
+
+type V1betaUpdateVolumePerformanceGroupUnauthorized Error
+
+func (*V1betaUpdateVolumePerformanceGroupUnauthorized) v1betaUpdateVolumePerformanceGroupRes() {}
+
+type V1betaUpdateVolumePerformanceGroupUnprocessableEntity Error
+
+func (*V1betaUpdateVolumePerformanceGroupUnprocessableEntity) v1betaUpdateVolumePerformanceGroupRes() {
+}
+
 type V1betaUpdateVolumeTooManyRequests Error
 
 func (*V1betaUpdateVolumeTooManyRequests) v1betaUpdateVolumeRes() {}
@@ -23773,6 +24030,182 @@ func (s *VolumeIdListV1beta) GetVolumeUuids() []string {
 func (s *VolumeIdListV1beta) SetVolumeUuids(val []string) {
 	s.VolumeUuids = val
 }
+
+// Ref: #/components/schemas/VolumePerformanceGroupCreate_v1beta
+type VolumePerformanceGroupCreateV1beta struct {
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId string `json:"resourceId"`
+	// Throughput in MiB/s (non-null).
+	ThroughputMibps OptFloat32 `json:"throughputMibps"`
+	// IOPS limit for throughput (nullable).
+	Iops OptInt32 `json:"iops"`
+	// Specifies whether volumes assigned to this Volume Performance Group share or split all of the
+	// throughput available to the parent pool.
+	IsShared OptBool `json:"isShared"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *VolumePerformanceGroupCreateV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetThroughputMibps returns the value of ThroughputMibps.
+func (s *VolumePerformanceGroupCreateV1beta) GetThroughputMibps() OptFloat32 {
+	return s.ThroughputMibps
+}
+
+// GetIops returns the value of Iops.
+func (s *VolumePerformanceGroupCreateV1beta) GetIops() OptInt32 {
+	return s.Iops
+}
+
+// GetIsShared returns the value of IsShared.
+func (s *VolumePerformanceGroupCreateV1beta) GetIsShared() OptBool {
+	return s.IsShared
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *VolumePerformanceGroupCreateV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetThroughputMibps sets the value of ThroughputMibps.
+func (s *VolumePerformanceGroupCreateV1beta) SetThroughputMibps(val OptFloat32) {
+	s.ThroughputMibps = val
+}
+
+// SetIops sets the value of Iops.
+func (s *VolumePerformanceGroupCreateV1beta) SetIops(val OptInt32) {
+	s.Iops = val
+}
+
+// SetIsShared sets the value of IsShared.
+func (s *VolumePerformanceGroupCreateV1beta) SetIsShared(val OptBool) {
+	s.IsShared = val
+}
+
+// Ref: #/components/schemas/VolumePerformanceGroupUpdate_v1beta
+type VolumePerformanceGroupUpdateV1beta struct {
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId string `json:"resourceId"`
+	// Throughput in MiB/s (non-null).
+	ThroughputMibps OptFloat32 `json:"throughputMibps"`
+	// IOPS limit for throughput (nullable).
+	Iops OptInt32 `json:"iops"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *VolumePerformanceGroupUpdateV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetThroughputMibps returns the value of ThroughputMibps.
+func (s *VolumePerformanceGroupUpdateV1beta) GetThroughputMibps() OptFloat32 {
+	return s.ThroughputMibps
+}
+
+// GetIops returns the value of Iops.
+func (s *VolumePerformanceGroupUpdateV1beta) GetIops() OptInt32 {
+	return s.Iops
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *VolumePerformanceGroupUpdateV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetThroughputMibps sets the value of ThroughputMibps.
+func (s *VolumePerformanceGroupUpdateV1beta) SetThroughputMibps(val OptFloat32) {
+	s.ThroughputMibps = val
+}
+
+// SetIops sets the value of Iops.
+func (s *VolumePerformanceGroupUpdateV1beta) SetIops(val OptInt32) {
+	s.Iops = val
+}
+
+// Ref: #/components/schemas/VolumePerformanceGroup_v1beta
+type VolumePerformanceGroupV1beta struct {
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId string `json:"resourceId"`
+	// UUID v4 used to identify the performance group.
+	VolumePerformanceGroupId OptString `json:"volumePerformanceGroupId"`
+	// Uuid of the pool under which this VPG exists.
+	PoolId string `json:"poolId"`
+	// Throughput in MiB/s (non-null).
+	ThroughputMibps OptFloat32 `json:"throughputMibps"`
+	// IOPS limit for throughput (nullable).
+	Iops OptInt32 `json:"iops"`
+	// Specifies whether volumes assigned to this Volume Performance Group share or split all of the
+	// throughput available to the parent pool.
+	IsShared OptBool `json:"isShared"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *VolumePerformanceGroupV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetVolumePerformanceGroupId returns the value of VolumePerformanceGroupId.
+func (s *VolumePerformanceGroupV1beta) GetVolumePerformanceGroupId() OptString {
+	return s.VolumePerformanceGroupId
+}
+
+// GetPoolId returns the value of PoolId.
+func (s *VolumePerformanceGroupV1beta) GetPoolId() string {
+	return s.PoolId
+}
+
+// GetThroughputMibps returns the value of ThroughputMibps.
+func (s *VolumePerformanceGroupV1beta) GetThroughputMibps() OptFloat32 {
+	return s.ThroughputMibps
+}
+
+// GetIops returns the value of Iops.
+func (s *VolumePerformanceGroupV1beta) GetIops() OptInt32 {
+	return s.Iops
+}
+
+// GetIsShared returns the value of IsShared.
+func (s *VolumePerformanceGroupV1beta) GetIsShared() OptBool {
+	return s.IsShared
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *VolumePerformanceGroupV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetVolumePerformanceGroupId sets the value of VolumePerformanceGroupId.
+func (s *VolumePerformanceGroupV1beta) SetVolumePerformanceGroupId(val OptString) {
+	s.VolumePerformanceGroupId = val
+}
+
+// SetPoolId sets the value of PoolId.
+func (s *VolumePerformanceGroupV1beta) SetPoolId(val string) {
+	s.PoolId = val
+}
+
+// SetThroughputMibps sets the value of ThroughputMibps.
+func (s *VolumePerformanceGroupV1beta) SetThroughputMibps(val OptFloat32) {
+	s.ThroughputMibps = val
+}
+
+// SetIops sets the value of Iops.
+func (s *VolumePerformanceGroupV1beta) SetIops(val OptInt32) {
+	s.Iops = val
+}
+
+// SetIsShared sets the value of IsShared.
+func (s *VolumePerformanceGroupV1beta) SetIsShared(val OptBool) {
+	s.IsShared = val
+}
+
+func (*VolumePerformanceGroupV1beta) v1betaCreateVolumePerformanceGroupRes()   {}
+func (*VolumePerformanceGroupV1beta) v1betaDescribeVolumePerformanceGroupRes() {}
 
 // Merged schema.
 // Ref: #/components/schemas/VolumeReplicationCreateInternal_v1beta

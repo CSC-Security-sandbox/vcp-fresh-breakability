@@ -179,6 +179,20 @@ func encodeV1betaCreateVolumeRequest(
 	return nil
 }
 
+func encodeV1betaCreateVolumePerformanceGroupRequest(
+	req *VolumePerformanceGroupCreateV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeV1betaDeleteReplicationRequest(
 	req *ReplicationDeleteV1beta,
 	r *http.Request,
@@ -831,6 +845,20 @@ func encodeV1betaUpdateSnapshotRequest(
 
 func encodeV1betaUpdateVolumeRequest(
 	req *VolumeUpdateV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeV1betaUpdateVolumePerformanceGroupRequest(
+	req *VolumePerformanceGroupUpdateV1beta,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"

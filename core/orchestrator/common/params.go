@@ -840,3 +840,43 @@ type DeleteQuotaRulesParam struct {
 	ProjectId     string // Project number for validation
 	LocationId    string // Location/region for validation
 }
+
+// CreateVolumePerformanceGroupParams describes parameters supplied to CreateVolumePerformanceGroup
+type CreateVolumePerformanceGroupParams struct {
+	AccountName     string
+	PoolID          string
+	Name            string // resourceId
+	ThroughputMibps float32
+	Iops            *int32 // nullable
+	IsShared        bool
+}
+
+// UpdateVolumePerformanceGroupParams describes parameters supplied to UpdateVolumePerformanceGroup
+type UpdateVolumePerformanceGroupParams struct {
+	AccountName              string
+	PoolID                   string
+	VolumePerformanceGroupID string
+	Name                     string   // resourceId
+	ThroughputMibps          *float32 // optional
+	Iops                     *int32   // optional, nullable
+}
+
+// DeleteVolumePerformanceGroupParams describes parameters supplied to DeleteVolumePerformanceGroup
+type DeleteVolumePerformanceGroupParams struct {
+	AccountName              string
+	PoolID                   string
+	VolumePerformanceGroupID string
+}
+
+// GetVolumePerformanceGroupParams describes parameters supplied to GetVolumePerformanceGroup
+type GetVolumePerformanceGroupParams struct {
+	AccountName              string
+	PoolID                   string
+	VolumePerformanceGroupID string
+}
+
+// ListVolumePerformanceGroupsParams describes parameters supplied to ListVolumePerformanceGroups
+type ListVolumePerformanceGroupsParams struct {
+	AccountName string
+	PoolID      string
+}

@@ -150,9 +150,16 @@ type OrchestratorFactory interface {
 	DeleteActiveDirectory(ctx context.Context, params *commonparams.DeleteActiveDirectoryParams) (string, error)
 
 	GetExpertModeVolumeByUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error)
-	CreateExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error
+  CreateExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error
 	DeleteExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error
 	UpdateRbacForPools(ctx context.Context) (string, error)
+
+	// Volume Performance Group related methods
+	CreateVolumePerformanceGroup(ctx context.Context, params *commonparams.CreateVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error)
+	ListVolumePerformanceGroups(ctx context.Context, params *commonparams.ListVolumePerformanceGroupsParams) ([]*models.VolumePerformanceGroup, error)
+	GetVolumePerformanceGroup(ctx context.Context, params *commonparams.GetVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error)
+	UpdateVolumePerformanceGroup(ctx context.Context, params *commonparams.UpdateVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error)
+	DeleteVolumePerformanceGroup(ctx context.Context, params *commonparams.DeleteVolumePerformanceGroupParams) error
 }
 
 type Orchestrator struct {

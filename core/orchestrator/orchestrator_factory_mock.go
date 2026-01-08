@@ -1329,6 +1329,65 @@ func (_c *MockOrchestratorFactory_CreateVolume_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// CreateVolumePerformanceGroup provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) CreateVolumePerformanceGroup(ctx context.Context, params *common.CreateVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateVolumePerformanceGroup")
+	}
+
+	var r0 *models.VolumePerformanceGroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateVolumePerformanceGroupParams) *models.VolumePerformanceGroup); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.VolumePerformanceGroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.CreateVolumePerformanceGroupParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_CreateVolumePerformanceGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateVolumePerformanceGroup'
+type MockOrchestratorFactory_CreateVolumePerformanceGroup_Call struct {
+	*mock.Call
+}
+
+// CreateVolumePerformanceGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.CreateVolumePerformanceGroupParams
+func (_e *MockOrchestratorFactory_Expecter) CreateVolumePerformanceGroup(ctx interface{}, params interface{}) *MockOrchestratorFactory_CreateVolumePerformanceGroup_Call {
+	return &MockOrchestratorFactory_CreateVolumePerformanceGroup_Call{Call: _e.mock.On("CreateVolumePerformanceGroup", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_CreateVolumePerformanceGroup_Call) Run(run func(ctx context.Context, params *common.CreateVolumePerformanceGroupParams)) *MockOrchestratorFactory_CreateVolumePerformanceGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.CreateVolumePerformanceGroupParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateVolumePerformanceGroup_Call) Return(_a0 *models.VolumePerformanceGroup, _a1 error) *MockOrchestratorFactory_CreateVolumePerformanceGroup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateVolumePerformanceGroup_Call) RunAndReturn(run func(context.Context, *common.CreateVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error)) *MockOrchestratorFactory_CreateVolumePerformanceGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateVolumeReplication provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) CreateVolumeReplication(ctx context.Context, params *common.CreateVolumeReplicationParams) (*models.VolumeReplication, string, error) {
 	ret := _m.Called(ctx, params)
@@ -2574,6 +2633,53 @@ func (_c *MockOrchestratorFactory_DeleteVolume_Call) Return(_a0 *models.Volume, 
 }
 
 func (_c *MockOrchestratorFactory_DeleteVolume_Call) RunAndReturn(run func(context.Context, string) (*models.Volume, string, error)) *MockOrchestratorFactory_DeleteVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteVolumePerformanceGroup provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) DeleteVolumePerformanceGroup(ctx context.Context, params *common.DeleteVolumePerformanceGroupParams) error {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteVolumePerformanceGroup")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteVolumePerformanceGroupParams) error); ok {
+		r0 = rf(ctx, params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteVolumePerformanceGroup'
+type MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call struct {
+	*mock.Call
+}
+
+// DeleteVolumePerformanceGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.DeleteVolumePerformanceGroupParams
+func (_e *MockOrchestratorFactory_Expecter) DeleteVolumePerformanceGroup(ctx interface{}, params interface{}) *MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call {
+	return &MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call{Call: _e.mock.On("DeleteVolumePerformanceGroup", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call) Run(run func(ctx context.Context, params *common.DeleteVolumePerformanceGroupParams)) *MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.DeleteVolumePerformanceGroupParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call) Return(_a0 error) *MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call) RunAndReturn(run func(context.Context, *common.DeleteVolumePerformanceGroupParams) error) *MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -5333,6 +5439,65 @@ func (_c *MockOrchestratorFactory_GetVolumeCount_Call) RunAndReturn(run func(con
 	return _c
 }
 
+// GetVolumePerformanceGroup provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) GetVolumePerformanceGroup(ctx context.Context, params *common.GetVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumePerformanceGroup")
+	}
+
+	var r0 *models.VolumePerformanceGroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.GetVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.GetVolumePerformanceGroupParams) *models.VolumePerformanceGroup); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.VolumePerformanceGroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.GetVolumePerformanceGroupParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetVolumePerformanceGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumePerformanceGroup'
+type MockOrchestratorFactory_GetVolumePerformanceGroup_Call struct {
+	*mock.Call
+}
+
+// GetVolumePerformanceGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.GetVolumePerformanceGroupParams
+func (_e *MockOrchestratorFactory_Expecter) GetVolumePerformanceGroup(ctx interface{}, params interface{}) *MockOrchestratorFactory_GetVolumePerformanceGroup_Call {
+	return &MockOrchestratorFactory_GetVolumePerformanceGroup_Call{Call: _e.mock.On("GetVolumePerformanceGroup", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_GetVolumePerformanceGroup_Call) Run(run func(ctx context.Context, params *common.GetVolumePerformanceGroupParams)) *MockOrchestratorFactory_GetVolumePerformanceGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.GetVolumePerformanceGroupParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetVolumePerformanceGroup_Call) Return(_a0 *models.VolumePerformanceGroup, _a1 error) *MockOrchestratorFactory_GetVolumePerformanceGroup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetVolumePerformanceGroup_Call) RunAndReturn(run func(context.Context, *common.GetVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error)) *MockOrchestratorFactory_GetVolumePerformanceGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IsBackupVaultAttachedToVolume provides a mock function with given fields: ctx, backupVaultUUID
 func (_m *MockOrchestratorFactory) IsBackupVaultAttachedToVolume(ctx context.Context, backupVaultUUID string) (bool, error) {
 	ret := _m.Called(ctx, backupVaultUUID)
@@ -5928,6 +6093,65 @@ func (_c *MockOrchestratorFactory_ListSnapshots_Call) Return(_a0 []*models.Snaps
 }
 
 func (_c *MockOrchestratorFactory_ListSnapshots_Call) RunAndReturn(run func(context.Context, *common.ListSnapshotsParams) ([]*models.Snapshot, error)) *MockOrchestratorFactory_ListSnapshots_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListVolumePerformanceGroups provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) ListVolumePerformanceGroups(ctx context.Context, params *common.ListVolumePerformanceGroupsParams) ([]*models.VolumePerformanceGroup, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVolumePerformanceGroups")
+	}
+
+	var r0 []*models.VolumePerformanceGroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.ListVolumePerformanceGroupsParams) ([]*models.VolumePerformanceGroup, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.ListVolumePerformanceGroupsParams) []*models.VolumePerformanceGroup); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.VolumePerformanceGroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.ListVolumePerformanceGroupsParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_ListVolumePerformanceGroups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVolumePerformanceGroups'
+type MockOrchestratorFactory_ListVolumePerformanceGroups_Call struct {
+	*mock.Call
+}
+
+// ListVolumePerformanceGroups is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.ListVolumePerformanceGroupsParams
+func (_e *MockOrchestratorFactory_Expecter) ListVolumePerformanceGroups(ctx interface{}, params interface{}) *MockOrchestratorFactory_ListVolumePerformanceGroups_Call {
+	return &MockOrchestratorFactory_ListVolumePerformanceGroups_Call{Call: _e.mock.On("ListVolumePerformanceGroups", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_ListVolumePerformanceGroups_Call) Run(run func(ctx context.Context, params *common.ListVolumePerformanceGroupsParams)) *MockOrchestratorFactory_ListVolumePerformanceGroups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.ListVolumePerformanceGroupsParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ListVolumePerformanceGroups_Call) Return(_a0 []*models.VolumePerformanceGroup, _a1 error) *MockOrchestratorFactory_ListVolumePerformanceGroups_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ListVolumePerformanceGroups_Call) RunAndReturn(run func(context.Context, *common.ListVolumePerformanceGroupsParams) ([]*models.VolumePerformanceGroup, error)) *MockOrchestratorFactory_ListVolumePerformanceGroups_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -8082,6 +8306,65 @@ func (_c *MockOrchestratorFactory_UpdateVolume_Call) Return(_a0 *models.Volume, 
 }
 
 func (_c *MockOrchestratorFactory_UpdateVolume_Call) RunAndReturn(run func(context.Context, *common.UpdateVolumeParams) (*models.Volume, string, error)) *MockOrchestratorFactory_UpdateVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateVolumePerformanceGroup provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) UpdateVolumePerformanceGroup(ctx context.Context, params *common.UpdateVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateVolumePerformanceGroup")
+	}
+
+	var r0 *models.VolumePerformanceGroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateVolumePerformanceGroupParams) *models.VolumePerformanceGroup); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.VolumePerformanceGroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.UpdateVolumePerformanceGroupParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_UpdateVolumePerformanceGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateVolumePerformanceGroup'
+type MockOrchestratorFactory_UpdateVolumePerformanceGroup_Call struct {
+	*mock.Call
+}
+
+// UpdateVolumePerformanceGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.UpdateVolumePerformanceGroupParams
+func (_e *MockOrchestratorFactory_Expecter) UpdateVolumePerformanceGroup(ctx interface{}, params interface{}) *MockOrchestratorFactory_UpdateVolumePerformanceGroup_Call {
+	return &MockOrchestratorFactory_UpdateVolumePerformanceGroup_Call{Call: _e.mock.On("UpdateVolumePerformanceGroup", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateVolumePerformanceGroup_Call) Run(run func(ctx context.Context, params *common.UpdateVolumePerformanceGroupParams)) *MockOrchestratorFactory_UpdateVolumePerformanceGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.UpdateVolumePerformanceGroupParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateVolumePerformanceGroup_Call) Return(_a0 *models.VolumePerformanceGroup, _a1 error) *MockOrchestratorFactory_UpdateVolumePerformanceGroup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateVolumePerformanceGroup_Call) RunAndReturn(run func(context.Context, *common.UpdateVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error)) *MockOrchestratorFactory_UpdateVolumePerformanceGroup_Call {
 	_c.Call.Return(run)
 	return _c
 }

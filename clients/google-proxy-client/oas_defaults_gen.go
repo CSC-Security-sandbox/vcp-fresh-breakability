@@ -411,6 +411,22 @@ func (s *VolumeBackupDetailsV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *VolumePerformanceGroupCreateV1beta) setDefaults() {
+	{
+		val := bool(true)
+		s.IsShared.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *VolumePerformanceGroupV1beta) setDefaults() {
+	{
+		val := bool(true)
+		s.IsShared.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *VolumeSnapshotCreateV1beta) setDefaults() {
 	{
 		val := bool(false)
