@@ -16,6 +16,19 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
+// Credential type constants
+const (
+	// CredentialTypeAdmin is used for admin operations (snaplock, EBR, litigation)
+	// handled by ogen handlers which call SetupCredentialsForHandler() directly.
+	CredentialTypeAdmin = "admin"
+
+	// CredentialTypeGcnvAdmin is used for passthrough operations via CredentialMiddleware.
+	CredentialTypeGcnvAdmin = "gcnvadmin"
+
+	// AdminUserName is the username used for admin credential type
+	AdminUserName = "admin"
+)
+
 var (
 	fetchCredentialsFunc = coreapi.FetchCredentials
 	poolUriRegex         = "^/v1beta/projects/([^/]+)/locations/([^/]+)/pools/([^/]+)"
@@ -26,7 +39,10 @@ func CredentialMiddleware() func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logger := util.GetLogger(r.Context())
 
-			poolDetails, err := extractPoolDetailsFromRequest(r)
+			// Passthrough routes always use gcnvadmin credentials.
+			// Admin operations (snaplock, EBR, litigation) are handled by ogen handlers
+			// which call SetupCredentialsForHandler() directly with CredentialTypeAdmin.
+			poolDetails, err := extractPoolDetailsFromRequest(r, CredentialTypeGcnvAdmin)
 			if err != nil {
 				logger.ErrorContext(r.Context(), "Failed to extract pool details", "error", err, "path", r.URL.Path)
 				http.Error(w, "Invalid URI", http.StatusBadRequest)
@@ -72,16 +88,16 @@ func fetchAndCacheCredentials(ctx context.Context, poolDetails *models.PoolDetai
 	}
 
 	authData := &models.AuthData{
-		AuthType:                credentials.AuthType.Value,
-		SecretID:                getStringValue(credentials.SecretID),
-		CertificateID:           getStringValue(credentials.CertificateID),
-		Password:                getStringValue(credentials.Password),
-		Username:                poolDetails.UserName,
-		PoolID:                  poolDetails.PoolID,
-		AccountName:             poolDetails.AccountName,
-		UserName:                poolDetails.UserName,
-		OntapEndpoints:          convertOntapEndpoints(credentials.OntapEndpoints),
-		CaURI:                   getStringValue(credentials.CaURI),
+		AuthType:       credentials.AuthType.Value,
+		SecretID:       getStringValue(credentials.SecretID),
+		CertificateID:  getStringValue(credentials.CertificateID),
+		Password:       getStringValue(credentials.Password),
+		Username:       poolDetails.UserName,
+		PoolID:         poolDetails.PoolID,
+		AccountName:    poolDetails.AccountName,
+		UserName:       poolDetails.UserName,
+		OntapEndpoints: convertOntapEndpoints(credentials.OntapEndpoints),
+		CaURI:          getStringValue(credentials.CaURI),
 	}
 
 	cache.AddToAuthDataCache(cacheKey, authData)
@@ -143,7 +159,7 @@ func convertOntapEndpoints(apiEndpoints []coreapiclient.OntapEndpoint) []models.
 	return endpoints
 }
 
-func extractPoolDetailsFromRequest(req *http.Request) (*models.PoolDetails, error) {
+func extractPoolDetailsFromRequest(req *http.Request, credentialType string) (*models.PoolDetails, error) {
 	uri := req.URL.Path
 
 	err := validatePoolUri(uri)
@@ -157,7 +173,14 @@ func extractPoolDetailsFromRequest(req *http.Request) (*models.PoolDetails, erro
 	poolID := uriSlice[7]
 
 	accountName := projectNumber
-	userName := env.ExpertModeUser
+
+	// Select username based on credential type
+	var userName string
+	if credentialType == CredentialTypeAdmin {
+		userName = AdminUserName
+	} else {
+		userName = env.ExpertModeUser
+	}
 
 	return &models.PoolDetails{
 		ProjectNumber: projectNumber,

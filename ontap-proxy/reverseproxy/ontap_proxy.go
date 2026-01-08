@@ -70,6 +70,12 @@ func init() {
 	globalConnectionPool = NewConnectionPool()
 }
 
+// GetGlobalConnectionPool returns the global connection pool instance
+// This allows other packages (like handlers) to reuse the connection pool
+func GetGlobalConnectionPool() *ConnectionPool {
+	return globalConnectionPool
+}
+
 // NewConnectionPool creates a new connection pool with optimized settings
 func NewConnectionPool() *ConnectionPool {
 	pool := &ConnectionPool{
@@ -134,9 +140,21 @@ func (p *ConnectionPool) GetClient(ctx context.Context, authData *models.AuthDat
 	return client, selectedEndpoint, nil
 }
 
-// generatePoolKey creates a unique key for the connection pool based on PoolID and AccountName
+// generatePoolKey creates a unique key for the connection pool.
+// The key includes AccountName, PoolID, AuthType, and Username to ensure:
+//  1. Different users get different clients (especially important for certificate auth where
+//     the certificate is embedded in the TLS transport)
+//  2. Different auth types don't share clients (prevents mixing certificate and basic auth transports)
+//  3. For certificate auth, includes CertificateID to distinguish different certificates
 func (p *ConnectionPool) generatePoolKey(authData *models.AuthData) string {
-	return fmt.Sprintf("%s:%s", authData.AccountName, authData.PoolID)
+	baseKey := fmt.Sprintf("%s:%s:%d:%s", authData.AccountName, authData.PoolID, authData.AuthType, authData.Username)
+
+	// For certificate auth, add certificate identifier for additional safety
+	if authData.AuthType == models.USER_CERTIFICATE && authData.CertificateID != "" {
+		return fmt.Sprintf("%s:%s", baseKey, authData.CertificateID)
+	}
+
+	return baseKey
 }
 
 // createClient creates a new HTTP client with optimized transport
@@ -196,6 +214,37 @@ func (p *ConnectionPool) GetStats() map[string]interface{} {
 		"max_idle_per_host": p.maxIdleConnsPerHost,
 		"idle_timeout":      p.idleConnTimeout.String(),
 	}
+}
+
+// ClientCacheEntryStatus contains non-sensitive cache entry metadata for connection pool
+type ClientCacheEntryStatus struct {
+	CacheKey  string    `json:"cache_key"`
+	Endpoint  string    `json:"endpoint"`
+	CachedAt  time.Time `json:"cached_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+// GetClientCacheStatus returns cache status information for all pooled clients without sensitive data
+func (p *ConnectionPool) GetClientCacheStatus() []ClientCacheEntryStatus {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	entries := make([]ClientCacheEntryStatus, 0, len(p.clients))
+	for key := range p.clients {
+		cachedAt := p.clientTimestamps[key]
+		entries = append(entries, ClientCacheEntryStatus{
+			CacheKey:  key,
+			Endpoint:  p.clientEndpoints[key],
+			CachedAt:  cachedAt,
+			ExpiresAt: cachedAt.Add(p.cleanupThreshold),
+		})
+	}
+	return entries
+}
+
+// GetGlobalClientCacheStatus returns cache status for the global connection pool
+func GetGlobalClientCacheStatus() []ClientCacheEntryStatus {
+	return globalConnectionPool.GetClientCacheStatus()
 }
 
 // Close closes the connection pool and cleans up resources

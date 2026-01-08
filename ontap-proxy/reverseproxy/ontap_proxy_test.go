@@ -120,6 +120,239 @@ func TestConnectionPool_GetClient(t *testing.T) {
 	assert.Equal(t, 1, stats["total_connections"])
 }
 
+func TestConnectionPool_GetClientCacheStatus(t *testing.T) {
+	pool := NewConnectionPool()
+	defer pool.Close()
+
+	ctx := context.Background()
+
+	t.Run("EmptyPoolShouldReturnEmptyStatus", func(t *testing.T) {
+		status := pool.GetClientCacheStatus()
+		assert.Empty(t, status)
+	})
+
+	t.Run("ShouldReturnStatusForEachCachedClient", func(t *testing.T) {
+		// Create two clients with different users
+		authData1 := &models.AuthData{
+			AuthType:    models.USERNAME_PWD,
+			PoolID:      "pool-1",
+			AccountName: "account-1",
+			Username:    "user1",
+			Password:    "pass1",
+			OntapEndpoints: []models.OntapEndpoint{
+				{DNS: "ontap1.example.com"},
+			},
+		}
+		authData2 := &models.AuthData{
+			AuthType:    models.USERNAME_PWD,
+			PoolID:      "pool-1",
+			AccountName: "account-1",
+			Username:    "user2",
+			Password:    "pass2",
+			OntapEndpoints: []models.OntapEndpoint{
+				{DNS: "ontap2.example.com"},
+			},
+		}
+
+		_, _, err := pool.GetClient(ctx, authData1)
+		assert.NoError(t, err)
+		_, _, err = pool.GetClient(ctx, authData2)
+		assert.NoError(t, err)
+
+		status := pool.GetClientCacheStatus()
+		assert.Len(t, status, 2)
+
+		// Verify each entry has required fields
+		for _, entry := range status {
+			assert.NotEmpty(t, entry.CacheKey)
+			assert.NotEmpty(t, entry.Endpoint)
+			assert.False(t, entry.CachedAt.IsZero())
+			assert.False(t, entry.ExpiresAt.IsZero())
+			assert.True(t, entry.ExpiresAt.After(entry.CachedAt))
+		}
+	})
+
+	t.Run("StatusShouldContainCorrectCacheKey", func(t *testing.T) {
+		newPool := NewConnectionPool()
+		defer newPool.Close()
+
+		authData := &models.AuthData{
+			AuthType:    models.USERNAME_PWD,
+			PoolID:      "test-pool",
+			AccountName: "test-account",
+			Username:    "testuser",
+			Password:    "testpass",
+			OntapEndpoints: []models.OntapEndpoint{
+				{DNS: "ontap.example.com"},
+			},
+		}
+
+		_, _, err := newPool.GetClient(ctx, authData)
+		assert.NoError(t, err)
+
+		status := newPool.GetClientCacheStatus()
+		assert.Len(t, status, 1)
+
+		expectedKey := "test-account:test-pool:0:testuser"
+		assert.Equal(t, expectedKey, status[0].CacheKey)
+		assert.Equal(t, "ontap.example.com", status[0].Endpoint)
+	})
+}
+
+func TestGetGlobalConnectionPool(t *testing.T) {
+	// This tests that the global connection pool is initialized and accessible
+	pool := GetGlobalConnectionPool()
+	assert.NotNil(t, pool, "Global connection pool should not be nil")
+}
+
+func TestGetGlobalClientCacheStatus(t *testing.T) {
+	// This tests the global function wrapper
+	status := GetGlobalClientCacheStatus()
+	// Should not panic and return a slice (may have entries from other tests)
+	assert.NotNil(t, status)
+}
+
+func TestConnectionPool_GeneratePoolKey(t *testing.T) {
+	pool := NewConnectionPool()
+	defer pool.Close()
+
+	t.Run("DifferentUsernamesShouldProduceDifferentKeys", func(t *testing.T) {
+		authData1 := &models.AuthData{
+			AuthType:    models.USERNAME_PWD,
+			PoolID:      "test-pool",
+			AccountName: "test-account",
+			Username:    "user1",
+		}
+		authData2 := &models.AuthData{
+			AuthType:    models.USERNAME_PWD,
+			PoolID:      "test-pool",
+			AccountName: "test-account",
+			Username:    "user2",
+		}
+
+		key1 := pool.generatePoolKey(authData1)
+		key2 := pool.generatePoolKey(authData2)
+
+		assert.NotEqual(t, key1, key2, "Different usernames should produce different keys")
+		assert.Contains(t, key1, "user1", "Key should contain username")
+		assert.Contains(t, key2, "user2", "Key should contain username")
+	})
+
+	t.Run("DifferentAuthTypesShouldProduceDifferentKeys", func(t *testing.T) {
+		authData1 := &models.AuthData{
+			AuthType:    models.USERNAME_PWD,
+			PoolID:      "test-pool",
+			AccountName: "test-account",
+			Username:    "testuser",
+		}
+		authData2 := &models.AuthData{
+			AuthType:    models.USER_CERTIFICATE,
+			PoolID:      "test-pool",
+			AccountName: "test-account",
+			Username:    "testuser",
+		}
+
+		key1 := pool.generatePoolKey(authData1)
+		key2 := pool.generatePoolKey(authData2)
+
+		assert.NotEqual(t, key1, key2, "Different auth types should produce different keys")
+	})
+
+	t.Run("CertificateAuthWithDifferentCertIDsShouldProduceDifferentKeys", func(t *testing.T) {
+		authData1 := &models.AuthData{
+			AuthType:      models.USER_CERTIFICATE,
+			PoolID:        "test-pool",
+			AccountName:   "test-account",
+			Username:      "testuser",
+			CertificateID: "cert-id-1",
+		}
+		authData2 := &models.AuthData{
+			AuthType:      models.USER_CERTIFICATE,
+			PoolID:        "test-pool",
+			AccountName:   "test-account",
+			Username:      "testuser",
+			CertificateID: "cert-id-2",
+		}
+
+		key1 := pool.generatePoolKey(authData1)
+		key2 := pool.generatePoolKey(authData2)
+
+		assert.NotEqual(t, key1, key2, "Different certificate IDs should produce different keys")
+		assert.Contains(t, key1, "cert-id-1", "Key should contain certificate ID")
+		assert.Contains(t, key2, "cert-id-2", "Key should contain certificate ID")
+	})
+
+	t.Run("CertificateAuthWithoutCertIDShouldNotIncludeCertID", func(t *testing.T) {
+		authData := &models.AuthData{
+			AuthType:      models.USER_CERTIFICATE,
+			PoolID:        "test-pool",
+			AccountName:   "test-account",
+			Username:      "testuser",
+			CertificateID: "", // Empty certificate ID
+		}
+
+		key := pool.generatePoolKey(authData)
+
+		// Key should be in format: accountName:poolID:authType:username (no cert ID)
+		expected := "test-account:test-pool:2:testuser"
+		assert.Equal(t, expected, key, "Key without certificate ID should match expected format")
+	})
+
+	t.Run("BasicAuthShouldNotIncludeCertID", func(t *testing.T) {
+		authData := &models.AuthData{
+			AuthType:      models.USERNAME_PWD,
+			PoolID:        "test-pool",
+			AccountName:   "test-account",
+			Username:      "testuser",
+			CertificateID: "some-cert-id", // Should be ignored for basic auth
+		}
+
+		key := pool.generatePoolKey(authData)
+
+		// Key should not contain certificate ID for basic auth
+		assert.NotContains(t, key, "some-cert-id", "Basic auth key should not include certificate ID")
+		expected := "test-account:test-pool:0:testuser"
+		assert.Equal(t, expected, key, "Basic auth key should match expected format")
+	})
+
+	t.Run("SameAuthDataShouldProduceSameKey", func(t *testing.T) {
+		authData := &models.AuthData{
+			AuthType:    models.USERNAME_PWD,
+			PoolID:      "test-pool",
+			AccountName: "test-account",
+			Username:    "testuser",
+		}
+
+		key1 := pool.generatePoolKey(authData)
+		key2 := pool.generatePoolKey(authData)
+
+		assert.Equal(t, key1, key2, "Same auth data should produce same key")
+	})
+
+	t.Run("KeyFormatVerification", func(t *testing.T) {
+		// Basic auth key format: accountName:poolID:authType:username
+		basicAuthData := &models.AuthData{
+			AuthType:    models.USERNAME_PWD,
+			PoolID:      "pool-123",
+			AccountName: "account-456",
+			Username:    "admin",
+		}
+		basicKey := pool.generatePoolKey(basicAuthData)
+		assert.Equal(t, "account-456:pool-123:0:admin", basicKey)
+
+		// Certificate auth key format: accountName:poolID:authType:username:certID
+		certAuthData := &models.AuthData{
+			AuthType:      models.USER_CERTIFICATE,
+			PoolID:        "pool-123",
+			AccountName:   "account-456",
+			Username:      "admin",
+			CertificateID: "cert-789",
+		}
+		certKey := pool.generatePoolKey(certAuthData)
+		assert.Equal(t, "account-456:pool-123:2:admin:cert-789", certKey)
+	})
+}
+
 func TestConnectionPool_DifferentAuthTypes(t *testing.T) {
 	pool := NewConnectionPool()
 	defer pool.Close()
@@ -221,6 +454,66 @@ func TestConnectionPool_DifferentPools(t *testing.T) {
 	// Verify pool has two clients
 	stats := pool.GetStats()
 	assert.Equal(t, 2, stats["total_connections"])
+}
+
+func TestConnectionPool_DifferentUsersOnSamePool(t *testing.T) {
+	pool := NewConnectionPool()
+	defer pool.Close()
+
+	ctx := context.Background()
+	ontapAddress := "test-ontap.example.com"
+
+	// Create auth data for user1 on same pool
+	user1Auth := &models.AuthData{
+		AuthType:    models.USERNAME_PWD,
+		PoolID:      "shared-pool",
+		AccountName: "shared-account",
+		Username:    "user1",
+		Password:    "pass1",
+		OntapEndpoints: []models.OntapEndpoint{
+			{DNS: ontapAddress},
+		},
+	}
+
+	// Create auth data for user2 on same pool
+	user2Auth := &models.AuthData{
+		AuthType:    models.USERNAME_PWD,
+		PoolID:      "shared-pool",
+		AccountName: "shared-account",
+		Username:    "user2",
+		Password:    "pass2",
+		OntapEndpoints: []models.OntapEndpoint{
+			{DNS: ontapAddress},
+		},
+	}
+
+	// Get client for user1
+	client1, endpoint1, err := pool.GetClient(ctx, user1Auth)
+	assert.NoError(t, err)
+	assert.NotNil(t, client1)
+	assert.NotEmpty(t, endpoint1)
+
+	// Get client for user2
+	client2, endpoint2, err := pool.GetClient(ctx, user2Auth)
+	assert.NoError(t, err)
+	assert.NotNil(t, client2)
+	assert.NotEmpty(t, endpoint2)
+
+	// SECURITY: Different users should get different clients even on the same pool
+	// This is critical for certificate auth where certs are embedded in the transport
+	assert.NotEqual(t, client1, client2, "Different users should get different HTTP clients")
+
+	// Both should use the same endpoint since it's the same pool
+	assert.Equal(t, endpoint1, endpoint2, "Same pool should resolve to same endpoint")
+
+	// Verify pool has two clients (one per user)
+	stats := pool.GetStats()
+	assert.Equal(t, 2, stats["total_connections"])
+
+	// Verify pool keys are different
+	key1 := pool.generatePoolKey(user1Auth)
+	key2 := pool.generatePoolKey(user2Auth)
+	assert.NotEqual(t, key1, key2, "Pool keys should be different for different users")
 }
 
 func TestPooledAuthTransport_RoundTrip(t *testing.T) {

@@ -442,4 +442,3 @@ func readResponseBody(t *testing.T, resp *http.Response) string {
 	require.NoError(t, err)
 	return string(body)
 }
-

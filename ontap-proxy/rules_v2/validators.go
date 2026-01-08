@@ -105,10 +105,13 @@ func _validateVolumeModification(r *http.Request) (bool, string) {
 	fields := parseVolumeRequestFields(requestBody)
 	volumeUuid := extractVolumeUUIDFromRequest(r)
 
-	// Reject invalid size (parsed to 0)
-	if fields.SizeInBytes == 0 {
-		orig := requestBody["size"]
-		return false, fmt.Sprintf("\"%v\" is an invalid value for field \"size\"", orig)
+	// Size is optional for PATCH; only trigger reconcile if size is being modified
+	if sizeValue, sizeExists := requestBody["size"]; sizeExists {
+		if fields.SizeInBytes == 0 {
+			return false, fmt.Sprintf("\"%v\" is an invalid value for field \"size\"", sizeValue)
+		}
+	} else {
+		return true, ""
 	}
 
 	expertVolumeRequest := &coreapi.ExpertModeVolumeV1{

@@ -124,10 +124,10 @@ func TestFetchAndCacheCredentials(t *testing.T) {
 }
 
 func TestExtractPoolDetailsFromRequest(t *testing.T) {
-	t.Run("WhenValidURI_ShouldExtractDetails", func(t *testing.T) {
+	t.Run("WhenValidURI_WithGcnvAdminCredential_ShouldExtractDetails", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes", nil)
 
-		poolDetails, err := extractPoolDetailsFromRequest(req)
+		poolDetails, err := extractPoolDetailsFromRequest(req, CredentialTypeGcnvAdmin)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "1234", poolDetails.ProjectNumber)
@@ -136,10 +136,22 @@ func TestExtractPoolDetailsFromRequest(t *testing.T) {
 		assert.Equal(t, "gcnvadmin", poolDetails.UserName)
 	})
 
+	t.Run("WhenValidURI_WithAdminCredential_ShouldExtractDetailsWithAdminUser", func(t *testing.T) {
+		req := httptest.NewRequest("DELETE", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/snaplock/file/vol-uuid/path/to/file", nil)
+
+		poolDetails, err := extractPoolDetailsFromRequest(req, CredentialTypeAdmin)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "1234", poolDetails.ProjectNumber)
+		assert.Equal(t, "my-pool", poolDetails.PoolID)
+		assert.Equal(t, "1234", poolDetails.AccountName)
+		assert.Equal(t, AdminUserName, poolDetails.UserName)
+	})
+
 	t.Run("WhenInvalidURI_ShouldReturnError", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/invalid/path", nil)
 
-		poolDetails, err := extractPoolDetailsFromRequest(req)
+		poolDetails, err := extractPoolDetailsFromRequest(req, CredentialTypeGcnvAdmin)
 
 		assert.Error(t, err)
 		assert.Nil(t, poolDetails)
@@ -173,8 +185,15 @@ func TestHandleCredentialError(t *testing.T) {
 }
 
 func TestGenerateCacheKey(t *testing.T) {
-	key := generateCacheKey("project1", "pool1", "user1")
-	assert.Equal(t, "project1:pool1:user1", key)
+	t.Run("WhenGcnvAdminCredential_ShouldGenerateKey", func(t *testing.T) {
+		key := generateCacheKey("project1", "pool1", "gcnvadmin")
+		assert.Equal(t, "project1:pool1:gcnvadmin", key)
+	})
+
+	t.Run("WhenAdminCredential_ShouldGenerateKey", func(t *testing.T) {
+		key := generateCacheKey("project1", "pool1", "admin")
+		assert.Equal(t, "project1:pool1:admin", key)
+	})
 }
 
 func TestGetStringValue(t *testing.T) {

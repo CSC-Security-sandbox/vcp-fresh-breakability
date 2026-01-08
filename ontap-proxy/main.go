@@ -87,14 +87,21 @@ func setupHTTPServer(handler http.Handler) *http.Server {
 
 	ontapProxy := reverseproxy.BuildOntapRESTProxy()
 
-	// Mount ONTAP API route first (more specific route)
+	// ONTAP API routes
 	mux.Route("/v1beta/projects/{projectId}/locations/{locationId}/pools/{poolId}/ontap", func(r chi.Router) {
-		r.Use(middleware.URLValidationMiddleware())
-		r.Use(bodyLimitMiddleware(dsl.MaxRequestBodySize)) // Limit request body size to 5MB
-		r.Use(middleware.CredentialMiddleware())
-		r.Use(middleware.RuleEngineMiddleware())
-		r.Use(middleware.CertificateMiddleware())
-		r.Handle("/*", ontapProxy)
+		// Ogen-handled routes (no chi middleware - ogen handler calls auth functions directly)
+		// Snaplock file delete - delegated to ogen server which handles auth internally
+		r.Delete("/api/storage/snaplock/file/{volumeUuid}/*", handler.ServeHTTP)
+
+		// Passthrough routes (chi middleware for reverse proxy)
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.URLValidationMiddleware())
+			r.Use(bodyLimitMiddleware(dsl.MaxRequestBodySize))
+			r.Use(middleware.CredentialMiddleware()) // Routes admin vs gcnvadmin credentials
+			r.Use(middleware.CertificateMiddleware())
+			r.Use(middleware.RuleEngineMiddleware())
+			r.Handle("/*", ontapProxy)
+		})
 	})
 
 	// Mount OpenAPI server for /health endpoint (less specific, handles remaining routes)

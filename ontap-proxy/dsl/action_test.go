@@ -141,4 +141,3 @@ func TestRule_GetAction(t *testing.T) {
 		assert.Nil(t, action)
 	})
 }
-

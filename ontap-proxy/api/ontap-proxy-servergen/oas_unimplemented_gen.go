@@ -13,12 +13,36 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
+// GetCacheStatus implements getCacheStatus operation.
+//
+// Returns the auth cache entries with cache key and expiry information (no sensitive data).
+//
+// GET /cacheStatus
+func (UnimplementedHandler) GetCacheStatus(ctx context.Context) (r GetCacheStatusRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetHealth implements getHealth operation.
 //
 // Returns the server health status.
 //
 // GET /health
 func (UnimplementedHandler) GetHealth(ctx context.Context) (r GetHealthRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// SnaplockFileDelete implements snaplockFileDelete operation.
+//
+// Performs a privileged delete of an unexpired WORM file on a SnapLock volume.
+// This operation:
+// 1. Fetches admin credentials for the pool
+// 2. Retrieves volume information from ONTAP
+// 3. Executes the CLI command for privileged delete
+// 4. Returns the deletion result
+// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/file/{volumeUuid}/{filePath}
+func (UnimplementedHandler) SnaplockFileDelete(ctx context.Context, params SnaplockFileDeleteParams) (r SnaplockFileDeleteRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

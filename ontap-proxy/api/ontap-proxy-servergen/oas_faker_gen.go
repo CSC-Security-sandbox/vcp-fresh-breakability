@@ -2,6 +2,50 @@
 
 package ontapserver
 
+import (
+	"time"
+)
+
+// SetFake set fake values.
+func (s *CacheEntry) SetFake() {
+	{
+		{
+			s.CacheKey.SetFake()
+		}
+	}
+	{
+		{
+			s.CachedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.ExpiresAt.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *CacheStatus) SetFake() {
+	{
+		{
+			s.Entries = nil
+			for i := 0; i < 0; i++ {
+				var elem CacheEntry
+				{
+					elem.SetFake()
+				}
+				s.Entries = append(s.Entries, elem)
+			}
+		}
+	}
+	{
+		{
+			s.TotalEntries.SetFake()
+		}
+	}
+}
+
 // SetFake set fake values.
 func (s *Error) SetFake() {
 	{
@@ -14,6 +58,69 @@ func (s *Error) SetFake() {
 			s.Message = "string"
 		}
 	}
+}
+
+// SetFake set fake values.
+func (s *FileInfo) SetFake() {
+	{
+		{
+			s.Path.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *GetCacheStatusBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = GetCacheStatusBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *GetCacheStatusForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = GetCacheStatusForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *GetCacheStatusInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = GetCacheStatusInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *GetCacheStatusNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = GetCacheStatusNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *GetCacheStatusTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = GetCacheStatusTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *GetCacheStatusUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = GetCacheStatusUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.
@@ -80,10 +187,252 @@ func (s *Health) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *Href) SetFake() {
+	{
+		{
+			s.Href.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *JobLink) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *OptBool) SetFake() {
+	var elem bool
+	{
+		elem = true
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptDateTime) SetFake() {
+	var elem time.Time
+	{
+		elem = time.Now()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptFileInfo) SetFake() {
+	var elem FileInfo
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptHref) SetFake() {
+	var elem Href
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptInt) SetFake() {
+	var elem int
+	{
+		elem = int(0)
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptInt64) SetFake() {
+	var elem int64
+	{
+		elem = int64(0)
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptJobLink) SetFake() {
+	var elem JobLink
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptSelfLink) SetFake() {
+	var elem SelfLink
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptString) SetFake() {
 	var elem string
 	{
 		elem = "string"
 	}
 	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptVolumeRef) SetFake() {
+	var elem VolumeRef
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *SelfLink) SetFake() {
+	{
+		{
+			s.Self.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnaplockFileDeleteBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = SnaplockFileDeleteBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *SnaplockFileDeleteForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = SnaplockFileDeleteForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *SnaplockFileDeleteInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = SnaplockFileDeleteInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *SnaplockFileDeleteNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = SnaplockFileDeleteNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *SnaplockFileDeleteUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = SnaplockFileDeleteUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *SnaplockFileRetention) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.ExpiryTime.SetFake()
+		}
+	}
+	{
+		{
+			s.File.SetFake()
+		}
+	}
+	{
+		{
+			s.IsExpired.SetFake()
+		}
+	}
+	{
+		{
+			s.RetentionPeriod.SetFake()
+		}
+	}
+	{
+		{
+			s.SecondsUntilExpiry.SetFake()
+		}
+	}
+	{
+		{
+			s.Volume.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnaplockFileRetentionJobLinkResponse) SetFake() {
+	{
+		{
+			s.Job.SetFake()
+		}
+	}
+	{
+		{
+			s.NumRecords.SetFake()
+		}
+	}
+	{
+		{
+			s.Records = nil
+			for i := 0; i < 0; i++ {
+				var elem SnaplockFileRetention
+				{
+					elem.SetFake()
+				}
+				s.Records = append(s.Records, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *VolumeRef) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
 }

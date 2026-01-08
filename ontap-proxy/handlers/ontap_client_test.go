@@ -1,0 +1,440 @@
+package handlers
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
+)
+
+func TestNewOntapClientFromContext(t *testing.T) {
+	t.Run("returns error when cache key not in context", func(t *testing.T) {
+		ctx := context.Background()
+
+		client, err := NewOntapClientFromContext(ctx)
+
+		assert.Nil(t, client)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "no auth data cache key found in context")
+	})
+
+	t.Run("returns error when auth data not in cache", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, "non-existent-key")
+
+		client, err := NewOntapClientFromContext(ctx)
+
+		assert.Nil(t, client)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "auth data not found in cache")
+	})
+
+	t.Run("successfully creates client when auth data is in cache", func(t *testing.T) {
+		// Setup mock ONTAP server
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Return 200 OK for connection pool health check
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer server.Close()
+
+		// Extract host:port from server URL (remove https:// prefix)
+		endpoint := strings.TrimPrefix(server.URL, "https://")
+
+		// Create auth data with the mock server endpoint
+		authData := &models.AuthData{
+			AuthType:    models.USERNAME_PWD,
+			Username:    "testuser",
+			Password:    "testpass",
+			PoolID:      "test-pool-success",
+			AccountName: "test-account-success",
+			OntapEndpoints: []models.OntapEndpoint{
+				{DNS: endpoint, IP: endpoint}, // DNS is used for reachability check
+			},
+		}
+
+		// Add to cache
+		cacheKey := "auth:test-pool-success"
+		cache.AddToAuthDataCache(cacheKey, authData)
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		// Create context with cache key
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, cacheKey)
+
+		// Execute
+		client, err := NewOntapClientFromContext(ctx)
+
+		// Verify
+		require.NoError(t, err)
+		assert.NotNil(t, client)
+	})
+}
+
+func TestOntapClient_GetVolume(t *testing.T) {
+	t.Run("successfully retrieves volume info", func(t *testing.T) {
+		// Setup mock server
+		expectedVolume := VolumeInfo{
+			UUID: "test-uuid-123",
+			Name: "test-volume",
+			SVM: struct {
+				Name string `json:"name"`
+				UUID string `json:"uuid"`
+			}{
+				Name: "test-svm",
+				UUID: "svm-uuid-456",
+			},
+		}
+
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodGet, r.Method)
+			assert.Contains(t, r.URL.Path, "/api/storage/volumes/test-uuid-123")
+			assert.Contains(t, r.URL.RawQuery, "fields=name,svm.name,svm.uuid")
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(expectedVolume)
+		}))
+		defer server.Close()
+
+		// Create client with mock server
+		client := &OntapClient{
+			httpClient: server.Client(),
+			endpoint:   server.Listener.Addr().String(),
+			authData: &models.AuthData{
+				AuthType: models.USERNAME_PWD,
+				Username: "testuser",
+				Password: "testpass",
+			},
+		}
+
+		// Execute
+		volume, err := client.GetVolume(context.Background(), "test-uuid-123")
+
+		// Verify
+		require.NoError(t, err)
+		assert.Equal(t, expectedVolume.UUID, volume.UUID)
+		assert.Equal(t, expectedVolume.Name, volume.Name)
+		assert.Equal(t, expectedVolume.SVM.Name, volume.SVM.Name)
+	})
+
+	t.Run("returns error when volume not found", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		client := &OntapClient{
+			httpClient: server.Client(),
+			endpoint:   server.Listener.Addr().String(),
+			authData: &models.AuthData{
+				AuthType: models.USERNAME_PWD,
+				Username: "testuser",
+				Password: "testpass",
+			},
+		}
+
+		volume, err := client.GetVolume(context.Background(), "non-existent-uuid")
+
+		assert.Nil(t, volume)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "volume not found")
+	})
+
+	t.Run("returns error on ONTAP error response", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"error": {"message": "Internal error"}}`))
+		}))
+		defer server.Close()
+
+		client := &OntapClient{
+			httpClient: server.Client(),
+			endpoint:   server.Listener.Addr().String(),
+			authData: &models.AuthData{
+				AuthType: models.USERNAME_PWD,
+				Username: "testuser",
+				Password: "testpass",
+			},
+		}
+
+		volume, err := client.GetVolume(context.Background(), "test-uuid")
+
+		assert.Nil(t, volume)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "ONTAP error")
+	})
+}
+
+func TestOntapClient_ExecuteCLI(t *testing.T) {
+	t.Run("successfully executes CLI command", func(t *testing.T) {
+		expectedResponse := CLIResponse{
+			Output: "Command executed successfully",
+		}
+
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodPost, r.Method)
+			assert.Equal(t, "/api/private/cli", r.URL.Path)
+			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+
+			// Verify request body
+			var reqBody CLIRequest
+			err := json.NewDecoder(r.Body).Decode(&reqBody)
+			require.NoError(t, err)
+			assert.Equal(t, "test command", reqBody.Input)
+			assert.Equal(t, "admin", reqBody.Privilege)
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(expectedResponse)
+		}))
+		defer server.Close()
+
+		client := &OntapClient{
+			httpClient: server.Client(),
+			endpoint:   server.Listener.Addr().String(),
+			authData: &models.AuthData{
+				AuthType: models.USERNAME_PWD,
+				Username: "testuser",
+				Password: "testpass",
+			},
+		}
+
+		response, err := client.ExecuteCLI(context.Background(), "test command", "admin")
+
+		require.NoError(t, err)
+		assert.Equal(t, expectedResponse.Output, response.Output)
+	})
+
+	t.Run("handles plain text response", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/plain")
+			_, _ = w.Write([]byte("Plain text output"))
+		}))
+		defer server.Close()
+
+		client := &OntapClient{
+			httpClient: server.Client(),
+			endpoint:   server.Listener.Addr().String(),
+			authData: &models.AuthData{
+				AuthType: models.USERNAME_PWD,
+				Username: "testuser",
+				Password: "testpass",
+			},
+		}
+
+		response, err := client.ExecuteCLI(context.Background(), "test command", "admin")
+
+		require.NoError(t, err)
+		assert.Equal(t, "Plain text output", response.Output)
+	})
+
+	t.Run("returns error on CLI failure", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error": {"message": "Invalid command"}}`))
+		}))
+		defer server.Close()
+
+		client := &OntapClient{
+			httpClient: server.Client(),
+			endpoint:   server.Listener.Addr().String(),
+			authData: &models.AuthData{
+				AuthType: models.USERNAME_PWD,
+				Username: "testuser",
+				Password: "testpass",
+			},
+		}
+
+		response, err := client.ExecuteCLI(context.Background(), "invalid command", "admin")
+
+		assert.Nil(t, response)
+		assert.Error(t, err)
+		// Error should be an OntapCLIError with the message from ONTAP
+		assert.Contains(t, err.Error(), "Invalid command")
+	})
+}
+
+func TestOntapCLIError(t *testing.T) {
+	t.Run("Error method includes code when present", func(t *testing.T) {
+		err := &OntapCLIError{
+			StatusCode: 400,
+			Code:       "ERR001",
+			Message:    "Invalid parameter",
+		}
+
+		errString := err.Error()
+		assert.Contains(t, errString, "Invalid parameter")
+		assert.Contains(t, errString, "ERR001")
+	})
+
+	t.Run("Error method returns message only when code is empty", func(t *testing.T) {
+		err := &OntapCLIError{
+			StatusCode: 500,
+			Message:    "Internal server error",
+		}
+
+		errString := err.Error()
+		assert.Equal(t, "Internal server error", errString)
+		assert.NotContains(t, errString, "code:")
+	})
+}
+
+func TestOntapClient_GetVolume_AdditionalCases(t *testing.T) {
+	t.Run("returns error on invalid JSON response", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{invalid json`))
+		}))
+		defer server.Close()
+
+		client := &OntapClient{
+			httpClient: server.Client(),
+			endpoint:   server.Listener.Addr().String(),
+			authData: &models.AuthData{
+				AuthType: models.USERNAME_PWD,
+				Username: "testuser",
+				Password: "testpass",
+			},
+		}
+
+		volume, err := client.GetVolume(context.Background(), "test-uuid")
+
+		assert.Nil(t, volume)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to parse volume response")
+	})
+
+	t.Run("returns error when request fails due to network error", func(t *testing.T) {
+		// Create client pointing to non-existent server
+		client := &OntapClient{
+			httpClient: &http.Client{},
+			endpoint:   "127.0.0.1:1", // Non-routable port
+			authData: &models.AuthData{
+				AuthType: models.USERNAME_PWD,
+				Username: "testuser",
+				Password: "testpass",
+			},
+		}
+
+		volume, err := client.GetVolume(context.Background(), "test-uuid")
+
+		assert.Nil(t, volume)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "request failed")
+	})
+}
+
+func TestOntapClient_ExecuteCLI_AdditionalCases(t *testing.T) {
+	t.Run("returns structured error with code", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error": {"code": "ERR_INVALID", "message": "Invalid input"}}`))
+		}))
+		defer server.Close()
+
+		client := &OntapClient{
+			httpClient: server.Client(),
+			endpoint:   server.Listener.Addr().String(),
+			authData: &models.AuthData{
+				AuthType: models.USERNAME_PWD,
+				Username: "testuser",
+				Password: "testpass",
+			},
+		}
+
+		response, err := client.ExecuteCLI(context.Background(), "bad command", "admin")
+
+		assert.Nil(t, response)
+		assert.Error(t, err)
+
+		// Check it's an OntapCLIError
+		var cliErr *OntapCLIError
+		assert.ErrorAs(t, err, &cliErr)
+		assert.Equal(t, "ERR_INVALID", cliErr.Code)
+		assert.Equal(t, "Invalid input", cliErr.Message)
+	})
+
+	t.Run("returns fallback error for non-JSON error response", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`Plain text error message`))
+		}))
+		defer server.Close()
+
+		client := &OntapClient{
+			httpClient: server.Client(),
+			endpoint:   server.Listener.Addr().String(),
+			authData: &models.AuthData{
+				AuthType: models.USERNAME_PWD,
+				Username: "testuser",
+				Password: "testpass",
+			},
+		}
+
+		response, err := client.ExecuteCLI(context.Background(), "bad command", "admin")
+
+		assert.Nil(t, response)
+		assert.Error(t, err)
+
+		// Check it's an OntapCLIError with the plain text message
+		var cliErr *OntapCLIError
+		assert.ErrorAs(t, err, &cliErr)
+		assert.Empty(t, cliErr.Code)
+		assert.Contains(t, cliErr.Message, "Plain text error message")
+	})
+
+	t.Run("returns error when CLI request fails due to network error", func(t *testing.T) {
+		// Create client pointing to non-existent server
+		client := &OntapClient{
+			httpClient: &http.Client{},
+			endpoint:   "127.0.0.1:1", // Non-routable port
+			authData: &models.AuthData{
+				AuthType: models.USERNAME_PWD,
+				Username: "testuser",
+				Password: "testpass",
+			},
+		}
+
+		response, err := client.ExecuteCLI(context.Background(), "test command", "admin")
+
+		assert.Nil(t, response)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "CLI request failed")
+	})
+}
+
+func TestOntapClient_setAuthHeaders(t *testing.T) {
+	t.Run("sets basic auth for username/password auth type", func(t *testing.T) {
+		client := &OntapClient{
+			authData: &models.AuthData{
+				AuthType: models.USERNAME_PWD,
+				Username: "testuser",
+				Password: "testpass",
+			},
+		}
+
+		req, _ := http.NewRequest(http.MethodGet, "https://example.com", nil)
+		client.setAuthHeaders(req)
+
+		username, password, ok := req.BasicAuth()
+		assert.True(t, ok)
+		assert.Equal(t, "testuser", username)
+		assert.Equal(t, "testpass", password)
+	})
+
+	t.Run("does not set auth header for certificate auth type", func(t *testing.T) {
+		client := &OntapClient{
+			authData: &models.AuthData{
+				AuthType: models.USER_CERTIFICATE,
+			},
+		}
+
+		req, _ := http.NewRequest(http.MethodGet, "https://example.com", nil)
+		client.setAuthHeaders(req)
+
+		assert.Empty(t, req.Header.Get("Authorization"))
+	})
+}

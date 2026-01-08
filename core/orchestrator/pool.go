@@ -43,6 +43,7 @@ const (
 	QosTypeAuto                          = "auto"
 	TieringFullnessThresholdOntapDefault = 50
 	VCP_ADMIN_CERT_UN_SUFFIX             = "_admin" // Suffix for VCP admin user certificate
+	AdminUserName                        = "admin"
 )
 
 // CreatePool creates the specified pool and adds it to the list of pools belonging to the specified owner
@@ -899,6 +900,23 @@ func (o *Orchestrator) GetExpertModePoolCreds(ctx context.Context, poolUUID stri
 		return nil, err
 	}
 
+	if userName == AdminUserName {
+		if pool.PoolCredentials == nil {
+			return nil, nil
+		}
+		useHostDNS := pool.PoolCredentials.AuthType == env.USER_CERTIFICATE
+		endpointMappings := buildOntapEndpoints(nodes, useHostDNS)
+		return &models.UserCredentials{
+			SecretID:       pool.PoolCredentials.SecretID,
+			CertificateID:  pool.PoolCredentials.CertificateID,
+			Password:       pool.PoolCredentials.Password,
+			AuthType:       pool.PoolCredentials.AuthType,
+			OntapEndpoints: endpointMappings,
+			CaURI:          pool.PoolCredentials.GetCaURIWithFallback(),
+		}, nil
+	}
+
+	// For other users, get credentials from ExpertModeCredentials
 	if pool.ExpertModeCredentials == nil || pool.ExpertModeCredentials.ExpertModeCredential == nil || len(pool.ExpertModeCredentials.ExpertModeCredential) == 0 {
 		return nil, nil
 	}

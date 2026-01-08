@@ -15,6 +15,13 @@ type AuthDataCache struct {
 	AuthData *models.AuthData
 }
 
+// CacheEntryStatus contains non-sensitive cache entry metadata
+type CacheEntryStatus struct {
+	CacheKey  string
+	CachedAt  time.Time
+	ExpiresAt time.Time
+}
+
 var (
 	CleanupAuthDataCache = cleanupAuthDataCache
 	authDataCacheMutex   sync.Mutex
@@ -98,4 +105,20 @@ func GetAuthDataKeyFromContext(ctx context.Context) string {
 		return cacheKey
 	}
 	return ""
+}
+
+// GetAuthDataCacheStatus returns cache status information without sensitive data
+func GetAuthDataCacheStatus() []CacheEntryStatus {
+	authDataCacheMutex.Lock()
+	defer authDataCacheMutex.Unlock()
+
+	entries := make([]CacheEntryStatus, 0, len(authDataCacheMap))
+	for key, value := range authDataCacheMap {
+		entries = append(entries, CacheEntryStatus{
+			CacheKey:  key,
+			CachedAt:  value.Time,
+			ExpiresAt: value.Time.Add(authDataExpiration),
+		})
+	}
+	return entries
 }

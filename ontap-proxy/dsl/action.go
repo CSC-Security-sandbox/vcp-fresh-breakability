@@ -54,4 +54,3 @@ func (rule Rule) GetAction(r *http.Request) IAction {
 		return nil
 	}
 }
-

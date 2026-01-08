@@ -16,6 +16,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestCacheEntry_EncodeDecode(t *testing.T) {
+	var typ CacheEntry
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 CacheEntry
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestCacheStatus_EncodeDecode(t *testing.T) {
+	var typ CacheStatus
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 CacheStatus
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestError_EncodeDecode(t *testing.T) {
 	var typ Error
 	typ.SetFake()
@@ -61,6 +85,90 @@ func TestError_Examples(t *testing.T) {
 			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
 		})
 	}
+}
+func TestFileInfo_EncodeDecode(t *testing.T) {
+	var typ FileInfo
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 FileInfo
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestGetCacheStatusBadRequest_EncodeDecode(t *testing.T) {
+	var typ GetCacheStatusBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 GetCacheStatusBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestGetCacheStatusForbidden_EncodeDecode(t *testing.T) {
+	var typ GetCacheStatusForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 GetCacheStatusForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestGetCacheStatusInternalServerError_EncodeDecode(t *testing.T) {
+	var typ GetCacheStatusInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 GetCacheStatusInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestGetCacheStatusNotFound_EncodeDecode(t *testing.T) {
+	var typ GetCacheStatusNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 GetCacheStatusNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestGetCacheStatusTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ GetCacheStatusTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 GetCacheStatusTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestGetCacheStatusUnauthorized_EncodeDecode(t *testing.T) {
+	var typ GetCacheStatusUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 GetCacheStatusUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestGetHealthBadRequest_EncodeDecode(t *testing.T) {
 	var typ GetHealthBadRequest
@@ -144,5 +252,137 @@ func TestHealth_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 Health
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestHref_EncodeDecode(t *testing.T) {
+	var typ Href
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 Href
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestJobLink_EncodeDecode(t *testing.T) {
+	var typ JobLink
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 JobLink
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSelfLink_EncodeDecode(t *testing.T) {
+	var typ SelfLink
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SelfLink
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockFileDeleteBadRequest_EncodeDecode(t *testing.T) {
+	var typ SnaplockFileDeleteBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockFileDeleteBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockFileDeleteForbidden_EncodeDecode(t *testing.T) {
+	var typ SnaplockFileDeleteForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockFileDeleteForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockFileDeleteInternalServerError_EncodeDecode(t *testing.T) {
+	var typ SnaplockFileDeleteInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockFileDeleteInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockFileDeleteNotFound_EncodeDecode(t *testing.T) {
+	var typ SnaplockFileDeleteNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockFileDeleteNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockFileDeleteUnauthorized_EncodeDecode(t *testing.T) {
+	var typ SnaplockFileDeleteUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockFileDeleteUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockFileRetention_EncodeDecode(t *testing.T) {
+	var typ SnaplockFileRetention
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockFileRetention
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockFileRetentionJobLinkResponse_EncodeDecode(t *testing.T) {
+	var typ SnaplockFileRetentionJobLinkResponse
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockFileRetentionJobLinkResponse
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestVolumeRef_EncodeDecode(t *testing.T) {
+	var typ VolumeRef
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 VolumeRef
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }

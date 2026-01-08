@@ -8,6 +8,8 @@ servers:
 tags:
   - name: health
     description: Health check operations
+  - name: snaplock
+    description: SnapLock file operations
 paths:
   /health:
     get:
@@ -41,7 +43,135 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /cacheStatus:
+    get:
+      operationId: getCacheStatus
+      summary: Get auth cache status
+      description: Returns the auth cache entries with cache key and expiry information (no sensitive data)
+      tags:
+        - health
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CacheStatus'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/file/{volumeUuid}/{filePath}:
+    delete:
+      operationId: snaplockFileDelete
+      summary: Privileged delete of unexpired WORM file
+      description: |
+        Performs a privileged delete of an unexpired WORM file on a SnapLock volume.
+        
+        This operation:
+        1. Fetches admin credentials for the pool
+        2. Retrieves volume information from ONTAP
+        3. Executes the CLI command for privileged delete
+        4. Returns the deletion result
+        
+        Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+      tags:
+        - snaplock
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/volumeUuidPathParameter'
+        - $ref: '#/components/parameters/filePathPathParameter'
+      responses:
+        '200':
+          description: File deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnaplockFileRetentionJobLinkResponse'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
+  parameters:
+    projectNumberPathParameter:
+      name: projectNumber
+      in: path
+      description: The project number of the GCP project owning the resource
+      required: true
+      schema:
+        type: string
+        maxLength: 18
+        pattern: "^[1-9][0-9]{0,18}$"
+        example: "123456789"
+    locationIdPathParameter:
+      name: locationId
+      in: path
+      description: The location/region to perform the operation in
+      required: true
+      schema:
+        type: string
+        maxLength: 255
+        example: "us-east1"
+    poolIdPathParameter:
+      name: poolId
+      in: path
+      description: UUID v4 used to identify the storage pool
+      required: true
+      schema:
+        type: string
+        format: uuid
+        maxLength: 36
+        minLength: 36
+        pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+        example: "550e8400-e29b-41d4-a716-446655440000"
+    volumeUuidPathParameter:
+      name: volumeUuid
+      in: path
+      description: UUID of the volume
+      required: true
+      schema:
+        type: string
+        format: uuid
+        example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    filePathPathParameter:
+      name: filePath
+      in: path
+      description: |
+        URL-encoded file path. Slashes in the path must be encoded as %2F.
+        Example: dir%2Fsubdir%2Ffile.txt for dir/subdir/file.txt
+      required: true
+      schema:
+        type: string
+        example: "dir%2Ffile.txt"
   schemas:
     Health:
       type: object
@@ -53,6 +183,37 @@ components:
           readOnly: true
           description: Server health status
           example: healthy
+    CacheStatus:
+      type: object
+      title: CacheStatus
+      properties:
+        entries:
+          type: array
+          description: List of cache entries
+          items:
+            $ref: '#/components/schemas/CacheEntry'
+        totalEntries:
+          type: integer
+          description: Total number of cache entries
+          example: 5
+    CacheEntry:
+      type: object
+      title: CacheEntry
+      properties:
+        cacheKey:
+          type: string
+          description: The cache key (pool ID)
+          example: "pool-123"
+        cachedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the entry was cached
+          example: "2025-12-22T10:30:00Z"
+        expiresAt:
+          type: string
+          format: date-time
+          description: Timestamp when the entry will expire
+          example: "2025-12-29T10:30:00Z"
     Error:
       required:
         - code
@@ -65,6 +226,85 @@ components:
         message:
           type: string
           description: Error message
+    SnaplockFileRetentionJobLinkResponse:
+      type: object
+      title: SnaplockFileRetentionJobLinkResponse
+      description: Response for snaplock file operations
+      properties:
+        job:
+          $ref: '#/components/schemas/JobLink'
+        num_records:
+          type: integer
+          description: Number of records in the response
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/SnaplockFileRetention'
+    SnaplockFileRetention:
+      type: object
+      title: SnaplockFileRetention
+      description: Snaplock file retention record
+      properties:
+        _links:
+          $ref: '#/components/schemas/SelfLink'
+        expiry_time:
+          type: string
+          description: File expiry time
+        file:
+          $ref: '#/components/schemas/FileInfo'
+        is_expired:
+          type: boolean
+          description: Whether the file retention has expired
+        retention_period:
+          type: string
+          description: Retention period
+        seconds_until_expiry:
+          type: integer
+          format: int64
+          description: Seconds until expiry
+        volume:
+          $ref: '#/components/schemas/VolumeRef'
+    FileInfo:
+      type: object
+      title: FileInfo
+      properties:
+        path:
+          type: string
+          description: File path
+    VolumeRef:
+      type: object
+      title: VolumeRef
+      properties:
+        _links:
+          $ref: '#/components/schemas/SelfLink'
+        name:
+          type: string
+          description: Volume name
+        uuid:
+          type: string
+          description: Volume UUID
+    JobLink:
+      type: object
+      title: JobLink
+      properties:
+        _links:
+          $ref: '#/components/schemas/SelfLink'
+        uuid:
+          type: string
+          description: Job UUID
+    SelfLink:
+      type: object
+      title: SelfLink
+      properties:
+        self:
+          $ref: '#/components/schemas/Href'
+    Href:
+      type: object
+      title: Href
+      properties:
+        href:
+          type: string
+          description: Link URL
   responses:
     StandardError-400:
       description: Bad request
@@ -120,4 +360,3 @@ components:
           example:
             code: 500
             message: Internal server error
-

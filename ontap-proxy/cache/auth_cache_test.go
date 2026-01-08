@@ -258,3 +258,101 @@ func TestAuthDataCacheStruct(t *testing.T) {
 	assert.Equal(t, authData, cache.AuthData, "AuthData should match")
 	assert.True(t, time.Since(cache.Time) < time.Second, "Time should be recent")
 }
+
+func TestGetAuthDataCacheStatus(t *testing.T) {
+	t.Run("returns empty slice when cache is empty", func(t *testing.T) {
+		authDataCacheMap = make(map[string]*AuthDataCache)
+
+		status := GetAuthDataCacheStatus()
+
+		assert.Empty(t, status, "Status should be empty when cache is empty")
+	})
+
+	t.Run("returns correct status for single cache entry", func(t *testing.T) {
+		cachedTime := time.Now().Add(-time.Hour)
+		authDataCacheMap = map[string]*AuthDataCache{
+			"pool1": {
+				Time:   cachedTime,
+				PoolID: "pool1",
+				AuthData: &models.AuthData{
+					PoolID:   "pool1",
+					AuthType: models.USERNAME_PWD,
+					Username: "user1",
+					Password: "secret-password",
+				},
+			},
+		}
+
+		status := GetAuthDataCacheStatus()
+
+		assert.Len(t, status, 1, "Should return one entry")
+		assert.Equal(t, "pool1", status[0].CacheKey, "CacheKey should match pool ID")
+		assert.Equal(t, cachedTime, status[0].CachedAt, "CachedAt should match cache time")
+		assert.Equal(t, cachedTime.Add(authDataExpiration), status[0].ExpiresAt, "ExpiresAt should be cachedTime + expiration")
+	})
+
+	t.Run("returns status for multiple cache entries", func(t *testing.T) {
+		now := time.Now()
+		authDataCacheMap = map[string]*AuthDataCache{
+			"pool1": {
+				Time:   now.Add(-time.Hour),
+				PoolID: "pool1",
+				AuthData: &models.AuthData{
+					PoolID: "pool1",
+				},
+			},
+			"pool2": {
+				Time:   now.Add(-2 * time.Hour),
+				PoolID: "pool2",
+				AuthData: &models.AuthData{
+					PoolID: "pool2",
+				},
+			},
+			"pool3": {
+				Time:   now,
+				PoolID: "pool3",
+				AuthData: &models.AuthData{
+					PoolID: "pool3",
+				},
+			},
+		}
+
+		status := GetAuthDataCacheStatus()
+
+		assert.Len(t, status, 3, "Should return three entries")
+
+		// Verify all entries are present (order not guaranteed due to map iteration)
+		keys := make(map[string]bool)
+		for _, entry := range status {
+			keys[entry.CacheKey] = true
+		}
+		assert.True(t, keys["pool1"], "Should contain pool1")
+		assert.True(t, keys["pool2"], "Should contain pool2")
+		assert.True(t, keys["pool3"], "Should contain pool3")
+	})
+
+	t.Run("does not expose sensitive AuthData fields", func(t *testing.T) {
+		authDataCacheMap = map[string]*AuthDataCache{
+			"pool1": {
+				Time:   time.Now(),
+				PoolID: "pool1",
+				AuthData: &models.AuthData{
+					PoolID:        "pool1",
+					AuthType:      models.USERNAME_PWD,
+					Username:      "sensitive-user",
+					Password:      "sensitive-password",
+					SecretID:      "sensitive-secret",
+					CertificateID: "sensitive-cert",
+				},
+			},
+		}
+
+		status := GetAuthDataCacheStatus()
+
+		assert.Len(t, status, 1, "Should return one entry")
+		// CacheEntryStatus only has CacheKey, CachedAt, ExpiresAt - no sensitive fields
+		assert.Equal(t, "pool1", status[0].CacheKey, "Should only expose cache key")
+		assert.NotZero(t, status[0].CachedAt, "Should expose cached time")
+		assert.NotZero(t, status[0].ExpiresAt, "Should expose expiry time")
+	})
+}

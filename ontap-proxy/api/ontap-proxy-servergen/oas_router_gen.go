@@ -40,6 +40,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
+	args := [5]string{}
 
 	// Static code generated router with unwrapped path search.
 	switch {
@@ -48,24 +49,185 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		switch elem[0] {
-		case '/': // Prefix: "/health"
+		case '/': // Prefix: "/"
 
-			if l := len("/health"); len(elem) >= l && elem[0:l] == "/health" {
+			if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 				elem = elem[l:]
 			} else {
 				break
 			}
 
 			if len(elem) == 0 {
-				// Leaf node.
-				switch r.Method {
-				case "GET":
-					s.handleGetHealthRequest([0]string{}, elemIsEscaped, w, r)
-				default:
-					s.notAllowed(w, r, "GET")
+				break
+			}
+			switch elem[0] {
+			case 'c': // Prefix: "cacheStatus"
+
+				if l := len("cacheStatus"); len(elem) >= l && elem[0:l] == "cacheStatus" {
+					elem = elem[l:]
+				} else {
+					break
 				}
 
-				return
+				if len(elem) == 0 {
+					// Leaf node.
+					switch r.Method {
+					case "GET":
+						s.handleGetCacheStatusRequest([0]string{}, elemIsEscaped, w, r)
+					default:
+						s.notAllowed(w, r, "GET")
+					}
+
+					return
+				}
+
+			case 'h': // Prefix: "health"
+
+				if l := len("health"); len(elem) >= l && elem[0:l] == "health" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					// Leaf node.
+					switch r.Method {
+					case "GET":
+						s.handleGetHealthRequest([0]string{}, elemIsEscaped, w, r)
+					default:
+						s.notAllowed(w, r, "GET")
+					}
+
+					return
+				}
+
+			case 'v': // Prefix: "v1beta/projects/"
+
+				if l := len("v1beta/projects/"); len(elem) >= l && elem[0:l] == "v1beta/projects/" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				// Param: "projectNumber"
+				// Match until "/"
+				idx := strings.IndexByte(elem, '/')
+				if idx < 0 {
+					idx = len(elem)
+				}
+				args[0] = elem[:idx]
+				elem = elem[idx:]
+
+				if len(elem) == 0 {
+					break
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/locations/"
+
+					if l := len("/locations/"); len(elem) >= l && elem[0:l] == "/locations/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "locationId"
+					// Match until "/"
+					idx := strings.IndexByte(elem, '/')
+					if idx < 0 {
+						idx = len(elem)
+					}
+					args[1] = elem[:idx]
+					elem = elem[idx:]
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/pools/"
+
+						if l := len("/pools/"); len(elem) >= l && elem[0:l] == "/pools/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "poolId"
+						// Match until "/"
+						idx := strings.IndexByte(elem, '/')
+						if idx < 0 {
+							idx = len(elem)
+						}
+						args[2] = elem[:idx]
+						elem = elem[idx:]
+
+						if len(elem) == 0 {
+							break
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/ontap/api/storage/snaplock/file/"
+
+							if l := len("/ontap/api/storage/snaplock/file/"); len(elem) >= l && elem[0:l] == "/ontap/api/storage/snaplock/file/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							// Param: "volumeUuid"
+							// Match until "/"
+							idx := strings.IndexByte(elem, '/')
+							if idx < 0 {
+								idx = len(elem)
+							}
+							args[3] = elem[:idx]
+							elem = elem[idx:]
+
+							if len(elem) == 0 {
+								break
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/"
+
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "filePath"
+								// Leaf parameter, slashes are prohibited
+								idx := strings.IndexByte(elem, '/')
+								if idx >= 0 {
+									break
+								}
+								args[4] = elem
+								elem = ""
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "DELETE":
+										s.handleSnaplockFileDeleteRequest([5]string{
+											args[0],
+											args[1],
+											args[2],
+											args[3],
+											args[4],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "DELETE")
+									}
+
+									return
+								}
+
+							}
+
+						}
+
+					}
+
+				}
+
 			}
 
 		}
@@ -80,7 +242,7 @@ type Route struct {
 	operationID string
 	pathPattern string
 	count       int
-	args        [0]string
+	args        [5]string
 }
 
 // Name returns ogen operation name.
@@ -148,28 +310,191 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 			break
 		}
 		switch elem[0] {
-		case '/': // Prefix: "/health"
+		case '/': // Prefix: "/"
 
-			if l := len("/health"); len(elem) >= l && elem[0:l] == "/health" {
+			if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 				elem = elem[l:]
 			} else {
 				break
 			}
 
 			if len(elem) == 0 {
-				// Leaf node.
-				switch method {
-				case "GET":
-					r.name = GetHealthOperation
-					r.summary = "Get the server health status"
-					r.operationID = "getHealth"
-					r.pathPattern = "/health"
-					r.args = args
-					r.count = 0
-					return r, true
-				default:
-					return
+				break
+			}
+			switch elem[0] {
+			case 'c': // Prefix: "cacheStatus"
+
+				if l := len("cacheStatus"); len(elem) >= l && elem[0:l] == "cacheStatus" {
+					elem = elem[l:]
+				} else {
+					break
 				}
+
+				if len(elem) == 0 {
+					// Leaf node.
+					switch method {
+					case "GET":
+						r.name = GetCacheStatusOperation
+						r.summary = "Get auth cache status"
+						r.operationID = "getCacheStatus"
+						r.pathPattern = "/cacheStatus"
+						r.args = args
+						r.count = 0
+						return r, true
+					default:
+						return
+					}
+				}
+
+			case 'h': // Prefix: "health"
+
+				if l := len("health"); len(elem) >= l && elem[0:l] == "health" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
+					// Leaf node.
+					switch method {
+					case "GET":
+						r.name = GetHealthOperation
+						r.summary = "Get the server health status"
+						r.operationID = "getHealth"
+						r.pathPattern = "/health"
+						r.args = args
+						r.count = 0
+						return r, true
+					default:
+						return
+					}
+				}
+
+			case 'v': // Prefix: "v1beta/projects/"
+
+				if l := len("v1beta/projects/"); len(elem) >= l && elem[0:l] == "v1beta/projects/" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				// Param: "projectNumber"
+				// Match until "/"
+				idx := strings.IndexByte(elem, '/')
+				if idx < 0 {
+					idx = len(elem)
+				}
+				args[0] = elem[:idx]
+				elem = elem[idx:]
+
+				if len(elem) == 0 {
+					break
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/locations/"
+
+					if l := len("/locations/"); len(elem) >= l && elem[0:l] == "/locations/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "locationId"
+					// Match until "/"
+					idx := strings.IndexByte(elem, '/')
+					if idx < 0 {
+						idx = len(elem)
+					}
+					args[1] = elem[:idx]
+					elem = elem[idx:]
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/pools/"
+
+						if l := len("/pools/"); len(elem) >= l && elem[0:l] == "/pools/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "poolId"
+						// Match until "/"
+						idx := strings.IndexByte(elem, '/')
+						if idx < 0 {
+							idx = len(elem)
+						}
+						args[2] = elem[:idx]
+						elem = elem[idx:]
+
+						if len(elem) == 0 {
+							break
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/ontap/api/storage/snaplock/file/"
+
+							if l := len("/ontap/api/storage/snaplock/file/"); len(elem) >= l && elem[0:l] == "/ontap/api/storage/snaplock/file/" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							// Param: "volumeUuid"
+							// Match until "/"
+							idx := strings.IndexByte(elem, '/')
+							if idx < 0 {
+								idx = len(elem)
+							}
+							args[3] = elem[:idx]
+							elem = elem[idx:]
+
+							if len(elem) == 0 {
+								break
+							}
+							switch elem[0] {
+							case '/': // Prefix: "/"
+
+								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "filePath"
+								// Leaf parameter, slashes are prohibited
+								idx := strings.IndexByte(elem, '/')
+								if idx >= 0 {
+									break
+								}
+								args[4] = elem
+								elem = ""
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "DELETE":
+										r.name = SnaplockFileDeleteOperation
+										r.summary = "Privileged delete of unexpired WORM file"
+										r.operationID = "snaplockFileDelete"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/file/{volumeUuid}/{filePath}"
+										r.args = args
+										r.count = 5
+										return r, true
+									default:
+										return
+									}
+								}
+
+							}
+
+						}
+
+					}
+
+				}
+
 			}
 
 		}

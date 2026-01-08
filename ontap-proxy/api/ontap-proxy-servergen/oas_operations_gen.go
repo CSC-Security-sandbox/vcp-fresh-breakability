@@ -6,5 +6,7 @@ package ontapserver
 type OperationName = string
 
 const (
-	GetHealthOperation OperationName = "GetHealth"
+	GetCacheStatusOperation     OperationName = "GetCacheStatus"
+	GetHealthOperation          OperationName = "GetHealth"
+	SnaplockFileDeleteOperation OperationName = "SnaplockFileDelete"
 )

@@ -102,32 +102,32 @@ func parseCaURIFromAuthData(authData *ontapproxymodels.AuthData, logger log.Logg
 	if authData != nil {
 		certificateID = authData.CertificateID
 	}
-	
+
 	if authData == nil || authData.CaURI == "" {
 		logger.DebugContext(context.Background(), "Using environment variables for CA config", "certificateID", certificateID)
 		return env.CaName, env.CaPoolName, env.CaPoolDeployedProjectID
 	}
-	
+
 	caPoolDeployedProjectID, caPoolName, caName = env.ParseCaURI(authData.CaURI)
-	
+
 	if caPoolDeployedProjectID == "" {
 		caPoolDeployedProjectID = env.CaPoolDeployedProjectID
 		logger.DebugContext(context.Background(), "Using environment variable for caPoolDeployedProjectID", "certificateID", certificateID)
 	} else {
 		logger.DebugContext(context.Background(), "Using pool credential for caPoolDeployedProjectID", "certificateID", certificateID, "caPoolDeployedProjectID", caPoolDeployedProjectID)
 	}
-	
+
 	if caPoolName == "" {
 		caPoolName = env.CaPoolName
 		logger.DebugContext(context.Background(), "Using environment variable for caPoolName", "certificateID", certificateID)
 	} else {
 		logger.DebugContext(context.Background(), "Using pool credential for caPoolName", "certificateID", certificateID, "caPoolName", caPoolName)
 	}
-	
+
 	if caName == "" {
 		caName = env.CaName
 	}
-	
+
 	return caName, caPoolName, caPoolDeployedProjectID
 }
 
@@ -135,12 +135,12 @@ func getCertificateFromSecretManager(ctx context.Context, authData *ontapproxymo
 	if authData == nil {
 		return nil, fmt.Errorf("authData is nil")
 	}
-	
+
 	certificateID := authData.CertificateID
 	if certificateID == "" {
 		return nil, fmt.Errorf("certificateID is empty in authData")
 	}
-	
+
 	logger.InfoContext(ctx, "Getting certificate from secret manager", "certificateID", certificateID)
 
 	gcpService, err := hyperscaler.GetGCPService(ctx)

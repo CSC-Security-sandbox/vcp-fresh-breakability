@@ -4,11 +4,82 @@ package ontapserver
 
 import (
 	"fmt"
+	"time"
 )
 
 func (s *ErrorStatusCode) Error() string {
 	return fmt.Sprintf("code %d: %+v", s.StatusCode, s.Response)
 }
+
+// Ref: #/components/schemas/CacheEntry
+type CacheEntry struct {
+	// The cache key (pool ID).
+	CacheKey OptString `json:"cacheKey"`
+	// Timestamp when the entry was cached.
+	CachedAt OptDateTime `json:"cachedAt"`
+	// Timestamp when the entry will expire.
+	ExpiresAt OptDateTime `json:"expiresAt"`
+}
+
+// GetCacheKey returns the value of CacheKey.
+func (s *CacheEntry) GetCacheKey() OptString {
+	return s.CacheKey
+}
+
+// GetCachedAt returns the value of CachedAt.
+func (s *CacheEntry) GetCachedAt() OptDateTime {
+	return s.CachedAt
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *CacheEntry) GetExpiresAt() OptDateTime {
+	return s.ExpiresAt
+}
+
+// SetCacheKey sets the value of CacheKey.
+func (s *CacheEntry) SetCacheKey(val OptString) {
+	s.CacheKey = val
+}
+
+// SetCachedAt sets the value of CachedAt.
+func (s *CacheEntry) SetCachedAt(val OptDateTime) {
+	s.CachedAt = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *CacheEntry) SetExpiresAt(val OptDateTime) {
+	s.ExpiresAt = val
+}
+
+// Ref: #/components/schemas/CacheStatus
+type CacheStatus struct {
+	// List of cache entries.
+	Entries []CacheEntry `json:"entries"`
+	// Total number of cache entries.
+	TotalEntries OptInt `json:"totalEntries"`
+}
+
+// GetEntries returns the value of Entries.
+func (s *CacheStatus) GetEntries() []CacheEntry {
+	return s.Entries
+}
+
+// GetTotalEntries returns the value of TotalEntries.
+func (s *CacheStatus) GetTotalEntries() OptInt {
+	return s.TotalEntries
+}
+
+// SetEntries sets the value of Entries.
+func (s *CacheStatus) SetEntries(val []CacheEntry) {
+	s.Entries = val
+}
+
+// SetTotalEntries sets the value of TotalEntries.
+func (s *CacheStatus) SetTotalEntries(val OptInt) {
+	s.TotalEntries = val
+}
+
+func (*CacheStatus) getCacheStatusRes() {}
 
 // Ref: #/components/schemas/Error
 type Error struct {
@@ -64,6 +135,46 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 	s.Response = val
 }
 
+// Ref: #/components/schemas/FileInfo
+type FileInfo struct {
+	// File path.
+	Path OptString `json:"path"`
+}
+
+// GetPath returns the value of Path.
+func (s *FileInfo) GetPath() OptString {
+	return s.Path
+}
+
+// SetPath sets the value of Path.
+func (s *FileInfo) SetPath(val OptString) {
+	s.Path = val
+}
+
+type GetCacheStatusBadRequest Error
+
+func (*GetCacheStatusBadRequest) getCacheStatusRes() {}
+
+type GetCacheStatusForbidden Error
+
+func (*GetCacheStatusForbidden) getCacheStatusRes() {}
+
+type GetCacheStatusInternalServerError Error
+
+func (*GetCacheStatusInternalServerError) getCacheStatusRes() {}
+
+type GetCacheStatusNotFound Error
+
+func (*GetCacheStatusNotFound) getCacheStatusRes() {}
+
+type GetCacheStatusTooManyRequests Error
+
+func (*GetCacheStatusTooManyRequests) getCacheStatusRes() {}
+
+type GetCacheStatusUnauthorized Error
+
+func (*GetCacheStatusUnauthorized) getCacheStatusRes() {}
+
 type GetHealthBadRequest Error
 
 func (*GetHealthBadRequest) getHealthRes() {}
@@ -105,6 +216,417 @@ func (s *Health) SetStatus(val OptString) {
 }
 
 func (*Health) getHealthRes() {}
+
+// Ref: #/components/schemas/Href
+type Href struct {
+	// Link URL.
+	Href OptString `json:"href"`
+}
+
+// GetHref returns the value of Href.
+func (s *Href) GetHref() OptString {
+	return s.Href
+}
+
+// SetHref sets the value of Href.
+func (s *Href) SetHref(val OptString) {
+	s.Href = val
+}
+
+// Ref: #/components/schemas/JobLink
+type JobLink struct {
+	Links OptSelfLink `json:"_links"`
+	// Job UUID.
+	UUID OptString `json:"uuid"`
+}
+
+// GetLinks returns the value of Links.
+func (s *JobLink) GetLinks() OptSelfLink {
+	return s.Links
+}
+
+// GetUUID returns the value of UUID.
+func (s *JobLink) GetUUID() OptString {
+	return s.UUID
+}
+
+// SetLinks sets the value of Links.
+func (s *JobLink) SetLinks(val OptSelfLink) {
+	s.Links = val
+}
+
+// SetUUID sets the value of UUID.
+func (s *JobLink) SetUUID(val OptString) {
+	s.UUID = val
+}
+
+// NewOptBool returns new OptBool with value set to v.
+func NewOptBool(v bool) OptBool {
+	return OptBool{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBool is optional bool.
+type OptBool struct {
+	Value bool
+	Set   bool
+}
+
+// IsSet returns true if OptBool was set.
+func (o OptBool) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBool) Reset() {
+	var v bool
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBool) SetTo(v bool) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBool) Get() (v bool, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptDateTime returns new OptDateTime with value set to v.
+func NewOptDateTime(v time.Time) OptDateTime {
+	return OptDateTime{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptDateTime is optional time.Time.
+type OptDateTime struct {
+	Value time.Time
+	Set   bool
+}
+
+// IsSet returns true if OptDateTime was set.
+func (o OptDateTime) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptDateTime) Reset() {
+	var v time.Time
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptDateTime) SetTo(v time.Time) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptDateTime) Get() (v time.Time, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptDateTime) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFileInfo returns new OptFileInfo with value set to v.
+func NewOptFileInfo(v FileInfo) OptFileInfo {
+	return OptFileInfo{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFileInfo is optional FileInfo.
+type OptFileInfo struct {
+	Value FileInfo
+	Set   bool
+}
+
+// IsSet returns true if OptFileInfo was set.
+func (o OptFileInfo) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFileInfo) Reset() {
+	var v FileInfo
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFileInfo) SetTo(v FileInfo) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFileInfo) Get() (v FileInfo, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFileInfo) Or(d FileInfo) FileInfo {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptHref returns new OptHref with value set to v.
+func NewOptHref(v Href) OptHref {
+	return OptHref{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHref is optional Href.
+type OptHref struct {
+	Value Href
+	Set   bool
+}
+
+// IsSet returns true if OptHref was set.
+func (o OptHref) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHref) Reset() {
+	var v Href
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHref) SetTo(v Href) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHref) Get() (v Href, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHref) Or(d Href) Href {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInt returns new OptInt with value set to v.
+func NewOptInt(v int) OptInt {
+	return OptInt{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInt is optional int.
+type OptInt struct {
+	Value int
+	Set   bool
+}
+
+// IsSet returns true if OptInt was set.
+func (o OptInt) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInt) Reset() {
+	var v int
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInt) SetTo(v int) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInt) Get() (v int, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInt) Or(d int) int {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInt64 returns new OptInt64 with value set to v.
+func NewOptInt64(v int64) OptInt64 {
+	return OptInt64{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInt64 is optional int64.
+type OptInt64 struct {
+	Value int64
+	Set   bool
+}
+
+// IsSet returns true if OptInt64 was set.
+func (o OptInt64) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInt64) Reset() {
+	var v int64
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInt64) SetTo(v int64) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInt64) Get() (v int64, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInt64) Or(d int64) int64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptJobLink returns new OptJobLink with value set to v.
+func NewOptJobLink(v JobLink) OptJobLink {
+	return OptJobLink{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptJobLink is optional JobLink.
+type OptJobLink struct {
+	Value JobLink
+	Set   bool
+}
+
+// IsSet returns true if OptJobLink was set.
+func (o OptJobLink) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptJobLink) Reset() {
+	var v JobLink
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptJobLink) SetTo(v JobLink) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptJobLink) Get() (v JobLink, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptJobLink) Or(d JobLink) JobLink {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptSelfLink returns new OptSelfLink with value set to v.
+func NewOptSelfLink(v SelfLink) OptSelfLink {
+	return OptSelfLink{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSelfLink is optional SelfLink.
+type OptSelfLink struct {
+	Value SelfLink
+	Set   bool
+}
+
+// IsSet returns true if OptSelfLink was set.
+func (o OptSelfLink) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSelfLink) Reset() {
+	var v SelfLink
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSelfLink) SetTo(v SelfLink) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSelfLink) Get() (v SelfLink, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSelfLink) Or(d SelfLink) SelfLink {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
 
 // NewOptString returns new OptString with value set to v.
 func NewOptString(v string) OptString {
@@ -150,4 +672,251 @@ func (o OptString) Or(d string) string {
 		return v
 	}
 	return d
+}
+
+// NewOptVolumeRef returns new OptVolumeRef with value set to v.
+func NewOptVolumeRef(v VolumeRef) OptVolumeRef {
+	return OptVolumeRef{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptVolumeRef is optional VolumeRef.
+type OptVolumeRef struct {
+	Value VolumeRef
+	Set   bool
+}
+
+// IsSet returns true if OptVolumeRef was set.
+func (o OptVolumeRef) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptVolumeRef) Reset() {
+	var v VolumeRef
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptVolumeRef) SetTo(v VolumeRef) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptVolumeRef) Get() (v VolumeRef, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptVolumeRef) Or(d VolumeRef) VolumeRef {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// Ref: #/components/schemas/SelfLink
+type SelfLink struct {
+	Self OptHref `json:"self"`
+}
+
+// GetSelf returns the value of Self.
+func (s *SelfLink) GetSelf() OptHref {
+	return s.Self
+}
+
+// SetSelf sets the value of Self.
+func (s *SelfLink) SetSelf(val OptHref) {
+	s.Self = val
+}
+
+type SnaplockFileDeleteBadRequest Error
+
+func (*SnaplockFileDeleteBadRequest) snaplockFileDeleteRes() {}
+
+type SnaplockFileDeleteForbidden Error
+
+func (*SnaplockFileDeleteForbidden) snaplockFileDeleteRes() {}
+
+type SnaplockFileDeleteInternalServerError Error
+
+func (*SnaplockFileDeleteInternalServerError) snaplockFileDeleteRes() {}
+
+type SnaplockFileDeleteNotFound Error
+
+func (*SnaplockFileDeleteNotFound) snaplockFileDeleteRes() {}
+
+type SnaplockFileDeleteUnauthorized Error
+
+func (*SnaplockFileDeleteUnauthorized) snaplockFileDeleteRes() {}
+
+// Snaplock file retention record.
+// Ref: #/components/schemas/SnaplockFileRetention
+type SnaplockFileRetention struct {
+	Links OptSelfLink `json:"_links"`
+	// File expiry time.
+	ExpiryTime OptString   `json:"expiry_time"`
+	File       OptFileInfo `json:"file"`
+	// Whether the file retention has expired.
+	IsExpired OptBool `json:"is_expired"`
+	// Retention period.
+	RetentionPeriod OptString `json:"retention_period"`
+	// Seconds until expiry.
+	SecondsUntilExpiry OptInt64     `json:"seconds_until_expiry"`
+	Volume             OptVolumeRef `json:"volume"`
+}
+
+// GetLinks returns the value of Links.
+func (s *SnaplockFileRetention) GetLinks() OptSelfLink {
+	return s.Links
+}
+
+// GetExpiryTime returns the value of ExpiryTime.
+func (s *SnaplockFileRetention) GetExpiryTime() OptString {
+	return s.ExpiryTime
+}
+
+// GetFile returns the value of File.
+func (s *SnaplockFileRetention) GetFile() OptFileInfo {
+	return s.File
+}
+
+// GetIsExpired returns the value of IsExpired.
+func (s *SnaplockFileRetention) GetIsExpired() OptBool {
+	return s.IsExpired
+}
+
+// GetRetentionPeriod returns the value of RetentionPeriod.
+func (s *SnaplockFileRetention) GetRetentionPeriod() OptString {
+	return s.RetentionPeriod
+}
+
+// GetSecondsUntilExpiry returns the value of SecondsUntilExpiry.
+func (s *SnaplockFileRetention) GetSecondsUntilExpiry() OptInt64 {
+	return s.SecondsUntilExpiry
+}
+
+// GetVolume returns the value of Volume.
+func (s *SnaplockFileRetention) GetVolume() OptVolumeRef {
+	return s.Volume
+}
+
+// SetLinks sets the value of Links.
+func (s *SnaplockFileRetention) SetLinks(val OptSelfLink) {
+	s.Links = val
+}
+
+// SetExpiryTime sets the value of ExpiryTime.
+func (s *SnaplockFileRetention) SetExpiryTime(val OptString) {
+	s.ExpiryTime = val
+}
+
+// SetFile sets the value of File.
+func (s *SnaplockFileRetention) SetFile(val OptFileInfo) {
+	s.File = val
+}
+
+// SetIsExpired sets the value of IsExpired.
+func (s *SnaplockFileRetention) SetIsExpired(val OptBool) {
+	s.IsExpired = val
+}
+
+// SetRetentionPeriod sets the value of RetentionPeriod.
+func (s *SnaplockFileRetention) SetRetentionPeriod(val OptString) {
+	s.RetentionPeriod = val
+}
+
+// SetSecondsUntilExpiry sets the value of SecondsUntilExpiry.
+func (s *SnaplockFileRetention) SetSecondsUntilExpiry(val OptInt64) {
+	s.SecondsUntilExpiry = val
+}
+
+// SetVolume sets the value of Volume.
+func (s *SnaplockFileRetention) SetVolume(val OptVolumeRef) {
+	s.Volume = val
+}
+
+// Response for snaplock file operations.
+// Ref: #/components/schemas/SnaplockFileRetentionJobLinkResponse
+type SnaplockFileRetentionJobLinkResponse struct {
+	Job OptJobLink `json:"job"`
+	// Number of records in the response.
+	NumRecords OptInt                  `json:"num_records"`
+	Records    []SnaplockFileRetention `json:"records"`
+}
+
+// GetJob returns the value of Job.
+func (s *SnaplockFileRetentionJobLinkResponse) GetJob() OptJobLink {
+	return s.Job
+}
+
+// GetNumRecords returns the value of NumRecords.
+func (s *SnaplockFileRetentionJobLinkResponse) GetNumRecords() OptInt {
+	return s.NumRecords
+}
+
+// GetRecords returns the value of Records.
+func (s *SnaplockFileRetentionJobLinkResponse) GetRecords() []SnaplockFileRetention {
+	return s.Records
+}
+
+// SetJob sets the value of Job.
+func (s *SnaplockFileRetentionJobLinkResponse) SetJob(val OptJobLink) {
+	s.Job = val
+}
+
+// SetNumRecords sets the value of NumRecords.
+func (s *SnaplockFileRetentionJobLinkResponse) SetNumRecords(val OptInt) {
+	s.NumRecords = val
+}
+
+// SetRecords sets the value of Records.
+func (s *SnaplockFileRetentionJobLinkResponse) SetRecords(val []SnaplockFileRetention) {
+	s.Records = val
+}
+
+func (*SnaplockFileRetentionJobLinkResponse) snaplockFileDeleteRes() {}
+
+// Ref: #/components/schemas/VolumeRef
+type VolumeRef struct {
+	Links OptSelfLink `json:"_links"`
+	// Volume name.
+	Name OptString `json:"name"`
+	// Volume UUID.
+	UUID OptString `json:"uuid"`
+}
+
+// GetLinks returns the value of Links.
+func (s *VolumeRef) GetLinks() OptSelfLink {
+	return s.Links
+}
+
+// GetName returns the value of Name.
+func (s *VolumeRef) GetName() OptString {
+	return s.Name
+}
+
+// GetUUID returns the value of UUID.
+func (s *VolumeRef) GetUUID() OptString {
+	return s.UUID
+}
+
+// SetLinks sets the value of Links.
+func (s *VolumeRef) SetLinks(val OptSelfLink) {
+	s.Links = val
+}
+
+// SetName sets the value of Name.
+func (s *VolumeRef) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetUUID sets the value of UUID.
+func (s *VolumeRef) SetUUID(val OptString) {
+	s.UUID = val
 }

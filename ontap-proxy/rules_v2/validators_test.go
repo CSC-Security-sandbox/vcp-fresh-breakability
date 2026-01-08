@@ -233,6 +233,80 @@ func TestValidateVolumeModification(t *testing.T) {
 			t.Fatalf("expected invalid size error for abc, got ok=%v reason=%q", ok, reason)
 		}
 	})
+
+	t.Run("WhenSizeNotProvided_ShouldSucceedWithoutReconcile", func(t *testing.T) {
+		reconcileCalled := false
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			reconcileCalled = true
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		// PATCH without size field - only updating name
+		r := httptest.NewRequest(http.MethodPatch, "/api/storage/volumes/abcd-1234", bytes.NewBufferString(`{"name":"vol1"}`))
+		r = r.WithContext(ctx)
+		ok, reason := _validateVolumeModification(r)
+		if !ok || reason != "" {
+			t.Fatalf("expected success when size not provided, got ok=%v reason=%q", ok, reason)
+		}
+		if reconcileCalled {
+			t.Fatal("expected reconcile NOT to be called when size is not provided")
+		}
+	})
+
+	t.Run("WhenSizeProvided_ShouldTriggerReconcile", func(t *testing.T) {
+		reconcileCalled := false
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			reconcileCalled = true
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		// PATCH with size field
+		r := httptest.NewRequest(http.MethodPatch, "/api/storage/volumes/abcd-1234", bytes.NewBufferString(`{"name":"vol1","size":2048}`))
+		r = r.WithContext(ctx)
+		ok, reason := _validateVolumeModification(r)
+		if !ok || reason != "" {
+			t.Fatalf("expected success, got ok=%v reason=%q", ok, reason)
+		}
+		if !reconcileCalled {
+			t.Fatal("expected reconcile to be called when size is provided")
+		}
+	})
+
+	t.Run("WhenSizeIsNull_ShouldFail", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		// PATCH with size explicitly set to null
+		r := httptest.NewRequest(http.MethodPatch, "/api/storage/volumes/abcd-1234", bytes.NewBufferString(`{"name":"vol1","size":null}`))
+		r = r.WithContext(ctx)
+		ok, reason := _validateVolumeModification(r)
+		if ok || !strings.Contains(reason, "invalid value for field \"size\"") {
+			t.Fatalf("expected invalid size error for null, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("WhenSizeIsZero_ShouldFail", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		// PATCH with size explicitly set to 0
+		r := httptest.NewRequest(http.MethodPatch, "/api/storage/volumes/abcd-1234", bytes.NewBufferString(`{"name":"vol1","size":0}`))
+		r = r.WithContext(ctx)
+		ok, reason := _validateVolumeModification(r)
+		if ok || !strings.Contains(reason, "invalid value for field \"size\"") {
+			t.Fatalf("expected invalid size error for zero, got ok=%v reason=%q", ok, reason)
+		}
+	})
 }
 
 func TestValidateVolumeDeletion(t *testing.T) {

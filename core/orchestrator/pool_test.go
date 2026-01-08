@@ -4727,6 +4727,208 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Nil(t, credentials)
 	})
+	t.Run("WhenUserNameIsAdmin_ShouldReturnPoolCredentials", func(t *testing.T) {
+		ctx, store, orch, _ := setup(t)
+
+		// Create test data
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.DB().Create(account).Error
+		assert.NoError(t, err)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test-pool-uuid",
+			AccountID: account.ID,
+			PoolCredentials: &datamodel.PoolCredentials{
+				SecretID:      "pool-secret-id",
+				CertificateID: "pool-cert-id",
+				Password:      "pool-password",
+				AuthType:      1, // USER_PASSWORD
+			},
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						SecretID:      "expert-secret-id",
+						CertificateID: "expert-cert-id",
+						Password:      "expert-password",
+						AuthType:      2,
+						Username:      "admin", // Even if admin exists in expert mode, should use PoolCredentials
+					},
+				},
+			},
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(t, err)
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "test-node-1-uuid"},
+			Name:            "test-node-1",
+			PoolID:          pool.ID,
+			EndpointAddress: "10.0.0.1",
+			HostDNSName:     "host1.example.com",
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(t, err)
+
+		// Execute with admin userName
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "admin")
+
+		// Assert - should return PoolCredentials, not ExpertModeCredentials
+		assert.NoError(t, err)
+		assert.NotNil(t, credentials)
+		assert.Equal(t, "pool-secret-id", credentials.SecretID)
+		assert.Equal(t, "pool-cert-id", credentials.CertificateID)
+		assert.Equal(t, "pool-password", credentials.Password)
+		assert.Equal(t, 1, credentials.AuthType)
+		assert.NotNil(t, credentials.OntapEndpoints)
+		assert.Len(t, credentials.OntapEndpoints, 1)
+		assert.Equal(t, "10.0.0.1", credentials.OntapEndpoints[0].IP)
+	})
+	t.Run("WhenUserNameIsAdmin_AndPoolCredentialsNil_ShouldReturnNil", func(t *testing.T) {
+		ctx, store, orch, _ := setup(t)
+
+		// Create test data
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.DB().Create(account).Error
+		assert.NoError(t, err)
+
+		pool := &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:            "test-pool-uuid",
+			AccountID:       account.ID,
+			PoolCredentials: nil, // No pool credentials
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(t, err)
+
+		// Execute with admin userName
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "admin")
+
+		// Assert - should return nil when PoolCredentials is nil
+		assert.NoError(t, err)
+		assert.Nil(t, credentials)
+	})
+	t.Run("WhenUserNameIsAdmin_WithCertificateAuth_ShouldUseHostDNS", func(t *testing.T) {
+		ctx, store, orch, _ := setup(t)
+
+		// Create test data
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.DB().Create(account).Error
+		assert.NoError(t, err)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test-pool-uuid",
+			AccountID: account.ID,
+			PoolCredentials: &datamodel.PoolCredentials{
+				SecretID:      "pool-secret-id",
+				CertificateID: "pool-cert-id",
+				Password:      "pool-password",
+				AuthType:      2, // USER_CERTIFICATE - should use HostDNS
+			},
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(t, err)
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "test-node-1-uuid"},
+			Name:            "test-node-1",
+			PoolID:          pool.ID,
+			EndpointAddress: "10.0.0.1",
+			HostDNSName:     "host1.example.com",
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(t, err)
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{ID: 2, UUID: "test-node-2-uuid"},
+			Name:            "test-node-2",
+			PoolID:          pool.ID,
+			EndpointAddress: "10.0.0.2",
+			HostDNSName:     "host2.example.com",
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(t, err)
+
+		// Execute with admin userName
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "admin")
+
+		// Assert - should use HostDNS when AuthType is USER_CERTIFICATE
+		assert.NoError(t, err)
+		assert.NotNil(t, credentials)
+		assert.Equal(t, 2, credentials.AuthType)
+		assert.Len(t, credentials.OntapEndpoints, 2)
+		assert.Equal(t, "10.0.0.1", credentials.OntapEndpoints[0].IP)
+		assert.Equal(t, "host1.example.com", credentials.OntapEndpoints[0].DNS) // Should use HostDNSName
+		assert.Equal(t, "10.0.0.2", credentials.OntapEndpoints[1].IP)
+		assert.Equal(t, "host2.example.com", credentials.OntapEndpoints[1].DNS) // Should use HostDNSName
+	})
+	t.Run("WhenUserNameIsNotAdmin_ShouldUseExpertModeCredentials", func(t *testing.T) {
+		ctx, store, orch, _ := setup(t)
+
+		// Create test data
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.DB().Create(account).Error
+		assert.NoError(t, err)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test-pool-uuid",
+			AccountID: account.ID,
+			PoolCredentials: &datamodel.PoolCredentials{
+				SecretID:      "pool-secret-id",
+				CertificateID: "pool-cert-id",
+				Password:      "pool-password",
+				AuthType:      1,
+			},
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						SecretID:      "expert-secret-id",
+						CertificateID: "expert-cert-id",
+						Password:      "expert-password",
+						AuthType:      2,
+						Username:      "custom-user",
+					},
+				},
+			},
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(t, err)
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "test-node-1-uuid"},
+			Name:            "test-node-1",
+			PoolID:          pool.ID,
+			EndpointAddress: "10.0.0.1",
+			HostDNSName:     "host1.example.com",
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(t, err)
+
+		// Execute with non-admin userName
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "custom-user")
+
+		// Assert - should return ExpertModeCredentials, not PoolCredentials
+		assert.NoError(t, err)
+		assert.NotNil(t, credentials)
+		assert.Equal(t, "expert-secret-id", credentials.SecretID)
+		assert.Equal(t, "expert-cert-id", credentials.CertificateID)
+		assert.Equal(t, "expert-password", credentials.Password)
+		assert.Equal(t, 2, credentials.AuthType)
+	})
 }
 
 func TestCreatePool_JobTypeSelection(t *testing.T) {
