@@ -106,6 +106,12 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 		if vol.Space.SizeAvailableForSnapshots != nil {
 			volRes.SnapReserve = *vol.Space.SizeAvailableForSnapshots
 		}
+		if vol.Space.AfsTotal != nil {
+			volRes.AFSSize = *vol.Space.AfsTotal
+		}
+		if vol.Space.Metadata != nil {
+			volRes.MetadataSize = *vol.Space.Metadata
+		}
 	}
 	if vol.Size != nil {
 		volRes.Size = *vol.Size
