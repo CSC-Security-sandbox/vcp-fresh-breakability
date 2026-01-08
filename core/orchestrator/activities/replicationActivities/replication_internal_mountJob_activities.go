@@ -77,9 +77,8 @@ func (j *MountJobActivity) GetReplicationFromOntap(ctx context.Context, dbReplic
 
 func (j *MountJobActivity) UpdateReplicationInDB(ctx context.Context, replication *datamodel.VolumeReplication, lunDetails []*vsa.LunResponse) error {
 	logger := util.GetLogger(ctx)
-
 	// Validate LUN details
-	if lunDetails == nil || len(lunDetails) != 1 {
+	if (replication.Volume.VolumeAttributes.Protocols != nil && replication.Volume.VolumeAttributes.Protocols[0] == "ISCSI") && (lunDetails == nil || len(lunDetails) != 1) {
 		originalErr := errors.New("zero or multiple LUNs found on source volume")
 		replication.State = models.LifeCycleStateError
 		replication.StateDetails = originalErr.Error()

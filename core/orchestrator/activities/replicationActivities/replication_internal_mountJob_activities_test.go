@@ -288,7 +288,13 @@ func TestUpdateReplicationInDB(t *testing.T) {
 		mockStorage.On("UpdateVolumeReplicationTransferStats", mock.Anything, mock.Anything).Return(nil)
 
 		activity := &MountJobActivity{SE: mockStorage}
-		replication := &datamodel.VolumeReplication{}
+		replication := &datamodel.VolumeReplication{
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					FileProperties: nil,
+				},
+			},
+		}
 		lunDetails := []*vsa.LunResponse{
 			{
 				ProviderResponse: vsa.ProviderResponse{
@@ -309,7 +315,13 @@ func TestUpdateReplicationInDB(t *testing.T) {
 		mockStorage.On("UpdateVolumeReplicationTransferStats", mock.Anything, mock.Anything).Return(errors.New("update failed"))
 
 		activity := &MountJobActivity{SE: mockStorage}
-		replication := &datamodel.VolumeReplication{}
+		replication := &datamodel.VolumeReplication{
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					FileProperties: nil,
+				},
+			},
+		}
 		lunDetails := []*vsa.LunResponse{
 			{
 				ProviderResponse: vsa.ProviderResponse{
@@ -337,6 +349,11 @@ func TestUpdateReplicationInDB(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "replication-uuid",
 			},
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					Protocols: []string{"ISCSI"},
+				},
+			},
 		}
 
 		err := activity.UpdateReplicationInDB(context.Background(), replication, nil)
@@ -355,6 +372,11 @@ func TestUpdateReplicationInDB(t *testing.T) {
 		replication := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{
 				UUID: "replication-uuid",
+			},
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					Protocols: []string{"ISCSI"},
+				},
 			},
 		}
 		lunDetails := []*vsa.LunResponse{
@@ -379,6 +401,11 @@ func TestUpdateReplicationInDB(t *testing.T) {
 			BaseModel: datamodel.BaseModel{
 				UUID: "replication-uuid",
 			},
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					Protocols: []string{"ISCSI"},
+				},
+			},
 		}
 		lunDetails := []*vsa.LunResponse{}
 
@@ -398,6 +425,11 @@ func TestUpdateReplicationInDB(t *testing.T) {
 		replication := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{
 				UUID: "replication-uuid",
+			},
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					Protocols: []string{"ISCSI"},
+				},
 			},
 		}
 

@@ -129,7 +129,7 @@ func (wf *mountCheckWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			return nil, workflows.ConvertToVSAError(err)
 		}
 	}
-	if lunDetails == nil || len(lunDetails) > 1 {
+	if (replication.Volume.VolumeAttributes.Protocols != nil && replication.Volume.VolumeAttributes.Protocols[0] == "ISCSI") && (lunDetails == nil || len(lunDetails) > 1) {
 		err = workflow.ExecuteActivity(ctx, mountJobActivity.AbortVolumeReplicationForMount, replication, node).Get(ctx, nil)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)

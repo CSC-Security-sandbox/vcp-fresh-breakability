@@ -9,7 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -65,8 +65,8 @@ func TestPerformMountCheckWorkFlow(t *testing.T) {
 		env.OnActivity(commonActivity.GetNode, mock.Anything, dbreplication.Volume.PoolID).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity(mountJobActivity.CheckMountJob, mock.Anything, dbreplication, mock.Anything, accountName).Return(nil)
 		env.OnActivity(mountJobActivity.GetReplicationFromOntap, mock.Anything, dbreplication, mock.Anything, accountName).Return(dbreplication, nil)
-		env.OnActivity(mountJobActivity.UpdateReplicationInDB, mock.Anything, dbreplication).Return(nil)
-		env.OnActivity(mountJobActivity.GetLunDetailsFromOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(mountJobActivity.UpdateReplicationInDB, mock.Anything, dbreplication, mock.Anything).Return(nil)
+		env.OnActivity(mountJobActivity.GetLunDetailsFromOntap, mock.Anything, mock.Anything, mock.Anything).Return([]*vsa.LunResponse(nil), nil)
 		env.OnActivity(mountJobActivity.UpdateVolumeDetailsInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Execute workflow
 		env.ExecuteWorkflow(PerformMountCheckWorkflow, replicationUUID, accountName)
@@ -122,7 +122,7 @@ func TestPerformMountCheckWorkFlow(t *testing.T) {
 		env.OnActivity(commonActivity.GetNode, mock.Anything, dbreplication.Volume.PoolID).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity(mountJobActivity.CheckMountJob, mock.Anything, dbreplication, mock.Anything, accountName).Return(nil)
 		env.OnActivity(mountJobActivity.GetReplicationFromOntap, mock.Anything, dbreplication, mock.Anything, accountName).Return(dbreplication, nil)
-		env.OnActivity(mountJobActivity.UpdateReplicationInDB, mock.Anything, dbreplication).Return(nil)
+		env.OnActivity(mountJobActivity.UpdateReplicationInDB, mock.Anything, dbreplication, mock.Anything).Return(nil)
 		env.OnActivity(mountJobActivity.MountVolume, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity(mountJobActivity.UpdateVolumeDetailsInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Execute workflow
