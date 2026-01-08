@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowenginemock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
+	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"gorm.io/gorm"
 )
 
@@ -730,6 +732,75 @@ func TestCreatePool(t *testing.T) {
 		assert.Equal(t, pool.VendorSubNetID, params.VendorSubNetID)
 		assert.Equal(t, pool.AccountName, params.AccountName)
 		assert.Equal(t, pool.PoolAttributes.Labels["test"], label)
+	})
+	t.Run("WhenCreatePoolSucceeds_LargeCapacity_UsesLVWorkflowTimeout", func(tt *testing.T) {
+		ctx, _, orch, temporal := setup(tt)
+
+		temporal.EXPECT().ExecuteWorkflow(
+			mock.Anything,
+			mock.MatchedBy(func(opts interface{}) bool {
+				v := reflect.ValueOf(opts)
+				f := v.FieldByName("WorkflowRunTimeout")
+				if !f.IsValid() {
+					return false
+				}
+				timeout, ok := f.Interface().(time.Duration)
+				if !ok {
+					return false
+				}
+				want := workflowengine.GetCreatePoolWorkflowRunTimeout(true)
+				return want != nil && timeout == *want
+			}),
+			mock.Anything,
+			mock.Anything,
+			mock.Anything,
+		).Return(nil, nil)
+
+		params := &common.CreatePoolParams{
+			AccountName:      "test_account",
+			Region:           "test_region",
+			PrimaryZone:      "test_zone",
+			Name:             "test_pool_lv",
+			VendorID:         "test_vendor",
+			SizeInBytes:      1024,
+			AllowAutoTiering: true,
+			VendorSubNetID:   "test_network",
+			LargeCapacity:    true,
+			CustomPerformanceParams: func() *common.CustomPerformanceParams {
+				iopsValue := int64(1024)
+				return &common.CustomPerformanceParams{
+					Enabled:         true,
+					ThroughputMibps: 64,
+					Iops:            &iopsValue,
+				}
+			}(),
+			Mode: workflows.ONTAPMode,
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+		originalnodePassword := env.NodePassword
+		env.NodePassword = "password"
+
+		authType := env.AuthType
+		env.AuthType = env.USERNAME_PWD
+		defer func() {
+			env.AuthType = authType
+			env.NodePassword = originalnodePassword
+		}()
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
+			return nil
+		}
+
+		_, _, err := orch.CreatePool(ctx, params)
+		assert.NoError(tt, err)
 	})
 	t.Run("WhenCreatePoolSucceedsWithCert", func(tt *testing.T) {
 		ctx, _, orch, temporal := setup(tt)

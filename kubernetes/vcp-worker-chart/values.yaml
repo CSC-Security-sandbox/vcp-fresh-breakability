@@ -224,6 +224,7 @@ workerConfig:
 
   workflowGlobalTimeoutMinutes: "60" # Global timeout for workflows in minutes
   cmekWorkflowGlobalTimeoutMinutes: "14" # Global timeout for CMEK workflows in minutes
+  createPoolWorkflowTimeoutMinutesLV: "120" # Create pool workflow run timeout (LV pools) in minutes
   cmekBackupEnabled: false
   workflowGlobalTimeoutForReplicationMinutes: 10
   mgmtFirewallSourceRanges: "198.18.0.0/15"

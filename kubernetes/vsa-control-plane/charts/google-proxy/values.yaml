@@ -66,6 +66,7 @@ jwkKidsUrl: "https://www.googleapis.com/service_accounts/v1/metadata/x509/"
 workflowGlobalTimeoutMinutes: "60" # Global timeout for workflows in minutes
 maxHostsPerHostgroup: "128"
 cmekWorkflowGlobalTimeoutMinutes: "14" # Global timeout for CMEK workflows in minutes
+createPoolWorkflowTimeoutMinutesLV: "120" # Create pool workflow run timeout (LV pools) in minutes
 createBackupWorkflowTimeoutMinutes: "8640"
 deleteBackupWorkflowTimeoutMinutes: "6480"
 sfrWorkflowTimeoutMinutes: "13680"

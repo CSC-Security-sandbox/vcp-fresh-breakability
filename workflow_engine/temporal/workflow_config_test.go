@@ -63,6 +63,69 @@ func TestGetExpertModeSyncWorkflowTimeout_DefaultsToCustomEnv(t *testing.T) {
 	}
 }
 
+func TestGetCreatePoolWorkflowTimeout_Defaults(t *testing.T) {
+	origLV := CreatePoolWorkflowTimeoutMinutesLV
+	defer func() {
+		CreatePoolWorkflowTimeoutMinutesLV = origLV
+	}()
+
+	CreatePoolWorkflowTimeoutMinutesLV = "120"
+
+	lv := GetCreatePoolWorkflowTimeout(true)
+	if lv == nil || *lv != 120*time.Minute {
+		t.Fatalf("expected 120m, got %v", lv)
+	}
+}
+
+func TestGetCreatePoolWorkflowTimeout_InvalidEnvFallsBack(t *testing.T) {
+	origLV := CreatePoolWorkflowTimeoutMinutesLV
+	defer func() {
+		CreatePoolWorkflowTimeoutMinutesLV = origLV
+	}()
+
+	CreatePoolWorkflowTimeoutMinutesLV = "invalid"
+
+	lv := GetCreatePoolWorkflowTimeout(true)
+	if lv == nil || *lv != 120*time.Minute {
+		t.Fatalf("expected fallback 120m, got %v", lv)
+	}
+}
+
+func TestGetCreatePoolWorkflowTimeout_StandardReturnsNil(t *testing.T) {
+	got := GetCreatePoolWorkflowTimeout(false)
+	if got != nil {
+		t.Fatalf("expected nil, got %v", got)
+	}
+}
+
+func TestGetCreatePoolWorkflowRunTimeout_StandardUsesGlobal(t *testing.T) {
+	origGlobal := WorkflowGlobalTimeoutMinutes
+	defer func() { WorkflowGlobalTimeoutMinutes = origGlobal }()
+
+	WorkflowGlobalTimeoutMinutes = "75"
+	got := GetCreatePoolWorkflowRunTimeout(false)
+	if got == nil || *got != 75*time.Minute {
+		t.Fatalf("expected 75m, got %v", got)
+	}
+}
+
+func TestGetCreatePoolWorkflowRunTimeout_LVUsesLVTimeout(t *testing.T) {
+	origGlobal := WorkflowGlobalTimeoutMinutes
+	origLV := CreatePoolWorkflowTimeoutMinutesLV
+	defer func() {
+		WorkflowGlobalTimeoutMinutes = origGlobal
+		CreatePoolWorkflowTimeoutMinutesLV = origLV
+	}()
+
+	WorkflowGlobalTimeoutMinutes = "75"
+	CreatePoolWorkflowTimeoutMinutesLV = "30"
+
+	got := GetCreatePoolWorkflowRunTimeout(true)
+	if got == nil || *got != 30*time.Minute {
+		t.Fatalf("expected 30m, got %v", got)
+	}
+}
+
 func TestGetCreateBackupWorkflowTimeout_InvalidEnv(t *testing.T) {
 	original := CreateBackupWorkflowTimeoutMinutes
 	defer func() { CreateBackupWorkflowTimeoutMinutes = original }()

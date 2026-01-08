@@ -123,7 +123,7 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 		createdJob.WorkflowID,
 		workflowengine.CustomerTaskQueue,
 		workflows.CreatePoolWorkflow,
-		nil,
+		workflowengine.GetCreatePoolWorkflowRunTimeout(params.LargeCapacity),
 		params,
 		dbPool,
 	)
