@@ -513,13 +513,17 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 					Kerberos5pReadOnly:  rule.Kerberos5pReadOnly.Value,
 					Kerberos5pReadWrite: rule.Kerberos5pReadWrite.Value,
 				}
+				if rule.HasRootAccess.IsSet() {
+					if val, ok := rule.HasRootAccess.Get(); ok {
+						exportRule.Superuser = (val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue ||
+							val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn)
+					}
+				}
 				if rule.AllSquash.IsSet() {
-					allSquashVal := rule.AllSquash.Value
-					exportRule.AllSquash = &allSquashVal
+					exportRule.AllSquash = nillable.ToPointer(rule.AllSquash.Value)
 				}
 				if rule.AnonUID.IsSet() {
-					anonUIDVal := rule.AnonUID.Value
-					exportRule.AnonUID = &anonUIDVal
+					exportRule.AnonUID = nillable.ToPointer(rule.AnonUID.Value)
 				}
 				exportRules = append(exportRules, exportRule)
 			}
@@ -530,7 +534,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 				if err != nil {
 					continue
 				}
-				exportRules = append(exportRules, &models.ExportRule{
+				exportRule := &models.ExportRule{
 					AllowedClients:      rule.GetAllowedClients(),
 					AccessType:          string(accessType),
 					NFSv3:               rule.Nfsv3.Value,
@@ -542,7 +546,14 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 					Kerberos5iReadWrite: rule.Kerberos5iReadWrite.Value,
 					Kerberos5pReadOnly:  rule.Kerberos5pReadOnly.Value,
 					Kerberos5pReadWrite: rule.Kerberos5pReadWrite.Value,
-				})
+				}
+				if rule.HasRootAccess.IsSet() {
+					if val, ok := rule.HasRootAccess.Get(); ok {
+						exportRule.Superuser = (val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue ||
+							val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn)
+					}
+				}
+				exportRules = append(exportRules, exportRule)
 			}
 		}
 		param.FileProperties.ExportPolicy.ExportRules = exportRules
@@ -1095,14 +1106,18 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 			if rule.Kerberos5pReadWrite.IsSet() {
 				exportRule.Kerberos5pReadWrite = rule.Kerberos5pReadWrite.Value
 			}
+			if rule.HasRootAccess.IsSet() {
+				if val, ok := rule.HasRootAccess.Get(); ok {
+					exportRule.Superuser = (val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue ||
+						val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn)
+				}
+			}
 			if utils.IsAllSquashEnabled {
 				if rule.AllSquash.IsSet() {
-					allSquashVal := rule.AllSquash.Value
-					exportRule.AllSquash = &allSquashVal
+					exportRule.AllSquash = nillable.ToPointer(rule.AllSquash.Value)
 				}
 				if rule.AnonUID.IsSet() {
-					anonUIDVal := rule.AnonUID.Value
-					exportRule.AnonUID = &anonUIDVal
+					exportRule.AnonUID = nillable.ToPointer(rule.AnonUID.Value)
 				}
 			}
 			param.FileProperties.ExportPolicy.ExportRules = append(param.FileProperties.ExportPolicy.ExportRules, exportRule)
@@ -1438,13 +1453,17 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 				Kerberos5pReadOnly:  gcpgenserver.NewOptNilBool(rule.Kerberos5pReadOnly),
 				Kerberos5pReadWrite: gcpgenserver.NewOptNilBool(rule.Kerberos5pReadWrite),
 			}
-			if utils.IsAllSquashEnabled {
-				if rule.AllSquash != nil {
-					ruleV1beta.AllSquash = gcpgenserver.NewOptNilBool(*rule.AllSquash)
-				}
-				if rule.AnonUID != nil {
-					ruleV1beta.AnonUID = gcpgenserver.NewOptNilInt64(*rule.AnonUID)
-				}
+			if rule.Superuser {
+				ruleV1beta.HasRootAccess = gcpgenserver.NewOptNilSimpleExportPolicyRuleV1betaHasRootAccess(gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue)
+			} else {
+				ruleV1beta.HasRootAccess = gcpgenserver.NewOptNilSimpleExportPolicyRuleV1betaHasRootAccess(gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessFalse)
+			}
+			// Only set AllSquash and AnonUID if they are explicitly set (not nil)
+			if rule.AllSquash != nil {
+				ruleV1beta.AllSquash = gcpgenserver.NewOptNilBool(*rule.AllSquash)
+			}
+			if rule.AnonUID != nil {
+				ruleV1beta.AnonUID = gcpgenserver.NewOptNilInt64(*rule.AnonUID)
 			}
 			rules = append(rules, ruleV1beta)
 		}

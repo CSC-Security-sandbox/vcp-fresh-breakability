@@ -98,6 +98,7 @@ func convertExportRulesToDatamodel(modelRules []*models.ExportRule) []*datamodel
 			Kerberos5ReadOnly:   rule.Kerberos5ReadOnly,
 			Kerberos5ReadWrite:  rule.Kerberos5ReadWrite,
 			Kerberos5pReadOnly:  rule.Kerberos5pReadOnly,
+			Superuser:           rule.Superuser,
 			AllSquash:           rule.AllSquash,
 			AnonUID:             rule.AnonUID,
 		})
@@ -1519,6 +1520,7 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 					Kerberos5ReadOnly:   rule.Kerberos5ReadOnly,
 					Kerberos5ReadWrite:  rule.Kerberos5ReadWrite,
 					S3:                  rule.S3,
+					Superuser:           rule.Superuser,
 					AllSquash:           rule.AllSquash,
 					AnonUID:             rule.AnonUID,
 				})

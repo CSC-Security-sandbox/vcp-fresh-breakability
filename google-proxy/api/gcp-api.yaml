@@ -10408,7 +10408,6 @@ components:
           description:
             If enabled (true), all UIDs are mapped to the anonymous UID specified by anonUID.
             When true, hasRootAccess must be false for that particular rule.
-          default: false
           nullable: true
           example: true
         anonUID:
