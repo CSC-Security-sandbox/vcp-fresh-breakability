@@ -1,6 +1,6 @@
 enabled: true
 serviceAccountName: ontap-proxy
-replicaCount: 1
+replicaCount: 3
 
 # Global configuration (required for image registry helpers)
 global:
@@ -55,6 +55,7 @@ cache:
 # Pod affinity configuration
 podAffinity:
   enabled: true
+  minDomains: 3
 
 config:
   env: "production"

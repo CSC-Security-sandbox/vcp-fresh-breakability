@@ -19,16 +19,25 @@ spec:
       labels:
         app: {{ .Chart.Name }}
     spec:
+      nodeSelector:
+        iam.gke.io/gke-metadata-server-enabled: "true"
+      serviceAccountName: {{ .Values.serviceAccountName }}
       {{- if and .Values.podAffinity.enabled (eq .Values.global.environment "gcp") }}
       topologySpreadConstraints:
         - maxSkew: 1
+          minDomains: {{ .Values.podAffinity.minDomains | default 3 }}
           topologyKey: topology.kubernetes.io/zone
           whenUnsatisfiable: DoNotSchedule
           labelSelector:
             matchLabels:
               {{- include "ontap-proxy.podSelectorLabels" . | nindent 14 }}
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              {{- include "ontap-proxy.podSelectorLabels" . | nindent 14 }}
       {{- end }}
-      serviceAccountName: {{ .Values.serviceAccountName }}
       containers:
         - name: ontap-proxy
           {{- if .Values.images.ontapProxy.secondary }}
