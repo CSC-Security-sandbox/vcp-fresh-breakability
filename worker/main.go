@@ -260,6 +260,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterWorkflow(replicationWorkflows.ReleaseVolumeReplicationInternalWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.DeleteInternalVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(workflows.UpdateBackupVaultWorkflow)
+	worker.RegisterWorkflow(workflows.RotateCmekBackupsWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.DeleteInternalSnapshotWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.StopInternalVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.StopReplicationWorkflow)

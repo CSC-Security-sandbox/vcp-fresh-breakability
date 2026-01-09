@@ -227,6 +227,9 @@ workerConfig:
   createPoolWorkflowTimeoutMinutesLV: "120" # Create pool workflow run timeout (LV pools) in minutes
   cmekBackupEnabled: false
   workflowGlobalTimeoutForReplicationMinutes: 10
+  cmekRotationPageSize: "1000" 
+  cmekRotationMaxWorkers: "20"
+  cmekRotationMaxPasses: "10"
   mgmtFirewallSourceRanges: "198.18.0.0/15"
   rsmFirewallSourceRanges: "198.18.0.0/15"
   icFirewallSourceRanges: "198.18.0.0/15"
@@ -249,6 +252,7 @@ workerConfig:
 
   # Default Workflow Retry configuration
   startToCloseTimeout: "55m"
+  startToCloseTimeoutCmekBackupRotate: "8640m"
   startToCloseTimeoutDataSubnetCreate: "20m"
   startToCloseTimeoutDataSubnetDelete: "5m"
   retryInterval: "5s"

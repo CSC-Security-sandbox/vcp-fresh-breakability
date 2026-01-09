@@ -608,6 +608,15 @@ func (h Handler) V1betaDescribeBackupVault(ctx context.Context, params gcpgenser
 	if vcpBackupVaultDetails != nil {
 		cvpResponse.Payload.State = vcpBackupVaultDetails.LifeCycleState
 		cvpResponse.Payload.StateDetails = vcpBackupVaultDetails.LifeCycleStateDetails
+
+		// Overlay CMEK fields from VCP when present so that user-visible state
+		// and key version always follow VCP's view for attached vaults.
+		if vcpBackupVaultDetails.EncryptionState != nil {
+			cvpResponse.Payload.EncryptionState = vcpBackupVaultDetails.EncryptionState
+		}
+		if vcpBackupVaultDetails.BackupsPrimaryKeyVersion != nil {
+			cvpResponse.Payload.BackupsPrimaryKeyVersion = vcpBackupVaultDetails.BackupsPrimaryKeyVersion
+		}
 	}
 	response := convertBackupVaultV1Beta(cvpResponse.Payload)
 	return &response, nil
@@ -755,6 +764,15 @@ func updateBackupVaultStateDetails(bvs []*coremodels.BackupVaultV1beta, cvpBvs [
 		if cvpBv, exists := cvpBvMap[bv.Name]; exists {
 			cvpBv.State = bv.LifeCycleState
 			cvpBv.StateDetails = bv.LifeCycleStateDetails
+
+			// Overlay CMEK state and backups key version from VCP when available.
+			// This ensures external APIs follow VCP's view for attached vaults.
+			if bv.EncryptionState != nil {
+				cvpBv.EncryptionState = bv.EncryptionState
+			}
+			if bv.BackupsPrimaryKeyVersion != nil {
+				cvpBv.BackupsPrimaryKeyVersion = bv.BackupsPrimaryKeyVersion
+			}
 		}
 	}
 
@@ -1318,7 +1336,66 @@ func (h Handler) V1betaRotateCmekBackups(ctx context.Context, req *gcpgenserver.
 		}, nil
 	}
 
-	// Pass through to CVP
+	// Try VCP path for VCP-tracked backup vaults.
+	bv, err := h.Orchestrator.GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber)
+	if err != nil {
+		// If backup vault is not in VCP, fall back to SDE rotation.
+		if errors.IsNotFoundErr(err) {
+			return _rotateCmekBackupsInSDE(ctx, req, params, logger)
+		}
+		return &gcpgenserver.V1betaRotateCmekBackupsInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+
+	// Sanity: ensure vault state allows rotation (basic check – workflow will also validate).
+	if bv.LifeCycleState == coremodels.LifeCycleStateDeleting || bv.LifeCycleState == coremodels.LifeCycleStateUpdating {
+		return &gcpgenserver.V1betaRotateCmekBackupsConflict{
+			Code:    409,
+			Message: "backup vault is in transition state",
+		}, nil
+	}
+
+	// Build common backup vault params for orchestrator.
+	bvParams := commonparams.BackupVaultParams{
+		BackupVaultID: params.BackupVaultId,
+		AccountName:   params.ProjectNumber,
+		OwnerID:       params.ProjectNumber,
+		Region:        params.LocationId,
+		Name:          bv.Name,
+	}
+
+	operationID, err := h.Orchestrator.RotateCmekBackupsForBackupVault(ctx, &bvParams, req.PrimaryKeyVersion)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaRotateCmekBackupsBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		return &gcpgenserver.V1betaRotateCmekBackupsInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+
+	// Return a long-running operation reference backed by the VCP job.
+	return &gcpgenserver.OperationV1beta{
+		Name: gcpgenserver.NewOptString(
+			fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID),
+		),
+		Done: gcpgenserver.NewOptBool(false),
+	}, nil
+}
+
+// _rotateCmekBackupsInSDE delegates CMEK backup rotation to SDE/CVP for the given backup vault.
+func _rotateCmekBackupsInSDE(
+	ctx context.Context,
+	req *gcpgenserver.BackupVaultRotateCMEKBackupsV1beta,
+	params gcpgenserver.V1betaRotateCmekBackupsParams,
+	logger log.Logger,
+) (gcpgenserver.V1betaRotateCmekBackupsRes, error) {
 	GetSignedJwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := cvpCreateClient(logger, GetSignedJwtToken)
 	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)

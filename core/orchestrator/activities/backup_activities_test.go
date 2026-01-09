@@ -4942,6 +4942,9 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_DatabaseDeletionError_MarkAsErro
 func TestCleanupOldAdhocBackupSnapshotsActivity_HydrationSuccess(t *testing.T) {
 	// Test case: Successfully hydrate snapshot deletion to CCFE
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	origHydrationEnabled := hydrationEnabled
+	hydrationEnabled = true
+	defer func() { hydrationEnabled = origHydrationEnabled }()
 	mockStorage := database.NewMockStorage(t)
 
 	activity := BackupActivity{SE: mockStorage}
@@ -5740,6 +5743,9 @@ func TestHydrateSnapshotToCCFEActivity_Success(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	origHydrationEnabled := hydrationEnabled
+	hydrationEnabled = true
+	defer func() { hydrationEnabled = origHydrationEnabled }()
 
 	// Mock the hydration functions
 	originalBatchHydrateCreatedSnapshots := commonparams.BatchHydrateCreatedSnapshots
@@ -5821,6 +5827,9 @@ func TestHydrateSnapshotToCCFEActivity_TokenGenerationFailure(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	origHydrationEnabled := hydrationEnabled
+	hydrationEnabled = true
+	defer func() { hydrationEnabled = origHydrationEnabled }()
 
 	// Mock token generation failure
 	originalGenerateCallbackToken := auth.GenerateCallbackToken
@@ -5848,6 +5857,9 @@ func TestHydrateSnapshotToCCFEActivity_HydrationFailure(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	origHydrationEnabled := hydrationEnabled
+	hydrationEnabled = true
+	defer func() { hydrationEnabled = origHydrationEnabled }()
 
 	// Mock the hydration functions
 	originalBatchHydrateCreatedSnapshots := commonparams.BatchHydrateCreatedSnapshots
@@ -6104,6 +6116,9 @@ func TestHydrateSnapshotDeletionToCCFEActivity_TokenGenerationFailure(t *testing
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	origHydrationEnabled := hydrationEnabled
+	hydrationEnabled = true
+	defer func() { hydrationEnabled = origHydrationEnabled }()
 
 	// Mock token generation failure
 	originalGenerateCallbackToken := auth.GenerateCallbackToken
@@ -6131,6 +6146,9 @@ func TestHydrateSnapshotDeletionToCCFEActivity_HydrationFailure(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := BackupActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	origHydrationEnabled := hydrationEnabled
+	hydrationEnabled = true
+	defer func() { hydrationEnabled = origHydrationEnabled }()
 
 	// Mock the hydration functions
 	originalBatchHydrateDeletedSnapshots := commonparams.BatchHydrateDeletedSnapshots

@@ -3016,7 +3016,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 				param.Region == "us-central1" &&
 				param.Description != nil &&
 				*param.Description == "Updated description"
-		})).Return(nil, "", validationErr)
+		}), true).Return(nil, "", validationErr)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3043,7 +3043,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 		}
 
 		notFoundErr := errors.NewNotFoundErr("BackupVault", nil)
-		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.Anything).Return(nil, "", notFoundErr)
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.Anything, true).Return(nil, "", notFoundErr)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3070,7 +3070,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 		}
 
 		conflictErr := errors.NewConflictErr("BackupVault update conflict")
-		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.Anything).Return(nil, "", conflictErr)
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.Anything, true).Return(nil, "", conflictErr)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3097,7 +3097,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 		}
 
 		internalErr := errors.New("database connection error")
-		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.Anything).Return(nil, "", internalErr)
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.Anything, true).Return(nil, "", internalErr)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.Error(tt, err)
@@ -3131,7 +3131,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 			Description:   &description,
 		}
 
-		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.Anything).Return(updatedBackupVault, operationID, nil)
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.Anything, true).Return(updatedBackupVault, operationID, nil)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3186,7 +3186,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 				*param.BackupRetentionPolicy.IsMonthlyBackupImmutable == false &&
 				param.BackupRetentionPolicy.IsAdhocBackupImmutable != nil &&
 				*param.BackupRetentionPolicy.IsAdhocBackupImmutable == false
-		})).Return(updatedBackupVault, operationID, nil)
+		}), true).Return(updatedBackupVault, operationID, nil)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3227,7 +3227,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 				param.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration == nil &&
 				param.BackupRetentionPolicy.IsDailyBackupImmutable != nil &&
 				*param.BackupRetentionPolicy.IsDailyBackupImmutable == true
-		})).Return(updatedBackupVault, operationID, nil)
+		}), true).Return(updatedBackupVault, operationID, nil)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3284,7 +3284,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 				*param.BackupRetentionPolicy.IsMonthlyBackupImmutable == true &&
 				param.BackupRetentionPolicy.IsAdhocBackupImmutable != nil &&
 				*param.BackupRetentionPolicy.IsAdhocBackupImmutable == true
-		})).Return(updatedBackupVault, operationID, nil)
+		}), true).Return(updatedBackupVault, operationID, nil)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3320,7 +3320,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 			Description:   &syncDescription,
 		}
 
-		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.Anything).Return(updatedBackupVault, "", nil)
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.Anything, true).Return(updatedBackupVault, "", nil)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3363,7 +3363,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 				param.BackupRetentionPolicy.IsWeeklyBackupImmutable == nil &&
 				param.BackupRetentionPolicy.IsMonthlyBackupImmutable == nil &&
 				param.BackupRetentionPolicy.IsAdhocBackupImmutable == nil
-		})).Return(updatedBackupVault, operationID, nil)
+		}), true).Return(updatedBackupVault, operationID, nil)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3409,7 +3409,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 				param.BackupRetentionPolicy.IsWeeklyBackupImmutable == nil &&
 				param.BackupRetentionPolicy.IsMonthlyBackupImmutable == nil &&
 				param.BackupRetentionPolicy.IsAdhocBackupImmutable == nil
-		})).Return(updatedBackupVault, operationID, nil)
+		}), true).Return(updatedBackupVault, operationID, nil)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3455,7 +3455,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 				*param.BackupRetentionPolicy.IsWeeklyBackupImmutable == true &&
 				param.BackupRetentionPolicy.IsMonthlyBackupImmutable == nil &&
 				param.BackupRetentionPolicy.IsAdhocBackupImmutable == nil
-		})).Return(updatedBackupVault, operationID, nil)
+		}), true).Return(updatedBackupVault, operationID, nil)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3501,7 +3501,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 				param.BackupRetentionPolicy.IsMonthlyBackupImmutable != nil &&
 				*param.BackupRetentionPolicy.IsMonthlyBackupImmutable == false &&
 				param.BackupRetentionPolicy.IsAdhocBackupImmutable == nil
-		})).Return(updatedBackupVault, operationID, nil)
+		}), true).Return(updatedBackupVault, operationID, nil)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3547,7 +3547,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 				param.BackupRetentionPolicy.IsMonthlyBackupImmutable == nil &&
 				param.BackupRetentionPolicy.IsAdhocBackupImmutable != nil &&
 				*param.BackupRetentionPolicy.IsAdhocBackupImmutable == true
-		})).Return(updatedBackupVault, operationID, nil)
+		}), true).Return(updatedBackupVault, operationID, nil)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3601,7 +3601,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 				bucket.TenantProjectNumber == "project-456" &&
 				bucket.SatisfiesPzi == true &&
 				bucket.SatisfiesPzs == true
-		})).Return(updatedBackupVault, operationID, nil)
+		}), true).Return(updatedBackupVault, operationID, nil)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3648,7 +3648,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 				bucket.ServiceAccountName == "test-sa-2" &&
 				bucket.VendorSubnetID == "" &&
 				bucket.TenantProjectNumber == ""
-		})).Return(updatedBackupVault, operationID, nil)
+		}), true).Return(updatedBackupVault, operationID, nil)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3721,7 +3721,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 				bucket3.ServiceAccountName == "" &&
 				bucket3.VendorSubnetID == "subnet-3" &&
 				bucket3.TenantProjectNumber == "project-3"
-		})).Return(updatedBackupVault, operationID, nil)
+		}), true).Return(updatedBackupVault, operationID, nil)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3756,7 +3756,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.MatchedBy(func(param *commonparams.BackupVaultParams) bool {
 			// When BucketDetails is an empty array, the loop doesn't execute, so bucketDetails remains nil
 			return param.BucketDetails == nil
-		})).Return(updatedBackupVault, operationID, nil)
+		}), true).Return(updatedBackupVault, operationID, nil)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3807,7 +3807,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 				param.BucketDetails[0].ServiceAccountName == "combined-sa" &&
 				param.BucketDetails[0].VendorSubnetID == "combined-subnet" &&
 				param.BucketDetails[0].TenantProjectNumber == "combined-project"
-		})).Return(updatedBackupVault, operationID, nil)
+		}), true).Return(updatedBackupVault, operationID, nil)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3853,7 +3853,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 				bucket.ServiceAccountName == "" &&
 				bucket.VendorSubnetID == "" &&
 				bucket.TenantProjectNumber == ""
-		})).Return(updatedBackupVault, operationID, nil)
+		}), true).Return(updatedBackupVault, operationID, nil)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -3893,7 +3893,168 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 			return param.Description != nil &&
 				*param.Description == "Update without buckets" &&
 				param.BucketDetails == nil
-		})).Return(updatedBackupVault, operationID, nil)
+		}), true).Return(updatedBackupVault, operationID, nil)
+
+		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.True(tt, result.Name.IsSet())
+		assert.Equal(tt, fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID), result.Name.Value)
+	})
+
+	t.Run("WhenPureCMEKUpdateWithEncryptionState", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
+			EncryptionState: gcpgenserver.NewOptBackupVaultInternalUpdateV1betaEncryptionState(gcpgenserver.BackupVaultInternalUpdateV1betaEncryptionStateENCRYPTIONSTATECOMPLETED),
+		}
+		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			BackupVaultId: "test-backup-vault-id",
+		}
+
+		operationID := "operation-cmek"
+		updatedBackupVault := &models.BackupVaultV1beta{
+			BackupVaultID: "test-backup-vault-id",
+			Name:          "test-backup-vault",
+		}
+
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.MatchedBy(func(param *commonparams.BackupVaultParams) bool {
+			return param.BackupVaultID == "test-backup-vault-id" &&
+				param.CmekEncryptionState != nil &&
+				*param.CmekEncryptionState == "ENCRYPTION_STATE_COMPLETED" &&
+				param.CmekBackupsPrimaryKeyVersion == nil &&
+				param.Description != nil &&
+				*param.Description == "" &&
+				param.BucketDetails == nil
+		}), false).Return(updatedBackupVault, operationID, nil)
+
+		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.True(tt, result.Name.IsSet())
+		assert.Equal(tt, fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID), result.Name.Value)
+	})
+
+	t.Run("WhenPureCMEKUpdateWithBackupsPrimaryKeyVersion", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
+			BackupsPrimaryKeyVersion: gcpgenserver.NewOptString("projects/test/locations/us-central1/keyRings/test/cryptoKeys/key/cryptoKeyVersions/11"),
+		}
+		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			BackupVaultId: "test-backup-vault-id",
+		}
+
+		operationID := "operation-cmek-pkv"
+		updatedBackupVault := &models.BackupVaultV1beta{
+			BackupVaultID: "test-backup-vault-id",
+			Name:          "test-backup-vault",
+		}
+
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.MatchedBy(func(param *commonparams.BackupVaultParams) bool {
+			return param.BackupVaultID == "test-backup-vault-id" &&
+				param.CmekEncryptionState == nil &&
+				param.CmekBackupsPrimaryKeyVersion != nil &&
+				*param.CmekBackupsPrimaryKeyVersion == "projects/test/locations/us-central1/keyRings/test/cryptoKeys/key/cryptoKeyVersions/11" &&
+				param.Description != nil &&
+				*param.Description == "" &&
+				param.BucketDetails == nil
+		}), false).Return(updatedBackupVault, operationID, nil)
+
+		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.True(tt, result.Name.IsSet())
+		assert.Equal(tt, fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID), result.Name.Value)
+	})
+
+	t.Run("WhenPureCMEKUpdateWithBothFields", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
+			EncryptionState:          gcpgenserver.NewOptBackupVaultInternalUpdateV1betaEncryptionState(gcpgenserver.BackupVaultInternalUpdateV1betaEncryptionStateENCRYPTIONSTATECOMPLETED),
+			BackupsPrimaryKeyVersion: gcpgenserver.NewOptString("projects/test/locations/us-central1/keyRings/test/cryptoKeys/key/cryptoKeyVersions/11"),
+		}
+		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			BackupVaultId: "test-backup-vault-id",
+		}
+
+		operationID := "operation-cmek-both"
+		updatedBackupVault := &models.BackupVaultV1beta{
+			BackupVaultID: "test-backup-vault-id",
+			Name:          "test-backup-vault",
+		}
+
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.MatchedBy(func(param *commonparams.BackupVaultParams) bool {
+			return param.BackupVaultID == "test-backup-vault-id" &&
+				param.CmekEncryptionState != nil &&
+				*param.CmekEncryptionState == "ENCRYPTION_STATE_COMPLETED" &&
+				param.CmekBackupsPrimaryKeyVersion != nil &&
+				*param.CmekBackupsPrimaryKeyVersion == "projects/test/locations/us-central1/keyRings/test/cryptoKeys/key/cryptoKeyVersions/11" &&
+				param.Description != nil &&
+				*param.Description == "" &&
+				param.BucketDetails == nil
+		}), false).Return(updatedBackupVault, operationID, nil)
+
+		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.True(tt, result.Name.IsSet())
+		assert.Equal(tt, fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID), result.Name.Value)
+	})
+
+	t.Run("WhenMixedCMEKUpdateWithDescription", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		req := &gcpgenserver.BackupVaultInternalUpdateV1beta{
+			EncryptionState: gcpgenserver.NewOptBackupVaultInternalUpdateV1betaEncryptionState(gcpgenserver.BackupVaultInternalUpdateV1betaEncryptionStateENCRYPTIONSTATECOMPLETED),
+			Description:     gcpgenserver.NewOptString("Updated description with CMEK"),
+		}
+		params := gcpgenserver.V1betaInternalUpdateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1",
+			BackupVaultId: "test-backup-vault-id",
+		}
+
+		operationID := "operation-mixed"
+		updatedBackupVault := &models.BackupVaultV1beta{
+			BackupVaultID: "test-backup-vault-id",
+			Name:          "test-backup-vault",
+		}
+
+		mockOrchestrator.EXPECT().UpdateBackupVaultInternal(mock.Anything, mock.MatchedBy(func(param *commonparams.BackupVaultParams) bool {
+			return param.BackupVaultID == "test-backup-vault-id" &&
+				param.CmekEncryptionState != nil &&
+				*param.CmekEncryptionState == "ENCRYPTION_STATE_COMPLETED" &&
+				param.Description != nil &&
+				*param.Description == "Updated description with CMEK"
+		}), true).Return(updatedBackupVault, operationID, nil)
 
 		resp, err := handler.V1betaInternalUpdateBackupVault(context.Background(), req, params)
 		assert.NoError(tt, err)

@@ -1222,6 +1222,341 @@ func TestDeleteBackupVaultRollbackScenarios(t *testing.T) {
 	})
 }
 
+func TestRotateCmekBackupsForBackupVault_Success(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+	params := &commonparams.BackupVaultParams{
+		OwnerID:       "owner-uuid",
+		BackupVaultID: "backup-vault-uuid",
+		Region:        "us-central1",
+	}
+	primaryKeyVersion := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"
+
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+
+	mockStorage := new(database.MockStorage)
+
+	dbBV := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{
+			UUID: "backup-vault-uuid",
+		},
+		Name:            "backup-vault-name",
+		AccountID:       account.ID,
+		BackupVaultType: "IN_REGION",
+		LifeCycleState:  models.LifeCycleStateREADY,
+		CmekAttributes: &datamodel.CmekAttributes{
+			KmsConfigResourcePath:    nillable.ToPointer("projects/p/locations/r/kmsConfigs/test"),
+			BackupsPrimaryKeyVersion: nillable.ToPointer("projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"),
+			EncryptionState:          nillable.ToPointer("ENCRYPTION_STATE_COMPLETED"),
+		},
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, params.BackupVaultID, int64(account.ID)).Return(dbBV, nil)
+
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID: "workflow-id",
+	}
+	mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
+
+	mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+	mockTemporal.On("ExecuteWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	orchestrator := &Orchestrator{
+		storage:  mockStorage,
+		temporal: mockTemporal,
+	}
+
+	jobUUID, err := orchestrator.RotateCmekBackupsForBackupVault(ctx, params, primaryKeyVersion)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "job-uuid", jobUUID)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestRotateCmekBackupsForBackupVault_GetOrCreateAccountFails(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	// Ensure getOrCreateAccount returns an error so that the early return path is exercised.
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return nil, errors.New("failed to get or create account")
+	}
+
+	params := &commonparams.BackupVaultParams{
+		OwnerID:       "owner-uuid",
+		BackupVaultID: "backup-vault-uuid",
+		Region:        "us-central1",
+	}
+
+	// Storage/temporal are not used when getOrCreateAccount fails, so simple mocks are sufficient.
+	orchestrator := &Orchestrator{
+		storage:  new(database.MockStorage),
+		temporal: workflow_engine_mock.NewMockTemporalTestClient(t),
+	}
+
+	jobUUID, err := orchestrator.RotateCmekBackupsForBackupVault(ctx, params, "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1")
+
+	assert.Error(t, err)
+	assert.Equal(t, "", jobUUID)
+	assert.Contains(t, err.Error(), "failed to get or create account")
+}
+
+func TestRotateCmekBackupsForBackupVault_GetBackupVaultByUUIDFails(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+	params := &commonparams.BackupVaultParams{
+		OwnerID:       "owner-uuid",
+		BackupVaultID: "backup-vault-uuid",
+		Region:        "us-central1",
+	}
+
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+
+	mockStorage := new(database.MockStorage)
+	// Force GetBackupVaultByUUIDndOwnerID to fail so that the corresponding early return path is covered.
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, params.BackupVaultID, int64(account.ID)).
+		Return((*datamodel.BackupVault)(nil), errors.New("failed to get backup vault"))
+
+	orchestrator := &Orchestrator{
+		storage:  mockStorage,
+		temporal: workflow_engine_mock.NewMockTemporalTestClient(t),
+	}
+
+	jobUUID, err := orchestrator.RotateCmekBackupsForBackupVault(ctx, params, "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1")
+
+	assert.Error(t, err)
+	assert.Equal(t, "", jobUUID)
+	assert.Contains(t, err.Error(), "failed to get backup vault")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestRotateCmekBackupsForBackupVault_TransitionalState(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+	params := &commonparams.BackupVaultParams{
+		OwnerID:       "owner-uuid",
+		BackupVaultID: "backup-vault-uuid",
+		Region:        "us-central1",
+	}
+
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+
+	mockStorage := new(database.MockStorage)
+	dbBV := &datamodel.BackupVault{
+		BaseModel:       datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		Name:            "backup-vault-name",
+		AccountID:       account.ID,
+		BackupVaultType: "IN_REGION",
+		LifeCycleState:  models.LifeCycleStateUpdating,
+	}
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, params.BackupVaultID, int64(account.ID)).Return(dbBV, nil)
+
+	orchestrator := &Orchestrator{
+		storage:  mockStorage,
+		temporal: workflow_engine_mock.NewMockTemporalTestClient(t),
+	}
+
+	jobUUID, err := orchestrator.RotateCmekBackupsForBackupVault(ctx, params, "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1")
+
+	assert.Error(t, err)
+	assert.Equal(t, "", jobUUID)
+	assert.Contains(t, err.Error(), "backup vault is in transition state")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestRotateCmekBackupsForBackupVault_NonCmekVault(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+	params := &commonparams.BackupVaultParams{
+		OwnerID:       "owner-uuid",
+		BackupVaultID: "backup-vault-uuid",
+		Region:        "us-central1",
+	}
+
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+
+	mockStorage := new(database.MockStorage)
+	dbBV := &datamodel.BackupVault{
+		BaseModel:       datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		Name:            "backup-vault-name",
+		AccountID:       account.ID,
+		BackupVaultType: "IN_REGION",
+		LifeCycleState:  models.LifeCycleStateREADY,
+		CmekAttributes:  nil,
+	}
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, params.BackupVaultID, int64(account.ID)).Return(dbBV, nil)
+
+	orchestrator := &Orchestrator{
+		storage:  mockStorage,
+		temporal: workflow_engine_mock.NewMockTemporalTestClient(t),
+	}
+
+	jobUUID, err := orchestrator.RotateCmekBackupsForBackupVault(ctx, params, "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1")
+
+	assert.Error(t, err)
+	assert.Equal(t, "", jobUUID)
+	assert.Contains(t, err.Error(), "cmek backup rotation can not be called for backup vault without CMEK configuration")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestRotateCmekBackupsForBackupVault_CrossRegionSourceDisallowed(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+	params := &commonparams.BackupVaultParams{
+		OwnerID:       "owner-uuid",
+		BackupVaultID: "backup-vault-uuid",
+		Region:        "us-central1",
+	}
+
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+
+	mockStorage := new(database.MockStorage)
+	sourceRegion := "us-central1"
+	dbBV := &datamodel.BackupVault{
+		BaseModel:        datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		Name:             "backup-vault-name",
+		AccountID:        account.ID,
+		BackupVaultType:  activities.CrossRegionBackupType,
+		LifeCycleState:   models.LifeCycleStateREADY,
+		SourceRegionName: &sourceRegion,
+		CmekAttributes: &datamodel.CmekAttributes{
+			KmsConfigResourcePath: nillable.ToPointer("projects/p/locations/r/kmsConfigs/test"),
+		},
+	}
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, params.BackupVaultID, int64(account.ID)).Return(dbBV, nil)
+
+	orchestrator := &Orchestrator{
+		storage:  mockStorage,
+		temporal: workflow_engine_mock.NewMockTemporalTestClient(t),
+	}
+
+	jobUUID, err := orchestrator.RotateCmekBackupsForBackupVault(ctx, params, "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1")
+
+	assert.Error(t, err)
+	assert.Equal(t, "", jobUUID)
+	assert.Contains(t, err.Error(), "cmek backup rotation can not be called for cross region source backup vault")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestRotateCmekBackupsForBackupVault_CreateJobFails(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+	params := &commonparams.BackupVaultParams{
+		OwnerID:       "owner-uuid",
+		BackupVaultID: "backup-vault-uuid",
+		Region:        "us-central1",
+	}
+
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+
+	mockStorage := new(database.MockStorage)
+	dbBV := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		Name:      "backup-vault-name",
+		AccountID: account.ID,
+		CmekAttributes: &datamodel.CmekAttributes{
+			KmsConfigResourcePath: nillable.ToPointer("projects/p/locations/r/kmsConfigs/test"),
+		},
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, params.BackupVaultID, int64(account.ID)).Return(dbBV, nil)
+	mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(nil, errors.New("create job failed"))
+
+	orchestrator := &Orchestrator{
+		storage:  mockStorage,
+		temporal: workflow_engine_mock.NewMockTemporalTestClient(t),
+	}
+
+	jobUUID, err := orchestrator.RotateCmekBackupsForBackupVault(ctx, params, "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1")
+
+	assert.Error(t, err)
+	assert.Equal(t, "", jobUUID)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestRotateCmekBackupsForBackupVault_WorkflowStartFails_UpdatesJobState(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+	params := &commonparams.BackupVaultParams{
+		OwnerID:       "owner-uuid",
+		BackupVaultID: "backup-vault-uuid",
+		Region:        "us-central1",
+	}
+
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+
+	mockStorage := new(database.MockStorage)
+	dbBV := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		Name:      "backup-vault-name",
+		AccountID: account.ID,
+		CmekAttributes: &datamodel.CmekAttributes{
+			KmsConfigResourcePath: nillable.ToPointer("projects/p/locations/r/kmsConfigs/test"),
+		},
+	}
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID: "workflow-id",
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, params.BackupVaultID, int64(account.ID)).Return(dbBV, nil)
+	mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything).Return(errors.New("update failed"))
+
+	mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+	// Cause ExecuteWorkflow to fail so that the defer block runs UpdateJob.
+	mockTemporal.On("ExecuteWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, errors.New("workflow execution failed"))
+
+	orchestrator := &Orchestrator{
+		storage:  mockStorage,
+		temporal: mockTemporal,
+	}
+
+	jobUUID, err := orchestrator.RotateCmekBackupsForBackupVault(ctx, params, "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1")
+
+	assert.Error(t, err)
+	assert.Equal(t, "", jobUUID)
+	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything)
+}
+
 func TestUpdateBackupVaultDeferFunction(t *testing.T) {
 	t.Run("WhenWorkflowStartFails_ShouldRollbackBackupVaultState", func(t *testing.T) {
 		ctx := context.Background()
@@ -1946,7 +2281,7 @@ func TestUpdateBackupVaultInternal(t *testing.T) {
 			return bv.Description != nil && *bv.Description == newDescription
 		}), existingBV).Return(updatedBV, nil)
 
-		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params, true)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
@@ -2038,7 +2373,7 @@ func TestUpdateBackupVaultInternal(t *testing.T) {
 				bv.ImmutableAttributes.IsDailyBackupImmutable == dailyImmutable
 		}), existingBV).Return(updatedBV, nil)
 
-		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params, true)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
@@ -2129,7 +2464,7 @@ func TestUpdateBackupVaultInternal(t *testing.T) {
 				*bv.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration == existingRetentionDuration
 		}), existingBV).Return(updatedBV, nil)
 
-		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params, true)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
@@ -2224,7 +2559,7 @@ func TestUpdateBackupVaultInternal(t *testing.T) {
 				bv.ImmutableAttributes.IsDailyBackupImmutable == dailyImmutable
 		}), existingBV).Return(updatedBV, nil)
 
-		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params, true)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
@@ -2255,7 +2590,7 @@ func TestUpdateBackupVaultInternal(t *testing.T) {
 			return nil, expectedError
 		}
 
-		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params, true)
 
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
@@ -2292,7 +2627,7 @@ func TestUpdateBackupVaultInternal(t *testing.T) {
 
 		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(nil, gorm.ErrRecordNotFound)
 
-		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params, true)
 
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
@@ -2345,7 +2680,7 @@ func TestUpdateBackupVaultInternal(t *testing.T) {
 		mockStorage.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, externalUUID, account.ID).Return(existingBV, nil)
 		mockStorage.On("UpdateBackupVaultInVCP", ctx, mock.Anything, existingBV).Return(nil, expectedError)
 
-		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params, true)
 
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
@@ -2418,7 +2753,7 @@ func TestUpdateBackupVaultInternal(t *testing.T) {
 				*bv.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration == existingRetentionDuration
 		}), existingBV).Return(existingBV, nil)
 
-		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params, true)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
@@ -2504,7 +2839,7 @@ func TestUpdateBackupVaultInternal(t *testing.T) {
 				*bv.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration == newRetentionDuration
 		}), existingBV).Return(updatedBV, nil)
 
-		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params, true)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
@@ -2582,7 +2917,7 @@ func TestUpdateBackupVaultInternal(t *testing.T) {
 				bv.LifeCycleStateDetails == originalLifeCycleStateDetails
 		}), existingBV).Return(updatedBV, nil)
 
-		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params)
+		result, operationID, err := orchestrator.UpdateBackupVaultInternal(ctx, params, true)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)

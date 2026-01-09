@@ -452,19 +452,25 @@ func (o *Orchestrator) GetBackupVaultByExternalUUIDAndOwnerID(ctx context.Contex
 
 // UpdateBackupVaultInternal handles internal updates to a BackupVault in the VCP database
 // This is used for cross-region operations where the remote region's VCP database needs to be updated
-func (o *Orchestrator) UpdateBackupVaultInternal(ctx context.Context, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error) {
+func (o *Orchestrator) UpdateBackupVaultInternal(ctx context.Context, params *commonparams.BackupVaultParams, useExternalUUID bool) (*models.BackupVaultV1beta, string, error) {
 	logger := util.GetLogger(ctx)
 	se := o.storage
 	account, err := getOrCreateAccount(ctx, se, params.OwnerID)
 	if err != nil {
 		return nil, "", err
 	}
-
-	existingBV, err := se.GetBackupVaultByExternalUUIDAndOwnerID(ctx, params.BackupVaultID, account.ID)
-	if err != nil {
-		return nil, "", err
+	var existingBV *datamodel.BackupVault
+	if useExternalUUID == true {
+		existingBV, err = se.GetBackupVaultByExternalUUIDAndOwnerID(ctx, params.BackupVaultID, account.ID)
+		if err != nil {
+			return nil, "", err
+		}
+	} else {
+		existingBV, err = se.GetBackupVaultByUUIDndOwnerID(ctx, params.BackupVaultID, account.ID)
+		if err != nil {
+			return nil, "", err
+		}
 	}
-
 	updatedBV := &datamodel.BackupVault{
 		BaseModel: existingBV.BaseModel,
 		AccountID: existingBV.AccountID,
@@ -513,6 +519,27 @@ func (o *Orchestrator) UpdateBackupVaultInternal(ctx context.Context, params *co
 		updatedBV.ImmutableAttributes = existingBV.ImmutableAttributes
 	}
 
+	// CMEK attributes: start from existing attributes and overlay any CMEK fields
+	// provided in the internal request (used by cross-region CMEK hydration).
+	if existingBV.CmekAttributes != nil {
+		updatedBV.CmekAttributes = &datamodel.CmekAttributes{
+			KmsConfigResourcePath:    existingBV.CmekAttributes.KmsConfigResourcePath,
+			EncryptionState:          existingBV.CmekAttributes.EncryptionState,
+			BackupsPrimaryKeyVersion: existingBV.CmekAttributes.BackupsPrimaryKeyVersion,
+		}
+	}
+	if params.CmekEncryptionState != nil || params.CmekBackupsPrimaryKeyVersion != nil {
+		if updatedBV.CmekAttributes == nil {
+			updatedBV.CmekAttributes = &datamodel.CmekAttributes{}
+		}
+		if params.CmekEncryptionState != nil {
+			updatedBV.CmekAttributes.EncryptionState = params.CmekEncryptionState
+		}
+		if params.CmekBackupsPrimaryKeyVersion != nil {
+			updatedBV.CmekAttributes.BackupsPrimaryKeyVersion = params.CmekBackupsPrimaryKeyVersion
+		}
+	}
+
 	if params.BucketDetails != nil && len(params.BucketDetails) > 0 {
 		updatedBV.BucketDetails = params.BucketDetails
 	} else {
@@ -521,7 +548,14 @@ func (o *Orchestrator) UpdateBackupVaultInternal(ctx context.Context, params *co
 
 	updatedBV.LifeCycleState = existingBV.LifeCycleState
 	updatedBV.LifeCycleStateDetails = existingBV.LifeCycleStateDetails
-	updatedBV.ExternalUUID = &params.BackupVaultID
+	// Only manipulate ExternalUUID when we are in the "external UUID lookup"
+	// mode (typical CRB flows). For CMEK hydration (useExternalUUID == false),
+	// we must not overwrite the source vault's ExternalUUID.
+	if useExternalUUID {
+		updatedBV.ExternalUUID = &params.BackupVaultID
+	} else {
+		updatedBV.ExternalUUID = existingBV.ExternalUUID
+	}
 
 	resultBV, err := se.UpdateBackupVaultInVCP(ctx, updatedBV, existingBV)
 	if err != nil {
@@ -534,4 +568,88 @@ func (o *Orchestrator) UpdateBackupVaultInternal(ctx context.Context, params *co
 		"ownerID", params.OwnerID)
 
 	return convertDatastoreBackupVaultToModel(resultBV), "", nil
+}
+
+// RotateCmekBackupsForBackupVault creates a job and starts a Temporal workflow to
+// rotate CMEK for all backups within a backup vault tracked by VCP.
+func (o *Orchestrator) RotateCmekBackupsForBackupVault(
+	ctx context.Context,
+	params *commonparams.BackupVaultParams,
+	primaryKeyVersion string,
+) (string, error) {
+	logger := util.GetLogger(ctx)
+	se := o.storage
+
+	account, err := getOrCreateAccount(ctx, se, params.OwnerID)
+	if err != nil {
+		return "", err
+	}
+
+	dbBv, err := se.GetBackupVaultByUUIDndOwnerID(ctx, params.BackupVaultID, account.ID)
+	if err != nil {
+		return "", err
+	}
+
+	// Reject rotation if backup vault is in a transitional state.
+	if dbBv.LifeCycleState == models.LifeCycleStateUpdating || dbBv.LifeCycleState == models.LifeCycleStateDeleting {
+		return "", customerrors.NewUserInputValidationErr("backup vault is in transition state")
+	}
+
+	// Reject rotation if the backup vault is not CMEK-configured. VCP's CMEK
+	if dbBv.CmekAttributes == nil || dbBv.CmekAttributes.KmsConfigResourcePath == nil || *dbBv.CmekAttributes.KmsConfigResourcePath == "" {
+		return "", customerrors.NewUserInputValidationErr("cmek backup rotation can not be called for backup vault without CMEK configuration")
+	}
+
+	// For cross-region backup vaults, only allow CMEK rotation from the destination
+	if dbBv.BackupVaultType == activities.CrossRegionBackupType {
+		if dbBv.SourceRegionName != nil && params.Region == *dbBv.SourceRegionName {
+			return "", customerrors.NewUserInputValidationErr("cmek backup rotation can not be called for cross region source backup vault")
+		}
+	}
+
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeRotateCmekBackups),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  dbBv.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: dbBv.UUID,
+			Location:     params.Region,
+		},
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create CMEK rotation job in database", "error", err)
+		return "", err
+	}
+
+	// On workflow start failure, mark job as ERROR.
+	defer func() {
+		if err != nil && createdJob != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update CMEK rotation job state to ERROR", "error", jobErr, "jobUUID", createdJob.UUID)
+			}
+		}
+	}()
+
+	workflowExecutor := workflows.NewWorkflowExecutor(o.temporal, logger)
+	err = workflowExecutor.ExecuteWorkflow(
+		ctx,
+		createdJob.WorkflowID,
+		workflowengine.CustomerTaskQueue,
+		workflows.RotateCmekBackupsWorkflow,
+		workflowengine.GetCreateBackupWorkflowTimeout(),
+		params,
+		dbBv,
+		primaryKeyVersion,
+	)
+	if err != nil {
+		logger.Error("Failed to start CMEK rotation workflow after retries", "error", err)
+		return "", err
+	}
+
+	return createdJob.UUID, nil
 }

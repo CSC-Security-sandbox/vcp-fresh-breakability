@@ -398,6 +398,8 @@ type BackupVaultParams struct {
 	AccountName                string
 	CrossRegionBackupVaultName *string
 	BackupVaultIDs             []string
+	CmekEncryptionState          *string
+	CmekBackupsPrimaryKeyVersion *string
 }
 
 // BackupRetentionPolicyParams describes parameters supplied to BackupRetentionPolicy

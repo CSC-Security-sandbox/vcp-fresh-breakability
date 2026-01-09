@@ -13520,6 +13520,23 @@ components:
               satisfiesPzs:
                 type: boolean
                 description: Whether the bucket satisfies PZS requirements
+        encryptionState:
+          title: encryptionState
+          type: string
+          description: Current state of CMEK encryption for the backup vault
+          enum:
+            - ENCRYPTION_STATE_PENDING
+            - ENCRYPTION_STATE_COMPLETED
+            - ENCRYPTION_STATE_IN_PROGRESS
+            - ENCRYPTION_STATE_FAILED
+          example: ENCRYPTION_STATE_COMPLETED
+          x-nullable: true
+        backupsPrimaryKeyVersion:
+          title: backupsPrimaryKeyVersion
+          type: string
+          description: Key version used to encrypt backups in the vault
+          example: projects/my-project-1/locations/eu-west-1/keyRings/my-keyring/cryptoKeys/my-key/cryptoKeyVersions/1
+          x-nullable: true
     BackupVaultUuidList_v1beta:
       title: BackupUuidList
       type: object

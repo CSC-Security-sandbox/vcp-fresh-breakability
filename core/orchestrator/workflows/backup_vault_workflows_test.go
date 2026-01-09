@@ -1005,3 +1005,767 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_EnsureJobStateError() {
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
 }
+
+func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_InRegion_Success() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupVaultActivity := activities.BackupVaultActivity{SE: mockStorage}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel:       datamodel.BaseModel{UUID: "bv-uuid"},
+		Name:            "inregion-vault",
+		AccountID:       1,
+		BackupVaultType: "IN_REGION",
+		// Include nil and empty bucket entries to exercise the branch that skips invalid bucket details.
+		BucketDetails: datamodel.BucketDetailsArray{
+			nil,
+			&datamodel.BucketDetails{BucketName: ""},
+			&datamodel.BucketDetails{BucketName: "bucket-1"},
+		},
+	}
+	params := &common.BackupVaultParams{
+		BackupVaultID: "bv-uuid",
+		AccountName:   "12345",
+		OwnerID:       "12345",
+		Region:        "us-central1",
+		Name:          backupVault.Name,
+	}
+	primaryKeyVersion := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"
+
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity)
+	s.env.RegisterActivity(backupVaultActivity.RotateBucketCmekActivity)
+	s.env.RegisterActivity(backupVaultActivity.StartSDECmekRotationForBackupVault)
+	s.env.RegisterActivity(backupVaultActivity.WaitForSDECmekRotationCompletion)
+	s.env.RegisterActivity(backupVaultActivity.UpdateBackupVaultCmekInVCPActivity)
+
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
+	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.StartSDECmekRotationForBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.WaitForSDECmekRotationCompletion, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultCmekInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(RotateCmekBackupsWorkflow, params, backupVault, primaryKeyVersion)
+
+	// Ensure the workflow status query handler is exercised.
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_InRegion_SDEFailure() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupVaultActivity := activities.BackupVaultActivity{SE: mockStorage}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel:       datamodel.BaseModel{UUID: "bv-uuid"},
+		Name:            "inregion-vault",
+		AccountID:       1,
+		BackupVaultType: "IN_REGION",
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{BucketName: "bucket-1"},
+		},
+	}
+	params := &common.BackupVaultParams{
+		BackupVaultID: "bv-uuid",
+		AccountName:   "12345",
+		OwnerID:       "12345",
+		Region:        "us-central1",
+		Name:          backupVault.Name,
+	}
+	primaryKeyVersion := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"
+
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity)
+	s.env.RegisterActivity(backupVaultActivity.RotateBucketCmekActivity)
+	s.env.RegisterActivity(backupVaultActivity.StartSDECmekRotationForBackupVault)
+	s.env.RegisterActivity(backupVaultActivity.WaitForSDECmekRotationCompletion)
+
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
+	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.StartSDECmekRotationForBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// SDE rotation completes with failure.
+	s.env.OnActivity(backupVaultActivity.WaitForSDECmekRotationCompletion, mock.Anything, mock.Anything).Return(false, nil)
+
+	s.env.ExecuteWorkflow(RotateCmekBackupsWorkflow, params, backupVault, primaryKeyVersion)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_CRB_Success() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupVaultActivity := activities.BackupVaultActivity{SE: mockStorage}
+
+	sourceRegion := "us-east1"
+	sourceVaultUUID := "source-bv-uuid"
+	destVaultUUID := "dest-bv-uuid"
+	backupVault := &datamodel.BackupVault{
+		BaseModel:        datamodel.BaseModel{UUID: destVaultUUID},
+		Name:             "crb-vault",
+		AccountID:        1,
+		BackupVaultType:  activities.CrossRegionBackupType,
+		SourceRegionName: &sourceRegion,
+		ExternalUUID:     &sourceVaultUUID,
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{BucketName: "bucket-1"},
+		},
+	}
+	params := &common.BackupVaultParams{
+		BackupVaultID: destVaultUUID,
+		AccountName:   "12345",
+		OwnerID:       "12345",
+		Region:        "us-central1",
+		Name:          backupVault.Name,
+	}
+	primaryKeyVersion := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"
+
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity)
+	s.env.RegisterActivity(backupVaultActivity.RotateBucketCmekActivity)
+	s.env.RegisterActivity(backupVaultActivity.StartSDECmekRotationForBackupVault)
+	s.env.RegisterActivity(backupVaultActivity.WaitForSDECmekRotationCompletion)
+	s.env.RegisterActivity(backupVaultActivity.UpdateBackupVaultCmekInVCPActivity)
+	s.env.RegisterActivity(backupVaultActivity.UpdateRemoteBackupVaultInVCP)
+
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
+	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.StartSDECmekRotationForBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.WaitForSDECmekRotationCompletion, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultCmekInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// First hydration: propagate IN_PROGRESS state (without key version) to the
+	// source-region VCP backup vault.
+	s.env.OnActivity(
+		backupVaultActivity.UpdateRemoteBackupVaultInVCP,
+		mock.Anything,
+		mock.MatchedBy(func(p *common.BackupVaultParams) bool {
+			if !assert.Equal(s.T(), sourceVaultUUID, p.BackupVaultID) {
+				return false
+			}
+			if !assert.NotNil(s.T(), p.BackupRegion) {
+				return false
+			}
+			if !assert.Equal(s.T(), sourceRegion, *p.BackupRegion) {
+				return false
+			}
+			return true
+		}),
+		mock.MatchedBy(func(bv *datamodel.BackupVault) bool {
+			// Check BackupsPrimaryKeyVersion first to distinguish from COMPLETED call
+			// IN_PROGRESS call should have nil BackupsPrimaryKeyVersion
+			if bv.CmekAttributes == nil || bv.CmekAttributes.BackupsPrimaryKeyVersion != nil {
+				return false
+			}
+			// Now verify the state is IN_PROGRESS
+			if !assert.NotNil(s.T(), bv.CmekAttributes.EncryptionState) {
+				return false
+			}
+			if !assert.Equal(s.T(), models.EncryptionStateInProgress, *bv.CmekAttributes.EncryptionState) {
+				return false
+			}
+			return true
+		}),
+	).Return(&datamodel.BackupVault{}, nil)
+
+	// Second hydration: after successful rotation, propagate COMPLETED state and
+	// the new primary key version to the source-region VCP backup vault.
+	s.env.OnActivity(
+		backupVaultActivity.UpdateRemoteBackupVaultInVCP,
+		mock.Anything,
+		mock.MatchedBy(func(p *common.BackupVaultParams) bool {
+			// For CRB, the workflow should hydrate the source-region VCP vault
+			// using the source vault UUID from ExternalUUID and the source
+			// region as BackupRegion.
+			if !assert.Equal(s.T(), sourceVaultUUID, p.BackupVaultID) {
+				return false
+			}
+			if !assert.NotNil(s.T(), p.BackupRegion) {
+				return false
+			}
+			if !assert.Equal(s.T(), sourceRegion, *p.BackupRegion) {
+				return false
+			}
+			return true
+		}),
+		mock.MatchedBy(func(bv *datamodel.BackupVault) bool {
+			// Check BackupsPrimaryKeyVersion first to distinguish from IN_PROGRESS call
+			// COMPLETED call should have non-nil BackupsPrimaryKeyVersion
+			if bv.CmekAttributes == nil || bv.CmekAttributes.BackupsPrimaryKeyVersion == nil {
+				return false
+			}
+			// Verify the key version matches
+			if !assert.Equal(s.T(), primaryKeyVersion, *bv.CmekAttributes.BackupsPrimaryKeyVersion) {
+				return false
+			}
+			// Now verify the state is COMPLETED
+			if !assert.NotNil(s.T(), bv.CmekAttributes.EncryptionState) {
+				return false
+			}
+			if !assert.Equal(s.T(), models.EncryptionStateCompleted, *bv.CmekAttributes.EncryptionState) {
+				return false
+			}
+			return true
+		}),
+	).Return(&datamodel.BackupVault{}, nil)
+
+	s.env.ExecuteWorkflow(RotateCmekBackupsWorkflow, params, backupVault, primaryKeyVersion)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_CRB_VCPBucketFailure() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupVaultActivity := activities.BackupVaultActivity{SE: mockStorage}
+
+	sourceRegion := "us-east1"
+	backupVault := &datamodel.BackupVault{
+		BaseModel:       datamodel.BaseModel{UUID: "bv-uuid"},
+		Name:            "crb-vault",
+		AccountID:       1,
+		BackupVaultType: activities.CrossRegionBackupType,
+		SourceRegionName: &sourceRegion,
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{BucketName: "bucket-1"},
+		},
+	}
+	params := &common.BackupVaultParams{
+		BackupVaultID: "bv-uuid",
+		AccountName:   "12345",
+		OwnerID:       "12345",
+		Region:        "us-central1",
+		Name:          backupVault.Name,
+	}
+	primaryKeyVersion := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"
+
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity)
+	s.env.RegisterActivity(backupVaultActivity.RotateBucketCmekActivity)
+
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// First bucket rotation fails.
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("bucket rotation failed"))
+
+	s.env.ExecuteWorkflow(RotateCmekBackupsWorkflow, params, backupVault, primaryKeyVersion)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_RotateCmekBackupsWorkflow_EnsureJobStateError verifies that the workflow
+// returns an error when the backing job is not in the expected NEW state.
+func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_EnsureJobStateError() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel:       datamodel.BaseModel{UUID: "bv-uuid"},
+		Name:            "inregion-vault",
+		AccountID:       1,
+		BackupVaultType: "IN_REGION",
+	}
+	params := &common.BackupVaultParams{
+		BackupVaultID: "bv-uuid",
+		AccountName:   "12345",
+		OwnerID:       "12345",
+		Region:        "us-central1",
+		Name:          backupVault.Name,
+	}
+	primaryKeyVersion := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"
+
+	// Register activities used by EnsureJobState and job status updates.
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	// Return a job in PROCESSING state instead of NEW to trigger the EnsureJobState error path.
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStatePROCESSING),
+	}, nil)
+	// Stub UpdateJobStatus so that if it is scheduled by the workflow test harness,
+	// it does not try to call into the mock storage layer.
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(RotateCmekBackupsWorkflow, params, backupVault, primaryKeyVersion)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_RotateCmekBackupsWorkflow_PopulateRetryPolicyError forces PopulateRetryPolicyParams
+// to fail so that the early error return from Run is exercised.
+func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_PopulateRetryPolicyError() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupVaultActivity := activities.BackupVaultActivity{SE: mockStorage}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel:       datamodel.BaseModel{UUID: "bv-uuid"},
+		Name:            "inregion-vault",
+		AccountID:       1,
+		BackupVaultType: "IN_REGION",
+	}
+	params := &common.BackupVaultParams{
+		BackupVaultID: "bv-uuid",
+		AccountName:   "12345",
+		OwnerID:       "12345",
+		Region:        "us-central1",
+		Name:          backupVault.Name,
+	}
+	primaryKeyVersion := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"
+
+	// Register activities used before Run is invoked.
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity)
+
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Force PopulateRetryPolicyParams to fail by setting an invalid timeout, and restore afterwards.
+	originalTimeout := StartToCloseTimeout
+	StartToCloseTimeout = "invalid-duration"
+	defer func() { StartToCloseTimeout = originalTimeout }()
+
+	s.env.ExecuteWorkflow(RotateCmekBackupsWorkflow, params, backupVault, primaryKeyVersion)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_RotateCmekBackupsWorkflow_InRegion_GetAuthJWTTokenFailure verifies that
+// a failure to obtain the auth token marks encryption FAILED and aborts.
+func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_InRegion_GetAuthJWTTokenFailure() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupVaultActivity := activities.BackupVaultActivity{SE: mockStorage}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel:       datamodel.BaseModel{UUID: "bv-uuid"},
+		Name:            "inregion-vault",
+		AccountID:       1,
+		BackupVaultType: "IN_REGION",
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{BucketName: "bucket-1"},
+		},
+	}
+	params := &common.BackupVaultParams{
+		BackupVaultID: "bv-uuid",
+		AccountName:   "12345",
+		OwnerID:       "12345",
+		Region:        "us-central1",
+		Name:          backupVault.Name,
+	}
+	primaryKeyVersion := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"
+
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity)
+	s.env.RegisterActivity(backupVaultActivity.RotateBucketCmekActivity)
+
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Force GetAuthJWTToken to fail.
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", errors.New("failed to get auth token"))
+
+	s.env.ExecuteWorkflow(RotateCmekBackupsWorkflow, params, backupVault, primaryKeyVersion)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_RotateCmekBackupsWorkflow_InRegion_StartSDEFailure verifies that failure
+// to start SDE CMEK rotation marks encryption FAILED and aborts.
+func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_InRegion_StartSDEFailure() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupVaultActivity := activities.BackupVaultActivity{SE: mockStorage}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel:       datamodel.BaseModel{UUID: "bv-uuid"},
+		Name:            "inregion-vault",
+		AccountID:       1,
+		BackupVaultType: "IN_REGION",
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{BucketName: "bucket-1"},
+		},
+	}
+	params := &common.BackupVaultParams{
+		BackupVaultID: "bv-uuid",
+		AccountName:   "12345",
+		OwnerID:       "12345",
+		Region:        "us-central1",
+		Name:          backupVault.Name,
+	}
+	primaryKeyVersion := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"
+
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity)
+	s.env.RegisterActivity(backupVaultActivity.RotateBucketCmekActivity)
+	s.env.RegisterActivity(backupVaultActivity.StartSDECmekRotationForBackupVault)
+
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
+	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Force StartSDECmekRotationForBackupVault to fail.
+	s.env.OnActivity(backupVaultActivity.StartSDECmekRotationForBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to start SDE CMEK rotation"))
+
+	s.env.ExecuteWorkflow(RotateCmekBackupsWorkflow, params, backupVault, primaryKeyVersion)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_RotateCmekBackupsWorkflow_InRegion_WaitForSDEError verifies the branch
+// where the wait activity itself returns an error.
+func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_InRegion_WaitForSDEError() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupVaultActivity := activities.BackupVaultActivity{SE: mockStorage}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel:       datamodel.BaseModel{UUID: "bv-uuid"},
+		Name:            "inregion-vault",
+		AccountID:       1,
+		BackupVaultType: "IN_REGION",
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{BucketName: "bucket-1"},
+		},
+	}
+	params := &common.BackupVaultParams{
+		BackupVaultID: "bv-uuid",
+		AccountName:   "12345",
+		OwnerID:       "12345",
+		Region:        "us-central1",
+		Name:          backupVault.Name,
+	}
+	primaryKeyVersion := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"
+
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity)
+	s.env.RegisterActivity(backupVaultActivity.RotateBucketCmekActivity)
+	s.env.RegisterActivity(backupVaultActivity.StartSDECmekRotationForBackupVault)
+	s.env.RegisterActivity(backupVaultActivity.WaitForSDECmekRotationCompletion)
+
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
+	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.StartSDECmekRotationForBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Wait activity returns an error; the workflow should treat this as SDE failure.
+	s.env.OnActivity(backupVaultActivity.WaitForSDECmekRotationCompletion, mock.Anything, mock.Anything).Return(false, errors.New("wait for SDE rotation failed"))
+
+	s.env.ExecuteWorkflow(RotateCmekBackupsWorkflow, params, backupVault, primaryKeyVersion)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_RotateCmekBackupsWorkflow_CRB_UpdateCmekInVCPFailure verifies that
+// failure to update VCP CMEK metadata for a CRB vault marks encryption FAILED
+// and hydrates the source-region vault with FAILED state.
+func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_CRB_UpdateCmekInVCPFailure() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupVaultActivity := activities.BackupVaultActivity{SE: mockStorage}
+
+	sourceRegion := "us-east1"
+	backupVault := &datamodel.BackupVault{
+		BaseModel:        datamodel.BaseModel{UUID: "bv-uuid"},
+		Name:             "crb-vault",
+		AccountID:        1,
+		BackupVaultType:  activities.CrossRegionBackupType,
+		SourceRegionName: &sourceRegion,
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{BucketName: "bucket-1"},
+		},
+	}
+	params := &common.BackupVaultParams{
+		BackupVaultID: "bv-uuid",
+		AccountName:   "12345",
+		OwnerID:       "12345",
+		Region:        "us-central1",
+		Name:          backupVault.Name,
+	}
+	primaryKeyVersion := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"
+
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity)
+	s.env.RegisterActivity(backupVaultActivity.RotateBucketCmekActivity)
+	s.env.RegisterActivity(backupVaultActivity.StartSDECmekRotationForBackupVault)
+	s.env.RegisterActivity(backupVaultActivity.WaitForSDECmekRotationCompletion)
+	s.env.RegisterActivity(backupVaultActivity.UpdateBackupVaultCmekInVCPActivity)
+	s.env.RegisterActivity(backupVaultActivity.UpdateRemoteBackupVaultInVCP)
+
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
+	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.StartSDECmekRotationForBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.WaitForSDECmekRotationCompletion, mock.Anything, mock.Anything).Return(true, nil)
+	// Fail the VCP CMEK metadata update.
+	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultCmekInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to update CMEK metadata"))
+	// The source-region hydration on failure is best-effort; even if it fails,
+	// the workflow should still surface the CMEK update error.
+	s.env.OnActivity(backupVaultActivity.UpdateRemoteBackupVaultInVCP, mock.Anything, mock.Anything).Return(nil, errors.New("failed to hydrate FAILED state"))
+
+	s.env.ExecuteWorkflow(RotateCmekBackupsWorkflow, params, backupVault, primaryKeyVersion)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_RotateCmekBackupsWorkflow_CRB_HydrationFailure verifies the final
+// hydration step failure path after successful rotations.
+func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_CRB_HydrationFailure() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupVaultActivity := activities.BackupVaultActivity{SE: mockStorage}
+
+	sourceRegion := "us-east1"
+	backupVault := &datamodel.BackupVault{
+		BaseModel:        datamodel.BaseModel{UUID: "bv-uuid"},
+		Name:             "crb-vault",
+		AccountID:        1,
+		BackupVaultType:  activities.CrossRegionBackupType,
+		SourceRegionName: &sourceRegion,
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{BucketName: "bucket-1"},
+		},
+	}
+	params := &common.BackupVaultParams{
+		BackupVaultID: "bv-uuid",
+		AccountName:   "12345",
+		OwnerID:       "12345",
+		Region:        "us-central1",
+		Name:          backupVault.Name,
+	}
+	primaryKeyVersion := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"
+
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity)
+	s.env.RegisterActivity(backupVaultActivity.RotateBucketCmekActivity)
+	s.env.RegisterActivity(backupVaultActivity.StartSDECmekRotationForBackupVault)
+	s.env.RegisterActivity(backupVaultActivity.WaitForSDECmekRotationCompletion)
+	s.env.RegisterActivity(backupVaultActivity.UpdateBackupVaultCmekInVCPActivity)
+	s.env.RegisterActivity(backupVaultActivity.UpdateRemoteBackupVaultInVCP)
+
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
+	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.StartSDECmekRotationForBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.WaitForSDECmekRotationCompletion, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultCmekInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Fail the final hydration to the source-region VCP backup vault. This is
+	// best-effort and should not cause the workflow to fail.
+	s.env.OnActivity(backupVaultActivity.UpdateRemoteBackupVaultInVCP, mock.Anything, mock.Anything).Return(nil, errors.New("failed to hydrate source-region vault"))
+
+	s.env.ExecuteWorkflow(RotateCmekBackupsWorkflow, params, backupVault, primaryKeyVersion)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_RotateCmekBackupsWorkflow_UpdateJobStatusErrorOnFailure verifies that an
+// error while updating the job status during failure is logged but does not
+// mask the original workflow error.
+func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_UpdateJobStatusErrorOnFailure() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupVaultActivity := activities.BackupVaultActivity{SE: mockStorage}
+
+	sourceRegion := "us-east1"
+	backupVault := &datamodel.BackupVault{
+		BaseModel:        datamodel.BaseModel{UUID: "bv-uuid"},
+		Name:             "crb-vault",
+		AccountID:        1,
+		BackupVaultType:  activities.CrossRegionBackupType,
+		SourceRegionName: &sourceRegion,
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{BucketName: "bucket-1"},
+		},
+	}
+	params := &common.BackupVaultParams{
+		BackupVaultID: "bv-uuid",
+		AccountName:   "12345",
+		OwnerID:       "12345",
+		Region:        "us-central1",
+		Name:          backupVault.Name,
+	}
+	primaryKeyVersion := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"
+
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity)
+	s.env.RegisterActivity(backupVaultActivity.RotateBucketCmekActivity)
+
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil)
+
+	// First UpdateJobStatus call (PROCESSING) succeeds.
+	s.env.OnActivity(commonActivity.UpdateJobStatus,
+		mock.Anything,
+		mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.State == string(models.JobsStatePROCESSING)
+		}),
+	).Return(nil, nil)
+
+	// Second UpdateJobStatus call (ERROR) fails to trigger the logging path.
+	s.env.OnActivity(commonActivity.UpdateJobStatus,
+		mock.Anything,
+		mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.State == string(models.JobsStateERROR)
+		}),
+	).Return(nil, errors.New("failed to update job status"))
+
+	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Cause bucket rotation to fail so that the workflow errors.
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("bucket rotation failed"))
+
+	s.env.ExecuteWorkflow(RotateCmekBackupsWorkflow, params, backupVault, primaryKeyVersion)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_RotateCmekBackupsWorkflow_UpdateJobStatusErrorOnCompletion verifies that
+// an error while updating the job status to DONE after a successful run is
+// surfaced as a workflow error.
+func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_UpdateJobStatusErrorOnCompletion() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupVaultActivity := activities.BackupVaultActivity{SE: mockStorage}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel:       datamodel.BaseModel{UUID: "bv-uuid"},
+		Name:            "inregion-vault",
+		AccountID:       1,
+		BackupVaultType: "IN_REGION",
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{BucketName: "bucket-1"},
+		},
+	}
+	params := &common.BackupVaultParams{
+		BackupVaultID: "bv-uuid",
+		AccountName:   "12345",
+		OwnerID:       "12345",
+		Region:        "us-central1",
+		Name:          backupVault.Name,
+	}
+	primaryKeyVersion := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"
+
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity)
+	s.env.RegisterActivity(backupVaultActivity.RotateBucketCmekActivity)
+	s.env.RegisterActivity(backupVaultActivity.StartSDECmekRotationForBackupVault)
+	s.env.RegisterActivity(backupVaultActivity.WaitForSDECmekRotationCompletion)
+	s.env.RegisterActivity(backupVaultActivity.UpdateBackupVaultCmekInVCPActivity)
+
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil)
+
+	// First UpdateJobStatus call (PROCESSING) succeeds.
+	s.env.OnActivity(commonActivity.UpdateJobStatus,
+		mock.Anything,
+		mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.State == string(models.JobsStatePROCESSING)
+		}),
+	).Return(nil, nil)
+
+	// Second UpdateJobStatus call (DONE) fails.
+	s.env.OnActivity(commonActivity.UpdateJobStatus,
+		mock.Anything,
+		mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.State == string(models.JobsStateDONE)
+		}),
+	).Return(nil, errors.New("failed to update job status to DONE"))
+
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
+	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.StartSDECmekRotationForBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.WaitForSDECmekRotationCompletion, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultCmekInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(RotateCmekBackupsWorkflow, params, backupVault, primaryKeyVersion)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}

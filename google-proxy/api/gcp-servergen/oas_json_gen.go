@@ -3861,12 +3861,26 @@ func (s *BackupVaultInternalUpdateV1beta) encodeFields(e *jx.Encoder) {
 			e.ArrEnd()
 		}
 	}
+	{
+		if s.EncryptionState.Set {
+			e.FieldStart("encryptionState")
+			s.EncryptionState.Encode(e)
+		}
+	}
+	{
+		if s.BackupsPrimaryKeyVersion.Set {
+			e.FieldStart("backupsPrimaryKeyVersion")
+			s.BackupsPrimaryKeyVersion.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfBackupVaultInternalUpdateV1beta = [3]string{
+var jsonFieldsNameOfBackupVaultInternalUpdateV1beta = [5]string{
 	0: "description",
 	1: "backupRetentionPolicy",
 	2: "bucketDetails",
+	3: "encryptionState",
+	4: "backupsPrimaryKeyVersion",
 }
 
 // Decode decodes BackupVaultInternalUpdateV1beta from json.
@@ -3913,6 +3927,26 @@ func (s *BackupVaultInternalUpdateV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"bucketDetails\"")
+			}
+		case "encryptionState":
+			if err := func() error {
+				s.EncryptionState.Reset()
+				if err := s.EncryptionState.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"encryptionState\"")
+			}
+		case "backupsPrimaryKeyVersion":
+			if err := func() error {
+				s.BackupsPrimaryKeyVersion.Reset()
+				if err := s.BackupsPrimaryKeyVersion.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupsPrimaryKeyVersion\"")
 			}
 		default:
 			return d.Skip()
@@ -4082,6 +4116,50 @@ func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) MarshalJSON() ([]byte
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BackupVaultInternalUpdateV1betaEncryptionState as json.
+func (s BackupVaultInternalUpdateV1betaEncryptionState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes BackupVaultInternalUpdateV1betaEncryptionState from json.
+func (s *BackupVaultInternalUpdateV1betaEncryptionState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BackupVaultInternalUpdateV1betaEncryptionState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch BackupVaultInternalUpdateV1betaEncryptionState(v) {
+	case BackupVaultInternalUpdateV1betaEncryptionStateENCRYPTIONSTATEPENDING:
+		*s = BackupVaultInternalUpdateV1betaEncryptionStateENCRYPTIONSTATEPENDING
+	case BackupVaultInternalUpdateV1betaEncryptionStateENCRYPTIONSTATECOMPLETED:
+		*s = BackupVaultInternalUpdateV1betaEncryptionStateENCRYPTIONSTATECOMPLETED
+	case BackupVaultInternalUpdateV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS:
+		*s = BackupVaultInternalUpdateV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS
+	case BackupVaultInternalUpdateV1betaEncryptionStateENCRYPTIONSTATEFAILED:
+		*s = BackupVaultInternalUpdateV1betaEncryptionStateENCRYPTIONSTATEFAILED
+	default:
+		*s = BackupVaultInternalUpdateV1betaEncryptionState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s BackupVaultInternalUpdateV1betaEncryptionState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BackupVaultInternalUpdateV1betaEncryptionState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -13974,6 +14052,39 @@ func (s OptBackupV1betaState) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptBackupV1betaState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BackupVaultInternalUpdateV1betaEncryptionState as json.
+func (o OptBackupVaultInternalUpdateV1betaEncryptionState) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes BackupVaultInternalUpdateV1betaEncryptionState from json.
+func (o *OptBackupVaultInternalUpdateV1betaEncryptionState) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptBackupVaultInternalUpdateV1betaEncryptionState to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptBackupVaultInternalUpdateV1betaEncryptionState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptBackupVaultInternalUpdateV1betaEncryptionState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

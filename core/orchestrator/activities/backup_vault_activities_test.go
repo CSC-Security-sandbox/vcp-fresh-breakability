@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
@@ -134,15 +135,15 @@ func TestConvertsValidBackupVaultV1betaToDataModel(tt *testing.T) {
 		encryptionState := "ENCRYPTION_STATE_COMPLETED"
 		backupsPrimaryKeyVersion := "1"
 		bv := &models.BackupVaultV1beta{
-			ResourceID:      &reourceID,
-			SourceRegion:    &locationId,
-			BackupRegion:    &backupRegion,
-			BackupVaultType: &bvType,
-			Description:     &desc,
-			BackupVaultID:   "uuid-123",
-			CreatedAt:       strfmt.DateTime(time.Now()),
-			State:           "ACTIVE",
-			StateDetails:    "Operational",
+			ResourceID:               &reourceID,
+			SourceRegion:             &locationId,
+			BackupRegion:             &backupRegion,
+			BackupVaultType:          &bvType,
+			Description:              &desc,
+			BackupVaultID:            "uuid-123",
+			CreatedAt:                strfmt.DateTime(time.Now()),
+			State:                    "ACTIVE",
+			StateDetails:             "Operational",
 			KmsConfigResourcePath:    &kmsConfigPath,
 			EncryptionState:          &encryptionState,
 			BackupsPrimaryKeyVersion: &backupsPrimaryKeyVersion,
@@ -164,14 +165,14 @@ func TestConvertsValidBackupVaultV1betaToDataModel(tt *testing.T) {
 		locationId := "us-central1"
 		kmsConfigPath := "projects/test-project/locations/us-central1/keyRings/test-ring/cryptoKeys/test-key"
 		bv := &models.BackupVaultV1beta{
-			ResourceID:      &reourceID,
-			SourceRegion:    &locationId,
-			BackupRegion:    &backupRegion,
-			BackupVaultType: &bvType,
-			BackupVaultID:   "uuid-123",
-			CreatedAt:       strfmt.DateTime(time.Now()),
-			State:           "ACTIVE",
-			StateDetails:    "Operational",
+			ResourceID:            &reourceID,
+			SourceRegion:          &locationId,
+			BackupRegion:          &backupRegion,
+			BackupVaultType:       &bvType,
+			BackupVaultID:         "uuid-123",
+			CreatedAt:             strfmt.DateTime(time.Now()),
+			State:                 "ACTIVE",
+			StateDetails:          "Operational",
 			KmsConfigResourcePath: &kmsConfigPath,
 			// EncryptionState and BackupsPrimaryKeyVersion are nil
 		}
@@ -208,6 +209,441 @@ func TestConvertsValidBackupVaultV1betaToDataModel(tt *testing.T) {
 		assert.NotNil(t, result)
 		assert.Nil(t, result.CmekAttributes)
 	})
+}
+
+func TestRotateBucketCmekActivity_EmptyBucketName(t *testing.T) {
+	activity := &BackupVaultActivity{}
+
+	err := activity.RotateBucketCmekActivity(context.Background(), "", "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1")
+
+	assert.Error(t, err)
+	appErr, ok := err.(*temporal.ApplicationError)
+	assert.True(t, ok)
+	assert.Equal(t, "RotateBucketCmekActivityInvalidBucket", appErr.Type())
+}
+
+func TestRotateBucketCmekActivity_GetGCPServiceError(t *testing.T) {
+	origGetGCPService := hyperscaler2.GetGCPService
+	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+		return nil, errors.New("failed to init gcp")
+	}
+	defer func() { hyperscaler2.GetGCPService = origGetGCPService }()
+
+	activity := &BackupVaultActivity{}
+
+	err := activity.RotateBucketCmekActivity(context.Background(), "bucket-1", "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1")
+
+	assert.Error(t, err)
+}
+
+func TestUpdateBackupVaultCmekInVCPActivity_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.Background()
+
+	existing := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+		AccountID: 1,
+	}
+	input := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+		AccountID: 1,
+	}
+	primaryKeyVersion := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/11"
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "bv-uuid", int64(1)).Return(existing, nil)
+	mockStorage.On("UpdateBackupVaultInVCP", ctx, mock.AnythingOfType("*datamodel.BackupVault"), existing).
+		Run(func(args mock.Arguments) {
+			updated := args.Get(1).(*datamodel.BackupVault)
+			if assert.NotNil(t, updated.CmekAttributes) {
+				assert.Equal(t, primaryKeyVersion, *updated.CmekAttributes.BackupsPrimaryKeyVersion)
+				if assert.NotNil(t, updated.CmekAttributes.EncryptionState) {
+					assert.Equal(t, "ENCRYPTION_STATE_COMPLETED", *updated.CmekAttributes.EncryptionState)
+				}
+			}
+		}).
+		Return(existing, nil)
+
+	activity := &BackupVaultActivity{SE: mockStorage}
+
+	err := activity.UpdateBackupVaultCmekInVCPActivity(ctx, input, primaryKeyVersion)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackupVaultCmekInVCPActivity_UpdateFails(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.Background()
+
+	existing := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+		AccountID: 1,
+	}
+	input := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+		AccountID: 1,
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "bv-uuid", int64(1)).Return(existing, nil)
+	mockStorage.On("UpdateBackupVaultInVCP", ctx, mock.AnythingOfType("*datamodel.BackupVault"), existing).
+		Return(nil, errors.New("db error"))
+
+	activity := &BackupVaultActivity{SE: mockStorage}
+
+	err := activity.UpdateBackupVaultCmekInVCPActivity(ctx, input, "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/11")
+
+	assert.Error(t, err)
+	appErr, ok := err.(*temporal.ApplicationError)
+	assert.True(t, ok)
+	assert.Equal(t, "UpdateBackupVaultCmekInVCPActivityError", appErr.Type())
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackupVaultEncryptionStateInVCPActivity_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.Background()
+
+	existing := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+		AccountID: 1,
+	}
+	input := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+		AccountID: 1,
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "bv-uuid", int64(1)).Return(existing, nil)
+	mockStorage.On("UpdateBackupVaultInVCP", ctx, mock.AnythingOfType("*datamodel.BackupVault"), existing).
+		Run(func(args mock.Arguments) {
+			updated := args.Get(1).(*datamodel.BackupVault)
+			if assert.NotNil(t, updated.CmekAttributes) {
+				if assert.NotNil(t, updated.CmekAttributes.EncryptionState) {
+					assert.Equal(t, "ENCRYPTION_STATE_FAILED", *updated.CmekAttributes.EncryptionState)
+				}
+			}
+		}).
+		Return(existing, nil)
+
+	activity := &BackupVaultActivity{SE: mockStorage}
+
+	err := activity.UpdateBackupVaultEncryptionStateInVCPActivity(ctx, input, "ENCRYPTION_STATE_FAILED")
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackupVaultEncryptionStateInVCPActivity_PreservesBackupsPrimaryKeyVersion(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.Background()
+
+	kmsPath := "projects/p/locations/r/keyRings/ring/cryptoKeys/key"
+	oldState := "ENCRYPTION_STATE_COMPLETED"
+	existingPKV := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/6"
+
+	existing := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+		AccountID: 1,
+		CmekAttributes: &datamodel.CmekAttributes{
+			KmsConfigResourcePath:    &kmsPath,
+			EncryptionState:          &oldState,
+			BackupsPrimaryKeyVersion: &existingPKV,
+		},
+	}
+	input := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+		AccountID: 1,
+	}
+
+	newState := "ENCRYPTION_STATE_FAILED"
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "bv-uuid", int64(1)).Return(existing, nil)
+	mockStorage.On("UpdateBackupVaultInVCP", ctx, mock.AnythingOfType("*datamodel.BackupVault"), existing).
+		Run(func(args mock.Arguments) {
+			updated := args.Get(1).(*datamodel.BackupVault)
+			if assert.NotNil(t, updated.CmekAttributes) {
+				// Encryption state should be updated to the new value.
+				if assert.NotNil(t, updated.CmekAttributes.EncryptionState) {
+					assert.Equal(t, newState, *updated.CmekAttributes.EncryptionState)
+				}
+				// Existing primary key version must be preserved.
+				if assert.NotNil(t, updated.CmekAttributes.BackupsPrimaryKeyVersion) {
+					assert.Equal(t, existingPKV, *updated.CmekAttributes.BackupsPrimaryKeyVersion)
+				}
+				// KMS config path must also be preserved.
+				if assert.NotNil(t, updated.CmekAttributes.KmsConfigResourcePath) {
+					assert.Equal(t, kmsPath, *updated.CmekAttributes.KmsConfigResourcePath)
+				}
+			}
+		}).
+		Return(existing, nil)
+
+	activity := &BackupVaultActivity{SE: mockStorage}
+
+	err := activity.UpdateBackupVaultEncryptionStateInVCPActivity(ctx, input, newState)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackupVaultEncryptionStateInVCPActivity_UpdateFails(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.Background()
+
+	existing := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+		AccountID: 1,
+	}
+	input := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+		AccountID: 1,
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "bv-uuid", int64(1)).Return(existing, nil)
+	mockStorage.On("UpdateBackupVaultInVCP", ctx, mock.AnythingOfType("*datamodel.BackupVault"), existing).
+		Return(nil, errors.New("db error"))
+
+	activity := &BackupVaultActivity{SE: mockStorage}
+
+	err := activity.UpdateBackupVaultEncryptionStateInVCPActivity(ctx, input, "ENCRYPTION_STATE_FAILED")
+
+	assert.Error(t, err)
+	appErr, ok := err.(*temporal.ApplicationError)
+	assert.True(t, ok)
+	assert.Equal(t, "UpdateBackupVaultEncryptionStateInVCPActivityError", appErr.Type())
+	mockStorage.AssertExpectations(t)
+}
+
+func TestStartSDECmekRotationForBackupVault_Success(t *testing.T) {
+	mockClient := backup_vault.NewMockClientService(t)
+	ctx := context.Background()
+
+	params := &common.BackupVaultParams{
+		Region:        "us-central1",
+		OwnerID:       "owner-1",
+		BackupVaultID: "vault-123",
+	}
+	primaryKeyVersion := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"
+
+	// Successful CVP call – we don't care about the payload.
+	mockClient.On("V1betaRotateCmekBackups", mock.Anything).
+		Return(nil, nil).
+		Once()
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	origCreateClient := cvpCreateClient
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+	defer func() { cvpCreateClient = origCreateClient }()
+
+	activity := &BackupVaultActivity{}
+
+	err := activity.StartSDECmekRotationForBackupVault(ctx, params, primaryKeyVersion)
+
+	assert.NoError(t, err)
+	mockClient.AssertCalled(t, "V1betaRotateCmekBackups", mock.Anything)
+}
+
+func TestStartSDECmekRotationForBackupVault_ErrorMapping(t *testing.T) {
+	tests := []struct {
+		name         string
+		errType      error
+		expectedType string
+		retryable    bool
+	}{
+		{
+			name:         "BadRequest",
+			errType:      &backup_vault.V1betaRotateCmekBackupsBadRequest{},
+			expectedType: "V1betaRotateCmekBackupsBadRequest",
+			retryable:    false,
+		},
+		{
+			name:         "Unauthorized",
+			errType:      &backup_vault.V1betaRotateCmekBackupsUnauthorized{},
+			expectedType: "V1betaRotateCmekBackupsUnauthorized",
+			retryable:    false,
+		},
+		{
+			name:         "Forbidden",
+			errType:      &backup_vault.V1betaRotateCmekBackupsForbidden{},
+			expectedType: "V1betaRotateCmekBackupsForbidden",
+			retryable:    false,
+		},
+		{
+			name:         "Conflict",
+			errType:      &backup_vault.V1betaRotateCmekBackupsConflict{},
+			expectedType: "V1betaRotateCmekBackupsConflict",
+			retryable:    false,
+		},
+		{
+			name:         "UnprocessableEntity",
+			errType:      &backup_vault.V1betaRotateCmekBackupsUnprocessableEntity{},
+			expectedType: "V1betaRotateCmekBackupsUnprocessableEntity",
+			retryable:    false,
+		},
+		{
+			name:         "InternalServerError",
+			errType:      &backup_vault.V1betaRotateCmekBackupsInternalServerError{},
+			expectedType: "V1betaRotateCmekBackupsInternalServerError",
+			retryable:    false,
+		},
+		{
+			name:         "TooManyRequests",
+			errType:      &backup_vault.V1betaRotateCmekBackupsTooManyRequests{},
+			expectedType: "V1betaRotateCmekBackupsTooManyRequests",
+			retryable:    true,
+		},
+		{
+			name:         "Default",
+			errType:      &backup_vault.V1betaRotateCmekBackupsDefault{},
+			expectedType: "V1betaRotateCmekBackupsDefault",
+			retryable:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockClient := backup_vault.NewMockClientService(t)
+			ctx := context.Background()
+
+			params := &common.BackupVaultParams{
+				Region:        "us-central1",
+				OwnerID:       "owner-1",
+				BackupVaultID: "vault-123",
+			}
+
+			// Mock error response type from CVP.
+			mockClient.On("V1betaRotateCmekBackups", mock.Anything).
+				Return(nil, tt.errType).
+				Once()
+
+			cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+			origCreateClient := cvpCreateClient
+			cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+				return *cvpClient
+			}
+			defer func() { cvpCreateClient = origCreateClient }()
+
+			activity := &BackupVaultActivity{}
+
+			err := activity.StartSDECmekRotationForBackupVault(ctx, params, "pkv")
+
+			assert.Error(t, err)
+			if appErr, ok := err.(*temporal.ApplicationError); ok {
+				assert.Equal(t, tt.expectedType, appErr.Type())
+			}
+		})
+	}
+}
+
+func TestWaitForSDECmekRotationCompletion_Completed(t *testing.T) {
+	mockClient := backup_vault.NewMockClientService(t)
+	ctx := context.Background()
+
+	params := &common.BackupVaultParams{
+		Region:        "us-central1",
+		OwnerID:       "owner-1",
+		BackupVaultID: "vault-123",
+	}
+
+	state := coremodels.EncryptionStateCompleted
+	mockClient.On("V1betaListBackupVaults", mock.Anything).
+		Return(&backup_vault.V1betaListBackupVaultsOK{
+			Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+				BackupVaults: []*models.BackupVaultV1beta{
+					{
+						BackupVaultID:   params.BackupVaultID,
+						EncryptionState: &state,
+					},
+				},
+			},
+		}, nil).
+		Once()
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	origCreateClient := cvpCreateClient
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+	defer func() { cvpCreateClient = origCreateClient }()
+
+	activity := &BackupVaultActivity{}
+
+	ok, err := activity.WaitForSDECmekRotationCompletion(ctx, params)
+
+	assert.NoError(t, err)
+	assert.True(t, ok)
+}
+
+func TestWaitForSDECmekRotationCompletion_Failed(t *testing.T) {
+	mockClient := backup_vault.NewMockClientService(t)
+	ctx := context.Background()
+
+	params := &common.BackupVaultParams{
+		Region:        "us-central1",
+		OwnerID:       "owner-1",
+		BackupVaultID: "vault-123",
+	}
+
+	state := coremodels.EncryptionStateFailed
+	mockClient.On("V1betaListBackupVaults", mock.Anything).
+		Return(&backup_vault.V1betaListBackupVaultsOK{
+			Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+				BackupVaults: []*models.BackupVaultV1beta{
+					{
+						BackupVaultID:   params.BackupVaultID,
+						EncryptionState: &state,
+					},
+				},
+			},
+		}, nil).
+		Once()
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	origCreateClient := cvpCreateClient
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+	defer func() { cvpCreateClient = origCreateClient }()
+
+	activity := &BackupVaultActivity{}
+
+	ok, err := activity.WaitForSDECmekRotationCompletion(ctx, params)
+
+	assert.NoError(t, err)
+	assert.False(t, ok)
+}
+
+func TestWaitForSDECmekRotationCompletion_ListError(t *testing.T) {
+	mockClient := backup_vault.NewMockClientService(t)
+	ctx := context.Background()
+
+	params := &common.BackupVaultParams{
+		Region:        "us-central1",
+		OwnerID:       "owner-1",
+		BackupVaultID: "vault-123",
+	}
+
+	mockClient.On("V1betaListBackupVaults", mock.Anything).
+		Return(nil, errors.New("list failed")).
+		Once()
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	origCreateClient := cvpCreateClient
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+	defer func() { cvpCreateClient = origCreateClient }()
+
+	activity := &BackupVaultActivity{}
+
+	ok, err := activity.WaitForSDECmekRotationCompletion(ctx, params)
+
+	assert.Error(t, err)
+	assert.False(t, ok)
+	appErr, ok2 := err.(*temporal.ApplicationError)
+	assert.True(t, ok2)
+	assert.Equal(t, "V1betaListBackupVaultsError", appErr.Type())
 }
 
 func TestUpdateBackupVault(tt *testing.T) {
@@ -451,12 +887,23 @@ func TestUpdatesBackupVaultStateSuccessfully(t *testing.T) {
 	ctx := context.Background()
 
 	backupVault := &datamodel.BackupVault{
-		Name: "test-vault",
+		BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+		AccountID: 1,
+		Name:      "test-vault",
 	}
 	state := "ERROR"
 	stateDetails := "Failed due to timeout"
 
-	mockStorage.On("UpdateBackupVaultState", ctx, backupVault, state, stateDetails).Return(backupVault, nil).Once()
+	existing := &datamodel.BackupVault{
+		BaseModel:             datamodel.BaseModel{UUID: "bv-uuid"},
+		AccountID:             1,
+		Name:                  "test-vault",
+		LifeCycleState:        "READY",
+		LifeCycleStateDetails: "Available for use",
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "bv-uuid", int64(1)).Return(existing, nil).Once()
+	mockStorage.On("UpdateBackupVaultState", ctx, existing, state, stateDetails).Return(existing, nil).Once()
 
 	activity := BackupVaultActivity{
 		SE: mockStorage,
@@ -465,7 +912,7 @@ func TestUpdatesBackupVaultStateSuccessfully(t *testing.T) {
 	err := activity.UpdateBackupVaultStateInCaseOfError(ctx, backupVault, state, stateDetails)
 
 	assert.NoError(t, err)
-	mockStorage.AssertCalled(t, "UpdateBackupVaultState", ctx, backupVault, state, stateDetails)
+	mockStorage.AssertExpectations(t)
 }
 
 func TestReturnsErrorWhenStateUpdateFails(t *testing.T) {
@@ -473,12 +920,23 @@ func TestReturnsErrorWhenStateUpdateFails(t *testing.T) {
 	ctx := context.Background()
 
 	backupVault := &datamodel.BackupVault{
-		Name: "test-vault",
+		BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+		AccountID: 1,
+		Name:      "test-vault",
 	}
 	state := "ERROR"
 	stateDetails := "Failed due to timeout"
 
-	mockStorage.On("UpdateBackupVaultState", ctx, backupVault, state, stateDetails).Return(nil, errors.New("update failed")).Once()
+	existing := &datamodel.BackupVault{
+		BaseModel:             datamodel.BaseModel{UUID: "bv-uuid"},
+		AccountID:             1,
+		Name:                  "test-vault",
+		LifeCycleState:        "READY",
+		LifeCycleStateDetails: "Available for use",
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "bv-uuid", int64(1)).Return(existing, nil).Once()
+	mockStorage.On("UpdateBackupVaultState", ctx, existing, state, stateDetails).Return(nil, errors.New("update failed")).Once()
 
 	activity := BackupVaultActivity{
 		SE: mockStorage,
@@ -487,7 +945,7 @@ func TestReturnsErrorWhenStateUpdateFails(t *testing.T) {
 	err := activity.UpdateBackupVaultStateInCaseOfError(ctx, backupVault, state, stateDetails)
 
 	assert.Error(t, err)
-	mockStorage.AssertCalled(t, "UpdateBackupVaultState", ctx, backupVault, state, stateDetails)
+	mockStorage.AssertExpectations(t)
 }
 
 func TestDeletesBackupVaultSuccessfullyFromSDE(t *testing.T) {
@@ -2308,6 +2766,70 @@ func TestDeleteRemoteBackupVaultInVCP(t *testing.T) {
 		assert.Contains(tt, err.Error(), "Unexpected response type")
 		mockInvoker.AssertExpectations(tt)
 	})
+}
+
+func TestUpdateRemoteBackupVaultInVCP_CmekAttributesHydrated(t *testing.T) {
+	backupRegion := "us-west1"
+
+	ctx := context.Background()
+	description := "Updated description"
+	dailyImmutable := true
+	minRetentionDays := int64(30)
+	params := &common.BackupVaultParams{
+		OwnerID:       "123456789",
+		BackupVaultID: "vault-uuid-123",
+		BackupRegion:  &backupRegion,
+		Description:   &description,
+		BackupRetentionPolicy: common.BackupRetentionPolicyParams{
+			BackupMinimumEnforcedRetentionDuration: &minRetentionDays,
+			IsDailyBackupImmutable:                 &dailyImmutable,
+		},
+	}
+	completedState := "ENCRYPTION_STATE_COMPLETED"
+	primaryKeyVersion := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "vault-uuid-123"},
+		CmekAttributes: &datamodel.CmekAttributes{
+			EncryptionState:          &completedState,
+			BackupsPrimaryKeyVersion: &primaryKeyVersion,
+		},
+	}
+
+	originalUtilsGetRemoteRegionConfig := utilsGetRemoteRegionConfig
+	utilsGetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+		return "proxy.example.com", "mock-jwt-token", nil
+	}
+	defer func() { utilsGetRemoteRegionConfig = originalUtilsGetRemoteRegionConfig }()
+
+	mockInvoker := new(googleproxyclient.MockInvoker)
+	originalGoogleProxyClientGet := googleProxyClientGet
+	googleProxyClientGet = func(basePath, jwtToken string, logger log.Logger) *googleproxyclient.ProxyClient {
+		return &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+	}
+	defer func() { googleProxyClientGet = originalGoogleProxyClientGet }()
+
+	mockInvoker.On("V1betaInternalUpdateBackupVault", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			body := args.Get(1).(*googleproxyclient.BackupVaultInternalUpdateV1beta)
+			if assert.NotNil(t, body.EncryptionState) {
+				assert.Equal(t, completedState, string(body.EncryptionState.Value))
+			}
+			if assert.NotNil(t, body.BackupsPrimaryKeyVersion) {
+				assert.Equal(t, primaryKeyVersion, body.BackupsPrimaryKeyVersion.Value)
+			}
+		}).
+		Return(&googleproxyclient.OperationV1beta{
+			Done: googleproxyclient.OptBool{Value: true, Set: true},
+			Name: googleproxyclient.OptString{Value: "operations/update-vault-123", Set: true},
+		}, nil)
+
+	result, err := UpdateRemoteBackupVaultInVCP(ctx, params, backupVault)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	mockInvoker.AssertExpectations(t)
 }
 
 func TestUpdateRemoteBackupVaultInVCP(t *testing.T) {

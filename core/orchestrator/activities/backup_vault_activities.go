@@ -12,10 +12,12 @@ import (
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -33,6 +35,251 @@ var (
 
 type BackupVaultActivity struct {
 	SE database.Storage
+}
+
+// RotateBucketCmekActivity rotates CMEK for objects in a single GCS bucket.
+func (j *BackupVaultActivity) RotateBucketCmekActivity(ctx context.Context, bucketName string, primaryKeyVersion string) error {
+	logger := util.GetLogger(ctx)
+
+	// Configuration knobs with sane defaults.
+	pageSize := env.GetInt("CMEK_ROTATION_PAGE_SIZE", 1000)
+	maxWorkers := env.GetInt("CMEK_ROTATION_MAX_WORKERS", 20)
+	maxPasses := env.GetInt("MAX_CMEK_ROTATION_PASSES", 10)
+
+	if bucketName == "" {
+		return temporal.NewNonRetryableApplicationError(
+			"bucket name is empty for CMEK rotation",
+			"RotateBucketCmekActivityInvalidBucket",
+			fmt.Errorf("bucket name must not be empty"),
+		)
+	}
+
+	gcpService, err := hyperscaler.GetGCPService(ctx)
+	if err != nil {
+		logger.Errorf("Failed to get GCP service for CMEK rotation: %v", err)
+		return errors.WrapAsTemporalApplicationError(err)
+	}
+
+	totalProcessed, totalRotated, err := gcpService.RotateBucketCmek(ctx, bucketName, primaryKeyVersion, pageSize, maxWorkers, maxPasses)
+	if err != nil {
+		logger.Errorf("Failed to rotate CMEK for bucket %s: %v", bucketName, err)
+		return errors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("CMEK rotation completed for bucket %s: totalProcessed=%d totalRotated=%d", bucketName, totalProcessed, totalRotated)
+	return nil
+}
+
+// UpdateBackupVaultCmekInVCPActivity updates CMEK metadata for a backup vault in
+// the VCP database once all bucket CMEK rotations have completed successfully.
+func (j *BackupVaultActivity) UpdateBackupVaultCmekInVCPActivity(ctx context.Context, backupVault *datamodel.BackupVault, primaryKeyVersion string) error {
+	logger := util.GetLogger(ctx)
+	se := j.SE
+
+	dbBv, err := se.GetBackupVaultByUUIDndOwnerID(ctx, backupVault.UUID, backupVault.AccountID)
+	if err != nil {
+		logger.Errorf("Failed to load backup vault for CMEK metadata update in VCP: %v", err)
+		return errors.WrapAsTemporalApplicationError(err)
+	}
+
+	updateBv := *dbBv
+	if updateBv.CmekAttributes == nil {
+		updateBv.CmekAttributes = &datamodel.CmekAttributes{}
+	}
+
+	updateBv.CmekAttributes.BackupsPrimaryKeyVersion = &primaryKeyVersion
+	stateCompleted := coremodels.EncryptionStateCompleted
+	updateBv.CmekAttributes.EncryptionState = &stateCompleted
+
+	_, err = se.UpdateBackupVaultInVCP(ctx, &updateBv, dbBv)
+	if err != nil {
+		logger.Errorf("Failed to update backup vault CMEK metadata in VCP: %v", err)
+		return temporal.NewNonRetryableApplicationError(
+			"failed to update backup vault CMEK metadata in VCP",
+			"UpdateBackupVaultCmekInVCPActivityError",
+			err,
+		)
+	}
+
+	return nil
+}
+
+// UpdateBackupVaultEncryptionStateInVCPActivity updates only the encryption state
+// for a backup vault in the VCP database. It is used to mirror the CMEK rotation
+// lifecycle (PENDING, IN_PROGRESS, FAILED) for VCP-managed rotations.
+func (j *BackupVaultActivity) UpdateBackupVaultEncryptionStateInVCPActivity(ctx context.Context, backupVault *datamodel.BackupVault, encryptionState string) error {
+	logger := util.GetLogger(ctx)
+	se := j.SE
+
+	dbBv, err := se.GetBackupVaultByUUIDndOwnerID(ctx, backupVault.UUID, backupVault.AccountID)
+	if err != nil {
+		logger.Errorf("Failed to load backup vault for encryption state update in VCP: %v", err)
+		return errors.WrapAsTemporalApplicationError(err)
+	}
+
+	updateBv := *dbBv
+	if updateBv.CmekAttributes == nil && dbBv.CmekAttributes != nil {
+		updateBv.CmekAttributes = &datamodel.CmekAttributes{
+			KmsConfigResourcePath:    dbBv.CmekAttributes.KmsConfigResourcePath,
+			EncryptionState:          dbBv.CmekAttributes.EncryptionState,
+			BackupsPrimaryKeyVersion: dbBv.CmekAttributes.BackupsPrimaryKeyVersion,
+		}
+	} else if updateBv.CmekAttributes == nil {
+		updateBv.CmekAttributes = &datamodel.CmekAttributes{}
+	}
+	updateBv.CmekAttributes.EncryptionState = &encryptionState
+
+	_, err = se.UpdateBackupVaultInVCP(ctx, &updateBv, dbBv)
+	if err != nil {
+		logger.Errorf("Failed to update backup vault encryption state in VCP: %v", err)
+		return temporal.NewNonRetryableApplicationError(
+			"failed to update backup vault encryption state in VCP",
+			"UpdateBackupVaultEncryptionStateInVCPActivityError",
+			err,
+		)
+	}
+
+	return nil
+}
+
+// StartSDECmekRotationForBackupVault starts SDE-side CMEK rotation for SDE-managed
+// buckets by calling the SDE/CBS rotate endpoint via CVP. This creates an async job
+// in SDE/CBS and returns once the job is accepted.
+func (j *BackupVaultActivity) StartSDECmekRotationForBackupVault(ctx context.Context, params *common.BackupVaultParams, primaryKeyVersion string) error {
+	logger := util.GetLogger(ctx)
+	GetSignedJwtToken := utils.GetAuthTokenFromContext(ctx)
+	cvpClient := cvpCreateClient(logger, GetSignedJwtToken)
+	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
+
+	body := &models.BackupVaultRotateCMEKBackupsV1beta{
+		PrimaryKeyVersion: &primaryKeyVersion,
+	}
+
+	_, err := cvpClient.BackupVault.V1betaRotateCmekBackups(&backup_vault.V1betaRotateCmekBackupsParams{
+		LocationID:     params.Region,
+		ProjectNumber:  params.OwnerID,
+		XCorrelationID: &xCorrelationID,
+		BackupVaultID:  params.BackupVaultID,
+		Body:           body,
+	})
+	if err != nil {
+		switch e := err.(type) {
+		case *backup_vault.V1betaRotateCmekBackupsBadRequest:
+			return temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Bad request starting SDE CMEK rotation %s: %s", params.BackupVaultID, e.Error()),
+				"V1betaRotateCmekBackupsBadRequest",
+				err,
+			)
+		case *backup_vault.V1betaRotateCmekBackupsUnauthorized:
+			return temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Unauthorized to start SDE CMEK rotation %s: %s", params.BackupVaultID, e.Error()),
+				"V1betaRotateCmekBackupsUnauthorized",
+				err,
+			)
+		case *backup_vault.V1betaRotateCmekBackupsForbidden:
+			return temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Forbidden to start SDE CMEK rotation %s: %s", params.BackupVaultID, e.Error()),
+				"V1betaRotateCmekBackupsForbidden",
+				err,
+			)
+		case *backup_vault.V1betaRotateCmekBackupsConflict:
+			return temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Conflict starting SDE CMEK rotation %s: %s", params.BackupVaultID, e.Error()),
+				"V1betaRotateCmekBackupsConflict",
+				err,
+			)
+		case *backup_vault.V1betaRotateCmekBackupsUnprocessableEntity:
+			return temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Unprocessable entity starting SDE CMEK rotation %s: %s", params.BackupVaultID, e.Error()),
+				"V1betaRotateCmekBackupsUnprocessableEntity",
+				err,
+			)
+		case *backup_vault.V1betaRotateCmekBackupsInternalServerError:
+			return temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Internal server error starting SDE CMEK rotation %s: %s", params.BackupVaultID, e.Error()),
+				"V1betaRotateCmekBackupsInternalServerError",
+				err,
+			)
+		case *backup_vault.V1betaRotateCmekBackupsTooManyRequests:
+			return temporal.NewApplicationError(
+				fmt.Sprintf("Too many requests starting SDE CMEK rotation %s: %s", params.BackupVaultID, e.Error()),
+				"V1betaRotateCmekBackupsTooManyRequests",
+				err,
+			)
+		case *backup_vault.V1betaRotateCmekBackupsDefault:
+			return temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Unexpected error starting SDE CMEK rotation %s: %s", params.BackupVaultID, e.Error()),
+				"V1betaRotateCmekBackupsDefault",
+				err,
+			)
+		default:
+			logger.Warnf("Unknown error type for SDE CMEK rotation %s: %T - %s", params.BackupVaultID, err, err.Error())
+			return err
+		}
+	}
+
+	return nil
+}
+
+// WaitForSDECmekRotationCompletion polls SDE (via CVP) until the backup vault
+// encryption state reaches a terminal value (COMPLETED or FAILED). It returns
+// true if SDE rotation completed successfully, false otherwise.
+func (j *BackupVaultActivity) WaitForSDECmekRotationCompletion(ctx context.Context, params *common.BackupVaultParams) (bool, error) {
+	logger := util.GetLogger(ctx)
+	GetSignedJwtToken := utils.GetAuthTokenFromContext(ctx)
+	cvpClient := cvpCreateClient(logger, GetSignedJwtToken)
+	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
+
+	const (
+		maxAttempts = 60
+		sleepSec    = 10
+	)
+
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		res, err := cvpClient.BackupVault.V1betaListBackupVaults(&backup_vault.V1betaListBackupVaultsParams{
+			LocationID:     params.Region,
+			ProjectNumber:  params.OwnerID,
+			XCorrelationID: &xCorrelationID,
+		})
+		if err != nil {
+			logger.Errorf("Failed to list backup vaults from SDE while waiting for CMEK rotation completion: %v", err)
+			return false, temporal.NewApplicationError(
+				"failed to list backup vaults from SDE",
+				"V1betaListBackupVaultsError",
+				err,
+			)
+		}
+
+		if res.Payload != nil && res.Payload.BackupVaults != nil {
+			for _, bv := range res.Payload.BackupVaults {
+				if bv == nil || bv.BackupVaultID == "" || bv.BackupVaultID != params.BackupVaultID {
+					continue
+				}
+
+				// Found our vault; inspect its encryption state.
+				if bv.EncryptionState == nil {
+					break
+				}
+
+				state := *bv.EncryptionState
+				switch state {
+				case coremodels.EncryptionStateCompleted:
+					return true, nil
+				case coremodels.EncryptionStateFailed:
+					return false, nil
+				default:
+					// PENDING / IN_PROGRESS – keep polling.
+					break
+				}
+			}
+		}
+
+		// No terminal state yet; wait and retry.
+		time.Sleep(sleepSec * time.Second)
+	}
+
+	logger.Errorf("Timed out waiting for SDE CMEK rotation completion for backup vault %s", params.BackupVaultID)
+	return false, nil
 }
 
 func (j *BackupVaultActivity) DeleteBackupVaultInSDE(ctx context.Context, paramz *common.BackupVaultParams) (*datamodel.BackupVault, error) {
@@ -485,6 +732,20 @@ func UpdateRemoteBackupVaultInVCP(ctx context.Context, params *common.BackupVaul
 		updateBody.BackupRetentionPolicy = googleproxyclient.NewOptBackupRetentionPolicyUpdateV1beta(brp)
 	}
 
+	// Hydrate CMEK fields into the remote (source-region) VCP backup vault for CRB
+	// scenarios so that both regions reflect consistent encryption state and key
+	// version.
+	if backupVault != nil && backupVault.CmekAttributes != nil {
+		if backupVault.CmekAttributes.EncryptionState != nil {
+			updateBody.EncryptionState = googleproxyclient.NewOptBackupVaultInternalUpdateV1betaEncryptionState(
+				googleproxyclient.BackupVaultInternalUpdateV1betaEncryptionState(*backupVault.CmekAttributes.EncryptionState),
+			)
+		}
+		if backupVault.CmekAttributes.BackupsPrimaryKeyVersion != nil {
+			updateBody.BackupsPrimaryKeyVersion = googleproxyclient.NewOptString(*backupVault.CmekAttributes.BackupsPrimaryKeyVersion)
+		}
+	}
+
 	updateParams := googleproxyclient.V1betaInternalUpdateBackupVaultParams{
 		ProjectNumber:  params.OwnerID,
 		LocationId:     *params.BackupRegion,
@@ -505,8 +766,6 @@ func UpdateRemoteBackupVaultInVCP(ctx context.Context, params *common.BackupVaul
 	switch r := res.(type) {
 	case *googleproxyclient.OperationV1beta:
 		isDone := r.Done.Value
-		logger.Infof("Update operation returned for remote backup vault %s (external UUID: %s) in region %s. Operation: %s, Done: %v",
-			params.BackupVaultID, params.BackupVaultID, *params.BackupRegion, r.GetName(), isDone)
 
 		if !isDone {
 			logger.Warnf("Update operation for remote backup vault %s not marked as done, but treating as synchronous", params.BackupVaultID)
@@ -651,13 +910,27 @@ func _convertToBackupVaultDataModel(bv *models.BackupVaultV1beta, locationId str
 }
 
 func (j *BackupVaultActivity) UpdateBackupVaultStateInCaseOfError(ctx context.Context, backupVault *datamodel.BackupVault, state, stateDetails string) error {
+	logger := util.GetLogger(ctx)
 	se := j.SE
 
-	// Update the state of the BackupVault in the database
-	_, err := se.UpdateBackupVaultState(ctx, backupVault, state, stateDetails)
+	// Always reload the latest backup vault from the database so that we do not
+	// accidentally overwrite CMEK attributes (e.g. BackupsPrimaryKeyVersion)
+	// with a partially-populated in-memory struct from the workflow.
+	dbBv, err := se.GetBackupVaultByUUIDndOwnerID(ctx, backupVault.UUID, backupVault.AccountID)
 	if err != nil {
+		logger.Errorf("Failed to load backup vault for state update in case of error: %v", err)
 		return err
 	}
+
+	logger.Infof("UpdateBackupVaultStateInCaseOfError: updating backup vault %s to state=%q stateDetails=%q (currentState=%q currentDetails=%q)",
+		dbBv.UUID, state, stateDetails, dbBv.LifeCycleState, dbBv.LifeCycleStateDetails)
+
+	_, err = se.UpdateBackupVaultState(ctx, dbBv, state, stateDetails)
+	if err != nil {
+		logger.Errorf("Failed to update backup vault state in case of error: %v", err)
+		return err
+	}
+
 	return nil
 }
 

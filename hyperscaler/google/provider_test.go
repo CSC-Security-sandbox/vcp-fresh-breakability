@@ -27,7 +27,9 @@ import (
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/dns/v1"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/api/privateca/v1"
 	cloudrun "google.golang.org/api/run/v2"
@@ -738,6 +740,55 @@ func TestInitializeMockManagementService(t *testing.T) {
 		assert.Nil(t, svc)
 		assert.Contains(t, err.Error(), "VSAMockPath is not set")
 	})
+}
+
+func TestAdminGCPService_StorageService_NilService(t *testing.T) {
+	admin := &AdminGCPService{}
+
+	client, err := admin.StorageService(context.Background(), nil)
+
+	assert.Nil(t, client)
+	assert.Error(t, err)
+	customErr, ok := err.(*vsaerrors.CustomError)
+	assert.True(t, ok, "expected error to be *vsaerrors.CustomError")
+	assert.Equal(t, vsaerrors.ErrGCPClientInitializationError, customErr.TrackingID)
+}
+
+func TestAdminGCPService_StorageService_UsesExistingClientAndSetsCtx(t *testing.T) {
+	admin := &AdminGCPService{
+		storageService: &storage.Client{},
+	}
+	gcpService := &GcpServices{
+		AdminGCPService: admin,
+	}
+
+	ctx := context.Background()
+	client, err := admin.StorageService(ctx, gcpService)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, client)
+	assert.Equal(t, admin.storageService, client)
+	assert.Equal(t, ctx, gcpService.Ctx)
+}
+
+func TestAdminGCPService_StorageService_InitializeClientsError(t *testing.T) {
+	// Force InitializeClients to fail by stubbing newGoogleClient.
+	origNewGoogleClient := newGoogleClient
+	newGoogleClient = func(ctx context.Context) (*AdminGCPService, error) {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, fmt.Errorf("init failed"))
+	}
+	defer func() { newGoogleClient = origNewGoogleClient }()
+
+	admin := &AdminGCPService{}
+	gcpSvc := &GcpServices{
+		Ctx:    context.Background(),
+		Logger: log.NewLogger(),
+	}
+
+	client, err := admin.StorageService(context.Background(), gcpSvc)
+
+	assert.Nil(t, client)
+	assert.Error(t, err)
 }
 
 func TestInitializeNetworkingService(t *testing.T) {
@@ -5060,4 +5111,512 @@ func TestInitializeMockCloudProjectsService(t *testing.T) {
 			// Lines 385-386 are covered
 		}
 	})
+}
+
+func TestNormalizeKMSKey_Empty(t *testing.T) {
+	if got := normalizeKMSKey(""); got != "" {
+		t.Fatalf("expected empty string, got %q", got)
+	}
+}
+
+func TestNormalizeKMSKey_RemovesGrantsAndPreservesVersion(t *testing.T) {
+	raw := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/grants/some-principal/cryptoKeyVersions/10"
+
+	normalized := normalizeKMSKey(raw)
+
+	if strings.Contains(normalized, "/grants/") {
+		t.Fatalf("expected /grants/ segment to be removed, got %q", normalized)
+	}
+	if !strings.HasSuffix(normalized, "/cryptoKeyVersions/10") {
+		t.Fatalf("expected version suffix to be preserved, got %q", normalized)
+	}
+}
+
+func TestNormalizeKMSKey_NoGrantsReturnsInput(t *testing.T) {
+	raw := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/9"
+
+	normalized := normalizeKMSKey(raw)
+
+	if normalized != raw {
+		t.Fatalf("expected key without grants to remain unchanged, got %q", normalized)
+	}
+}
+
+func TestCompareKMSKeys_BaseKeyEquality(t *testing.T) {
+	base := "projects/p/locations/r/keyRings/ring/cryptoKeys/key"
+	withGrants := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/grants/abc"
+
+	if !compareKMSKeys(base, withGrants) {
+		t.Fatalf("expected base key and key-with-grants to be considered equal")
+	}
+}
+
+func TestCompareKMSKeys_VersionedEquality(t *testing.T) {
+	k1 := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/11"
+	k2 := "projects/p/locations/r/keyRings/ring/cryptoKeys/key/grants/some/cryptoKeyVersions/11"
+
+	if !compareKMSKeys(k1, k2) {
+		t.Fatalf("expected versioned keys to match after normalization")
+	}
+}
+
+func TestCompareKMSKeys_Inequality(t *testing.T) {
+	k1 := "projects/p/locations/r/keyRings/ring/cryptoKeys/keyA"
+	k2 := "projects/p/locations/r/keyRings/ring/cryptoKeys/keyB"
+
+	if compareKMSKeys(k1, k2) {
+		t.Fatalf("expected different keys to not match")
+	}
+}
+
+func TestRotateBucketCmek_EmptyBucketName(t *testing.T) {
+	gcpSvc := &GcpServices{}
+
+	_, _, err := gcpSvc.RotateBucketCmek(
+		context.Background(),
+		"",
+		"projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1",
+		1000,
+		10,
+		5,
+	)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "bucket name must not be empty")
+}
+
+func TestRotateBucketCmek_StorageServiceError(t *testing.T) {
+	ctx := context.Background()
+
+	origNewGoogleClient := newGoogleClient
+	newGoogleClient = func(ctx context.Context) (*AdminGCPService, error) {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, fmt.Errorf("init failed"))
+	}
+	defer func() { newGoogleClient = origNewGoogleClient }()
+
+	// Leave AdminGCPService nil so InitializeClients is forced to call
+	// newGoogleClient, which we stubbed to return an initialization error.
+	gcpSvc := &GcpServices{
+		Ctx:    ctx,
+		Logger: util.GetLogger(ctx),
+	}
+
+	_, _, err := gcpSvc.RotateBucketCmek(
+		ctx,
+		"bucket-1",
+		"projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1",
+		100,
+		5,
+		1,
+	)
+
+	require.Error(t, err)
+	// Error comes from StorageService / InitializeClients
+	var customErr *vsaerrors.CustomError
+	require.ErrorAs(t, err, &customErr)
+	require.Equal(t, vsaerrors.ErrGCPClientInitializationError, customErr.TrackingID)
+}
+
+type testObjectIterator struct {
+	objs     []*storage.ObjectAttrs
+	pos      int
+	pageInfo *iterator.PageInfo
+}
+
+func (it *testObjectIterator) Next() (*storage.ObjectAttrs, error) {
+	if it.pos >= len(it.objs) {
+		return nil, iterator.Done
+	}
+	obj := it.objs[it.pos]
+	it.pos++
+	return obj, nil
+}
+
+func (it *testObjectIterator) PageInfo() *iterator.PageInfo {
+	if it.pageInfo == nil {
+		it.pageInfo = &iterator.PageInfo{}
+	}
+	return it.pageInfo
+}
+
+type fakeCopier struct {
+	result *storage.ObjectAttrs
+	err    error
+}
+
+func (f *fakeCopier) Run(ctx context.Context) (*storage.ObjectAttrs, error) {
+	return f.result, f.err
+}
+
+// errorObjectIterator returns an error on the first Next() call, then iterator.Done.
+type errorObjectIterator struct {
+	called bool
+}
+
+var _ objectIterator = (*errorObjectIterator)(nil)
+
+func (it *errorObjectIterator) Next() (*storage.ObjectAttrs, error) {
+	if !it.called {
+		it.called = true
+		return nil, fmt.Errorf("list failed")
+	}
+	return nil, iterator.Done
+}
+
+func (it *errorObjectIterator) PageInfo() *iterator.PageInfo {
+	return &iterator.PageInfo{}
+}
+
+func TestRotateBucketCmek_SinglePassSuccess(t *testing.T) {
+	ctx := context.Background()
+
+	// Prepare fake iterator with two objects.
+	objects := []*storage.ObjectAttrs{
+		{Name: "obj1", KMSKeyName: "old"},
+		{Name: "obj2", KMSKeyName: "old"},
+	}
+	it := &testObjectIterator{objs: objects}
+
+	origIter := newBucketIterator
+	origCopier := newObjectCopier
+	defer func() {
+		newBucketIterator = origIter
+		newObjectCopier = origCopier
+	}()
+
+	newBucketIterator = func(_ *storage.BucketHandle, _ context.Context) objectIterator {
+		return it
+	}
+	newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
+		return &fakeCopier{
+			result: &storage.ObjectAttrs{
+				Name:       name,
+				KMSKeyName: "projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1",
+			},
+			err: nil,
+		}
+	}
+
+	storageClient, err := storage.NewClient(ctx, option.WithoutAuthentication())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = storageClient.Close() })
+
+	gcpSvc := &GcpServices{
+		Ctx:    ctx,
+		Logger: util.GetLogger(ctx),
+		AdminGCPService: &AdminGCPService{
+			storageService: storageClient,
+		},
+	}
+
+	totalProcessed, totalRotated, err := gcpSvc.RotateBucketCmek(
+		ctx,
+		"test-bucket",
+		"projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1",
+		10,
+		2,
+		5,
+	)
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), totalProcessed)
+	assert.Equal(t, int64(2), totalRotated)
+}
+
+func TestRotateBucketCmek_ListError(t *testing.T) {
+	ctx := context.Background()
+
+	origIter := newBucketIterator
+	defer func() { newBucketIterator = origIter }()
+
+	newBucketIterator = func(_ *storage.BucketHandle, _ context.Context) objectIterator {
+		return &errorObjectIterator{}
+	}
+
+	storageClient, err := storage.NewClient(ctx, option.WithoutAuthentication())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = storageClient.Close() })
+
+	gcpSvc := &GcpServices{
+		Ctx:    ctx,
+		Logger: util.GetLogger(ctx),
+		AdminGCPService: &AdminGCPService{
+			storageService: storageClient,
+		},
+	}
+
+	_, _, err = gcpSvc.RotateBucketCmek(
+		ctx,
+		"test-bucket",
+		"projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1",
+		10,
+		2,
+		5,
+	)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to list objects in bucket")
+}
+
+func TestRotateBucketCmek_RotateObjectsError(t *testing.T) {
+	ctx := context.Background()
+
+	objects := []*storage.ObjectAttrs{
+		{Name: "obj1", KMSKeyName: "old"},
+	}
+	it := &testObjectIterator{objs: objects}
+
+	origIter := newBucketIterator
+	origCopier := newObjectCopier
+	defer func() {
+		newBucketIterator = origIter
+		newObjectCopier = origCopier
+	}()
+
+	newBucketIterator = func(_ *storage.BucketHandle, _ context.Context) objectIterator {
+		return it
+	}
+	newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
+		return &fakeCopier{
+			result: nil,
+			err:    fmt.Errorf("copy failed"),
+		}
+	}
+
+	storageClient, err := storage.NewClient(ctx, option.WithoutAuthentication())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = storageClient.Close() })
+
+	gcpSvc := &GcpServices{
+		Ctx:    ctx,
+		Logger: util.GetLogger(ctx),
+		AdminGCPService: &AdminGCPService{
+			storageService: storageClient,
+		},
+	}
+
+	_, _, err = gcpSvc.RotateBucketCmek(
+		ctx,
+		"test-bucket",
+		"projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1",
+		10,
+		1,
+		5,
+	)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to rotate CMEK for object")
+}
+
+func TestRotateObjectsInParallel_NoObjects(t *testing.T) {
+	ctx := context.Background()
+
+	rotated, err := rotateObjectsInParallel(
+		ctx,
+		nil, // bucket is unused when objects is empty
+		"test-bucket",
+		"projects/p/locations/r/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1",
+		nil,
+		10,
+	)
+
+	require.NoError(t, err)
+	assert.Equal(t, 0, rotated)
+}
+
+func TestRotateObjectsInParallel_SkipWhenKeyMatches(t *testing.T) {
+	ctx := context.Background()
+
+	objects := []*storage.ObjectAttrs{
+		{Name: "obj1", KMSKeyName: "kms-key"},
+	}
+
+	// maxWorkers set to 0 to exercise the workerCount <= 0 branch that defaults to 1.
+	rotated, err := rotateObjectsInParallel(
+		ctx,
+		nil, // bucket unused when keys already match
+		"test-bucket",
+		"kms-key",
+		objects,
+		0,
+	)
+
+	require.NoError(t, err)
+	assert.Equal(t, 0, rotated)
+}
+
+func TestRotateObjectsInParallel_404NotFoundIsNonFatal(t *testing.T) {
+	ctx := context.Background()
+
+	objects := []*storage.ObjectAttrs{
+		{Name: "obj1", KMSKeyName: "old"},
+	}
+
+	origCopier := newObjectCopier
+	defer func() { newObjectCopier = origCopier }()
+
+	newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
+		return &fakeCopier{
+			result: nil,
+			err: &googleapi.Error{
+				Code: http.StatusNotFound,
+			},
+		}
+	}
+
+	rotated, err := rotateObjectsInParallel(
+		ctx,
+		nil,
+		"test-bucket",
+		"new-key",
+		objects,
+		1,
+	)
+
+	require.NoError(t, err)
+	assert.Equal(t, 0, rotated)
+}
+
+func TestRotateObjectsInParallel_CopyErrorReturnsError(t *testing.T) {
+	ctx := context.Background()
+
+	objects := []*storage.ObjectAttrs{
+		{Name: "obj1", KMSKeyName: "old"},
+	}
+
+	origCopier := newObjectCopier
+	defer func() { newObjectCopier = origCopier }()
+
+	newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
+		return &fakeCopier{
+			result: nil,
+			err:    fmt.Errorf("copy failed"),
+		}
+	}
+
+	rotated, err := rotateObjectsInParallel(
+		ctx,
+		nil,
+		"test-bucket",
+		"new-key",
+		objects,
+		1,
+	)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to rotate CMEK for object")
+	assert.Equal(t, 0, rotated)
+}
+
+func TestRotateObjectsInParallel_KmsKeyMismatchAfterCopy(t *testing.T) {
+	ctx := context.Background()
+
+	objects := []*storage.ObjectAttrs{
+		{Name: "obj1", KMSKeyName: "old"},
+	}
+
+	origCopier := newObjectCopier
+	defer func() { newObjectCopier = origCopier }()
+
+	newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
+		return &fakeCopier{
+			result: &storage.ObjectAttrs{
+				Name:       name,
+				KMSKeyName: "unexpected-key",
+			},
+			err: nil,
+		}
+	}
+
+	rotated, err := rotateObjectsInParallel(
+		ctx,
+		nil,
+		"test-bucket",
+		"expected-key",
+		objects,
+		1,
+	)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "KMS key mismatch after rotation for object")
+	assert.Equal(t, 0, rotated)
+}
+
+func TestRotateObjectsInParallel_ContextCancelledWhileFeeding(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel before starting
+
+	objects := []*storage.ObjectAttrs{
+		{Name: "obj1", KMSKeyName: "old"},
+	}
+
+	rotated, err := rotateObjectsInParallel(
+		ctx,
+		nil,
+		"test-bucket",
+		"new-key",
+		objects,
+		1,
+	)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "context cancelled while")
+	assert.Equal(t, 0, rotated)
+}
+
+type blockingCopier struct {
+	kmsKeyName string
+}
+
+func (b *blockingCopier) Run(ctx context.Context) (*storage.ObjectAttrs, error) {
+	<-ctx.Done()
+	// Delay to ensure ctx.Done is selected before any send to channels.
+	time.Sleep(10 * time.Millisecond)
+	return &storage.ObjectAttrs{
+		KMSKeyName: b.kmsKeyName,
+	}, nil
+}
+
+func TestRotateObjectsInParallel_ContextCancelledWhileCollecting(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	objects := []*storage.ObjectAttrs{
+		{Name: "obj1", KMSKeyName: "old"},
+	}
+
+	origCopier := newObjectCopier
+	defer func() { newObjectCopier = origCopier }()
+
+	newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
+		return &blockingCopier{
+			kmsKeyName: "new-key",
+		}
+	}
+
+	var (
+		rotated int
+		err     error
+	)
+	doneCh := make(chan struct{})
+
+	go func() {
+		defer close(doneCh)
+		rotated, err = rotateObjectsInParallel(
+			ctx,
+			nil,
+			"test-bucket",
+			"new-key",
+			objects,
+			1,
+		)
+	}()
+
+	// Give goroutine time to start and block inside Run.
+	time.Sleep(10 * time.Millisecond)
+	cancel()
+	<-doneCh
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "context cancelled while collecting CMEK rotation results")
+	assert.Equal(t, 0, rotated)
 }

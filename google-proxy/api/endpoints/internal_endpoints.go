@@ -1260,7 +1260,28 @@ func (h Handler) V1betaInternalUpdateBackupVault(ctx context.Context, req *gcpge
 		updateParams.BucketDetails = bucketDetails
 	}
 
-	updated, operationID, err := h.Orchestrator.UpdateBackupVaultInternal(ctx, updateParams)
+	// Map CMEK-related fields into params so the orchestrator can update the
+	// underlying VCP backup vault's CMEK attributes when requested.
+	if req.EncryptionState.IsSet() {
+		state := string(req.EncryptionState.Value)
+		updateParams.CmekEncryptionState = &state
+	}
+	if req.BackupsPrimaryKeyVersion.IsSet() {
+		pkv := req.BackupsPrimaryKeyVersion.Value
+		updateParams.CmekBackupsPrimaryKeyVersion = &pkv
+	}
+
+	useExternalUUID := true
+	// If the request looks like a "pure CMEK update" (only CMEK fields, no metadata):
+	if (req.EncryptionState.IsSet() || req.BackupsPrimaryKeyVersion.IsSet()) &&
+		!req.Description.IsSet() &&
+		!req.BackupRetentionPolicy.IsSet() &&
+		req.BucketDetails == nil {
+		// then treat BackupVaultId as a concrete UUID in the target region
+		useExternalUUID = false
+	}
+
+	updated, operationID, err := h.Orchestrator.UpdateBackupVaultInternal(ctx, updateParams, useExternalUUID)
 	if err != nil {
 		if errors.IsUserInputValidationErr(err) {
 			logger.Error("Failed to update backup vault - validation error", "error", err.Error())

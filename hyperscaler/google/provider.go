@@ -78,7 +78,25 @@ var (
 	initializeMockNetworkingService = _initializeMockNetworkingService
 	initializeMockComputeService    = _initializeMockComputeService
 	isBucketDeletePolicySet         = _isBucketDeletePolicySet
+	// test seams for CMEK rotation helpers
+	newBucketIterator = func(bucket *storage.BucketHandle, ctx context.Context) objectIterator {
+		return bucket.Objects(ctx, nil)
+	}
+	newObjectCopier = func(bucket *storage.BucketHandle, name string) objectCopier {
+		return bucket.Object(name).CopierFrom(bucket.Object(name))
+	}
 )
+
+// objectIterator abstracts the storage object iterator for testing.
+type objectIterator interface {
+	Next() (*storage.ObjectAttrs, error)
+	PageInfo() *iterator.PageInfo
+}
+
+// objectCopier abstracts the object copier for testing.
+type objectCopier interface {
+	Run(ctx context.Context) (*storage.ObjectAttrs, error)
+}
 
 type GcpServices struct {
 	Ctx    context.Context
@@ -536,6 +554,26 @@ func _initializeStorageService(ctx context.Context) (*storage.Client, error) {
 	return storage.NewClient(ctx, option.WithHTTPClient(client))
 }
 
+// StorageService returns an initialized Cloud Storage client, initializing
+// admin clients if needed.
+func (a *AdminGCPService) StorageService(ctx context.Context, gcpService *GcpServices) (*storage.Client, error) {
+	if gcpService == nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, fmt.Errorf("gcp service is nil"))
+	}
+
+	if gcpService.Ctx == nil {
+		gcpService.Ctx = ctx
+	}
+
+	if gcpService.AdminGCPService == nil || gcpService.AdminGCPService.storageService == nil {
+		if err := gcpService.InitializeClients(); err != nil {
+			return nil, err
+		}
+	}
+
+	return gcpService.AdminGCPService.storageService, nil
+}
+
 // _initializeCloudRunService initializes the Cloud Run API service in GCP
 func _initializeCloudRunService(ctx context.Context) (*cloudrun.Service, error) {
 	// Use the correct Cloud Run scope
@@ -744,6 +782,205 @@ func (gcpService *GcpServices) GetFileFromBucket(ctx context.Context, bucketName
 
 	logger.Infof("Bucket file Hash fetched successfully for %s/%s", bucketName, fileName)
 	return bucketFileDetails, nil
+}
+
+// normalizeKMSKey removes transient grant segments while preserving key version.
+func normalizeKMSKey(kmsKey string) string {
+	if kmsKey == "" {
+		return kmsKey
+	}
+
+	if idx := strings.Index(kmsKey, "/grants/"); idx != -1 {
+		prefix := kmsKey[:idx]
+		rest := kmsKey[idx+len("/grants/"):]
+		if vidx := strings.Index(rest, "/cryptoKeyVersions/"); vidx != -1 {
+			return prefix + rest[vidx:]
+		}
+		kmsKey = prefix
+	}
+
+	return kmsKey
+}
+
+// compareKMSKeys compares two KMS keys after normalization.
+func compareKMSKeys(key1, key2 string) bool {
+	return normalizeKMSKey(key1) == normalizeKMSKey(key2)
+}
+
+// RotateBucketCmek rotates CMEK for objects in a single GCS bucket.
+// It returns the total number of processed and rotated objects.
+func (gcpService *GcpServices) RotateBucketCmek(
+	ctx context.Context,
+	bucketName string,
+	primaryKeyVersion string,
+	pageSize int,
+	maxWorkers int,
+	maxPasses int,
+) (int64, int64, error) {
+	logger := util.GetLogger(ctx)
+
+	if bucketName == "" {
+		return 0, 0, fmt.Errorf("bucket name must not be empty")
+	}
+
+	storageClient, err := gcpService.AdminGCPService.StorageService(ctx, gcpService)
+	if err != nil {
+		logger.Errorf("Failed to get storage client for CMEK rotation: %v", err)
+		return 0, 0, err
+	}
+
+	bucket := storageClient.Bucket(bucketName)
+
+	var totalProcessed, totalRotated int64
+	passes := 0
+
+	for {
+		passes++
+		if passes > maxPasses {
+			return totalProcessed, totalRotated, fmt.Errorf("exceeded maximum passes (%d) for CMEK rotation in bucket %s", maxPasses, bucketName)
+		}
+
+		var passProcessed, passRotated int64
+		it := newBucketIterator(bucket, ctx)
+		it.PageInfo().MaxSize = pageSize
+
+		for {
+			// Build a page of up to pageSize objects.
+			var objects []*storage.ObjectAttrs
+			for len(objects) < pageSize {
+				obj, err := it.Next()
+				if err == iterator.Done {
+					break
+				}
+				if err != nil {
+					logger.Errorf("Failed to list objects in bucket %s: %v", bucketName, err)
+					return totalProcessed, totalRotated, fmt.Errorf("failed to list objects in bucket %s: %w", bucketName, err)
+				}
+				objects = append(objects, obj)
+			}
+
+			if len(objects) == 0 {
+				break
+			}
+
+			rotatedInPage, err := rotateObjectsInParallel(
+				ctx,
+				bucket,
+				bucketName,
+				primaryKeyVersion,
+				objects,
+				maxWorkers,
+			)
+			if err != nil {
+				return totalProcessed, totalRotated, err
+			}
+
+			passProcessed += int64(len(objects))
+			passRotated += int64(rotatedInPage)
+		}
+
+		totalProcessed += passProcessed
+		totalRotated += passRotated
+
+		logger.Infof("CMEK rotation pass completed for bucket %s: processed=%d rotated=%d totalProcessed=%d totalRotated=%d",
+			bucketName, passProcessed, passRotated, totalProcessed, totalRotated)
+
+		// Converged: no more objects were rotated in this pass.
+		if passRotated == 0 {
+			break
+		}
+	}
+
+	return totalProcessed, totalRotated, nil
+}
+
+// rotateObjectsInParallel rotates CMEK for a page of objects using a worker pool.
+func rotateObjectsInParallel(
+	ctx context.Context,
+	bucket *storage.BucketHandle,
+	bucketName string,
+	primaryKeyVersion string,
+	objects []*storage.ObjectAttrs,
+	maxWorkers int,
+) (int, error) {
+	if len(objects) == 0 {
+		return 0, nil
+	}
+
+	logger := util.GetLogger(ctx)
+
+	objCh := make(chan *storage.ObjectAttrs, len(objects))
+	resultCh := make(chan bool, len(objects))
+	errCh := make(chan error, len(objects))
+
+	// Start workers.
+	workerCount := maxWorkers
+	if workerCount <= 0 {
+		workerCount = 1
+	}
+	for i := 0; i < workerCount; i++ {
+		go func() {
+			for obj := range objCh {
+				// Skip if already using the target key.
+				if compareKMSKeys(obj.KMSKeyName, primaryKeyVersion) {
+					resultCh <- false
+					continue
+				}
+
+				copier := newObjectCopier(bucket, obj.Name)
+				resultObj, err := copier.Run(ctx)
+				if err != nil {
+					if gerr, ok := err.(*googleapi.Error); ok && gerr.Code == http.StatusNotFound {
+						// Object removed between listing and copy – treat as non-fatal.
+						logger.Infof("Object %s/%s not found during CMEK rotation; skipping", bucketName, obj.Name)
+						resultCh <- false
+						continue
+					}
+
+					errCh <- fmt.Errorf("failed to rotate CMEK for object %s/%s: %w", bucketName, obj.Name, err)
+					continue
+				}
+
+				// Safety check: ensure the resultant object's KMS key matches the requested
+				// primaryKeyVersion (after normalizing grants, etc.). If it does not match,
+				// fail fast to avoid silent divergence.
+				if resultObj != nil && !compareKMSKeys(resultObj.KMSKeyName, primaryKeyVersion) {
+					errCh <- fmt.Errorf("KMS key mismatch after rotation for object %s/%s: expected %s, got %s", bucketName, obj.Name, primaryKeyVersion, resultObj.KMSKeyName)
+					continue
+				}
+
+				logger.Debugf("Successfully rotated CMEK for object %s/%s", bucketName, obj.Name)
+				resultCh <- true
+			}
+		}()
+	}
+
+	// Feed objects to workers.
+	for _, obj := range objects {
+		select {
+		case objCh <- obj:
+		case <-ctx.Done():
+			close(objCh)
+			return 0, fmt.Errorf("context cancelled while rotating CMEK objects: %w", ctx.Err())
+		}
+	}
+	close(objCh)
+
+	rotated := 0
+	for i := 0; i < len(objects); i++ {
+		select {
+		case err := <-errCh:
+			return rotated, err
+		case r := <-resultCh:
+			if r {
+				rotated++
+			}
+		case <-ctx.Done():
+			return rotated, fmt.Errorf("context cancelled while collecting CMEK rotation results: %w", ctx.Err())
+		}
+	}
+
+	return rotated, nil
 }
 
 func (gcpService *GcpServices) EmptyBucket(ctx context.Context, bucketName string) error {

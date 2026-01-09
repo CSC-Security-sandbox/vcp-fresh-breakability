@@ -43,6 +43,7 @@ const (
 var (
 	StartToCloseTimeout                         = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT", "55m")
 	StartToCloseTimeoutLV                       = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT_LV", "60m")
+	StartToCloseTimeoutCmekBackupRotate         = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT_CMEK_BACKUP_ROTATE", "8640m")
 	StartToCloseTimeoutForReplicationActivities = env.GetInt("START_TO_CLOSE_TIMEOUT_FOR_REPLICATION_ACTIVITIES", 300)
 	StartToCloseTimeoutDataSubnetCreate         = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT_DATA_SUBNET_CREATE", "20m")
 	StartToCloseTimeoutDataSubnetDelete         = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT_DATA_SUBNET_DELETE", "5m")

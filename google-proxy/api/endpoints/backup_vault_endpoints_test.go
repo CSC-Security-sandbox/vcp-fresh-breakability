@@ -10,6 +10,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -82,6 +83,43 @@ func TestV1betaListBackupVaults(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.Equal(t, 1, len(result.(*gcpgenserver.V1betaListBackupVaultsOK).BackupVaults))
 	assert.Equal(t, "backup-id", result.(*gcpgenserver.V1betaListBackupVaultsOK).BackupVaults[0].BackupVaultId.Value)
+}
+
+func TestUpdateBackupVaultStateDetails_OverlaysCmekFromVCP(t *testing.T) {
+	encryptionState := "ENCRYPTION_STATE_FAILED"
+	backupsKeyVersion := "projects/p/locations/r/kmsConfigs/c/cryptoKeys/k/cryptoKeyVersions/2"
+
+	// CVP view before overlay.
+	cvpBv := &models.BackupVaultV1beta{
+		ResourceID:               nillable.GetStringPtr("bv-1"),
+		BackupVaultID:            "backup-id",
+		State:                    "READY",
+		StateDetails:             "ready",
+		EncryptionState:          nillable.GetStringPtr("ENCRYPTION_STATE_COMPLETED"),
+		BackupsPrimaryKeyVersion: nillable.GetStringPtr("projects/p/locations/r/kmsConfigs/c/cryptoKeys/k/cryptoKeyVersions/1"),
+	}
+
+	// VCP view with updated lifecycle and CMEK fields.
+	vcpBv := &mod.BackupVaultV1beta{
+		Name:                     "bv-1",
+		LifeCycleState:           "UPDATING",
+		LifeCycleStateDetails:    "updating",
+		EncryptionState:          &encryptionState,
+		BackupsPrimaryKeyVersion: &backupsKeyVersion,
+	}
+
+	res := updateBackupVaultStateDetails([]*mod.BackupVaultV1beta{vcpBv}, []*models.BackupVaultV1beta{cvpBv})
+	require.Len(t, res, 1)
+
+	updated := res[0]
+	assert.Equal(t, "UPDATING", updated.State)
+	assert.Equal(t, "updating", updated.StateDetails)
+	if assert.NotNil(t, updated.EncryptionState) {
+		assert.Equal(t, encryptionState, *updated.EncryptionState)
+	}
+	if assert.NotNil(t, updated.BackupsPrimaryKeyVersion) {
+		assert.Equal(t, backupsKeyVersion, *updated.BackupsPrimaryKeyVersion)
+	}
 }
 
 func TestV1betaListBackupVaultsOrchError(t *testing.T) {
@@ -198,6 +236,85 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 		assert.NotNil(t, result)
 		// Check if the resource name is as expected
 		assert.Equal(t, "bvid-1", result.(*gcpgenserver.BackupVaultV1beta).BackupVaultId.Value)
+	})
+
+	t.Run("WhenDescribeBackupVaultOverlaysCmekFromVCP", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
+
+		params := gcpgenserver.V1betaDescribeBackupVaultParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+			BackupVaultId:  "bv-1",
+		}
+
+		encryptionStateCvp := "ENCRYPTION_STATE_COMPLETED"
+		backupsKeyVersionCvp := "projects/p/locations/r/kmsConfigs/c/cryptoKeys/k/cryptoKeyVersions/1"
+
+		// Base CVP payload before overlay.
+		mockResponse := &backup_vault.V1betaDescribeBackupVaultOK{
+			Payload: &models.BackupVaultV1beta{
+				ResourceID:               nillable.GetStringPtr(gcpgenserver.NewOptString("bv-1").Value),
+				BackupRegion:             nillable.GetStringPtr("br-1"),
+				BackupVaultID:            "bvid-1",
+				BackupVaultType:          nillable.GetStringPtr("IN_REGION"),
+				Description:              nillable.GetStringPtr("Test Description"),
+				DestinationBackupVault:   nillable.GetStringPtr("dbv-1"),
+				SourceBackupVault:        nillable.GetStringPtr("sbv-1"),
+				SourceRegion:             nillable.GetStringPtr("sr-1"),
+				State:                    "READY",
+				StateDetails:             "ready",
+				EncryptionState:          &encryptionStateCvp,
+				BackupsPrimaryKeyVersion: &backupsKeyVersionCvp,
+			},
+		}
+
+		// VCP view with different lifecycle and CMEK fields that should be overlaid.
+		encryptionStateVcp := "ENCRYPTION_STATE_FAILED"
+		backupsKeyVersionVcp := "projects/p/locations/r/kmsConfigs/c/cryptoKeys/k/cryptoKeyVersions/2"
+		vcpBv := &mod.BackupVaultV1beta{
+			Name:                     "bv-1",
+			BackupVaultID:            "bvid-1",
+			LifeCycleState:           "UPDATING",
+			LifeCycleStateDetails:    "updating",
+			EncryptionState:          &encryptionStateVcp,
+			BackupsPrimaryKeyVersion: &backupsKeyVersionVcp,
+		}
+
+		mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "bv-1", "12345").Return(vcpBv, nil)
+
+		mockClient.EXPECT().
+			V1betaDescribeBackupVault(mock.Anything).
+			Return(mockResponse, nil)
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaDescribeBackupVault(context.Background(), params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		bv := result.(*gcpgenserver.BackupVaultV1beta)
+		assert.Equal(t, "UPDATING", string(bv.State.Value))
+		assert.Equal(t, "updating", bv.StateDetails.Value)
+		if assert.True(t, bv.EncryptionState.IsSet()) {
+			assert.Equal(t, gcpgenserver.BackupVaultV1betaEncryptionState(encryptionStateVcp), bv.EncryptionState.Value)
+		}
+		if assert.True(t, bv.BackupsPrimaryKeyVersion.IsSet()) {
+			assert.Equal(t, backupsKeyVersionVcp, bv.BackupsPrimaryKeyVersion.Value)
+		}
+
+		mockOrchestrator.AssertExpectations(t)
 	})
 
 	t.Run("WhenDescribeBackupVaultFailsWithBadRequest", func(t *testing.T) {
@@ -5134,9 +5251,6 @@ func TestV1betaRotateCmekBackupsSuccess(t *testing.T) {
 	origParseAndValidate := parseAndValidateRegionAndZone
 	defer func() { parseAndValidateRegionAndZone = origParseAndValidate }()
 
-	origCvpCreateClient := cvpCreateClient
-	defer func() { cvpCreateClient = origCvpCreateClient }()
-
 	params := gcpgenserver.V1betaRotateCmekBackupsParams{
 		LocationId:     "us-west1",
 		ProjectNumber:  "1234567890",
@@ -5151,24 +5265,21 @@ func TestV1betaRotateCmekBackupsSuccess(t *testing.T) {
 		return "us-west1", "", nil
 	}
 
-	mockClient := backup_vault.NewMockClientService(t)
-	mockResp := &models.OperationV1beta{
-		Name: "operation-id",
-		Done: nillable.GetBoolPtr(false),
-	}
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 
-	mockClient.EXPECT().
-		V1betaRotateCmekBackups(mock.Anything).
-		Return(&backup_vault.V1betaRotateCmekBackupsAccepted{
-			Payload: mockResp,
+	// Simulate backup vault existing in VCP.
+	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
+		Return(&mod.BackupVaultV1beta{
+			BackupVaultID:         "vault-id",
+			Name:                  "bv-name",
+			LifeCycleState:        "READY",
+			LifeCycleStateDetails: "Available",
 		}, nil)
 
-	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
-	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-		return *cvpClient
-	}
+	// Expect orchestrator CMEK rotation to be invoked and return an operation ID.
+	mockOrchestrator.On("RotateCmekBackupsForBackupVault", mock.Anything, mock.AnythingOfType("*common.BackupVaultParams"), "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1").
+		Return("job-uuid", nil)
 
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 	handler := Handler{Orchestrator: mockOrchestrator}
 
 	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
@@ -5177,7 +5288,147 @@ func TestV1betaRotateCmekBackupsSuccess(t *testing.T) {
 	assert.NotNil(t, result)
 	operation, ok := result.(*gcpgenserver.OperationV1beta)
 	assert.True(t, ok)
-	assert.NotNil(t, operation)
+	assert.Equal(t, fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "job-uuid"), operation.Name.Value)
+}
+
+func TestV1betaRotateCmekBackups_ConflictWhenVaultInTransition(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() { cmekBackupEnabled = origCmekBackupEnabled }()
+	cmekBackupEnabled = true
+
+	origParseAndValidate := parseAndValidateRegionAndZone
+	defer func() { parseAndValidateRegionAndZone = origParseAndValidate }()
+
+	params := gcpgenserver.V1betaRotateCmekBackupsParams{
+		LocationId:    "us-west1",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+	req := &gcpgenserver.BackupVaultRotateCMEKBackupsV1beta{
+		PrimaryKeyVersion: "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-west1", "", nil
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+	// Simulate backup vault in transition state (DELETING).
+	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
+		Return(&mod.BackupVaultV1beta{
+			BackupVaultID:         "vault-id",
+			Name:                  "bv-name",
+			LifeCycleState:        mod.LifeCycleStateDeleting,
+			LifeCycleStateDetails: "Deleting",
+		}, nil)
+
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	conflict, ok := result.(*gcpgenserver.V1betaRotateCmekBackupsConflict)
+	assert.True(t, ok)
+	assert.Equal(t, float64(409), conflict.Code)
+}
+
+// TestV1betaRotateCmekBackups_InternalServerErrorFromGetBackupVault verifies that
+// non-NotFound errors from GetBackupVaultByUUID are mapped to 500.
+func TestV1betaRotateCmekBackups_InternalServerErrorFromGetBackupVault(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() { cmekBackupEnabled = origCmekBackupEnabled }()
+	cmekBackupEnabled = true
+
+	origParseAndValidate := parseAndValidateRegionAndZone
+	defer func() { parseAndValidateRegionAndZone = origParseAndValidate }()
+
+	params := gcpgenserver.V1betaRotateCmekBackupsParams{
+		LocationId:    "us-west1",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+	req := &gcpgenserver.BackupVaultRotateCMEKBackupsV1beta{
+		PrimaryKeyVersion: "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-west1", "", nil
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	// Force GetBackupVaultByUUID to return a non-NotFound error so the handler
+	// returns an internal server error instead of falling back to SDE.
+	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
+		Return((*mod.BackupVaultV1beta)(nil), fmt.Errorf("unexpected lookup failure"))
+
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	internalErr, ok := result.(*gcpgenserver.V1betaRotateCmekBackupsInternalServerError)
+	assert.True(t, ok)
+	assert.Equal(t, float64(500), internalErr.Code)
+	assert.Equal(t, "unexpected lookup failure", internalErr.Message)
+}
+
+func TestV1betaRotateCmekBackups_MapsUserInputValidationErrorToBadRequest(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() { cmekBackupEnabled = origCmekBackupEnabled }()
+	cmekBackupEnabled = true
+
+	origParseAndValidate := parseAndValidateRegionAndZone
+	defer func() { parseAndValidateRegionAndZone = origParseAndValidate }()
+
+	params := gcpgenserver.V1betaRotateCmekBackupsParams{
+		LocationId:    "us-west1",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+	req := &gcpgenserver.BackupVaultRotateCMEKBackupsV1beta{
+		PrimaryKeyVersion: "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-west1", "", nil
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
+		Return(&mod.BackupVaultV1beta{
+			BackupVaultID:         "vault-id",
+			Name:                  "bv-name",
+			LifeCycleState:        mod.LifeCycleStateREADY,
+			LifeCycleStateDetails: "Available",
+		}, nil)
+
+	validationErr := errors2.NewUserInputValidationErr("validation failed")
+	mockOrchestrator.On("RotateCmekBackupsForBackupVault", mock.Anything, mock.AnythingOfType("*common.BackupVaultParams"), req.PrimaryKeyVersion).
+		Return("", validationErr)
+
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	badReq, ok := result.(*gcpgenserver.V1betaRotateCmekBackupsBadRequest)
+	assert.True(t, ok)
+	assert.Equal(t, float64(400), badReq.Code)
+	assert.Equal(t, validationErr.Error(), badReq.Message)
 }
 
 func TestV1betaRotateCmekBackupsBadRequest(t *testing.T) {
@@ -5192,9 +5443,6 @@ func TestV1betaRotateCmekBackupsBadRequest(t *testing.T) {
 	origParseAndValidate := parseAndValidateRegionAndZone
 	defer func() { parseAndValidateRegionAndZone = origParseAndValidate }()
 
-	origCvpCreateClient := cvpCreateClient
-	defer func() { cvpCreateClient = origCvpCreateClient }()
-
 	params := gcpgenserver.V1betaRotateCmekBackupsParams{
 		LocationId:    "us-west1",
 		ProjectNumber: "1234567890",
@@ -5208,24 +5456,18 @@ func TestV1betaRotateCmekBackupsBadRequest(t *testing.T) {
 		return "us-west1", "", nil
 	}
 
-	mockClient := backup_vault.NewMockClientService(t)
-	mockError := &backup_vault.V1betaRotateCmekBackupsBadRequest{
-		Payload: &models.Error{
-			Code:    400,
-			Message: "Invalid primary key version",
-		},
-	}
-
-	mockClient.EXPECT().
-		V1betaRotateCmekBackups(mock.Anything).
-		Return(nil, mockError)
-
-	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
-	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-		return *cvpClient
-	}
-
 	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+	// Simulate backup vault lookup in VCP.
+	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
+		Return(&mod.BackupVaultV1beta{
+			BackupVaultID: "vault-id",
+			Name:          "bv-name",
+		}, nil)
+
+	// Cause orchestrator rotation call to fail with a user input validation error.
+	mockOrchestrator.On("RotateCmekBackupsForBackupVault", mock.Anything, mock.AnythingOfType("*common.BackupVaultParams"), "invalid-key-version").
+		Return("", errors2.NewUserInputValidationErr("Invalid primary key version"))
 	handler := Handler{Orchestrator: mockOrchestrator}
 
 	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
@@ -5284,6 +5526,10 @@ func TestV1betaRotateCmekBackupsUnauthorized(t *testing.T) {
 	}
 
 	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	// VCP lookup should fail so handler falls back to SDE/CVP path.
+	vaultName := "vault-id"
+	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
+		Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
 	handler := Handler{Orchestrator: mockOrchestrator}
 
 	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
@@ -5341,6 +5587,9 @@ func TestV1betaRotateCmekBackupsForbidden(t *testing.T) {
 	}
 
 	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	vaultName := "vault-id"
+	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
+		Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
 	handler := Handler{Orchestrator: mockOrchestrator}
 
 	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
@@ -5398,6 +5647,9 @@ func TestV1betaRotateCmekBackupsNotFound(t *testing.T) {
 	}
 
 	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	vaultName := "vault-id"
+	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
+		Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
 	handler := Handler{Orchestrator: mockOrchestrator}
 
 	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
@@ -5455,6 +5707,9 @@ func TestV1betaRotateCmekBackupsConflict(t *testing.T) {
 	}
 
 	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	vaultName := "vault-id"
+	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
+		Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
 	handler := Handler{Orchestrator: mockOrchestrator}
 
 	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
@@ -5512,6 +5767,9 @@ func TestV1betaRotateCmekBackupsUnprocessableEntity(t *testing.T) {
 	}
 
 	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	vaultName := "vault-id"
+	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
+		Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
 	handler := Handler{Orchestrator: mockOrchestrator}
 
 	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
@@ -5569,6 +5827,9 @@ func TestV1betaRotateCmekBackupsTooManyRequests(t *testing.T) {
 	}
 
 	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	vaultName := "vault-id"
+	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
+		Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
 	handler := Handler{Orchestrator: mockOrchestrator}
 
 	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
@@ -5626,6 +5887,9 @@ func TestV1betaRotateCmekBackupsDefaultError(t *testing.T) {
 	}
 
 	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	vaultName := "vault-id"
+	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
+		Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
 	handler := Handler{Orchestrator: mockOrchestrator}
 
 	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
@@ -5678,6 +5942,9 @@ func TestV1betaRotateCmekBackupsUnknownError(t *testing.T) {
 	}
 
 	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	vaultName := "vault-id"
+	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
+		Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
 	handler := Handler{Orchestrator: mockOrchestrator}
 
 	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)

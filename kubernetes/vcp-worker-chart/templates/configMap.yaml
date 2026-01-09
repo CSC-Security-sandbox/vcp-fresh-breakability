@@ -132,6 +132,9 @@ data:
   CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{$.Values.workerConfig.cmekWorkflowGlobalTimeoutMinutes | quote }}
   CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES_LV: {{$.Values.workerConfig.createPoolWorkflowTimeoutMinutesLV | quote }}
   CMEK_BACKUP_ENABLED: {{$.Values.workerConfig.cmekBackupEnabled | quote }}
+  CMEK_ROTATION_PAGE_SIZE: {{$.Values.workerConfig.cmekRotationPageSize | quote }}
+  CMEK_ROTATION_MAX_WORKERS: {{$.Values.workerConfig.cmekRotationMaxWorkers | quote }}
+  MAX_CMEK_ROTATION_PASSES: {{$.Values.workerConfig.cmekRotationMaxPasses | quote }}
   WORKFLOW_GLOBAL_TIMEOUT_FOR_REPLICATION_MINUTES: {{$.Values.workerConfig.workflowGlobalTimeoutForReplicationMinutes | quote }}
   FILES_PROTOCOL_SUPPORT: {{$.Values.workerConfig.filesProtocolSupport | quote }}
   IS_ALL_SQUASH_ENABLED: {{$.Values.workerConfig.isAllSquashEnabled | quote }}
@@ -217,6 +220,7 @@ data:
   ADC_CERT_SECRET_NAME: {{$.Values.workerConfig.adc.certSecretName | quote }}
 
   START_TO_CLOSE_WORKFLOW_TIMEOUT: {{$.Values.workerConfig.startToCloseTimeout | quote }}
+  START_TO_CLOSE_WORKFLOW_TIMEOUT_CMEK_BACKUP_ROTATE : {{$.Values.workerConfig.startToCloseTimeoutCmekBackupRotate | quote }}
   START_TO_CLOSE_TIMEOUT_FOR_REPLICATION_ACTIVITIES: {{$.Values.workerConfig.startToCloseTimeoutForReplicationActivities | quote }}
   START_TO_CLOSE_WORKFLOW_TIMEOUT_DATA_SUBNET_CREATE: {{$.Values.workerConfig.startToCloseTimeoutDataSubnetCreate | quote }}
   START_TO_CLOSE_WORKFLOW_TIMEOUT_DATA_SUBNET_DELETE: {{$.Values.workerConfig.startToCloseTimeoutDataSubnetDelete | quote }}

@@ -59,6 +59,12 @@ const (
 	LifeCycleStateVolMigratingDetails        = "Volume encryption in progress"
 	LifeCycleStateHyperscalerDisabledDetails = "Hyperscaler disabled"
 
+	// Backup vault CMEK encryption states (kept in sync with external API enums).
+	EncryptionStatePending    = "ENCRYPTION_STATE_PENDING"
+	EncryptionStateCompleted  = "ENCRYPTION_STATE_COMPLETED"
+	EncryptionStateInProgress = "ENCRYPTION_STATE_IN_PROGRESS"
+	EncryptionStateFailed     = "ENCRYPTION_STATE_FAILED"
+
 	AccountStateDisabled            = "DISABLED"
 	AccountStateEnabled             = "ENABLED"
 	AccountStateDeleted             = "DELETED"

@@ -108,7 +108,7 @@ type OrchestratorFactory interface {
 	GetMultipleBackupVaults(ctx context.Context, backupVaultUUIDList []string) ([]*models.BackupVaultV1beta, error)
 	DeleteBackupVault(ctx context.Context, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error)
 	DeleteBackupVaultInternal(ctx context.Context, params *commonparams.BackupVaultParams) (string, error)
-	UpdateBackupVaultInternal(ctx context.Context, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error)
+	UpdateBackupVaultInternal(ctx context.Context, params *commonparams.BackupVaultParams, useExternalUUID bool) (*models.BackupVaultV1beta, string, error)
 	IsBackupVaultAttachedToVolume(ctx context.Context, backupVaultUUID string) (bool, error)
 	GetBackupVaultUUIDsFromBackupPolicyUUID(ctx context.Context, backupPolicyUUID string, accountName string) ([]string, error)
 
@@ -128,6 +128,7 @@ type OrchestratorFactory interface {
 	UpdateBackupInternal(ctx context.Context, params *commonparams.UpdateBackupParams) (*models.Backup, string, error)
 	GetBackupsUnderBackupVault(ctx context.Context, backupVaultID, ownerID string, backupUUIDs []string) ([]*datamodel.Backup, error)
 	UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.Context, volumeUUID, backupUUID string) error
+	RotateCmekBackupsForBackupVault(ctx context.Context, params *commonparams.BackupVaultParams, primaryKeyVersion string) (string, error)
 
 	CreateOrGetStartProjectEventJob(ctx context.Context, params *commonparams.StartProjectEventParams) (string, error)
 	CreateOrGetFinishProjectEventJob(ctx context.Context, params *commonparams.FinishProjectEventParams) (string, error)

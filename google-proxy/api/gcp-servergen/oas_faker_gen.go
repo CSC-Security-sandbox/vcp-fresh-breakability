@@ -856,6 +856,16 @@ func (s *BackupVaultInternalUpdateV1beta) SetFake() {
 			}
 		}
 	}
+	{
+		{
+			s.EncryptionState.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupsPrimaryKeyVersion.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.
@@ -890,6 +900,11 @@ func (s *BackupVaultInternalUpdateV1betaBucketDetailsItem) SetFake() {
 			s.SatisfiesPzs.SetFake()
 		}
 	}
+}
+
+// SetFake set fake values.
+func (s *BackupVaultInternalUpdateV1betaEncryptionState) SetFake() {
+	*s = BackupVaultInternalUpdateV1betaEncryptionStateENCRYPTIONSTATEPENDING
 }
 
 // SetFake set fake values.
@@ -3007,6 +3022,15 @@ func (s *OptBackupV1betaBackupType) SetFake() {
 // SetFake set fake values.
 func (s *OptBackupV1betaState) SetFake() {
 	var elem BackupV1betaState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptBackupVaultInternalUpdateV1betaEncryptionState) SetFake() {
+	var elem BackupVaultInternalUpdateV1betaEncryptionState
 	{
 		elem.SetFake()
 	}
