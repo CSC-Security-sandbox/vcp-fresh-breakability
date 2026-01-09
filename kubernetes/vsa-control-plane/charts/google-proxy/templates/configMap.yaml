@@ -121,6 +121,8 @@ data:
   PRIVATE_KEY_BITS: {{ index .Values "privateKeyBits" | quote }}
   MIN_CONSTITUENT_VOLUME_SIZE_BYTES: {{ index .Values "minConstituentVolumeSizeInBytes" | quote }}
   ENABLE_LDAP: "{{ index .Values "enableLdap" }}"
+  ENABLE_SMB: "{{ index .Values "enableSMB" }}"
+  ENABLE_KERBEROS: "{{ index .Values "enableKerberos" }}"
   ENABLE_MULTI_AD: "{{ index .Values "enableMultiAd" }}"
   MAX_NUMBER_OF_AD_PER_ACCOUNT: "{{ index .Values "maxNumberOfAdPerAccount" }}"
   READINESS_PROBE_FAILURE_THRESHOLD: "{{ index .Values "readinessProbe" "failureThreshold" }}"

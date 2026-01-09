@@ -38,6 +38,8 @@ var (
 	prepareCreateVolumeParams     = _prepareCreateVolumeParams
 	prepareRevertVolumeParams     = _prepareRevertVolumeParams
 	prepareSplitCloneVolumeParams = _prepareSplitCloneVolumeParams
+	hasNfs4KerberosV1beta         = _hasNfs4KerberosV1beta
+	validateKerberosPolicyV1beta  = _validateKerberosPolicyV1beta
 	autoTieringEnabled            = env.GetBool("AUTO_TIERING_ENABLED", false)
 	qaEnabled                     = env.GetBool("QA_ENABLED", false)
 	flexCacheEnabled              = env.GetBool("FLEXCACHE_ENABLED", false)
@@ -47,6 +49,8 @@ var (
 	hybridReplicationEnabled      = env.GetBool("HYBRID_REPLICATION_ENABLED", false)
 	cmekBackupEnabled             = env.GetBool("CMEK_BACKUP_ENABLED", false)
 	bidiReplicationEnabled        = env.GetBool("BIDI_REPLICATION_ENABLED", false)
+	enableSmb                     = env.GetBool("ENABLE_SMB", false)
+	enableKerberos                = env.GetBool("ENABLE_KERBEROS", false)
 )
 
 const (
@@ -150,7 +154,25 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 		}
 	}
 
-	param, err := prepareCreateVolumeParams(req, params, region, zone)
+	smbProtocolRequested := hasSMBProtocol(req.Volume.GetProtocols())
+
+	var pool *models.Pool
+	var err error
+	if smbProtocolRequested {
+		pool, err = h.Orchestrator.DescribePool(ctx, req.Volume.PoolId.Value, params.ProjectNumber)
+		if err != nil {
+			if errors.IsNotFoundErr(err) {
+				return &gcpgenserver.V1betaCreateVolumeBadRequest{
+					Code:    400,
+					Message: err.Error(),
+				}, nil
+			}
+			logger.Error("Failed to fetch pool for SMB validation", "error", err.Error())
+			return &gcpgenserver.V1betaCreateVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
+		}
+	}
+
+	param, err := prepareCreateVolumeParams(req, params, region, zone, pool)
 	if err != nil {
 		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
 			return &gcpgenserver.V1betaCreateVolumeBadRequest{
@@ -276,7 +298,7 @@ func (h Handler) V1betaRevertVolume(ctx context.Context, req *gcpgenserver.Volum
 	}, nil
 }
 
-func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region, zone string) (*common.CreateVolumeParams, error) {
+func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region, zone string, pool *models.Pool) (*common.CreateVolumeParams, error) {
 	vendorId := fmt.Sprintf("/projects/%v/locations/%v/volumes/%s", params.ProjectNumber, params.LocationId, req.Volume.ResourceId)
 
 	if strings.Contains(req.Volume.ResourceId, "-") {
@@ -379,6 +401,8 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		param.Labels = jsonbLabels
 	}
 
+	smbProtocolRequested := hasSMBProtocol(req.Volume.GetProtocols())
+
 	for _, protocol := range req.Volume.GetProtocols() {
 		protocolStr, err := protocol.MarshalText()
 		if err != nil {
@@ -387,7 +411,16 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		if !utils.IsFileProtocolSupported(params.ProjectNumber) && string(protocolStr) != string(gcpgenserver.ProtocolsV1betaISCSI) {
 			return nil, errors.NewUserInputValidationErr("only ISCSI protocol is supported")
 		}
-		param.Protocols = append(param.Protocols, string(protocolStr))
+		protocolName := string(protocolStr)
+		if smbProtocolRequested && utils.IsSMBProtocol(protocolName) {
+			if !enableSmb {
+				return nil, errors.NewUserInputValidationErr("SMB protocol is currently not enabled.")
+			}
+			if pool == nil || pool.ActiveDirectoryConfigId == "" {
+				return nil, errors.NewUserInputValidationErr("SMB protocol requires the pool to be joined to an Active Directory.")
+			}
+		}
+		param.Protocols = append(param.Protocols, protocolName)
 	}
 
 	if req.Volume.TieringPolicy.IsSet() {
@@ -435,6 +468,10 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 	}
 
 	if len(param.Protocols) > 0 && !utils.IsSANProtocol(param.Protocols[0]) {
+		err := validateKerberosPolicyV1beta(req.Volume.Protocols, &req.Volume.KerberosEnabled.Value, req.Volume.ExportPolicy, pool)
+		if err != nil {
+			return nil, err
+		}
 		param.FileProperties = &models.FileProperties{
 			ExportPolicy: &models.ExportPolicy{
 				ExportPolicyName: req.Volume.CreationToken.Value,
@@ -451,7 +488,6 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			param.FileProperties.SecurityStyle = string(req.Volume.SecurityStyle.Value)
 		}
 	}
-
 	if req.Volume.ExportPolicy.IsSet() {
 		var exportRules []*models.ExportRule
 		if utils.IsAllSquashEnabled {
@@ -2956,6 +2992,15 @@ func containsProtocolTypeV1beta(protocols []gcpgenserver.ProtocolsV1beta, protoc
 	return false
 }
 
+func hasSMBProtocol(protocols []gcpgenserver.ProtocolsV1beta) bool {
+	for _, protocol := range protocols {
+		if protocol == gcpgenserver.ProtocolsV1betaSMB {
+			return true
+		}
+	}
+	return false
+}
+
 func validateSmbShareSettingsV2(settings []gcpgenserver.SMBSettingsV1betaItem) error {
 	browsable := false
 	nonBrowsable := false
@@ -2977,6 +3022,57 @@ func validateSmbShareSettingsV2(settings []gcpgenserver.SMBSettingsV1betaItem) e
 		return errors.NewUserInputValidationErr("SMBShareSettings cannot have both browsable and non_browsable settings")
 	}
 	return nil
+}
+
+func _validateKerberosPolicyV1beta(protocols []gcpgenserver.ProtocolsV1beta, kerberosEnabled *bool, policy gcpgenserver.OptExportPolicyV1beta, pool *models.Pool) error {
+	// When kerberosEnabled is not set, default value is false
+	isKerberosEnabledInVolumeRequest := nillable.GetBool(kerberosEnabled, false)
+	hasNfs4KerberosPolicy := hasNfs4KerberosV1beta(policy)
+	if !enableKerberos && isKerberosEnabledInVolumeRequest && hasNfs4KerberosPolicy {
+		return errors.New("Kerberos is not supported in this region")
+	}
+	if enableKerberos && isKerberosEnabledInVolumeRequest && hasNfs4KerberosPolicy &&
+		(pool == nil || pool.ActiveDirectoryConfigId == "") {
+		return errors.NewUserInputValidationErr("Kerberos requires the pool to be joined to an Active Directory.")
+	}
+	if isKerberosEnabledInVolumeRequest {
+		if !policy.IsSet() {
+			return errors.New("Export policy must be defined for kerberos enabled volumes")
+		}
+		for _, rule := range policy.Value.Rules {
+			if rule.AccessType != gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADNONE {
+				return errors.New("When kerberos is enabled, 'accessType' should be set to READ_NONE in export policy rules")
+			}
+		}
+		if !hasNfs4KerberosPolicy {
+			return errors.New("Export policy rules doesn't contain any kerberos export policy rule for kerberos enabled volume")
+		} else {
+			if !containsProtocolTypeV1beta(protocols, gcpgenserver.ProtocolsV1betaNFSV4) {
+				return errors.New("Kerberos feature is enabled for only NFSv4 volumes")
+			}
+		}
+	} else {
+		if hasNfs4KerberosPolicy {
+			return errors.New("Export policy rules don't match kerberos enabled flag")
+		}
+	}
+	return nil
+}
+
+func _hasNfs4KerberosV1beta(policy gcpgenserver.OptExportPolicyV1beta) bool {
+	if policy.IsSet() {
+		for _, rule := range policy.Value.Rules {
+			if (rule.Kerberos5ReadWrite.Set && rule.Kerberos5ReadWrite.Value) ||
+				(rule.Kerberos5ReadOnly.Set && rule.Kerberos5ReadOnly.Value) ||
+				(rule.Kerberos5pReadWrite.Set && rule.Kerberos5pReadWrite.Value) ||
+				(rule.Kerberos5pReadOnly.Set && rule.Kerberos5pReadOnly.Value) ||
+				(rule.Kerberos5iReadOnly.Set && rule.Kerberos5iReadOnly.Value) ||
+				(rule.Kerberos5iReadWrite.Set && rule.Kerberos5iReadWrite.Value) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func validateSmbVolumeParams(req *gcpgenserver.VolumeUpdateV1beta) error {

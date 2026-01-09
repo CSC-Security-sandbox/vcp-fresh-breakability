@@ -50,7 +50,7 @@ func TestPrepareCreateVolumeParams_SnapshotIdWithLargeVolumeConstituentCount_Ret
 	region := "test-region"
 	zone := "test-zone"
 
-	result, err := _prepareCreateVolumeParams(req, params, region, zone)
+	result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "LargeVolumeConstituentCount cannot be set when SnapshotId is provided")
@@ -91,7 +91,7 @@ func TestPrepareCreateVolumeParams_CacheParametersWithoutExpiryTime(t *testing.T
 	region := "test-region"
 	zone := "test-zone"
 
-	result, err := _prepareCreateVolumeParams(req, params, region, zone)
+	result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 
 	assert.NoError(t, err)
 	require.NotNil(t, result)
@@ -149,7 +149,7 @@ func TestPrepareCreateVolumeParams_CacheParametersWithExpiryTime(t *testing.T) {
 	region := "test-region"
 	zone := "test-zone"
 
-	result, err := _prepareCreateVolumeParams(req, params, region, zone)
+	result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 
 	assert.NoError(t, err)
 	require.NotNil(t, result)
@@ -238,7 +238,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				BackupPolicyId:         "backup-policy-id",
 			},
 		}
-		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 	})
@@ -298,7 +298,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			},
 			SnapshotID: "test-snapshot-id",
 		}
-		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 	})
@@ -320,7 +320,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		region := "test-region"
 		zone := "test-zone"
 
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.Equal(tt, int64(50), result.SnapReserve)
 	})
@@ -342,7 +342,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		}
 		region := "test-region"
 		zone := "test-zone"
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "SnapReserve cannot be negative")
@@ -365,7 +365,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		}
 		region := "test-region"
 		zone := "test-zone"
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "Maximum allowed snapshot-reserve-percentage value during create is 90")
@@ -444,7 +444,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				RetrievalPolicy:      "default",
 			},
 		}
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 	})
@@ -516,7 +516,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				CloudWriteModeEnabled: nil, // nil when tiering is paused
 			},
 		}
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 	})
@@ -593,7 +593,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				},
 			},
 		}
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 	})
@@ -655,7 +655,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		region := "test-region"
 		zone := "test-zone"
 
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.FileProperties)
@@ -722,7 +722,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		region := "test-region"
 		zone := "test-zone"
 
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "AnonUID must be set when AllSquash is enabled")
@@ -769,13 +769,17 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				SecurityStyle: "UNIX",
 			},
 		}
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 		assert.Equal(tt, "UNIX", result.FileProperties.SecurityStyle)
 	})
 
 	t.Run("ValidInputWithMultipleProtocols", func(tt *testing.T) {
+		origEnableSmb := enableSmb
+		defer func() { enableSmb = origEnableSmb }()
+		enableSmb = true
+
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
 				ResourceId:    "testvolume",
@@ -815,9 +819,67 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				},
 			},
 		}
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, &models.Pool{ActiveDirectoryConfigId: "test-ad-config-id"})
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
+	})
+
+	t.Run("SMBProtocolMissingADConfig", func(tt *testing.T) {
+		origEnableSmb := enableSmb
+		defer func() { enableSmb = origEnableSmb }()
+		enableSmb = true
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaNFSV3,
+					gcpgenserver.ProtocolsV1betaSMB,
+				},
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		_, err := prepareCreateVolumeParams(req, params, region, zone, &models.Pool{ActiveDirectoryConfigId: ""})
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "SMB protocol requires the pool to be joined to an Active Directory.")
+	})
+
+	t.Run("SMBProtocolDisabled", func(tt *testing.T) {
+		origEnableSmb := enableSmb
+		defer func() { enableSmb = origEnableSmb }()
+		enableSmb = false
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaNFSV3,
+					gcpgenserver.ProtocolsV1betaSMB,
+				},
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		_, err := prepareCreateVolumeParams(req, params, region, zone, &models.Pool{ActiveDirectoryConfigId: "test-ad-config-id"})
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "SMB protocol is currently not enabled.")
 	})
 
 	t.Run("ValidInputWithLargeCapacityAndConstituentCount", func(tt *testing.T) {
@@ -864,7 +926,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				"ISCSI",
 			},
 		}
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 	})
@@ -912,7 +974,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				"ISCSI",
 			},
 		}
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 	})
@@ -947,7 +1009,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		region := "test-region"
 		zone := "test-region"
 
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.AutoTieringPolicy)
 		assert.True(tt, result.AutoTieringPolicy.AutoTieringEnabled)
@@ -987,7 +1049,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		region := "test-region"
 		zone := "test-region"
 
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.AutoTieringPolicy)
 		assert.True(tt, result.AutoTieringPolicy.AutoTieringEnabled)
@@ -1029,7 +1091,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		region := "test-region"
 		zone := "test-region"
 
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.AutoTieringPolicy)
 		assert.True(tt, result.AutoTieringPolicy.AutoTieringEnabled)
@@ -1071,7 +1133,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		region := "test-region"
 		zone := "test-region"
 
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err, "HotTierBypassMode=false for block volume should be ignored, not cause an error")
 		assert.NotNil(tt, result.AutoTieringPolicy)
 		assert.True(tt, result.AutoTieringPolicy.AutoTieringEnabled)
@@ -1112,7 +1174,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		region := "test-region"
 		zone := "test-region"
 
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.AutoTieringPolicy)
@@ -1155,7 +1217,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		region := "test-region"
 		zone := "test-region"
 
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.AutoTieringPolicy)
@@ -1197,7 +1259,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		region := "test-region"
 		zone := "test-region"
 
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.AutoTieringPolicy)
@@ -1238,7 +1300,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		region := "test-region"
 		zone := "test-region"
 
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result.AutoTieringPolicy)
@@ -1252,6 +1314,9 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		origThinCloneGASupport := thinCloneGASupport
 		defer func() { thinCloneGASupport = origThinCloneGASupport }()
 		thinCloneGASupport = true
+		origEnableSmb := enableSmb
+		defer func() { enableSmb = origEnableSmb }()
+		enableSmb = true
 
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
@@ -1269,7 +1334,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		region := "test-region"
 		zone := "test-zone"
 
-		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		result, err := _prepareCreateVolumeParams(req, params, region, zone, &models.Pool{ActiveDirectoryConfigId: "test-ad-config-id"})
 		assert.NoError(tt, err)
 		assert.Equal(tt, "test-snapshot-id", result.SnapshotID)
 	})
@@ -1295,7 +1360,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		region := "test-region"
 		zone := "test-zone"
 
-		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.Equal(tt, "test-snapshot-id", result.SnapshotID)
 	})
@@ -1337,7 +1402,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		region := "test-region"
 		zone := "test-zone"
 
-		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "LargeVolumeConstituentCount must be set for Large Volumes in hybrid replication parameters.")
@@ -1380,7 +1445,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		region := "test-region"
 		zone := "test-zone"
 
-		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, int32(5), result.LargeVolumeConstituentCount)
@@ -5007,6 +5072,64 @@ func TestV1betaCreateVolume(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
 	})
 
+	t.Run("SMBPoolDescribeNotFound", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaSMB},
+			},
+		}
+
+		notFoundErr := errors.NewNotFoundErr("Pool", nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "test-pool", "project-number").Return(nil, notFoundErr)
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaCreateVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, notFoundErr.Error(), badReq.Message)
+	})
+
+	t.Run("SMBPoolDescribeInternalError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaSMB},
+			},
+		}
+
+		describeErr := fmt.Errorf("describe pool failed")
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "test-pool", "project-number").Return(nil, describeErr)
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaCreateVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Equal(tt, describeErr.Error(), internalErr.Message)
+	})
+
 	t.Run("UserInputValidationError", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -5015,7 +5138,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 			LocationId:    "test-location",
 		}
 		req := &gcpgenserver.VolumeCreateV1beta{}
-		prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string, zone string) (*common.CreateVolumeParams, error) {
+		prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string, zone string, pool *models.Pool) (*common.CreateVolumeParams, error) {
 			return nil, errors.NewUserInputValidationErr("invalid input")
 		}
 		defer func() { prepareCreateVolumeParams = _prepareCreateVolumeParams }()
@@ -5143,7 +5266,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 			LocationId:    "test-location",
 		}
 		req := &gcpgenserver.VolumeCreateV1beta{}
-		prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string, zone string) (*common.CreateVolumeParams, error) {
+		prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string, zone string, pool *models.Pool) (*common.CreateVolumeParams, error) {
 			return nil, fmt.Errorf("unexpected error")
 		}
 		defer func() { prepareCreateVolumeParams = _prepareCreateVolumeParams }()
@@ -5167,7 +5290,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 			LocationId:    "test-location",
 		}
 		req := &gcpgenserver.VolumeCreateV1beta{}
-		prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string, zone string) (*common.CreateVolumeParams, error) {
+		prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string, zone string, pool *models.Pool) (*common.CreateVolumeParams, error) {
 			return nil, fmt.Errorf("unexpected error")
 		}
 		defer func() { prepareCreateVolumeParams = _prepareCreateVolumeParams }()
@@ -6672,6 +6795,197 @@ func TestConvertModelToVCPVolume_BackupConfig(t *testing.T) {
 	}
 }
 
+func TestHasNfs4KerberosV1beta(t *testing.T) {
+	t.Run("ReturnsTrueWhenAnyKerberosFlagSet", func(tt *testing.T) {
+		policy := gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+			Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+				{
+					AccessType:         gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADNONE,
+					Nfsv4:              gcpgenserver.NewOptNilBool(true),
+					Kerberos5ReadOnly:  gcpgenserver.NewOptNilBool(true),
+					Kerberos5ReadWrite: gcpgenserver.NewOptNilBool(false),
+				},
+			},
+		})
+
+		assert.True(tt, _hasNfs4KerberosV1beta(policy))
+	})
+
+	t.Run("ReturnsFalseWhenNoKerberosFlags", func(tt *testing.T) {
+		policy := gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+			Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+				{
+					AccessType: gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADNONE,
+					Nfsv4:      gcpgenserver.NewOptNilBool(true),
+				},
+			},
+		})
+
+		assert.False(tt, _hasNfs4KerberosV1beta(policy))
+	})
+
+	t.Run("ReturnsFalseWhenPolicyNotSet", func(tt *testing.T) {
+		policy := gcpgenserver.OptExportPolicyV1beta{}
+		assert.False(tt, _hasNfs4KerberosV1beta(policy))
+	})
+}
+
+func TestValidateKerberosPolicyV1beta(t *testing.T) {
+	kerberosEnabledPtr := nillable.GetBoolPtr(true)
+	kerberosDisabledPtr := nillable.GetBoolPtr(false)
+
+	kerberosRule := gcpgenserver.SimpleExportPolicyRuleV1beta{
+		AccessType:         gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADNONE,
+		Nfsv4:              gcpgenserver.NewOptNilBool(true),
+		Kerberos5ReadOnly:  gcpgenserver.NewOptNilBool(true),
+		Kerberos5ReadWrite: gcpgenserver.NewOptNilBool(false),
+	}
+	kerberosPolicy := gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+		Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{kerberosRule},
+	})
+
+	t.Run("RegionDoesNotSupportKerberos", func(tt *testing.T) {
+		orig := enableKerberos
+		enableKerberos = false
+		defer func() { enableKerberos = orig }()
+
+		err := _validateKerberosPolicyV1beta(
+			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
+			kerberosEnabledPtr,
+			kerberosPolicy,
+			&models.Pool{ActiveDirectoryConfigId: "ad"},
+		)
+
+		assert.EqualError(tt, err, "Kerberos is not supported in this region")
+	})
+
+	t.Run("MissingActiveDirectoryConfig", func(tt *testing.T) {
+		orig := enableKerberos
+		enableKerberos = true
+		defer func() { enableKerberos = orig }()
+
+		err := _validateKerberosPolicyV1beta(
+			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
+			kerberosEnabledPtr,
+			kerberosPolicy,
+			&models.Pool{ActiveDirectoryConfigId: ""},
+		)
+
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "Kerberos requires the pool to be joined to an Active Directory.")
+	})
+
+	t.Run("PolicyNotSetWhenKerberosEnabled", func(tt *testing.T) {
+		orig := enableKerberos
+		enableKerberos = true
+		defer func() { enableKerberos = orig }()
+
+		err := _validateKerberosPolicyV1beta(
+			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
+			kerberosEnabledPtr,
+			gcpgenserver.OptExportPolicyV1beta{},
+			&models.Pool{ActiveDirectoryConfigId: "ad"},
+		)
+
+		assert.EqualError(tt, err, "Export policy must be defined for kerberos enabled volumes")
+	})
+
+	t.Run("NonReadNoneAccessType", func(tt *testing.T) {
+		orig := enableKerberos
+		enableKerberos = true
+		defer func() { enableKerberos = orig }()
+
+		policy := gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+			Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+				{
+					AccessType:         gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+					Nfsv4:              gcpgenserver.NewOptNilBool(true),
+					Kerberos5ReadOnly:  gcpgenserver.NewOptNilBool(true),
+					Kerberos5ReadWrite: gcpgenserver.NewOptNilBool(false),
+				},
+			},
+		})
+
+		err := _validateKerberosPolicyV1beta(
+			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
+			kerberosEnabledPtr,
+			policy,
+			&models.Pool{ActiveDirectoryConfigId: "ad"},
+		)
+
+		assert.EqualError(tt, err, "When kerberos is enabled, 'accessType' should be set to READ_NONE in export policy rules")
+	})
+
+	t.Run("MissingKerberosRulesWhenEnabled", func(tt *testing.T) {
+		orig := enableKerberos
+		enableKerberos = true
+		defer func() { enableKerberos = orig }()
+
+		policy := gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+			Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+				{
+					AccessType: gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADNONE,
+					Nfsv4:      gcpgenserver.NewOptNilBool(true),
+				},
+			},
+		})
+
+		err := _validateKerberosPolicyV1beta(
+			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
+			kerberosEnabledPtr,
+			policy,
+			&models.Pool{ActiveDirectoryConfigId: "ad"},
+		)
+
+		assert.EqualError(tt, err, "Export policy rules doesn't contain any kerberos export policy rule for kerberos enabled volume")
+	})
+
+	t.Run("KerberosRulesWithoutNFSv4Protocol", func(tt *testing.T) {
+		orig := enableKerberos
+		enableKerberos = true
+		defer func() { enableKerberos = orig }()
+
+		err := _validateKerberosPolicyV1beta(
+			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3},
+			kerberosEnabledPtr,
+			kerberosPolicy,
+			&models.Pool{ActiveDirectoryConfigId: "ad"},
+		)
+
+		assert.EqualError(tt, err, "Kerberos feature is enabled for only NFSv4 volumes")
+	})
+
+	t.Run("PolicyContainsKerberosButFlagDisabled", func(tt *testing.T) {
+		orig := enableKerberos
+		enableKerberos = true
+		defer func() { enableKerberos = orig }()
+
+		err := _validateKerberosPolicyV1beta(
+			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
+			kerberosDisabledPtr,
+			kerberosPolicy,
+			&models.Pool{ActiveDirectoryConfigId: "ad"},
+		)
+
+		assert.EqualError(tt, err, "Export policy rules don't match kerberos enabled flag")
+	})
+
+	t.Run("ValidKerberosConfiguration", func(tt *testing.T) {
+		orig := enableKerberos
+		enableKerberos = true
+		defer func() { enableKerberos = orig }()
+
+		err := _validateKerberosPolicyV1beta(
+			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
+			kerberosEnabledPtr,
+			kerberosPolicy,
+			&models.Pool{ActiveDirectoryConfigId: "ad"},
+		)
+
+		assert.NoError(tt, err)
+	})
+}
+
 // TestPrepareUpdateVolumeParams_BackupDisabled tests the scenario where backup is disabled
 func TestV1betaCreateVolume_BackupNotSupported(t *testing.T) {
 	origPrepare := prepareCreateVolumeParams
@@ -6680,7 +6994,7 @@ func TestV1betaCreateVolume_BackupNotSupported(t *testing.T) {
 		prepareCreateVolumeParams = origPrepare
 		utils.ParseAndValidateRegionAndZone = origParseAndValidateRegionAndZone
 	}()
-	prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string, zone string) (*common.CreateVolumeParams, error) {
+	prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string, zone string, pool *models.Pool) (*common.CreateVolumeParams, error) {
 		return nil, errors.NewUserInputValidationErr("Backup feature is currently not enabled.")
 	}
 	utils.ParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
@@ -6721,7 +7035,7 @@ func TestPrepareCreateVolumeParams_BackupDisabled(t *testing.T) {
 		},
 	}
 
-	out, err := _prepareCreateVolumeParams(req, params, "region", "zone")
+	out, err := _prepareCreateVolumeParams(req, params, "region", "zone", nil)
 	assert.Nil(t, out)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Backup feature is currently not enabled.")
@@ -6814,7 +7128,7 @@ func TestPrepareCreateVolumeParams_WithAutoTieringFeatureDisabled(t *testing.T) 
 	}
 	region := "test-region"
 	zone := "test-zone"
-	_, err := _prepareCreateVolumeParams(req, params, region, zone)
+	_, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Auto-Tiering feature is currently not enabled.")
 }
@@ -6862,7 +7176,7 @@ func TestPrepareCreateVolumeParams_HybridReplicationParametersProcessing(t *test
 		region := "test-region"
 		zone := "test-zone"
 
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.HybridReplicationParameters)
@@ -6911,7 +7225,7 @@ func TestPrepareCreateVolumeParams_HybridReplicationParametersProcessing(t *test
 		region := "test-region"
 		zone := "test-zone"
 
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "Can't have empty replicationSchedule for")
@@ -6949,7 +7263,7 @@ func TestPrepareCreateVolumeParams_HybridReplicationParametersProcessing(t *test
 		region := "test-region"
 		zone := "test-zone"
 
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.HybridReplicationParameters)
@@ -6988,7 +7302,7 @@ func TestPrepareCreateVolumeParams_HybridReplicationParametersProcessing(t *test
 		region := "test-region"
 		zone := "test-zone"
 
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.HybridReplicationParameters)
@@ -7028,7 +7342,7 @@ func TestPrepareCreateVolumeParams_HybridReplicationParametersProcessing(t *test
 		region := "test-region"
 		zone := "test-zone"
 
-		result, err := prepareCreateVolumeParams(req, params, region, zone)
+		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "Can't have empty replicationSchedule for")
@@ -7069,7 +7383,7 @@ func TestPrepareCreateVolumeParams_TieringPolicyWithoutTierAction(t *testing.T) 
 	}
 	region := "test-region"
 	zone := "test-zone"
-	_, err := _prepareCreateVolumeParams(req, params, region, zone)
+	_, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Tiering action is required when enabling auto-tiering on volume")
 }
@@ -7111,7 +7425,7 @@ func TestPrepareCreateVolumeParams_HotTierBypassModeNotSupportedForBlockVolume(t
 	}
 	region := "test-region"
 	zone := "test-zone"
-	_, err := _prepareCreateVolumeParams(req, params, region, zone)
+	_, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "hotTierBypassMode is not supported for block volume")
 }
@@ -7135,7 +7449,7 @@ func TestPrepareCreateVolumeParams_SnapReserveMustBePositiveNumber(t *testing.T)
 	}
 	region := "test-region"
 	zone := "test-zone"
-	result, err := _prepareCreateVolumeParams(req, params, region, zone)
+	result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "SnapReserve cannot be negative")
@@ -7163,7 +7477,7 @@ func TestPrepareCreateVolumeParams_DeDuplicateHGUUID(t *testing.T) {
 	}
 	region := "test-region"
 	zone := "test-zone"
-	result, err := _prepareCreateVolumeParams(req, params, region, zone)
+	result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 	assert.Nil(t, err)
 	assert.NotNil(t, result)
 	assert.Len(t, result.BlockProperties.HostGroupUUIDs, 2)
@@ -7185,7 +7499,7 @@ func TestPrepareCreateVolumeParams_ResourceIdWithHyphens_ReturnsError(t *testing
 	}
 	region := "test-region"
 	zone := "test-zone"
-	result, err := _prepareCreateVolumeParams(req, params, region, zone)
+	result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -7208,7 +7522,7 @@ func TestPrepareCreateVolumeParams_ValidResourceIdWithoutHyphens_Success(t *test
 	}
 	region := "test-region"
 	zone := "test-zone"
-	result, err := _prepareCreateVolumeParams(req, params, region, zone)
+	result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -7273,7 +7587,7 @@ func TestPrepareCreateVolumeParams_ResourceIdEdgeCases(t *testing.T) {
 			}
 			region := "test-region"
 
-			result, err := _prepareCreateVolumeParams(req, params, region, zone)
+			result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 
 			if tc.expectError {
 				assert.Error(t, err)
@@ -7343,7 +7657,7 @@ func TestRestoreWhenBackupFeatureNotEnabled_ReturnsError(t *testing.T) {
 	region := "test-region"
 	zone := "us-west1-b"
 
-	result, err := _prepareCreateVolumeParams(req, params, region, zone)
+	result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 	assert.Nil(t, result)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Backup feature is currently not enabled.")
@@ -9204,7 +9518,7 @@ func TestPrepareCreateVolumeParams_SnapshotDirectory(t *testing.T) {
 			// ... other expected fields
 		}
 
-		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected.SnapshotDirectory, result.SnapshotDirectory)
 	})
@@ -9242,7 +9556,7 @@ func TestPrepareCreateVolumeParams_SnapshotDirectory(t *testing.T) {
 			// ... other expected fields
 		}
 
-		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected.SnapshotDirectory, result.SnapshotDirectory)
 	})
@@ -9280,7 +9594,7 @@ func TestPrepareCreateVolumeParams_SnapshotDirectory(t *testing.T) {
 			// ... other expected fields
 		}
 
-		result, err := _prepareCreateVolumeParams(req, params, region, zone)
+		result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected.SnapshotDirectory, result.SnapshotDirectory)
 	})
@@ -11898,7 +12212,7 @@ func TestPrepareCreateVolumeParams_ISCSIWithKmsGrant_FeatureFlagDisabled_Returns
 	region := "test-region"
 	zone := "test-zone"
 
-	result, err := _prepareCreateVolumeParams(req, params, region, zone)
+	result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "CMEK backup is not enabled")
@@ -11938,7 +12252,7 @@ func TestPrepareCreateVolumeParams_ISCSIWithKmsGrant_FeatureFlagEnabled_Succeeds
 	region := "test-region"
 	zone := "test-zone"
 
-	result, err := _prepareCreateVolumeParams(req, params, region, zone)
+	result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.NotNil(t, result.DataProtection)
@@ -11976,7 +12290,7 @@ func TestPrepareCreateVolumeParams_WithKmsGrant_FeatureFlagDisabled_ReturnsError
 	region := "test-region"
 	zone := "test-zone"
 
-	result, err := _prepareCreateVolumeParams(req, params, region, zone)
+	result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "CMEK backup is not enabled")
