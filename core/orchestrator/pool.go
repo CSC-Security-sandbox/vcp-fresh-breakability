@@ -548,7 +548,29 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 	}
 
 	if pool.VolumeCount > 0 {
-		return nil, "", customerrors.NewConflictErr("pool cannot be deleted with active volumes")
+		return nil, "", customerrors.NewBadRequestErr("pool cannot be deleted with active volumes")
+	}
+
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+	// If pool is in CREATING state, check for create job and validate correlation ID
+	if pool.State == models.LifeCycleStateCreating {
+		if correlationID == "" {
+			logger.Warnf("Correlation ID is empty for delete request on pool %s in CREATING state", pool.UUID)
+			return nil, "", customerrors.NewConflictErr("Error deleting pool - Pool is already transitioning between states")
+		}
+
+		createJob, err := se.GetJobByResourceUUID(ctx, pool.UUID, string(models.JobTypeCreatePool))
+		if err != nil {
+			return nil, "", customerrors.NewConflictErr("Error deleting pool - Pool is already transitioning between states")
+		} else {
+			if createJob.CorrelationID != correlationID {
+				logger.Warnf("Correlation ID mismatch: create job correlation ID %s does not match delete request correlation ID %s",
+					createJob.CorrelationID, correlationID)
+				return nil, "", customerrors.NewConflictErr("Error deleting pool - Pool is already transitioning between states")
+			}
+			// Correlation ID matches, skip updating pool state to DELETING, cancellation will be handled in workflow
+			logger.Infof("Create job found for pool %s with matching correlation ID, skipping state update to DELETING", pool.UUID)
+		}
 	}
 
 	poolCategory := models.GetPoolCategory(pool.LargeCapacity)
@@ -557,7 +579,7 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 		State:         string(models.JobsStateNEW),
 		ResourceName:  pool.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
-		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		CorrelationID: correlationID,
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: pool.UUID,
@@ -583,8 +605,10 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 	previousState := dbpool.State
 	previousStateDetails := dbpool.StateDetails
 
-	if err = se.DeletingPool(ctx, dbpool); err != nil {
-		return nil, "", err
+	if dbpool.State != models.LifeCycleStateCreating {
+		if err = se.DeletingPool(ctx, dbpool); err != nil {
+			return nil, "", err
+		}
 	}
 
 	defer func() {

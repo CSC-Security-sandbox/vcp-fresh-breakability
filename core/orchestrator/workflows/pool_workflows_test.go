@@ -3,6 +3,7 @@ package workflows
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -22,7 +24,7 @@ import (
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	envs "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
@@ -1899,11 +1901,11 @@ func TestConfigureNetworkWorkflow_Success(t *testing.T) {
 	env.SetHeader(mockHeader)
 
 	mockStorage := database.NewMockStorage(t)
-	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 
 	defer func() {
 		WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
@@ -3299,6 +3301,7 @@ func TestDeletePoolWorkflowFailsOnJobInErrorState(t *testing.T) {
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
 
 	// Set up test data
 	params := &common.DeletePoolParams{
@@ -3333,6 +3336,7 @@ func TestDeletePoolWorkflowFailsOnJobInErrorState(t *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
 		State:     string(models.JobsStateERROR),
 	}, nil).Maybe()
+	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
@@ -3415,8 +3419,12 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabled(t *testing.T) {
 		State:     string(models.JobsStateNEW),
 	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	// Mock GetCreateJobByResourceUUID - pool is in CREATING state, so this will be called
+	// Return error to simulate not finding create job (which is expected in this test scenario)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("not found"))
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
-	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Pool doesn't have DeploymentName set, so DeleteVSAClusterDeployment won't be called
+	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
@@ -3514,7 +3522,8 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabledPoolAvailable(t *testing.T) {
 	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
-	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Pool doesn't have DeploymentName set, so DeleteVSAClusterDeployment won't be called
+	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
@@ -9124,7 +9133,7 @@ func Test_waitForServiceNetworkOperationStatus_NotReadyErrorThenSuccess_Comprehe
 	operationName := "test-operation"
 
 	// Mock NotReadyErr first, then successful completion
-	notReadyErr := errors.NewNotReadyErr("operation not ready")
+	notReadyErr := customerrors.NewNotReadyErr("operation not ready")
 	successOperation := &hyperscalermodels.ComputeOperation{
 		Done:     true,
 		Response: []byte(`{"result": "success"}`),
@@ -9153,7 +9162,7 @@ func Test_waitForServiceNetworkOperationStatus_NotFoundErrorThenSuccess_Comprehe
 
 	// Mock NotFoundErr first, then successful completion
 	testOperation := "test-operation"
-	notFoundErr := errors.NewNotFoundErr("operation not found", &testOperation)
+	notFoundErr := customerrors.NewNotFoundErr("operation not found", &testOperation)
 	successOperation := &hyperscalermodels.ComputeOperation{
 		Done:     true,
 		Response: []byte(`{"result": "success"}`),
@@ -9397,7 +9406,7 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 		operations := []common.Operations{{OperationName: "operation-1", IsDone: false, IsRegionalResource: false, Project: project}}
 
 		// Mock NotReadyErr first, then successful completion
-		notReadyErr := errors.NewNotReadyErr("operation not ready")
+		notReadyErr := customerrors.NewNotReadyErr("operation not ready")
 		operationCompleted := &hyperscalermodels.ComputeOperation{
 			Name:     "operation-1",
 			Status:   "DONE",
@@ -9421,7 +9430,7 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 
 		// Mock NotFoundErr first, then successful completion
 		testOperation := "operation-1"
-		notFoundErr := errors.NewNotFoundErr("operation not found", &testOperation)
+		notFoundErr := customerrors.NewNotFoundErr("operation not found", &testOperation)
 		operationCompleted := &hyperscalermodels.ComputeOperation{
 			Name:     "operation-1",
 			Status:   "DONE",
@@ -12850,6 +12859,3643 @@ func setupPoolBuildInfoTestMocks(env *testsuite.TestWorkflowEnvironment, mockVSA
 
 	mockStorage.EXPECT().CreatePendingResourceDeletion(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.PendingResourceDeletions{}, nil).Maybe()
 	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+}
+
+func TestHandleCancellationInDeleteWorkflow_WhenResourceNotInCreatingState(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	// Test when create job is not found (function should return nil without error)
+	env.RegisterActivity(resourceActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(nil, errors.New("job not found"))
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestHandleCancellationInDeleteWorkflow_WhenGetCreateJobFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(nil, errors.New("job not found"))
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestHandleCancellationInDeleteWorkflow_WhenCreateJobResultIsNil(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(nil, nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestHandleCancellationInDeleteWorkflow_WhenCreateJobResultHasEmptyWorkflowID(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestHandleCancellationInDeleteWorkflow_WhenCheckWorkflowStatusFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(false, errors.New("failed to check status"))
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestHandleCancellationInDeleteWorkflow_WhenWorkflowNotRunning(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(false, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestHandleCancellationInDeleteWorkflow_WhenWorkflowNotRunningAndUpdateJobFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(false, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("update failed"))
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestHandleCancellationInDeleteWorkflow_WhenSendCancelSignalFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, params.SignalName, mock.Anything).Return(errors.New("signal failed"))
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(false, nil)
+	env.OnActivity("ForceCancelWorkflowActivity", mock.Anything, createJobResult.WorkflowID).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, mock.Anything).Return(true, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestHandleCancellationInDeleteWorkflow_WhenWaitForCancellationAckSucceeds(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, params.SignalName, mock.Anything).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(true, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestHandleCancellationInDeleteWorkflow_WhenWaitForCancellationAckFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, params.SignalName, mock.Anything).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(false, errors.New("wait failed"))
+	env.OnActivity("ForceCancelWorkflowActivity", mock.Anything, createJobResult.WorkflowID).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, mock.Anything).Return(true, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestHandleCancellationInDeleteWorkflow_WhenTimeoutAndForceCancelSucceeds(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, params.SignalName, mock.Anything).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(false, nil)
+	env.OnActivity("ForceCancelWorkflowActivity", mock.Anything, createJobResult.WorkflowID).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, mock.Anything).Return(true, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestHandleCancellationInDeleteWorkflow_WhenTimeoutAndForceCancelFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, params.SignalName, mock.Anything).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(false, nil)
+	env.OnActivity("ForceCancelWorkflowActivity", mock.Anything, createJobResult.WorkflowID).Return(errors.New("force cancel failed"))
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestHandleCancellationInDeleteWorkflow_WhenTimeoutAndForceCancelWaitFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, params.SignalName, mock.Anything).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(false, nil)
+	env.OnActivity("ForceCancelWorkflowActivity", mock.Anything, createJobResult.WorkflowID).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, mock.Anything).Return(false, errors.New("wait failed"))
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestHandleCancellationInDeleteWorkflow_WhenTimeoutAndForceCancelWaitTimeout(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, params.SignalName, mock.Anything).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(false, nil)
+	env.OnActivity("ForceCancelWorkflowActivity", mock.Anything, createJobResult.WorkflowID).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, mock.Anything).Return(false, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestHandleCancellationInDeleteWorkflow_WhenUpdateJobFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, params.SignalName, mock.Anything).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(true, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("update failed"))
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestHandleCancellationInDeleteWorkflow_WithDefaultSignalName(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "", // Empty signal name should use default
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, common.DefaultCancelSignalName, mock.Anything).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(true, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestHandleCancellationInDeleteWorkflow_WithDefaultTimeout(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 0, // Zero timeout should use default
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, params.SignalName, mock.Anything).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, common.DefaultCancellationTimeout).Return(true, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestCreatePoolWorkflow_CancellationAtValidateImageDigest tests cancellation at ValidateImageDigest checkCancellation point (line 211)
+func TestCreatePoolWorkflow_CancellationAtValidateImageDigest(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	activities.ValidateImageDigestFlag = true
+	defer func() {
+		activities.ValidateImageDigestFlag = false
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "test-region",
+	}
+	pool := &datamodel.Pool{
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		DeploymentName:  "test-deployment",
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil).Maybe()
+	// Send cancellation signal when ValidateImageDigest completes
+	// This ensures the signal arrives right after the activity completes, before the next checkCancellation call at line 223
+	env.OnActivity("ValidateImageDigest", mock.Anything).Run(func(args mock.Arguments) {
+		// Send cancellation signal right after ValidateImageDigest completes
+		// This will be processed before the workflow continues to the next checkCancellation call
+		env.SignalWorkflow(CancelSignalName, "cancel data")
+	}).Return(true, nil)
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil).Maybe()
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil).Maybe()
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	// Mock activities that might be called if cancellation doesn't work properly (safety net)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.ServiceAccount{}, nil).Maybe()
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	// Mock child workflow execution - needed to prevent GetSystemInfo call
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil).Maybe()
+	// Mock ConfigureNetworkWorkflow to prevent it from executing real activities
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "pool creation cancelled")
+}
+
+// TestCreatePoolWorkflow_CancellationHandlerIsCancelled tests cancellation handler IsCancelled path (lines 192-193)
+func TestCreatePoolWorkflow_CancellationHandlerIsCancelled(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "test-region",
+	}
+	pool := &datamodel.Pool{
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		DeploymentName:  "test-deployment",
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil).Maybe()
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	// Send cancellation signal when DataSubnetSequentialPoller completes to trigger IsCancelled path
+	// This ensures the signal is received after the checkCancellation() at line 233, so the workflow continues
+	// and eventually fails, allowing the defer function to check IsCancelled() and execute rollback
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		// Send cancellation signal right after DataSubnetSequentialPoller completes
+		// This will be received by the cancellation handler, and when the workflow fails,
+		// the defer function will detect IsCancelled() and execute rollback with "pool creation cancelled" message
+		env.SignalWorkflow(CancelSignalName, "cancel data")
+	}).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil).Maybe()
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil).Maybe()
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	// Lines 192-193 - cancellation handler IsCancelled path
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	// Mock activities that might be called if cancellation doesn't work properly (safety net)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.ServiceAccount{}, nil).Maybe()
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	// Mock ConfigureNetworkWorkflow to prevent it from executing real activities
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "pool creation cancelled")
+}
+
+// TestCreatePoolWorkflow_CancellationAtFindTenancyProject tests cancellation at FindTenancyProject checkCancellation point (line 224)
+func TestCreatePoolWorkflow_CancellationAtFindTenancyProject(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "test-region",
+	}
+	pool := &datamodel.Pool{
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		DeploymentName:  "test-deployment",
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil).Maybe()
+	// Send cancellation signal when FindTenancyProject completes
+	// This ensures the signal arrives right after the activity completes, before the next checkCancellation call at line 232-234
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		// Send cancellation signal right after FindTenancyProject is called
+		// This will be processed before the workflow continues to the next checkCancellation call
+		env.SignalWorkflow(CancelSignalName, "cancel data")
+	}).Return("test-project", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	// Mock child workflow execution - needed to prevent GetSystemInfo call
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil).Maybe()
+	// Mock ConfigureNetworkWorkflow to prevent it from executing real activities
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "pool creation cancelled")
+}
+
+// TestCreatePoolWorkflow_CancellationAtSubnetWorkflow tests cancellation at subnet workflow checkCancellation points (lines 234, 246)
+func TestCreatePoolWorkflow_CancellationAtSubnetWorkflow(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "test-region",
+	}
+	pool := &datamodel.Pool{
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		DeploymentName:  "test-deployment",
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil).Maybe()
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil).Maybe()
+	// Send cancellation signal when DataSubnetSequentialPoller completes to trigger cancellation at line 246
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		// Send cancellation signal right after DataSubnetSequentialPoller completes
+		// This will be caught by the checkCancellation() call at line 246
+		env.SignalWorkflow(CancelSignalName, "cancel data")
+	}).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil).Maybe()
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	// Mock ConfigureNetworkWorkflow to prevent it from executing real activities
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "pool creation cancelled")
+}
+
+// TestCreatePoolWorkflow_CancellationAtSavePoolWithClusterDetails tests cancellation at SavePoolWithClusterDetails checkCancellation point (line 260)
+func TestCreatePoolWorkflow_CancellationAtSavePoolWithClusterDetails(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "test-region",
+	}
+	pool := &datamodel.Pool{
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		DeploymentName:  "test-deployment",
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil).Maybe()
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil).Maybe()
+	// Mock child workflow execution - needed to prevent GetSystemInfo call
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil).Maybe()
+	// Send cancellation signal when SavePoolWithClusterDetails completes to trigger cancellation at line 268
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		// Send cancellation signal right after SavePoolWithClusterDetails completes
+		// This will be caught by the checkCancellation() call at line 268
+		env.SignalWorkflow(CancelSignalName, "cancel data")
+	}).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	// Mock ConfigureNetworkWorkflow to prevent it from executing real activities
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "pool creation cancelled")
+}
+
+// TestCreatePoolWorkflow_CancellationAtNetworkConfiguration tests cancellation at network configuration checkCancellation point (line 269)
+func TestCreatePoolWorkflow_CancellationAtNetworkConfiguration(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "test-region",
+	}
+	pool := &datamodel.Pool{
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		DeploymentName:  "test-deployment",
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil).Maybe()
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil).Maybe()
+	// Mock child workflow execution - needed to prevent GetSystemInfo call
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil).Maybe()
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Send cancellation signal when ConfigureNetworkWorkflow completes to trigger cancellation at line 305
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		// Send cancellation signal right after ConfigureNetworkWorkflow completes
+		// This will be caught by the checkCancellation() call at line 305
+		env.SignalWorkflow(CancelSignalName, "cancel data")
+	}).Return(nil, nil).Maybe()
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	// Mock activities that might be called if cancellation doesn't work properly (safety net)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.ServiceAccount{}, nil).Maybe()
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "pool creation cancelled")
+}
+
+// TestCreatePoolWorkflow_CancellationAtServiceAccountCreation tests cancellation at service account creation checkCancellation point (line 306)
+func TestCreatePoolWorkflow_CancellationAtServiceAccountCreation(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "test-region",
+	}
+	pool := &datamodel.Pool{
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		DeploymentName:  "test-deployment",
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil).Maybe()
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil).Maybe()
+	// Mock child workflow execution - needed to prevent GetSystemInfo call
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil).Maybe()
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	// Send cancellation signal when CreateServiceAccountWithStorageRole completes to trigger cancellation at line 325
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		// Send cancellation signal right after CreateServiceAccountWithStorageRole completes
+		// This will be caught by the checkCancellation() call at line 325
+		env.SignalWorkflow(CancelSignalName, "cancel data")
+	}).Return(&hyperscalermodels.ServiceAccount{}, nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "pool creation cancelled")
+}
+
+// TestDeletePoolWorkflow_ErrorHandlingCancellation tests error handling in DeletePoolWorkflow when cancellation fails (line 1250)
+func TestDeletePoolWorkflow_ErrorHandlingCancellation(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	poolActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	env.RegisterActivity(poolActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+
+	params := &common.DeletePoolParams{
+		PoolID:      "test-pool-uuid",
+		AccountName: "test-account",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+		State:           models.LifeCycleStateCreating,
+		DeploymentName:  "test-deployment",
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		BuildInfo:       &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+		ClusterDetails:  datamodel.ClusterDetails{RegionalTenantProject: "test-project"},
+	}
+
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	// Mock cancellation to return error (line 1250)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("cancellation error"))
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	emptyHostMap := map[string]string{}
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockStorage.EXPECT().ErroredResource(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockStorage.EXPECT().GetSvmsByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
+	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("FailedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	// Mock DeletePoolResources activity and its dependencies
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	// Mock ReleasePSCEndpointWorkflow child workflow
+	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.EXPECT().DeletePool(mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.EXPECT().GetLifsForNodesWithProtocol(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Lif{}, nil).Maybe()
+	mockStorage.EXPECT().DeleteLif(mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.EXPECT().DeleteSVM(mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.EXPECT().DeleteNode(mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestDeletePoolWorkflow_ErrorDeletingPoolResources tests error path when DeletingPoolResources fails (line 1259)
+func TestDeletePoolWorkflow_ErrorDeletingPoolResources(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	poolActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	env.RegisterActivity(poolActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+
+	params := &common.DeletePoolParams{
+		PoolID:      "test-pool-uuid",
+		AccountName: "test-account",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+		State:          models.LifeCycleStateDeleting,
+		DeploymentName: "test-deployment",
+		Account:        &datamodel.Account{Name: "test-account"},
+	}
+
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	// Mock DeletingPoolResources to fail (line 1259)
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, errors.New("delete failed"))
+	mockStorage.EXPECT().ErroredResource(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockStorage.EXPECT().GetSvmsByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
+	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock ReleasePSCEndpointWorkflow child workflow
+	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+}
+
+// TestDeletePoolWorkflow_ErrorDeletingVSAClusterDeployment tests error path when DeleteVSAClusterDeployment fails (line 1293)
+func TestDeletePoolWorkflow_ErrorDeletingVSAClusterDeployment(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	poolActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	env.RegisterActivity(poolActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+
+	params := &common.DeletePoolParams{
+		PoolID:      "test-pool-uuid",
+		AccountName: "test-account",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+		State:          models.LifeCycleStateDeleting,
+		DeploymentName: "test-deployment",
+		Account:        &datamodel.Account{Name: "test-account"},
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "test-project",
+		},
+	}
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("delete VSA failed"))
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	mockStorage.EXPECT().ErroredResource(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockStorage.EXPECT().GetSvmsByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
+	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+	// Line 1293 - error path
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock ReleasePSCEndpointWorkflow child workflow
+	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+}
+
+// TestDeletePoolWorkflow_ErrorDeletingVSAClusterDeploymentWhenStateNotError tests error path when DeleteVSAClusterDeployment fails and state is not ERROR (line 1300)
+func TestDeletePoolWorkflow_ErrorDeletingVSAClusterDeploymentWhenStateNotError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	poolActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	env.RegisterActivity(poolActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+
+	disableVsaCleanupOnVLMFailure = true
+	defer func() {
+		disableVsaCleanupOnVLMFailure = false
+	}()
+
+	params := &common.DeletePoolParams{
+		PoolID:      "test-pool-uuid",
+		AccountName: "test-account",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+		State:          models.LifeCycleStateDeleting, // Not ERROR state
+		DeploymentName: "test-deployment",
+		Account:        &datamodel.Account{Name: "test-account"},
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "test-project",
+		},
+	}
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("delete VSA failed"))
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	mockStorage.EXPECT().ErroredResource(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockStorage.EXPECT().GetSvmsByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
+	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+	// Line 1300 - error path when state is not ERROR
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+}
+
+// TestDeletePoolWorkflow_ErrorDeletingServiceAccount tests error path when DeleteServiceAccount fails (line 1319)
+func TestDeletePoolWorkflow_ErrorDeletingServiceAccount(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	poolActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	env.RegisterActivity(poolActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+
+	params := &common.DeletePoolParams{
+		PoolID:      "test-pool-uuid",
+		AccountName: "test-account",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+		State:            models.LifeCycleStateDeleting,
+		DeploymentName:   "test-deployment",
+		Account:          &datamodel.Account{Name: "test-account"},
+		ServiceAccountId: "test-sa-id",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "test-project",
+		},
+	}
+
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Line 1319 - error path
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("delete SA failed"))
+	mockStorage.EXPECT().ErroredResource(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockStorage.EXPECT().GetSvmsByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
+	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+}
+
+// TestDeletePoolWorkflow_ErrorReleasingSubnet tests error path when releasing subnet fails (line 1347)
+func TestDeletePoolWorkflow_ErrorReleasingSubnet(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	poolActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	env.RegisterActivity(poolActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+
+	params := &common.DeletePoolParams{
+		PoolID:      "test-pool-uuid",
+		AccountName: "test-account",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+		State:          models.LifeCycleStateDeleting,
+		DeploymentName: "test-deployment",
+		Account:        &datamodel.Account{Name: "test-account"},
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "test-project",
+		},
+	}
+
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+	// Line 1347 - error path
+	env.OnWorkflow("DataSubnetSequentialPoller", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("subnet release failed"))
+	mockStorage.EXPECT().ErroredResource(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockStorage.EXPECT().GetSvmsByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
+	mockStorage.EXPECT().GetNodesByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+}
+
+// TestHandleCancellationInDeleteWorkflow_WhenCreateJobResultIsNilAfterGet tests nil createJobResult after GetCreateJobByResourceUUID (lines 2410-2412)
+func TestHandleCancellationInDeleteWorkflow_WhenCreateJobResultIsNilAfterGet(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	// Return nil createJobResult (line 2410-2412)
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(nil, nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestHandleCancellationInDeleteWorkflow_WhenCreateJobResultHasEmptyWorkflowIDAfterGet tests empty WorkflowID after GetCreateJobByResourceUUID (lines 2410-2412)
+func TestHandleCancellationInDeleteWorkflow_WhenCreateJobResultHasEmptyWorkflowIDAfterGet(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "", // Empty WorkflowID (line 2410-2412)
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestHandleCancellationInDeleteWorkflow_WhenIsWorkflowRunningReturnsError tests error path when IsWorkflowRunningActivity fails (lines 2418-2419, 2421-2423)
+func TestHandleCancellationInDeleteWorkflow_WhenIsWorkflowRunningReturnsError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	// Line 2418-2419, 2421-2423 - error path
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(false, errors.New("check failed"))
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestHandleCancellationInDeleteWorkflow_WhenWorkflowNotRunningAndUpdateJobSucceeds tests workflow not running with successful job update (lines 2426, 2428-2429, 2434-2435, 2437)
+func TestHandleCancellationInDeleteWorkflow_WhenWorkflowNotRunningAndUpdateJobSucceeds(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(false, nil)
+	// Line 2426, 2428-2429, 2434-2435, 2437 - workflow not running path with successful update
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestHandleCancellationInDeleteWorkflow_WhenSendCancelSignalSucceeds tests successful send cancel signal path (lines 2441-2443)
+func TestHandleCancellationInDeleteWorkflow_WhenSendCancelSignalSucceeds(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	// Line 2441-2443 - successful send signal
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, params.SignalName, mock.Anything).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(true, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestHandleCancellationInDeleteWorkflow_WhenSendCancelSignalFailsAfterSuccess tests error path when SendCancelSignalActivity fails (lines 2445-2446)
+func TestHandleCancellationInDeleteWorkflow_WhenSendCancelSignalFailsAfterSuccess(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	// Line 2445-2446 - error path
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, params.SignalName, mock.Anything).Return(errors.New("send signal failed"))
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(false, nil)
+	env.OnActivity("ForceCancelWorkflowActivity", mock.Anything, createJobResult.WorkflowID).Return(nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestHandleCancellationInDeleteWorkflow_WhenWaitForCancellationReturnsError tests error path when WaitForCancellationAckActivity returns error (lines 2450-2452, 2456-2457)
+func TestHandleCancellationInDeleteWorkflow_WhenWaitForCancellationReturnsError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, params.SignalName, mock.Anything).Return(nil)
+	// Line 2450-2452, 2456-2457 - error path
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(false, errors.New("wait error"))
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestHandleCancellationInDeleteWorkflow_WhenForceCancelSucceedsAndWaitSucceeds tests force cancel success with wait success (lines 2461, 2464, 2466, 2468-2469, 2473-2476, 2478-2481)
+func TestHandleCancellationInDeleteWorkflow_WhenForceCancelSucceedsAndWaitSucceeds(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, params.SignalName, mock.Anything).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(false, nil)
+	// Line 2461, 2464, 2466, 2468-2469, 2473-2476, 2478-2481 - force cancel success path
+	env.OnActivity("ForceCancelWorkflowActivity", mock.Anything, createJobResult.WorkflowID).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, 30*time.Second).Return(true, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestHandleCancellationInDeleteWorkflow_WhenForceCancelSucceedsAndWaitTimeout tests force cancel success with wait timeout (line 2483)
+func TestHandleCancellationInDeleteWorkflow_WhenForceCancelSucceedsAndWaitTimeout(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, params.SignalName, mock.Anything).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(false, nil)
+	env.OnActivity("ForceCancelWorkflowActivity", mock.Anything, createJobResult.WorkflowID).Return(nil)
+	// Line 2483 - wait timeout path
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, 30*time.Second).Return(false, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestHandleCancellationInDeleteWorkflow_WhenCancellationSucceeds tests successful cancellation path (line 2487)
+func TestHandleCancellationInDeleteWorkflow_WhenCancellationSucceeds(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, params.SignalName, mock.Anything).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(true, nil)
+	// Line 2487 - success path
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestHandleCancellationInDeleteWorkflow_WhenUpdateJobStatusSucceeds tests successful UpdateJobStatus path (lines 2491, 2496-2498, 2500)
+func TestHandleCancellationInDeleteWorkflow_WhenUpdateJobStatusSucceeds(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockStorage := database.NewMockStorage(t)
+	resourceActivity := &activities.PoolActivity{SE: mockStorage}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+
+	params := common.WorkflowCancellationParams{
+		ResourceUUID:  "test-resource-uuid",
+		CorrelationID: "test-correlation-id",
+		CreateJobType: models.JobTypeCreatePool,
+		SignalName:    "cancel-signal",
+		CancellationAckTimeout: 5 * time.Minute,
+	}
+
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	env.RegisterActivity(resourceActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ResourceUUID, params.CorrelationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, params.SignalName, mock.Anything).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, params.CancellationAckTimeout).Return(true, nil)
+	// Line 2491, 2496-2498, 2500 - successful update path
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return common.HandleCancellationInDeleteWorkflow(ctx, params, resourceActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestCreatePoolWorkflow_CancellationAtCreateAutoTierBucket tests cancellation at CreateAutoTierBucket checkCancellation point (line 325)
+func TestCreatePoolWorkflow_CancellationAtCreateAutoTierBucket(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024,
+		Region:                  "test-region",
+		HotTierSizeInBytes:      512 * 1024 * 1024 * 1024,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
+	}
+	pool := &datamodel.Pool{
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		DeploymentName:  "test-deployment",
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil).Maybe()
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil).Maybe()
+	// Mock child workflow execution - needed to prevent GetSystemInfo call
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil).Maybe()
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.ServiceAccount{}, nil)
+	// Send cancellation signal when CreateAutoTierBucket completes to trigger cancellation at line 336
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		// Send cancellation signal right after CreateAutoTierBucket completes
+		// This will be caught by the checkCancellation() call at line 336
+		env.SignalWorkflow(CancelSignalName, "cancel data")
+	}).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "pool creation cancelled")
+}
+
+// TestCreatePoolWorkflow_CancellationAtCreateOnTapCredentials tests cancellation at CreateOnTapCredentials checkCancellation point (line 336)
+func TestCreatePoolWorkflow_CancellationAtCreateOnTapCredentials(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024,
+		Region:                  "test-region",
+		HotTierSizeInBytes:      512 * 1024 * 1024 * 1024,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
+	}
+	pool := &datamodel.Pool{
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		DeploymentName:  "test-deployment",
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil).Maybe()
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	// Mock child workflow execution - needed to prevent GetSystemInfo call
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil).Maybe()
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.ServiceAccount{}, nil)
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Send cancellation signal when CreateOnTapCredentials completes to trigger cancellation
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		// Send cancellation signal right after CreateOnTapCredentials completes
+		// This will be caught by the next checkCancellation() call
+		env.SignalWorkflow(CancelSignalName, "cancel data")
+	}).Return(&vlm.OntapCredentials{}, nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "pool creation cancelled")
+}
+
+// TestCreatePoolWorkflow_CancellationAfterValidateImageDigest tests cancellation check at line 211
+// after ValidateImageDigest activity completes
+func TestCreatePoolWorkflow_CancellationAfterValidateImageDigest(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	origFlag := activities.ValidateImageDigestFlag
+	activities.ValidateImageDigestFlag = true
+	defer func() { activities.ValidateImageDigestFlag = origFlag }()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	ginLoggingFeatureFlag = true
+
+	origVerifyKMS := verifyKmsConfigReachability
+	verifyKmsConfigReachability = func(ctx workflow.Context, kmsConfigId string) error { return nil }
+	defer func() { verifyKmsConfigReachability = origVerifyKMS }()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		Region:      "test-region",
+		PrimaryZone: "test-zone",
+	}
+	pool := &datamodel.Pool{
+		Account:        &datamodel.Account{Name: "test-account"},
+		DeploymentName: "test-deployment",
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("ValidateImageDigest", mock.Anything).Run(func(args mock.Arguments) {
+		// Send cancellation signal after ValidateImageDigest completes to trigger cancellation at line 211
+		env.SignalWorkflow(CancelSignalName, "cancel data")
+	}).Return(true, nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "pool creation cancelled")
+}
+
+// TestCreatePoolWorkflow_CancellationBeforeSavePoolWithClusterDetails tests cancellation check at line 260
+// before SavePoolWithClusterDetails activity
+func TestCreatePoolWorkflow_CancellationBeforeSavePoolWithClusterDetails(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	ginLoggingFeatureFlag = true
+
+	origVerifyKMS := verifyKmsConfigReachability
+	verifyKmsConfigReachability = func(ctx workflow.Context, kmsConfigId string) error { return nil }
+	defer func() { verifyKmsConfigReachability = origVerifyKMS }()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		Region:      "test-region",
+		PrimaryZone: "test-zone",
+	}
+	pool := &datamodel.Pool{
+		Account:        &datamodel.Account{Name: "test-account"},
+		DeploymentName: "test-deployment",
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil).Maybe()
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		// Send cancellation signal after DataSubnetSequentialPoller completes to trigger cancellation at line 260
+		env.SignalWorkflow(CancelSignalName, "cancel data")
+	}).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "pool creation cancelled")
+}
+
+// TestDeletePoolWorkflow_HandleCancellationError tests error handling at line 1250
+// when common.HandleCancellationInDeleteWorkflow returns an error
+func TestDeletePoolWorkflow_HandleCancellationError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CancellationActivity{})
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-uuid",
+			ID:   1,
+		},
+		State:           models.LifeCycleStateAvailable,
+		Account:         &datamodel.Account{Name: "test-account"},
+		DeploymentName:  "test-deployment",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		BuildInfo:       &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+		ClusterDetails:  datamodel.ClusterDetails{RegionalTenantProject: "test-project"},
+	}
+
+	params := &common.DeletePoolParams{
+		PoolID:      pool.UUID,
+		AccountName: "test-account",
+	}
+
+	// Mock GetJob on both the activity and storage level
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	// Mock GetCreateJobByResourceUUID to return error to test line 2406-2407
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, pool.UUID, mock.Anything, mock.Anything).Return(nil, errors.New("job not found"))
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	emptyHostMap := map[string]string{}
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	mockStorage.On("ErroredResource", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockStorage.On("GetSvmsByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
+	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+	env.OnActivity("FailedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestDeletePoolWorkflow_HandleCancellationCreateJobNotFound tests error handling at lines 2410-2412
+// when createJobResult is nil or workflowID is empty
+func TestDeletePoolWorkflow_HandleCancellationCreateJobNotFound(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CancellationActivity{})
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-uuid",
+			ID:   1,
+		},
+		State:           models.LifeCycleStateAvailable,
+		Account:         &datamodel.Account{Name: "test-account"},
+		DeploymentName:  "test-deployment",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		BuildInfo:       &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+		ClusterDetails:  datamodel.ClusterDetails{RegionalTenantProject: "test-project"},
+	}
+
+	params := &common.DeletePoolParams{
+		PoolID:      pool.UUID,
+		AccountName: "test-account",
+	}
+
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	// Mock GetCreateJobByResourceUUID to return nil result to test lines 2410-2412
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, pool.UUID, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	emptyHostMap := map[string]string{}
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	mockStorage.On("ErroredResource", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockStorage.On("GetSvmsByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
+	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+	env.OnActivity("FailedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestDeletePoolWorkflow_HandleCancellationWorkflowNotRunning tests error handling at lines 2426-2437
+// when workflow is not running
+func TestDeletePoolWorkflow_HandleCancellationWorkflowNotRunning(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CancellationActivity{})
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-uuid",
+			ID:   1,
+		},
+		State:           models.LifeCycleStateAvailable,
+		Account:         &datamodel.Account{Name: "test-account"},
+		DeploymentName:  "test-deployment",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		BuildInfo:       &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+		ClusterDetails:  datamodel.ClusterDetails{RegionalTenantProject: "test-project"},
+	}
+
+	params := &common.DeletePoolParams{
+		PoolID:      pool.UUID,
+		AccountName: "test-account",
+	}
+
+	// Mock GetCreateJobByResourceUUID to return a valid job
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "test-job-uuid",
+		WorkflowID: "test-workflow-id",
+	}
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, pool.UUID, mock.Anything, mock.Anything).Return(createJobResult, nil)
+	// Mock IsWorkflowRunningActivity to return false (workflow not running) to test lines 2426-2437
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(false, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	emptyHostMap := map[string]string{}
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	mockStorage.On("ErroredResource", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockStorage.On("GetSvmsByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
+	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+	env.OnActivity("FailedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestDeletePoolWorkflow_HandleCancellationSendSignalError tests error handling at lines 2445-2446
+// when SendCancelSignalActivity returns an error
+func TestDeletePoolWorkflow_HandleCancellationSendSignalError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CancellationActivity{})
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-uuid",
+			ID:   1,
+		},
+		State:           models.LifeCycleStateAvailable,
+		Account:         &datamodel.Account{Name: "test-account"},
+		DeploymentName:  "test-deployment",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		BuildInfo:       &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+		ClusterDetails:  datamodel.ClusterDetails{RegionalTenantProject: "test-project"},
+	}
+
+	params := &common.DeletePoolParams{
+		PoolID:      pool.UUID,
+		AccountName: "test-account",
+	}
+
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	// Mock GetCreateJobByResourceUUID to return a valid job
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "test-job-uuid",
+		WorkflowID: "test-workflow-id",
+	}
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, pool.UUID, mock.Anything, mock.Anything).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	// Mock SendCancelSignalActivity to return error to test lines 2445-2446
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, mock.Anything, mock.Anything).Return(errors.New("failed to send signal"))
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, mock.Anything).Return(false, nil)
+	env.OnActivity("ForceCancelWorkflowActivity", mock.Anything, createJobResult.WorkflowID).Return(nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	emptyHostMap := map[string]string{}
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	mockStorage.On("ErroredResource", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockStorage.On("GetSvmsByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
+	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+	env.OnActivity("FailedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestDeletePoolWorkflow_HandleCancellationTimeout tests error handling at lines 2461-2485
+// when cancellation acknowledgment times out
+func TestDeletePoolWorkflow_HandleCancellationTimeout(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CancellationActivity{})
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-uuid",
+			ID:   1,
+		},
+		State:           models.LifeCycleStateAvailable,
+		Account:         &datamodel.Account{Name: "test-account"},
+		DeploymentName:  "test-deployment",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		BuildInfo:       &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+		ClusterDetails:  datamodel.ClusterDetails{RegionalTenantProject: "test-project"},
+	}
+
+	params := &common.DeletePoolParams{
+		PoolID:      pool.UUID,
+		AccountName: "test-account",
+	}
+
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	// Mock GetCreateJobByResourceUUID to return a valid job
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "test-job-uuid",
+		WorkflowID: "test-workflow-id",
+	}
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, pool.UUID, mock.Anything, mock.Anything).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, mock.Anything, mock.Anything).Return(nil)
+	// Mock WaitForWorkflowCancellationAckActivity to return false (timeout) to test lines 2461-2485
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, mock.Anything).Return(false, nil).Once()
+	env.OnActivity("ForceCancelWorkflowActivity", mock.Anything, createJobResult.WorkflowID).Return(nil)
+	// Mock second WaitForWorkflowCancellationAckActivity call for force cancel wait
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, mock.Anything).Return(true, nil).Once()
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	emptyHostMap := map[string]string{}
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	mockStorage.On("ErroredResource", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockStorage.On("GetSvmsByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
+	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+	env.OnActivity("FailedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestDeletePoolWorkflow_DeleteServiceAccountError tests error handling at line 1319
+// when DeleteServiceAccount returns an error
+func TestDeletePoolWorkflow_DeleteServiceAccountError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CancellationActivity{})
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-uuid",
+			ID:   1,
+		},
+		State:   models.LifeCycleStateAvailable,
+		Account: &datamodel.Account{Name: "test-account"},
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "test-project",
+		},
+		ServiceAccountId: "test-sa-id",
+		DeploymentName:   "test-deployment",
+	}
+
+	params := &common.DeletePoolParams{
+		PoolID:      pool.UUID,
+		AccountName: "test-account",
+	}
+
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, pool.UUID, mock.Anything, mock.Anything).Return(nil, errors.New("job not found"))
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	emptyHostMap := map[string]string{}
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Mock DeleteServiceAccount to return error to test line 1319
+	env.OnActivity("DeleteServiceAccount", mock.Anything, pool.ClusterDetails.RegionalTenantProject, pool.ServiceAccountId).Return(errors.New("delete service account error"))
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	mockStorage.On("ErroredResource", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockStorage.On("GetSvmsByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
+	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+	env.OnActivity("FailedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+}
+
+// TestDeletePoolWorkflow_DataSubnetSequentialPollerError tests error handling at line 1347
+// when DataSubnetSequentialPoller returns an error
+func TestDeletePoolWorkflow_DataSubnetSequentialPollerError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CancellationActivity{})
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-uuid",
+			ID:   1,
+		},
+		State:   models.LifeCycleStateAvailable,
+		Account: &datamodel.Account{Name: "test-account"},
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "test-project",
+		},
+		DeploymentName: "test-deployment",
+	}
+
+	params := &common.DeletePoolParams{
+		PoolID:      pool.UUID,
+		AccountName: "test-account",
+	}
+
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, pool.UUID, mock.Anything, mock.Anything).Return(nil, errors.New("job not found"))
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	emptyHostMap := map[string]string{}
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+	// Mock DataSubnetSequentialPoller to return error to test line 1347
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("subnet deletion error"))
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	mockStorage.On("ErroredResource", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockStorage.On("GetSvmsByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
+	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+	env.OnActivity("FailedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+}
+
+// TestCreatePoolWorkflow_CancellationAtSavePoolWithClusterDetailsAfterSubnet tests cancellation at line 260
+// when checkCancellation is called before saving pool with cluster details after subnet workflow
+func TestCreatePoolWorkflow_CancellationAtSavePoolWithClusterDetailsAfterSubnet(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "test-region",
+	}
+	pool := &datamodel.Pool{
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		DeploymentName:  "test-deployment",
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil).Maybe()
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil).Maybe()
+	// Send cancellation signal when DataSubnetSequentialPoller completes to trigger cancellation at line 260
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		env.SignalWorkflow(CancelSignalName, "cancel data")
+	}).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil).Maybe()
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "pool creation cancelled")
+}
+
+// TestDeletePoolWorkflow_HandleCancellationLogsCreateJobFound tests line 2415
+// when create job is found and logged
+func TestDeletePoolWorkflow_HandleCancellationLogsCreateJobFound(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CancellationActivity{})
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-uuid",
+			ID:   1,
+		},
+		State:           models.LifeCycleStateAvailable,
+		Account:         &datamodel.Account{Name: "test-account"},
+		DeploymentName:  "test-deployment",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		BuildInfo:       &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+		ClusterDetails:  datamodel.ClusterDetails{RegionalTenantProject: "test-project"},
+	}
+
+	params := &common.DeletePoolParams{
+		PoolID:      pool.UUID,
+		AccountName: "test-account",
+	}
+
+	// Mock GetJob activity - return NEW state for workflow job (EnsureJobState)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	// Mock GetCreateJobByResourceUUID to return a valid job to test line 2415
+	createJobResult := &common.CreateJobResult{
+		JobUUID:    "test-job-uuid",
+		WorkflowID: "test-workflow-id",
+	}
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, pool.UUID, mock.Anything, mock.Anything).Return(createJobResult, nil)
+	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(true, nil)
+	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, mock.Anything).Return(true, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	emptyHostMap := map[string]string{}
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("ErroredResource", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockStorage.On("GetSvmsByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
+	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+	env.OnActivity("FailedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	// Mock ReleasePSCEndpointWorkflow child workflow
+	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestCreatePoolWorkflow_CancellationAtValidateImageDigestFlag tests cancellation at ValidateImageDigestFlag checkCancellation point (line 213)
+func TestCreatePoolWorkflow_CancellationAtValidateImageDigestFlag(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.PSCActivity{})
+
+	// Set ValidateImageDigestFlag to true to test line 213
+	originalFlag := activities.ValidateImageDigestFlag
+	activities.ValidateImageDigestFlag = true
+	defer func() { activities.ValidateImageDigestFlag = originalFlag }()
+
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024,
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
+	}
+	pool := &datamodel.Pool{
+		Account: &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+		DeploymentName: "test-deployment",
+	}
+
+	defer func() {
+		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+		WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+	}()
+	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+		return nil
+	}
+	WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+		return nil
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil).Maybe()
+
+	// Send cancellation signal when ValidateImageDigestFlag check happens to trigger cancellation at line 213
+	env.OnActivity("ValidateImageDigest", mock.Anything).Run(func(args mock.Arguments) {
+		env.SignalWorkflow(CancelSignalName, "cancel data")
+	}).Return(true, nil)
+
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil).Maybe()
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil).Maybe()
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "pool creation cancelled")
+}
+
+// TestDeletePoolWorkflow_HandleCancellationErrorAtLine1204 tests error handling in HandleCancellationInDeleteWorkflow (line 1204)
+func TestDeletePoolWorkflow_HandleCancellationErrorAtLine1204(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.CancellationActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	// Register child workflows
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-uuid",
+			ID:   1,
+		},
+		State:           models.LifeCycleStateCreating,
+		Account:         &datamodel.Account{Name: "test-account"},
+		DeploymentName:  "test-deployment",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		BuildInfo:       &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+		ClusterDetails:  datamodel.ClusterDetails{RegionalTenantProject: "test-project"},
+	}
+
+	params := &common.DeletePoolParams{
+		PoolID:      pool.UUID,
+		AccountName: "test-account",
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	// Mock GetCreateJobByResourceUUID to return error to test line 1204 (Logger.Warnf path)
+	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, pool.UUID, mock.Anything, mock.Anything).Return(nil, errors.New("job not found"))
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	emptyHostMap := map[string]string{}
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("ErroredResource", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockStorage.On("GetSvmsByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
+	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+	env.OnActivity("FailedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+// TestDeletePoolWorkflow_DeleteServiceAccountErrorAtLine1279 tests error handling in DeleteServiceAccount (line 1279)
+func TestDeletePoolWorkflow_DeleteServiceAccountErrorAtLine1279(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.CancellationActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-uuid",
+			ID:   1,
+		},
+		State:            models.LifeCycleStateAvailable,
+		Account:          &datamodel.Account{Name: "test-account"},
+		DeploymentName:   "test-deployment",
+		ServiceAccountId: "test-service-account",
+		PoolCredentials:  &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		BuildInfo:        &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+		ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "test-project"},
+	}
+
+	params := &common.DeletePoolParams{
+		PoolID:      pool.UUID,
+		AccountName: "test-account",
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	emptyHostMap := map[string]string{}
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	// Mock VLM client to succeed
+	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	// Return error for DeleteServiceAccount to test line 1279
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("delete service account failed"))
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("ErroredResource", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockStorage.On("GetSvmsByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
+	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+	env.OnActivity("FailedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "delete service account failed")
+}
+
+// TestDeletePoolWorkflow_DataSubnetSequentialPollerErrorAtLine1307 tests error handling in DataSubnetSequentialPoller (line 1307)
+func TestDeletePoolWorkflow_DataSubnetSequentialPollerErrorAtLine1307(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.CancellationActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-uuid",
+			ID:   1,
+		},
+		State:           models.LifeCycleStateAvailable,
+		Account:         &datamodel.Account{Name: "test-account"},
+		DeploymentName:  "test-deployment",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		BuildInfo:       &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+		ClusterDetails:  datamodel.ClusterDetails{RegionalTenantProject: "test-project"},
+	}
+
+	params := &common.DeletePoolParams{
+		PoolID:      pool.UUID,
+		AccountName: "test-account",
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	emptyHostMap := map[string]string{}
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	// Mock VLM client to succeed
+	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("ErroredResource", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockStorage.On("GetSvmsByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
+	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Node{}, nil).Maybe()
+	env.OnActivity("FailedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+	// Return error for DataSubnetSequentialPoller to test line 1307
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("data subnet poller failed"))
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "data subnet poller failed")
+}
+
+// TestCreatePoolWorkflow_CancellationAtIdentifyVMs tests cancellation at IdentifyVMs checkCancellation point (line 398)
+func TestCreatePoolWorkflow_CancellationAtIdentifyVMs(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024,
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
+	}
+	pool := &datamodel.Pool{
+		Account: &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            nillable.FromPointer(params.CustomPerformanceParams.Iops),
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+		DeploymentName: "test-deployment",
+		BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil).Maybe()
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil)
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil)
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.ServiceAccount{Email: "test@example.com"}, nil)
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{}, nil)
+	// Send cancellation signal when IdentifyVMs completes to trigger cancellation at line 398
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		env.SignalWorkflow(CancelSignalName, "cancel data")
+	}).Return(&vlm.VLMConfig{}, nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "pool creation cancelled")
+}
+
+// TestCreatePoolWorkflow_CancellationAfterFirstSavePoolWithClusterDetails tests cancellation check at line 260 after first SavePoolWithClusterDetails
+func TestCreatePoolWorkflow_CancellationAfterFirstSavePoolWithClusterDetails(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	origVerifyKMS := verifyKmsConfigReachability
+	verifyKmsConfigReachability = func(ctx workflow.Context, kmsConfigId string) error { return nil }
+	defer func() { verifyKmsConfigReachability = origVerifyKMS }()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		SizeInBytes: 1024 * 1024 * 1024 * 1024,
+		Region:      "test-region",
+	}
+	pool := &datamodel.Pool{
+		Account:         &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		DeploymentName:  "test-deployment",
+		BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil).Maybe()
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+	}, nil)
+	// Send cancellation signal when SavePoolWithClusterDetails completes to trigger cancellation at line 260
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		env.SignalWorkflow(CancelSignalName, "cancel data")
+	}).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "pool creation cancelled")
 }
 
 // TestGetPoolAttributesAccountName tests the getPoolAttributesAccountName helper function

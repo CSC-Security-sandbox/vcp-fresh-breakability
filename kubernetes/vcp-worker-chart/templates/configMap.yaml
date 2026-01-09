@@ -136,6 +136,8 @@ data:
   CMEK_ROTATION_MAX_WORKERS: {{$.Values.workerConfig.cmekRotationMaxWorkers | quote }}
   MAX_CMEK_ROTATION_PASSES: {{$.Values.workerConfig.cmekRotationMaxPasses | quote }}
   WORKFLOW_GLOBAL_TIMEOUT_FOR_REPLICATION_MINUTES: {{$.Values.workerConfig.workflowGlobalTimeoutForReplicationMinutes | quote }}
+  POOL_WORKFLOW_CANCELLATION_TIMEOUT: {{$.Values.workerConfig.poolWorkflowCancellationAckTimeout | quote }}
+  POOL_WORKFLOW_FORCE_CANCEL_WAIT_TIMEOUT: {{$.Values.workerConfig.poolWorkflowForceTerminationAckTimeout | quote }}
   FILES_PROTOCOL_SUPPORT: {{$.Values.workerConfig.filesProtocolSupport | quote }}
   IS_ALL_SQUASH_ENABLED: {{$.Values.workerConfig.isAllSquashEnabled | quote }}
   FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS: {{$.Values.workerConfig.fileProtocolAllowlistedAccounts | quote }}

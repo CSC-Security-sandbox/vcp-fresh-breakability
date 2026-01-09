@@ -59,26 +59,60 @@ type createPoolWorkflow struct {
    - Validate pool parameters
    - Check resource availability
    - Prepare infrastructure configuration
+   - Initialize cancellation handler for CCFE cleanup support
 
 2. **Infrastructure Creation**:
    - Create VPC and subnets
    - Configure firewall rules
    - Set up NAT gateway
+   - Check for cancellation signals at checkpoints
 
 3. **VSA Deployment**:
    - Deploy VSA instances
    - Configure VSA cluster
    - Set up VSA networking
+   - Check for cancellation signals at checkpoints
 
 4. **KMS Configuration**:
    - Configure KMS for SVM
    - Validate KMS connectivity
    - Set up encryption keys
+   - Check for cancellation signals at checkpoints
 
 5. **Validation and Cleanup**:
    - Validate pool creation
    - Update database records
    - Handle rollback if errors occur
+   - Handle rollback if cancellation detected
+
+#### Cancellation Handling
+
+The create pool workflow supports graceful cancellation when a delete request is received while the pool is in `CREATING` state:
+
+- **Cancellation Signal**: `"cancel-pool-creation"` signal can be sent to the workflow
+- **Checkpoints**: Cancellation is checked at strategic points throughout the workflow:
+  - Before image digest validation
+  - After finding tenancy project
+  - After data subnet sequential poller
+  - After saving pool with cluster details
+  - After network configuration
+  - Before service account creation
+  - Before auto-tier bucket creation
+  - Before ONTAP credentials creation
+  - Before VM identification
+  - Before secondary zone identification
+  - Before serial number allocation
+  - Before VSA cluster deployment creation
+
+- **Rollback on Cancellation**: When cancellation is detected:
+  - Workflow stops executing new activities
+  - Rollback manager executes cleanup of partially created resources
+  - Pool state is updated appropriately
+  - Child workflows are cancelled via `PARENT_CLOSE_POLICY_REQUEST_CANCEL`
+
+- **Child Workflow Cancellation**: Child workflows automatically cancel when parent is cancelled:
+  - `DataSubnetSequentialPoller`: Cancelled when parent is cancelled
+  - `ConfigureNetworkWorkflow`: Cancelled when parent is cancelled
 
 #### Configuration
 
@@ -98,6 +132,8 @@ var (
     disableVsaCleanupOnVLMFailure                        = env.GetBool("DISABLE_VSA_CLEANUP_ON_VLM_FAILURE", false)
     enableAutoVolOfflineCronForGCPKMS                    = env.GetBool("ENABLE_AUTO_VOL_OFFLINE_CRON_FOR_GCP_KMS", true)
     ginLoggingFeatureFlag                                = env.GetBool("GIN_LOGGING_FEATURE", false)
+    poolWorkflowCancellationAckTimeout                   = env.GetUint64("POOL_WORKFLOW_CANCELLATION_TIMEOUT", 5)       // in minutes
+    poolWorkflowForceTerminationAckTimeout               = env.GetUint64("POOL_WORKFLOW_FORCE_CANCEL_WAIT_TIMEOUT", 30) // in seconds
 )
 ```
 
@@ -141,7 +177,7 @@ type poolDataSubnetWorkFlow struct {
 
 ### 4. Pool Delete Workflow
 
-**Purpose**: Safely deletes pools with proper resource cleanup.
+**Purpose**: Safely deletes pools with proper resource cleanup. Handles deletion of pools in `CREATING` state by cancelling the ongoing create workflow.
 
 **Entry Point**: `DeletePoolWorkflow(ctx workflow.Context, params *common.DeletePoolParams, pool *datamodel.Pool)`
 
@@ -153,6 +189,36 @@ type poolDataSubnetWorkFlow struct {
 - `DeleteVSAInstances`: Deletes VSA instances
 - `CleanupNetworkResources`: Cleans up network resources
 - `UpdatePoolStateInDB`: Updates pool state to deleted
+
+**Cancellation Activities** (when pool is in `CREATING` state):
+- `GetCreateJobByResourceUUID`: Retrieves the create job associated with the pool
+- `IsWorkflowRunningActivity`: Checks if the create workflow is still running
+- `SendCancelSignalActivity`: Sends cancellation signal to the create workflow
+- `WaitForWorkflowCancellationAckActivity`: Waits for graceful cancellation acknowledgment
+- `ForceCancelWorkflowActivity`: Forcefully terminates the workflow if timeout exceeded
+- `UpdateJobStatus`: Updates create job state to `ERROR` with cancellation details
+
+#### Cancellation Flow for CREATING Pools
+
+When a delete request is received for a pool in `CREATING` state:
+
+1. **Correlation ID Validation**: Validates that the delete request has a matching correlation ID with the create request
+2. **Create Workflow Detection**: Retrieves the create job and identifies the associated workflow
+3. **Workflow Status Check**: Checks if the create workflow is still running
+4. **Cancellation Signal**: Sends cancellation signal to the create workflow
+5. **Graceful Cancellation Wait**: Waits for cancellation acknowledgment (default: 5 minutes)
+6. **Force Termination**: If timeout exceeded, forcefully terminates the workflow (default: 30 seconds wait)
+7. **Job State Update**: Updates create job state to `ERROR` with cancellation details
+8. **Proceed with Deletion**: Continues with normal deletion flow
+
+#### Conditional Resource Cleanup
+
+The delete workflow conditionally skips cleanup for resources that haven't been created yet:
+
+- **DNS Records**: Only cleaned up if pool credentials exist
+- **VSA Cluster Deployment**: Only cleaned up if deployment name and cluster details exist
+- **Service Account**: Only cleaned up if cluster details exist
+- **Data Subnets**: Only cleaned up if cluster details exist
 
 ## VSA Management
 
@@ -261,6 +327,10 @@ defer func() {
 - `ENABLE_AUTO_VOL_OFFLINE_CRON_FOR_GCP_KMS`: Enable auto volume offline for GCP KMS
 - `GIN_LOGGING_FEATURE`: Enable Gin logging
 
+**Cancellation Configuration**:
+- `POOL_WORKFLOW_CANCELLATION_TIMEOUT`: Duration to wait for graceful cancellation acknowledgment (default: 5 minutes)
+- `POOL_WORKFLOW_FORCE_CANCEL_WAIT_TIMEOUT`: Duration to wait for force termination acknowledgment (default: 30 seconds)
+
 ## Testing
 
 ### Test Coverage
@@ -317,3 +387,4 @@ Each pool workflow has comprehensive test coverage:
 - [Cluster Workflows](./cluster-workflows.md)
 - [KMS Workflows](../kms/kms-workflows.md)
 - [Temporal Debugging Guide](../../guides/temporal-debugging.md)
+- [CCFE Cleanup Acknowledgment Design](../../architecture/designs/0018-ccfe-cleanup-acknowledgment.md)

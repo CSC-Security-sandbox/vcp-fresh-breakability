@@ -3294,3 +3294,31 @@ func (a *PoolActivity) CalculateBatchPlanForUpdate(ctx context.Context, input Ca
 		BatchIndices:     batchIndices,
 	}, nil
 }
+
+// GetCreateJobByResourceUUID retrieves the create job for a resource by resource UUID and validates correlation ID
+// Returns CreateJobResult with job UUID and workflow ID if found and correlation ID matches
+func (j *PoolActivity) GetCreateJobByResourceUUID(ctx context.Context, resourceUUID string, correlationID string, jobType string) (*commonparams.CreateJobResult, error) {
+	logger := util.GetLogger(ctx)
+	se := j.SE
+
+	// Get the create job for this resource by resource UUID
+	createJob, err := se.GetJobByResourceUUID(ctx, resourceUUID, jobType)
+	if err != nil {
+		logger.Warnf("Could not find create job for resource %s with job type %s: %v", resourceUUID, jobType, err)
+		return nil, err
+	}
+
+	// Validate correlation ID matches
+	if correlationID != "" && createJob.CorrelationID != correlationID {
+		logger.Warnf("Correlation ID mismatch: create job correlation ID %s does not match delete request correlation ID %s",
+			createJob.CorrelationID, correlationID)
+		return nil, fmt.Errorf("correlation ID mismatch")
+	}
+
+	logger.Infof("Found matching create job %s with workflow ID %s for job type %s", createJob.UUID, createJob.WorkflowID, jobType)
+
+	return &commonparams.CreateJobResult{
+		JobUUID:    createJob.UUID,
+		WorkflowID: createJob.WorkflowID,
+	}, nil
+}

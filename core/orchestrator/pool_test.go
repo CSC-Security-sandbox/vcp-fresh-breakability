@@ -1364,7 +1364,7 @@ func TestGetPoolByVendorID(t *testing.T) {
 
 // Test the new helper functions
 func TestDeletePool(t *testing.T) {
-	t.Run("WhenGetOrCreateAccountFails", func(tt *testing.T) {
+	t.Run("DeletePool_WhenGetAccountWithNameFails_ReturnsError", func(tt *testing.T) {
 		ctx, se, _, temporal := setup(tt)
 
 		params := &common.DeletePoolParams{
@@ -1383,7 +1383,7 @@ func TestDeletePool(t *testing.T) {
 		_, _, err := deletePool(ctx, temporal, se, params)
 		assert.EqualError(tt, err, "account not found")
 	})
-	t.Run("WhenPoolDoesNotExist", func(tt *testing.T) {
+	t.Run("DeletePool_WhenPoolNotFound_ReturnsNotFoundError", func(tt *testing.T) {
 		ctx, store, _, temporal := setup(tt)
 
 		// Clear the in-memory database
@@ -1411,7 +1411,7 @@ func TestDeletePool(t *testing.T) {
 			tt.Errorf("Expected custom error, got %v", err)
 		}
 	})
-	t.Run("WhenDeletePoolSucceeds", func(tt *testing.T) {
+	t.Run("DeletePool_WhenAllConditionsMet_ReturnsSuccess", func(tt *testing.T) {
 		ctx, store, _, temporal := setup(tt)
 		pools, account := createDBPools(t, store)
 		pool := pools[0]
@@ -1435,6 +1435,368 @@ func TestDeletePool(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Equal(tt, pool.Name, result.Name, "Expected pool name to match")
 		assert.NotEmpty(tt, jobID)
+	})
+	t.Run("DeletePool_WhenPoolInCreatingStateWithMatchingCorrelationID_SkipsStateUpdateAndContinues", func(tt *testing.T) {
+		ctx, store, _, temporal := setup(tt)
+		pools, account := createDBPools(t, store)
+		pool := pools[0]
+		correlationID := "test-correlation-id"
+
+		params := &common.DeletePoolParams{
+			AccountName: account.Name,
+			PoolID:      pool.UUID,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		// Add correlation ID to context
+		ctx = context.WithValue(ctx, middleware.CorrelationContextKey, correlationID)
+
+		// Mock GetPool to return a pool in CREATING state
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
+				Name:      pool.Name,
+				AccountID: account.ID,
+				State:     models.LifeCycleStateCreating,
+				Account:   account, // Required for convertDatastorePoolToModel
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone:     "us-central1-a",
+					SecondaryZone:   "us-central1-b",
+					ThroughputMibps: 64,
+					Iops:            1024,
+				},
+			},
+		}, nil)
+
+		// Mock GetJobByResourceUUID to return a job with matching correlation ID
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(&datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "job-uuid"},
+			CorrelationID: correlationID,
+		}, nil)
+
+		// Mock CreateJob
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "delete-job-uuid"},
+			WorkflowID: "test-workflow-id",
+		}, nil)
+
+		// Mock ExecuteWorkflow
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("DeletePool_WhenPoolInCreatingStateWithMismatchedCorrelationID_ReturnsConflictError", func(tt *testing.T) {
+		ctx, store, _, temporal := setup(tt)
+		pools, account := createDBPools(t, store)
+		pool := pools[0]
+		correlationID := "test-correlation-id"
+
+		params := &common.DeletePoolParams{
+			AccountName: account.Name,
+			PoolID:      pool.UUID,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		// Add correlation ID to context
+		ctx = context.WithValue(ctx, middleware.CorrelationContextKey, correlationID)
+
+		// Mock GetPool to return a pool in CREATING state
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
+				Name:      pool.Name,
+				AccountID: account.ID,
+				State:     models.LifeCycleStateCreating,
+			},
+		}, nil)
+
+		// Mock GetJobByResourceUUID to return a job with different correlation ID
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(&datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "job-uuid"},
+			CorrelationID: "different-correlation-id",
+		}, nil)
+
+		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Pool is already transitioning between states")
+	})
+	t.Run("DeletePool_WhenPoolInCreatingStateAndGetJobByResourceUUIDFails_ReturnsConflictError", func(tt *testing.T) {
+		ctx, store, _, temporal := setup(tt)
+		pools, account := createDBPools(t, store)
+		pool := pools[0]
+
+		params := &common.DeletePoolParams{
+			AccountName: account.Name,
+			PoolID:      pool.UUID,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		// Mock GetPool to return a pool in CREATING state
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
+				Name:      pool.Name,
+				AccountID: account.ID,
+				State:     models.LifeCycleStateCreating,
+			},
+		}, nil)
+
+		// Mock GetJobByResourceUUID to return an error
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(nil, errors.New("job not found"))
+
+		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Pool is already transitioning between states")
+	})
+	t.Run("DeletePool_WhenPoolHasActiveVolumes_ReturnsBadRequestError", func(tt *testing.T) {
+		ctx, store, _, temporal := setup(tt)
+		pools, account := createDBPools(t, store)
+		pool := pools[0]
+
+		params := &common.DeletePoolParams{
+			AccountName: account.Name,
+			PoolID:      pool.UUID,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		// Mock GetPool to return a pool with active volumes (VolumeCount > 0)
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
+				Name:      pool.Name,
+				AccountID: account.ID,
+			},
+			VolumeCount: 5, // Has active volumes to trigger line 549
+		}, nil)
+
+		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsBadRequestErr(err), "Expected BadRequestErr")
+		assert.Contains(tt, err.Error(), "pool cannot be deleted with active volumes")
+	})
+	t.Run("DeletePool_WhenPoolInCreatingStateAndGetJobByResourceUUIDReturnsError_ReturnsConflictError", func(tt *testing.T) {
+		ctx, store, _, temporal := setup(tt)
+		pools, account := createDBPools(t, store)
+		pool := pools[0]
+
+		params := &common.DeletePoolParams{
+			AccountName: account.Name,
+			PoolID:      pool.UUID,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		// Mock GetPool to return a pool in CREATING state
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
+				Name:      pool.Name,
+				AccountID: account.ID,
+				State:     models.LifeCycleStateCreating, // Triggers lines 553-557
+			},
+		}, nil)
+
+		// Mock GetJobByResourceUUID to return an error (triggers lines 554-557)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(nil, errors.New("database error"))
+
+		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsConflictErr(err), "Expected ConflictErr")
+		assert.Contains(tt, err.Error(), "Pool is already transitioning between states")
+	})
+	t.Run("DeletePool_WhenPoolInCreatingStateWithNonEmptyMismatchedCorrelationID_ReturnsConflictError", func(tt *testing.T) {
+		ctx, store, _, temporal := setup(tt)
+		pools, account := createDBPools(t, store)
+		pool := pools[0]
+		correlationID := "test-correlation-id-123"
+
+		params := &common.DeletePoolParams{
+			AccountName: account.Name,
+			PoolID:      pool.UUID,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		// Add correlation ID to context using the proper key
+		ctx = context.WithValue(ctx, middleware.CorrelationContextKey, correlationID)
+
+		// Mock GetPool to return a pool in CREATING state
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
+				Name:      pool.Name,
+				AccountID: account.ID,
+				State:     models.LifeCycleStateCreating, // Triggers lines 553-566
+			},
+		}, nil)
+
+		// Mock GetJobByResourceUUID to return a job with different correlation ID
+		// This triggers lines 559-560, 562 (correlationID != "" && createJob.CorrelationID != correlationID)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(&datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "job-uuid"},
+			CorrelationID: "different-correlation-id-456", // Different from context correlation ID
+		}, nil)
+
+		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsConflictErr(err), "Expected ConflictErr")
+		assert.Contains(tt, err.Error(), "Pool is already transitioning between states")
+	})
+	t.Run("DeletePool_WhenPoolInCreatingStateWithMatchingCorrelationID_LogsAndSkipsStateUpdate", func(tt *testing.T) {
+		ctx, store, _, temporal := setup(tt)
+		pools, account := createDBPools(t, store)
+		pool := pools[0]
+		correlationID := "matching-correlation-id-789"
+
+		params := &common.DeletePoolParams{
+			AccountName: account.Name,
+			PoolID:      pool.UUID,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		// Add correlation ID to context using the proper key
+		ctx = context.WithValue(ctx, middleware.CorrelationContextKey, correlationID)
+
+		// Mock GetPool to return a pool in CREATING state
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
+				Name:      pool.Name,
+				AccountID: account.ID,
+				State:     models.LifeCycleStateCreating, // Triggers lines 553-566
+				Account:   account,                       // Required for convertDatastorePoolToModel
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone:     "us-central1-a",
+					SecondaryZone:   "us-central1-b",
+					ThroughputMibps: 64,
+					Iops:            1024,
+				},
+			},
+		}, nil)
+
+		// Mock GetJobByResourceUUID to return a job with matching correlation ID
+		// This triggers line 565 (logger.Infof when correlation ID matches)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(&datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "job-uuid"},
+			CorrelationID: correlationID, // Same as context correlation ID
+		}, nil)
+
+		// Mock CreateJob
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "delete-job-uuid"},
+			WorkflowID: "test-workflow-id",
+		}, nil)
+
+		// Mock ExecuteWorkflow
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("DeletePool_WhenPoolNotInCreatingStateAndDeletingPoolFails_ReturnsError", func(tt *testing.T) {
+		ctx, store, _, temporal := setup(tt)
+		pools, account := createDBPools(t, store)
+		pool := pools[0]
+
+		params := &common.DeletePoolParams{
+			AccountName: account.Name,
+			PoolID:      pool.UUID,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		// Mock GetPool to return a pool NOT in CREATING state (e.g., READY state)
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
+				Name:      pool.Name,
+				AccountID: account.ID,
+				State:     models.LifeCycleStateREADY, // NOT in CREATING state, triggers line 601-604
+			},
+			VolumeCount: 0, // No volumes, so delete is allowed
+		}, nil)
+
+		// Mock CreateJob
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "delete-job-uuid"},
+			WorkflowID: "test-workflow-id",
+		}, nil)
+
+		// Mock DeletingPool to return an error (triggers line 603)
+		deletingPoolError := errors.New("failed to mark pool as deleting")
+		mockStorage.On("DeletingPool", ctx, mock.Anything).Return(deletingPoolError)
+
+		// Mock UpdateJob - when DeletingPool fails, the defer function will call UpdateJob to mark the job as ERROR
+		mockStorage.On("UpdateJob", ctx, "delete-job-uuid", string(models.JobsStateERROR), 0, "failed to mark pool as deleting").Return(nil)
+
+		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "failed to mark pool as deleting")
+		mockStorage.AssertExpectations(tt)
 	})
 }
 

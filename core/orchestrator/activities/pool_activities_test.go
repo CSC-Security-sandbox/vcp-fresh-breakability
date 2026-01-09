@@ -14312,3 +14312,172 @@ func TestGetImageConfigChecksums_PartialConfig(t *testing.T) {
 		assert.Contains(t, err.Error(), "not configured")
 	}
 }
+
+func TestPoolActivity_GetCreateJobByResourceUUID_Success_WithCreatePoolJobType(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	resourceUUID := "test-resource-uuid"
+	correlationID := "test-correlation-id"
+
+	createJob := &datamodel.Job{
+		BaseModel:     datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID:    "workflow-id",
+		CorrelationID: correlationID,
+	}
+
+	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(coremodel.JobTypeCreatePool)).Return(createJob, nil)
+
+	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(coremodel.JobTypeCreatePool))
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "job-uuid", result.JobUUID)
+	assert.Equal(t, "workflow-id", result.WorkflowID)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestPoolActivity_GetCreateJobByResourceUUID_Success_WithLargePoolJobType(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	resourceUUID := "test-resource-uuid"
+	correlationID := "test-correlation-id"
+
+	createJob := &datamodel.Job{
+		BaseModel:     datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID:    "workflow-id",
+		CorrelationID: correlationID,
+	}
+
+	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(coremodel.JobTypeCreateLargePool)).Return(createJob, nil)
+
+	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(coremodel.JobTypeCreateLargePool))
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "job-uuid", result.JobUUID)
+	assert.Equal(t, "workflow-id", result.WorkflowID)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestPoolActivity_GetCreateJobByResourceUUID_NotFound(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	resourceUUID := "test-resource-uuid"
+	correlationID := "test-correlation-id"
+
+	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(coremodel.JobTypeCreatePool)).Return(nil, errors.New("not found"))
+
+	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(coremodel.JobTypeCreatePool))
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestPoolActivity_GetCreateJobByResourceUUID_CorrelationIDMismatch(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	resourceUUID := "test-resource-uuid"
+	correlationID := "test-correlation-id"
+	differentCorrelationID := "different-correlation-id"
+
+	createJob := &datamodel.Job{
+		BaseModel:     datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID:    "workflow-id",
+		CorrelationID: differentCorrelationID,
+	}
+
+	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(coremodel.JobTypeCreatePool)).Return(createJob, nil)
+
+	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(coremodel.JobTypeCreatePool))
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "correlation ID mismatch")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestPoolActivity_GetCreateJobByResourceUUID_EmptyCorrelationID(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	resourceUUID := "test-resource-uuid"
+	correlationID := ""
+
+	createJob := &datamodel.Job{
+		BaseModel:     datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID:    "workflow-id",
+		CorrelationID: "some-correlation-id",
+	}
+
+	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(coremodel.JobTypeCreatePool)).Return(createJob, nil)
+
+	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(coremodel.JobTypeCreatePool))
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "job-uuid", result.JobUUID)
+	assert.Equal(t, "workflow-id", result.WorkflowID)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestPoolActivity_GetCreateJobByResourceUUID_Success_WithVolumeJobType(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	resourceUUID := "test-volume-uuid"
+	correlationID := "test-correlation-id"
+
+	createJob := &datamodel.Job{
+		BaseModel:     datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID:    "workflow-id",
+		CorrelationID: correlationID,
+	}
+
+	// Test with volume job type - demonstrating generic functionality
+	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(coremodel.JobTypeCreateVolume)).Return(createJob, nil)
+
+	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(coremodel.JobTypeCreateVolume))
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "job-uuid", result.JobUUID)
+	assert.Equal(t, "workflow-id", result.WorkflowID)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestPoolActivity_GetCreateJobByResourceUUID_Success_WithSnapshotJobType(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	resourceUUID := "test-snapshot-uuid"
+	correlationID := "test-correlation-id"
+
+	createJob := &datamodel.Job{
+		BaseModel:     datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID:    "workflow-id",
+		CorrelationID: correlationID,
+	}
+
+	// Test with snapshot job type - demonstrating generic functionality
+	mockStorage.On("GetJobByResourceUUID", ctx, resourceUUID, string(coremodel.JobTypeCreateSnapshot)).Return(createJob, nil)
+
+	result, err := activity.GetCreateJobByResourceUUID(ctx, resourceUUID, correlationID, string(coremodel.JobTypeCreateSnapshot))
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "job-uuid", result.JobUUID)
+	assert.Equal(t, "workflow-id", result.WorkflowID)
+	mockStorage.AssertExpectations(t)
+}

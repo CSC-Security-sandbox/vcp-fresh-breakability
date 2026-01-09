@@ -3153,7 +3153,7 @@ func TestV1betaDeletePool(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
-		mockOrchestrator.EXPECT().DeletePool(mock.Anything, mock.Anything).Return(nil, "", errors.NewConflictErr("pool has active volumes"))
+		mockOrchestrator.EXPECT().DeletePool(mock.Anything, mock.Anything).Return(nil, "", errors.NewBadRequestErr("pool has active volumes"))
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -3162,7 +3162,7 @@ func TestV1betaDeletePool(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, float64(409), result.(*gcpgenserver.V1betaDeletePoolConflict).Code)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaDeletePoolConflict).Code)
 		assert.Equal(tt, "Pool has active volumes", result.(*gcpgenserver.V1betaDeletePoolConflict).Message)
 	})
 	t.Run("WhenPoolIsAlreadyDeleted", func(tt *testing.T) {
@@ -3284,10 +3284,15 @@ func TestV1betaDeletePool(t *testing.T) {
 			State:          models.LifeCycleStateCreating,
 			PoolAttributes: &models.PoolAttributes{},
 		}
+		deletePoolParams := &commonparams.DeletePoolParams{
+			AccountName: params.ProjectNumber,
+			PoolID:      existingPool.UUID,
+		}
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().DeletePool(mock.Anything, deletePoolParams).Return(nil, "", errors.NewConflictErr("Error deleting pool - Pool is already transitioning between states"))
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,

@@ -303,6 +303,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
 	worker.RegisterActivity(&expertmodeactivities.RBACUpdateActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.PSCActivity{SE: dbcon})
+	worker.RegisterActivity(activities.NewCancellationActivity(temporal))
 	worker.RegisterActivity(&workflows.SubnetActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: dbcon, Scheduler: temporalScheduler})
 	worker.RegisterActivity(&flexcache_activities.FlexCacheVolumeCreateActivity{SE: dbcon})

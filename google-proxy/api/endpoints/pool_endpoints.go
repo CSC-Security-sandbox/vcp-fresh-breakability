@@ -326,7 +326,7 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 				Name: gcpgenserver.NewOptString(operationID),
 				Done: gcpgenserver.NewOptBool(job.State == models.JobsStateDONE || job.State == models.JobsStateERROR), // Done if job is in DONE or ERROR state
 			}, nil
-		case models.LifeCycleStateCreating, models.LifeCycleStateUpdating:
+		case models.LifeCycleStateUpdating:
 			msg := "Error deleting pool - Pool is already transitioning between states"
 			return &gcpgenserver.V1betaDeletePoolConflict{
 				Code:    409,
@@ -355,11 +355,18 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 				Done: gcpgenserver.NewOptBool(true),
 			}, nil
 		}
-		if errors.IsConflictErr(err) {
+		if errors.IsBadRequestErr(err) {
 			logger.Info("Pool has volume", "uuid", params.PoolId)
 			return &gcpgenserver.V1betaDeletePoolConflict{
-				Code:    409,
+				Code:    400,
 				Message: "Pool has active volumes",
+			}, nil
+		}
+		if errors.IsConflictErr(err) {
+			logger.Info("Pool is in transition state", "uuid", params.PoolId)
+			return &gcpgenserver.V1betaDeletePoolConflict{
+				Code:    409,
+				Message: "Error deleting pool - Pool is already transitioning between states",
 			}, nil
 		}
 		logger.Error("Failed to delete pool", "error", err.Error())
@@ -369,7 +376,7 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 	if err != nil {
 		return nil, err
 	}
-	if deleted.State == models.LifeCycleStateDeleting {
+	if deleted.State == models.LifeCycleStateDeleting || deleted.State == models.LifeCycleStateCreating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID)),
 			Response: resp,

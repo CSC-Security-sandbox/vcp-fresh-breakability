@@ -227,6 +227,8 @@ workerConfig:
   createPoolWorkflowTimeoutMinutesLV: "120" # Create pool workflow run timeout (LV pools) in minutes
   cmekBackupEnabled: false
   workflowGlobalTimeoutForReplicationMinutes: 10
+  poolWorkflowCancellationAckTimeout: 5 # Timeout (in minutes)
+  poolWorkflowForceTerminationAckTimeout: 30 # Timeout (in seconds)
   cmekRotationPageSize: "1000" 
   cmekRotationMaxWorkers: "20"
   cmekRotationMaxPasses: "10"
