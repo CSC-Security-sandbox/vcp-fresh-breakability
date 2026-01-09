@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -18,6 +19,7 @@ import (
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -672,6 +674,10 @@ func executeVSAClusterOperations(ctx workflow.Context, params *common.StartProje
 					results.FailedPools++
 				} else {
 					logger.Infof("Successfully updated pool %s lifecycle state to %s", result.PoolName, targetLifecycleState)
+
+					// Handle poller deregister/register based on pool state
+					handleHarvestFarmPollerRegistration(ctx, poolList[i], result, targetLifecycleState, params)
+
 					results.SuccessfulPools++
 				}
 			} else {
@@ -698,6 +704,64 @@ func executeVSAClusterOperations(ctx workflow.Context, params *common.StartProje
 	})
 
 	return resultChannel, nil
+}
+
+// handleHarvestFarmPollerRegistration handles poller deregister/register based on pool lifecycle state
+// This function is called after successfully updating pool state in HRE flow
+func handleHarvestFarmPollerRegistration(ctx workflow.Context, currentPoolView *datamodel.PoolView, result PoolProcessingResult, targetLifecycleState string, params *common.StartProjectEventParams) {
+	if !enableMetrics {
+		return
+	}
+
+	logger := util.GetLogger(ctx)
+
+	// Deregister poller when pool is disabled
+	if targetLifecycleState == models.LifeCycleStateDisabled {
+		unregisterParams := &unRegisterNodeFromHarvestFarmParams{
+			PoolID:            currentPoolView.Pool.ID,
+			CustomerProjectID: params.ProjectNumber,
+			TenantProjectID:   currentPoolView.ClusterDetails.RegionalTenantProject,
+		}
+		// Execute child workflow to unregister poller from harvest farm
+		childWorkflowOptions := workflow.ChildWorkflowOptions{
+			TaskQueue: workflowengine.CustomerTaskQueue,
+		}
+		childCtx := workflow.WithChildOptions(ctx, childWorkflowOptions)
+		childWfError := workflow.ExecuteChildWorkflow(childCtx, UnRegisterNodeFromHarvestFarmWorkflow, unregisterParams).Get(childCtx, nil)
+		if childWfError != nil {
+			logger.Warnf("Failed to off-board poolId %d to harvest-farm due to error: %v", currentPoolView.Pool.ID, childWfError)
+		} else {
+			logger.Infof("Successfully unregistered pool %s (ID: %d) from harvest farm", result.PoolName, currentPoolView.Pool.ID)
+		}
+		return
+	}
+
+	// Register poller when pool becomes ready
+	if targetLifecycleState == models.LifeCycleStateREADY {
+		registerNodeToHarvestFarmWorkflowInput := RegisterNodeToHarvestFarmWorkflowInput{
+			PoolID:            currentPoolView.Pool.ID,
+			MaxNodesPerGroup:  maxNodesPerGroup,
+			CustomerProjectID: params.ProjectNumber,
+			TenantProjectID:   currentPoolView.ClusterDetails.RegionalTenantProject,
+			PoolUUID:          currentPoolView.UUID,
+			AccountID:         currentPoolView.AccountID,
+			DeploymentName:    currentPoolView.DeploymentName,
+			PoolName:          currentPoolView.Name,
+			IsRegionalHA:      currentPoolView.PoolAttributes != nil && currentPoolView.PoolAttributes.IsRegionalHA,
+		}
+
+		childWorkflowOptions := workflow.ChildWorkflowOptions{
+			WorkflowID: "register-node-to-harvest-farm-" + uuid.New().String(),
+			TaskQueue:  workflowengine.CustomerTaskQueue,
+		}
+		childCtx := workflow.WithChildOptions(ctx, childWorkflowOptions)
+		childWfError := workflow.ExecuteChildWorkflow(childCtx, RegisterNodeToHarvestFarmWorkflow, registerNodeToHarvestFarmWorkflowInput).Get(childCtx, nil)
+		if childWfError != nil {
+			logger.Warnf("Failed to on-board poolId %d to harvest-farm due to error: %v", currentPoolView.Pool.ID, childWfError)
+		} else {
+			logger.Infof("Successfully registered pool %s (ID: %d) to harvest farm", result.PoolName, currentPoolView.Pool.ID)
+		}
+	}
 }
 
 // waitForVSAOperationsWithTimeout waits for VSA operations to complete with a configurable timeout

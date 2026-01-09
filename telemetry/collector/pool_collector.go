@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
@@ -46,6 +48,9 @@ func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.
 		return &PoolMetricsResult{}, fmt.Errorf("no pools found from DB")
 	}
 
+	// Fetch all accounts and create a map of account name -> account state for efficient lookup
+	accountStateMap := buildAccountStateMap(ctx, vcpDB)
+
 	// Initialize a slice to hold the hydrated metrics
 	var metrics []entity.HydratedMetric
 	var hydratedMetrics []datamodel2.HydratedMetrics
@@ -58,6 +63,11 @@ func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.
 		accountName := pool.GetAccountName()
 		if accountName == "" || pool.PoolAttributes == nil {
 			logger.Warnf("Skipping pool %s (ID: %d) as it has no associated account or pool attributes", pool.Name, pool.ID)
+			continue
+		}
+		// Skip metrics collection if account state is HYPERSCALERDISABLED
+		if accountState, exists := accountStateMap[accountName]; exists && accountState == models.AccountStateHyperscalerDisabled {
+			logger.Warnf("Skipping pool %s (ID: %d) metrics collection as account %s is in HYPERSCALERDISABLED state", pool.Name, pool.ID, accountName)
 			continue
 		}
 		// Assemble metadata for the pool
@@ -88,6 +98,39 @@ func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.
 		HydratedMetricsDataModel: hydratedMetrics,
 		PoolMetadataMap:          poolMetadataMap,
 	}, nil
+}
+
+// buildAccountStateMap fetches all accounts and creates a map of account name -> account state
+// for efficient lookup. Returns an empty map if fetching fails (graceful degradation).
+func buildAccountStateMap(ctx context.Context, vcpDB database.Storage) map[string]string {
+	logger := util.GetLogger(ctx)
+	accountStateMap := make(map[string]string)
+	accountOffset := 0
+	accountLimit := 1000 // Use reasonable page size
+
+	for {
+		pagination := &dbutils.Pagination{
+			Offset: accountOffset,
+			Limit:  accountLimit,
+		}
+		accounts, err := vcpDB.ListAccountsForTelemetry(ctx, pagination)
+		if err != nil {
+			logger.Warnf("Failed to fetch accounts for state check: %v, continuing without account state filtering", err)
+			break
+		}
+		if len(accounts) == 0 {
+			break
+		}
+		for _, account := range accounts {
+			accountStateMap[account.Name] = account.State
+		}
+		accountOffset += accountLimit
+		if len(accounts) < accountLimit {
+			break
+		}
+	}
+	logger.Debug(fmt.Sprintf("Fetched %d accounts for state filtering", len(accountStateMap)))
+	return accountStateMap
 }
 
 // assemblePoolMetadata creates ResourceMetadata from the optimized PoolMetricsData structure

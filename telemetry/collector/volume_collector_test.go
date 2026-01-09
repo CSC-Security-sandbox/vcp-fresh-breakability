@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
@@ -60,6 +62,14 @@ func (m *mockVolumeStorage) GetMultipleBackupVaults(ctx context.Context, conditi
 	return args.Get(0).([]*datamodel.BackupVault), args.Error(1)
 }
 
+func (m *mockVolumeStorage) ListAccountsForTelemetry(ctx context.Context, pagination *utils.Pagination) ([]*database.AccountTelemetryData, error) {
+	args := m.Called(ctx, pagination)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*database.AccountTelemetryData), args.Error(1)
+}
+
 func Test_GetVolumeMetrics_ReturnsMetrics(t *testing.T) {
 	m := new(mockVolumeStorage)
 	ctx := context.Background()
@@ -89,6 +99,7 @@ func Test_GetVolumeMetrics_ReturnsMetrics(t *testing.T) {
 	}
 
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -157,6 +168,7 @@ func Test_GetVolumeMetrics_MultipleVolumes(t *testing.T) {
 	}
 
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -192,6 +204,7 @@ func Test_GetVolumeMetrics_EmptyVolumes(t *testing.T) {
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
 	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.NoError(t, err)
@@ -206,6 +219,7 @@ func Test_GetVolumeMetrics_ListVolumesWithAccountsError(t *testing.T) {
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
 	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(nil, assert.AnError)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
 	assert.Error(t, err)
@@ -252,6 +266,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithZeroBackupChainBytes(t *testing.T) 
 	}
 
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -310,6 +325,7 @@ func Test_GetVolumeMetrics_ProcessesVolumesWithNilDataProtection(t *testing.T) {
 	}
 
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -373,6 +389,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithNilAccount(t *testing.T) {
 	}
 
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -435,6 +452,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingUUID(t *testing.T) {
 	}
 
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -497,6 +515,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingName(t *testing.T) {
 	}
 
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -559,6 +578,7 @@ func Test_GetVolumeMetrics_FiltersVolumesWithMissingAccountName(t *testing.T) {
 	}
 
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -647,6 +667,7 @@ func TestGetVolumeMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 	}
 
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -713,6 +734,7 @@ func Test_GetVolumeMetrics_WithThroughputMapping(t *testing.T) {
 	}
 
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -772,6 +794,7 @@ func Test_GetVolumeMetrics_WithZeroVolumeThroughput(t *testing.T) {
 	}
 
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -825,6 +848,7 @@ func Test_GetVolumeMetrics_WithNilPoolThroughput(t *testing.T) {
 	}
 
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -878,6 +902,7 @@ func Test_GetVolumeMetrics_WithResourceTypeMapping(t *testing.T) {
 	}
 
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{volume}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -954,6 +979,7 @@ func Test_GetVolumeMetrics_BackupChainBytesEdgeCases(t *testing.T) {
 	}
 
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
 
@@ -1005,6 +1031,7 @@ func Test_GetVolumeMetrics_SFRMetricsEnabled(t *testing.T) {
 	}
 
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	// Mock GetMultipleBackupVaults for backup billing metrics
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
@@ -1079,6 +1106,7 @@ func Test_GetVolumeMetrics_SFRMetricsEnabled_Error(t *testing.T) {
 	}
 
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	// Mock GetMultipleBackupVaults for backup billing metrics
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
@@ -1127,6 +1155,7 @@ func Test_GetVolumeMetrics_SFRMetricsEnabled_NoMetricsForVolume(t *testing.T) {
 	}
 
 	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	// Mock GetMultipleBackupVaults for backup billing metrics
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
@@ -1418,6 +1447,7 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 			}
 			poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 			m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(tt.volumes, nil)
+			m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 			// Mock GetMultipleBackupVaults call - fetches all backup vaults at once
 			if tt.backupVaultError != nil {
@@ -1724,6 +1754,7 @@ func Test_GetVolumeMetrics_CRB_With_SFR_Metrics(t *testing.T) {
 			poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
 
 			m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(tt.volumes, nil)
+			m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 			// Mock GetMultipleBackupVaults
 			if tt.backupVault != nil {
@@ -1781,4 +1812,194 @@ func Test_GetVolumeMetrics_CRB_With_SFR_Metrics(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Test_GetVolumeMetrics_SkipsDisabledAccounts tests that volumes with HYPERSCALERDISABLED accounts are skipped
+func Test_GetVolumeMetrics_SkipsDisabledAccounts(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                 "us-east-1",
+		EnableBackupBillingMetrics: true,
+		EnableFilesBackupBilling:   true,
+	}
+
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+	poolMetadataMap[1] = metadata.ResourceMetadata{
+		ResourceType: metadata.Volume,
+	}
+
+	backupChainBytes := int64(1024)
+	volumes := []*database.VolumeMetricsData{
+		{
+			UUID:        "volume-uuid-1",
+			Name:        "Volume1",
+			SizeInBytes: 2048,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "DisabledAccount",
+				DeploymentName: "test-deployment",
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+		{
+			UUID:        "volume-uuid-2",
+			Name:        "Volume2",
+			SizeInBytes: 4096,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "EnabledAccount",
+				DeploymentName: "test-deployment",
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	accounts := []*database.AccountTelemetryData{
+		{
+			ID:    1,
+			Name:  "DisabledAccount",
+			State: models.AccountStateHyperscalerDisabled,
+		},
+		{
+			ID:    2,
+			Name:  "EnabledAccount",
+			State: "ENABLED",
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.MatchedBy(func(p *utils.Pagination) bool {
+		return p != nil && p.Offset == 0 && p.Limit == 1000
+	})).Return(accounts, nil)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Should only have metrics for Volume2 (EnabledAccount), not Volume1 (DisabledAccount)
+	// Volume2 should have: VolumeAllocatedThroughput metric and BackupEnabledVolumeAllocatedSize hydrated metric
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1, "Should have throughput metric for enabled account volume only")
+	assert.Len(t, result.HydratedMetricsDataModel, 1, "Should have hydrated metric for enabled account volume only")
+
+	// Verify all metrics belong to Volume2
+	for _, metric := range result.VolumeAllocatedThroughputHydratedMetrics {
+		assert.Equal(t, "Volume2", derefString(metric.Metadata.ResourceName))
+		assert.Equal(t, "EnabledAccount", derefString(metric.Metadata.AccountName))
+	}
+
+	for _, metric := range result.HydratedMetricsDataModel {
+		assert.Equal(t, "Volume2", metric.ResourceName)
+		assert.Equal(t, "EnabledAccount", metric.ConsumerID)
+	}
+
+	m.AssertExpectations(t)
+}
+
+// Test_GetVolumeMetrics_AccountFetchFailure tests graceful degradation when account fetch fails
+func Test_GetVolumeMetrics_AccountFetchFailure(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                 "us-east-1",
+		EnableBackupBillingMetrics: true,
+		EnableFilesBackupBilling:   true,
+	}
+
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+	poolMetadataMap[1] = metadata.ResourceMetadata{
+		ResourceType: metadata.Volume,
+	}
+
+	backupChainBytes := int64(1024)
+	volumes := []*database.VolumeMetricsData{
+		{
+			UUID:        "volume-uuid-1",
+			Name:        "Volume1",
+			SizeInBytes: 2048,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account1",
+				DeploymentName: "test-deployment",
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+
+	// Should still process volumes even if account fetch fails (graceful degradation)
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Should have metrics for all volumes since account filtering failed
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
+	assert.Len(t, result.HydratedMetricsDataModel, 1)
+
+	m.AssertExpectations(t)
+}
+
+// Test_GetVolumeMetrics_AccountNotInMap tests that volumes with accounts not in the map are still processed
+func Test_GetVolumeMetrics_AccountNotInMap(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{
+		RegionName:                 "us-east-1",
+		EnableBackupBillingMetrics: true,
+		EnableFilesBackupBilling:   true,
+	}
+
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+	poolMetadataMap[1] = metadata.ResourceMetadata{
+		ResourceType: metadata.Volume,
+	}
+
+	backupChainBytes := int64(1024)
+	volumes := []*database.VolumeMetricsData{
+		{
+			UUID:        "volume-uuid-1",
+			Name:        "Volume1",
+			SizeInBytes: 2048,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "UnknownAccount",
+				DeploymentName: "test-deployment",
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	accounts := []*database.AccountTelemetryData{
+		{
+			ID:    1,
+			Name:  "OtherAccount",
+			State: "ENABLED",
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return(accounts, nil)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Should still process volumes even if account is not in the map (unknown accounts are allowed)
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
+	assert.Len(t, result.HydratedMetricsDataModel, 1)
+
+	m.AssertExpectations(t)
 }

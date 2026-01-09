@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
@@ -42,6 +43,9 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 	if len(volumes) == 0 {
 		return &VolumeMetricsResult{}, nil
 	}
+
+	// Fetch all accounts and create a map of account name -> account state for efficient lookup
+	accountStateMap := buildAccountStateMap(ctx, vcpDB)
 
 	// Initialize a slice to hold the hydrated metrics
 	var metrics []entity.HydratedMetric
@@ -99,6 +103,11 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 		}
 		if accountName == "" {
 			logger.Error(fmt.Sprintf("Volume account name is missing for volume %s", volume.UUID))
+			continue
+		}
+		// Skip metrics collection if account state is HYPERSCALERDISABLED
+		if accountState, exists := accountStateMap[accountName]; exists && accountState == models.AccountStateHyperscalerDisabled {
+			logger.Debugf("Skipping volume %s (UUID: %s) metrics collection as account %s is in HYPERSCALERDISABLED state", volume.Name, volume.UUID, accountName)
 			continue
 		}
 

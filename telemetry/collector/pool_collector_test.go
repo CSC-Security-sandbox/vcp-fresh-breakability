@@ -2,12 +2,14 @@ package collector
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
@@ -45,6 +47,14 @@ func (m *mockStorage) ListPoolsForMetrics(ctx context.Context) ([]*database.Pool
 	return args.Get(0).([]*database.PoolMetricsData), args.Error(1)
 }
 
+func (m *mockStorage) ListAccountsForTelemetry(ctx context.Context, pagination *utils.Pagination) ([]*database.AccountTelemetryData, error) {
+	args := m.Called(ctx, pagination)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*database.AccountTelemetryData), args.Error(1)
+}
+
 func Test_GetPoolMetrics_ReturnsMetrics(t *testing.T) {
 	m := new(mockStorage)
 	ctx := context.Background()
@@ -69,6 +79,7 @@ func Test_GetPoolMetrics_ReturnsMetrics(t *testing.T) {
 	)
 
 	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -154,6 +165,7 @@ func Test_GetPoolMetrics_MultiplePools(t *testing.T) {
 	}
 
 	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -210,6 +222,7 @@ func Test_GetPoolMetrics_EmptyPools(t *testing.T) {
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
 	m.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{}, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.Error(t, err)
@@ -223,6 +236,7 @@ func Test_GetPoolMetrics_ListPoolsForMetricsError(t *testing.T) {
 	ctx := context.Background()
 	config := &common.TelemetryConfig{RegionName: "us-east-1"}
 	m.On("ListPoolsForMetrics", mock.Anything).Return(nil, assert.AnError)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.Error(t, err)
@@ -411,6 +425,7 @@ func TestGetPoolMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 	}
 
 	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -476,6 +491,7 @@ func Test_GetPoolMetrics_WithThroughputAndMetadataMap(t *testing.T) {
 	}
 
 	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -533,6 +549,7 @@ func Test_GetPoolMetrics_MultiplePoolsWithDifferentThroughput(t *testing.T) {
 	}
 
 	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -575,6 +592,7 @@ func Test_GetPoolMetrics_ZeroThroughput(t *testing.T) {
 	}
 
 	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -609,6 +627,7 @@ func Test_GetPoolMetrics_IncludesThroughputAndResourceID(t *testing.T) {
 	}
 
 	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -695,6 +714,7 @@ func Test_GetPoolMetrics_NilPoolAttributes(t *testing.T) {
 	}
 
 	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -731,6 +751,7 @@ func Test_GetPoolMetrics_RegionalHAPool(t *testing.T) {
 	}
 
 	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -784,6 +805,7 @@ func Test_GetPoolMetrics_ZonalPool(t *testing.T) {
 	}
 
 	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -844,6 +866,7 @@ func Test_GetPoolMetrics_MixedPoolTypes(t *testing.T) {
 	}
 
 	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	result, err := GetPoolMetrics(ctx, m, config, time.Now())
 	assert.NoError(t, err)
@@ -984,4 +1007,219 @@ func Test_AssemblePoolMetadata_ThroughputEdgeCases(t *testing.T) {
 				"Throughput should be correctly converted from int64 to float64")
 		})
 	}
+}
+
+// Test_GetPoolMetrics_SkipsDisabledAccounts tests that pools with HYPERSCALERDISABLED accounts are skipped
+func Test_GetPoolMetrics_SkipsDisabledAccounts(t *testing.T) {
+	m := new(mockStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	pools := []*database.PoolMetricsData{
+		{
+			ID:             1,
+			UUID:           "pool-uuid-1",
+			Name:           "Pool1",
+			SizeInBytes:    1000,
+			DeploymentName: "gcp-deployment-1",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 100,
+				Iops:            1000,
+				AccountName:     "DisabledAccount",
+			},
+			QuotaInBytes: 500,
+		},
+		{
+			ID:             2,
+			UUID:           "pool-uuid-2",
+			Name:           "Pool2",
+			SizeInBytes:    2000,
+			DeploymentName: "gcp-deployment-2",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 200,
+				Iops:            2000,
+				AccountName:     "EnabledAccount",
+			},
+			QuotaInBytes: 1000,
+		},
+	}
+
+	accounts := []*database.AccountTelemetryData{
+		{
+			ID:    1,
+			Name:  "DisabledAccount",
+			State: models.AccountStateHyperscalerDisabled,
+		},
+		{
+			ID:    2,
+			Name:  "EnabledAccount",
+			State: "ENABLED",
+		},
+	}
+
+	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.MatchedBy(func(p *utils.Pagination) bool {
+		return p != nil && p.Offset == 0 && p.Limit == 1000
+	})).Return(accounts, nil)
+
+	result, err := GetPoolMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Should only have metrics for Pool2 (EnabledAccount), not Pool1 (DisabledAccount)
+	// Each pool has 4 metrics: PoolAllocatedSize, AllocatedUsed, ThroughputMibps, Iops
+	assert.Len(t, result.HydratedMetrics, 4, "Should have 4 metrics for enabled account pool only")
+	assert.Len(t, result.HydratedMetricsDataModel, 4, "Should have 4 hydrated metrics for enabled account pool only")
+	assert.Len(t, result.PoolMetadataMap, 1, "Should have metadata for one pool only")
+
+	// Verify all metrics belong to Pool2
+	for _, metric := range result.HydratedMetrics {
+		assert.Equal(t, "Pool2", derefString(metric.Metadata.ResourceName))
+		assert.Equal(t, "EnabledAccount", derefString(metric.Metadata.AccountName))
+	}
+
+	m.AssertExpectations(t)
+}
+
+// Test_GetPoolMetrics_AccountFetchFailure tests graceful degradation when account fetch fails
+func Test_GetPoolMetrics_AccountFetchFailure(t *testing.T) {
+	m := new(mockStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	pools := []*database.PoolMetricsData{
+		{
+			ID:             1,
+			UUID:           "pool-uuid-1",
+			Name:           "Pool1",
+			SizeInBytes:    1000,
+			DeploymentName: "gcp-deployment-1",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 100,
+				Iops:            1000,
+				AccountName:     "Account1",
+			},
+			QuotaInBytes: 500,
+		},
+	}
+
+	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+
+	// Should still process pools even if account fetch fails (graceful degradation)
+	result, err := GetPoolMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Should have metrics for all pools since account filtering failed
+	assert.Len(t, result.HydratedMetrics, 4)
+	assert.Len(t, result.HydratedMetricsDataModel, 4)
+
+	m.AssertExpectations(t)
+}
+
+// Test_GetPoolMetrics_AccountPagination tests account fetching with pagination
+func Test_GetPoolMetrics_AccountPagination(t *testing.T) {
+	m := new(mockStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	pools := []*database.PoolMetricsData{
+		{
+			ID:             1,
+			UUID:           "pool-uuid-1",
+			Name:           "Pool1",
+			SizeInBytes:    1000,
+			DeploymentName: "gcp-deployment-1",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 100,
+				Iops:            1000,
+				AccountName:     "Account1",
+			},
+			QuotaInBytes: 500,
+		},
+	}
+
+	// First page of accounts - return exactly 1000 to trigger second page call
+	accountsPage1 := make([]*database.AccountTelemetryData, 1000)
+	for i := 0; i < 1000; i++ {
+		if i == 0 {
+			accountsPage1[i] = &database.AccountTelemetryData{
+				ID:    1,
+				Name:  "Account1",
+				State: "ENABLED",
+			}
+		} else {
+			accountsPage1[i] = &database.AccountTelemetryData{
+				ID:    int64(i + 1),
+				Name:  fmt.Sprintf("Account%d", i+1),
+				State: "ENABLED",
+			}
+		}
+	}
+
+	// Second page of accounts (empty, indicating end)
+	accountsPage2 := []*database.AccountTelemetryData{}
+
+	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.MatchedBy(func(p *utils.Pagination) bool {
+		return p != nil && p.Offset == 0 && p.Limit == 1000
+	})).Return(accountsPage1, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.MatchedBy(func(p *utils.Pagination) bool {
+		return p != nil && p.Offset == 1000 && p.Limit == 1000
+	})).Return(accountsPage2, nil)
+
+	result, err := GetPoolMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Should have metrics since Account1 is enabled
+	assert.Len(t, result.HydratedMetrics, 4)
+	assert.Len(t, result.HydratedMetricsDataModel, 4)
+
+	m.AssertExpectations(t)
+}
+
+// Test_GetPoolMetrics_AccountNotInMap tests that pools with accounts not in the map are still processed
+func Test_GetPoolMetrics_AccountNotInMap(t *testing.T) {
+	m := new(mockStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	pools := []*database.PoolMetricsData{
+		{
+			ID:             1,
+			UUID:           "pool-uuid-1",
+			Name:           "Pool1",
+			SizeInBytes:    1000,
+			DeploymentName: "gcp-deployment-1",
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 100,
+				Iops:            1000,
+				AccountName:     "UnknownAccount",
+			},
+			QuotaInBytes: 500,
+		},
+	}
+
+	accounts := []*database.AccountTelemetryData{
+		{
+			ID:    1,
+			Name:  "OtherAccount",
+			State: "ENABLED",
+		},
+	}
+
+	m.On("ListPoolsForMetrics", mock.Anything).Return(pools, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return(accounts, nil)
+
+	result, err := GetPoolMetrics(ctx, m, config, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Should still process pools even if account is not in the map (unknown accounts are allowed)
+	assert.Len(t, result.HydratedMetrics, 4)
+	assert.Len(t, result.HydratedMetricsDataModel, 4)
+
+	m.AssertExpectations(t)
 }

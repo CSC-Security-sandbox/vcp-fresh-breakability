@@ -89,6 +89,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_MetricClientWrapperIsNil(t *
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
 		createTestPoolMetricsData("dummy-pool", "test-account"),
 	}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	// Mock ListVolumesForTelemetryMetrics to return empty list since we expect early return
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
@@ -123,6 +124,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_Success(t *testing.T) {
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
 		createTestPoolMetricsData("dummy-pool", "success-account"),
 	}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
@@ -150,6 +152,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_GetPoolMetricsError(t *testi
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(0)
 	// Mock ListPools to return error
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return(nil, context.DeadlineExceeded)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	// Since ListPools will return error, CreateHydratedMetricsBatch won't be reached, so nil is OK
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: nil, sink: sink}
@@ -174,6 +177,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_DeliverMetricsReturnsZero(t 
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
 		createTestPoolMetricsData("dummy-pool", "zero-account"),
 	}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
@@ -200,6 +204,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_EmptyPools(t *testing.T) {
 	sink := &performance.MockSink{}
 	// Should not call DeliverMetrics if no pools
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: nil, sink: sink}
 	err := mp.ProcessPerformanceMetrics(ctx)
@@ -220,6 +225,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_ListPoolsNilSlice(t *testing
 	sink := &performance.MockSink{}
 	// ListPools returns nil slice, should be treated as no pools
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return(nil, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: nil, sink: sink}
 	err := mp.ProcessPerformanceMetrics(ctx)
@@ -240,6 +246,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_ListPoolsPanics(t *testing.T
 	sink := &performance.MockSink{}
 	// ListPools returns an error instead of panicking (more realistic scenario)
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return(nil, errors.New("database connection failed"))
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: nil, sink: sink}
 	err := mp.ProcessPerformanceMetrics(ctx)
@@ -263,6 +270,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_DeliverMetricsPanics(t *test
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
 		createTestPoolMetricsData("dummy-pool", "panic-account"),
 	}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -301,6 +309,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_MultiplePools(t *testing.T) 
 			},
 		},
 	}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
@@ -331,6 +340,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_DeliverMetricsReturnsNegativ
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
 		createTestPoolMetricsData("dummy-pool", "negative-account"),
 	}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
@@ -360,6 +370,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_NilSink(t *testing.T) {
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
 		createTestPoolMetricsData("dummy-pool", "nil-sink-account"),
 	}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
@@ -390,6 +401,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_VolumeMetricsDisabled(t *tes
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
 		createTestPoolMetricsData("dummy-pool", "disabled-account"),
 	}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	// Mock ListVolumesForTelemetryMetrics even when volume metrics disabled - throughput still needs it
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
@@ -436,6 +448,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_VolumeMetricsEnabledValidCli
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
 		createTestPoolMetricsData("dummy-pool", "test-account"),
 	}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
@@ -478,6 +491,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CollectVolumeMetricsError(t 
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
 		createTestPoolMetricsData("dummy-pool", "test-account"),
 	}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
@@ -522,6 +536,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CreateHydratedMetricsError(t
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
 		createTestPoolMetricsData("dummy-pool", "test-account"),
 	}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
@@ -563,6 +578,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_ProcessesAllMetricTypes(t *t
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
 		createTestPoolMetricsData("dummy-pool", "test-account"),
 	}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
@@ -626,6 +642,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CollectVolumeMetricsReturnsE
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
 		createTestPoolMetricsData("dummy-pool", "test-account"),
 	}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
@@ -671,6 +688,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CollectVolumeMetricsReturnsE
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{
 		createTestPoolMetricsData("dummy-pool", "test-account"),
 	}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
@@ -716,6 +734,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CreateHydratedMetricsBatch_S
 	}
 
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(4) // 4 metrics: PoolAllocatedSize, AllocatedUsed, PoolTotalThroughputMiBps, PoolTotalIOPS
 
@@ -781,6 +800,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CreateHydratedMetricsBatch_D
 	}
 
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	// Mock database error on CreateHydratedMetricsBatch
@@ -833,6 +853,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_MultiplePoolsHydratedMetrics
 	}
 
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return(testPools, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(4) // 2 pools * 2 metrics each
 
@@ -910,6 +931,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_HydratedMetricsWithNilTeleme
 	}
 
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(2)
 
@@ -953,6 +975,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_HydratedMetricsValidation(t 
 	}
 
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(2)
 
@@ -1056,6 +1079,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_GetPoolMetricsDualReturn(t *
 	}
 
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	// Mock both metrics delivery and hydrated metrics batch creation
@@ -1255,6 +1279,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_BackupMetricsError(t *testin
 
 	// Mock successful pool metrics collection
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
 	// Mock backup metrics collection to return error
@@ -1298,6 +1323,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_VolumeMetricsError(t *testin
 
 	// Mock successful pool metrics collection
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	// Mock volume metrics collection to return error
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(nil, errors.New("volume metrics collection failed"))
@@ -1472,6 +1498,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_SFRMetricsEnabled(t *testing
 
 	// Mock pool metrics collection
 	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
 
 	// Mock volume metrics collection
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{testVolume}, nil)

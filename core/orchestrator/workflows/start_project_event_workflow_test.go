@@ -2560,6 +2560,424 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2) // PROCESSING + ERROR
 }
 
+// Test_StartProjectEventOffStateWorkflow_WithHarvestFarmPollerDeregistration tests that
+// UnRegisterNodeFromHarvestFarmWorkflow is called when pool state is updated to DISABLED
+func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkflow_WithHarvestFarmPollerDeregistration() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{SE: mockStorage}
+	poolActivity := &activities.PoolActivity{SE: mockStorage}
+
+	// Set up VLM mocking using dependency injection
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	originalGetNewVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	defer func() {
+		GetNewVSAClientWorkflowManager = originalGetNewVSAClientWorkflowManager
+	}()
+
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+
+	// Set up VLM mock expectations for processClusterForOFFState
+	mockVSAClientWorkflowManager.On("ValidateClusterHealth", mock.Anything, mock.Anything).Return(nil)
+	mockVSAClientWorkflowManager.On("ClusterPowerOp", mock.Anything, mock.Anything).Return(nil)
+
+	// Enable metrics to trigger harvest farm poller registration
+	oldEnableMetrics := enableMetrics
+	enableMetrics = true
+	defer func() { enableMetrics = oldEnableMetrics }()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	poolList := []*datamodel.PoolView{
+		{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "pool-uuid-1",
+				},
+				Name:           "Pool1",
+				AccountID:      1,
+				DeploymentName: "deployment-1",
+				VLMConfig:      `{"deployment":{"deployment_id":"dep-1"}}`,
+				ClusterDetails: datamodel.ClusterDetails{
+					RegionalTenantProject: "tenant-project-1",
+				},
+				PoolAttributes: &datamodel.PoolAttributes{
+					IsRegionalHA: false,
+				},
+			},
+		},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(startProjectEventActivity.StartProjectEventForSDEActivity)
+	s.env.RegisterActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity)
+	s.env.RegisterActivity(startProjectEventActivity.ListPoolsForAccount)
+	s.env.RegisterActivity(startProjectEventActivity.FilterPoolsForClusterOperations)
+	s.env.RegisterActivity(poolActivity.GetOnTapCredentials)
+	s.env.RegisterActivity(startProjectEventActivity.UpdateAccountStateForHandleResource)
+	s.env.RegisterActivity(poolActivity.UpdatePoolState)
+
+	// Register child workflows
+	s.env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
+
+	// Create filter result
+	filterResult := &resource_events_activities.PoolFilterResult{
+		FilteredPools: poolList,
+		VSAError:      false,
+	}
+
+	// Mock activities
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
+	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(filterResult, nil)
+	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(poolActivity.UpdatePoolState, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Mock child workflow for unregister
+	s.env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.MatchedBy(func(params *unRegisterNodeFromHarvestFarmParams) bool {
+		return params.PoolID == 1 && params.CustomerProjectID == "ProjectNumber" && params.TenantProjectID == "tenant-project-1"
+	})).Return(nil)
+
+	params := &commonparams.StartProjectEventParams{
+		LocationId:    "locationID",
+		ProjectNumber: "ProjectNumber",
+		State:         models.StateOff,
+	}
+	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		s.T().Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+// Test_StartProjectEventOnStateWorkflow_WithHarvestFarmPollerRegistration tests that
+// RegisterNodeToHarvestFarmWorkflow is called when pool state is updated to READY
+func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflow_WithHarvestFarmPollerRegistration() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{SE: mockStorage}
+	poolActivity := &activities.PoolActivity{SE: mockStorage}
+
+	// Set up VLM mocking using dependency injection
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	originalGetNewVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	defer func() {
+		GetNewVSAClientWorkflowManager = originalGetNewVSAClientWorkflowManager
+	}()
+
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+
+	// Set up VLM mock expectations for processClusterForONState (only ClusterPowerOp, no ValidateClusterHealth)
+	mockVSAClientWorkflowManager.On("ClusterPowerOp", mock.Anything, mock.Anything).Return(nil)
+
+	// Enable metrics to trigger harvest farm poller registration
+	oldEnableMetrics := enableMetrics
+	enableMetrics = true
+	defer func() { enableMetrics = oldEnableMetrics }()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	poolList := []*datamodel.PoolView{
+		{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "pool-uuid-1",
+				},
+				Name:           "Pool1",
+				AccountID:      1,
+				DeploymentName: "deployment-1",
+				VLMConfig:      `{"deployment":{"deployment_id":"dep-1"}}`,
+				ClusterDetails: datamodel.ClusterDetails{
+					RegionalTenantProject: "tenant-project-1",
+				},
+				PoolAttributes: &datamodel.PoolAttributes{
+					IsRegionalHA: false,
+				},
+			},
+		},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(startProjectEventActivity.StartProjectEventForSDEActivity)
+	s.env.RegisterActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity)
+	s.env.RegisterActivity(startProjectEventActivity.ListPoolsForAccount)
+	s.env.RegisterActivity(startProjectEventActivity.FilterPoolsForClusterOperations)
+	s.env.RegisterActivity(poolActivity.GetOnTapCredentials)
+	s.env.RegisterActivity(startProjectEventActivity.UpdateAccountStateForHandleResource)
+	s.env.RegisterActivity(poolActivity.UpdatePoolState)
+
+	// Register child workflows
+	s.env.RegisterWorkflow(RegisterNodeToHarvestFarmWorkflow)
+
+	// Create filter result
+	filterResult := &resource_events_activities.PoolFilterResult{
+		FilteredPools: poolList,
+		VSAError:      false,
+	}
+
+	// Mock activities
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
+	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(filterResult, nil)
+	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	sdeResult := &commonparams.StartProjectEventResult{
+		Done: nillable.GetBoolPtr(true),
+		Name: nillable.GetStringPtr("operationID"),
+	}
+	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(sdeResult, nil)
+	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(poolActivity.UpdatePoolState, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Mock child workflow for register
+	s.env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.MatchedBy(func(input RegisterNodeToHarvestFarmWorkflowInput) bool {
+		return input.PoolID == 1 && input.CustomerProjectID == "ProjectNumber" && input.TenantProjectID == "tenant-project-1" && input.PoolUUID == "pool-uuid-1"
+	})).Return(nil)
+
+	params := &commonparams.StartProjectEventParams{
+		LocationId:    "locationID",
+		ProjectNumber: "ProjectNumber",
+		State:         models.StateOn,
+	}
+	s.env.ExecuteWorkflow(StartProjectEventOnStateWorkflow, params)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		s.T().Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+// Test_StartProjectEventOffStateWorkflow_WithHarvestFarmPollerDeregistration_ChildWorkflowFails tests that
+// when UnRegisterNodeFromHarvestFarmWorkflow fails, it logs a warning but doesn't fail the parent workflow
+func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkflow_WithHarvestFarmPollerDeregistration_ChildWorkflowFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{SE: mockStorage}
+	poolActivity := &activities.PoolActivity{SE: mockStorage}
+
+	// Set up VLM mocking using dependency injection
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	originalGetNewVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	defer func() {
+		GetNewVSAClientWorkflowManager = originalGetNewVSAClientWorkflowManager
+	}()
+
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+
+	// Set up VLM mock expectations for processClusterForOFFState
+	mockVSAClientWorkflowManager.On("ValidateClusterHealth", mock.Anything, mock.Anything).Return(nil)
+	mockVSAClientWorkflowManager.On("ClusterPowerOp", mock.Anything, mock.Anything).Return(nil)
+
+	// Enable metrics to trigger harvest farm poller registration
+	oldEnableMetrics := enableMetrics
+	enableMetrics = true
+	defer func() { enableMetrics = oldEnableMetrics }()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	poolList := []*datamodel.PoolView{
+		{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "pool-uuid-1",
+				},
+				Name:           "Pool1",
+				AccountID:      1,
+				DeploymentName: "deployment-1",
+				VLMConfig:      `{"deployment":{"deployment_id":"dep-1"}}`,
+				ClusterDetails: datamodel.ClusterDetails{
+					RegionalTenantProject: "tenant-project-1",
+				},
+				PoolAttributes: &datamodel.PoolAttributes{
+					IsRegionalHA: false,
+				},
+			},
+		},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(startProjectEventActivity.StartProjectEventForSDEActivity)
+	s.env.RegisterActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity)
+	s.env.RegisterActivity(startProjectEventActivity.ListPoolsForAccount)
+	s.env.RegisterActivity(startProjectEventActivity.FilterPoolsForClusterOperations)
+	s.env.RegisterActivity(poolActivity.GetOnTapCredentials)
+	s.env.RegisterActivity(startProjectEventActivity.UpdateAccountStateForHandleResource)
+	s.env.RegisterActivity(poolActivity.UpdatePoolState)
+
+	// Register child workflows
+	s.env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
+
+	// Create filter result
+	filterResult := &resource_events_activities.PoolFilterResult{
+		FilteredPools: poolList,
+		VSAError:      false,
+	}
+
+	// Mock activities
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
+	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(filterResult, nil)
+	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(poolActivity.UpdatePoolState, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Mock child workflow to fail
+	s.env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(errors.New("unregister workflow failed"))
+
+	params := &commonparams.StartProjectEventParams{
+		LocationId:    "locationID",
+		ProjectNumber: "ProjectNumber",
+		State:         models.StateOff,
+	}
+	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		s.T().Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow completed successfully even though child workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+// Test_StartProjectEventOffStateWorkflow_WithHarvestFarmPollerDeregistration_MetricsDisabled tests that
+// when enableMetrics is false, no harvest farm workflows are called
+func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkflow_WithHarvestFarmPollerDeregistration_MetricsDisabled() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{SE: mockStorage}
+	poolActivity := &activities.PoolActivity{SE: mockStorage}
+
+	// Set up VLM mocking using dependency injection
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	originalGetNewVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	defer func() {
+		GetNewVSAClientWorkflowManager = originalGetNewVSAClientWorkflowManager
+	}()
+
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+
+	// Set up VLM mock expectations for processClusterForOFFState
+	mockVSAClientWorkflowManager.On("ValidateClusterHealth", mock.Anything, mock.Anything).Return(nil)
+	mockVSAClientWorkflowManager.On("ClusterPowerOp", mock.Anything, mock.Anything).Return(nil)
+
+	// Disable metrics - should not trigger harvest farm poller registration
+	oldEnableMetrics := enableMetrics
+	enableMetrics = false
+	defer func() { enableMetrics = oldEnableMetrics }()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	poolList := []*datamodel.PoolView{
+		{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "pool-uuid-1",
+				},
+				Name:           "Pool1",
+				AccountID:      1,
+				DeploymentName: "deployment-1",
+				VLMConfig:      `{"deployment":{"deployment_id":"dep-1"}}`,
+				ClusterDetails: datamodel.ClusterDetails{
+					RegionalTenantProject: "tenant-project-1",
+				},
+				PoolAttributes: &datamodel.PoolAttributes{
+					IsRegionalHA: false,
+				},
+			},
+		},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(startProjectEventActivity.StartProjectEventForSDEActivity)
+	s.env.RegisterActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity)
+	s.env.RegisterActivity(startProjectEventActivity.ListPoolsForAccount)
+	s.env.RegisterActivity(startProjectEventActivity.FilterPoolsForClusterOperations)
+	s.env.RegisterActivity(poolActivity.GetOnTapCredentials)
+	s.env.RegisterActivity(startProjectEventActivity.UpdateAccountStateForHandleResource)
+	s.env.RegisterActivity(poolActivity.UpdatePoolState)
+
+	// Create filter result
+	filterResult := &resource_events_activities.PoolFilterResult{
+		FilteredPools: poolList,
+		VSAError:      false,
+	}
+
+	// Mock activities
+	s.env.OnActivity(startProjectEventActivity.ListPoolsForAccount, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolList, nil)
+	s.env.OnActivity(startProjectEventActivity.FilterPoolsForClusterOperations, mock.Anything, mock.Anything, mock.Anything).Return(filterResult, nil)
+	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(startProjectEventActivity.UpdateAccountStateForHandleResource, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(startProjectEventActivity.StartProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(poolActivity.UpdatePoolState, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	params := &commonparams.StartProjectEventParams{
+		LocationId:    "locationID",
+		ProjectNumber: "ProjectNumber",
+		State:         models.StateOff,
+	}
+	s.env.ExecuteWorkflow(StartProjectEventOffStateWorkflow, params)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		s.T().Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+	// Note: No child workflow should be called when enableMetrics is false
+}
+
 func TestStartProjectEventOnStateWorkflow(t *testing.T) {
 	suite.Run(t, new(StartProjectEventOnStateTestSuite))
 }
