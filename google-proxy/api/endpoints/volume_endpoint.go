@@ -470,7 +470,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 	if len(param.Protocols) > 0 && !utils.IsSANProtocol(param.Protocols[0]) {
 		err := validateKerberosPolicyV1beta(req.Volume.Protocols, &req.Volume.KerberosEnabled.Value, req.Volume.ExportPolicy, pool)
 		if err != nil {
-			return nil, err
+			return nil, errors.NewUserInputValidationErr(err.Error())
 		}
 		param.FileProperties = &models.FileProperties{
 			ExportPolicy: &models.ExportPolicy{

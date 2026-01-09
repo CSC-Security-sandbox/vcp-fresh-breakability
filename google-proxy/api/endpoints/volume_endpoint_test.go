@@ -6986,6 +6986,45 @@ func TestValidateKerberosPolicyV1beta(t *testing.T) {
 	})
 }
 
+func TestPrepareCreateVolumeParams_KerberosValidationErrorConversion(t *testing.T) {
+	origValidator := validateKerberosPolicyV1beta
+	validateKerberosPolicyV1beta = func(protocols []gcpgenserver.ProtocolsV1beta, kerberosEnabled *bool, policy gcpgenserver.OptExportPolicyV1beta, pool *models.Pool) error {
+		return fmt.Errorf("kerberos validation failed")
+	}
+	defer func() { validateKerberosPolicyV1beta = origValidator }()
+
+	utils.SetFileProtocolSupportedForTesting(true)
+	utils.SetFileProtocolAllowlistedAccountsForTesting("test-project")
+	defer func() {
+		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+	}()
+
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:        "testvolume",
+			CreationToken:     gcpgenserver.NewOptString("test-token"),
+			PoolId:            gcpgenserver.NewNilString("test-pool"),
+			QuotaInBytes:      gcpgenserver.NewOptFloat64(1024),
+			Protocols:         []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
+			KerberosEnabled:   gcpgenserver.NewOptNilBool(true),
+			ExportPolicy:      gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{}),
+			SnapshotDirectory: gcpgenserver.NewOptBool(false),
+		},
+	}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+
+	out, err := _prepareCreateVolumeParams(req, params, "region", "zone", &models.Pool{ActiveDirectoryConfigId: "ad"})
+
+	assert.Nil(t, out)
+	assert.Error(t, err)
+	assert.True(t, errors.IsUserInputValidationErr(err))
+	assert.Equal(t, "kerberos validation failed", err.Error())
+}
+
 // TestPrepareUpdateVolumeParams_BackupDisabled tests the scenario where backup is disabled
 func TestV1betaCreateVolume_BackupNotSupported(t *testing.T) {
 	origPrepare := prepareCreateVolumeParams
