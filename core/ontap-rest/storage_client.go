@@ -26,6 +26,7 @@ type StorageClient interface {
 	QoSPolicyGroupCreate(params *QoSPolicyGroupCreateParams) (*QosPolicy, *JobAccepted, error)
 	QoSPolicyGroupFind(params *QoSPolicyGroupFindParams) (*QosPolicy, error)
 	QoSPolicyGroupUpdate(params *QoSPolicyGroupUpdateParams) (*JobAccepted, error)
+	QosPolicyDeleteCollection(params *QosPolicyDeleteCollectionParams) (*JobAccepted, error)
 
 	CloudStoreCreate(params *storage.CloudStoreCreateParams) (*JobAccepted, error)
 
@@ -241,16 +242,23 @@ func (sc *storageClient) QoSPolicyGroupCreate(params *QoSPolicyGroupCreateParams
 	return nil, nil, errors.New("unexpected response from server while creating QoS policy - received no QoS info")
 }
 
-// QoSPolicyGroupFind invokes pkg/ontap-rest/client/storage/Client.QosPolicyCollectionGet to find a QoS policy by name
+// QoSPolicyGroupFind invokes pkg/ontap-rest/client/storage/Client.QosPolicyCollectionGet to find a QoS policy by UUID or name
 func (sc *storageClient) QoSPolicyGroupFind(params *QoSPolicyGroupFindParams) (*QosPolicy, error) {
-	if params.Name == "" {
-		return nil, errors.New("no name provided for QoSPolicyGroupFind")
+	if params.UUID == "" && params.Name == "" {
+		return nil, errors.New("either UUID or Name must be provided for QoSPolicyGroupFind")
+	}
+	if params.UUID != "" && params.Name != "" {
+		return nil, errors.New("UUID and Name cannot both be provided for QoSPolicyGroupFind")
 	}
 
-	otParams := storage.NewQosPolicyCollectionGetParams().WithFields([]string{"fixed.max_throughput_mbps", "fixed.max_throughput_iops", "name", "uuid", "svm.name"})
-	otParams.SetName(&params.Name)
-	if params.SvmName != "" {
-		otParams.SetSvmName(&params.SvmName)
+	otParams := storage.NewQosPolicyCollectionGetParams().WithFields([]string{"fixed.max_throughput_mbps", "fixed.max_throughput_iops", "fixed.capacity_shared", "name", "uuid", "svm.name"})
+	if params.UUID != "" {
+		otParams.SetUUID(&params.UUID)
+	} else {
+		otParams.SetName(&params.Name)
+		if params.SvmName != "" {
+			otParams.SetSvmName(&params.SvmName)
+		}
 	}
 	otParams.SetMaxRecords(nillable.ToPointer("1"))
 
@@ -260,11 +268,15 @@ func (sc *storageClient) QoSPolicyGroupFind(params *QoSPolicyGroupFindParams) (*
 	}
 
 	if len(rsp.Payload.QosPolicyResponseInlineRecords) == 0 {
-		return nil, errors.NewNotFoundErr("qosPolicy", &params.Name)
+		identifier := params.UUID
+		if identifier == "" {
+			identifier = params.Name
+		}
+		return nil, errors.NewNotFoundErr("qosPolicy", &identifier)
 	}
 
 	if len(rsp.Payload.QosPolicyResponseInlineRecords) > 1 {
-		return nil, errors.New("multiple QoS policies found with the same name")
+		return nil, errors.New("multiple QoS policies found")
 	}
 
 	return &QosPolicy{QosPolicy: *rsp.Payload.QosPolicyResponseInlineRecords[0]}, nil
@@ -292,6 +304,36 @@ func (sc *storageClient) QoSPolicyGroupUpdate(params *QoSPolicyGroupUpdateParams
 	}
 
 	return job, nil
+}
+
+// QosPolicyDeleteCollection invokes pkg/ontap-rest/client/storage/Client.QosPolicyDeleteCollection to delete QoS policy groups
+func (sc *storageClient) QosPolicyDeleteCollection(params *QosPolicyDeleteCollectionParams) (*JobAccepted, error) {
+	if params.UUID == "" && params.Name == "" {
+		return nil, errors.New("either UUID or Name must be provided for QosPolicyDeleteCollection")
+	}
+	if params.UUID != "" && params.Name != "" {
+		return nil, errors.New("UUID and Name cannot both be provided for QosPolicyDeleteCollection")
+	}
+
+	deleted, err := sc.api.QosPolicyDeleteCollection(qosPolicyDeleteCollectionParamsToONTAP(params), nil)
+	if err != nil {
+		// Check if it's a "not found" error - make delete idempotent
+		if errors.IsNotFoundErr(err) {
+			return nil, nil // Policy doesn't exist, consider deletion successful
+		}
+		return nil, err
+	}
+
+	// deleted is *QosPolicyDeleteCollectionOK (non-nil on success, nil on unexpected response)
+	// When non-nil, it indicates successful synchronous deletion (200 OK), no job returned
+	// This pattern matches VolumeDeleteCollection: if OK response is non-nil, return nil job (sync success)
+	// See: core/ontap-rest/storage_client.go:553-554 for precedent
+	if deleted != nil {
+		return nil, nil
+	}
+
+	// If we reach here, deleted is nil but err is also nil - unexpected state
+	return nil, errors.New("unexpected response from server while deleting QoS policy")
 }
 
 var paginateSnapshotCollectionGet = _paginate[[]*Snapshot]

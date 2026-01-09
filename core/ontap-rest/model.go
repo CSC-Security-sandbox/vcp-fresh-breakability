@@ -2242,7 +2242,28 @@ type QosPolicy struct {
 
 // QosPolicyDeleteCollectionParams is the input params for storageClient.QosPolicyDeleteCollection
 type QosPolicyDeleteCollectionParams struct {
-	Name *string
+	UUID    string // UUID of the QoS policy group to delete (preferred)
+	Name    string // Name of the QoS policy group to delete (alternative to UUID)
+	SvmName string // SVM name (optional, passed through for backwards compatibility)
+}
+
+// Conversion function for QosPolicyDeleteCollectionParams to ONTAP SDK params
+func qosPolicyDeleteCollectionParamsToONTAP(params *QosPolicyDeleteCollectionParams) *storage.QosPolicyDeleteCollectionParams {
+	otParams := storage.NewQosPolicyDeleteCollectionParams()
+	if params == nil {
+		return otParams
+	}
+	if params.Name != "" {
+		otParams.SetName(&params.Name)
+	}
+	if params.SvmName != "" {
+		otParams.SetSvmName(&params.SvmName)
+	}
+	if params.UUID != "" {
+		otParams.SetUUID(&params.UUID)
+	}
+	otParams.SetReturnTimeout(&returnTimeout)
+	return otParams
 }
 
 // QosPolicyCreateParams is the input params for storageClient.QosPolicyCreate
@@ -2272,10 +2293,11 @@ func qosPolicyGroupCollectionGetParamsToONTAPCollectionGet(params *QosPolicyGrou
 }
 
 // QoSPolicyGroupFindParams is the input param struct for StorageClient.QoSPolicyGroupFind
-// Used for finding an existing QoS policy group by name
+// Used for finding an existing QoS policy group by UUID or by name
 type QoSPolicyGroupFindParams struct {
-	Name    string // Name of the QoS policy group to find
-	SvmName string // SVM name to filter by
+	UUID    string // UUID of the QoS policy group to find (preferred)
+	Name    string // Name of the QoS policy group to find (alternative to UUID)
+	SvmName string // SVM name to filter by (optional, passed through for backwards compatibility)
 }
 
 // QoSPolicyGroupUpdateParams is the input param struct for StorageClient.QoSPolicyGroupUpdate
@@ -2297,6 +2319,7 @@ type QoSPolicyGroupCreateParams struct {
 	SvmName       string // SVM to apply the policy on
 	MaxThroughput int64  // Throughput in MiBps
 	MaxIOPS       int64  // Max IOPS
+	IsShared      *bool  // Whether volumes share QoS budget (capacity-shared). If nil, ONTAP defaults to false
 }
 
 // Conversion function for QoSPolicyGroupCreateParams to ONTAP SDK params
@@ -2305,6 +2328,7 @@ func qosPolicyGroupCreateParamsToONTAP(params *QoSPolicyGroupCreateParams) *stor
 	if params == nil {
 		return otParams
 	}
+	// Pass IsShared through to ONTAP (nil means ONTAP will default to false)
 	info := &models.QosPolicy{
 		Name: &params.Name,
 		Svm: &models.QosPolicyInlineSvm{
@@ -2313,7 +2337,7 @@ func qosPolicyGroupCreateParamsToONTAP(params *QoSPolicyGroupCreateParams) *stor
 		Fixed: &models.QosPolicyInlineFixed{
 			MaxThroughputMbps: &params.MaxThroughput,
 			MaxThroughputIops: &params.MaxIOPS,
-			CapacityShared:    nillable.ToPointer(true),
+			CapacityShared:    params.IsShared,
 		},
 	}
 	otParams.Info = info

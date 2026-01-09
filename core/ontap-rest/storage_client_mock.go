@@ -626,6 +626,64 @@ func (_c *MockStorageClient_QoSPolicyGroupUpdate_Call) RunAndReturn(run func(*Qo
 	return _c
 }
 
+// QosPolicyDeleteCollection provides a mock function with given fields: params
+func (_m *MockStorageClient) QosPolicyDeleteCollection(params *QosPolicyDeleteCollectionParams) (*JobAccepted, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for QosPolicyDeleteCollection")
+	}
+
+	var r0 *JobAccepted
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*QosPolicyDeleteCollectionParams) (*JobAccepted, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*QosPolicyDeleteCollectionParams) *JobAccepted); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*JobAccepted)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*QosPolicyDeleteCollectionParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorageClient_QosPolicyDeleteCollection_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'QosPolicyDeleteCollection'
+type MockStorageClient_QosPolicyDeleteCollection_Call struct {
+	*mock.Call
+}
+
+// QosPolicyDeleteCollection is a helper method to define mock.On call
+//   - params *QosPolicyDeleteCollectionParams
+func (_e *MockStorageClient_Expecter) QosPolicyDeleteCollection(params interface{}) *MockStorageClient_QosPolicyDeleteCollection_Call {
+	return &MockStorageClient_QosPolicyDeleteCollection_Call{Call: _e.mock.On("QosPolicyDeleteCollection", params)}
+}
+
+func (_c *MockStorageClient_QosPolicyDeleteCollection_Call) Run(run func(params *QosPolicyDeleteCollectionParams)) *MockStorageClient_QosPolicyDeleteCollection_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*QosPolicyDeleteCollectionParams))
+	})
+	return _c
+}
+
+func (_c *MockStorageClient_QosPolicyDeleteCollection_Call) Return(_a0 *JobAccepted, _a1 error) *MockStorageClient_QosPolicyDeleteCollection_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorageClient_QosPolicyDeleteCollection_Call) RunAndReturn(run func(*QosPolicyDeleteCollectionParams) (*JobAccepted, error)) *MockStorageClient_QosPolicyDeleteCollection_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // QosPolicyGroupCollectionGet provides a mock function with given fields: params, ucbf
 func (_m *MockStorageClient) QosPolicyGroupCollectionGet(params *QosPolicyGroupCollectionGetParams, ucbf UserCallbackFunc[[]*QosPolicy]) error {
 	ret := _m.Called(params, ucbf)

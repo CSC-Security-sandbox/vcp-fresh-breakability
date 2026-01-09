@@ -5450,11 +5450,13 @@ func TestCreateQoSPolicyAndApplyToSVM(t *testing.T) {
 			MaxIOPS:       5000,
 		}
 
+		isShared := true
 		mockProvider.On("CreateQoSGroupPolicy", vsa.CreateQoSGroupPolicyParams{
 			Name:          "test-svm-qos-policy",
 			SvmName:       "test-svm",
 			MaxThroughput: 1000,
 			MaxIOPS:       5000,
+			IsShared:      &isShared,
 		}).Return(expectedQoSPolicy, nil)
 
 		// Mock SVM modification
@@ -5764,11 +5766,13 @@ func TestCreateQoSPolicyAndApplyToSVM(t *testing.T) {
 		mockProvider.On("FindQoSGroupPolicy", mock.Anything).Return(nil, errors.New("policy not found"))
 
 		// Mock QoS policy creation with specific name format
+		isShared := true
 		mockProvider.On("CreateQoSGroupPolicy", vsa.CreateQoSGroupPolicyParams{
 			Name:          "test-svm-qos-policy",
 			SvmName:       "test-svm",
 			MaxThroughput: 1000,
 			MaxIOPS:       5000,
+			IsShared:      &isShared,
 		}).Return(&vsa.QoSGroupPolicyResponse{
 			Name:          "test-svm-qos-policy",
 			UUID:          "test-qos-uuid",

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/storage"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	verrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
@@ -595,7 +596,7 @@ func TestQoSPolicyGroupFind(t *testing.T) {
 		transport := &mockTransport{err: errors.New("something went wrong")}
 		storageAPI := storage.New(transport, nil)
 		client := &storageClient{api: storageAPI}
-		_, err := client.QoSPolicyGroupFind(&QoSPolicyGroupFindParams{Name: "sample-policy"})
+		_, err := client.QoSPolicyGroupFind(&QoSPolicyGroupFindParams{Name: "sample-policy", SvmName: "test-svm"})
 		assert.EqualError(tt, err, transport.err.Error())
 	})
 
@@ -605,7 +606,7 @@ func TestQoSPolicyGroupFind(t *testing.T) {
 		client := &storageClient{api: storageAPI}
 		_, err := client.QoSPolicyGroupFind(&QoSPolicyGroupFindParams{Name: ""})
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "no name provided")
+		assert.Contains(tt, err.Error(), "either UUID or Name must be provided")
 	})
 
 	t.Run("WhenNotFound_ThenReturnError", func(tt *testing.T) {
@@ -616,7 +617,7 @@ func TestQoSPolicyGroupFind(t *testing.T) {
 		}}
 		storageAPI := storage.New(transport, nil)
 		client := &storageClient{api: storageAPI}
-		_, err := client.QoSPolicyGroupFind(&QoSPolicyGroupFindParams{Name: "test-policy"})
+		_, err := client.QoSPolicyGroupFind(&QoSPolicyGroupFindParams{Name: "test-policy", SvmName: "test-svm"})
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "not found")
 	})
@@ -633,7 +634,7 @@ func TestQoSPolicyGroupFind(t *testing.T) {
 		}}
 		storageAPI := storage.New(transport, nil)
 		client := &storageClient{api: storageAPI}
-		_, err := client.QoSPolicyGroupFind(&QoSPolicyGroupFindParams{Name: "test-policy"})
+		_, err := client.QoSPolicyGroupFind(&QoSPolicyGroupFindParams{Name: "test-policy", SvmName: "test-svm"})
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "multiple QoS policies found")
 	})
@@ -674,6 +675,61 @@ func TestQoSPolicyGroupFind(t *testing.T) {
 		assert.Equal(tt, svmName, *result.Svm.Name)
 		assert.Equal(tt, maxThroughput, *result.Fixed.MaxThroughputMbps)
 		assert.Equal(tt, maxIOPS, *result.Fixed.MaxThroughputIops)
+	})
+
+	t.Run("WhenRESTCallFails_WithoutSvmName_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.QoSPolicyGroupFind(&QoSPolicyGroupFindParams{Name: "sample-policy"})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenNotFound_WithoutSvmName_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{response: &storage.QosPolicyCollectionGetOK{
+			Payload: &models.QosPolicyResponse{
+				QosPolicyResponseInlineRecords: []*models.QosPolicy{},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.QoSPolicyGroupFind(&QoSPolicyGroupFindParams{Name: "test-policy"})
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "not found")
+	})
+
+	t.Run("WhenSuccessful_WithName_WithoutSvmName_ThenReturnQoSPolicy", func(tt *testing.T) {
+		policyName := "test-policy"
+		policyUUID := "test-uuid"
+		svmName := "test-svm"
+		maxThroughput := int64(100)
+		maxIOPS := int64(1000)
+		transport := &mockTransport{response: &storage.QosPolicyCollectionGetOK{
+			Payload: &models.QosPolicyResponse{
+				QosPolicyResponseInlineRecords: []*models.QosPolicy{
+					{
+						Name: &policyName,
+						UUID: &policyUUID,
+						Svm: &models.QosPolicyInlineSvm{
+							Name: &svmName,
+						},
+						Fixed: &models.QosPolicyInlineFixed{
+							MaxThroughputMbps: &maxThroughput,
+							MaxThroughputIops: &maxIOPS,
+						},
+					},
+				},
+			},
+		}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		result, err := client.QoSPolicyGroupFind(&QoSPolicyGroupFindParams{
+			Name: "test-policy",
+		})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, policyName, *result.Name)
+		assert.Equal(tt, policyUUID, *result.UUID)
 	})
 }
 
@@ -1569,7 +1625,7 @@ func TestQoSPolicyGroupCreateParamsToONTAP(t *testing.T) {
 		assert.NotNil(tt, result.Info.Fixed)
 		assert.Equal(tt, &maxThroughput, result.Info.Fixed.MaxThroughputMbps)
 		assert.Equal(tt, &maxIOPS, result.Info.Fixed.MaxThroughputIops)
-		assert.Equal(tt, nillable.ToPointer(true), result.Info.Fixed.CapacityShared)
+		assert.Nil(tt, result.Info.Fixed.CapacityShared)
 	})
 
 	t.Run("WhenParamsHasZeroValues_ThenFieldsAreMappedCorrectly", func(tt *testing.T) {
@@ -1590,7 +1646,7 @@ func TestQoSPolicyGroupCreateParamsToONTAP(t *testing.T) {
 		assert.NotNil(tt, result.Info.Fixed)
 		assert.Equal(tt, nillable.ToPointer(int64(0)), result.Info.Fixed.MaxThroughputMbps)
 		assert.Equal(tt, nillable.ToPointer(int64(0)), result.Info.Fixed.MaxThroughputIops)
-		assert.Equal(tt, nillable.ToPointer(true), result.Info.Fixed.CapacityShared)
+		assert.Nil(tt, result.Info.Fixed.CapacityShared)
 	})
 
 	t.Run("WhenParamsHasNegativeValues_ThenFieldsAreMappedCorrectly", func(tt *testing.T) {
@@ -1613,7 +1669,7 @@ func TestQoSPolicyGroupCreateParamsToONTAP(t *testing.T) {
 		assert.NotNil(tt, result.Info.Fixed)
 		assert.Equal(tt, &maxThroughput, result.Info.Fixed.MaxThroughputMbps)
 		assert.Equal(tt, &maxIOPS, result.Info.Fixed.MaxThroughputIops)
-		assert.Equal(tt, nillable.ToPointer(true), result.Info.Fixed.CapacityShared)
+		assert.Nil(tt, result.Info.Fixed.CapacityShared)
 	})
 
 	t.Run("WhenParamsHasLargeValues_ThenFieldsAreMappedCorrectly", func(tt *testing.T) {
@@ -1636,7 +1692,7 @@ func TestQoSPolicyGroupCreateParamsToONTAP(t *testing.T) {
 		assert.NotNil(tt, result.Info.Fixed)
 		assert.Equal(tt, &maxThroughput, result.Info.Fixed.MaxThroughputMbps)
 		assert.Equal(tt, &maxIOPS, result.Info.Fixed.MaxThroughputIops)
-		assert.Equal(tt, nillable.ToPointer(true), result.Info.Fixed.CapacityShared)
+		assert.Nil(tt, result.Info.Fixed.CapacityShared)
 	})
 
 	t.Run("WhenParamsHasEmptyStrings_ThenFieldsAreMappedCorrectly", func(tt *testing.T) {
@@ -1659,7 +1715,7 @@ func TestQoSPolicyGroupCreateParamsToONTAP(t *testing.T) {
 		assert.NotNil(tt, result.Info.Fixed)
 		assert.Equal(tt, &maxThroughput, result.Info.Fixed.MaxThroughputMbps)
 		assert.Equal(tt, &maxIOPS, result.Info.Fixed.MaxThroughputIops)
-		assert.Equal(tt, nillable.ToPointer(true), result.Info.Fixed.CapacityShared)
+		assert.Nil(tt, result.Info.Fixed.CapacityShared)
 	})
 }
 
@@ -1769,5 +1825,95 @@ func TestQuotaRuleDelete(t *testing.T) {
 		assert.NotNil(tt, accepted.Payload)
 		assert.NotNil(tt, accepted.Payload.Job)
 		assert.Equal(tt, jobUUID, accepted.Payload.Job.UUID.String())
+	})
+}
+
+func TestQosPolicyDeleteCollection(t *testing.T) {
+	t.Run("WhenBothUUIDAndNameAreEmpty_ThenReturnError", func(tt *testing.T) {
+		storageAPI := storage.New(&mockTransport{}, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.QosPolicyDeleteCollection(&QosPolicyDeleteCollectionParams{})
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "either UUID or Name must be provided")
+	})
+
+	t.Run("WhenBothUUIDAndNameProvided_ThenReturnError", func(tt *testing.T) {
+		storageAPI := storage.New(&mockTransport{}, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.QosPolicyDeleteCollection(&QosPolicyDeleteCollectionParams{
+			UUID: "uuid-123",
+			Name: "test-policy",
+		})
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "UUID and Name cannot both be provided")
+	})
+
+	t.Run("WhenRESTCallFailsWithNotFound_ThenReturnNil", func(tt *testing.T) {
+		notFoundErr := verrors.NewNotFoundErr("qosPolicy", nillable.GetStringPtr("uuid-not-found"))
+		transport := &mockTransport{err: notFoundErr}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		job, err := client.QosPolicyDeleteCollection(&QosPolicyDeleteCollectionParams{
+			UUID: "uuid-not-found",
+		})
+		assert.NoError(tt, err)
+		assert.Nil(tt, job)
+	})
+
+	t.Run("WhenRESTCallFailsWithOtherError_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("generic API error")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, err := client.QosPolicyDeleteCollection(&QosPolicyDeleteCollectionParams{
+			UUID: "uuid-error",
+		})
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "generic API error")
+	})
+
+	t.Run("WhenDeleteSucceeds_WithUUID_ThenReturnNil", func(tt *testing.T) {
+		transport := &mockTransport{response: &storage.QosPolicyDeleteCollectionOK{}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		job, err := client.QosPolicyDeleteCollection(&QosPolicyDeleteCollectionParams{
+			UUID:    "uuid-success",
+			SvmName: "svm1",
+		})
+		assert.NoError(tt, err)
+		assert.Nil(tt, job)
+	})
+
+	t.Run("WhenDeleteSucceeds_WithName_ThenReturnNil", func(tt *testing.T) {
+		transport := &mockTransport{response: &storage.QosPolicyDeleteCollectionOK{}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		job, err := client.QosPolicyDeleteCollection(&QosPolicyDeleteCollectionParams{
+			Name:    "test-policy",
+			SvmName: "svm1",
+		})
+		assert.NoError(tt, err)
+		assert.Nil(tt, job)
+	})
+
+	t.Run("WhenDeleteSucceeds_WithUUID_WithoutSvmName_ThenReturnNil", func(tt *testing.T) {
+		transport := &mockTransport{response: &storage.QosPolicyDeleteCollectionOK{}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		job, err := client.QosPolicyDeleteCollection(&QosPolicyDeleteCollectionParams{
+			UUID: "uuid-success",
+		})
+		assert.NoError(tt, err)
+		assert.Nil(tt, job)
+	})
+
+	t.Run("WhenDeleteSucceeds_WithName_WithoutSvmName_ThenReturnNil", func(tt *testing.T) {
+		transport := &mockTransport{response: &storage.QosPolicyDeleteCollectionOK{}}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		job, err := client.QosPolicyDeleteCollection(&QosPolicyDeleteCollectionParams{
+			Name: "test-policy",
+		})
+		assert.NoError(tt, err)
+		assert.Nil(tt, job)
 	})
 }

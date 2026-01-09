@@ -1398,11 +1398,14 @@ func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 	logger.Info("QoS policy does not exist, creating new one", "policyName", qosPolicyName)
 
 	// Create the QoS policy group
+	// Default to IsShared=true for backward compatibility (shared capacity policy)
+	isShared := true
 	qosPolicyParams := vsa.CreateQoSGroupPolicyParams{
 		Name:          qosPolicyName,
 		SvmName:       svm.Name,
 		MaxThroughput: maxThroughput,
 		MaxIOPS:       maxIOPS,
+		IsShared:      &isShared,
 	}
 
 	activity.RecordHeartbeat(ctx, "Creating QoS policy group")

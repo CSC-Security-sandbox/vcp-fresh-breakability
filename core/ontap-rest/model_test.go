@@ -4406,3 +4406,77 @@ func TestRolePrivilegeDeleteParamsToONTAP(t *testing.T) {
 		assert.Equal(tt, "/api/storage/volumes", otParams.Path)
 	})
 }
+
+func TestQosPolicyDeleteCollectionParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsIsNil_ThenReturnDefaultParams", func(tt *testing.T) {
+		otParams := qosPolicyDeleteCollectionParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenParamsSetWithName_ThenNameIsSet", func(tt *testing.T) {
+		params := &QosPolicyDeleteCollectionParams{
+			Name:    "test-policy",
+			SvmName: "test-svm",
+		}
+		otParams := qosPolicyDeleteCollectionParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Name)
+		assert.Equal(tt, "test-policy", *otParams.Name)
+		assert.NotNil(tt, otParams.SvmName)
+		assert.Equal(tt, "test-svm", *otParams.SvmName)
+	})
+
+	t.Run("WhenParamsSetWithSvmName_ThenSvmNameIsSet", func(tt *testing.T) {
+		params := &QosPolicyDeleteCollectionParams{
+			SvmName: "test-svm",
+		}
+		otParams := qosPolicyDeleteCollectionParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.SvmName)
+		assert.Equal(tt, "test-svm", *otParams.SvmName)
+	})
+
+	t.Run("WhenParamsSetWithUUID_ThenUUIDIsSet", func(tt *testing.T) {
+		params := &QosPolicyDeleteCollectionParams{
+			UUID: "test-uuid",
+		}
+		otParams := qosPolicyDeleteCollectionParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.UUID)
+		assert.Equal(tt, "test-uuid", *otParams.UUID)
+	})
+
+	t.Run("WhenParamsSetWithAllFields_ThenAllFieldsAreSet", func(tt *testing.T) {
+		params := &QosPolicyDeleteCollectionParams{
+			UUID:    "test-uuid",
+			Name:    "test-policy",
+			SvmName: "test-svm",
+		}
+		otParams := qosPolicyDeleteCollectionParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.UUID)
+		assert.Equal(tt, "test-uuid", *otParams.UUID)
+		assert.NotNil(tt, otParams.Name)
+		assert.Equal(tt, "test-policy", *otParams.Name)
+		assert.NotNil(tt, otParams.SvmName)
+		assert.Equal(tt, "test-svm", *otParams.SvmName)
+	})
+
+	t.Run("WhenAllFieldsEmpty_ThenReturnDefaultParams", func(tt *testing.T) {
+		params := &QosPolicyDeleteCollectionParams{
+			UUID:    "",
+			Name:    "",
+			SvmName: "",
+		}
+		otParams := qosPolicyDeleteCollectionParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		// Verify all fields are nil/empty as expected by ONTAP SDK
+		// When fields are empty strings, they should not be set in otParams
+		assert.Nil(tt, otParams.UUID)
+		assert.Nil(tt, otParams.Name)
+		assert.Nil(tt, otParams.SvmName)
+		// ReturnTimeout should still be set (default behavior)
+		assert.NotNil(tt, otParams.ReturnTimeout)
+	})
+}
+

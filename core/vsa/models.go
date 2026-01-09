@@ -982,6 +982,7 @@ type CreateQoSGroupPolicyParams struct {
 	SvmName       string // SVM to apply the policy on
 	MaxThroughput int64  // Throughput in MiBps
 	MaxIOPS       int64  // Max IOPS
+	IsShared      *bool  // Whether volumes share QoS budget (capacity-shared). If nil, ONTAP defaults to false
 }
 
 // QoSGroupPolicyResponse is the output struct for Provider.CreateQoSGroupPolicy
@@ -991,6 +992,7 @@ type QoSGroupPolicyResponse struct {
 	SvmName       string
 	MaxThroughput int64
 	MaxIOPS       int64
+	IsShared      bool // Whether volumes share QoS budget (capacity-shared)
 }
 
 // ModifySVMWithQoSPolicyParams is the input struct for Provider.ModifySVMWithQoSPolicy
@@ -1001,10 +1003,11 @@ type ModifySVMWithQoSPolicyParams struct {
 }
 
 // FindQoSGroupPolicyParams is the input struct for Provider.FindQoSGroupPolicy
-// Used to find an existing QoS policy group by name
+// Used to find an existing QoS policy group by UUID or by name
 type FindQoSGroupPolicyParams struct {
-	Name    string // Name of the QoS policy group to find
-	SvmName string // SVM name to filter by
+	UUID    string // UUID of the QoS policy group to find (preferred)
+	Name    string // Name of the QoS policy group to find (alternative to UUID)
+	SvmName string // SVM name to filter by (optional, passed through for backwards compatibility)
 }
 
 // UpdateQoSGroupPolicyParams is the input struct for Provider.UpdateQoSGroupPolicy
@@ -1015,6 +1018,14 @@ type UpdateQoSGroupPolicyParams struct {
 	SvmName       string // SVM name
 	MaxThroughput int64  // New throughput in MiBps
 	MaxIOPS       int64  // New max IOPS
+}
+
+// DeleteQoSGroupPolicyParams is the input struct for Provider.DeleteQoSGroupPolicy
+// Used to delete an existing QoS policy group
+type DeleteQoSGroupPolicyParams struct {
+	UUID    string // UUID of the QoS policy group to delete (preferred)
+	Name    string // Name of the QoS policy group to delete (alternative to UUID)
+	SvmName string // SVM name (optional, passed through for backwards compatibility)
 }
 
 type SmObjectStoreEndpointSnapshot struct {

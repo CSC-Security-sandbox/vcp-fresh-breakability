@@ -127,6 +127,7 @@ type Provider interface {
 	ModifyRquota(ctx context.Context, svmUUID string, rquota bool) error
 	FindQoSGroupPolicy(params FindQoSGroupPolicyParams) (*QoSGroupPolicyResponse, error)
 	UpdateQoSGroupPolicy(params UpdateQoSGroupPolicyParams) error
+	DeleteQoSGroupPolicy(params DeleteQoSGroupPolicyParams) error
 	CreateExportPolicy(params *ExportPolicy) error
 	UpdateExportPolicyRules(params UpdateExportPolicyRulesParams) error
 	DeleteExportPolicy(params *ExportPolicy) error
