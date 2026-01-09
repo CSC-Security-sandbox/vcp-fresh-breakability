@@ -104,7 +104,7 @@ numberOfHaPairsLargeCapacity: 6
 minConstituentVolumeSizeInBytes: 107374182400
 secretManagerProjectId: "402007546452"
 enableLdap: false
-enableSMB: false
+enableSmb: false
 enableKerberos: false
 enableMultiAd: true
 maxNumberOfAdPerAccount: 5
