@@ -47,6 +47,7 @@ type ResourceData struct {
 	AccountID             int64
 	Labels                Labels
 	VolumeReplicationInfo *VolumeReplicationInfo
+	AllowAutoTiering      bool
 }
 
 type VolumeReplicationInfo struct {
@@ -127,6 +128,11 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 
 	// Process each job definition
 	for key, jobDef := range common.DefaultAggregationJobDefinitions {
+		// Skip auto-tiering billing metrics if disabled
+		if !p.config.EnableAutoTieringBillingMetrics && isAutoTieringBillingMetric(key.MeasuredType) {
+			continue
+		}
+
 		var metrics []datamodel2.HydratedMetrics
 		var err error
 
@@ -148,6 +154,16 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 
 		// Process each resource group
 		for resourceIdentifier, resourceMetrics := range resourceGroups {
+			// Skip auto-tiering billing metrics for pools without AllowAutoTiering enabled
+			if isAutoTieringBillingMetric(key.MeasuredType) {
+				poolData, found := resourceCollection.PoolData[resourceIdentifier]
+				if !found || !poolData.AllowAutoTiering {
+					logger.Debugf("Skipping auto-tiering metric %s for pool %s - pool data not found or AllowAutoTiering disabled",
+						key.MeasuredType, resourceIdentifier.ResourceName)
+					continue
+				}
+			}
+
 			// Inject metricsDB into CounterMetricsFormatter if applicable
 			if counterFormatter, ok := jobDef.TimeSeriesFormatter.(*common.CounterMetricsFormatter); ok {
 				counterFormatter.MetricsDB = p.metricsDB
@@ -328,9 +344,10 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTim
 			}
 
 			poolResourceData := ResourceData{
-				UUID:      pool.UUID,
-				AccountID: pool.AccountID,
-				Labels:    limitedLabels,
+				UUID:             pool.UUID,
+				AccountID:        pool.AccountID,
+				Labels:           limitedLabels,
+				AllowAutoTiering: pool.AllowAutoTiering,
 			}
 			resourceType := metadata.VolumePool
 			if pool.IsRegionalHA() {
@@ -1131,6 +1148,18 @@ func setServiceLevelForCRR(schedule string) string {
 	default:
 		return ""
 	}
+}
+
+// isAutoTieringBillingMetric returns true if the measured type is an auto-tiering billing metric
+func isAutoTieringBillingMetric(measuredType metadata.MeasuredType) bool {
+	switch measuredType {
+	case metadata.CoolTierDataReadSizeRaw,
+		metadata.CoolTierDataWriteSizeRaw,
+		metadata.PoolHotTierProvisionedSize,
+		metadata.PoolCapacityTierLogicalFootprint:
+		return true
+	}
+	return false
 }
 
 // fetchAndCacheCounterValues fetches all latest aggregated counter values using pagination and builds the cache

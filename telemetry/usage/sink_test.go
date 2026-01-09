@@ -263,6 +263,70 @@ func TestGoogleUsageSink_completeRecords(t *testing.T) {
 		assert.Len(t, googleMetrics, 0) // No valid metrics
 		ml.AssertExpectations(t)
 	})
+
+	t.Run("Autotier unit conversions", func(t *testing.T) {
+		ml := &log.MockLogger{}
+		sink.logger = ml
+
+		ml.On("Debugf", "Google Usage Mapping with ID is ready for billing", "Record ID: ", int64(1)).Once()
+		ml.On("Debugf", "Google Usage Mapping with ID is ready for billing", "Record ID: ", int64(2)).Once()
+		ml.On("Debugf", "Google Usage Mapping with ID is ready for billing", "Record ID: ", int64(3)).Once()
+		ml.On("Debugf", "Google Usage Mapping with ID is ready for billing", "Record ID: ", int64(4)).Once()
+
+		records := []datamodel.AggregatedUsage{
+			{
+				ID:               1,
+				VendorCustomerID: &customerID,
+				MeasuredType:     metadata.CoolTierDataReadSizeRaw,
+				Quantity:         1024.0, // MiB
+				ResourceType:     metadata.VolumePool,
+			},
+			{
+				ID:               2,
+				VendorCustomerID: &customerID,
+				MeasuredType:     metadata.CoolTierDataWriteSizeRaw,
+				Quantity:         2048.0, // MiB
+				ResourceType:     metadata.VolumePool,
+			},
+			{
+				ID:               3,
+				VendorCustomerID: &customerID,
+				MeasuredType:     metadata.PoolHotTierProvisionedSize,
+				Quantity:         4096.0, // MiB-hours (should pass through)
+				ResourceType:     metadata.VolumePool,
+			},
+			{
+				ID:               4,
+				VendorCustomerID: &customerID,
+				MeasuredType:     metadata.PoolCapacityTierLogicalFootprint,
+				Quantity:         8192.0, // MiB-hours (should pass through)
+				ResourceType:     metadata.VolumePool,
+			},
+		}
+
+		googleMetrics := sink.completeRecords(records)
+
+		assert.Len(t, googleMetrics, 4)
+
+		// Check unit conversions
+		// CoolTierDataReadSizeRaw: 1024 MiB -> 1073741824 Bytes
+		quantity0, _ := googleMetrics[0].GetQuantity()
+		assert.Equal(t, int64(1073741824), quantity0)
+
+		// CoolTierDataWriteSizeRaw: 2048 MiB -> 2147483648 Bytes
+		quantity1, _ := googleMetrics[1].GetQuantity()
+		assert.Equal(t, int64(2147483648), quantity1)
+
+		// PoolHotTierProvisionedSize: 4096.0 (no conversion)
+		quantity2, _ := googleMetrics[2].GetQuantity()
+		assert.Equal(t, int64(4096), quantity2)
+
+		// PoolCapacityTierLogicalFootprint: 8192.0 (no conversion)
+		quantity3, _ := googleMetrics[3].GetQuantity()
+		assert.Equal(t, int64(8192), quantity3)
+
+		ml.AssertExpectations(t)
+	})
 }
 
 func TestGoogleUsageSink_processGcpUnifiedMetrics(t *testing.T) {

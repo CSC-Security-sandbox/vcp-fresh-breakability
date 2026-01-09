@@ -897,6 +897,92 @@ func Test_GetLabelValue(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "", result)
 	})
+
+	t.Run("VolumePool autotier metrics", func(t *testing.T) {
+		testCases := []struct {
+			name         string
+			measuredType metadata.MeasuredType
+			key          string
+			expected     string
+		}{
+			{
+				name:         "CoolTierDataReadSizeRaw resource_id",
+				measuredType: metadata.CoolTierDataReadSizeRaw,
+				key:          "/resource_id",
+				expected:     "test-uuid",
+			},
+			{
+				name:         "CoolTierDataReadSizeRaw storage_location",
+				measuredType: metadata.CoolTierDataReadSizeRaw,
+				key:          "/storage/location",
+				expected:     "us-central1",
+			},
+			{
+				name:         "CoolTierDataReadSizeRaw transfer_type",
+				measuredType: metadata.CoolTierDataReadSizeRaw,
+				key:          "/netapp/auto_tier_transfer_type",
+				expected:     "COOL_TIER_DATA_READ_SIZE",
+			},
+			{
+				name:         "CoolTierDataWriteSizeRaw transfer_type",
+				measuredType: metadata.CoolTierDataWriteSizeRaw,
+				key:          "/netapp/auto_tier_transfer_type",
+				expected:     "COOL_TIER_DATA_WRITE_SIZE",
+			},
+			{
+				name:         "PoolHotTierProvisionedSize service_level",
+				measuredType: metadata.PoolHotTierProvisionedSize,
+				key:          "/storage/service_level",
+				expected:     "UNIFIED",
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				regionName := "us-central1"
+				aggregated := &datamodel.AggregatedUsage{
+					ResourceType: metadata.VolumePool,
+					MeasuredType: tc.measuredType,
+					ResourceUUID: "test-uuid",
+					RegionName:   &regionName,
+				}
+				googleMetric := *common.NewGoogleMetric(aggregated)
+
+				result, err := GetLabelValue(tc.key, googleMetric, logger)
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expected, result)
+			})
+		}
+	})
+
+	t.Run("VolumePoolRegionalHA autotier metrics match VolumePool", func(t *testing.T) {
+		// Test that VolumePoolRegionalHA returns same label values as VolumePool
+		regionName := "us-central1"
+		measuredType := metadata.CoolTierDataReadSizeRaw
+
+		poolMetric := *common.NewGoogleMetric(&datamodel.AggregatedUsage{
+			ResourceType: metadata.VolumePool,
+			MeasuredType: measuredType,
+			ResourceUUID: "test-uuid",
+			RegionName:   &regionName,
+		})
+		haMetric := *common.NewGoogleMetric(&datamodel.AggregatedUsage{
+			ResourceType: metadata.VolumePoolRegionalHA,
+			MeasuredType: measuredType,
+			ResourceUUID: "test-uuid",
+			RegionName:   &regionName,
+		})
+
+		keys := []string{"/resource_id", "/storage/location", "/netapp/auto_tier_transfer_type", "/storage/service_level"}
+		for _, key := range keys {
+			poolResult, poolErr := GetLabelValue(key, poolMetric, logger)
+			haResult, haErr := GetLabelValue(key, haMetric, logger)
+
+			assert.NoError(t, poolErr)
+			assert.NoError(t, haErr)
+			assert.Equal(t, poolResult, haResult, "VolumePoolRegionalHA should return same value as VolumePool for key %s", key)
+		}
+	})
 }
 
 // Test missing coverage for GetLabelKey function
@@ -935,6 +1021,68 @@ func Test_GetLabelKey(t *testing.T) {
 
 		result := GetLabelKey(googleMetric)
 		assert.Nil(t, result)
+	})
+
+	t.Run("VolumePool autotier metrics", func(t *testing.T) {
+		testCases := []struct {
+			name         string
+			measuredType metadata.MeasuredType
+			expected     []string
+		}{
+			{
+				name:         "CoolTierDataReadSizeRaw",
+				measuredType: metadata.CoolTierDataReadSizeRaw,
+				expected:     []string{"/resource_id", "/storage/location", "/netapp/auto_tier_transfer_type", "/storage/service_level"},
+			},
+			{
+				name:         "CoolTierDataWriteSizeRaw",
+				measuredType: metadata.CoolTierDataWriteSizeRaw,
+				expected:     []string{"/resource_id", "/storage/location", "/netapp/auto_tier_transfer_type", "/storage/service_level"},
+			},
+			{
+				name:         "PoolHotTierProvisionedSize",
+				measuredType: metadata.PoolHotTierProvisionedSize,
+				expected:     []string{"/resource_id", "/storage/location", "/storage/service_level"},
+			},
+			{
+				name:         "PoolCapacityTierLogicalFootprint",
+				measuredType: metadata.PoolCapacityTierLogicalFootprint,
+				expected:     []string{"/resource_id", "/storage/location", "/storage/service_level"},
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				aggregated := &datamodel.AggregatedUsage{
+					ResourceType: metadata.VolumePool,
+					MeasuredType: tc.measuredType,
+				}
+				googleMetric := *common.NewGoogleMetric(aggregated)
+
+				result := GetLabelKey(googleMetric)
+				assert.Equal(t, tc.expected, result)
+			})
+		}
+	})
+
+	t.Run("VolumePoolRegionalHA autotier metrics match VolumePool", func(t *testing.T) {
+		// Test that VolumePoolRegionalHA returns same label keys as VolumePool
+		measuredType := metadata.CoolTierDataReadSizeRaw
+
+		poolMetric := *common.NewGoogleMetric(&datamodel.AggregatedUsage{
+			ResourceType: metadata.VolumePool,
+			MeasuredType: measuredType,
+		})
+		haMetric := *common.NewGoogleMetric(&datamodel.AggregatedUsage{
+			ResourceType: metadata.VolumePoolRegionalHA,
+			MeasuredType: measuredType,
+		})
+
+		poolResult := GetLabelKey(poolMetric)
+		haResult := GetLabelKey(haMetric)
+
+		assert.Equal(t, poolResult, haResult, "VolumePoolRegionalHA should return same labels as VolumePool")
+		assert.NotEmpty(t, haResult, "RegionalHA auto-tiering should return labels")
 	})
 }
 

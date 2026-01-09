@@ -216,6 +216,7 @@ func TestProcessMetrics_EmptyMetrics(t *testing.T) {
 	mockSink := &MockUsageSink{}
 	config := &common.TelemetryConfig{
 		EnableReplicationBillingMetrics: true,
+		EnableAutoTieringBillingMetrics: true,
 	}
 	vcpDB := &database2.MockStorage{}
 	processor := NewBillingProvider(mockDB, vcpDB, config, mockSink)
@@ -663,12 +664,37 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 	})
 }
 
-// TestProcessMetricsSuccess tests a successful path through ProcessMetrics
+// TestProcessMetricsSuccess tests a successful path through ProcessMetrics.
+//
+// IMPORTANT: Mock Setup for GetHydratedMetrics
+// ---------------------------------------------
+// ProcessBillingMetrics iterates over DefaultAggregationJobDefinitions (a Go map) and calls
+// GetHydratedMetrics for each job definition with a filter containing resource_type and measured_type.
+//
+// Since Go map iteration order is NON-DETERMINISTIC, we cannot use a simple .Once() mock that
+// returns metrics for the "first" call, as the first call could be for ANY job definition.
+//
+// Solution: Use mock.MatchedBy() to check the filter's "conditions" array and return test metrics
+// ONLY when the filter matches the specific job definition we're testing (Volume/AllocatedSize).
+// All other job definitions receive empty results via a catch-all mock.
+//
+// Filter structure example:
+//
+//	{
+//	    "conditions": [
+//	        ["metric_timestamp >= ?", startTime],
+//	        ["metric_timestamp <= ?", endTime],
+//	        ["resource_type = ?", "VOLUME"],
+//	        ["measured_type = ?", "ALLOCATED_SIZE"],
+//	    ],
+//	    "order": "resource_name, deployment_name, consumer_id, metric_timestamp DESC",
+//	}
 func TestProcessMetricsSuccess(t *testing.T) {
 	mockDB := &database.MockStorage{}
 	mockSink := &MockUsageSink{}
 	config := &common.TelemetryConfig{
 		EnableReplicationBillingMetrics: true,
+		EnableAutoTieringBillingMetrics: true,
 	}
 	vcpDB := &database2.MockStorage{}
 	processor := NewBillingProvider(mockDB, vcpDB, config, mockSink)
@@ -744,25 +770,50 @@ func TestProcessMetricsSuccess(t *testing.T) {
 		},
 	}
 
-	// Setup expectations for GetHydratedMetrics call - return metrics for one job only
 	// Mock the counter cache preload call (returns empty list to stop pagination)
 	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	// First call returns metrics, second call (next page) returns empty to end pagination
-	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(metrics, nil).Once()
-	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil).Once()
+	// Helper function to check if conditions match Volume/AllocatedSize
+	// Searches through all conditions rather than assuming specific indices
+	matchVolumeAllocatedSize := func(conditions [][]interface{}) bool {
+		hasVolumeResourceType := false
+		hasAllocatedSizeMeasuredType := false
 
-	// For all other job definitions, return empty results (pagination will call twice each)
-	// Mock the counter cache preload call (returns empty list to stop pagination)
-	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
-		[]datamodel2.AggregatedUsage{}, nil,
-	).Maybe()
+		for _, cond := range conditions {
+			if len(cond) < 2 {
+				continue
+			}
+			condStr, ok := cond[0].(string)
+			if !ok {
+				continue
+			}
 
+			if condStr == "resource_type = ?" {
+				if val, ok := cond[1].(string); ok && val == "VOLUME" {
+					hasVolumeResourceType = true
+				}
+			}
+			if condStr == "measured_type = ?" {
+				if val, ok := cond[1].(string); ok && val == "ALLOCATED_SIZE" {
+					hasAllocatedSizeMeasuredType = true
+				}
+			}
+		}
+
+		return hasVolumeResourceType && hasAllocatedSizeMeasuredType
+	}
+
+	// Return metrics ONLY when the filter matches Volume/AllocatedSize job definition
+	// First call for Volume/AllocatedSize returns metrics, second call (next page) returns empty
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.MatchedBy(matchVolumeAllocatedSize), mock.Anything).Return(metrics, nil).Once()
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.MatchedBy(matchVolumeAllocatedSize), mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil).Once()
+
+	// For all other job definitions (non-matching filters), return empty results
 	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(
 		[]datamodel2.HydratedMetrics{}, nil,
-	).Times((len(common.DefaultAggregationJobDefinitions) - 1) * 1) // Each job definition will call once and get empty result
+	).Times((len(common.DefaultAggregationJobDefinitions) - 1))
 
 	// Setup expectations for CreateAggregatedUsageBatch call
 	mockDB.On("CreateAggregatedUsageBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
@@ -780,12 +831,22 @@ func TestProcessMetricsSuccess(t *testing.T) {
 	mockSink.AssertExpectations(t)
 }
 
-// TestProcessMetricsWithJobDefErrors tests error scenarios in processMetricsWithJobDef
+// TestProcessMetricsWithJobDefErrors tests that database errors from CreateAggregatedUsageBatch
+// are properly propagated up through ProcessBillingMetrics.
+//
+// Key Test Requirements:
+//  1. Metrics must have timestamps WITHIN the aggregation window (not at boundary) to generate
+//     aggregated records. The TimeSeriesFormatter filters out boundary-only data points.
+//  2. GetHydratedMetrics mock must use MatchedBy() to return metrics for the correct job definition
+//     due to non-deterministic map iteration order (see TestProcessMetricsSuccess for details).
+//  3. Use require.Error() instead of assert.Error() before accessing err.Error() to prevent
+//     nil pointer dereference if the error expectation fails.
 func TestProcessMetricsWithJobDefErrors(t *testing.T) {
 	mockDB := &database.MockStorage{}
 	mockSink := &MockUsageSink{}
 	config := &common.TelemetryConfig{
 		EnableReplicationBillingMetrics: true,
+		EnableAutoTieringBillingMetrics: true,
 	}
 	vcpDB := &database2.MockStorage{}
 	processor := NewBillingProvider(mockDB, vcpDB, config, mockSink)
@@ -837,36 +898,71 @@ func TestProcessMetricsWithJobDefErrors(t *testing.T) {
 	}, nil).Once()
 	vcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
-	// Create test metrics
+	// Create test metrics with multiple data points within the aggregation window
+	// to ensure aggregated records are generated
 	metrics := []datamodel2.HydratedMetrics{
 		{
 			ResourceName:    "resource1",
 			ConsumerID:      "customer1",
 			Location:        "location1",
 			Quantity:        100,
-			MetricTimestamp: startTime,
+			MetricTimestamp: startTime.Add(10 * time.Minute),
+			ResourceType:    metadata.Volume,
+			MeasuredType:    metadata.AllocatedSize,
+		},
+		{
+			ResourceName:    "resource1",
+			ConsumerID:      "customer1",
+			Location:        "location1",
+			Quantity:        200,
+			MetricTimestamp: startTime.Add(20 * time.Minute),
 			ResourceType:    metadata.Volume,
 			MeasuredType:    metadata.AllocatedSize,
 			DeploymentName:  "deployment1",
 		},
 	}
 
-	// Setup expectations for GetHydratedMetrics call
 	// Mock the counter cache preload call (returns empty list to stop pagination)
 	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	// First call returns metrics, second call (next page) returns empty to end pagination
-	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(metrics, nil).Once()
-	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil).Once()
+	// Helper function to check if conditions match Volume/AllocatedSize
+	// Searches through all conditions rather than assuming specific indices
+	matchVolumeAllocatedSize := func(conditions [][]interface{}) bool {
+		hasVolumeResourceType := false
+		hasAllocatedSizeMeasuredType := false
 
-	// For all other job definitions, return empty results
-	// Mock the counter cache preload call (returns empty list to stop pagination)
-	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
-		[]datamodel2.AggregatedUsage{}, nil,
-	).Maybe()
+		for _, cond := range conditions {
+			if len(cond) < 2 {
+				continue
+			}
+			condStr, ok := cond[0].(string)
+			if !ok {
+				continue
+			}
 
+			if condStr == "resource_type = ?" {
+				if val, ok := cond[1].(string); ok && val == "VOLUME" {
+					hasVolumeResourceType = true
+				}
+			}
+			if condStr == "measured_type = ?" {
+				if val, ok := cond[1].(string); ok && val == "ALLOCATED_SIZE" {
+					hasAllocatedSizeMeasuredType = true
+				}
+			}
+		}
+
+		return hasVolumeResourceType && hasAllocatedSizeMeasuredType
+	}
+
+	// Return metrics ONLY when the filter matches Volume/AllocatedSize job definition
+	// First call for Volume/AllocatedSize returns metrics, second call (next page) returns empty
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.MatchedBy(matchVolumeAllocatedSize), mock.Anything).Return(metrics, nil).Once()
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.MatchedBy(matchVolumeAllocatedSize), mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil).Once()
+
+	// For all other job definitions (non-matching filters), return empty results
 	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(
 		[]datamodel2.HydratedMetrics{}, nil,
 	).Times((len(common.DefaultAggregationJobDefinitions) - 1))
@@ -876,7 +972,7 @@ func TestProcessMetricsWithJobDefErrors(t *testing.T) {
 
 	// Call ProcessMetrics - with batch saving, database errors now propagate up
 	err := processor.ProcessBillingMetrics(ctx, now)
-	assert.Error(t, err) // ProcessMetrics should return the error from batch save
+	require.Error(t, err, "ProcessMetrics should return the error from batch save")
 	assert.Contains(t, err.Error(), "database error")
 
 	// Verify expectations
@@ -972,6 +1068,7 @@ func TestProcessMetrics_GetUnsentUsagesError(t *testing.T) {
 	config := &common.TelemetryConfig{
 		MaxGoogleBillingPushRetry:       3,
 		EnableReplicationBillingMetrics: true,
+		EnableAutoTieringBillingMetrics: true,
 	}
 	vcpDB := &database2.MockStorage{}
 	processor := NewBillingProvider(mockDB, vcpDB, config, mockSink)
@@ -1007,6 +1104,7 @@ func TestProcessMetrics_WithAggregatedRecordsDelivery(t *testing.T) {
 	mockSink := &MockUsageSink{}
 	config := &common.TelemetryConfig{
 		EnableReplicationBillingMetrics: true,
+		EnableAutoTieringBillingMetrics: true,
 	}
 	vcpDB := &database2.MockStorage{}
 	processor := NewBillingProvider(mockDB, vcpDB, config, mockSink)
@@ -1015,13 +1113,24 @@ func TestProcessMetrics_WithAggregatedRecordsDelivery(t *testing.T) {
 	startTime := now.Add(-1 * time.Hour)
 
 	// Create new aggregated records from processing
+	// Note: Aggregation requires at least 2 data points to calculate an interval
 	processedMetrics := []datamodel2.HydratedMetrics{
 		{
 			ResourceName:    "resource1",
 			ConsumerID:      "customer1",
 			Location:        "location1",
-			Quantity:        200,
+			Quantity:        100,
 			MetricTimestamp: startTime.Add(10 * time.Minute),
+			ResourceType:    metadata.Volume,
+			MeasuredType:    metadata.AllocatedSize,
+			DeploymentName:  "deployment1",
+		},
+		{
+			ResourceName:    "resource1",
+			ConsumerID:      "customer1",
+			Location:        "location1",
+			Quantity:        200,
+			MetricTimestamp: startTime.Add(20 * time.Minute),
 			ResourceType:    metadata.Volume,
 			MeasuredType:    metadata.AllocatedSize,
 			DeploymentName:  "deployment1",
@@ -1057,22 +1166,50 @@ func TestProcessMetrics_WithAggregatedRecordsDelivery(t *testing.T) {
 	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 	vcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
-	// Setup expectations for GetHydratedMetrics call - return metrics for one job only
+	// Note: ProcessBillingMetrics no longer calls GetAggregatedUsage directly
+	// Retry logic is now handled via job queue (DeliverBillingMetrics job)
+
 	// Mock the counter cache preload call (returns empty list to stop pagination)
 	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	// First call returns metrics, second call (next page) returns empty to end pagination
-	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(processedMetrics, nil).Once()
-	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil).Once()
+	// Helper function to check if conditions match Volume/AllocatedSize
+	// Searches through all conditions rather than assuming specific indices
+	matchVolumeAllocatedSize := func(conditions [][]interface{}) bool {
+		hasVolumeResourceType := false
+		hasAllocatedSizeMeasuredType := false
 
-	// For all other job definitions, return empty results
-	// Mock the counter cache preload call (returns empty list to stop pagination)
-	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
-		[]datamodel2.AggregatedUsage{}, nil,
-	).Maybe()
+		for _, cond := range conditions {
+			if len(cond) < 2 {
+				continue
+			}
+			condStr, ok := cond[0].(string)
+			if !ok {
+				continue
+			}
 
+			if condStr == "resource_type = ?" {
+				if val, ok := cond[1].(string); ok && val == "VOLUME" {
+					hasVolumeResourceType = true
+				}
+			}
+			if condStr == "measured_type = ?" {
+				if val, ok := cond[1].(string); ok && val == "ALLOCATED_SIZE" {
+					hasAllocatedSizeMeasuredType = true
+				}
+			}
+		}
+
+		return hasVolumeResourceType && hasAllocatedSizeMeasuredType
+	}
+
+	// Return metrics ONLY when the filter matches Volume/AllocatedSize job definition
+	// First call for Volume/AllocatedSize returns metrics, second call (next page) returns empty
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.MatchedBy(matchVolumeAllocatedSize), mock.Anything).Return(processedMetrics, nil).Once()
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.MatchedBy(matchVolumeAllocatedSize), mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil).Once()
+
+	// For all other job definitions (non-matching filters), return empty results
 	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(
 		[]datamodel2.HydratedMetrics{}, nil,
 	).Times((len(common.DefaultAggregationJobDefinitions) - 1))
@@ -1094,7 +1231,9 @@ func TestProcessMetrics_WithAggregatedRecordsDelivery(t *testing.T) {
 func TestProcessMetrics_DeliveryError(t *testing.T) {
 	mockDB := &database.MockStorage{}
 	mockSink := &MockUsageSink{}
-	config := &common.TelemetryConfig{}
+	config := &common.TelemetryConfig{
+		EnableAutoTieringBillingMetrics: true,
+	}
 	vcpDB := &database2.MockStorage{}
 	processor := NewBillingProvider(mockDB, vcpDB, config, mockSink)
 	ctx := context.Background()
@@ -1131,6 +1270,7 @@ func TestProcessMetrics_DeliveryError(t *testing.T) {
 	vcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
 	// Create test metrics that will be processed
+	// Note: Aggregation requires at least 2 data points to calculate an interval
 	metrics := []datamodel2.HydratedMetrics{
 		{
 			ResourceName:    "resource1",
@@ -1142,24 +1282,62 @@ func TestProcessMetrics_DeliveryError(t *testing.T) {
 			MeasuredType:    metadata.AllocatedSize,
 			DeploymentName:  "test-deployment",
 		},
+		{
+			ResourceName:    "resource1",
+			ConsumerID:      "customer1",
+			Location:        "location1",
+			Quantity:        200,
+			MetricTimestamp: startTime.Add(20 * time.Minute),
+			ResourceType:    metadata.Volume,
+			MeasuredType:    metadata.AllocatedSize,
+			DeploymentName:  "test-deployment",
+		},
 	}
 
-	// Setup expectations for GetHydratedMetrics call
+	// Note: ProcessBillingMetrics no longer calls GetAggregatedUsage directly
+	// Retry logic is now handled via job queue (DeliverBillingMetrics job)
+
 	// Mock the counter cache preload call (returns empty list to stop pagination)
 	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
 		[]datamodel2.AggregatedUsage{}, nil,
 	).Maybe()
 
-	// First call returns metrics, second call (next page) returns empty to end pagination
-	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(metrics, nil).Once()
-	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil).Once()
+	// Helper function to check if conditions match Volume/AllocatedSize
+	// Searches through all conditions rather than assuming specific indices
+	matchVolumeAllocatedSize := func(conditions [][]interface{}) bool {
+		hasVolumeResourceType := false
+		hasAllocatedSizeMeasuredType := false
 
-	// For all other job definitions, return empty results
-	// Mock the counter cache preload call (returns empty list to stop pagination)
-	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
-		[]datamodel2.AggregatedUsage{}, nil,
-	).Maybe()
+		for _, cond := range conditions {
+			if len(cond) < 2 {
+				continue
+			}
+			condStr, ok := cond[0].(string)
+			if !ok {
+				continue
+			}
 
+			if condStr == "resource_type = ?" {
+				if val, ok := cond[1].(string); ok && val == "VOLUME" {
+					hasVolumeResourceType = true
+				}
+			}
+			if condStr == "measured_type = ?" {
+				if val, ok := cond[1].(string); ok && val == "ALLOCATED_SIZE" {
+					hasAllocatedSizeMeasuredType = true
+				}
+			}
+		}
+
+		return hasVolumeResourceType && hasAllocatedSizeMeasuredType
+	}
+
+	// Return metrics ONLY when the filter matches Volume/AllocatedSize job definition
+	// First call for Volume/AllocatedSize returns metrics, second call (next page) returns empty
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.MatchedBy(matchVolumeAllocatedSize), mock.Anything).Return(metrics, nil).Once()
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.MatchedBy(matchVolumeAllocatedSize), mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil).Once()
+
+	// For all other job definitions (non-matching filters), return empty results
 	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(
 		[]datamodel2.HydratedMetrics{}, nil,
 	).Times((len(common.DefaultAggregationJobDefinitions) - 1))
@@ -1728,7 +1906,7 @@ func TestFetchMetricsForCounterAggregation(t *testing.T) {
 		// Verify conditions include the extended time range
 		return len(conditions) >= 2 // Should have timestamp conditions
 	}), mock.Anything).Return(mockMetrics, nil).Once()
-	
+
 	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.MatchedBy(func(conditions [][]interface{}) bool {
 		// Subsequent calls for pagination return empty
 		return len(conditions) >= 2
@@ -3112,6 +3290,166 @@ func TestFetchBackupData_MultipleBatches(t *testing.T) {
 	mockVCPDB.AssertExpectations(t)
 }
 
+// TestAutoTieringBillingMetricFiltering tests that auto-tiering billing metrics
+// are correctly filtered based on pool's AllowAutoTiering flag
+func TestAutoTieringBillingMetricFiltering(t *testing.T) {
+	t.Run("isAutoTieringBillingMetric correctly identifies autotiering metrics", func(t *testing.T) {
+		// These should be identified as auto-tiering billing metrics
+		assert.True(t, isAutoTieringBillingMetric(metadata.CoolTierDataReadSizeRaw))
+		assert.True(t, isAutoTieringBillingMetric(metadata.CoolTierDataWriteSizeRaw))
+		assert.True(t, isAutoTieringBillingMetric(metadata.PoolHotTierProvisionedSize))
+		assert.True(t, isAutoTieringBillingMetric(metadata.PoolCapacityTierLogicalFootprint))
+
+		// These should NOT be identified as auto-tiering billing metrics
+		assert.False(t, isAutoTieringBillingMetric(metadata.AllocatedSize))
+		assert.False(t, isAutoTieringBillingMetric(metadata.PoolAllocatedSize))
+		assert.False(t, isAutoTieringBillingMetric(metadata.TotalLogicalSize))
+	})
+
+	t.Run("ResourceData stores AllowAutoTiering correctly", func(t *testing.T) {
+		// Test that ResourceData can store AllowAutoTiering
+		resourceDataEnabled := ResourceData{
+			UUID:             "test-uuid",
+			AccountID:        123,
+			AllowAutoTiering: true,
+		}
+		assert.True(t, resourceDataEnabled.AllowAutoTiering)
+
+		resourceDataDisabled := ResourceData{
+			UUID:             "test-uuid",
+			AccountID:        123,
+			AllowAutoTiering: false,
+		}
+		assert.False(t, resourceDataDisabled.AllowAutoTiering)
+	})
+
+	t.Run("Pool with AllowAutoTiering=false should skip autotiering metrics", func(t *testing.T) {
+		// Create a resource collection with a pool that has AllowAutoTiering=false
+		resourceCollection := &ResourceCollection{
+			PoolData: make(map[ResourceKey]ResourceData),
+		}
+
+		poolKey := ResourceKey{
+			ResourceType:   metadata.VolumePool,
+			ResourceName:   "test-pool",
+			DeploymentName: "test-deployment",
+			ConsumerID:     "test-customer",
+		}
+
+		resourceCollection.PoolData[poolKey] = ResourceData{
+			UUID:             "pool-uuid",
+			AccountID:        123,
+			AllowAutoTiering: false, // Auto-tiering disabled
+		}
+
+		// Simulate the filtering logic from ProcessBillingMetrics
+		measuredType := metadata.CoolTierDataReadSizeRaw
+		shouldSkip := false
+
+		if isAutoTieringBillingMetric(measuredType) {
+			poolData, found := resourceCollection.PoolData[poolKey]
+			if !found || !poolData.AllowAutoTiering {
+				shouldSkip = true
+			}
+		}
+
+		assert.True(t, shouldSkip, "Should skip autotiering metric for pool with AllowAutoTiering=false")
+	})
+
+	t.Run("Pool with AllowAutoTiering=true should process autotiering metrics", func(t *testing.T) {
+		// Create a resource collection with a pool that has AllowAutoTiering=true
+		resourceCollection := &ResourceCollection{
+			PoolData: make(map[ResourceKey]ResourceData),
+		}
+
+		poolKey := ResourceKey{
+			ResourceType:   metadata.VolumePool,
+			ResourceName:   "test-pool",
+			DeploymentName: "test-deployment",
+			ConsumerID:     "test-customer",
+		}
+
+		resourceCollection.PoolData[poolKey] = ResourceData{
+			UUID:             "pool-uuid",
+			AccountID:        123,
+			AllowAutoTiering: true, // Auto-tiering enabled
+		}
+
+		// Simulate the filtering logic from ProcessBillingMetrics
+		measuredType := metadata.CoolTierDataReadSizeRaw
+		shouldSkip := false
+
+		if isAutoTieringBillingMetric(measuredType) {
+			poolData, found := resourceCollection.PoolData[poolKey]
+			if !found || !poolData.AllowAutoTiering {
+				shouldSkip = true
+			}
+		}
+
+		assert.False(t, shouldSkip, "Should NOT skip autotiering metric for pool with AllowAutoTiering=true")
+	})
+
+	t.Run("Pool not found in resourceCollection should skip autotiering metrics", func(t *testing.T) {
+		// Create an empty resource collection
+		resourceCollection := &ResourceCollection{
+			PoolData: make(map[ResourceKey]ResourceData),
+		}
+
+		poolKey := ResourceKey{
+			ResourceType:   metadata.VolumePool,
+			ResourceName:   "unknown-pool",
+			DeploymentName: "test-deployment",
+			ConsumerID:     "test-customer",
+		}
+
+		// Simulate the filtering logic from ProcessBillingMetrics
+		measuredType := metadata.CoolTierDataReadSizeRaw
+		shouldSkip := false
+
+		if isAutoTieringBillingMetric(measuredType) {
+			poolData, found := resourceCollection.PoolData[poolKey]
+			if !found || !poolData.AllowAutoTiering {
+				shouldSkip = true
+			}
+		}
+
+		assert.True(t, shouldSkip, "Should skip autotiering metric when pool is not found")
+	})
+
+	t.Run("Non-autotiering metrics should not be affected by AllowAutoTiering flag", func(t *testing.T) {
+		// Create a resource collection with a pool that has AllowAutoTiering=false
+		resourceCollection := &ResourceCollection{
+			PoolData: make(map[ResourceKey]ResourceData),
+		}
+
+		poolKey := ResourceKey{
+			ResourceType:   metadata.VolumePool,
+			ResourceName:   "test-pool",
+			DeploymentName: "test-deployment",
+			ConsumerID:     "test-customer",
+		}
+
+		resourceCollection.PoolData[poolKey] = ResourceData{
+			UUID:             "pool-uuid",
+			AccountID:        123,
+			AllowAutoTiering: false, // Auto-tiering disabled
+		}
+
+		// Simulate the filtering logic for a NON-autotiering metric
+		measuredType := metadata.PoolAllocatedSize // Not an autotiering metric
+		shouldSkip := false
+
+		if isAutoTieringBillingMetric(measuredType) {
+			poolData, found := resourceCollection.PoolData[poolKey]
+			if !found || !poolData.AllowAutoTiering {
+				shouldSkip = true
+			}
+		}
+
+		assert.False(t, shouldSkip, "Non-autotiering metrics should NOT be skipped regardless of AllowAutoTiering flag")
+	})
+}
+
 // TestFetchResourceData_SkipsPoolWithEmptyAccountName tests that pools with empty account names are skipped
 func TestFetchResourceData_SkipsPoolWithEmptyAccountName(t *testing.T) {
 	ctx := context.Background()
@@ -3292,5 +3630,143 @@ func TestFetchResourceData_VolumeWithNilVolumeAttributes(t *testing.T) {
 	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour), time.Now())
 	assert.NoError(t, err)
 	assert.Len(t, resourceCollection.VolumeData, 0) // Volume should be skipped
+	mockVcpDB.AssertExpectations(t)
+}
+
+// TestIsAutoTieringBillingMetric tests the isAutoTieringBillingMetric function
+func TestIsAutoTieringBillingMetric(t *testing.T) {
+	tests := []struct {
+		name         string
+		measuredType metadata.MeasuredType
+		expected     bool
+	}{
+		{
+			name:         "CoolTierDataReadSizeRaw is auto-tiering metric",
+			measuredType: metadata.CoolTierDataReadSizeRaw,
+			expected:     true,
+		},
+		{
+			name:         "CoolTierDataWriteSizeRaw is auto-tiering metric",
+			measuredType: metadata.CoolTierDataWriteSizeRaw,
+			expected:     true,
+		},
+		{
+			name:         "PoolHotTierProvisionedSize is auto-tiering metric",
+			measuredType: metadata.PoolHotTierProvisionedSize,
+			expected:     true,
+		},
+		{
+			name:         "PoolCapacityTierLogicalFootprint is auto-tiering metric",
+			measuredType: metadata.PoolCapacityTierLogicalFootprint,
+			expected:     true,
+		},
+		{
+			name:         "PoolAllocatedSize is NOT auto-tiering metric",
+			measuredType: metadata.PoolAllocatedSize,
+			expected:     false,
+		},
+		{
+			name:         "AllocatedUsed is NOT auto-tiering metric",
+			measuredType: metadata.AllocatedUsed,
+			expected:     false,
+		},
+		{
+			name:         "PoolTotalThroughputMibps is NOT auto-tiering metric",
+			measuredType: metadata.PoolTotalThroughputMibps,
+			expected:     false,
+		},
+		{
+			name:         "LogicalSize is NOT auto-tiering metric",
+			measuredType: metadata.LogicalSize,
+			expected:     false,
+		},
+		{
+			name:         "BackupLogicalSize is NOT auto-tiering metric",
+			measuredType: metadata.BackupLogicalSize,
+			expected:     false,
+		},
+		{
+			name:         "CoolTierDataReadSize (non-raw) is NOT auto-tiering billing metric",
+			measuredType: metadata.CoolTierDataReadSize,
+			expected:     false,
+		},
+		{
+			name:         "CoolTierDataWriteSize (non-raw) is NOT auto-tiering billing metric",
+			measuredType: metadata.CoolTierDataWriteSize,
+			expected:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isAutoTieringBillingMetric(tt.measuredType)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// TestFetchPoolData_AllowAutoTieringField tests that AllowAutoTiering field is correctly populated in pool resource data
+func TestFetchPoolData_AllowAutoTieringField(t *testing.T) {
+	ctx := context.Background()
+	mockVcpDB := &database2.MockStorage{}
+	mockMetricsDB := &database.MockStorage{}
+	mockSink := &MockUsageSink{}
+	config := &common.TelemetryConfig{PoolVolumeLabelPageSize: 10, GoogleBillingLabelsMaxEntries: 10}
+	provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+	startTime := time.Now().Add(-1 * time.Hour)
+	endTime := time.Now()
+
+	// Pool with AllowAutoTiering enabled
+	mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{
+		{
+			UUID:           "pool-uuid-auto-tiering",
+			Name:           "auto-tiering-pool",
+			AccountID:      1,
+			DeploymentName: "dep1",
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName:  "account1",
+				IsRegionalHA: false,
+			},
+			AllowAutoTiering: true, // Auto-tiering enabled
+		},
+		{
+			UUID:           "pool-uuid-no-auto-tiering",
+			Name:           "no-auto-tiering-pool",
+			AccountID:      2,
+			DeploymentName: "dep2",
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName:  "account2",
+				IsRegionalHA: false,
+			},
+			AllowAutoTiering: false, // Auto-tiering disabled
+		},
+	}, nil).Once()
+	mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
+
+	resourceCollection, err := provider.fetchResourceData(ctx, startTime, endTime)
+	assert.NoError(t, err)
+	assert.Len(t, resourceCollection.PoolData, 2)
+
+	// Verify AllowAutoTiering is correctly set for each pool
+	autoTieringPoolKey := ResourceKey{
+		ResourceType:   metadata.VolumePool,
+		ResourceName:   "auto-tiering-pool",
+		DeploymentName: "dep1",
+		ConsumerID:     "account1",
+	}
+	assert.True(t, resourceCollection.PoolData[autoTieringPoolKey].AllowAutoTiering,
+		"Pool with AllowAutoTiering=true should have AllowAutoTiering set in resource data")
+
+	noAutoTieringPoolKey := ResourceKey{
+		ResourceType:   metadata.VolumePool,
+		ResourceName:   "no-auto-tiering-pool",
+		DeploymentName: "dep2",
+		ConsumerID:     "account2",
+	}
+	assert.False(t, resourceCollection.PoolData[noAutoTieringPoolKey].AllowAutoTiering,
+		"Pool with AllowAutoTiering=false should have AllowAutoTiering unset in resource data")
+
 	mockVcpDB.AssertExpectations(t)
 }

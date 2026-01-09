@@ -48,8 +48,12 @@ const (
 	ReadIo                                               MeasuredType = "READ_IO"
 	WriteIo                                              MeasuredType = "WRITE_IO"
 	OtherIo                                              MeasuredType = "OTHER_IO"
-	CoolTier1DataReadSize                                MeasuredType = "COOL_TIER_DATA_READ_SIZE"
-	CoolTier1DataWriteSize                               MeasuredType = "COOL_TIER_DATA_WRITE_SIZE"
+	CoolTierDataReadSize                                 MeasuredType = "COOL_TIER_DATA_READ_SIZE"
+	CoolTierDataWriteSize                                MeasuredType = "COOL_TIER_DATA_WRITE_SIZE"
+	CoolTierDataReadSizeRaw                              MeasuredType = "COOL_TIER_DATA_READ_SIZE_RAW"
+	CoolTierDataWriteSizeRaw                             MeasuredType = "COOL_TIER_DATA_WRITE_SIZE_RAW"
+	PoolHotTierProvisionedSize                           MeasuredType = "POOL_HOT_TIER_PROVISIONED_SIZE"
+	PoolCapacityTierLogicalFootprint                     MeasuredType = "POOL_CAPACITY_TIER_LOGICAL_FOOTPRINT"
 )
 
 func init() {
@@ -80,10 +84,13 @@ func init() {
 	CombinedKeyResourceTypeMeasuredTypeMap["volume_read_data"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: ReadIo}
 	CombinedKeyResourceTypeMeasuredTypeMap["volume_write_data"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: WriteIo}
 	CombinedKeyResourceTypeMeasuredTypeMap["volume_other_data"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: OtherIo}
-	CombinedKeyResourceTypeMeasuredTypeMap["wafl_volume_client_protocol_reads"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: CoolTier1DataReadSize}
-	CombinedKeyResourceTypeMeasuredTypeMap["wafl_volume_cloud_bin_operation_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: CoolTier1DataWriteSize}
-	CombinedKeyResourceTypeMeasuredTypeMap["pool_client_protocol_reads"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: CoolTier1DataReadSize}
-	CombinedKeyResourceTypeMeasuredTypeMap["pool_cloud_bin_operation_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: CoolTier1DataWriteSize}
+	CombinedKeyResourceTypeMeasuredTypeMap["wafl_volume_client_protocol_reads"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: CoolTierDataReadSize}
+	CombinedKeyResourceTypeMeasuredTypeMap["wafl_volume_cloud_bin_operation_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: CoolTierDataWriteSize}
+	CombinedKeyResourceTypeMeasuredTypeMap["pool_client_protocol_reads"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: CoolTierDataReadSize}
+	CombinedKeyResourceTypeMeasuredTypeMap["pool_cloud_bin_operation_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: CoolTierDataWriteSize}
+	CombinedKeyResourceTypeMeasuredTypeMap["pool_client_protocol_reads_raw"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: CoolTierDataReadSizeRaw}
+	CombinedKeyResourceTypeMeasuredTypeMap["pool_cloud_bin_operation_size_raw"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: CoolTierDataWriteSizeRaw}
+	CombinedKeyResourceTypeMeasuredTypeMap["pool_capacity_tier_logical_footprint"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: PoolCapacityTierLogicalFootprint}
 }
 
 // NewMeasuredType takes a string and converts it to the defined MeasuredType. If the string is not in the map of available measured types, exists is false and the result is nil.

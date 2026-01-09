@@ -159,4 +159,76 @@ var DefaultAggregationJobDefinitions = map[metadata.CombinedKeyResourceTypeMeasu
 			BackfillLimit: 60 * time.Minute,
 		},
 	},
+	{ResourceType: metadata.VolumePool, MeasuredType: metadata.CoolTierDataReadSizeRaw}: {
+		AggregationType: CounterAggregation,
+		IsBillable:      true,
+		SKU:             BillingMetricNamePoolColdTierNetworkTransferSize,
+		TimeSeriesFormatter: &SampledMetricsFormatter{
+			Mode:          Interval,
+			BackfillLimit: 60 * time.Minute,
+		},
+	},
+	{ResourceType: metadata.VolumePoolRegionalHA, MeasuredType: metadata.CoolTierDataReadSizeRaw}: {
+		AggregationType: CounterAggregation,
+		IsBillable:      true,
+		SKU:             BillingMetricNamePoolColdTierNetworkTransferSize,
+		TimeSeriesFormatter: &SampledMetricsFormatter{
+			Mode:          Interval,
+			BackfillLimit: 60 * time.Minute,
+		},
+	},
+	{ResourceType: metadata.VolumePool, MeasuredType: metadata.CoolTierDataWriteSizeRaw}: {
+		AggregationType: CounterAggregation,
+		IsBillable:      true,
+		SKU:             BillingMetricNamePoolColdTierNetworkTransferSize,
+		TimeSeriesFormatter: &SampledMetricsFormatter{
+			Mode:          Interval,
+			BackfillLimit: 60 * time.Minute,
+		},
+	},
+	{ResourceType: metadata.VolumePoolRegionalHA, MeasuredType: metadata.CoolTierDataWriteSizeRaw}: {
+		AggregationType: CounterAggregation,
+		IsBillable:      true,
+		SKU:             BillingMetricNamePoolColdTierNetworkTransferSize,
+		TimeSeriesFormatter: &SampledMetricsFormatter{
+			Mode:          Interval,
+			BackfillLimit: 60 * time.Minute,
+		},
+	},
+	{ResourceType: metadata.VolumePool, MeasuredType: metadata.PoolHotTierProvisionedSize}: {
+		AggregationType: IntegralAggregation,
+		IsBillable:      true,
+		SKU:             BillingMetricNamePoolHotTierSize,
+		TimeSeriesFormatter: &SampledMetricsFormatter{
+			Mode:          Interval,
+			BackfillLimit: 60 * time.Minute,
+		},
+	},
+	{ResourceType: metadata.VolumePoolRegionalHA, MeasuredType: metadata.PoolHotTierProvisionedSize}: {
+		AggregationType: IntegralAggregation,
+		IsBillable:      true,
+		SKU:             BillingMetricNamePoolHotTierSize,
+		TimeSeriesFormatter: &SampledMetricsFormatter{
+			Mode:          Interval,
+			BackfillLimit: 60 * time.Minute,
+		},
+	},
+	{ResourceType: metadata.VolumePool, MeasuredType: metadata.PoolCapacityTierLogicalFootprint}: {
+		AggregationType: IntegralAggregation,
+		IsBillable:      true,
+		SKU:             BillingMetricNamePoolColdTierSize,
+		TimeSeriesFormatter: &SampledMetricsFormatter{
+			Mode:          Interval,
+			BackfillLimit: 60 * time.Minute,
+		},
+	},
+	{ResourceType: metadata.VolumePoolRegionalHA, MeasuredType: metadata.PoolCapacityTierLogicalFootprint}: {
+		AggregationType: IntegralAggregation,
+		IsBillable:      true,
+		SKU:             BillingMetricNamePoolColdTierSize,
+		TimeSeriesFormatter: &SampledMetricsFormatter{
+			Mode:          Interval,
+			BackfillLimit: 60 * time.Minute,
+		},
+	},
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"google.golang.org/api/iterator"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -160,8 +161,14 @@ func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context,
 				continue
 			}
 
-			metrics := setupHydratedMetrics(measuredType, resourceType, projectID, resp, timestamp)
-			projectResults = append(projectResults, metrics)
+			// Filter for "put" operations on pool_cloud_bin_operation_size_raw for billing
+			if metric.Metric == "pool_cloud_bin_operation_size_raw" && resp.Metric.Labels["metric"] != "put" {
+				continue
+			}
+
+			if metrics := setupHydratedMetrics(measuredType, resourceType, projectID, resp, timestamp); metrics != nil {
+				projectResults = append(projectResults, *metrics)
+			}
 		}
 	}
 	if g.googleSink != nil {
@@ -187,16 +194,40 @@ func collectVolumeMetrics(ctx context.Context, logger log.Logger, provider Volum
 	return provider.GetVolumeMetrics(ctx, logger, timestamp)
 }
 
-func setupHydratedMetrics(measuredType metadata.MeasuredType, resourceType metadata.ResourceType, projectID string, resp *monitoringpb.TimeSeries, timestamp time.Time) datamodel.HydratedMetrics {
-	if resp.Metric.Labels["is_regional_ha"] == "true" {
-		resourceType = metadata.VolumeRegionalHA
+func setupHydratedMetrics(measuredType metadata.MeasuredType, resourceType metadata.ResourceType, projectID string, resp *monitoringpb.TimeSeries, timestamp time.Time) *datamodel.HydratedMetrics {
+	// Determine resource name based on ORIGINAL resource type (before HA modification)
+	isPoolMetric := resourceType == metadata.VolumePool || resourceType == metadata.VolumePoolRegionalHA
+	resourceName := resp.Metric.Labels["volume"]
+	if isPoolMetric {
+		// For pool-level metrics, use pool_name instead of volume
+		resourceName = resp.Metric.Labels["pool_name"]
 	}
+
+	// Now modify resourceType for regional HA after we've determined resourceName
+	if resp.Metric.Labels["is_regional_ha"] == "true" {
+		if isPoolMetric {
+			resourceType = metadata.VolumePoolRegionalHA
+		} else {
+			resourceType = metadata.VolumeRegionalHA
+		}
+	}
+
+	// Skip metrics with empty resource name to prevent downstream billing/aggregation issues
+	// Note: VolumeReplicationRelationship metrics get their resourceName from relationship_id below
+	if resourceName == "" && resourceType != metadata.VolumeReplicationRelationship {
+		util.GetLogger(context.Background()).Warn("Skipping metric with empty resource name",
+			"resourceType", resourceType, "measuredType", measuredType, "projectID", projectID,
+			"metricType", resp.Metric.Type, "datacenter", resp.Metric.Labels["datacenter"],
+			"deploymentName", resp.Metric.Labels["deployment_name"])
+		return nil
+	}
+
 	hydrateMetrics := datamodel.HydratedMetrics{
 		MetricTimestamp: timestamp,
 		MeasuredType:    measuredType,
 		ConsumerID:      resp.Metric.Labels["project"],
 		ResourceType:    resourceType,
-		ResourceName:    resp.Metric.Labels["volume"],
+		ResourceName:    resourceName,
 		Location:        resp.Metric.Labels["datacenter"],
 		Quantity:        extractValue(resp.Points[0].Value),
 		DeploymentName:  resp.Metric.Labels["deployment_name"],
@@ -205,7 +236,7 @@ func setupHydratedMetrics(measuredType metadata.MeasuredType, resourceType metad
 		// TODO: need to update this to replication name
 		hydrateMetrics.ResourceName = resp.Metric.Labels["relationship_id"]
 	}
-	return hydrateMetrics
+	return &hydrateMetrics
 }
 
 func extractValue(Value *monitoringpb.TypedValue) float64 {

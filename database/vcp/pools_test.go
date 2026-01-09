@@ -3625,6 +3625,68 @@ func TestListPoolsForResourceData(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Len(tt, results, 3)
 	})
+
+	t.Run("ReturnsAllowAutoTieringField", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		// Create a pool with auto-tiering enabled
+		poolWithTiering := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "tiering-resource-pool-uuid"},
+			Name:             "tiering_resource_pool",
+			AccountID:        account.ID,
+			DeploymentName:   "deployment-tiering",
+			AllowAutoTiering: true,
+			PoolAttributes:   &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+
+		// Create a pool without auto-tiering
+		poolWithoutTiering := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "no-tiering-resource-pool-uuid"},
+			Name:             "no_tiering_resource_pool",
+			AccountID:        account.ID,
+			DeploymentName:   "deployment-no-tiering",
+			AllowAutoTiering: false,
+			PoolAttributes:   &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+
+		err = store.db.Create(poolWithTiering).Error()
+		require.NoError(tt, err)
+		err = store.db.Create(poolWithoutTiering).Error()
+		require.NoError(tt, err)
+
+		startTime := time.Now().Add(-1 * time.Hour)
+		endTime := time.Now().Add(1 * time.Hour)
+
+		results, err := store.ListPoolsForResourceData(ctx, startTime, endTime, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 2)
+
+		// Find the pools by UUID
+		var tieringResult, noTieringResult *PoolResourceData
+		for _, r := range results {
+			if r.UUID == "tiering-resource-pool-uuid" {
+				tieringResult = r
+			} else if r.UUID == "no-tiering-resource-pool-uuid" {
+				noTieringResult = r
+			}
+		}
+
+		// Verify auto-tiering pool
+		require.NotNil(tt, tieringResult)
+		assert.True(tt, tieringResult.AllowAutoTiering, "AllowAutoTiering should be true for tiering pool")
+
+		// Verify non-tiering pool
+		require.NotNil(tt, noTieringResult)
+		assert.False(tt, noTieringResult.AllowAutoTiering, "AllowAutoTiering should be false for non-tiering pool")
+	})
 }
 
 // Tests for PoolResourceData helper methods
@@ -3885,5 +3947,79 @@ func TestListPoolsForMetrics(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Len(tt, results, 1)
 		assert.Equal(tt, "", results[0].GetAccountName())
+	})
+
+	t.Run("ReturnsAllowAutoTieringAndAutoTieringConfig", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		// Create a pool with auto-tiering enabled
+		poolWithTiering := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "tiering-pool-uuid"},
+			Name:             "tiering_pool",
+			SizeInBytes:      2000000,
+			AccountID:        account.ID,
+			DeploymentName:   "deployment-tiering",
+			AllowAutoTiering: true,
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				HotTierSizeInBytes:      1073741824, // 1 GiB
+				EnableHotTierAutoResize: true,
+				BucketName:              "test-bucket",
+				HotTierConsumption:      500000000,
+				ColdTierConsumption:     300000000,
+			},
+			PoolAttributes: &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+
+		// Create a pool without auto-tiering
+		poolWithoutTiering := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "no-tiering-pool-uuid"},
+			Name:             "no_tiering_pool",
+			SizeInBytes:      1000000,
+			AccountID:        account.ID,
+			DeploymentName:   "deployment-no-tiering",
+			AllowAutoTiering: false,
+			PoolAttributes:   &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+
+		err = store.db.Create(poolWithTiering).Error()
+		require.NoError(tt, err)
+		err = store.db.Create(poolWithoutTiering).Error()
+		require.NoError(tt, err)
+
+		results, err := store.ListPoolsForMetrics(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 2)
+
+		// Find the pool with tiering
+		var tieringResult, noTieringResult *PoolMetricsData
+		for _, r := range results {
+			if r.UUID == "tiering-pool-uuid" {
+				tieringResult = r
+			} else if r.UUID == "no-tiering-pool-uuid" {
+				noTieringResult = r
+			}
+		}
+
+		// Verify auto-tiering pool
+		require.NotNil(tt, tieringResult)
+		assert.True(tt, tieringResult.AllowAutoTiering, "AllowAutoTiering should be true for tiering pool")
+		require.NotNil(tt, tieringResult.AutoTieringConfig, "AutoTieringConfig should not be nil")
+		assert.Equal(tt, int64(1073741824), tieringResult.AutoTieringConfig.HotTierSizeInBytes)
+		assert.True(tt, tieringResult.AutoTieringConfig.EnableHotTierAutoResize)
+		assert.Equal(tt, "test-bucket", tieringResult.AutoTieringConfig.BucketName)
+		assert.Equal(tt, int64(500000000), tieringResult.AutoTieringConfig.HotTierConsumption)
+		assert.Equal(tt, int64(300000000), tieringResult.AutoTieringConfig.ColdTierConsumption)
+
+		// Verify non-tiering pool
+		require.NotNil(tt, noTieringResult)
+		assert.False(tt, noTieringResult.AllowAutoTiering, "AllowAutoTiering should be false for non-tiering pool")
 	})
 }

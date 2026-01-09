@@ -255,7 +255,7 @@ func TestCollectVolumeMetrics(t *testing.T) {
 		expectedMetric1 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp, time.Now())
 		expectedMetric2 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp2, time.Now())
 		expectedMetric3 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp3, time.Now())
-		expected := []datamodel.HydratedMetrics{expectedMetric1, expectedMetric2, expectedMetric3}
+		expected := []datamodel.HydratedMetrics{*expectedMetric1, *expectedMetric2, *expectedMetric3}
 		mockProvider.On("CollectProjectMetrics", ctx, logger, mock.Anything, mock.Anything).Return(expected, nil)
 
 		results, err := mockProvider.CollectProjectMetrics(ctx, logger, "project1", time.Now())
@@ -344,7 +344,7 @@ func TestCollectVolumeMetrics(t *testing.T) {
 		expectedMetric1 := setupHydratedMetrics(metadata.AllocatedSize, metadata.VolumeReplicationRelationship, "consumer1", mockResp, time.Now())
 		expectedMetric2 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp2, time.Now())
 		expectedMetric3 := setupHydratedMetrics(metadata.AllocatedSize, metadata.Volume, "consumer1", mockResp3, time.Now())
-		expected := []datamodel.HydratedMetrics{expectedMetric1, expectedMetric2, expectedMetric3}
+		expected := []datamodel.HydratedMetrics{*expectedMetric1, *expectedMetric2, *expectedMetric3}
 		mockProvider.On("CollectProjectMetrics", ctx, logger, mock.Anything, mock.Anything).Return(expected, nil)
 
 		results, err := mockProvider.CollectProjectMetrics(ctx, logger, "project1", time.Now())
@@ -1473,4 +1473,357 @@ func TestGoogleVolumeMetricsProvider_CloudBinOperationFiltering_PoolMetrics(t *t
 
 	mockClient.AssertExpectations(t)
 	mockIterator.AssertExpectations(t)
+}
+
+// TestGoogleVolumeMetricsProvider_PoolCloudBinOperationSizeRawFiltering tests the filtering logic for
+// pool_cloud_bin_operation_size_raw usage metrics - only "put" operations should be collected for billing
+func TestGoogleVolumeMetricsProvider_PoolCloudBinOperationSizeRawFiltering(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewLogger()
+	projectID := "test-project-raw-filtering"
+	timestamp := time.Now()
+
+	mockClient := new(MockMonitoringClient)
+	mockIterator := new(MockTimeSeriesIterator)
+
+	// This is a usage type metric, so it goes to projectResults (not perfMetrics)
+	testMetrics := []common.MetricItem{
+		{Metric: "pool_cloud_bin_operation_size_raw", ResourceType: "custom.googleapis.com", MetricType: "usage"},
+	}
+
+	provider := &GoogleVolumeMetricsProvider{
+		client:    mockClient,
+		metrics:   testMetrics,
+		startTime: timestamp.Add(-5 * time.Minute),
+		endTime:   timestamp,
+	}
+
+	// Create time series with "put" operation - should be included
+	poolPutTimeSeries := &monitoringpb.TimeSeries{
+		Metric: &metric.Metric{
+			Type: "custom.googleapis.com/pool_cloud_bin_operation_size_raw",
+			Labels: map[string]string{
+				"metric":          "put",
+				"pool_name":       "test-pool-1",
+				"project":         projectID,
+				"datacenter":      "us-central1",
+				"volume":          "test-volume",
+				"deployment_name": "test-deployment",
+			},
+		},
+		Points: []*monitoringpb.Point{
+			{Value: &monitoringpb.TypedValue{Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 2048}}},
+		},
+	}
+
+	// Create time series with "get" operation - should be filtered out
+	poolGetTimeSeries := &monitoringpb.TimeSeries{
+		Metric: &metric.Metric{
+			Type: "custom.googleapis.com/pool_cloud_bin_operation_size_raw",
+			Labels: map[string]string{
+				"metric":          "get",
+				"pool_name":       "test-pool-2",
+				"project":         projectID,
+				"datacenter":      "us-central1",
+				"volume":          "test-volume-2",
+				"deployment_name": "test-deployment",
+			},
+		},
+		Points: []*monitoringpb.Point{
+			{Value: &monitoringpb.TypedValue{Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 4096}}},
+		},
+	}
+
+	// Mock iterator returns both series
+	mockIterator.On("Next").Return(poolPutTimeSeries, nil).Once()
+	mockIterator.On("Next").Return(poolGetTimeSeries, nil).Once()
+	mockIterator.On("Next").Return(nil, iterator.Done).Once()
+
+	mockClient.On("ListTimeSeries", ctx, mock.Anything).Return(mockIterator)
+
+	result, err := provider.CollectProjectMetrics(ctx, logger, projectID, timestamp)
+
+	assert.NoError(t, err)
+	// Only "put" metric should be in result (usage metrics go to projectResults)
+	assert.Len(t, result, 1, "Only 'put' operation should be collected, 'get' should be filtered")
+	assert.Equal(t, metadata.CoolTierDataWriteSizeRaw, result[0].MeasuredType)
+	assert.Equal(t, float64(2048), result[0].Quantity)
+
+	mockClient.AssertExpectations(t)
+	mockIterator.AssertExpectations(t)
+}
+
+// TestGoogleVolumeMetricsProvider_PoolClientProtocolReadsRaw tests that pool_client_protocol_reads_raw
+// metrics are collected without filtering (no "put" filter required for read metrics)
+func TestGoogleVolumeMetricsProvider_PoolClientProtocolReadsRaw(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewLogger()
+	projectID := "test-project-reads-raw"
+	timestamp := time.Now()
+
+	mockClient := new(MockMonitoringClient)
+	mockIterator := new(MockTimeSeriesIterator)
+
+	// This is a usage type metric, so it goes to projectResults (not perfMetrics)
+	testMetrics := []common.MetricItem{
+		{Metric: "pool_client_protocol_reads_raw", ResourceType: "custom.googleapis.com", MetricType: "usage"},
+	}
+
+	provider := &GoogleVolumeMetricsProvider{
+		client:    mockClient,
+		metrics:   testMetrics,
+		startTime: timestamp.Add(-5 * time.Minute),
+		endTime:   timestamp,
+	}
+
+	// Create time series - should be collected without any filtering
+	poolReadsTimeSeries := &monitoringpb.TimeSeries{
+		Metric: &metric.Metric{
+			Type: "custom.googleapis.com/pool_client_protocol_reads_raw",
+			Labels: map[string]string{
+				"pool_name":       "test-pool-1",
+				"project":         projectID,
+				"datacenter":      "us-central1",
+				"volume":          "test-volume",
+				"deployment_name": "test-deployment",
+			},
+		},
+		Points: []*monitoringpb.Point{
+			{Value: &monitoringpb.TypedValue{Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 1024}}},
+		},
+	}
+
+	mockIterator.On("Next").Return(poolReadsTimeSeries, nil).Once()
+	mockIterator.On("Next").Return(nil, iterator.Done).Once()
+
+	mockClient.On("ListTimeSeries", ctx, mock.Anything).Return(mockIterator)
+
+	result, err := provider.CollectProjectMetrics(ctx, logger, projectID, timestamp)
+
+	assert.NoError(t, err)
+	// Metric should be collected (no filtering for reads)
+	assert.Len(t, result, 1, "pool_client_protocol_reads_raw should be collected without filtering")
+	assert.Equal(t, metadata.CoolTierDataReadSizeRaw, result[0].MeasuredType)
+	assert.Equal(t, float64(1024), result[0].Quantity)
+
+	mockClient.AssertExpectations(t)
+	mockIterator.AssertExpectations(t)
+}
+
+// TestSetupHydratedMetrics_RegionalHAPool tests that regional HA pool metrics
+// correctly use pool_name label and get VolumePoolRegionalHA resource type
+func TestSetupHydratedMetrics_RegionalHAPool(t *testing.T) {
+	timestamp := time.Now()
+	projectID := "test-project"
+
+	t.Run("regional HA pool should use pool_name and become VolumePoolRegionalHA", func(t *testing.T) {
+		resp := &monitoringpb.TimeSeries{
+			Metric: &metric.Metric{
+				Type: "custom.googleapis.com/pool_cloud_bin_operation_size_raw",
+				Labels: map[string]string{
+					"pool_name":       "regional-ha-pool",
+					"project":         projectID,
+					"datacenter":      "us-central1",
+					"deployment_name": "test-deployment",
+					"is_regional_ha":  "true",
+				},
+			},
+			Points: []*monitoringpb.Point{
+				{
+					Value: &monitoringpb.TypedValue{
+						Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 1024},
+					},
+				},
+			},
+		}
+
+		result := setupHydratedMetrics(metadata.CoolTierDataWriteSizeRaw, metadata.VolumePool, projectID, resp, timestamp)
+
+		assert.NotNil(t, result)
+		assert.Equal(t, "regional-ha-pool", result.ResourceName, "Should use pool_name label for regional HA pool")
+		assert.Equal(t, metadata.VolumePoolRegionalHA, result.ResourceType, "Should be VolumePoolRegionalHA for regional HA pool")
+	})
+
+	t.Run("regional HA volume should use volume and become VolumeRegionalHA", func(t *testing.T) {
+		resp := &monitoringpb.TimeSeries{
+			Metric: &metric.Metric{
+				Type: "custom.googleapis.com/volume_space_logical_used",
+				Labels: map[string]string{
+					"volume":          "regional-ha-volume",
+					"project":         projectID,
+					"datacenter":      "us-central1",
+					"deployment_name": "test-deployment",
+					"is_regional_ha":  "true",
+				},
+			},
+			Points: []*monitoringpb.Point{
+				{
+					Value: &monitoringpb.TypedValue{
+						Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 2048},
+					},
+				},
+			},
+		}
+
+		result := setupHydratedMetrics(metadata.LogicalSize, metadata.Volume, projectID, resp, timestamp)
+
+		assert.NotNil(t, result)
+		assert.Equal(t, "regional-ha-volume", result.ResourceName, "Should use volume label for regional HA volume")
+		assert.Equal(t, metadata.VolumeRegionalHA, result.ResourceType, "Should be VolumeRegionalHA for regional HA volume")
+	})
+
+	t.Run("non-regional HA pool should remain VolumePool", func(t *testing.T) {
+		resp := &monitoringpb.TimeSeries{
+			Metric: &metric.Metric{
+				Type: "custom.googleapis.com/pool_cloud_bin_operation_size_raw",
+				Labels: map[string]string{
+					"pool_name":       "regular-pool",
+					"project":         projectID,
+					"datacenter":      "us-central1",
+					"deployment_name": "test-deployment",
+					// No is_regional_ha label
+				},
+			},
+			Points: []*monitoringpb.Point{
+				{
+					Value: &monitoringpb.TypedValue{
+						Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 512},
+					},
+				},
+			},
+		}
+
+		result := setupHydratedMetrics(metadata.CoolTierDataWriteSizeRaw, metadata.VolumePool, projectID, resp, timestamp)
+
+		assert.NotNil(t, result)
+		assert.Equal(t, "regular-pool", result.ResourceName)
+		assert.Equal(t, metadata.VolumePool, result.ResourceType, "Should remain VolumePool for non-regional HA pool")
+	})
+}
+
+// TestSetupHydratedMetrics_EmptyResourceName tests that metrics with empty resource names are skipped
+func TestSetupHydratedMetrics_EmptyResourceName(t *testing.T) {
+	timestamp := time.Now()
+	projectID := "test-project"
+
+	t.Run("missing volume label for Volume metric should return nil", func(t *testing.T) {
+		resp := &monitoringpb.TimeSeries{
+			Metric: &metric.Metric{
+				Type: "custom.googleapis.com/volume_space_logical_used",
+				Labels: map[string]string{
+					// "volume" label is missing
+					"project":         projectID,
+					"datacenter":      "us-central1",
+					"deployment_name": "test-deployment",
+				},
+			},
+			Points: []*monitoringpb.Point{
+				{
+					Value: &monitoringpb.TypedValue{
+						Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 1024},
+					},
+				},
+			},
+		}
+
+		result := setupHydratedMetrics(metadata.LogicalSize, metadata.Volume, projectID, resp, timestamp)
+		assert.Nil(t, result, "Should return nil for missing volume label")
+	})
+
+	t.Run("missing pool_name label for VolumePool metric should return nil", func(t *testing.T) {
+		resp := &monitoringpb.TimeSeries{
+			Metric: &metric.Metric{
+				Type: "custom.googleapis.com/pool_cloud_bin_operation_size_raw",
+				Labels: map[string]string{
+					// "pool_name" label is missing
+					"project":         projectID,
+					"datacenter":      "us-central1",
+					"deployment_name": "test-deployment",
+				},
+			},
+			Points: []*monitoringpb.Point{
+				{
+					Value: &monitoringpb.TypedValue{
+						Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 1024},
+					},
+				},
+			},
+		}
+
+		result := setupHydratedMetrics(metadata.CoolTierDataWriteSizeRaw, metadata.VolumePool, projectID, resp, timestamp)
+		assert.Nil(t, result, "Should return nil for missing pool_name label")
+	})
+
+	t.Run("missing pool_name label for regional HA pool metric should return nil", func(t *testing.T) {
+		resp := &monitoringpb.TimeSeries{
+			Metric: &metric.Metric{
+				Type: "custom.googleapis.com/pool_cloud_bin_operation_size_raw",
+				Labels: map[string]string{
+					// "pool_name" label is missing
+					"project":         projectID,
+					"datacenter":      "us-central1",
+					"deployment_name": "test-deployment",
+					"is_regional_ha":  "true",
+				},
+			},
+			Points: []*monitoringpb.Point{
+				{
+					Value: &monitoringpb.TypedValue{
+						Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 1024},
+					},
+				},
+			},
+		}
+
+		result := setupHydratedMetrics(metadata.CoolTierDataWriteSizeRaw, metadata.VolumePool, projectID, resp, timestamp)
+		assert.Nil(t, result, "Should return nil for missing pool_name label even with regional HA")
+	})
+
+	t.Run("empty string volume label should return nil", func(t *testing.T) {
+		resp := &monitoringpb.TimeSeries{
+			Metric: &metric.Metric{
+				Type: "custom.googleapis.com/volume_space_logical_used",
+				Labels: map[string]string{
+					"volume":          "", // Empty string
+					"project":         projectID,
+					"datacenter":      "us-central1",
+					"deployment_name": "test-deployment",
+				},
+			},
+			Points: []*monitoringpb.Point{
+				{
+					Value: &monitoringpb.TypedValue{
+						Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 1024},
+					},
+				},
+			},
+		}
+
+		result := setupHydratedMetrics(metadata.LogicalSize, metadata.Volume, projectID, resp, timestamp)
+		assert.Nil(t, result, "Should return nil for empty string volume label")
+	})
+
+	t.Run("empty string pool_name label should return nil", func(t *testing.T) {
+		resp := &monitoringpb.TimeSeries{
+			Metric: &metric.Metric{
+				Type: "custom.googleapis.com/pool_cloud_bin_operation_size_raw",
+				Labels: map[string]string{
+					"pool_name":       "", // Empty string
+					"project":         projectID,
+					"datacenter":      "us-central1",
+					"deployment_name": "test-deployment",
+				},
+			},
+			Points: []*monitoringpb.Point{
+				{
+					Value: &monitoringpb.TypedValue{
+						Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 1024},
+					},
+				},
+			},
+		}
+
+		result := setupHydratedMetrics(metadata.CoolTierDataWriteSizeRaw, metadata.VolumePool, projectID, resp, timestamp)
+		assert.Nil(t, result, "Should return nil for empty string pool_name label")
+	})
 }

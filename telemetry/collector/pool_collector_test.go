@@ -1223,3 +1223,61 @@ func Test_GetPoolMetrics_AccountNotInMap(t *testing.T) {
 
 	m.AssertExpectations(t)
 }
+
+// Test_setupPoolMetricForBillingOnly tests that setupPoolMetricForBillingOnly only appends to billing slice
+func Test_setupPoolMetricForBillingOnly(t *testing.T) {
+	// Setup test data
+	timestamp := time.Now()
+	poolMetadata := metadata.ResourceMetadata{}
+	resourceName := "test-pool-billing-only"
+	regionName := "us-west-2"
+	deploymentName := "test-deployment"
+	accountName := "test-account"
+
+	poolMetadata.SetResourceName(resourceName)
+	poolMetadata.SetRegionName(regionName)
+	poolMetadata.SetDeploymentName(deploymentName)
+	poolMetadata.SetResourceType(metadata.VolumePool)
+
+	// Initialize slices
+	var performanceMetrics []entity.HydratedMetric
+	var billingMetrics []datamodel2.HydratedMetrics
+
+	// Call setupPoolMetricForBillingOnly
+	setupPoolMetricForBillingOnly(&billingMetrics, timestamp, poolMetadata,
+		metadata.PoolHotTierProvisionedSize, 5368709120.0, accountName)
+
+	// Verify that performance metrics slice is still empty
+	assert.Len(t, performanceMetrics, 0, "Performance metrics should not be populated by setupPoolMetricForBillingOnly")
+
+	// Verify that billing metrics slice has one entry
+	assert.Len(t, billingMetrics, 1, "Billing metrics should have exactly one entry")
+
+	// Verify the billing metric properties
+	billingMetric := billingMetrics[0]
+	assert.Equal(t, metadata.PoolHotTierProvisionedSize, billingMetric.MeasuredType)
+	assert.Equal(t, metadata.VolumePool, billingMetric.ResourceType)
+	assert.Equal(t, accountName, billingMetric.ConsumerID)
+	assert.Equal(t, resourceName, billingMetric.ResourceName)
+	assert.Equal(t, regionName, billingMetric.Location)
+	assert.Equal(t, 5368709120.0, billingMetric.Quantity)
+}
+
+// Test_setupPoolMetricForBillingOnly_NilMetadata tests that setupPoolMetricForBillingOnly handles nil metadata correctly
+func Test_setupPoolMetricForBillingOnly_NilMetadata(t *testing.T) {
+	timestamp := time.Now()
+	poolMetadata := metadata.ResourceMetadata{}
+	// Only set RegionName, leave ResourceName and DeploymentName nil
+	regionName := "us-west-2"
+	poolMetadata.SetRegionName(regionName)
+	poolMetadata.SetResourceType(metadata.VolumePool)
+
+	var billingMetrics []datamodel2.HydratedMetrics
+
+	// Call setupPoolMetricForBillingOnly with incomplete metadata
+	setupPoolMetricForBillingOnly(&billingMetrics, timestamp, poolMetadata,
+		metadata.PoolHotTierProvisionedSize, 1000.0, "test-account")
+
+	// Verify that no metric was added due to validation failure
+	assert.Len(t, billingMetrics, 0, "Billing metrics should be empty when metadata validation fails")
+}

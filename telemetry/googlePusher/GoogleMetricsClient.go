@@ -787,6 +787,15 @@ func GetLabelKey(metric common.GoogleMetric) []string {
 		case metadata.BackupLogicalSize:
 			return []string{"/resource_id", "/backups/location"}
 		}
+	case metadata.VolumePool, metadata.VolumePoolRegionalHA:
+		switch metricMeasuredType {
+		case metadata.CoolTierDataReadSizeRaw, metadata.CoolTierDataWriteSizeRaw:
+			return []string{"/resource_id", "/storage/location", "/netapp/auto_tier_transfer_type", "/storage/service_level"}
+		case metadata.PoolHotTierProvisionedSize:
+			return []string{"/resource_id", "/storage/location", "/storage/service_level"}
+		case metadata.PoolCapacityTierLogicalFootprint:
+			return []string{"/resource_id", "/storage/location", "/storage/service_level"}
+		}
 	}
 	return nil
 }
@@ -834,6 +843,21 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 			return "", nil
 		case "/replication/replication_type":
 			return getReplicationType(metric)
+		}
+	case metadata.VolumePool, metadata.VolumePoolRegionalHA:
+		switch key {
+		case "/resource_id":
+			return metric.GetResourceUUID()
+		case "/storage/location":
+			return metric.GetRegion()
+		case "/storage/service_level":
+			return "UNIFIED", nil
+		case "/netapp/auto_tier_transfer_type":
+			measuredType, _ := metric.GetMeasuredType()
+			if measuredType == metadata.CoolTierDataReadSizeRaw {
+				return "COOL_TIER_DATA_READ_SIZE", nil
+			}
+			return "COOL_TIER_DATA_WRITE_SIZE", nil
 		}
 	}
 	return "", nil

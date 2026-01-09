@@ -632,12 +632,14 @@ type PoolIdentifier struct {
 // PoolMetricsData contains only the fields required for metrics collection
 // This is an optimized structure that fetches minimal data from the database
 type PoolMetricsData struct {
-	ID             int64                     `gorm:"column:id"`
-	UUID           string                    `gorm:"column:uuid"`
-	Name           string                    `gorm:"column:name"`
-	SizeInBytes    int64                     `gorm:"column:size_in_bytes"`
-	DeploymentName string                    `gorm:"column:deployment_name"`
-	PoolAttributes *datamodel.PoolAttributes `gorm:"column:pool_attributes;type:jsonb"`
+	ID                int64                        `gorm:"column:id"`
+	UUID              string                       `gorm:"column:uuid"`
+	Name              string                       `gorm:"column:name"`
+	SizeInBytes       int64                        `gorm:"column:size_in_bytes"`
+	DeploymentName    string                       `gorm:"column:deployment_name"`
+	PoolAttributes    *datamodel.PoolAttributes    `gorm:"column:pool_attributes;type:jsonb"`
+	AllowAutoTiering  bool                         `gorm:"column:allow_auto_tiering"`
+	AutoTieringConfig *datamodel.AutoTieringConfig `gorm:"column:auto_tiering_config;type:jsonb"`
 	// QuotaInBytes mirrors the original ListPools behavior (always 0 in PoolView)
 	QuotaInBytes uint64 `gorm:"-"`
 }
@@ -764,7 +766,9 @@ func (d *DataStoreRepository) ListPoolsForMetrics(ctx context.Context) ([]*PoolM
 			name,
 			size_in_bytes,
 			deployment_name,
-			pool_attributes
+			pool_attributes,
+			allow_auto_tiering,
+			auto_tiering_config
 		`).
 		Where("deleted_at IS NULL").
 		Find(&results).Error
@@ -781,11 +785,12 @@ func (d *DataStoreRepository) ListPoolsForMetrics(ctx context.Context) ([]*PoolM
 // PoolResourceData contains only the fields required for aggregator resource data collection.
 // This is an optimized structure for fetchPoolData in telemetry aggregator.
 type PoolResourceData struct {
-	UUID           string                    `gorm:"column:uuid"`
-	Name           string                    `gorm:"column:name"`
-	AccountID      int64                     `gorm:"column:account_id"`
-	DeploymentName string                    `gorm:"column:deployment_name"`
-	PoolAttributes *datamodel.PoolAttributes `gorm:"column:pool_attributes;type:jsonb"`
+	UUID             string                    `gorm:"column:uuid"`
+	Name             string                    `gorm:"column:name"`
+	AccountID        int64                     `gorm:"column:account_id"`
+	DeploymentName   string                    `gorm:"column:deployment_name"`
+	PoolAttributes   *datamodel.PoolAttributes `gorm:"column:pool_attributes;type:jsonb"`
+	AllowAutoTiering bool                      `gorm:"column:allow_auto_tiering"`
 }
 
 // GetAccountName returns the account name from PoolAttributes
@@ -828,7 +833,8 @@ func (d *DataStoreRepository) ListPoolsForResourceData(ctx context.Context, star
 			name,
 			account_id,
 			deployment_name,
-			pool_attributes
+			pool_attributes,
+			allow_auto_tiering
 		`).
 		Where("(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", startTime, endTime)
 

@@ -90,6 +90,14 @@ func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.
 		for _, m := range metricsToCollect {
 			setupPoolMetric(&metrics, &hydratedMetrics, timestamp, poolMetadata, m.measureType, m.value, accountName)
 		}
+
+		// For auto-tiering enabled pools, collecting HotTierSizeInBytes
+		if pool.AllowAutoTiering && pool.AutoTieringConfig != nil && pool.AutoTieringConfig.HotTierSizeInBytes > 0 {
+			setupPoolMetricForBillingOnly(&hydratedMetrics, timestamp, poolMetadata,
+				metadata.PoolHotTierProvisionedSize,
+				float64(pool.AutoTieringConfig.HotTierSizeInBytes),
+				accountName)
+		}
 	}
 
 	// Return the structured result
@@ -200,6 +208,13 @@ func setupPoolMetric(metrics *[]entity.HydratedMetric, hydratedMetrics *[]datamo
 	metric := setupHydratedMetric(timestamp, poolMetadata, measureType, value)
 	*metrics = append(*metrics, metric)
 	if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, poolMetadata, timestamp, value); hydratedMetric != nil {
+		*hydratedMetrics = append(*hydratedMetrics, *hydratedMetric)
+	}
+}
+
+// This is used for billing-only metrics that should not be sent to the performance sink (GoogleSink).
+func setupPoolMetricForBillingOnly(hydratedMetrics *[]datamodel2.HydratedMetrics, timestamp time.Time, poolMetadata metadata.ResourceMetadata, measureType metadata.MeasuredType, value float64, accountName string) {
+	if hydratedMetric := setupHydratedMetricsDataModel(measureType, poolMetadata.ResourceType, accountName, poolMetadata, timestamp, value); hydratedMetric != nil {
 		*hydratedMetrics = append(*hydratedMetrics, *hydratedMetric)
 	}
 }

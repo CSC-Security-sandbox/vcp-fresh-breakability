@@ -91,3 +91,39 @@ func TestInitBillableMetricsMap(t *testing.T) {
 	assert.Equal(t, false, jobDef.IsBillable, "Volume-AllocatedSize should match the billable flag in DefaultAggregationJobDefinitions")
 	assert.Equal(t, IntegralAggregation, jobDef.AggregationType, "Volume-AllocatedSize should have correct aggregation type")
 }
+
+// TestAutoTieringRegionalHAJobDefinitions verifies VolumePoolRegionalHA auto-tiering job definitions
+// exist and match their VolumePool counterparts (same SKU and aggregation type)
+func TestAutoTieringRegionalHAJobDefinitions(t *testing.T) {
+	autoTieringMetrics := []metadata.MeasuredType{
+		metadata.CoolTierDataReadSizeRaw,
+		metadata.CoolTierDataWriteSizeRaw,
+		metadata.PoolHotTierProvisionedSize,
+		metadata.PoolCapacityTierLogicalFootprint,
+	}
+
+	for _, measuredType := range autoTieringMetrics {
+		t.Run(string(measuredType), func(t *testing.T) {
+			// Get VolumePool job definition (baseline)
+			poolKey := metadata.CombinedKeyResourceTypeMeasuredType{
+				ResourceType: metadata.VolumePool,
+				MeasuredType: measuredType,
+			}
+			poolJobDef, poolExists := DefaultAggregationJobDefinitions[poolKey]
+			assert.True(t, poolExists, "VolumePool job definition should exist for %s", measuredType)
+
+			// Get VolumePoolRegionalHA job definition (what we added)
+			haKey := metadata.CombinedKeyResourceTypeMeasuredType{
+				ResourceType: metadata.VolumePoolRegionalHA,
+				MeasuredType: measuredType,
+			}
+			haJobDef, haExists := DefaultAggregationJobDefinitions[haKey]
+			assert.True(t, haExists, "VolumePoolRegionalHA job definition should exist for %s", measuredType)
+
+			// Verify RegionalHA matches VolumePool
+			assert.Equal(t, poolJobDef.SKU, haJobDef.SKU, "RegionalHA SKU should match VolumePool")
+			assert.Equal(t, poolJobDef.AggregationType, haJobDef.AggregationType, "RegionalHA aggregation should match VolumePool")
+			assert.Equal(t, poolJobDef.IsBillable, haJobDef.IsBillable, "RegionalHA billable should match VolumePool")
+		})
+	}
+}

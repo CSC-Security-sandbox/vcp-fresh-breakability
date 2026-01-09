@@ -38,3 +38,12 @@ metrics:
   - metric: pool_cloud_bin_operation_size
     resourceType: custom.googleapis.com
     metricType: performance
+  - metric: pool_client_protocol_reads_raw
+    resourceType: custom.googleapis.com
+    metricType: usage
+  - metric: pool_cloud_bin_operation_size_raw
+    resourceType: custom.googleapis.com
+    metricType: usage
+  - metric: pool_capacity_tier_logical_footprint
+    resourceType: custom.googleapis.com
+    metricType: usage
