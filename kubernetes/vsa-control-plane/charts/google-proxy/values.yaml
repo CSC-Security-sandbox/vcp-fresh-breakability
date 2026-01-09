@@ -39,6 +39,7 @@ czcrrEnabled: false
 refreshAdminJobSpecs: true
 flexCacheEnabled: false
 hybridReplicationEnabled: false
+bidiReplicationEnabled: false
 autoTieringEnabled: false
 blockUpdatePoolToATPool: true # Block updating existing pools to Auto-Tiering pools
 regionalSupportEnabled: true
