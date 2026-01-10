@@ -227,6 +227,7 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 		return nil, ConvertToVSAError(fmt.Errorf("GetAuthJWTToken failed: %w", err))
 	}
 	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
+	rotateCtx = workflow.WithValue(rotateCtx, middleware.AuthorizationToken, jwtToken)
 
 	// Start SDE-side CMEK rotation for SDE-managed buckets. This creates an async
 	// job in SDE/CBS and returns immediately once the job is accepted.
