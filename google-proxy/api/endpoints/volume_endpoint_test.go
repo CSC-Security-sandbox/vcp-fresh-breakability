@@ -5285,6 +5285,66 @@ func TestV1betaCreateVolume(t *testing.T) {
 		assert.Equal(tt, describeErr.Error(), internalErr.Message)
 	})
 
+	t.Run("KerberosPoolDescribeNotFound", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:      "testvolume",
+				CreationToken:   gcpgenserver.NewOptString("test-token"),
+				PoolId:          gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:    gcpgenserver.NewOptFloat64(1024),
+				Protocols:       []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
+				KerberosEnabled: gcpgenserver.NewOptNilBool(true),
+			},
+		}
+
+		notFoundErr := errors.NewNotFoundErr("Pool", nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "test-pool", "project-number").Return(nil, notFoundErr)
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaCreateVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, notFoundErr.Error(), badReq.Message)
+	})
+
+	t.Run("KerberosPoolDescribeInternalError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:      "testvolume",
+				CreationToken:   gcpgenserver.NewOptString("test-token"),
+				PoolId:          gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:    gcpgenserver.NewOptFloat64(1024),
+				Protocols:       []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
+				KerberosEnabled: gcpgenserver.NewOptNilBool(true),
+			},
+		}
+
+		describeErr := fmt.Errorf("describe pool failed")
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "test-pool", "project-number").Return(nil, describeErr)
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaCreateVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Equal(tt, describeErr.Error(), internalErr.Message)
+	})
+
 	t.Run("UserInputValidationError", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -7057,6 +7117,20 @@ func TestHasNfs4KerberosV1beta(t *testing.T) {
 	})
 }
 
+func TestGetKerberosEnabledFlagFromRequest(t *testing.T) {
+	t.Run("ReturnsFalseWhenFlagNotProvided", func(tt *testing.T) {
+		assert.False(tt, _getKerberosEnabledFlagFromRequest(nil))
+	})
+
+	t.Run("ReturnsUnderlyingFlagValue", func(tt *testing.T) {
+		enabled := true
+		disabled := false
+
+		assert.True(tt, _getKerberosEnabledFlagFromRequest(&enabled))
+		assert.False(tt, _getKerberosEnabledFlagFromRequest(&disabled))
+	})
+}
+
 func TestValidateKerberosPolicyV1beta(t *testing.T) {
 	kerberosEnabledPtr := nillable.GetBoolPtr(true)
 	kerberosDisabledPtr := nillable.GetBoolPtr(false)
@@ -7190,6 +7264,21 @@ func TestValidateKerberosPolicyV1beta(t *testing.T) {
 		err := _validateKerberosPolicyV1beta(
 			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
 			kerberosDisabledPtr,
+			kerberosPolicy,
+			&models.Pool{ActiveDirectoryConfigId: "ad"},
+		)
+
+		assert.EqualError(tt, err, "Export policy rules don't match kerberos enabled flag")
+	})
+
+	t.Run("PolicyContainsKerberosButFlagNil", func(tt *testing.T) {
+		orig := enableKerberos
+		enableKerberos = true
+		defer func() { enableKerberos = orig }()
+
+		err := _validateKerberosPolicyV1beta(
+			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
+			nil,
 			kerberosPolicy,
 			&models.Pool{ActiveDirectoryConfigId: "ad"},
 		)

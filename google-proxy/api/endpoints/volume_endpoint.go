@@ -31,26 +31,27 @@ import (
 )
 
 var (
-	createCVPClient               = cvp.CreateClient
-	convertVolumeV1betaToCVPModel = _convertVolumeV1betaCVPToModel
-	getMultipleVolumesFromCVP     = _getMultipleVolumesFromCVP
-	prepareUpdateVolumeParams     = _prepareUpdateVolumeParams
-	prepareCreateVolumeParams     = _prepareCreateVolumeParams
-	prepareRevertVolumeParams     = _prepareRevertVolumeParams
-	prepareSplitCloneVolumeParams = _prepareSplitCloneVolumeParams
-	hasNfs4KerberosV1beta         = _hasNfs4KerberosV1beta
-	validateKerberosPolicyV1beta  = _validateKerberosPolicyV1beta
-	autoTieringEnabled            = env.GetBool("AUTO_TIERING_ENABLED", false)
-	qaEnabled                     = env.GetBool("QA_ENABLED", false)
-	flexCacheEnabled              = env.GetBool("FLEXCACHE_ENABLED", false)
-	sfrEnabled                    = env.GetBool("SFR_ENABLED", false)
-	MaxSourceFileList             = env.GetInt("MAX_SOURCE_FILE_LIST", 8)
-	thinCloneGASupport            = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
-	hybridReplicationEnabled      = env.GetBool("HYBRID_REPLICATION_ENABLED", false)
-	cmekBackupEnabled             = env.GetBool("CMEK_BACKUP_ENABLED", false)
-	bidiReplicationEnabled        = env.GetBool("BIDI_REPLICATION_ENABLED", false)
-	enableSmb                     = env.GetBool("ENABLE_SMB", false)
-	enableKerberos                = env.GetBool("ENABLE_KERBEROS", false)
+	createCVPClient                   = cvp.CreateClient
+	convertVolumeV1betaToCVPModel     = _convertVolumeV1betaCVPToModel
+	getMultipleVolumesFromCVP         = _getMultipleVolumesFromCVP
+	prepareUpdateVolumeParams         = _prepareUpdateVolumeParams
+	prepareCreateVolumeParams         = _prepareCreateVolumeParams
+	prepareRevertVolumeParams         = _prepareRevertVolumeParams
+	prepareSplitCloneVolumeParams     = _prepareSplitCloneVolumeParams
+	hasNfs4KerberosV1beta             = _hasNfs4KerberosV1beta
+	validateKerberosPolicyV1beta      = _validateKerberosPolicyV1beta
+	getKerberosEnabledFlagFromRequest = _getKerberosEnabledFlagFromRequest
+	autoTieringEnabled                = env.GetBool("AUTO_TIERING_ENABLED", false)
+	qaEnabled                         = env.GetBool("QA_ENABLED", false)
+	flexCacheEnabled                  = env.GetBool("FLEXCACHE_ENABLED", false)
+	sfrEnabled                        = env.GetBool("SFR_ENABLED", false)
+	MaxSourceFileList                 = env.GetInt("MAX_SOURCE_FILE_LIST", 8)
+	thinCloneGASupport                = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
+	hybridReplicationEnabled          = env.GetBool("HYBRID_REPLICATION_ENABLED", false)
+	cmekBackupEnabled                 = env.GetBool("CMEK_BACKUP_ENABLED", false)
+	bidiReplicationEnabled            = env.GetBool("BIDI_REPLICATION_ENABLED", false)
+	enableSmb                         = env.GetBool("ENABLE_SMB", false)
+	enableKerberos                    = env.GetBool("ENABLE_KERBEROS", false)
 )
 
 const (
@@ -155,10 +156,10 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 	}
 
 	smbProtocolRequested := hasSMBProtocol(req.Volume.GetProtocols())
-
+	kerberosEnable := getKerberosEnabledFlagFromRequest(&req.Volume.KerberosEnabled.Value)
 	var pool *models.Pool
 	var err error
-	if smbProtocolRequested {
+	if smbProtocolRequested || kerberosEnable {
 		pool, err = h.Orchestrator.DescribePool(ctx, req.Volume.PoolId.Value, params.ProjectNumber)
 		if err != nil {
 			if errors.IsNotFoundErr(err) {
@@ -3045,7 +3046,7 @@ func validateSmbShareSettingsV2(settings []gcpgenserver.SMBSettingsV1betaItem) e
 
 func _validateKerberosPolicyV1beta(protocols []gcpgenserver.ProtocolsV1beta, kerberosEnabled *bool, policy gcpgenserver.OptExportPolicyV1beta, pool *models.Pool) error {
 	// When kerberosEnabled is not set, default value is false
-	isKerberosEnabledInVolumeRequest := nillable.GetBool(kerberosEnabled, false)
+	isKerberosEnabledInVolumeRequest := getKerberosEnabledFlagFromRequest(kerberosEnabled)
 	hasNfs4KerberosPolicy := hasNfs4KerberosV1beta(policy)
 	if !enableKerberos && isKerberosEnabledInVolumeRequest && hasNfs4KerberosPolicy {
 		return errors.New("Kerberos is not supported in this region")
@@ -3092,6 +3093,10 @@ func _hasNfs4KerberosV1beta(policy gcpgenserver.OptExportPolicyV1beta) bool {
 		}
 	}
 	return false
+}
+
+func _getKerberosEnabledFlagFromRequest(kerberosEnableFlagFromRequest *bool) bool {
+	return nillable.GetBool(kerberosEnableFlagFromRequest, false)
 }
 
 func validateSmbVolumeParams(req *gcpgenserver.VolumeUpdateV1beta) error {
