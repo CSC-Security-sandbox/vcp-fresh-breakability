@@ -40,7 +40,6 @@ var (
 // PasswordMask defines the mask used when logging out a password
 const (
 	PasswordMask = "******************"
-	UsernameMask = "******************"
 )
 
 func (h Handler) V1betaCreateActiveDirectory(
@@ -124,7 +123,7 @@ func convertToActiveDirectoryV1Beta(
 	return &gcpgenserver.ActiveDirectoryV1beta{
 		ActiveDirectoryId:           gcpgenserver.NewOptString(ad.UUID),
 		ResourceId:                  ad.AdName,
-		Username:                    UsernameMask,
+		Username:                    ad.Username,
 		Password:                    PasswordMask,
 		Description:                 gcpgenserver.NewOptString(ad.ActiveDirectoryAttributes.Description),
 		Domain:                      ad.Domain,
@@ -178,7 +177,7 @@ func convertOrchestratorActiveDirectoryToV1Beta(ad *vcpModels.ActiveDirectory) g
 	adResponse := gcpgenserver.ActiveDirectoryV1beta{
 		ActiveDirectoryId:           gcpgenserver.NewOptString(ad.UUID),
 		ResourceId:                  ad.AdName,
-		Username:                    log.Secret(ad.Username).String(),
+		Username:                    ad.Username,
 		Password:                    log.Secret(ad.Password).String(),
 		Domain:                      ad.Domain,
 		DNS:                         ad.DNS,

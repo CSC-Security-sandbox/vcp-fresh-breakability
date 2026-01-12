@@ -306,6 +306,7 @@ func TestConvertToActiveDirectoryV1Beta(t *testing.T) {
 	res := convertToActiveDirectoryV1Beta(ad)
 	assert.Equal(t, "uuid", res.ActiveDirectoryId.Value)
 	assert.Equal(t, "ad-name", res.ResourceId)
+	assert.Equal(t, "user", res.Username) // Test that username is not masked
 	assert.Equal(t, "domain", res.Domain)
 	assert.Equal(t, "dns", res.DNS)
 	assert.Equal(t, "netbios", res.NetBIOS)
@@ -1769,6 +1770,8 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 		assert.Len(t, okResult.ActiveDirectories, 2)
 		assert.Equal(t, "ad-uuid-1", okResult.ActiveDirectories[0].ActiveDirectoryId.Value)
 		assert.Equal(t, "ad-name-1", okResult.ActiveDirectories[0].ResourceId)
+		assert.Equal(t, "user1", okResult.ActiveDirectories[0].Username) // Verify username is not masked
+		assert.Equal(t, "user2", okResult.ActiveDirectories[1].Username) // Verify username is not masked
 		mockOrchestrator.AssertExpectations(t)
 	})
 
@@ -1859,6 +1862,7 @@ func TestV1betaDescribeActiveDirectory_VCPPath(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, "ad-uuid-1", adResult.ActiveDirectoryId.Value)
 		assert.Equal(t, "test-ad", adResult.ResourceId)
+		assert.Equal(t, "testuser", adResult.Username) // Verify username is not masked
 		assert.Equal(t, "example.com", adResult.Domain)
 		mockOrchestrator.AssertExpectations(t)
 	})
@@ -1962,7 +1966,9 @@ func TestV1betaListActiveDirectories_VCPPath(t *testing.T) {
 		assert.Len(t, okResult.ActiveDirectories, 2)
 		assert.Equal(t, "ad-1", okResult.ActiveDirectories[0].ActiveDirectoryId.Value)
 		assert.Equal(t, "ad-name-1", okResult.ActiveDirectories[0].ResourceId)
+		assert.Equal(t, "user1", okResult.ActiveDirectories[0].Username) // Verify username is not masked
 		assert.Equal(t, "ad-2", okResult.ActiveDirectories[1].ActiveDirectoryId.Value)
+		assert.Equal(t, "user2", okResult.ActiveDirectories[1].Username) // Verify username is not masked
 		mockOrchestrator.AssertExpectations(t)
 	})
 
@@ -2230,6 +2236,24 @@ func TestConvertOrchestratorActiveDirectoryToV1Beta(t *testing.T) {
 		assert.False(t, result.AllowLocalNFSUsersWithLdap.Value)
 		assert.False(t, result.EncryptDCConnections.Value)
 		assert.False(t, result.LdapSigning.Value)
+	})
+
+	t.Run("UsernameIsNotMasked", func(t *testing.T) {
+		ad := &vcpModels.ActiveDirectory{
+			BaseModel: vcpModels.BaseModel{
+				UUID: "test-uuid",
+			},
+			AdName:                    "test-ad",
+			Username:                  "actualUsername",
+			Password:                  "actualPassword",
+			State:                     "READY",
+			ActiveDirectoryAttributes: &vcpModels.ActiveDirectoryAttributes{},
+		}
+		result := convertOrchestratorActiveDirectoryToV1Beta(ad)
+		// Verify that username is NOT masked and shows actual value
+		assert.Equal(t, "actualUsername", result.Username)
+		// Password should still be masked with log.Secret wrapper
+		assert.NotEqual(t, "actualPassword", result.Password)
 	})
 }
 
