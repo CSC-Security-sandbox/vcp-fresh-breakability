@@ -233,7 +233,7 @@ resources:
     memory: 256Mi
 
 telemetryDeployer:
-  enabled: true
+  enabled: false
   gcpProxyPort: 8090
   serviceName: telemetry-service
   image: us-docker.pkg.dev/gcnv-artifact-registry-nonprod/vcp-container-images-us/telemetry:0.0.0-DEV.15
@@ -286,7 +286,8 @@ telemetryDeployer:
   bizopsBucketName: "harvest-farm-pv-au-se1"
   cloudSqlConnector: "netapp-au-se1-autopush-sde-tst:australia-southeast1:netapp-au-se1-autopush-sde-tst-db-postgres"
   cloudSqlImage: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1"
-  otelImage: ""
+  monitoringProject: "vsa-monitoring-au-se1-ap-tst"
+  customPrefix: "custom.googleapis.com"
   enableScheduler: true
   retryIntervalSeconds: 30
   numWorkersBillingRetry: 5
