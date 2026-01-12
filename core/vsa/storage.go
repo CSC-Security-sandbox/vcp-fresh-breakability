@@ -212,7 +212,7 @@ func (rc *OntapRestProvider) LunList(params LunGetParams) ([]*LunResponse, error
 	}
 	luns, err := client.SAN().LunGet(&ontapRest.LunGetParams{
 		BaseParams: ontapRest.BaseParams{
-			Fields: []string{"status.*", "serial_number_hex", "class", "space.size", "location.*"},
+			Fields: []string{"status.*", "serial_number_hex", "class", "space.size", "location.*", "os_type"},
 		},
 		SvmName:    &params.SvmName,
 		VolumeName: &params.VolumeName,

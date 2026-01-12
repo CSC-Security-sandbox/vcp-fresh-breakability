@@ -774,7 +774,16 @@ func TestLunGet(t *testing.T) {
 			},
 		}
 
-		mockSAN.On("LunGet", mock.Anything).Return([]*ontaprest.Lun{mockLun}, nil)
+		param := &ontaprest.LunGetParams{
+			BaseParams: ontaprest.BaseParams{
+				Fields: []string{"status.*", "serial_number_hex", "class", "space.size", "location.*", "os_type"},
+			},
+			SvmName:    nillable.GetStringPtr("testSVM"),
+			VolumeName: nillable.GetStringPtr("testVol"),
+			LunName:    nillable.GetStringPtr("testLun"),
+		}
+
+		mockSAN.On("LunGet", param).Return([]*ontaprest.Lun{mockLun}, nil)
 
 		params := LunGetParams{
 			SvmName:    "testSVM",
