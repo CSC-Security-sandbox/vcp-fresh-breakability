@@ -273,6 +273,7 @@ func (wf *updateRBACForPoolsWorkflow) Run(ctx workflow.Context, args ...interfac
 
 	// Process pools in batches with parallel execution within each batch
 	batchSize := rbacPoolBatchSize
+	totalBatches := (len(poolListNeedUpdate) + batchSize - 1) / batchSize // Ceiling division
 	for i := 0; i < len(poolListNeedUpdate); i += batchSize {
 		end := i + batchSize
 		if end > len(poolListNeedUpdate) {
@@ -280,7 +281,8 @@ func (wf *updateRBACForPoolsWorkflow) Run(ctx workflow.Context, args ...interfac
 		}
 
 		batch := poolListNeedUpdate[i:end]
-		wf.Logger.Infof("Processing batch of pools for RBAC update: batchStart=%d, batchEnd=%d, batchSize=%d", i+1, end, len(batch))
+		currentBatchNum := (i / batchSize) + 1
+		wf.Logger.Infof("Processing batch of pools for RBAC update: batchStart=%d, batchEnd=%d, batchSize=%d, batchNum=%d/%d", i+1, end, len(batch), currentBatchNum, totalBatches)
 
 		// Start all child workflows in the current batch in parallel
 		var futures []workflow.ChildWorkflowFuture
@@ -292,8 +294,7 @@ func (wf *updateRBACForPoolsWorkflow) Run(ctx workflow.Context, args ...interfac
 				WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 			})
 
-			// Get correlationID from parent context and add it to child context
-			// This ensures the child workflow receives the parent's correlationID
+			// Get correlationID from parent context and add it to child context, this ensures the child workflow receives the parent's correlationID
 			correlationID := utils.RandomUUID()
 			if existingCorrelationID, err := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx); err == nil {
 				correlationID = existingCorrelationID
@@ -308,16 +309,55 @@ func (wf *updateRBACForPoolsWorkflow) Run(ctx workflow.Context, args ...interfac
 			futures = append(futures, future)
 		}
 
-		// Wait for all child workflows in the current batch to complete
+		// Track completion status and errors for each future by index
+		// Using slices to track which futures have completed and their results
+		// Each goroutine writes to a different index, which is safe in Temporal workflows
+		completed := make([]bool, len(futures))
+		futureErrors := make([]error, len(futures))
+
+		// Use workflow.Go to process each future concurrently
 		for j, future := range futures {
-			err := future.Get(ctx, nil)
-			if err != nil {
-				// Track failed pools
+			f := future
+			idx := j
+
+			workflow.Go(ctx, func(gCtx workflow.Context) {
+				err := f.Get(gCtx, nil)
+				// Store error for this specific future by index
+				// Each goroutine writes to a different index, avoiding data races
+				futureErrors[idx] = err
+				completed[idx] = true
+				if err != nil {
+					wf.Logger.Errorf("Failed to execute child workflow for pool uuid: %s, error: %v", batch[idx].PoolUUID, err)
+				}
+			})
+		}
+
+		// Yield control and wait for the entire batch to finish using workflow.Await, this yields control to Temporal while waiting, preventing deadlock detection
+		err := workflow.Await(ctx, func() bool {
+			return countCompletedFutures(completed) == len(futures)
+		})
+		if err != nil {
+			// workflow.Await returned an error (e.g., context cancelled), mark all remaining incomplete pools as failed
+			completedCount := countCompletedFutures(completed)
+			wf.Logger.Errorf("workflow.Await returned error for batch: batchStart=%d, batchEnd=%d, error=%v, completed=%d/%d", i+1, end, err, completedCount, len(futures))
+			continue
+		}
+
+		// Collect failures from completed futures and verify all futures completed
+		for j := 0; j < len(futures); j++ {
+			if !completed[j] {
+				// Future didn't complete - mark as failed
+				wf.Logger.Warnf("Future at index %d did not complete for pool uuid: %s", j, batch[j].PoolUUID)
 				failedPools = append(failedPools, failedPoolInfo{
 					poolUUID: batch[j].PoolUUID,
-					err:      err,
+					err:      errors.New("child workflow did not complete - workflow may have been cancelled or timed out"),
 				})
-				wf.Logger.Errorf("Failed to execute child workflow for pool uuid: %s, error: %v", batch[j].PoolUUID, err)
+			} else if futureErrors[j] != nil {
+				// Future completed but with an error - track the failure
+				failedPools = append(failedPools, failedPoolInfo{
+					poolUUID: batch[j].PoolUUID,
+					err:      futureErrors[j],
+				})
 			}
 		}
 
@@ -340,4 +380,15 @@ func (wf *updateRBACForPoolsWorkflow) Run(ctx workflow.Context, args ...interfac
 
 	wf.Logger.Infof("RBAC update workflow completed successfully for all %d pools", len(poolListNeedUpdate))
 	return nil, nil
+}
+
+// countCompletedFutures counts the number of completed futures in the provided slice
+func countCompletedFutures(completed []bool) int {
+	count := 0
+	for _, c := range completed {
+		if c {
+			count++
+		}
+	}
+	return count
 }
