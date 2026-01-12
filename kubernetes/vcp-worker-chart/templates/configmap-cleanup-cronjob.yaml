@@ -20,6 +20,7 @@ spec:
             sidecar.istio.io/inject: 'false'
           labels:
             app: {{ .Release.Name }}-configmap-cleanup-cronjob
+            sidecar.istio.io/inject: 'false'
         spec:
           restartPolicy: Never
           serviceAccountName: {{ .Values.serviceAccount.name | default "vcp-worker-ksa" }}
