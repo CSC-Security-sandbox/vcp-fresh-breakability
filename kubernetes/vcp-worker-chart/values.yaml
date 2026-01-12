@@ -140,7 +140,9 @@ workerConfig:
   flexcacheForceEncryption: "false"
   ontapRestAsyncPollTimeoutMinutes: 30
   vsaImageName: "x-9-18-1x29"
-  vsaImageChecksums: '{"VSA_IMAGE_CHECKSUM":"", "VSA_MEDIATOR_IMAGE_CHECKSUM":""}'
+  vsaImageChecksums:
+    VSA_IMAGE_CHECKSUM: ""
+    VSA_MEDIATOR_IMAGE_CHECKSUM: ""
   validateImageDigest: false
   # this will be removed after AGA
   vsaFilesImageName: "x-9-18-1x29"
