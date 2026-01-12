@@ -729,7 +729,7 @@ func (a BackupActivity) IsVolumeDeleted(ctx context.Context, volumeUUID string) 
 	if err == nil {
 		return false, nil // Found in expert mode table
 	}
-	if errors.IsNotFoundErr(err) {
+	if errors.IsNotFoundErr(err) || vsaerrors.Is(err, gorm.ErrRecordNotFound) {
 		return true, nil // Not found in either table - deleted
 	}
 	return false, err // Unexpected error
