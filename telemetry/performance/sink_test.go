@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/monitoring"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -38,8 +39,12 @@ func filterAcceptedMetricsHelper(sink *GoogleSink, metrics []entity.HydratedMetr
 func TestDeliverMetrics_ValidMetrics(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
 
-	sink := NewSink(ctx, config)
+	// Set up mock expectation for RecordSinkDelivered
+	mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	sink := NewSink(ctx, config, mockMetricRecorder)
 	var hydratedM []entity.HydratedMetric
 	rm := metadata.ResourceMetadata{
 		ResourceUUID:        nillable.ToPointer(uuid.New().String()),
@@ -65,8 +70,9 @@ func TestDeliverMetrics_ValidMetrics(t *testing.T) {
 func TestDeliverMetrics_InvalidMetrics(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
 
-	sink := NewSink(ctx, config)
+	sink := NewSink(ctx, config, mockMetricRecorder)
 	var hydratedM []entity.HydratedMetric
 	rm := metadata.ResourceMetadata{
 		ResourceUUID:        nillable.ToPointer(uuid.New().String()),
@@ -92,8 +98,10 @@ func TestDeliverMetrics_InvalidMetrics(t *testing.T) {
 func TestFilterAcceptedMetrics_ValidMetrics(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
 	var hydratedM []entity.HydratedMetric
-	sink := NewSink(ctx, config)
+	sink := NewSink(ctx, config, mockMetricRecorder)
 
 	rm := metadata.ResourceMetadata{
 		ResourceUUID:        nillable.ToPointer(uuid.New().String()),
@@ -120,8 +128,10 @@ func TestFilterAcceptedMetrics_ValidMetrics(t *testing.T) {
 func TestFilterAcceptedMetrics_InvalidMetrics(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
 	var hydratedM []entity.HydratedMetric
-	sink := NewSink(ctx, config)
+	sink := NewSink(ctx, config, mockMetricRecorder)
 
 	rm := metadata.ResourceMetadata{
 		ResourceUUID:        nillable.ToPointer(uuid.New().String()),
@@ -148,7 +158,8 @@ func TestFilterAcceptedMetrics_InvalidMetrics(t *testing.T) {
 func TestFilterAcceptedMetrics_EmptyInput(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
-	sink := NewSink(ctx, config)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	sink := NewSink(ctx, config, mockMetricRecorder)
 	var hydratedM []entity.HydratedMetric
 	validMetrics := filterAcceptedMetricsHelper(sink, hydratedM)
 	assert.Len(t, validMetrics, 0)
@@ -158,7 +169,8 @@ func TestFilterAcceptedMetrics_EmptyInput(t *testing.T) {
 func TestDeliverMetrics_EmptyInput(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
-	sink := NewSink(ctx, config)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	sink := NewSink(ctx, config, mockMetricRecorder)
 	var hydratedM []entity.HydratedMetric
 	count := sink.DeliverMetrics(ctx, hydratedM)
 	assert.Equal(t, 0, count)
@@ -168,7 +180,8 @@ func TestDeliverMetrics_EmptyInput(t *testing.T) {
 func TestDeliverMetrics_AllInvalid(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
-	sink := NewSink(ctx, config)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	sink := NewSink(ctx, config, mockMetricRecorder)
 	var hydratedM []entity.HydratedMetric
 	for i := 0; i < 3; i++ {
 		rm := metadata.ResourceMetadata{
@@ -194,7 +207,8 @@ func TestDeliverMetrics_AllInvalid(t *testing.T) {
 func TestFilterAcceptedMetrics_Mixed(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
-	sink := NewSink(ctx, config)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	sink := NewSink(ctx, config, mockMetricRecorder)
 	var hydratedM []entity.HydratedMetric
 	for i := 0; i < 2; i++ {
 		rm := metadata.ResourceMetadata{
@@ -224,7 +238,8 @@ func TestFilterAcceptedMetrics_Mixed(t *testing.T) {
 func TestIsValidHydratedMetric_EmptyMeasuredType(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
-	sink := NewSink(ctx, config)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	sink := NewSink(ctx, config, mockMetricRecorder)
 	var warnings []string
 	rm := metadata.ResourceMetadata{
 		ResourceUUID:        nillable.ToPointer(uuid.New().String()),
@@ -249,7 +264,8 @@ func TestIsValidHydratedMetric_EmptyMeasuredType(t *testing.T) {
 func TestIsValidHydratedMetric_ValidType(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
-	sink := NewSink(ctx, config)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	sink := NewSink(ctx, config, mockMetricRecorder)
 	var warnings []string
 	rm := metadata.ResourceMetadata{
 		ResourceUUID:        nillable.ToPointer(uuid.New().String()),
@@ -274,7 +290,8 @@ func TestIsValidHydratedMetric_ValidType(t *testing.T) {
 func TestFilterAcceptedMetrics_MultipleValid(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
-	sink := NewSink(ctx, config)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	sink := NewSink(ctx, config, mockMetricRecorder)
 	var hydratedM []entity.HydratedMetric
 	for i := 0; i < 5; i++ {
 		rm := metadata.ResourceMetadata{
@@ -300,7 +317,8 @@ func TestFilterAcceptedMetrics_MultipleValid(t *testing.T) {
 func TestFilterAcceptedMetrics_AllInvalidTypes(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
-	sink := NewSink(ctx, config)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	sink := NewSink(ctx, config, mockMetricRecorder)
 	var hydratedM []entity.HydratedMetric
 	for i := 0; i < 3; i++ {
 		rm := metadata.ResourceMetadata{
@@ -326,7 +344,8 @@ func TestFilterAcceptedMetrics_AllInvalidTypes(t *testing.T) {
 func TestFilterAcceptedMetrics_MixedTypes(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
-	sink := NewSink(ctx, config)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	sink := NewSink(ctx, config, mockMetricRecorder)
 	var hydratedM []entity.HydratedMetric
 	for i := 0; i < 3; i++ {
 		rm := metadata.ResourceMetadata{
@@ -361,7 +380,11 @@ func TestFilterAcceptedMetrics_MixedTypes(t *testing.T) {
 func TestDeliverMetrics_MultipleValid(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
-	sink := NewSink(ctx, config)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	// Set up mock expectation for RecordSinkDelivered
+	mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	sink := NewSink(ctx, config, mockMetricRecorder)
 	var hydratedM []entity.HydratedMetric
 	for i := 0; i < 4; i++ {
 		rm := metadata.ResourceMetadata{
@@ -397,8 +420,14 @@ func TestGoogleSink_processMetricsResults_LogsNotImplemented(t *testing.T) {
 // TestGoogleSink_processAndFilterMetricsResults_ErrorHandling tests various error scenarios
 func TestGoogleSink_processAndFilterMetricsResults_ErrorHandling(t *testing.T) {
 	ml := &log.MockLogger{}
+
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordSinkDelivered
+	mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
 	sink := &GoogleSink{
-		logger: ml,
+		logger:          ml,
+		metricsRecorder: mockMetricRecorder,
 	}
 
 	// Create test metrics
@@ -731,7 +760,8 @@ func TestProcessResponse(t *testing.T) {
 	t.Run("processResponse with correlation ID from context", func(t *testing.T) {
 		ctx := context.Background()
 		config := common.LoadConfig()
-		sink := NewSink(ctx, config)
+		mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+		sink := NewSink(ctx, config, mockMetricRecorder)
 
 		// Create context with correlation ID
 		loggerFields := log.Fields{
@@ -754,7 +784,8 @@ func TestProcessResponse(t *testing.T) {
 	t.Run("processResponse without correlation ID", func(t *testing.T) {
 		ctx := context.Background()
 		config := common.LoadConfig()
-		sink := NewSink(ctx, config)
+		mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+		sink := NewSink(ctx, config, mockMetricRecorder)
 
 		// Create context without correlation ID
 
@@ -773,7 +804,8 @@ func TestProcessResponse(t *testing.T) {
 	t.Run("processResponse with invalid context value", func(t *testing.T) {
 		ctx := context.Background()
 		config := common.LoadConfig()
-		sink := NewSink(ctx, config)
+		mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+		sink := NewSink(ctx, config, mockMetricRecorder)
 
 		// Create context with invalid logger fields
 		ctx = context.WithValue(ctx, middleware.TemporalSLoggerKey, "invalid-type")
@@ -792,7 +824,8 @@ func TestProcessResponse(t *testing.T) {
 	t.Run("processResponse with logger fields but no correlation ID", func(t *testing.T) {
 		ctx := context.Background()
 		config := common.LoadConfig()
-		sink := NewSink(ctx, config)
+		mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+		sink := NewSink(ctx, config, mockMetricRecorder)
 
 		// Create context with logger fields but no requestCorrelationID
 		loggerFields := log.Fields{
@@ -816,7 +849,8 @@ func TestProcessResponse(t *testing.T) {
 func TestFilterAndConvertToGoogleMetrics_EdgeCases(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
-	sink := NewSink(ctx, config)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	sink := NewSink(ctx, config, mockMetricRecorder)
 
 	t.Run("metric with both empty and unknown MeasuredType", func(t *testing.T) {
 		var hydratedM []entity.HydratedMetric
@@ -849,8 +883,9 @@ func TestNewSink(t *testing.T) {
 	config := &common.TelemetryConfig{
 		PerformanceRootUrl: "https://test-endpoint.googleapis.com",
 	}
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
 
-	sink := NewSink(ctx, config)
+	sink := NewSink(ctx, config, mockMetricRecorder)
 
 	assert.NotNil(t, sink)
 	assert.NotNil(t, sink.logger)
@@ -860,7 +895,8 @@ func TestNewSink(t *testing.T) {
 func TestPush_WithNonEmptyMetrics(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
-	sink := NewSink(ctx, config)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	sink := NewSink(ctx, config, mockMetricRecorder)
 
 	// Create a valid HydratedMetric with all required fields
 	resourceUUID := uuid.New().String()

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/monitoring"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -35,15 +36,17 @@ type JobQueue struct {
 	db        *sql.DB
 	processor interface{}
 
-	mutex        sync.Mutex
-	typeRegistry map[string]reflect.Type
+	mutex           sync.Mutex
+	typeRegistry    map[string]reflect.Type
+	metricsRecorder monitoring.MetricsRecorder
 }
 
-func NewQueue(db *sql.DB, p interface{}) *JobQueue {
+func NewQueue(db *sql.DB, p interface{}, metricRecorder monitoring.MetricsRecorder) *JobQueue {
 	return &JobQueue{
-		db:           db,
-		processor:    p,
-		typeRegistry: make(map[string]reflect.Type),
+		db:              db,
+		processor:       p,
+		typeRegistry:    make(map[string]reflect.Type),
+		metricsRecorder: metricRecorder,
 	}
 }
 
@@ -77,7 +80,13 @@ func (j *JobQueue) Enqueue(ctx context.Context, job Job, queue string) error {
 	typeName := j.typeName(job)
 
 	data, err := json.Marshal(job)
+	metricParams := &monitoring.MetricRecorderParams{
+		QueueName: queue,
+		JobType:   typeName,
+	}
 	if err != nil {
+		metricParams.JobStatus = "marshal_failed"
+		j.metricsRecorder.RecordJobEnqueued(metricParams)
 		return fmt.Errorf("queue: failed marshaling: %v", err)
 	}
 
@@ -89,6 +98,8 @@ func (j *JobQueue) Enqueue(ctx context.Context, job Job, queue string) error {
 		queue,
 		data,
 	); err != nil {
+		metricParams.JobStatus = "db_insertion_failed"
+		j.metricsRecorder.RecordJobEnqueued(metricParams)
 		return fmt.Errorf("queue: failed inserting job: %w", err)
 	}
 
@@ -104,9 +115,14 @@ func (j *JobQueue) EnqueueBatch(ctx context.Context, jobs []Job, queue string) e
 	logger := util.GetLogger(ctx)
 	logger.Debugf("queue: batch enqueuing %d jobs to queue=%v", len(jobs), queue)
 
+	metricParams := &monitoring.MetricRecorderParams{
+		QueueName: queue,
+	}
 	// Start a transaction for atomic batch insert
 	tx, err := j.db.BeginTx(ctx, nil)
 	if err != nil {
+		metricParams.JobStatus = "begin_transaction_failed"
+		j.metricsRecorder.RecordJobBatchEnqueued(metricParams)
 		return fmt.Errorf("queue: failed to begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
@@ -114,6 +130,8 @@ func (j *JobQueue) EnqueueBatch(ctx context.Context, jobs []Job, queue string) e
 	// Try PostgreSQL approach first, fallback to SQLite if it fails
 	err = j.enqueueBatchPostgres(ctx, tx, jobs, queue)
 	if err != nil {
+		metricParams.JobStatus = "enqueue_batch_postgres_failed"
+		j.metricsRecorder.RecordJobBatchEnqueued(metricParams)
 		// If PostgreSQL approach fails, try SQLite approach
 		err = j.enqueueBatchSQLite(ctx, tx, jobs, queue)
 	}
@@ -124,9 +142,15 @@ func (j *JobQueue) EnqueueBatch(ctx context.Context, jobs []Job, queue string) e
 
 	// Commit the transaction
 	if err = tx.Commit(); err != nil {
+		metricParams.JobStatus = "commit_transaction_failed"
+		j.metricsRecorder.RecordJobBatchEnqueued(metricParams)
 		return fmt.Errorf("queue: failed to commit batch transaction: %w", err)
 	}
 
+	metricParams.JobStatus = "success"
+	metricParams.JobQuantity = len(jobs)
+
+	j.metricsRecorder.RecordJobBatchEnqueued(metricParams)
 	logger.Debugf("queue: successfully batch enqueued %d jobs to queue=%v", len(jobs), queue)
 	return nil
 }
@@ -236,8 +260,12 @@ func (j *JobQueue) Dequeue(ctx context.Context, queues []string) error {
 		RETURNING id, type_name, data, attempt
 	`
 
+	metricRecorderParams := &monitoring.MetricRecorderParams{}
+
 	tx, err := j.db.BeginTx(ctx, nil)
 	if err != nil {
+		metricRecorderParams.JobStatus = "begin_transaction_failed"
+		j.metricsRecorder.RecordJobDequeued(metricRecorderParams)
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
@@ -307,6 +335,9 @@ func (j *JobQueue) Dequeue(ctx context.Context, queues []string) error {
 	if err != nil {
 		return fmt.Errorf("failed updating job status: %w", err)
 	}
+	metricRecorderParams.JobType = job.TypeName
+	metricRecorderParams.JobStatus = "success"
+	j.metricsRecorder.RecordJobDequeued(metricRecorderParams)
 
 	return tx.Commit()
 }

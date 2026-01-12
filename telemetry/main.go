@@ -24,6 +24,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/collector"
 	metricscommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/jobs"
+	telementrymonitoring "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/monitoring"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/performance"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/processor"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/usage"
@@ -81,8 +82,11 @@ func main() {
 
 	tdb := telemetryDbConn.SQLDB()
 
-	googleSink := performance.NewSink(ctx, metricscommon.LoadConfig())
-	billingSink := usage.NewSink(ctx, metricscommon.LoadConfig(), telemetryDbConn)
+	// Initialize metrics recorder
+	metricsRecorder := telementrymonitoring.NewPrometheusRecorder()
+
+	googleSink := performance.NewSink(ctx, metricscommon.LoadConfig(), metricsRecorder)
+	billingSink := usage.NewSink(ctx, metricscommon.LoadConfig(), telemetryDbConn, metricsRecorder)
 	bizopsSink, err := bizops.NewSink(bizops.GCP)
 	if err != nil {
 		logger.Warnf("Failed to initialize Bizops Sink:%v", err)
@@ -99,7 +103,7 @@ func main() {
 	bizopsProvider := bizops.NewBizOpsProvider(telemetryDbConn, VCPDbConn, bizopsSink)
 	metricsProcessor := processor.NewMetricsProcessor(VCPDbConn, telemetryDbConn, googleSink, provider, billingProvider, bizopsProvider)
 
-	queue := utils.NewQueue(tdb, &metricsProcessor)
+	queue := utils.NewQueue(tdb, &metricsProcessor, metricsRecorder)
 	provider.SetJobQueue(queue)
 	billingProvider.SetJobQueue(queue)
 	// provider.SetJobQueue(queue)
@@ -116,6 +120,7 @@ func main() {
 	mux.Use(chimiddleware.Recoverer)
 	mux.Use(httphelpers.LoggingHttpHandler)
 	mux.Use(log.LoggingMiddleware)
+	mux.Use(telementrymonitoring.MetricsMiddlewareWithRecorder(metricsRecorder))
 	mux.Mount("/", http.Handler(gcpServer))
 	mux.Handle("/metrics", promhttp.Handler())
 

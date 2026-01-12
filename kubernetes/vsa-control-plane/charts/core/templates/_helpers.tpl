@@ -192,3 +192,32 @@ Helper function to check if a key should be excluded from processing
 {{- end }}
 {{- end }}
 {{- end -}}
+
+{{- define "otelsecondImageRegistryFullPath" -}}
+{{- if and ( ne .Values.global.secondaryImageRegistry "" ) ( eq .Values.global.secondaryImageRegistryPath "" ) }}
+{{ .Values.global.chartSecondaryImageRegistry | default .Values.global.secondaryImageRegistry }}
+{{- else if and ( ne .Values.global.secondaryImageRegistry "" ) ( ne .Values.global.secondaryImageRegistryPath "" ) }}
+{{ .Values.global.chartSecondaryImageRegistry | default .Values.global.secondaryImageRegistry }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Helper function to get the final URL of the image to be used in the deployment.
+*/}}
+{{- define "otelContainerImage" -}}
+{{- $context := index . 0 -}}
+{{- $args := index . 1 -}}
+{{- $imageValueName := index $args "name" -}}
+{{- $imageConfig := index $context.Values.images $imageValueName -}}
+{{- $imageName := $imageConfig.name -}}
+{{- $imageTag := $imageConfig.tag -}}
+{{- $imageDigest := $imageConfig.digest -}}
+{{- $isSecondary := index $args "secondary" -}}
+{{- $registry := ternary (include "otelsecondImageRegistryFullPath" $context) (include "imageRegistryFullPath" $context) $isSecondary -}}
+{{- if $context.Values.global.useTags -}}
+{{- $finaltag := toString $imageTag | default (toString $context.Chart.Version) -}}
+{{- printf "%s/%s:%s" $registry $imageName $finaltag -}}
+{{- else -}}
+{{- printf "%s/%s@%s" $registry $imageName $imageDigest -}}
+{{- end -}}
+{{- end -}}

@@ -16,51 +16,63 @@ import (
 )
 
 type DeploymentConfig struct {
-	ServiceName        string
-	Image              string
-	ProjectID          string
-	Region             string
-	SchedulerRegion    string // Region for Cloud Scheduler (defaults to Region if not specified)
-	MinInstances       int64
-	MaxInstances       int64
-	TelemetryCPU       string // CPU configuration for telemetry container (e.g., "2", "1000m")
-	TelemetryMemory    string // Memory configuration for telemetry container (e.g., "2Gi", "512Mi")
-	SqlProxyCPU        string // CPU configuration for SQL proxy container (e.g., "1", "500m")
-	SqlProxyMemory     string // Memory configuration for SQL proxy container (e.g., "512Mi", "256Mi")
-	EnvVars            map[string]string
-	EnableScheduler    bool
-	SchedulerCron      string
-	ServiceURL         string
-	ServiceAccountName string
-	Network            string
-	Subnetwork         string
-	VPCConnector       string
-	CloudSQLInstances  []string // List of Cloud SQL instance connection names
-	CloudSQLImage      string
+	ServiceName         string
+	Image               string
+	ProjectID           string
+	Region              string
+	SchedulerRegion     string // Region for Cloud Scheduler (defaults to Region if not specified)
+	MinInstances        int64
+	MaxInstances        int64
+	TelemetryCPU        string // CPU configuration for telemetry container (e.g., "2", "1000m")
+	TelemetryMemory     string // Memory configuration for telemetry container (e.g., "2Gi", "512Mi")
+	SqlProxyCPU         string // CPU configuration for SQL proxy container (e.g., "1", "500m")
+	SqlProxyMemory      string // Memory configuration for SQL proxy container (e.g., "512Mi", "256Mi")
+	EnvVars             map[string]string
+	EnableScheduler     bool
+	SchedulerCron       string
+	ServiceURL          string
+	ServiceAccountName  string
+	Network             string
+	Subnetwork          string
+	VPCConnector        string
+	CloudSQLInstances   []string // List of Cloud SQL instance connection names
+	CloudSQLImage       string
+	OTELImage           string
+	MonitoringProjectID string // GCP project ID used by the OTEL collector's Google Cloud exporter for monitoring data
+	CustomPrefix        string // Custom prefix for resource names used by the OTEL collector's Google Cloud exporter
+	OTELCPU             string // CPU configuration for otel container (e.g., "1", "500m")
+	OTELMemory          string // Memory configuration for otel container (e.g., "512Mi", "256Mi")
+	OTELConfigSecret    string // Secret Manager secret name for OTEL config (if empty, uses env var approach)
 }
 
 func main() {
 	// Command line flags
 	var (
-		serviceName        = flag.String("service", "telemetry-service", "Cloud Run service name")
-		image              = flag.String("image", "us-docker.pkg.dev/gcnv-artifact-registry-nonprod/vcp-container-images-us/telemetry:latest", "Container image URL")
-		projectID          = flag.String("project", "", "GCP project ID")
-		region             = flag.String("region", "", "GCP region")
-		schedulerRegion    = flag.String("scheduler-region", "", "GCP region for Cloud Scheduler (defaults to region if not specified)")
-		network            = flag.String("network", "", "Network name")
-		subnet             = flag.String("subnet", "", "Subnetwork name")
-		vpcConnector       = flag.String("vpc-connector", "", "VPC Access connector")
-		minInstances       = flag.Int64("min-instances", 0, "Minimum number of instances")
-		maxInstances       = flag.Int64("max-instances", 1, "Maximum number of instances (0 for no limit)")
-		telemetryCPU       = flag.String("telemetry-cpu", "2", "CPU allocation for telemetry container (e.g., '2', '1000m')")
-		telemetryMemory    = flag.String("telemetry-memory", "2Gi", "Memory allocation for telemetry container (e.g., '2Gi', '512Mi')")
-		sqlProxyCPU        = flag.String("sql-proxy-cpu", "1", "CPU allocation for SQL proxy container (e.g., '1', '500m')")
-		sqlProxyMemory     = flag.String("sql-proxy-memory", "512Mi", "Memory allocation for SQL proxy container (e.g., '512Mi', '256Mi')")
-		envVarsFlag        = flag.String("env-vars", "", "Environment variables in format KEY1=VALUE1,KEY2=VALUE2")
-		cloudSQLInstances  = flag.String("cloud-sql-instances", "", "Comma-separated list of Cloud SQL instance connection names (project:region:instance)")
-		enableScheduler    = flag.Bool("enable-scheduler", true, "Enable Cloud Scheduler to invoke the service")
-		serviceAccountName = flag.String("service-account-name", "", "Cloud Run service account name")
-		cloudSQLImage      = flag.String("cloud-sql-image", "", "Cloud SQL image URL")
+		serviceName         = flag.String("service", "telemetry-service", "Cloud Run service name")
+		image               = flag.String("image", "us-docker.pkg.dev/gcnv-artifact-registry-nonprod/vcp-container-images-us/telemetry:latest", "Container image URL")
+		projectID           = flag.String("project", "", "GCP project ID")
+		region              = flag.String("region", "", "GCP region")
+		schedulerRegion     = flag.String("scheduler-region", "", "GCP region for Cloud Scheduler (defaults to region if not specified)")
+		network             = flag.String("network", "", "Network name")
+		subnet              = flag.String("subnet", "", "Subnetwork name")
+		vpcConnector        = flag.String("vpc-connector", "", "VPC Access connector")
+		minInstances        = flag.Int64("min-instances", 0, "Minimum number of instances")
+		maxInstances        = flag.Int64("max-instances", 1, "Maximum number of instances (0 for no limit)")
+		telemetryCPU        = flag.String("telemetry-cpu", "2", "CPU allocation for telemetry container (e.g., '2', '1000m')")
+		telemetryMemory     = flag.String("telemetry-memory", "2Gi", "Memory allocation for telemetry container (e.g., '2Gi', '512Mi')")
+		sqlProxyCPU         = flag.String("sql-proxy-cpu", "1", "CPU allocation for SQL proxy container (e.g., '1', '500m')")
+		sqlProxyMemory      = flag.String("sql-proxy-memory", "512Mi", "Memory allocation for SQL proxy container (e.g., '512Mi', '256Mi')")
+		envVarsFlag         = flag.String("env-vars", "", "Environment variables in format KEY1=VALUE1,KEY2=VALUE2")
+		cloudSQLInstances   = flag.String("cloud-sql-instances", "", "Comma-separated list of Cloud SQL instance connection names (project:region:instance)")
+		enableScheduler     = flag.Bool("enable-scheduler", true, "Enable Cloud Scheduler to invoke the service")
+		serviceAccountName  = flag.String("service-account-name", "", "Cloud Run service account name")
+		cloudSQLImage       = flag.String("cloud-sql-image", "", "Cloud SQL image URL")
+		otelImage           = flag.String("otel-image", "", "OpenTelemetry container image URL")
+		otelCPU             = flag.String("otel-cpu", "1", "CPU allocation for OpenTelemetry container (e.g., '1', '500m')")
+		otelMemory          = flag.String("otel-memory", "512Mi", "Memory allocation for OpenTelemetry container (e.g., '512Mi', '256Mi')")
+		monitoringProjectID = flag.String("monitoring-project-id", "", "GCP project ID used by the OTEL collector's Google Cloud exporter for monitoring data")
+		customPrefix        = flag.String("custom-prefix", "", "Custom prefix for resource names used by the OTEL collector's Google Cloud exporter")
+		otelConfigSecret    = flag.String("otel-config-secret", "", "Secret Manager secret name for OTEL config (REQUIRED for distroless images like opentelemetry-collector-contrib; config will be mounted as volume at /conf/relay.yaml)")
 	)
 	flag.Parse()
 
@@ -87,27 +99,37 @@ func main() {
 		schedulerRegionValue = *region
 	}
 
+	// Note: If using a distroless OTEL image (like opentelemetry-collector-contrib) without --otel-config-secret,
+	// the container will fail because distroless images don't have /bin/sh.
+	// To use env var approach without secret, ensure your OTEL image has /bin/sh available.
+
 	config := &DeploymentConfig{
-		ServiceName:        *serviceName,
-		Image:              *image,
-		ProjectID:          *projectID,
-		Region:             *region,
-		SchedulerRegion:    schedulerRegionValue,
-		MinInstances:       *minInstances,
-		MaxInstances:       *maxInstances,
-		TelemetryCPU:       *telemetryCPU,
-		TelemetryMemory:    *telemetryMemory,
-		SqlProxyCPU:        *sqlProxyCPU,
-		SqlProxyMemory:     *sqlProxyMemory,
-		EnvVars:            envVars,
-		EnableScheduler:    *enableScheduler,
-		SchedulerCron:      "*/5 * * * *",
-		ServiceAccountName: *serviceAccountName,
-		Network:            *network,
-		Subnetwork:         *subnet,
-		VPCConnector:       *vpcConnector,
-		CloudSQLInstances:  sqlInstances,
-		CloudSQLImage:      *cloudSQLImage,
+		ServiceName:         *serviceName,
+		Image:               *image,
+		ProjectID:           *projectID,
+		Region:              *region,
+		SchedulerRegion:     schedulerRegionValue,
+		MinInstances:        *minInstances,
+		MaxInstances:        *maxInstances,
+		TelemetryCPU:        *telemetryCPU,
+		TelemetryMemory:     *telemetryMemory,
+		SqlProxyCPU:         *sqlProxyCPU,
+		SqlProxyMemory:      *sqlProxyMemory,
+		EnvVars:             envVars,
+		EnableScheduler:     *enableScheduler,
+		SchedulerCron:       "*/5 * * * *",
+		ServiceAccountName:  *serviceAccountName,
+		Network:             *network,
+		Subnetwork:          *subnet,
+		VPCConnector:        *vpcConnector,
+		CloudSQLInstances:   sqlInstances,
+		CloudSQLImage:       *cloudSQLImage,
+		OTELImage:           *otelImage,
+		OTELCPU:             *otelCPU,
+		OTELMemory:          *otelMemory,
+		MonitoringProjectID: *monitoringProjectID,
+		CustomPrefix:        *customPrefix,
+		OTELConfigSecret:    *otelConfigSecret,
 	}
 
 	if err := deployCloudRunService(context.Background(), config); err != nil {
@@ -246,14 +268,21 @@ func deployCloudRunService(ctx context.Context, config *DeploymentConfig) error 
 		},
 	}
 
+	otelContainer, otelVolume := createOtelCollectorContainer(config)
+
 	// Create service template with scaling
 	template := &cloudrun.GoogleCloudRunV2RevisionTemplate{
-		Containers: []*cloudrun.GoogleCloudRunV2Container{sqlProxyContainer, container},
+		Containers: []*cloudrun.GoogleCloudRunV2Container{sqlProxyContainer, container, otelContainer},
 		Scaling: &cloudrun.GoogleCloudRunV2RevisionScaling{
 			MinInstanceCount: config.MinInstances,
 			MaxInstanceCount: config.MaxInstances,
 		},
 		ServiceAccount: config.ServiceAccountName,
+	}
+
+	// Add volume for OTEL config if using Secret Manager
+	if otelVolume != nil {
+		template.Volumes = []*cloudrun.GoogleCloudRunV2Volume{otelVolume}
 	}
 
 	// Configure VPC access
@@ -622,4 +651,111 @@ func deployCloudScheduler(ctx context.Context, config *DeploymentConfig) error {
 	}
 
 	return nil
+}
+
+// generateOtelConfig generates the OpenTelemetry collector configuration YAML
+func generateOtelConfig(monitoringProjectID, customPrefix string) string {
+	return `exporters:
+  debug:
+    verbosity: normal
+  googlecloud:
+    project: ` + monitoringProjectID + `
+    metric:
+      prefix: ` + customPrefix + `
+      instrumentation_library_labels: false
+    sending_queue:
+      enabled: true
+      queue_size: 40000
+
+extensions:
+  health_check:
+    endpoint: "0.0.0.0:13133"
+
+processors:
+  batch:
+    send_batch_size: 200
+    send_batch_max_size: 200
+    timeout: 200ms
+  memory_limiter:
+    check_interval: 5s
+    limit_percentage: 80
+    spike_limit_percentage: 30
+  resourcedetection:
+    detectors: [gcp]
+    timeout: 10s
+
+receivers:
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: "vsa-telemetry-service"
+          scrape_interval: 60s
+          static_configs:
+            - targets: ["localhost:8080"]
+          metrics_path: /metrics
+service:
+  extensions:
+    - health_check
+  pipelines:
+    metrics:
+      receivers: [prometheus]
+      processors: [batch, resourcedetection]
+      exporters: [googlecloud, debug]
+    metrics/tenants:
+      receivers: [prometheus]
+      processors: [resourcedetection, batch]
+      exporters: [googlecloud, debug]`
+}
+
+// creates an OpenTelemetry collector sidecar container to scrape telemetry metrics
+// Returns the container and optionally a volume if using Secret Manager for config
+func createOtelCollectorContainer(config *DeploymentConfig) (*cloudrun.GoogleCloudRunV2Container, *cloudrun.GoogleCloudRunV2Volume) {
+	// OTEL collector supports YAML config through environment variables
+	// Use the --config=env:OTEL_CONFIG syntax
+	otelConfig := generateOtelConfig(config.MonitoringProjectID, config.CustomPrefix)
+
+	container := &cloudrun.GoogleCloudRunV2Container{
+		Name:    "otel-collector",
+		Image:   config.OTELImage, // Use original distroless image
+		Command: []string{"/otelcol-contrib"},
+		Args: []string{
+			"--config=env:OTEL_CONFIG", // OTEL reads config from env var directly
+		},
+		Env: []*cloudrun.GoogleCloudRunV2EnvVar{
+			{
+				Name:  "OTEL_CONFIG",
+				Value: otelConfig, // Pass config as plain YAML string
+			},
+		},
+		Ports: nil,
+		Resources: &cloudrun.GoogleCloudRunV2ResourceRequirements{
+			CpuIdle: false,
+			Limits: map[string]string{
+				"cpu":    config.OTELCPU,
+				"memory": config.OTELMemory,
+			},
+		},
+		StartupProbe: &cloudrun.GoogleCloudRunV2Probe{
+			InitialDelaySeconds: 0,
+			PeriodSeconds:       10,
+			TimeoutSeconds:      1,
+			FailureThreshold:    3,
+			HttpGet: &cloudrun.GoogleCloudRunV2HTTPGetAction{
+				Path: "/",
+				Port: 13133,
+			},
+		},
+		LivenessProbe: &cloudrun.GoogleCloudRunV2Probe{
+			InitialDelaySeconds: 0,
+			PeriodSeconds:       10,
+			TimeoutSeconds:      1,
+			FailureThreshold:    3,
+			HttpGet: &cloudrun.GoogleCloudRunV2HTTPGetAction{
+				Path: "/",
+				Port: 13133,
+			},
+		},
+	}
+
+	return container, nil
 }

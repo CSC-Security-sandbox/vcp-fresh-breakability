@@ -60,6 +60,13 @@ spec:
             - "--vpc-connector={{ .Values.telemetryDeployer.vpcConnector | default "" }}"
             - "--cloud-sql-instances={{ .Values.telemetryDeployer.cloudSqlConnector | default "" }}"
             - "--cloud-sql-image={{ .Values.telemetryDeployer.cloudSqlImage | default "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1" }}"
+            - "--otel-cpu={{ .Values.telemetryDeployer.otelCPU | default "1" }}"
+            - "--otel-memory={{ .Values.telemetryDeployer.otelMemory | default "512Mi" }}"
+           {{- if .Values.images.otel.secondary }}
+            - "--otel-image={{ include "otelContainerImage" (list . (dict "name" "otel" "secondary" true)) | trim }}"
+            {{- else }}
+            - "--otel-image={{ include "otelContainerImage" (list . (dict "name" "otel" "secondary" false)) | trim }}"
+            {{- end }}
           {{- if .Values.images.telemetryDeployer.secondary }}
           image: "{{ include "containerImage" (list . (dict "name" "telemetryDeployer" "secondary" true)) | trim }}"
           {{- else }}

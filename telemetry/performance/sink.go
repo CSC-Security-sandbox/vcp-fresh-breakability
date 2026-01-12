@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/googlePusher"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/monitoring"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -29,18 +30,20 @@ type Sink interface {
 
 // GoogleSink is responsible for delivering metrics to Google.
 type GoogleSink struct {
-	metricClient googlePusher.GoogleMetricsClient
-	logger       log.Logger
+	metricClient    googlePusher.GoogleMetricsClient
+	logger          log.Logger
+	metricsRecorder monitoring.MetricsRecorder
 }
 
 func (s *GoogleSink) processMetricsResults(results []common.MetricsResult) {
 	s.logger.Warn("processMetricsResults not implemented")
 }
 
-func NewSink(ctx context.Context, config *common.TelemetryConfig) *GoogleSink {
+func NewSink(ctx context.Context, config *common.TelemetryConfig, metricsRecorder monitoring.MetricsRecorder) *GoogleSink {
 	return &GoogleSink{
 		metricClient: *googlePusher.NewGoogleMetricsClient(ctx, config.PerformanceRootUrl, config),
 		logger:       util.GetLogger(ctx),
+		metricsRecorder: metricsRecorder,
 	}
 }
 
@@ -242,7 +245,12 @@ func (s *GoogleSink) processAndFilterMetricsResults(results []common.MetricsResu
 			goodResults = append(goodResults, result)
 		}
 	}
-
+	metricRecorderParams := &monitoring.MetricRecorderParams{
+		SinkType:          "performance",
+		SubmittedQuantity: len(goodResults),
+		FailedQuantity:    len(results) - len(goodResults),
+	}
+	s.metricsRecorder.RecordSinkDelivered(metricRecorderParams)
 	s.logger.Infof("%d metrics were successfully reported.", len(goodResults))
 }
 

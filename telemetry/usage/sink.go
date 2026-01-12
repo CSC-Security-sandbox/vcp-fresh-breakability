@@ -15,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/googlePusher"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/monitoring"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -30,6 +31,7 @@ type GoogleUsageSink struct {
 	logger               log.Logger
 	config               *common.TelemetryConfig
 	aggregatedUsageTable string // Cached table name for AggregatedUsage
+	metricsRecorder      monitoring.MetricsRecorder
 }
 
 // updateInfo holds information needed for batch database updates
@@ -42,12 +44,13 @@ type updateInfo struct {
 // These fields are: id, state, error_message, error_count, submission
 const bulkUpdateFieldCount = 5
 
-func NewSink(ctx context.Context, config *common.TelemetryConfig, metricsdb database2.Storage) *GoogleUsageSink {
+func NewSink(ctx context.Context, config *common.TelemetryConfig, metricsdb database2.Storage, metricsRecorder monitoring.MetricsRecorder) *GoogleUsageSink {
 	sink := &GoogleUsageSink{
 		metricClient: *googlePusher.NewGoogleMetricsClient(ctx, config.UsageRootUrl, config),
 		logger:       util.GetLogger(ctx),
 		metricsdb:    metricsdb,
 		config:       config,
+		metricsRecorder: metricsRecorder,
 	}
 
 	// Initialize cached table name for AggregatedUsage
@@ -237,6 +240,14 @@ func (s *GoogleUsageSink) processMetricsResults(ctx context.Context, gcpResults 
 
 	// Count failed records (both errors and exceptions)
 	failedRecordsCount := len(errorResults) + len(exceptionResults)
+
+	// Record metrics for monitoring
+	metricRecorderParams := &monitoring.MetricRecorderParams{
+		SinkType:          "usage",
+		SubmittedQuantity: len(goodResults),
+		FailedQuantity:    failedRecordsCount,
+	}
+	s.metricsRecorder.RecordSinkDelivered(metricRecorderParams)
 
 	// Check feature flag to determine update strategy
 	if s.config.EnableBatchUsageUpdates {

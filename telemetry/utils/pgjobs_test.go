@@ -11,9 +11,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/monitoring"
 )
 
 // MockJob implements the Job interface for testing
@@ -108,8 +110,9 @@ type MockJobQueue struct {
 }
 
 func newMockQueue(db *sql.DB, processor interface{}) *MockJobQueue {
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
 	return &MockJobQueue{
-		JobQueue: NewQueue(db, processor),
+		JobQueue: NewQueue(db, processor, mockMetricRecorder),
 	}
 }
 
@@ -242,7 +245,8 @@ func TestNewQueue(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 
 	assert.NotNil(t, queue)
 	assert.Equal(t, db, queue.db)
@@ -256,7 +260,8 @@ func TestJobQueue_Enqueue(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 	ctx := context.Background()
 
 	job := MockJob{ID: "test", Data: "test data"}
@@ -291,7 +296,8 @@ func TestJobQueue_EnqueueAt(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 	ctx := context.Background()
 
 	job := MockJob{ID: "scheduled", Data: "scheduled data"}
@@ -317,7 +323,12 @@ func TestJobQueue_EnqueueMarshalError(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	// Set up mock expectation for RecordJobEnqueued
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 	ctx := context.Background()
 
 	// Use a job that can't be marshaled
@@ -533,7 +544,9 @@ func TestJobQueue_Worker(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 
 	// Create a context that will be canceled after a short time
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -550,7 +563,12 @@ func TestJobQueue_Worker_ProcessesJobs(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor) // Use real queue instead of mock
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	// Set up mock expectation for RecordJobDequeued
+	mockMetricRecorder.On("RecordJobDequeued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder) // Use real queue instead of mock
 
 	// Enqueue a job before starting the worker
 	job := MockJob{ID: "worker_test", Data: "worker data"}
@@ -579,7 +597,8 @@ func TestJobQueue_TypeName(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 
 	// Test with pointer type
 	job := &MockJob{}
@@ -597,7 +616,8 @@ func TestJobQueue_RegisterType(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 
 	// Register a type
 	queue.registerType(&MockJob{})
@@ -612,7 +632,8 @@ func TestJobQueue_GetType(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 
 	// Register a type
 	queue.registerType(&MockJob{})
@@ -748,7 +769,11 @@ func TestJobQueue_Dequeue_DatabaseError(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordJobDequeued
+	mockMetricRecorder.On("RecordJobDequeued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 	ctx := context.Background()
 
 	// Close the database to simulate an error
@@ -764,7 +789,10 @@ func TestJobQueue_Enqueue_DatabaseError(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordJobEnqueued
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 	ctx := context.Background()
 
 	job := MockJob{ID: "test", Data: "test data"}
@@ -841,7 +869,8 @@ func TestJobQueue_EnqueueAt_DatabaseError(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 	ctx := context.Background()
 
 	job := MockJob{ID: "test", Data: "test data"}
@@ -860,7 +889,8 @@ func TestJobQueue_EnqueueAt_MarshalError(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 	ctx := context.Background()
 
 	// Use a job that can't be marshaled
@@ -954,7 +984,8 @@ func TestJobQueue_Worker_EmptyTypes(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 
 	// Create a context that will be canceled after a short time
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
@@ -971,7 +1002,8 @@ func TestJobQueue_Worker_WithMultipleTypes(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 
 	// Create a context that will be canceled after a short time
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
@@ -1013,7 +1045,8 @@ func TestJobQueue_TypeName_EdgeCases(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 
 	// Test with double pointer
 	job := &MockJob{}
@@ -1031,7 +1064,8 @@ func TestJobQueue_RegisterType_Multiple(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 
 	// Register multiple types
 	queue.registerType(&MockJob{})
@@ -1050,7 +1084,8 @@ func TestJobQueue_GetType_AfterRegistration(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 
 	// Register types
 	queue.registerType(&MockJob{})
@@ -1193,7 +1228,8 @@ func BenchmarkJobQueue_Enqueue(b *testing.B) {
 	}
 
 	var mockProcessor interface{}
-	queue := NewQueue(sqlDB, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	queue := NewQueue(sqlDB, mockProcessor, mockMetricRecorder)
 	ctx := context.Background()
 
 	job := MockJob{ID: "benchmark", Data: "benchmark data"}
@@ -1233,7 +1269,8 @@ func TestJobQueue_EnqueueBatch_EmptyJobs(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 	ctx := context.Background()
 
 	// Test with empty jobs slice
@@ -1252,7 +1289,11 @@ func TestJobQueue_EnqueueBatch_Success(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordJobBatchEnqueued
+	mockMetricRecorder.On("RecordJobBatchEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 	ctx := context.Background()
 
 	// Create multiple jobs
@@ -1305,7 +1346,11 @@ func TestJobQueue_EnqueueBatch_MarshalError(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordJobBatchEnqueued
+	mockMetricRecorder.On("RecordJobBatchEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 	ctx := context.Background()
 
 	// Create jobs with one that can't be marshaled
@@ -1331,7 +1376,11 @@ func TestJobQueue_EnqueueBatch_DatabaseError(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordJobBatchEnqueued
+	mockMetricRecorder.On("RecordJobBatchEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 	ctx := context.Background()
 
 	// Close database to simulate error
@@ -1352,7 +1401,11 @@ func TestJobQueue_EnqueueBatch_TransactionCommitError(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordJobBatchEnqueued
+	mockMetricRecorder.On("RecordJobBatchEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 	ctx := context.Background()
 
 	jobs := []Job{
@@ -1372,7 +1425,11 @@ func TestJobQueue_EnqueueBatch_LargeBatch(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordJobBatchEnqueued
+	mockMetricRecorder.On("RecordJobBatchEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 	ctx := context.Background()
 
 	// Create a large batch of jobs
@@ -1396,7 +1453,11 @@ func TestJobQueue_EnqueueBatch_MixedJobTypes(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordJobBatchEnqueued
+	mockMetricRecorder.On("RecordJobBatchEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 	ctx := context.Background()
 
 	// Create jobs of different types
@@ -1431,7 +1492,11 @@ func TestJobQueue_EnqueueBatch_SQLiteFallback(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordJobBatchEnqueued
+	mockMetricRecorder.On("RecordJobBatchEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 	ctx := context.Background()
 
 	// Create jobs - SQLite should use the fallback method
@@ -1455,7 +1520,10 @@ func TestJobQueue_EnqueueBatch_PostgresArrayError(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := NewQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordJobBatchEnqueued
+	mockMetricRecorder.On("RecordJobBatchEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 	ctx := context.Background()
 
 	// Create jobs with special characters that might cause array issues
@@ -1472,4 +1540,49 @@ func TestJobQueue_EnqueueBatch_PostgresArrayError(t *testing.T) {
 	err = db.QueryRow("SELECT COUNT(*) FROM jobs WHERE queue = ?", "special_chars_queue").Scan(&count)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, count)
+}
+
+func TestJobQueue_EnqueueBatch_PostgresFailsSQLiteSucceedsCommit(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	var mockProcessor interface{}
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	// Expect metrics calls for both failures and final success
+	mockMetricRecorder.On("RecordJobBatchEnqueued", mock.MatchedBy(func(p *monitoring.MetricRecorderParams) bool {
+		return p.JobStatus == "enqueue_batch_postgres_failed"
+	})).Return().Once()
+
+	mockMetricRecorder.On("RecordJobBatchEnqueued", mock.MatchedBy(func(p *monitoring.MetricRecorderParams) bool {
+		return p.JobStatus == "success" && p.JobQuantity == 2
+	})).Return().Once()
+
+	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
+	ctx := context.Background()
+
+	// Create jobs - will fail PostgreSQL approach but succeed with SQLite
+	jobs := []Job{
+		MockJob{ID: "commit_test_1", Data: "data1"},
+		MockJob{ID: "commit_test_2", Data: "data2"},
+	}
+
+	err := queue.EnqueueBatch(ctx, jobs, "commit_test_queue")
+	assert.NoError(t, err)
+
+	// Verify transaction was committed successfully
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM jobs WHERE queue = ?", "commit_test_queue").Scan(&count)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	// Verify all jobs have correct status
+	var scheduledCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM jobs WHERE queue = ? AND status = ?",
+		"commit_test_queue", JOB_STATUS_SCHEDULED).Scan(&scheduledCount)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, scheduledCount)
+
+	// Verify metrics were recorded correctly
+	mockMetricRecorder.AssertExpectations(t)
 }

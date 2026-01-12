@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/googlePusher"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/monitoring"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	servicecontrol "google.golang.org/api/servicecontrol/v1"
 	"gorm.io/gorm"
@@ -37,9 +38,11 @@ func createMockDB() database2.Storage {
 func TestNewSink(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
 	mockDB := createMockDB()
 
-	sink := NewSink(ctx, config, mockDB)
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	assert.NotNil(t, sink)
 	assert.NotNil(t, sink.metricClient)
@@ -49,8 +52,10 @@ func TestNewSink(t *testing.T) {
 func TestGoogleUsageSink_filterValidUsage(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
 	mockDB := createMockDB()
-	sink := NewSink(ctx, config, mockDB)
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	customerID := "test-customer-123"
 
@@ -138,7 +143,9 @@ func TestGoogleUsageSink_isValid(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
 	mockDB := createMockDB()
-	sink := NewSink(ctx, config, mockDB)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	customerID := "test-customer-123"
 
@@ -198,7 +205,9 @@ func TestGoogleUsageSink_completeRecords(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
 	mockDB := createMockDB()
-	sink := NewSink(ctx, config, mockDB)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	customerID := "test-customer-123"
 
@@ -333,7 +342,9 @@ func TestGoogleUsageSink_processGcpUnifiedMetrics(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
 	mockDB := createMockDB()
-	sink := NewSink(ctx, config, mockDB)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	t.Run("Process empty metrics", func(t *testing.T) {
 		ml := &log.MockLogger{}
@@ -358,7 +369,9 @@ func TestGoogleUsageSink_push(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
 	mockDB := createMockDB()
-	sink := NewSink(ctx, config, mockDB)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	t.Run("Push empty metrics", func(t *testing.T) {
 		ml := &log.MockLogger{}
@@ -394,7 +407,9 @@ func TestGoogleUsageSink_DeliverMetrics(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
 	mockDB := createMockDB()
-	sink := NewSink(ctx, config, mockDB)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	t.Run("Deliver valid metrics", func(t *testing.T) {
 		customerID := "test-customer-123"
@@ -423,7 +438,9 @@ func TestGoogleUsageSink_DeliverMetrics_WithDroppedRecords(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
 	mockDB := createMockDB()
-	sink := NewSink(ctx, config, mockDB)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	customerID := "test-customer-123"
 
@@ -472,7 +489,11 @@ func TestGoogleUsageSink_processResponse_WithResults(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
 	mockDB := createMockDB()
-	sink := NewSink(ctx, config, mockDB)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordSinkDelivered
+	mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	customerID := "test-customer-123"
 	resourceName := "test-resource"
@@ -516,7 +537,11 @@ func TestGoogleUsageSink_processMetricsResults_WithGoodResults(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
 	mockDB := createMockDB()
-	sink := NewSink(ctx, config, mockDB)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordSinkDelivered
+	mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	customerID := "test-customer-123"
 	resourceName := "test-resource"
@@ -549,7 +574,11 @@ func TestGoogleUsageSink_processMetricsResults_WithErrorResults(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
 	mockDB := createMockDB()
-	sink := NewSink(ctx, config, mockDB)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordSinkDelivered
+	mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	customerID := "test-customer-123"
 	resourceName := "test-resource"
@@ -582,7 +611,11 @@ func TestGoogleUsageSink_processMetricsResults_WithExceptionResults(t *testing.T
 	ctx := context.Background()
 	config := common.LoadConfig()
 	mockDB := createMockDB()
-	sink := NewSink(ctx, config, mockDB)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordSinkDelivered
+	mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	customerID := "test-customer-123"
 	resourceName := "test-resource"
@@ -615,7 +648,11 @@ func TestGoogleUsageSink_processMetricsResults_GetAsUsageBillingMetricError(t *t
 	ctx := context.Background()
 	config := common.LoadConfig()
 	mockDB := createMockDB()
-	sink := NewSink(ctx, config, mockDB)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordSinkDelivered
+	mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	// Create test metric with invalid type that will cause GetAsUsageBillingMetric to fail
 	googleMetric := *common.NewGoogleMetric("invalid-type")
@@ -667,7 +704,11 @@ func TestGoogleUsageSink_processMetricsResults_WithErrorLogging(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
 	mockDB := createMockDB()
-	sink := NewSink(ctx, config, mockDB)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordSinkDelivered
+	mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	// Set up mock logger to capture error logging
 	ml := &log.MockLogger{}
@@ -714,7 +755,11 @@ func TestGoogleUsageSink_processMetricsResults_WithSuccessfulLogging(t *testing.
 	ctx := context.Background()
 	config := common.LoadConfig()
 	mockDB := createMockDB()
-	sink := NewSink(ctx, config, mockDB)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordSinkDelivered
+	mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	// Set up mock logger to capture success logging
 	ml := &log.MockLogger{}
@@ -762,7 +807,9 @@ func TestGoogleUsageSink_processMetricsResultsBatch(t *testing.T) {
 	config.ResultUpdateBatchSize = 2      // Small batch size for testing
 
 	mockDB := createMockDB()
-	sink := NewSink(ctx, config, mockDB)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	customerID := "test-customer-123"
 	resourceName := "test-resource"
@@ -836,6 +883,7 @@ func TestGoogleUsageSink_batchUpdateAggregatedUsage(t *testing.T) {
 	config.ResultUpdateBatchSize = 2
 
 	mockDB := &database2.MockStorage{}
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
 
 	// Add WithTransaction mock for table name initialization
 	mockDB.On("WithTransaction", mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -862,8 +910,7 @@ func TestGoogleUsageSink_batchUpdateAggregatedUsage(t *testing.T) {
 				},
 			},
 		}
-
-		sink := NewSink(ctx, config, mockDB)
+		sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 		ml := &log.MockLogger{}
 		sink.logger = ml
 
@@ -881,7 +928,7 @@ func TestGoogleUsageSink_batchUpdateAggregatedUsage(t *testing.T) {
 
 	// Test empty batch handling
 	t.Run("empty batch", func(t *testing.T) {
-		sink := NewSink(ctx, config, mockDB)
+		sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 		// Test with empty batch - should return early
 		sink.batchUpdateAggregatedUsage(ctx, []updateInfo{})
@@ -894,7 +941,8 @@ func TestGoogleUsageSink_buildBulkUpdateQuery(t *testing.T) {
 	ctx := context.Background()
 	config := common.LoadConfig()
 	mockDB := createMockDB()
-	sink := NewSink(ctx, config, mockDB)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	// Set the table name for testing
 	sink.aggregatedUsageTable = "aggregated_usages"
@@ -971,7 +1019,9 @@ func TestGoogleUsageSink_buildBulkUpdateQuery_TypeAssertionFailures(t *testing.T
 	ctx := context.Background()
 	config := common.LoadConfig()
 	mockDB := createMockDB()
-	sink := NewSink(ctx, config, mockDB)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 	sink.aggregatedUsageTable = "aggregated_usages"
 
 	// Set up mock logger to capture warnings
@@ -1027,7 +1077,9 @@ func TestGoogleUsageSink_fallbackToIndividualUpdates(t *testing.T) {
 	mockDB.On("UpdateAggregatedUsage", ctx, int64(1), mock.Anything).Return(nil)
 	mockDB.On("UpdateAggregatedUsage", ctx, int64(2), mock.Anything).Return(errors.New("update failed"))
 
-	sink := NewSink(ctx, config, mockDB)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	// Set up mock logger
 	ml := &log.MockLogger{}
@@ -1094,7 +1146,10 @@ func TestGoogleUsageSink_processMetricsResults_BatchEnabled(t *testing.T) {
 	t.Run("Batch processing enabled", func(t *testing.T) {
 		config.EnableBatchUsageUpdates = true
 		mockDB := createMockDB()
-		sink := NewSink(ctx, config, mockDB)
+		mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+		// Set up mock expectation for RecordSinkDelivered
+		mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+		sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 		// Set up mock logger
 		ml := &log.MockLogger{}
@@ -1110,7 +1165,10 @@ func TestGoogleUsageSink_processMetricsResults_BatchEnabled(t *testing.T) {
 	t.Run("Batch processing disabled", func(t *testing.T) {
 		config.EnableBatchUsageUpdates = false
 		mockDB := createMockDB()
-		sink := NewSink(ctx, config, mockDB)
+		mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+		// Set up mock expectation for RecordSinkDelivered
+		mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+		sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 		// Set up mock logger
 		ml := &log.MockLogger{}

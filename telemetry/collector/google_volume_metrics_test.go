@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/monitoring"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/performance"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -56,7 +57,9 @@ scheduled_at DATETIME
 `)
 	require.NoError(t, err)
 
-	jobQueue := utils.NewQueue(sqlDB, nil)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	mockMetricRecorder.On("RecordJobBatchEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	jobQueue := utils.NewQueue(sqlDB, nil, mockMetricRecorder)
 
 	cleanup := func() {
 		_ = sqlDB.Close()
@@ -728,7 +731,9 @@ func TestGoogleVolumeMetricsProvider_GetVolumeMetrics_EnqueueBatchError(t *testi
 	// Close the database connection to cause EnqueueBatch to fail
 	_ = sqlDB.Close()
 
-	jobQueue := utils.NewQueue(sqlDB, nil)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	mockMetricRecorder.On("RecordJobBatchEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	jobQueue := utils.NewQueue(sqlDB, nil, mockMetricRecorder)
 
 	provider := &GoogleVolumeMetricsProvider{
 		tenantProjectProvider: mockTenantProvider,
@@ -795,7 +800,9 @@ func TestGoogleVolumeMetricsProvider_CollectProjectMetrics_PerformanceFlow(t *te
 
 	// Create GoogleSink for the provider
 	config := common.LoadConfig()
-	googleSink := performance.NewSink(ctx, config)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	mockMetricRecorder.On("RecordJobBatchEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	googleSink := performance.NewSink(ctx, config, mockMetricRecorder)
 
 	provider := &GoogleVolumeMetricsProvider{
 		client:     mockClient,
@@ -898,7 +905,9 @@ func TestGoogleVolumeMetricsProvider_CollectProjectMetrics_VolumePoolResourceTyp
 
 			// Create GoogleSink for the provider
 			config := common.LoadConfig()
-			googleSink := performance.NewSink(ctx, config)
+			mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+			mockMetricRecorder.On("RecordJobBatchEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+			googleSink := performance.NewSink(ctx, config, mockMetricRecorder)
 
 			provider := &GoogleVolumeMetricsProvider{
 				client:     mockClient,
@@ -960,7 +969,9 @@ func TestGoogleVolumeMetricsProvider_PerformanceMetricEdgeCases(t *testing.T) {
 
 	// Create GoogleSink for the provider
 	config := common.LoadConfig()
-	googleSink := performance.NewSink(ctx, config)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	googleSink := performance.NewSink(ctx, config, mockMetricRecorder)
 
 	provider := &GoogleVolumeMetricsProvider{
 		client:     mockClient,
@@ -1056,7 +1067,9 @@ func TestGoogleVolumeMetricsProvider_CollectProjectMetrics_PerformanceMetricsSpe
 
 	// Create GoogleSink for the provider
 	config := common.LoadConfig()
-	googleSink := performance.NewSink(ctx, config)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	googleSink := performance.NewSink(ctx, config, mockMetricRecorder)
 
 	provider := &GoogleVolumeMetricsProvider{
 		client:     mockClient,
@@ -1153,7 +1166,9 @@ func TestGoogleVolumeMetricsProvider_CloudBinOperationFiltering(t *testing.T) {
 	timestamp := time.Now()
 
 	config := common.LoadConfig()
-	googleSink := performance.NewSink(ctx, config)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	googleSink := performance.NewSink(ctx, config, mockMetricRecorder)
 
 	testCases := []struct {
 		name               string
@@ -1287,7 +1302,9 @@ func TestGoogleVolumeMetricsProvider_CloudBinOperationFiltering_MultipleSeries(t
 	timestamp := time.Now()
 
 	config := common.LoadConfig()
-	googleSink := performance.NewSink(ctx, config)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	googleSink := performance.NewSink(ctx, config, mockMetricRecorder)
 
 	mockClient := new(MockMonitoringClient)
 	mockIterator := new(MockTimeSeriesIterator)
@@ -1393,7 +1410,9 @@ func TestGoogleVolumeMetricsProvider_CloudBinOperationFiltering_PoolMetrics(t *t
 	timestamp := time.Now()
 
 	config := common.LoadConfig()
-	googleSink := performance.NewSink(ctx, config)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	googleSink := performance.NewSink(ctx, config, mockMetricRecorder)
 
 	mockClient := new(MockMonitoringClient)
 	mockIterator := new(MockTimeSeriesIterator)

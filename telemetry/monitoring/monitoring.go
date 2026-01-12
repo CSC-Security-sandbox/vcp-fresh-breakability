@@ -1,0 +1,39 @@
+package monitoring
+
+import (
+	"time"
+)
+
+type MetricRecorderParams struct {
+	EndPoint           string
+	Method             string
+	StatusCode         string
+	LatencyDuration    float64
+	QueueName          string
+	JobType            string
+	JobStatus          string
+	JobQuantity        int
+	SinkType           string
+	SinkStatus         string
+	ResourceType       string
+	SubmittedQuantity  int
+	FailedQuantity     int
+	SubmittedTimeStamp time.Time
+}
+
+// MetricsRecorder defines the interface for recording metrics
+type MetricsRecorder interface {
+	// API operations
+	RecordAPIRequest(params *MetricRecorderParams)
+	RecordAPILatency(params *MetricRecorderParams)
+
+	// Job operations
+	RecordJobEnqueued(params *MetricRecorderParams)
+	RecordJobBatchEnqueued(params *MetricRecorderParams)
+	RecordJobDequeued(params *MetricRecorderParams)
+	RecordJobProcessed(params *MetricRecorderParams)
+
+	// Sink operations
+	RecordSinkDelivered(params *MetricRecorderParams)
+	RecordBillingMetricsSubmission(params *MetricRecorderParams)
+}
