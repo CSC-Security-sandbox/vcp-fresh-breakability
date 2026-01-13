@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
@@ -10,7 +11,7 @@ import (
 
 // UsageSink defines the interface for delivering usage metrics to external systems
 type UsageSink interface {
-	DeliverMetrics(ctx context.Context, metrics []datamodel.AggregatedUsage) (int, error)
+	DeliverMetrics(ctx context.Context, metrics []datamodel.AggregatedUsage, aggregationEndTime time.Time) (int, error)
 }
 
 // IsBillableMetric checks if a given resource type and measured type combination represents a billable metric

@@ -355,7 +355,7 @@ func TestGoogleUsageSink_processGcpUnifiedMetrics(t *testing.T) {
 		var googleMetrics []common.GoogleMetric // Empty slice
 		var failedCount int
 
-		sink.processGcpUnifiedMetrics(ctx, googleMetrics, &failedCount)
+		sink.processGcpUnifiedMetrics(ctx, googleMetrics, &failedCount, time.Now())
 		ml.AssertExpectations(t)
 	})
 
@@ -382,7 +382,7 @@ func TestGoogleUsageSink_push(t *testing.T) {
 		var googleMetrics []common.GoogleMetric // Empty slice
 		var failedCount int
 
-		sink.push(ctx, googleMetrics, &failedCount)
+		sink.push(ctx, googleMetrics, &failedCount, time.Now())
 		ml.AssertExpectations(t)
 	})
 
@@ -393,7 +393,7 @@ func TestGoogleUsageSink_push(t *testing.T) {
 		ml.On("Warn", "Google first party billing metrics not found, hence not reporting anything.").Once()
 		var failedCount int
 
-		sink.push(ctx, nil, &failedCount)
+		sink.push(ctx, nil, &failedCount, time.Now())
 		ml.AssertExpectations(t)
 	})
 
@@ -426,7 +426,7 @@ func TestGoogleUsageSink_DeliverMetrics(t *testing.T) {
 			},
 		}
 
-		failedCount, err := sink.DeliverMetrics(ctx, aggregatedRecords)
+		failedCount, err := sink.DeliverMetrics(ctx, aggregatedRecords, time.Now())
 
 		assert.NoError(t, err)
 		assert.Equal(t, 0, failedCount, "Should have no failed metrics for valid input")
@@ -478,7 +478,7 @@ func TestGoogleUsageSink_DeliverMetrics_WithDroppedRecords(t *testing.T) {
 	}
 
 	// This should trigger the dropped records logging (line 45)
-	failedCount, err := sink.DeliverMetrics(ctx, aggregatedRecords)
+	failedCount, err := sink.DeliverMetrics(ctx, aggregatedRecords, time.Now())
 
 	assert.NoError(t, err)
 	assert.Equal(t, 0, failedCount, "Should have no failed metrics for valid records")

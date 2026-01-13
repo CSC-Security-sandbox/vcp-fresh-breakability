@@ -74,8 +74,8 @@ type MockUsageSink struct {
 	mock.Mock
 }
 
-func (m *MockUsageSink) DeliverMetrics(ctx context.Context, records []metricsdm.AggregatedUsage) (int, error) {
-	args := m.Called(ctx, records)
+func (m *MockUsageSink) DeliverMetrics(ctx context.Context, records []metricsdm.AggregatedUsage, aggregationEndTime time.Time) (int, error) {
+	args := m.Called(ctx, records, aggregationEndTime)
 	return args.Int(0), args.Error(1)
 }
 
@@ -1642,7 +1642,7 @@ func TestMetricsProcessor_ProcessBillingSubmission_Success(t *testing.T) {
 	mockMetricsDB.On("GetAggregatedUsageWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]metricsdm.AggregatedUsage{}, nil).Once()
 
 	// Mock DeliverMetrics to succeed with no failures
-	mockUsageSink.On("DeliverMetrics", mock.Anything, unsentRecords).Return(0, nil)
+	mockUsageSink.On("DeliverMetrics", mock.Anything, unsentRecords, mock.Anything).Return(0, nil)
 
 	mp := &MetricsProcessor{billingProvider: billingProvider}
 	err := mp.ProcessBillingSubmission(ctx, aggregationEndTime)
@@ -1679,7 +1679,7 @@ func TestMetricsProcessor_ProcessBillingSubmission_DeliverMetricsError(t *testin
 	mockMetricsDB.On("GetAggregatedUsageWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]metricsdm.AggregatedUsage{}, nil).Once()
 
 	// Mock DeliverMetrics to return error
-	mockUsageSink.On("DeliverMetrics", mock.Anything, unsentRecords).Return(0, errors.New("delivery failed"))
+	mockUsageSink.On("DeliverMetrics", mock.Anything, unsentRecords, mock.Anything).Return(0, errors.New("delivery failed"))
 
 	mp := &MetricsProcessor{billingProvider: billingProvider}
 	err := mp.ProcessBillingSubmission(ctx, aggregationEndTime)
@@ -1719,7 +1719,7 @@ func TestMetricsProcessor_ProcessBillingSubmission_PartialFailures(t *testing.T)
 	mockMetricsDB.On("GetAggregatedUsageWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]metricsdm.AggregatedUsage{}, nil).Once()
 
 	// Mock DeliverMetrics to return 1 failure (2 successful, 1 failed)
-	mockUsageSink.On("DeliverMetrics", mock.Anything, unsentRecords).Return(1, nil)
+	mockUsageSink.On("DeliverMetrics", mock.Anything, unsentRecords, mock.Anything).Return(1, nil)
 
 	mp := &MetricsProcessor{billingProvider: billingProvider}
 	err := mp.ProcessBillingSubmission(ctx, aggregationEndTime)

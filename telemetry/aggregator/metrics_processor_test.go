@@ -79,8 +79,8 @@ type MockUsageSink struct {
 	mock.Mock
 }
 
-func (m *MockUsageSink) DeliverMetrics(ctx context.Context, metrics []datamodel2.AggregatedUsage) (int, error) {
-	args := m.Called(ctx, metrics)
+func (m *MockUsageSink) DeliverMetrics(ctx context.Context, metrics []datamodel2.AggregatedUsage, aggregationEndTime time.Time) (int, error) {
+	args := m.Called(ctx, metrics, aggregationEndTime)
 	return args.Int(0), args.Error(1)
 }
 

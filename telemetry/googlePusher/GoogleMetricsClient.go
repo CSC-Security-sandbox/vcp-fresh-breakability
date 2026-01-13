@@ -315,10 +315,6 @@ func (client *GoogleMetricsClient) generateOperationId(metric common.GoogleMetri
 	if resourceName, err := metric.GetResourceName(); err == nil {
 		nameBuilder.WriteString(resourceName)
 	}
-	nameBuilder.WriteString("|")
-
-	// Include operation time window (always available)
-	nameBuilder.WriteString(fmt.Sprintf("%d-%d", opStart, opEnd))
 
 	// Generate UUIDv5 based on namespace and name
 	operationUUID := uuid.NewSHA1(namespace, []byte(nameBuilder.String()))

@@ -46,10 +46,10 @@ const bulkUpdateFieldCount = 5
 
 func NewSink(ctx context.Context, config *common.TelemetryConfig, metricsdb database2.Storage, metricsRecorder monitoring.MetricsRecorder) *GoogleUsageSink {
 	sink := &GoogleUsageSink{
-		metricClient: *googlePusher.NewGoogleMetricsClient(ctx, config.UsageRootUrl, config),
-		logger:       util.GetLogger(ctx),
-		metricsdb:    metricsdb,
-		config:       config,
+		metricClient:    *googlePusher.NewGoogleMetricsClient(ctx, config.UsageRootUrl, config),
+		logger:          util.GetLogger(ctx),
+		metricsdb:       metricsdb,
+		config:          config,
 		metricsRecorder: metricsRecorder,
 	}
 
@@ -93,7 +93,7 @@ func (s *GoogleUsageSink) initializeTableName() {
 	s.logger.Debugf("Initialized AggregatedUsage table name: %s", s.aggregatedUsageTable)
 }
 
-func (s *GoogleUsageSink) DeliverMetrics(ctx context.Context, aggregatedRecords []datamodel.AggregatedUsage) (failedCount int, err error) {
+func (s *GoogleUsageSink) DeliverMetrics(ctx context.Context, aggregatedRecords []datamodel.AggregatedUsage, aggregationEndTime time.Time) (failedCount int, err error) {
 	s.logger.Debugf("MapAggregatedRecordsToBilling: Received Number of records to map", "Number of records:", len(aggregatedRecords))
 	validUsage, err := s.filterValidUsage(aggregatedRecords)
 	if err != nil {
@@ -104,7 +104,7 @@ func (s *GoogleUsageSink) DeliverMetrics(ctx context.Context, aggregatedRecords 
 	}
 	googleMetrics := s.completeRecords(validUsage)
 	var failed int
-	s.processGcpUnifiedMetrics(ctx, googleMetrics, &failed)
+	s.processGcpUnifiedMetrics(ctx, googleMetrics, &failed, aggregationEndTime)
 	return failed, nil
 }
 
@@ -172,17 +172,17 @@ func (s *GoogleUsageSink) isValid(usage datamodel.AggregatedUsage) bool {
 	return true
 }
 
-func (s *GoogleUsageSink) processGcpUnifiedMetrics(ctx context.Context, googleMetrics []common.GoogleMetric, failedCount *int) {
+func (s *GoogleUsageSink) processGcpUnifiedMetrics(ctx context.Context, googleMetrics []common.GoogleMetric, failedCount *int, aggregationEndTime time.Time) {
 	if len(googleMetrics) == 0 {
 		s.logger.Info("No Google usage metrics processed in this run.")
 		*failedCount = 0
 		return
 	}
 
-	s.push(ctx, googleMetrics, failedCount)
+	s.push(ctx, googleMetrics, failedCount, aggregationEndTime)
 }
 
-func (s *GoogleUsageSink) push(ctx context.Context, googleMetrics []common.GoogleMetric, failedCount *int) {
+func (s *GoogleUsageSink) push(ctx context.Context, googleMetrics []common.GoogleMetric, failedCount *int, aggregationEndTime time.Time) {
 	if len(googleMetrics) == 0 {
 		s.logger.Warn("Google first party billing metrics not found, hence not reporting anything.")
 		*failedCount = 0
@@ -193,12 +193,13 @@ func (s *GoogleUsageSink) push(ctx context.Context, googleMetrics []common.Googl
 	fpResultChan := make(chan []common.MetricsResult)
 
 	wg.Add(3)
-	go func() {
+	go func(endTime time.Time) {
 		defer wg.Done()
 		s.logger.Debugf("Reporting First Party Google Billing Metrics", "Google Metric First Party list count: ", len(googleMetrics))
-		go s.metricClient.ReportMetrics(ctx, googleMetrics, time.Now().Unix(), time.Now().Unix(), &wg, fpResultChan)
+		operationTime := endTime.Add(time.Duration(s.config.TargetMinute) * time.Minute).Unix()
+		go s.metricClient.ReportMetrics(ctx, googleMetrics, operationTime, operationTime, &wg, fpResultChan)
 		go s.processResponse(ctx, &wg, fpResultChan, failedCount)
-	}()
+	}(aggregationEndTime)
 
 	wg.Wait()
 }

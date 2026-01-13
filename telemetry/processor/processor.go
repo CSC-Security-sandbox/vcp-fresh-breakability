@@ -225,7 +225,7 @@ func (mp *MetricsProcessor) ProcessBillingSubmission(ctx context.Context, aggreg
 
 	logger.Debugf("Starting retry processing for %d unsent billing records. Records: %s", len(unsentRecords), spew.Sdump(unsentRecords))
 	// Deliver the metrics to sink
-	failedCount, err := mp.billingProvider.GetUsageSink().DeliverMetrics(ctx, unsentRecords)
+	failedCount, err := mp.billingProvider.GetUsageSink().DeliverMetrics(ctx, unsentRecords, aggregationEndTime)
 	if err != nil {
 		logger.Error("Failed to deliver metrics in retry attempt", "error", err)
 		return err
