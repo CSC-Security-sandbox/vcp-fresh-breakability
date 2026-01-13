@@ -1414,7 +1414,7 @@ func TestVerifyVsaKmsReachabilityActivity(t *testing.T) {
 			return kmsConfig, nil
 		}
 		mockSE.On("GetKmsConfigByUUID", mock.Anything, kmsConfig.UUID).Return(kmsConfig, nil)
-		_, err := env.ExecuteActivity(activity.VerifyVsaKmsReachabilityActivity, kmsConfig.UUID)
+		_, err := env.ExecuteActivity(activity.VerifyVsaKmsReachabilityActivity, kmsConfig.UUID, true)
 		assert.NoError(t, err)
 	})
 	t.Run("WhenUpdateKmsConfigHealthFails", func(t *testing.T) {
@@ -1436,7 +1436,7 @@ func TestVerifyVsaKmsReachabilityActivity(t *testing.T) {
 			return nil, errors.New("some error")
 		}
 		mockSE.On("GetKmsConfigByUUID", mock.Anything, kmsConfig.UUID).Return(kmsConfig, nil)
-		_, err := env.ExecuteActivity(activity.VerifyVsaKmsReachabilityActivity, kmsConfig.UUID)
+		_, err := env.ExecuteActivity(activity.VerifyVsaKmsReachabilityActivity, kmsConfig.UUID, true)
 		assert.Error(t, err)
 	})
 	t.Run("ReturnsErrorWhenAccessCryptoKeyFails", func(t *testing.T) {
@@ -1458,8 +1458,9 @@ func TestVerifyVsaKmsReachabilityActivity(t *testing.T) {
 			return kmsConfig, nil
 		}
 		mockSE.On("GetKmsConfigByUUID", mock.Anything, kmsConfig.UUID).Return(kmsConfig, nil)
-		_, err := env.ExecuteActivity(activity.VerifyVsaKmsReachabilityActivity, kmsConfig.UUID)
-		assert.NoError(t, err)
+		_, err := env.ExecuteActivity(activity.VerifyVsaKmsReachabilityActivity, kmsConfig.UUID, true)
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "unreachable")
 	})
 	t.Run("WhenGetKmsConfigByUUIDFails", func(t *testing.T) {
 		mockSE := database.NewMockStorage(t)
@@ -1481,7 +1482,7 @@ func TestVerifyVsaKmsReachabilityActivity(t *testing.T) {
 			return kmsConfig, nil
 		}
 		mockSE.On("GetKmsConfigByUUID", mock.Anything, kmsConfig.UUID).Return(nil, errors.New("some error"))
-		_, err := env.ExecuteActivity(activity.VerifyVsaKmsReachabilityActivity, kmsConfig.UUID)
+		_, err := env.ExecuteActivity(activity.VerifyVsaKmsReachabilityActivity, kmsConfig.UUID, true)
 		assert.Error(t, err)
 	})
 	t.Run("WhenGetKmsConfigByUUIDFailsNonRetriableError", func(t *testing.T) {
@@ -1504,7 +1505,7 @@ func TestVerifyVsaKmsReachabilityActivity(t *testing.T) {
 			return kmsConfig, nil
 		}
 		mockSE.On("GetKmsConfigByUUID", mock.Anything, kmsConfig.UUID).Return(nil, errors.NewNotFoundErr("some error", nil))
-		_, err := env.ExecuteActivity(activity.VerifyVsaKmsReachabilityActivity, kmsConfig.UUID)
+		_, err := env.ExecuteActivity(activity.VerifyVsaKmsReachabilityActivity, kmsConfig.UUID, true)
 		assert.Error(t, err)
 	})
 }

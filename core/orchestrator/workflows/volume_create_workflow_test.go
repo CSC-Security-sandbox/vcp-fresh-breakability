@@ -15,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -64,6 +65,7 @@ func (s *UnitTestSuite) SetupTest() {
 	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 	backupActivity := activities.BackupActivity{SE: mockStorage}
 	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+	kmsConfigActivity := kms_activities.KmsConfigActivity{SE: mockStorage}
 
 	// Register common activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
@@ -116,6 +118,12 @@ func (s *UnitTestSuite) SetupTest() {
 	// Register background activities
 	syncBackupZiZsActivity := backgroundactivities.SyncBackupZiZsActivity{SE: mockStorage}
 	s.env.RegisterActivity(syncBackupZiZsActivity.SyncBucketDetails)
+
+	// Register KMS activities (needed when volume create workflow validates KMS reachability)
+	s.env.RegisterActivity(kmsConfigActivity.GetKmsConfigActivity)
+	s.env.RegisterActivity(kmsConfigActivity.CreateVSAKmsConfigSAKeyActivity)
+	s.env.RegisterActivity(kmsConfigActivity.GrantRoleActivity)
+	s.env.RegisterActivity(kmsConfigActivity.VerifyVsaKmsReachabilityActivity)
 
 	// Set default mock responses for commonly used activities
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -186,6 +194,42 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Success() {
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_WhenVerifyKmsConfigReachabilityFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	kmsConfigActivity := kms_activities.KmsConfigActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Account: &datamodel.Account{Name: "account-1"},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+			KmsConfig: &datamodel.KmsConfig{
+				BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			},
+		},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+	}
+
+	// Only need job status updates + the KMS reachability gate to fail fast.
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(kmsConfigActivity.GetKmsConfigActivity, mock.Anything, "kms-config-uuid").Return(volume.Pool.KmsConfig, nil)
+	s.env.OnActivity(kmsConfigActivity.CreateVSAKmsConfigSAKeyActivity, mock.Anything, mock.Anything).Return(volume.Pool.KmsConfig, nil)
+	s.env.OnActivity(kmsConfigActivity.GrantRoleActivity, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(kmsConfigActivity.VerifyVsaKmsReachabilityActivity, mock.Anything, mock.Anything, mock.Anything).Return(err1.New("kms key disabled"))
+
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "kms key disabled")
 }
 
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolume_Success() {
@@ -3097,7 +3141,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_IsDataProtectionTrue_SkipsGetH
 		},
 		Svm: &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{
-			Protocols:         []string{utils.ProtocolISCSI}, // SAN protocol
+			Protocols:        []string{utils.ProtocolISCSI}, // SAN protocol
 			BlockProperties:  &datamodel.BlockProperties{OSType: "LINUX"},
 			IsDataProtection: true, // This should skip GetHosts and CreateIgroup
 		},

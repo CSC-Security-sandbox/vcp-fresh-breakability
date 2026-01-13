@@ -3256,7 +3256,7 @@ func TestDeletePoolWorkflow(t *testing.T) {
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
-	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeleteExpertModeCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
@@ -3431,7 +3431,7 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabled(t *testing.T) {
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
 	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
@@ -3530,7 +3530,7 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabledPoolAvailable(t *testing.T) {
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
 	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
@@ -3627,7 +3627,7 @@ func TestDeletePoolWorkflowWhenVSACleanupDisabledAndStateError(t *testing.T) {
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
 	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
@@ -3726,7 +3726,7 @@ func TestDeletePoolWorkflowWhenUnRegisterNodesFromHarvestFails(t *testing.T) {
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Mock child workflow - DataSubnetSequentialPoller is called first
 	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -3930,7 +3930,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 		env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
@@ -4007,7 +4007,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 		env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Mock child workflows
 		env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -4083,7 +4083,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 		env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
@@ -4704,7 +4704,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
-		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil).Maybe()
 		env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil).Maybe()
 		// Mock GetJob activity - return DONE state for subnet job (PollOnDBJob will call this repeatedly)
@@ -5011,7 +5011,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil).Once()
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(errors.New("some error"))
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("some error"))
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -10491,7 +10491,7 @@ func TestServiceAccountBackwardCompatibility(t *testing.T) {
 			env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 			env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-			env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+			env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 			// Mock child workflow
 			env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)

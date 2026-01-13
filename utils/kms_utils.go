@@ -2,14 +2,17 @@ package utils
 
 import (
 	"encoding/base64"
+	stdErrors "errors"
 	"fmt"
-	"google.golang.org/api/cloudkms/v1"
 	"regexp"
 	"slices"
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"google.golang.org/api/cloudkms/v1"
+	"google.golang.org/api/googleapi"
 )
 
 // Constants for error messages, regex patterns, and expected parts
@@ -143,7 +146,42 @@ func ValidateKeyProperties(key *cloudkms.CryptoKey, keyName, keyRing string) err
 		return errors.NewNonRetryableErr(fmt.Sprintf("Failed to validate KMS key due to precondition failure: Specified key %v in %v algorithm is not supported", keyName, keyRing))
 	}
 	if key.Primary.State != enabledKeyState {
-		return errors.NewNonRetryableErr(fmt.Sprintf("Failed to validate KMS key due to precondition failure: Specified key %v in %v is not enabled", keyName, keyRing))
+		return errors2.NewVCPError(
+			errors2.ErrKMSKeyDisabledOrDestroyed,
+			fmt.Errorf("failed to validate KMS key due to precondition failure: Specified key %v in %v is not enabled", keyName, keyRing),
+		)
 	}
 	return nil
+}
+
+// IsKmsKeyUnreachable inspects Google API errors (and plain errors) to detect Cloud EKM
+// reachability issues and returns the user-facing message when matched.
+func IsKmsKeyUnreachable(err error) (string, bool) {
+	var gerr *googleapi.Error
+	if stdErrors.As(err, &gerr) {
+		body := gerr.Body
+		if body != "" {
+			lowerBody := strings.ToLower(body)
+			if strings.Contains(lowerBody, "key_unreachable") || strings.Contains(lowerBody, "cloud ekm") || strings.Contains(lowerBody, "unreachable") {
+				if gerr.Message != "" {
+					return gerr.Message, true
+				}
+				return body, true
+			}
+		}
+		if gerr.Message != "" {
+			lowerMsg := strings.ToLower(gerr.Message)
+			if strings.Contains(lowerMsg, "key_unreachable") || strings.Contains(lowerMsg, "cloud ekm") || strings.Contains(lowerMsg, "unreachable") {
+				return gerr.Message, true
+			}
+		}
+	}
+	if err != nil {
+		msg := err.Error()
+		lowerMsg := strings.ToLower(msg)
+		if strings.Contains(lowerMsg, "key_unreachable") || strings.Contains(lowerMsg, "cloud ekm") || strings.Contains(lowerMsg, "unreachable") {
+			return msg, true
+		}
+	}
+	return "", false
 }

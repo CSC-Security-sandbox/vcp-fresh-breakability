@@ -294,6 +294,9 @@ const (
 	ErrDecryptingServiceAccountPassword = 8006
 	ErrorSynchronizingServiceAccountKey = 8007
 	ErrZoneMachineTypeValidation        = 8008
+	// CMEK precondition failures (user-facing, mapped to HTTP 412 Failed Precondition)
+	ErrKMSKeyDisabledOrDestroyed = 8009
+	ErrKMSKeyUnreachable         = 8010
 
 	// FlexCache specific errors (10000-10999 range)
 	ErrCreatingFlexCacheVolume   = 10001

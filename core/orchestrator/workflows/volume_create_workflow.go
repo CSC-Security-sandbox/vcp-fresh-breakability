@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -613,6 +614,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
+
 	dbHbCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(dbHeartbeatTimeoutSec)*time.Second)
 
 	rollbackManager := common.NewRollbackManager()
@@ -626,6 +628,17 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			rollbackManager.ExecuteRollback(disconnectedCtx, err)
 		}
 	}()
+
+	// Fail fast if pool KMS config is not reachable, matching pool create workflow behavior.
+	// This ensures key disabled / EKM unreachable errors surface early.
+	if dbVolume.Pool != nil && dbVolume.Pool.KmsConfig != nil {
+		kmsConfigActivity := &kms_activities.KmsConfigActivity{}
+		// Access a crypto key using the KMS config in the VSA database to make sure key is reachable and update the kms config state based on the reachability
+		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.VerifyVsaKmsReachabilityActivity, dbVolume.Pool.KmsConfig.UUID, true).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	}
 
 	var backupVault *datamodel.BackupVault
 	var backup *datamodel.Backup

@@ -2,12 +2,17 @@ package utils
 
 import (
 	"encoding/base64"
-	"google.golang.org/api/cloudkms/v1"
+	"errors"
+	"net/http"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"google.golang.org/api/cloudkms/v1"
+	"google.golang.org/api/googleapi"
 )
 
 func TestParseKeyFullPathResource(t *testing.T) {
@@ -176,7 +181,10 @@ func TestValidateKeyProperties(t *testing.T) {
 	t.Run("WhenKeyHasBeenDisabled", func(tt *testing.T) {
 		err := ValidateKeyProperties(&cloudkms.CryptoKey{Primary: &cloudkms.CryptoKeyVersion{Algorithm: "GOOGLE_SYMMETRIC_ENCRYPTION", State: "DISABLED"}}, keyName, keyRing)
 		assert.Error(tt, err)
-		assert.EqualError(tt, err, "Failed to validate KMS key due to precondition failure: Specified key KeyName in KeyRing is not enabled")
+		var cerr *errors2.CustomError
+		assert.True(tt, errors.As(err, &cerr))
+		assert.Equal(tt, errors2.ErrKMSKeyDisabledOrDestroyed, cerr.TrackingID)
+		assert.Contains(tt, cerr.Error(), "KMS key is disabled or destroyed")
 	})
 	t.Run("WhenValidateKeyPropertiesSuccessful", func(tt *testing.T) {
 		err := ValidateKeyProperties(&cloudkms.CryptoKey{Primary: &cloudkms.CryptoKeyVersion{Algorithm: "EXTERNAL_SYMMETRIC_ENCRYPTION", State: enabledKeyState}}, keyName, keyRing)
@@ -253,4 +261,74 @@ func TestReturnEncryptRequest(t *testing.T) {
 			assert.True(t, reflect.DeepEqual(tt.expected, result))
 		})
 	}
+}
+
+func TestIsKmsKeyUnreachable(t *testing.T) {
+	t.Run("MatchesWhenGoogleApiBodyContainsKeyUnreachable", func(t *testing.T) {
+		err := &googleapi.Error{
+			Code: 412,
+			Body: `{"error":{"code":412,"message":"FAILED_PRECONDITION: KMS key ... in Cloud EKM is unreachable. Retry later","status":"FAILED_PRECONDITION","details":[{"@type":"type.googleapis.com/google.rpc.PreconditionFailure","violations":[{"type":"KEY_UNREACHABLE"}]}]}}`,
+		}
+		msg, ok := IsKmsKeyUnreachable(err)
+		assert.True(t, ok)
+		assert.Contains(t, msg, "FAILED_PRECONDITION")
+		assert.Contains(t, strings.ToLower(msg), "unreachable")
+	})
+
+	t.Run("MatchesWhenMessageMentionsCloudEkmUnreachable", func(t *testing.T) {
+		msg, ok := IsKmsKeyUnreachable(errors.New("FAILED_PRECONDITION: KMS key in Cloud EKM is unreachable. Retry later"))
+		assert.True(t, ok)
+		assert.Contains(t, msg, "Cloud EKM")
+	})
+
+	t.Run("MatchesWhenBodyContainsEkmUnreachableReason", func(t *testing.T) {
+		err := &googleapi.Error{
+			Code:    503,
+			Message: "Ekm connection unreachable",
+			Body: `{
+			  "error": {
+				"code": 503,
+				"message": "Ekm connection unreachable",
+				"status": "UNAVAILABLE",
+				"details": [
+				  {
+					"@type": "type.googleapis.com/google.rpc.ErrorInfo",
+					"reason": "EKM_UNREACHABLE",
+					"domain": "googleapis.com",
+					"metadata": {
+					  "service": "cloudkms.googleapis.com",
+					  "method": "google.cloud.kms.v1.EkmService.GetEkmConnection",
+					  "resource": "projects/123/locations/us-east1/ekmConnections/my-ekm"
+					}
+				  }
+				]
+			  }
+			}`,
+			Errors: []googleapi.ErrorItem{
+				{
+					Reason:  "EKM_UNREACHABLE",
+					Message: "Ekm connection unreachable",
+				},
+			},
+		}
+		msg, ok := IsKmsKeyUnreachable(err)
+		assert.True(t, ok)
+		assert.Equal(t, "Ekm connection unreachable", msg)
+	})
+
+	t.Run("MatchesWhenGoogleApiMessageOnly", func(t *testing.T) {
+		err := &googleapi.Error{
+			Code:    http.StatusServiceUnavailable,
+			Message: "Cloud EKM endpoint unreachable",
+		}
+		msg, ok := IsKmsKeyUnreachable(err)
+		assert.True(t, ok)
+		assert.Equal(t, "Cloud EKM endpoint unreachable", msg)
+	})
+
+	t.Run("ReturnsFalseForUnrelatedError", func(t *testing.T) {
+		msg, ok := IsKmsKeyUnreachable(errors.New("some other failure"))
+		assert.False(t, ok)
+		assert.Empty(t, msg)
+	})
 }

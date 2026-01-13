@@ -1541,6 +1541,18 @@
     "retriable": false,
     "http_code": 507
   },
+  "8009": {
+    "description": "CMEK precondition failure - KMS key disabled or destroyed",
+    "message": "FAILED_PRECONDITION: KMS key is disabled or destroyed",
+    "retriable": false,
+    "http_code": 412
+  },
+  "8010": {
+    "description": "CMEK precondition failure - Cloud EKM key unreachable",
+    "message": "FAILED_PRECONDITION: KMS key in Cloud EKM is unreachable. Retry later or contact your external key manager",
+    "retriable": true,
+    "http_code": 412
+  },
   "10001": {
     "description": "Error creating FlexCache volume",
     "message": "Error creating FlexCache volume",

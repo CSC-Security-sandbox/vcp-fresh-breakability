@@ -2,6 +2,7 @@ package kms_activities
 
 import (
 	"context"
+	goErrors "errors"
 	"fmt"
 	"strings"
 	"time"
@@ -341,11 +342,15 @@ func _accessCryptoKeyAndEncryptData(ctx context.Context, kmsConfig *datamodel.Km
 	errAccess := retryDo(ctx, timeout, timeoutInterval, "AccessCryptoKeyAndEncryptDataWithImpersonation", func(attempt int) (bool, error) {
 		cryptoKey, errGetCrypto := kmsService.Projects.Locations.KeyRings.CryptoKeys.Get(cryptoKeyPath).Context(ctx).Do()
 		if errGetCrypto != nil {
+			if msg, ok := utils.IsKmsKeyUnreachable(errGetCrypto); ok {
+				return false, errors2.NewVCPError(errors2.ErrKMSKeyUnreachable, goErrors.New(msg))
+			}
 			return true, retry.NewRetriableErr(fmt.Sprintf("Projects.Locations.KeyRings.CryptoKeys.Get: %v", errGetCrypto))
 		}
 		errValidate := utils.ValidateKeyProperties(cryptoKey, kmsConfig.KeyName, kmsConfig.KeyRing)
 		if errValidate != nil {
-			return true, errValidate
+			// Validation failures (e.g., disabled/destroyed key) are user-facing and should not be retried.
+			return false, errValidate
 		}
 		return false, nil
 	})
@@ -362,6 +367,9 @@ func _accessCryptoKeyAndEncryptData(ctx context.Context, kmsConfig *datamodel.Km
 	errEncrypt := retryDo(ctx, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey, "AccessCryptoKeyAndEncryptDataWithImpersonationActivity", func(attempt int) (bool, error) {
 		_, err = kmsService.Projects.Locations.KeyRings.CryptoKeys.Encrypt(cryptoKeyPath, req).Do()
 		if err != nil {
+			if msg, ok := utils.IsKmsKeyUnreachable(err); ok {
+				return false, errors2.NewVCPError(errors2.ErrKMSKeyUnreachable, goErrors.New(msg))
+			}
 			return true, retry.NewRetriableErr(fmt.Sprintf("Projects.Locations.KeyRings.CryptoKeys.Encrypt: %v", err))
 		}
 		logger.Debugf("Successfully encrypted test data with crypto key  %s using impersonation", cryptoKeyPath)
@@ -392,7 +400,7 @@ func _synchronizeServiceAccountKeys(ctx context.Context, gcpService hyperscaler.
 	return &key.PrivateKeyData, nil
 }
 
-func (j *KmsConfigActivity) VerifyVsaKmsReachabilityActivity(ctx context.Context, kmsConfigUUID string) error {
+func (j *KmsConfigActivity) VerifyVsaKmsReachabilityActivity(ctx context.Context, kmsConfigUUID string, getVerifyError bool) error {
 	activity.RecordHeartbeat(ctx, "Starting VerifyVsaKmsReachabilityActivity")
 	defer activity.RecordHeartbeat(ctx, "Finished VerifyVsaKmsReachabilityActivity")
 	se := j.SE
@@ -407,7 +415,7 @@ func (j *KmsConfigActivity) VerifyVsaKmsReachabilityActivity(ctx context.Context
 
 	activity.RecordHeartbeat(ctx, "Verifying KMS reachability from VSA")
 	// Access Crypto key and encrypt data
-	err = AccessCryptoKeyAndEncryptData(
+	errAccessAndEncrypt := AccessCryptoKeyAndEncryptData(
 		ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation,
 		RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
 
@@ -415,8 +423,8 @@ func (j *KmsConfigActivity) VerifyVsaKmsReachabilityActivity(ctx context.Context
 	kmsConfigCheck := &models.KmsConfigCheck{}
 	kmsConfigCheck.IsHealthy = true
 	kmsConfigCheck.ProxyType = models.ProxyTypeVcp
-	if err != nil {
-		kmsConfigCheck.HealthError = err.Error()
+	if errAccessAndEncrypt != nil {
+		kmsConfigCheck.HealthError = errAccessAndEncrypt.Error()
 		kmsConfigCheck.IsHealthy = false
 	}
 	kmsConfigCheck.KmsConfig = &models.KmsConfig{
@@ -430,6 +438,15 @@ func (j *KmsConfigActivity) VerifyVsaKmsReachabilityActivity(ctx context.Context
 	_, err = UpdateKmsConfigHealth(ctx, se, kmsConfigCheck)
 	if err != nil {
 		return err
+	}
+
+	// for some cases just want check to pass even if there is issue with AccessCryptoKeyAndEncryptData e.g pool/volume create operation
+	// for create pool operation error is returned
+	if getVerifyError {
+		if errAccessAndEncrypt != nil {
+			return errors2.WrapAsTemporalApplicationError(errAccessAndEncrypt)
+		}
+		return nil
 	}
 	return nil
 }

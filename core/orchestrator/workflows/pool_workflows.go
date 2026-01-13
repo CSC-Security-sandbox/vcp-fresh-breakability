@@ -1369,7 +1369,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	if dbPool.KmsConfig != nil {
 		// Check if the KMS config is reachable and update the kms appropriately i.e. from in-use to created when last pool/svm is deleted
 		kmsConfigActivity := &kms_activities.KmsConfigActivity{}
-		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.VerifyVsaKmsReachabilityActivity, dbPool.KmsConfig.UUID).Get(ctx, nil)
+		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.VerifyVsaKmsReachabilityActivity, dbPool.KmsConfig.UUID, false).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -1404,7 +1404,7 @@ func _verifyKmsConfigReachability(ctx workflow.Context, kmsConfigId string) erro
 	}
 
 	// Access a crypto key using the KMS config in the VSA database to make sure key is reachable and update the kms config state based on the reachability
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.VerifyVsaKmsReachabilityActivity, kmsConfig.UUID).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.VerifyVsaKmsReachabilityActivity, kmsConfig.UUID, true).Get(ctx, nil)
 	if err != nil {
 		return err
 	}
