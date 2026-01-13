@@ -12805,6 +12805,156 @@ func TestPoolActivity_GetRbacHash(t *testing.T) {
 	})
 }
 
+func TestPoolActivity_ValidateRbacHash(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	ontapVersion := "9.18.1"
+	validHash := "abc123def456"
+	validBucketFileDetails := &hyperscaler_models.BucketFileDetails{
+		BucketName:     "test-bucket",
+		FileUrl:        "test-url",
+		FileHashSHA256: validHash,
+	}
+
+	originalOntapModeRBACChecksums := activities.OntapModeRBACChecksums
+	originalValidateRbacHashFlag := activities.ValidateRbacHashFlag
+	defer func() {
+		activities.OntapModeRBACChecksums = originalOntapModeRBACChecksums
+		activities.ValidateRbacHashFlag = originalValidateRbacHashFlag
+	}()
+
+	t.Run("validation disabled - should skip validation", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		activities.ValidateRbacHashFlag = false
+
+		err := activity.ValidateRbacHash(ctx, ontapVersion, validBucketFileDetails)
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("bucketFileDetails is nil", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		activities.ValidateRbacHashFlag = true
+
+		err := activity.ValidateRbacHash(ctx, ontapVersion, nil)
+
+		assert.Error(t, err)
+		assertTemporalApplicationError(t, err, "bucket file details or hash is empty", vsaerrors.CustomErrorType, true)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("hash is empty", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		activities.ValidateRbacHashFlag = true
+		bucketFileDetails := &hyperscaler_models.BucketFileDetails{
+			BucketName:     "test-bucket",
+			FileUrl:        "test-url",
+			FileHashSHA256: "",
+		}
+
+		err := activity.ValidateRbacHash(ctx, ontapVersion, bucketFileDetails)
+
+		assert.Error(t, err)
+		assertTemporalApplicationError(t, err, "bucket file details or hash is empty", vsaerrors.CustomErrorType, true)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("configuration is empty", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		activities.ValidateRbacHashFlag = true
+		activities.OntapModeRBACChecksums = ""
+
+		err := activity.ValidateRbacHash(ctx, ontapVersion, validBucketFileDetails)
+
+		assert.Error(t, err)
+		assertTemporalApplicationError(t, err, "ONTAP_MODE_RBAC_CHECKSUMS not configured", vsaerrors.CustomErrorType, true)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("configuration is empty JSON object", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		activities.ValidateRbacHashFlag = true
+		activities.OntapModeRBACChecksums = "{}"
+
+		err := activity.ValidateRbacHash(ctx, ontapVersion, validBucketFileDetails)
+
+		assert.Error(t, err)
+		assertTemporalApplicationError(t, err, "ONTAP_MODE_RBAC_CHECKSUMS not configured", vsaerrors.CustomErrorType, true)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("invalid JSON configuration", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		activities.ValidateRbacHashFlag = true
+		activities.OntapModeRBACChecksums = "{invalid json}"
+
+		err := activity.ValidateRbacHash(ctx, ontapVersion, validBucketFileDetails)
+
+		assert.Error(t, err)
+		assertTemporalApplicationError(t, err, "failed to parse ONTAP_MODE_RBAC_CHECKSUMS configuration", vsaerrors.CustomErrorType, true)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("ONTAP version not found in configuration", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		activities.ValidateRbacHashFlag = true
+		activities.OntapModeRBACChecksums = `{"9.19.1": "different-hash"}`
+
+		err := activity.ValidateRbacHash(ctx, ontapVersion, validBucketFileDetails)
+
+		assert.Error(t, err)
+		assertTemporalApplicationError(t, err, fmt.Sprintf("ONTAP version %s not found in ONTAP_MODE_RBAC_CHECKSUMS configuration", ontapVersion), vsaerrors.CustomErrorType, true)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("checksum mismatch", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		activities.ValidateRbacHashFlag = true
+		configuredHash := "different-hash-123"
+		activities.OntapModeRBACChecksums = fmt.Sprintf(`{"%s": "%s"}`, ontapVersion, configuredHash)
+
+		err := activity.ValidateRbacHash(ctx, ontapVersion, validBucketFileDetails)
+
+		assert.Error(t, err)
+		assertTemporalApplicationError(t, err, fmt.Sprintf("RBAC hash mismatch for ONTAP version %s: expected %s, got %s", ontapVersion, configuredHash, validHash), vsaerrors.CustomErrorType, true)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("success - hash matches", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		activities.ValidateRbacHashFlag = true
+		activities.OntapModeRBACChecksums = fmt.Sprintf(`{"%s": "%s"}`, ontapVersion, validHash)
+
+		err := activity.ValidateRbacHash(ctx, ontapVersion, validBucketFileDetails)
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("success - multiple versions in configuration", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		activities.ValidateRbacHashFlag = true
+		otherVersion := "9.19.1"
+		otherHash := "other-hash-789"
+		activities.OntapModeRBACChecksums = fmt.Sprintf(`{"%s": "%s", "%s": "%s"}`, ontapVersion, validHash, otherVersion, otherHash)
+
+		err := activity.ValidateRbacHash(ctx, ontapVersion, validBucketFileDetails)
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+}
+
 func Test_getBucketFile(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	bucketName := "test-bucket"

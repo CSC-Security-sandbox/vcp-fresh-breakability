@@ -197,6 +197,8 @@ data:
   QUOTA_RULE_SYNC: {{ $.Values.workerConfig.quotaRuleSync | quote }}
   EXPERT_MODE_RBAC_BUCKET_NAME: {{$.Values.workerConfig.expertModeRbacBucketName | quote }}
   EXPERT_MODE_RBAC_FILE_PATH: {{$.Values.workerConfig.expertModeRbacFilePath | quote }}
+  ONTAP_MODE_RBAC_CHECKSUMS: {{$.Values.workerConfig.ontapModeRbacChecksums | quote }}
+  VALIDATE_RBAC_HASH: {{$.Values.workerConfig.validateRbacHash | quote }}
 
   MGMT_FIREWALL_SOURCE_RANGES: {{$.Values.workerConfig.mgmtFirewallSourceRanges | quote }}
   RSM_FIREWALL_SOURCE_RANGES: {{$.Values.workerConfig.rsmFirewallSourceRanges | quote }}

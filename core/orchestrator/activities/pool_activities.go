@@ -102,6 +102,8 @@ var (
 	maxNestedCloneLimit      = env.GetInt("MAX_NESTED_CLONE_LIMIT", 499)
 	ExpertModeRbacBucketName = env.GetString("EXPERT_MODE_RBAC_BUCKET_NAME", "gcnv-autopush-images-bucket")
 	ExpertModeRbacFilePath   = env.GetString("EXPERT_MODE_RBAC_FILE_PATH", "GCNV/%s/RBAC/gcnvadmin_create_cli")
+	OntapModeRBACChecksums   = env.GetString("ONTAP_MODE_RBAC_CHECKSUMS", "{}")
+	ValidateRbacHashFlag     = env.GetBool("VALIDATE_RBAC_HASH", false)
 
 	ValidateImageDigestFlag = env.GetBool("VALIDATE_IMAGE_DIGEST", false)
 	VsaImageChecksums       = env.GetString("VSA_IMAGE_CHECKSUMS", "")
@@ -1056,6 +1058,58 @@ func (j *PoolActivity) GetRbacHash(ctx context.Context, ontapVersion string) (*h
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return bucketFileDetails, nil
+}
+
+// ValidateRbacHash validates if the hash from GetRbacHash matches the configured checksum in ConfigMap."
+func (j *PoolActivity) ValidateRbacHash(ctx context.Context, ontapVersion string, bucketFileDetails *hyperscaler_models.BucketFileDetails) error {
+	logger := util.GetLogger(ctx)
+
+	// Skip validation if flag is disabled
+	if !ValidateRbacHashFlag {
+		logger.Infof("RBAC hash validation is disabled, ontapVersion : %s", ontapVersion)
+		return nil
+	}
+
+	// If bucketFileDetails is nil or hash is empty, return error
+	if bucketFileDetails == nil || bucketFileDetails.FileHashSHA256 == "" {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("bucket file details or hash is empty")))
+	}
+
+	// Read configured checksums from environment
+	checksumsConfig := OntapModeRBACChecksums
+	if checksumsConfig == "" || checksumsConfig == "{}" {
+		errMsg := "ONTAP_MODE_RBAC_CHECKSUMS not configured"
+		logger.Error(errMsg, "for ontapVersion", ontapVersion)
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, errors.New(errMsg)))
+	}
+
+	// Parse JSON configuration
+	var checksumsMap map[string]string
+	if err := json.Unmarshal([]byte(checksumsConfig), &checksumsMap); err != nil {
+		logger.Errorf("Failed to parse ONTAP_MODE_RBAC_CHECKSUMS configuration, error : %v", err)
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrJSONParsingError, fmt.Errorf("failed to parse ONTAP_MODE_RBAC_CHECKSUMS configuration: %w", err)))
+	}
+
+	// Check if ONTAP version is configured
+	configuredChecksum, exists := checksumsMap[ontapVersion]
+	if !exists {
+		errMsg := fmt.Sprintf("ONTAP version %s not found in ONTAP_MODE_RBAC_CHECKSUMS configuration", ontapVersion)
+		logger.Error(errMsg)
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, errors.New(errMsg)))
+	}
+
+	// Compare checksums
+	if configuredChecksum != bucketFileDetails.FileHashSHA256 {
+		errMsg := fmt.Sprintf("RBAC hash mismatch for ONTAP version %s: expected %s, got %s", ontapVersion, configuredChecksum, bucketFileDetails.FileHashSHA256)
+		logger.Error(errMsg)
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, errors.New(errMsg)))
+	}
+
+	logger.Info("RBAC hash validation passed", "ontapVersion", ontapVersion, "hash", bucketFileDetails.FileHashSHA256)
+	return nil
 }
 
 func _getBucketFile(service hyperscaler2.GoogleServices, ctx context.Context, bucketName string, fileUrl string) (*hyperscaler_models.BucketFileDetails, error) {

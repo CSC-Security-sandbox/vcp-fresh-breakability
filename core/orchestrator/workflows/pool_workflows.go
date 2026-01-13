@@ -629,6 +629,11 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			return nil, ConvertToVSAError(err)
 		}
 
+		err = workflow.ExecuteActivity(ctx, poolActivity.ValidateRbacHash, dbPool.BuildInfo.OntapVersion, rbacFileDetails).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
 		if len(pool.ExpertModeCredentials.ExpertModeCredential) == 0 || pool.ExpertModeCredentials.ExpertModeCredential[0].Username == "" {
 			return nil, ConvertToVSAError(vsaerrors.New("expert mode username not found in request"))
 		}

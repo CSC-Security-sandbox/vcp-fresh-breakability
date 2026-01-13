@@ -483,6 +483,8 @@ func TestCreatePoolWorkflowWithExpertMode(t *testing.T) {
 		FileHashSHA256: "test-hash",
 	}
 	env.OnActivity("GetRbacHash", mock.Anything, mock.Anything).Return(bucketFileDetails, nil)
+	// Mock ValidateRbacHash to succeed
+	env.OnActivity("ValidateRbacHash", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Mock CreateExpertModeCredentials to succeed
 	expertCredConfig := &vlm.OntapCredentials{

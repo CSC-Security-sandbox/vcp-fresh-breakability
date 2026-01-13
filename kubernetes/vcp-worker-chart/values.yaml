@@ -224,6 +224,11 @@ workerConfig:
   quotaRuleSync: "true"
   expertModeRbacBucketName: "gcnv-autopush-images-bucket"
   expertModeRbacFilePath: "GCNV/%s/RBAC/gcnvadmin_create_cli" # keep %s as it is, as it will be replaced by ontap version later
+  # ONTAP mode RBAC checksums mapping: key is ONTAP version, value is the checksum
+  # Example: {"9.18.1X29": "abc123def456...", "9.19.1X30": "xyz789..."}
+  ontapModeRbacChecksums: '{}'
+  # Flag to enable/disable RBAC hash validation
+  validateRbacHash: false
 
   workflowGlobalTimeoutMinutes: "60" # Global timeout for workflows in minutes
   cmekWorkflowGlobalTimeoutMinutes: "14" # Global timeout for CMEK workflows in minutes
