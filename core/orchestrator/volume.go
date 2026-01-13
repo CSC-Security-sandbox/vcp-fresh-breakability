@@ -632,6 +632,8 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	// controlWorkflowID defines the workflow ID for the control workflow
 	controlWorkflowID := workflows.GenerateControlWorkflowID(volume.Account.ID, location, volume.Pool.Name)
 	workflowOptions := workflows.DefaultSequentialWorkflowOptions(controlWorkflowID, createdJob.WorkflowID)
+	revertVolumeTimeout := workflowengine.GetRevertVolumeWorkflowTimeout()
+	workflowOptions.WorkflowRunTimeout = revertVolumeTimeout
 	err = workflowExecutor.ExecuteSequentialWorkflow(
 		ctx,
 		workflowOptions,

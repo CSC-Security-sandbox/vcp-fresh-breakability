@@ -217,12 +217,13 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 
 	// Async mode - use workflow
 	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
+	createSnapshotTimeout := workflowengine.GetCreateSnapshotWorkflowTimeout()
 	err = workflowExecutor.ExecuteWorkflowWithRetry(
 		ctx,
 		job.WorkflowID,
 		workflowengine.CustomerTaskQueue,
 		workflows.CreateSnapshotWorkflow,
-		nil,
+		createSnapshotTimeout,
 		params,
 		dbSnapshot,
 	)
@@ -669,6 +670,8 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	// controlWorkflowID defines the workflow ID for the control workflow
 	controlWorkflowID := workflows.GenerateControlWorkflowID(volume.Account.ID, location, volume.Pool.Name)
 	workflowOptions := workflows.DefaultSequentialWorkflowOptions(controlWorkflowID, job.WorkflowID)
+	deleteSnapshotTimeout := workflowengine.GetDeleteSnapshotWorkflowTimeout()
+	workflowOptions.WorkflowRunTimeout = deleteSnapshotTimeout
 	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
 	err = workflowExecutor.ExecuteSequentialWorkflow(
 		ctx,

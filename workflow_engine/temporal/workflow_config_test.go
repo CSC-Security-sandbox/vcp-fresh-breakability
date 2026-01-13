@@ -215,3 +215,93 @@ func TestGetSFRWorkflowTimeout_ValidEnv(t *testing.T) {
 		t.Errorf("expected %v, got %v", want, *got)
 	}
 }
+
+func TestGetCreateSnapshotWorkflowTimeout_InvalidEnv(t *testing.T) {
+	original := CreateSnapshotWorkflowTimeoutMinutes
+	defer func() { CreateSnapshotWorkflowTimeoutMinutes = original }()
+
+	CreateSnapshotWorkflowTimeoutMinutes = "invalid"
+	got := GetCreateSnapshotWorkflowTimeout()
+	want := 50 * time.Minute
+	if got == nil {
+		t.Fatal("expected non-nil timeout, got nil")
+	}
+	if *got != want {
+		t.Errorf("expected %v, got %v", want, *got)
+	}
+}
+
+func TestGetCreateSnapshotWorkflowTimeout_ValidEnv(t *testing.T) {
+	original := CreateSnapshotWorkflowTimeoutMinutes
+	defer func() { CreateSnapshotWorkflowTimeoutMinutes = original }()
+
+	CreateSnapshotWorkflowTimeoutMinutes = "30"
+	got := GetCreateSnapshotWorkflowTimeout()
+	want := 30 * time.Minute
+	if got == nil {
+		t.Fatal("expected non-nil timeout, got nil")
+	}
+	if *got != want {
+		t.Errorf("expected %v, got %v", want, *got)
+	}
+}
+
+func TestGetDeleteSnapshotWorkflowTimeout_InvalidEnv(t *testing.T) {
+	original := DeleteSnapshotWorkflowTimeoutMinutes
+	defer func() { DeleteSnapshotWorkflowTimeoutMinutes = original }()
+
+	DeleteSnapshotWorkflowTimeoutMinutes = "invalid"
+	got := GetDeleteSnapshotWorkflowTimeout()
+	want := 65 * time.Minute
+	if got == nil {
+		t.Fatal("expected non-nil timeout, got nil")
+	}
+	if *got != want {
+		t.Errorf("expected %v, got %v", want, *got)
+	}
+}
+
+func TestGetDeleteSnapshotWorkflowTimeout_ValidEnv(t *testing.T) {
+	original := DeleteSnapshotWorkflowTimeoutMinutes
+	defer func() { DeleteSnapshotWorkflowTimeoutMinutes = original }()
+
+	DeleteSnapshotWorkflowTimeoutMinutes = "40"
+	got := GetDeleteSnapshotWorkflowTimeout()
+	want := 40 * time.Minute
+	if got == nil {
+		t.Fatal("expected non-nil timeout, got nil")
+	}
+	if *got != want {
+		t.Errorf("expected %v, got %v", want, *got)
+	}
+}
+
+func TestGetRevertVolumeWorkflowTimeout_InvalidEnv(t *testing.T) {
+	original := RevertVolumeWorkflowTimeoutMinutes
+	defer func() { RevertVolumeWorkflowTimeoutMinutes = original }()
+
+	RevertVolumeWorkflowTimeoutMinutes = "invalid"
+	got := GetRevertVolumeWorkflowTimeout()
+	want := 95 * time.Minute
+	if got == nil {
+		t.Fatal("expected non-nil timeout, got nil")
+	}
+	if *got != want {
+		t.Errorf("expected %v, got %v", want, *got)
+	}
+}
+
+func TestGetRevertVolumeWorkflowTimeout_ValidEnv(t *testing.T) {
+	original := RevertVolumeWorkflowTimeoutMinutes
+	defer func() { RevertVolumeWorkflowTimeoutMinutes = original }()
+
+	RevertVolumeWorkflowTimeoutMinutes = "60"
+	got := GetRevertVolumeWorkflowTimeout()
+	want := 60 * time.Minute
+	if got == nil {
+		t.Fatal("expected non-nil timeout, got nil")
+	}
+	if *got != want {
+		t.Errorf("expected %v, got %v", want, *got)
+	}
+}

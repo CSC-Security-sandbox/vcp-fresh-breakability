@@ -37,12 +37,13 @@ func NewWorkflowExecutor(temporal client.Client, logger log.Logger) *WorkflowExe
 
 // SequentialWorkflowOptions contains configuration for sequential workflow execution
 type SequentialWorkflowOptions struct {
-	ControlWorkflowID string
-	ChildWorkflowID   string
-	TaskQueue         string
-	EnableRetry       bool
-	MaxRetries        int
-	RetryDelay        time.Duration
+	ControlWorkflowID  string
+	ChildWorkflowID    string
+	TaskQueue          string
+	EnableRetry        bool
+	MaxRetries         int
+	RetryDelay         time.Duration
+	WorkflowRunTimeout *time.Duration // Optional: if nil, uses global timeout
 }
 
 // DefaultSequentialWorkflowOptions returns default options for sequential workflow execution
@@ -250,6 +251,10 @@ func (we *WorkflowExecutor) executeSingle(
 	workflowFunc interface{},
 	args ...interface{},
 ) error {
+	timeout := workflowengine.GetWorkflowGlobalTimeout()
+	if options.WorkflowRunTimeout != nil {
+		timeout = *options.WorkflowRunTimeout
+	}
 	return ExecuteWorkflowSequentially(
 		we.temporal,
 		ctx,
@@ -262,7 +267,7 @@ func (we *WorkflowExecutor) executeSingle(
 			TaskQueue:             options.TaskQueue,
 			WorkflowID:            options.ChildWorkflowID,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+			WorkflowRunTimeout:    timeout,
 		},
 		args...,
 	)

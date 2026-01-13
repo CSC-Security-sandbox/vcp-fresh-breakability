@@ -17,6 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/workflow"
 )
 
 // MockTemporalClient is a mock implementation of Temporal client
@@ -1278,4 +1279,34 @@ func TestWorkflowExecutor_ExecuteWorkflow_TimeoutParameterPassedThrough(t *testi
 
 	assert.NoError(t, err)
 	mockClient.AssertExpectations(t)
+}
+
+func TestWorkflowExecutor_executeSingle_WithCustomWorkflowRunTimeout(t *testing.T) {
+	mockClient := new(MockTemporalClient)
+	mockLogger := new(MockLogger)
+	executor := NewWorkflowExecutor(mockClient, mockLogger)
+
+	ctx := context.Background()
+	customTimeout := 30 * time.Minute
+	options := &SequentialWorkflowOptions{
+		ControlWorkflowID:  "control-123",
+		ChildWorkflowID:    "child-456",
+		TaskQueue:          "test-queue",
+		WorkflowRunTimeout: &customTimeout,
+	}
+	workflowFunc := func() {}
+
+	// Mock ExecuteWorkflowSeq to succeed
+	originalExecuteWorkflowSeq := ExecuteWorkflowSeq
+	defer func() { ExecuteWorkflowSeq = originalExecuteWorkflowSeq }()
+
+	ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+		// Verify that the custom timeout is used in the child workflow options
+		assert.Equal(t, *options.WorkflowRunTimeout, wfOptions.WorkflowRunTimeout)
+		return nil
+	}
+
+	err := executor.executeSingle(ctx, options, workflowFunc)
+
+	assert.NoError(t, err)
 }
