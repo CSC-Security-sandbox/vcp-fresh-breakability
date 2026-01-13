@@ -4105,13 +4105,13 @@ func (*ErrorStatusCode) v1betaUpdateActiveDirectoryRes()                     {}
 func (*ErrorStatusCode) v1betaUpdateBackupPolicyRes()                        {}
 func (*ErrorStatusCode) v1betaUpdateBackupRes()                              {}
 func (*ErrorStatusCode) v1betaUpdateBackupVaultRes()                         {}
+func (*ErrorStatusCode) v1betaUpdateDestinationQuotaRulesVCPRes()            {}
 func (*ErrorStatusCode) v1betaUpdateHostGroupRes()                           {}
 func (*ErrorStatusCode) v1betaUpdateKmsConfigurationRes()                    {}
 func (*ErrorStatusCode) v1betaUpdatePoolRes()                                {}
 func (*ErrorStatusCode) v1betaUpdateQuotaRuleRes()                           {}
 func (*ErrorStatusCode) v1betaUpdateQuotaRuleVCPRes()                        {}
 func (*ErrorStatusCode) v1betaUpdateReplicationRes()                         {}
-func (*ErrorStatusCode) v1betaUpdateSnapshotRes()                            {}
 func (*ErrorStatusCode) v1betaUpdateVolumePerformanceGroupRes()              {}
 func (*ErrorStatusCode) v1betaUpdateVolumeRes()                              {}
 
@@ -19519,6 +19519,64 @@ func (s *TransferStatsV1beta) SetLagTime(val OptFloat64) {
 	s.LagTime = val
 }
 
+// Update destination quota rules response.
+// Ref: #/components/schemas/UpdateDestinationQuotaRulesResponse_v1beta
+type UpdateDestinationQuotaRulesResponseV1beta struct {
+	// State message can be success or failure.
+	State OptString `json:"state"`
+	// Array of quota rules that were updated/created.
+	QuotaRules []QuotaRulesV1beta `json:"quotaRules"`
+}
+
+// GetState returns the value of State.
+func (s *UpdateDestinationQuotaRulesResponseV1beta) GetState() OptString {
+	return s.State
+}
+
+// GetQuotaRules returns the value of QuotaRules.
+func (s *UpdateDestinationQuotaRulesResponseV1beta) GetQuotaRules() []QuotaRulesV1beta {
+	return s.QuotaRules
+}
+
+// SetState sets the value of State.
+func (s *UpdateDestinationQuotaRulesResponseV1beta) SetState(val OptString) {
+	s.State = val
+}
+
+// SetQuotaRules sets the value of QuotaRules.
+func (s *UpdateDestinationQuotaRulesResponseV1beta) SetQuotaRules(val []QuotaRulesV1beta) {
+	s.QuotaRules = val
+}
+
+func (*UpdateDestinationQuotaRulesResponseV1beta) v1betaUpdateDestinationQuotaRulesVCPRes() {}
+
+// Update the destination volume's quota rules with the source volume's quota rules.
+// Ref: #/components/schemas/UpdateDstWithSrcQuotaRules_v1beta
+type UpdateDstWithSrcQuotaRulesV1beta struct {
+	SrcQuotaRules []QuotaRulesV1beta `json:"srcQuotaRules"`
+	DstQuotaRules []QuotaRulesV1beta `json:"dstQuotaRules"`
+}
+
+// GetSrcQuotaRules returns the value of SrcQuotaRules.
+func (s *UpdateDstWithSrcQuotaRulesV1beta) GetSrcQuotaRules() []QuotaRulesV1beta {
+	return s.SrcQuotaRules
+}
+
+// GetDstQuotaRules returns the value of DstQuotaRules.
+func (s *UpdateDstWithSrcQuotaRulesV1beta) GetDstQuotaRules() []QuotaRulesV1beta {
+	return s.DstQuotaRules
+}
+
+// SetSrcQuotaRules sets the value of SrcQuotaRules.
+func (s *UpdateDstWithSrcQuotaRulesV1beta) SetSrcQuotaRules(val []QuotaRulesV1beta) {
+	s.SrcQuotaRules = val
+}
+
+// SetDstQuotaRules sets the value of DstQuotaRules.
+func (s *UpdateDstWithSrcQuotaRulesV1beta) SetDstQuotaRules(val []QuotaRulesV1beta) {
+	s.DstQuotaRules = val
+}
+
 type V1betaCheckKmsConfigBadRequest Error
 
 func (*V1betaCheckKmsConfigBadRequest) v1betaCheckKmsConfigRes() {}
@@ -23660,6 +23718,37 @@ type V1betaUpdateBackupVaultUnprocessableEntity Error
 
 func (*V1betaUpdateBackupVaultUnprocessableEntity) v1betaUpdateBackupVaultRes() {}
 
+type V1betaUpdateDestinationQuotaRulesVCPBadRequest Error
+
+func (*V1betaUpdateDestinationQuotaRulesVCPBadRequest) v1betaUpdateDestinationQuotaRulesVCPRes() {}
+
+type V1betaUpdateDestinationQuotaRulesVCPForbidden Error
+
+func (*V1betaUpdateDestinationQuotaRulesVCPForbidden) v1betaUpdateDestinationQuotaRulesVCPRes() {}
+
+type V1betaUpdateDestinationQuotaRulesVCPInternalServerError Error
+
+func (*V1betaUpdateDestinationQuotaRulesVCPInternalServerError) v1betaUpdateDestinationQuotaRulesVCPRes() {
+}
+
+type V1betaUpdateDestinationQuotaRulesVCPNotFound Error
+
+func (*V1betaUpdateDestinationQuotaRulesVCPNotFound) v1betaUpdateDestinationQuotaRulesVCPRes() {}
+
+type V1betaUpdateDestinationQuotaRulesVCPTooManyRequests Error
+
+func (*V1betaUpdateDestinationQuotaRulesVCPTooManyRequests) v1betaUpdateDestinationQuotaRulesVCPRes() {
+}
+
+type V1betaUpdateDestinationQuotaRulesVCPUnauthorized Error
+
+func (*V1betaUpdateDestinationQuotaRulesVCPUnauthorized) v1betaUpdateDestinationQuotaRulesVCPRes() {}
+
+type V1betaUpdateDestinationQuotaRulesVCPUnprocessableEntity Error
+
+func (*V1betaUpdateDestinationQuotaRulesVCPUnprocessableEntity) v1betaUpdateDestinationQuotaRulesVCPRes() {
+}
+
 type V1betaUpdateHostGroupBadRequest Error
 
 func (*V1betaUpdateHostGroupBadRequest) v1betaUpdateHostGroupRes() {}
@@ -23884,6 +23973,23 @@ func (*V1betaUpdateSnapshotBadRequest) v1betaUpdateSnapshotRes() {}
 type V1betaUpdateSnapshotConflict Error
 
 func (*V1betaUpdateSnapshotConflict) v1betaUpdateSnapshotRes() {}
+
+// V1betaUpdateSnapshotDef is default response for V1betaUpdateSnapshot operation.
+type V1betaUpdateSnapshotDef struct {
+	StatusCode int
+}
+
+// GetStatusCode returns the value of StatusCode.
+func (s *V1betaUpdateSnapshotDef) GetStatusCode() int {
+	return s.StatusCode
+}
+
+// SetStatusCode sets the value of StatusCode.
+func (s *V1betaUpdateSnapshotDef) SetStatusCode(val int) {
+	s.StatusCode = val
+}
+
+func (*V1betaUpdateSnapshotDef) v1betaUpdateSnapshotRes() {}
 
 type V1betaUpdateSnapshotForbidden Error
 

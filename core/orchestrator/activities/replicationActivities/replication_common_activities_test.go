@@ -6,6 +6,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -603,5 +606,402 @@ func TestHydrateReplicationStateAndType(t *testing.T) {
 		}()
 		err := HydrateReplicationStateAndType(ctx, *createReplicationResponse, replicationState, hybridReplicationType, "121")
 		assert.NoError(tt, err)
+	})
+}
+
+// TestConvertDbModelToQuotaRulesV1beta tests the convertDbModelToQuotaRulesV1beta function
+func TestConvertDbModelToQuotaRulesV1beta(t *testing.T) {
+	t.Run("WhenQuotaTypeIsIndividualGroupQuota", func(tt *testing.T) {
+		rule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-uuid-1",
+			},
+			Name:           "quota-rule-1",
+			QuotaType:      "INDIVIDUAL_GROUP_QUOTA",
+			QuotaTarget:    "group:developers",
+			DiskLimitInKib: 100 * 1024, // 100 MiB in KiB
+		}
+
+		result := convertDbModelToQuotaRulesV1beta(rule)
+
+		assert.Equal(tt, "quota-uuid-1", result.QuotaId.Value)
+		assert.Equal(tt, "quota-rule-1", result.ResourceId)
+		assert.Equal(tt, int64(100), result.DiskLimitInMib)
+		assert.Equal(tt, googleproxyclient.QuotaRulesV1betaQuotaTypeINDIVIDUALGROUPQUOTA, result.QuotaType)
+		assert.True(tt, result.QuotaTarget.IsSet())
+		assert.Equal(tt, "group:developers", result.QuotaTarget.Value)
+	})
+
+	t.Run("WhenQuotaTypeIsDefaultGroupQuota", func(tt *testing.T) {
+		rule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-uuid-2",
+			},
+			Name:           "quota-rule-2",
+			QuotaType:      "DEFAULT_GROUP_QUOTA",
+			DiskLimitInKib: 200 * 1024, // 200 MiB in KiB
+		}
+
+		result := convertDbModelToQuotaRulesV1beta(rule)
+
+		assert.Equal(tt, "quota-uuid-2", result.QuotaId.Value)
+		assert.Equal(tt, "quota-rule-2", result.ResourceId)
+		assert.Equal(tt, int64(200), result.DiskLimitInMib)
+		assert.Equal(tt, googleproxyclient.QuotaRulesV1betaQuotaTypeDEFAULTGROUPQUOTA, result.QuotaType)
+		assert.False(tt, result.QuotaTarget.IsSet())
+	})
+
+	t.Run("WhenQuotaTargetIsSet", func(tt *testing.T) {
+		rule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-uuid-3",
+			},
+			Name:           "quota-rule-3",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			QuotaTarget:    "user:alice",
+			DiskLimitInKib: 300 * 1024, // 300 MiB in KiB
+		}
+
+		result := convertDbModelToQuotaRulesV1beta(rule)
+
+		assert.True(tt, result.QuotaTarget.IsSet())
+		assert.Equal(tt, "user:alice", result.QuotaTarget.Value)
+	})
+}
+
+// TestConvertQuotaRulesV1betaToDbModel tests the convertQuotaRulesV1betaToDbModel function
+func TestConvertQuotaRulesV1betaToDbModel(t *testing.T) {
+	t.Run("WhenQuotaTypeIsIndividualGroupQuota", func(tt *testing.T) {
+		clientRule := googleproxyclient.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-1",
+			QuotaType:      googleproxyclient.QuotaRulesV1betaQuotaTypeINDIVIDUALGROUPQUOTA,
+			DiskLimitInMib: 100,
+			QuotaId:        googleproxyclient.NewOptString("quota-uuid-1"),
+		}
+
+		result := convertQuotaRulesV1betaToDbModel(clientRule)
+
+		assert.Equal(tt, "quota-rule-1", result.Name)
+		assert.Equal(tt, "quota-uuid-1", result.UUID)
+		assert.Equal(tt, int64(100*1024), result.DiskLimitInKib)
+		assert.Equal(tt, "INDIVIDUAL_GROUP_QUOTA", result.QuotaType)
+	})
+
+	t.Run("WhenQuotaTypeIsDefaultGroupQuota", func(tt *testing.T) {
+		clientRule := googleproxyclient.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-2",
+			QuotaType:      googleproxyclient.QuotaRulesV1betaQuotaTypeDEFAULTGROUPQUOTA,
+			DiskLimitInMib: 200,
+			QuotaId:        googleproxyclient.NewOptString("quota-uuid-2"),
+		}
+
+		result := convertQuotaRulesV1betaToDbModel(clientRule)
+
+		assert.Equal(tt, "quota-rule-2", result.Name)
+		assert.Equal(tt, "quota-uuid-2", result.UUID)
+		assert.Equal(tt, int64(200*1024), result.DiskLimitInKib)
+		assert.Equal(tt, "DEFAULT_GROUP_QUOTA", result.QuotaType)
+	})
+
+	t.Run("WhenQuotaTargetIsSet", func(tt *testing.T) {
+		clientRule := googleproxyclient.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-3",
+			QuotaType:      googleproxyclient.QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+			DiskLimitInMib: 300,
+			QuotaId:        googleproxyclient.NewOptString("quota-uuid-3"),
+			QuotaTarget:    googleproxyclient.NewOptString("user:bob"),
+		}
+
+		result := convertQuotaRulesV1betaToDbModel(clientRule)
+
+		assert.Equal(tt, "user:bob", result.QuotaTarget)
+	})
+
+	t.Run("WhenStateIsSet", func(tt *testing.T) {
+		clientRule := googleproxyclient.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-4",
+			QuotaType:      googleproxyclient.QuotaRulesV1betaQuotaTypeDEFAULTUSERQUOTA,
+			DiskLimitInMib: 400,
+			QuotaId:        googleproxyclient.NewOptString("quota-uuid-4"),
+			State:          googleproxyclient.NewOptQuotaRulesV1betaState(googleproxyclient.QuotaRulesV1betaStateREADY),
+		}
+
+		result := convertQuotaRulesV1betaToDbModel(clientRule)
+
+		assert.Equal(tt, "READY", result.State)
+	})
+
+	t.Run("WhenStateDetailsIsSet", func(tt *testing.T) {
+		clientRule := googleproxyclient.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-5",
+			QuotaType:      googleproxyclient.QuotaRulesV1betaQuotaTypeDEFAULTGROUPQUOTA,
+			DiskLimitInMib: 500,
+			QuotaId:        googleproxyclient.NewOptString("quota-uuid-5"),
+			StateDetails:   googleproxyclient.NewOptString("Ready state details"),
+		}
+
+		result := convertQuotaRulesV1betaToDbModel(clientRule)
+
+		assert.Equal(tt, "Ready state details", result.StateDetails)
+	})
+}
+
+// TestCreateQuotaRulesRemote tests the CreateQuotaRulesRemote function
+func TestCreateQuotaRulesRemote(t *testing.T) {
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		logger := log.NewLogger()
+		basePath := "https://test.example.com"
+		jwtToken := "test-token"
+		projectNumber := "123456789"
+		locationId := "us-central1"
+		volumeId := "vol-1"
+		correlationID := "corr-123"
+
+		srcQuotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "quota-uuid-1"},
+				Name:           "quota-rule-1",
+				QuotaType:      "INDIVIDUAL_USER_QUOTA",
+				QuotaTarget:    "user:alice",
+				DiskLimitInKib: 100 * 1024,
+			},
+		}
+
+		dstQuotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "quota-uuid-2"},
+				Name:           "quota-rule-2",
+				QuotaType:      "DEFAULT_USER_QUOTA",
+				DiskLimitInKib: 200 * 1024,
+			},
+		}
+
+		// Mock Google Proxy client
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		successResponse := &googleproxyclient.UpdateDestinationQuotaRulesResponseV1beta{
+			State: googleproxyclient.NewOptString("SUCCESS"),
+			QuotaRules: []googleproxyclient.QuotaRulesV1beta{
+				{
+					ResourceId:     "quota-rule-1",
+					QuotaType:      googleproxyclient.QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+					DiskLimitInMib: 100,
+					QuotaId:        googleproxyclient.NewOptString("quota-uuid-1"),
+					QuotaTarget:    googleproxyclient.NewOptString("user:alice"),
+				},
+			},
+		}
+
+		mockInvoker.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(mock.Anything, mock.Anything, mock.Anything).
+			Return(successResponse, nil)
+
+		result, err := CreateQuotaRulesRemote(ctx, logger, basePath, jwtToken, projectNumber, locationId, volumeId, correlationID, srcQuotaRules, dstQuotaRules)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 1)
+		assert.Equal(tt, "quota-uuid-1", result[0].UUID)
+		assert.Equal(tt, "quota-rule-1", result[0].Name)
+	})
+
+	t.Run("WhenUnauthorizedResponse", func(tt *testing.T) {
+		ctx := context.Background()
+		logger := log.NewLogger()
+		basePath := "https://test.example.com"
+		jwtToken := "test-token"
+		projectNumber := "123456789"
+		locationId := "us-central1"
+		volumeId := "vol-1"
+		correlationID := "corr-123"
+
+		srcQuotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "quota-uuid-1"},
+				Name:      "quota-rule-1",
+				QuotaType: "INDIVIDUAL_USER_QUOTA",
+			},
+		}
+
+		// Mock Google Proxy client
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		unauthorizedResponse := &googleproxyclient.V1betaUpdateDestinationQuotaRulesVCPUnauthorized{
+			Code:    401,
+			Message: "Unauthorized",
+		}
+
+		mockInvoker.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(mock.Anything, mock.Anything, mock.Anything).
+			Return(unauthorizedResponse, nil)
+
+		result, err := CreateQuotaRulesRemote(ctx, logger, basePath, jwtToken, projectNumber, locationId, volumeId, correlationID, srcQuotaRules, nil)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("WhenForbiddenResponse", func(tt *testing.T) {
+		ctx := context.Background()
+		logger := log.NewLogger()
+		basePath := "https://test.example.com"
+		jwtToken := "test-token"
+		projectNumber := "123456789"
+		locationId := "us-central1"
+		volumeId := "vol-1"
+		correlationID := "corr-123"
+
+		srcQuotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "quota-uuid-1"},
+				Name:      "quota-rule-1",
+				QuotaType: "INDIVIDUAL_USER_QUOTA",
+			},
+		}
+
+		// Mock Google Proxy client
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		forbiddenResponse := &googleproxyclient.V1betaUpdateDestinationQuotaRulesVCPForbidden{
+			Code:    403,
+			Message: "Forbidden",
+		}
+
+		mockInvoker.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(mock.Anything, mock.Anything, mock.Anything).
+			Return(forbiddenResponse, nil)
+
+		result, err := CreateQuotaRulesRemote(ctx, logger, basePath, jwtToken, projectNumber, locationId, volumeId, correlationID, srcQuotaRules, nil)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("WhenUnprocessableEntityResponse", func(tt *testing.T) {
+		ctx := context.Background()
+		logger := log.NewLogger()
+		basePath := "https://test.example.com"
+		jwtToken := "test-token"
+		projectNumber := "123456789"
+		locationId := "us-central1"
+		volumeId := "vol-1"
+		correlationID := "corr-123"
+
+		srcQuotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "quota-uuid-1"},
+				Name:      "quota-rule-1",
+				QuotaType: "INDIVIDUAL_USER_QUOTA",
+			},
+		}
+
+		// Mock Google Proxy client
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		unprocessableResponse := &googleproxyclient.V1betaUpdateDestinationQuotaRulesVCPUnprocessableEntity{
+			Code:    422,
+			Message: "Unprocessable Entity",
+		}
+
+		mockInvoker.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(mock.Anything, mock.Anything, mock.Anything).
+			Return(unprocessableResponse, nil)
+
+		result, err := CreateQuotaRulesRemote(ctx, logger, basePath, jwtToken, projectNumber, locationId, volumeId, correlationID, srcQuotaRules, nil)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("WhenTooManyRequestsResponse", func(tt *testing.T) {
+		ctx := context.Background()
+		logger := log.NewLogger()
+		basePath := "https://test.example.com"
+		jwtToken := "test-token"
+		projectNumber := "123456789"
+		locationId := "us-central1"
+		volumeId := "vol-1"
+		correlationID := "corr-123"
+
+		srcQuotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "quota-uuid-1"},
+				Name:      "quota-rule-1",
+				QuotaType: "INDIVIDUAL_USER_QUOTA",
+			},
+		}
+
+		// Mock Google Proxy client
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		tooManyRequestsResponse := &googleproxyclient.V1betaUpdateDestinationQuotaRulesVCPTooManyRequests{
+			Code:    429,
+			Message: "Too Many Requests",
+		}
+
+		mockInvoker.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(mock.Anything, mock.Anything, mock.Anything).
+			Return(tooManyRequestsResponse, nil)
+
+		result, err := CreateQuotaRulesRemote(ctx, logger, basePath, jwtToken, projectNumber, locationId, volumeId, correlationID, srcQuotaRules, nil)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
 	})
 }

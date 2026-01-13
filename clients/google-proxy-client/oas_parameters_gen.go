@@ -1346,6 +1346,18 @@ type V1betaUpdateBackupVaultParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaUpdateDestinationQuotaRulesVCPParams is parameters of v1beta_updateDestinationQuotaRulesVCP operation.
+type V1betaUpdateDestinationQuotaRulesVCPParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaUpdateHostGroupParams is parameters of v1beta_updateHostGroup operation.
 type V1betaUpdateHostGroupParams struct {
 	// Uuid v4 used to identify the HostGroup.

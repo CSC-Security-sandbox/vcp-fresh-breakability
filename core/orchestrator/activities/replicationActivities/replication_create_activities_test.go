@@ -20,6 +20,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -6125,5 +6126,913 @@ func TestConvertSourceVolumeToDestinationVolume_LargeVolumeAttributes_NewIfLoop(
 		for _, p := range result.Protocols {
 			protocolsMap[string(p)] = true
 		}
+	})
+}
+
+func TestCreateQuotaRulesOnDestination(t *testing.T) {
+	dstProj := "projDst"
+	dstPath := "dstPath"
+	dstToken := "dstToken"
+	destVolUuid := "vol-uuid"
+	locationID := "us-east1"
+
+	baseResult := &replication.CreateReplicationResult{
+		Event: &replication.CreateReplicationEvent{
+			DestinationLocationID: locationID,
+			SourceVolume: datamodel.Volume{
+				BaseModel: datamodel.BaseModel{ID: 1},
+			},
+		},
+		DstBasePath:      &dstPath,
+		DstJwtToken:      &dstToken,
+		DstProjectNumber: &dstProj,
+		DstVolume: &gcpserver.VolumeV1beta{
+			ResourceId: "dst-vol-name",
+			VolumeId:   gcpserver.NewOptString(destVolUuid),
+		},
+		SourceQuotaRules: []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "src-quota-uuid-1"},
+				Name:      "src-quota-1",
+				QuotaType: "INDIVIDUAL_USER_QUOTA",
+			},
+		},
+		DestinationQuotaRules: []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "dst-quota-uuid-1"},
+				Name:      "dst-quota-1",
+				QuotaType: "INDIVIDUAL_USER_QUOTA",
+			},
+		},
+	}
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		result := &replication.CreateReplicationResult{
+			Event:                 baseResult.Event,
+			DstBasePath:           baseResult.DstBasePath,
+			DstJwtToken:           baseResult.DstJwtToken,
+			DstProjectNumber:      baseResult.DstProjectNumber,
+			DstVolume:             baseResult.DstVolume,
+			SourceQuotaRules:      baseResult.SourceQuotaRules,
+			DestinationQuotaRules: baseResult.DestinationQuotaRules,
+		}
+
+		// Mock the Google Proxy client
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			assert.Equal(tt, *result.DstBasePath, basePath)
+			assert.Equal(tt, *result.DstJwtToken, jwt)
+			return mc
+		}
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		expectedResponse := &googleproxyclient.UpdateDestinationQuotaRulesResponseV1beta{
+			State: googleproxyclient.NewOptString("SUCCESS"),
+			QuotaRules: []googleproxyclient.QuotaRulesV1beta{
+				{
+					QuotaId:        googleproxyclient.NewOptString("created-quota-uuid-1"),
+					ResourceId:     "created-quota-1",
+					QuotaType:      googleproxyclient.QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+					DiskLimitInMib: 1024,
+				},
+			},
+		}
+
+		mockClient.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(
+			ctx,
+			mock.MatchedBy(func(req *googleproxyclient.UpdateDstWithSrcQuotaRulesV1beta) bool {
+				return len(req.SrcQuotaRules) == 1 && len(req.DstQuotaRules) == 1
+			}),
+			mock.MatchedBy(func(params googleproxyclient.V1betaUpdateDestinationQuotaRulesVCPParams) bool {
+				return params.ProjectNumber == *result.DstProjectNumber &&
+					params.LocationId == result.Event.DestinationLocationID &&
+					params.VolumeId == result.DstVolume.VolumeId.Value
+			}),
+		).Return(expectedResponse, nil)
+
+		updatedResult, err := activity.CreateQuotaRulesOnDestination(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Len(tt, updatedResult.DestinationQuotaRules, 1)
+		assert.Equal(tt, "created-quota-uuid-1", updatedResult.DestinationQuotaRules[0].UUID)
+		assert.Equal(tt, "created-quota-1", updatedResult.DestinationQuotaRules[0].Name)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCreateQuotaRulesRemoteFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		result := &replication.CreateReplicationResult{
+			Event:            baseResult.Event,
+			DstBasePath:      baseResult.DstBasePath,
+			DstJwtToken:      baseResult.DstJwtToken,
+			DstProjectNumber: baseResult.DstProjectNumber,
+			DstVolume:        baseResult.DstVolume,
+			SourceQuotaRules: baseResult.SourceQuotaRules,
+		}
+
+		// Mock the Google Proxy client to return error
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(
+			ctx,
+			mock.Anything,
+			mock.Anything,
+		).Return(nil, errors.New("API call failed"))
+
+		_, err := activity.CreateQuotaRulesOnDestination(ctx, result)
+
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSourceQuotaRulesIsEmpty", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		result := &replication.CreateReplicationResult{
+			Event:                 baseResult.Event,
+			DstBasePath:           baseResult.DstBasePath,
+			DstJwtToken:           baseResult.DstJwtToken,
+			DstProjectNumber:      baseResult.DstProjectNumber,
+			DstVolume:             baseResult.DstVolume,
+			SourceQuotaRules:      []*datamodel.QuotaRule{},
+			DestinationQuotaRules: nil,
+		}
+
+		updatedResult, err := activity.CreateQuotaRulesOnDestination(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Nil(tt, updatedResult.DestinationQuotaRules)
+		assert.Equal(tt, result, updatedResult)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenMultipleQuotaRules", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		result := &replication.CreateReplicationResult{
+			Event:            baseResult.Event,
+			DstBasePath:      baseResult.DstBasePath,
+			DstJwtToken:      baseResult.DstJwtToken,
+			DstProjectNumber: baseResult.DstProjectNumber,
+			DstVolume:        baseResult.DstVolume,
+			SourceQuotaRules: []*datamodel.QuotaRule{
+				{
+					BaseModel: datamodel.BaseModel{UUID: "src-quota-uuid-1"},
+					Name:      "src-quota-1",
+					QuotaType: "INDIVIDUAL_USER_QUOTA",
+				},
+				{
+					BaseModel: datamodel.BaseModel{UUID: "src-quota-uuid-2"},
+					Name:      "src-quota-2",
+					QuotaType: "DEFAULT_USER_QUOTA",
+				},
+			},
+			DestinationQuotaRules: []*datamodel.QuotaRule{
+				{
+					BaseModel: datamodel.BaseModel{UUID: "dst-quota-uuid-1"},
+					Name:      "dst-quota-1",
+					QuotaType: "INDIVIDUAL_USER_QUOTA",
+				},
+			},
+		}
+
+		// Mock the Google Proxy client
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		expectedResponse := &googleproxyclient.UpdateDestinationQuotaRulesResponseV1beta{
+			State: googleproxyclient.NewOptString("SUCCESS"),
+			QuotaRules: []googleproxyclient.QuotaRulesV1beta{
+				{
+					QuotaId:        googleproxyclient.NewOptString("created-quota-uuid-1"),
+					ResourceId:     "created-quota-1",
+					QuotaType:      googleproxyclient.QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+					DiskLimitInMib: 1024,
+				},
+				{
+					QuotaId:        googleproxyclient.NewOptString("created-quota-uuid-2"),
+					ResourceId:     "created-quota-2",
+					QuotaType:      googleproxyclient.QuotaRulesV1betaQuotaTypeDEFAULTUSERQUOTA,
+					DiskLimitInMib: 2048,
+				},
+			},
+		}
+
+		mockClient.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(
+			ctx,
+			mock.Anything,
+			mock.Anything,
+		).Return(expectedResponse, nil)
+
+		updatedResult, err := activity.CreateQuotaRulesOnDestination(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Len(tt, updatedResult.DestinationQuotaRules, 2)
+		assert.Equal(tt, "created-quota-uuid-1", updatedResult.DestinationQuotaRules[0].UUID)
+		assert.Equal(tt, "created-quota-1", updatedResult.DestinationQuotaRules[0].Name)
+		assert.Equal(tt, "INDIVIDUAL_USER_QUOTA", updatedResult.DestinationQuotaRules[0].QuotaType)
+		assert.Equal(tt, "created-quota-uuid-2", updatedResult.DestinationQuotaRules[1].UUID)
+		assert.Equal(tt, "created-quota-2", updatedResult.DestinationQuotaRules[1].Name)
+		assert.Equal(tt, "DEFAULT_USER_QUOTA", updatedResult.DestinationQuotaRules[1].QuotaType)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenAPIReturnsBadRequest", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		result := &replication.CreateReplicationResult{
+			Event:            baseResult.Event,
+			DstBasePath:      baseResult.DstBasePath,
+			DstJwtToken:      baseResult.DstJwtToken,
+			DstProjectNumber: baseResult.DstProjectNumber,
+			DstVolume:        baseResult.DstVolume,
+			SourceQuotaRules: baseResult.SourceQuotaRules,
+		}
+
+		// Mock the Google Proxy client to return BadRequest
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		badRequestResponse := &googleproxyclient.V1betaUpdateDestinationQuotaRulesVCPBadRequest{
+			Code:    400,
+			Message: "Bad request",
+		}
+
+		mockClient.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(
+			ctx,
+			mock.Anything,
+			mock.Anything,
+		).Return(badRequestResponse, nil)
+
+		_, err := activity.CreateQuotaRulesOnDestination(ctx, result)
+
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenAPIReturnsNotFound", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		result := &replication.CreateReplicationResult{
+			Event:            baseResult.Event,
+			DstBasePath:      baseResult.DstBasePath,
+			DstJwtToken:      baseResult.DstJwtToken,
+			DstProjectNumber: baseResult.DstProjectNumber,
+			DstVolume:        baseResult.DstVolume,
+			SourceQuotaRules: baseResult.SourceQuotaRules,
+		}
+
+		// Mock the Google Proxy client to return NotFound
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		notFoundResponse := &googleproxyclient.V1betaUpdateDestinationQuotaRulesVCPNotFound{
+			Code:    404,
+			Message: "Not found",
+		}
+
+		mockClient.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(
+			ctx,
+			mock.Anything,
+			mock.Anything,
+		).Return(notFoundResponse, nil)
+
+		_, err := activity.CreateQuotaRulesOnDestination(ctx, result)
+
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenAPIReturnsInternalServerError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		result := &replication.CreateReplicationResult{
+			Event:            baseResult.Event,
+			DstBasePath:      baseResult.DstBasePath,
+			DstJwtToken:      baseResult.DstJwtToken,
+			DstProjectNumber: baseResult.DstProjectNumber,
+			DstVolume:        baseResult.DstVolume,
+			SourceQuotaRules: baseResult.SourceQuotaRules,
+		}
+
+		// Mock the Google Proxy client to return InternalServerError
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		internalServerErrorResponse := &googleproxyclient.V1betaUpdateDestinationQuotaRulesVCPInternalServerError{
+			Code:    500,
+			Message: "Internal server error",
+		}
+
+		mockClient.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(
+			ctx,
+			mock.Anything,
+			mock.Anything,
+		).Return(internalServerErrorResponse, nil)
+
+		_, err := activity.CreateQuotaRulesOnDestination(ctx, result)
+
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSourceQuotaRulesIsEmpty", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		result := &replication.CreateReplicationResult{
+			Event:                 baseResult.Event,
+			DstBasePath:           baseResult.DstBasePath,
+			DstJwtToken:           baseResult.DstJwtToken,
+			DstProjectNumber:      baseResult.DstProjectNumber,
+			DstVolume:             baseResult.DstVolume,
+			SourceQuotaRules:      []*datamodel.QuotaRule{}, // Empty source quota rules
+			DestinationQuotaRules: nil,
+		}
+
+		updatedResult, err := activity.CreateQuotaRulesOnDestination(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.Nil(tt, updatedResult.DestinationQuotaRules)
+		assert.Equal(tt, result, updatedResult)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestHydrateQuotaRules(t *testing.T) {
+	volumeResourceId := "vol-resource-id"
+	location := "us-east1"
+	projectNumber := "proj-123"
+
+	quotaRules := []*datamodel.QuotaRule{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "quota-uuid-1"},
+			Name:      "quota-1",
+			QuotaType: "INDIVIDUAL_USER_QUOTA",
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "quota-uuid-2"},
+			Name:      "quota-2",
+			QuotaType: "DEFAULT_USER_QUOTA",
+		},
+	}
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Ensure hydration is enabled for this test
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() {
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		// Mock auth.GenerateCallbackToken
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-token", nil
+		}
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+		}()
+
+		// Mock hydrateQuotaRuleCreate directly (since it's assigned at package init)
+		callCount := 0
+		originalHydrateQuotaRuleCreate := hydrateQuotaRuleCreate
+		hydrateQuotaRuleCreate = func(ctx context.Context, logger log.Logger, quotaRule models.QuotaRuleHydrateObject, volumeResourceID string, location string, projectId string, token string) error {
+			callCount++
+			if callCount == 1 {
+				assert.Equal(tt, "quota-1", quotaRule.ResourceId)
+				assert.Equal(tt, "quota-uuid-1", quotaRule.QuotaRuleId)
+			} else if callCount == 2 {
+				assert.Equal(tt, "quota-2", quotaRule.ResourceId)
+				assert.Equal(tt, "quota-uuid-2", quotaRule.QuotaRuleId)
+			}
+			assert.Equal(tt, volumeResourceId, volumeResourceID)
+			assert.Equal(tt, location, location)
+			assert.Equal(tt, projectNumber, projectId)
+			assert.Equal(tt, "test-token", token)
+			return nil
+		}
+		defer func() {
+			hydrateQuotaRuleCreate = originalHydrateQuotaRuleCreate
+		}()
+
+		err := activity.HydrateQuotaRules(ctx, quotaRules, volumeResourceId, location, projectNumber)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGenerateCallbackTokenFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Ensure hydration is enabled for this test
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() {
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		// Mock auth.GenerateCallbackToken to return error
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "", errors.New("failed to generate token")
+		}
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+		}()
+
+		err := activity.HydrateQuotaRules(ctx, quotaRules, volumeResourceId, location, projectNumber)
+
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenQuotaRuleMissingUUID", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Ensure hydration is enabled for this test
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() {
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		quotaRulesWithoutUUID := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{UUID: ""},
+				Name:      "quota-1",
+				QuotaType: "INDIVIDUAL_USER_QUOTA",
+			},
+		}
+
+		// Mock auth.GenerateCallbackToken
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-token", nil
+		}
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+		}()
+
+		err := activity.HydrateQuotaRules(ctx, quotaRulesWithoutUUID, volumeResourceId, location, projectNumber)
+
+		assert.Error(tt, err)
+		// The error is wrapped as TemporalApplicationError with CustomError, so check the underlying error
+		// Try to get the CustomError and check its OriginalErr
+		if appErr, ok := err.(*temporal.ApplicationError); ok {
+			// If it's a Temporal application error, get the cause
+			cause := appErr.Unwrap()
+			if customErr, ok := cause.(*vsaerrors.CustomError); ok {
+				assert.Contains(tt, customErr.OriginalErr.Error(), "quota rule missing UUID")
+			} else if cause != nil {
+				// Fallback: check the cause error message
+				assert.Contains(tt, cause.Error(), "quota rule missing UUID")
+			}
+		} else if customErr, ok := err.(*vsaerrors.CustomError); ok {
+			// Fallback: check if it's a CustomError directly
+			assert.Contains(tt, customErr.OriginalErr.Error(), "quota rule missing UUID")
+		} else {
+			// Last resort: check the error message (should contain some indication of the error)
+			assert.Contains(tt, err.Error(), "hydrate")
+		}
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenQuotaRuleCreateFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Ensure hydration is enabled for this test
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() {
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		// Mock auth.GenerateCallbackToken
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-token", nil
+		}
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+		}()
+
+		// Mock hydrateQuotaRuleCreate directly (since it's assigned at package init) to return error
+		originalHydrateQuotaRuleCreate := hydrateQuotaRuleCreate
+		hydrateQuotaRuleCreate = func(ctx context.Context, logger log.Logger, quotaRule models.QuotaRuleHydrateObject, volumeResourceID string, location string, projectId string, token string) error {
+			return errors.New("hydration failed")
+		}
+		defer func() {
+			hydrateQuotaRuleCreate = originalHydrateQuotaRuleCreate
+		}()
+
+		err := activity.HydrateQuotaRules(ctx, quotaRules, volumeResourceId, location, projectNumber)
+
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenQuotaRulesIsEmpty", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Ensure hydration is enabled for this test
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() {
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		emptyQuotaRules := []*datamodel.QuotaRule{}
+
+		// Mock auth.GenerateCallbackToken
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-token", nil
+		}
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+		}()
+
+		// When quota rules is empty, HydrateQuotaRuleCreate should not be called
+		err := activity.HydrateQuotaRules(ctx, emptyQuotaRules, volumeResourceId, location, projectNumber)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenQuotaRulesIsNil", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Ensure hydration is enabled for this test
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() {
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		// Mock auth.GenerateCallbackToken
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-token", nil
+		}
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+		}()
+
+		// When quota rules is nil, HydrateQuotaRuleCreate should not be called
+		err := activity.HydrateQuotaRules(ctx, nil, volumeResourceId, location, projectNumber)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSingleQuotaRule", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Ensure hydration is enabled for this test
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() {
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		singleQuotaRule := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "quota-uuid-1"},
+				Name:      "quota-1",
+				QuotaType: "INDIVIDUAL_USER_QUOTA",
+			},
+		}
+
+		// Mock auth.GenerateCallbackToken
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-token", nil
+		}
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+		}()
+
+		// Mock hydrateQuotaRuleCreate directly (since it's assigned at package init)
+		callCount := 0
+		originalHydrateQuotaRuleCreate := hydrateQuotaRuleCreate
+		hydrateQuotaRuleCreate = func(ctx context.Context, logger log.Logger, quotaRule models.QuotaRuleHydrateObject, volumeResourceID string, location string, projectId string, token string) error {
+			callCount++
+			assert.Equal(tt, "quota-1", quotaRule.ResourceId)
+			assert.Equal(tt, "quota-uuid-1", quotaRule.QuotaRuleId)
+			return nil
+		}
+		defer func() {
+			hydrateQuotaRuleCreate = originalHydrateQuotaRuleCreate
+		}()
+
+		err := activity.HydrateQuotaRules(ctx, singleQuotaRule, volumeResourceId, location, projectNumber)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, 1, callCount, "HydrateQuotaRuleCreate should be called once")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenMultipleQuotaRules", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Ensure hydration is enabled for this test
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() {
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		multipleQuotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "quota-uuid-1"},
+				Name:      "quota-1",
+				QuotaType: "INDIVIDUAL_USER_QUOTA",
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "quota-uuid-2"},
+				Name:      "quota-2",
+				QuotaType: "DEFAULT_USER_QUOTA",
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "quota-uuid-3"},
+				Name:      "quota-3",
+				QuotaType: "INDIVIDUAL_GROUP_QUOTA",
+			},
+		}
+
+		// Mock auth.GenerateCallbackToken
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-token", nil
+		}
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+		}()
+
+		// Mock hydrateQuotaRuleCreate directly (since it's assigned at package init)
+		callCount := 0
+		originalHydrateQuotaRuleCreate := hydrateQuotaRuleCreate
+		hydrateQuotaRuleCreate = func(ctx context.Context, logger log.Logger, quotaRule models.QuotaRuleHydrateObject, volumeResourceID string, location string, projectId string, token string) error {
+			callCount++
+			assert.Contains(tt, []string{"quota-1", "quota-2", "quota-3"}, quotaRule.ResourceId)
+			assert.Contains(tt, []string{"quota-uuid-1", "quota-uuid-2", "quota-uuid-3"}, quotaRule.QuotaRuleId)
+			return nil
+		}
+		defer func() {
+			hydrateQuotaRuleCreate = originalHydrateQuotaRuleCreate
+		}()
+
+		err := activity.HydrateQuotaRules(ctx, multipleQuotaRules, volumeResourceId, location, projectNumber)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, 3, callCount, "HydrateQuotaRuleCreate should be called 3 times")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSecondQuotaRuleFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Ensure hydration is enabled for this test
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() {
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		multipleQuotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "quota-uuid-1"},
+				Name:      "quota-1",
+				QuotaType: "INDIVIDUAL_USER_QUOTA",
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "quota-uuid-2"},
+				Name:      "quota-2",
+				QuotaType: "DEFAULT_USER_QUOTA",
+			},
+		}
+
+		// Mock auth.GenerateCallbackToken
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-token", nil
+		}
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+		}()
+
+		// Mock hydrateQuotaRuleCreate directly (since it's assigned at package init) to fail on second call
+		callCount := 0
+		originalHydrateQuotaRuleCreate := hydrateQuotaRuleCreate
+		hydrateQuotaRuleCreate = func(ctx context.Context, logger log.Logger, quotaRule models.QuotaRuleHydrateObject, volumeResourceID string, location string, projectId string, token string) error {
+			callCount++
+			if callCount == 2 {
+				return errors.New("hydration failed for second rule")
+			}
+			return nil
+		}
+		defer func() {
+			hydrateQuotaRuleCreate = originalHydrateQuotaRuleCreate
+		}()
+
+		err := activity.HydrateQuotaRules(ctx, multipleQuotaRules, volumeResourceId, location, projectNumber)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, 2, callCount, "HydrateQuotaRuleCreate should be called twice before failing")
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestListQuotaRulesLocal(t *testing.T) {
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		sourceVolumeID := int64(123)
+		expectedQuotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-uuid-1",
+					ID:   1,
+				},
+				Name:           "quota-rule-1",
+				QuotaType:      "INDIVIDUAL_USER_QUOTA",
+				QuotaTarget:    "user:alice",
+				DiskLimitInKib: 100 * 1024,
+			},
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-uuid-2",
+					ID:   2,
+				},
+				Name:           "quota-rule-2",
+				QuotaType:      "DEFAULT_USER_QUOTA",
+				DiskLimitInKib: 200 * 1024,
+			},
+		}
+
+		result := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					BaseModel: datamodel.BaseModel{ID: sourceVolumeID},
+				},
+			},
+		}
+
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, sourceVolumeID).Return(expectedQuotaRules, nil)
+
+		quotaRules, err := activity.ListQuotaRulesLocal(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, quotaRules)
+		assert.Len(tt, quotaRules, 2)
+		assert.Equal(tt, expectedQuotaRules, quotaRules)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetQuotaRulesByVolumeIDFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		sourceVolumeID := int64(123)
+		expectedError := errors.New("database error")
+
+		result := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					BaseModel: datamodel.BaseModel{ID: sourceVolumeID},
+				},
+			},
+		}
+
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, sourceVolumeID).Return(nil, expectedError)
+
+		quotaRules, err := activity.ListQuotaRulesLocal(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNoQuotaRulesFound", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		sourceVolumeID := int64(123)
+		emptyQuotaRules := []*datamodel.QuotaRule{}
+
+		result := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					BaseModel: datamodel.BaseModel{ID: sourceVolumeID},
+				},
+			},
+		}
+
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, sourceVolumeID).Return(emptyQuotaRules, nil)
+
+		quotaRules, err := activity.ListQuotaRulesLocal(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, quotaRules)
+		assert.Len(tt, quotaRules, 0)
+		mockStorage.AssertExpectations(tt)
 	})
 }

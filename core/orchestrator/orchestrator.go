@@ -151,7 +151,7 @@ type OrchestratorFactory interface {
 	DeleteActiveDirectory(ctx context.Context, params *commonparams.DeleteActiveDirectoryParams) (string, error)
 
 	GetExpertModeVolumeByUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error)
-  CreateExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error
+	CreateExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error
 	DeleteExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error
 	UpdateRbacForPools(ctx context.Context) (string, error)
 
@@ -161,6 +161,9 @@ type OrchestratorFactory interface {
 	GetVolumePerformanceGroup(ctx context.Context, params *commonparams.GetVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error)
 	UpdateVolumePerformanceGroup(ctx context.Context, params *commonparams.UpdateVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error)
 	DeleteVolumePerformanceGroup(ctx context.Context, params *commonparams.DeleteVolumePerformanceGroupParams) error
+
+	// Quota rules
+	ReplaceDstQuotaRulesWithSrc(ctx context.Context, req *gcpserver.UpdateDstWithSrcQuotaRulesV1beta, params gcpserver.V1betaUpdateDestinationQuotaRulesVCPParams) ([]*datamodel.QuotaRule, error)
 }
 
 type Orchestrator struct {

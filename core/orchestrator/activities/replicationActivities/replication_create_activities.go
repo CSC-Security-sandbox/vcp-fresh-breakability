@@ -16,6 +16,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -751,4 +752,73 @@ func (a *VolumeReplicationCreateActivity) PollSnapmirrorFirewallOperation(ctx co
 	}
 
 	return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, vsaerrors.Newf("Firewall operation %s is not completed. Status: %s", result.Operation.OperationName, opStatus.Status))
+}
+
+func (a *VolumeReplicationCreateActivity) ListQuotaRulesLocal(ctx context.Context, result *replication.CreateReplicationResult) ([]*datamodel.QuotaRule, error) {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+
+	// Extract source volume ID from the result
+	sourceVolumeID := result.Event.SourceVolume.ID
+
+	// Fetch quota rules from database
+	quotaRules, err := se.GetQuotaRulesByVolumeID(ctx, sourceVolumeID)
+	if err != nil {
+		logger.Errorf("Failed to fetch quota rules for source volume: %d, error: %v", sourceVolumeID, err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Successfully fetched %d quota rules for source volume: %d", len(quotaRules), sourceVolumeID)
+	return quotaRules, nil
+}
+
+func (a *VolumeReplicationCreateActivity) CreateQuotaRulesOnDestination(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("CreateQuotaRulesOnDestination")
+
+	// If source quota rules is empty, skip creating quota rules on destination
+	if len(result.SourceQuotaRules) == 0 {
+		logger.Info("No source quota rules found, skipping quota rule creation on destination")
+		result.DestinationQuotaRules = nil
+		return result, nil
+	}
+
+	// Get correlation ID for tracing
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+
+	// Call the generic helper function and receive the quota rules returned from the API
+	destinationQuotaRules, err := CreateQuotaRulesRemote(
+		ctx,
+		logger,
+		*result.DstBasePath,
+		*result.DstJwtToken,
+		*result.DstProjectNumber,
+		result.Event.DestinationLocationID,
+		result.DstVolume.VolumeId.Value,
+		correlationID,
+		result.SourceQuotaRules,
+		result.DestinationQuotaRules,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store the quota rules returned from the API in the result
+	result.DestinationQuotaRules = destinationQuotaRules
+	logger.Infof("Stored %d destination quota rules from CreateQuotaRulesRemote response", len(destinationQuotaRules))
+
+	return result, nil
+}
+
+// HydrateQuotaRules hydrates quota rules on the destination volume by calling the callback API.
+// This activity takes the destination quota rules (with their UUIDs) and hydrates them to CCFE.
+func (a *VolumeReplicationCreateActivity) HydrateQuotaRules(ctx context.Context, quotaRules []*datamodel.QuotaRule, volumeResourceId string, location string, projectNumber string) error {
+	if hydrationEnabled {
+		logger := util.GetLogger(ctx)
+		logger.Debugf("HydrateQuotaRules")
+
+		// Call the common hydration function
+		return HydrateQuotaRulesList(ctx, logger, quotaRules, volumeResourceId, location, projectNumber)
+	}
+	return nil
 }

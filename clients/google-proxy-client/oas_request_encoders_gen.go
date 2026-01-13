@@ -745,6 +745,20 @@ func encodeV1betaUpdateBackupVaultRequest(
 	return nil
 }
 
+func encodeV1betaUpdateDestinationQuotaRulesVCPRequest(
+	req *UpdateDstWithSrcQuotaRulesV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeV1betaUpdateHostGroupRequest(
 	req *HostGroupUpdateV1beta,
 	r *http.Request,

@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -6874,5 +6875,358 @@ func TestDescribeQuotaRule(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "database connection failed")
+	})
+}
+
+// TestReplaceDstQuotaRulesWithSrc tests the ReplaceDstQuotaRulesWithSrc function
+func TestReplaceDstQuotaRulesWithSrc(t *testing.T) {
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeId := "volume-uuid-1"
+		params := gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-central1",
+			VolumeId:      volumeId,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: volumeId},
+			AccountID: 1,
+		}
+
+		srcQuotaRule1 := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-1",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+			DiskLimitInMib: 100,
+			QuotaTarget:    gcpgenserver.NewOptString("user:alice"),
+			QuotaId:        gcpgenserver.NewOptString("quota-uuid-1"),
+		}
+
+		dstQuotaRule1 := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-2",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeDEFAULTUSERQUOTA,
+			DiskLimitInMib: 200,
+			QuotaId:        gcpgenserver.NewOptString("quota-uuid-2"),
+		}
+
+		req := &gcpgenserver.UpdateDstWithSrcQuotaRulesV1beta{
+			SrcQuotaRules: []gcpgenserver.QuotaRulesV1beta{srcQuotaRule1},
+			DstQuotaRules: []gcpgenserver.QuotaRulesV1beta{dstQuotaRule1},
+		}
+
+		createdQuotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel:      datamodel.BaseModel{ID: 1, UUID: "quota-uuid-1"},
+				Name:           "quota-rule-1",
+				VolumeID:       1,
+				AccountID:      1,
+				QuotaType:      IndividualUserQuota,
+				QuotaTarget:    "user:alice",
+				DiskLimitInKib: 100 * 1024,
+				State:          models.LifeCycleStateCreating,
+			},
+		}
+
+		// Mock GetVolume to succeed
+		mockStore.EXPECT().GetVolume(ctx, volumeId).Return(volume, nil)
+
+		// Mock ReplaceDstQuotaRulesWithSrc to succeed
+		mockStore.EXPECT().ReplaceDstQuotaRulesWithSrc(
+			ctx,
+			volume.ID,
+			volume.AccountID,
+			[]string{"quota-uuid-2"},
+			mock.AnythingOfType("[]*datamodel.QuotaRule"),
+		).Return(createdQuotaRules, nil)
+
+		result, err := orchestrator.ReplaceDstQuotaRulesWithSrc(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 1)
+		assert.Equal(tt, "quota-uuid-1", result[0].UUID)
+	})
+
+	t.Run("WhenGetVolumeFails", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeId := "volume-uuid-1"
+		params := gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-central1",
+			VolumeId:      volumeId,
+		}
+
+		req := &gcpgenserver.UpdateDstWithSrcQuotaRulesV1beta{
+			SrcQuotaRules: []gcpgenserver.QuotaRulesV1beta{},
+			DstQuotaRules: []gcpgenserver.QuotaRulesV1beta{},
+		}
+
+		// Mock GetVolume to fail
+		mockStore.EXPECT().GetVolume(ctx, volumeId).Return(nil, errors.New("volume not found"))
+
+		result, err := orchestrator.ReplaceDstQuotaRulesWithSrc(ctx, req, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "volume not found")
+	})
+
+	t.Run("WhenReplaceDstQuotaRulesWithSrcFails", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeId := "volume-uuid-1"
+		params := gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-central1",
+			VolumeId:      volumeId,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: volumeId},
+			AccountID: 1,
+		}
+
+		srcQuotaRule1 := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-1",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+			DiskLimitInMib: 100,
+		}
+
+		req := &gcpgenserver.UpdateDstWithSrcQuotaRulesV1beta{
+			SrcQuotaRules: []gcpgenserver.QuotaRulesV1beta{srcQuotaRule1},
+			DstQuotaRules: []gcpgenserver.QuotaRulesV1beta{},
+		}
+
+		// Mock GetVolume to succeed
+		mockStore.EXPECT().GetVolume(ctx, volumeId).Return(volume, nil)
+
+		// Mock ReplaceDstQuotaRulesWithSrc to fail
+		mockStore.EXPECT().ReplaceDstQuotaRulesWithSrc(
+			ctx,
+			volume.ID,
+			volume.AccountID,
+			[]string{},
+			mock.AnythingOfType("[]*datamodel.QuotaRule"),
+		).Return(nil, errors.New("database error"))
+
+		result, err := orchestrator.ReplaceDstQuotaRulesWithSrc(ctx, req, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "database error")
+	})
+
+	t.Run("WhenDstQuotaRuleHasNoQuotaId", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{storage: mockStore}
+
+		ctx := context.Background()
+		volumeId := "volume-uuid-1"
+		params := gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-central1",
+			VolumeId:      volumeId,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: volumeId},
+			AccountID: 1,
+		}
+
+		dstQuotaRule1 := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-2",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeDEFAULTUSERQUOTA,
+			DiskLimitInMib: 200,
+			// QuotaId is not set
+		}
+
+		req := &gcpgenserver.UpdateDstWithSrcQuotaRulesV1beta{
+			SrcQuotaRules: []gcpgenserver.QuotaRulesV1beta{},
+			DstQuotaRules: []gcpgenserver.QuotaRulesV1beta{dstQuotaRule1},
+		}
+
+		createdQuotaRules := []*datamodel.QuotaRule{}
+
+		// Mock GetVolume to succeed
+		mockStore.EXPECT().GetVolume(ctx, volumeId).Return(volume, nil)
+
+		// Mock ReplaceDstQuotaRulesWithSrc to succeed (empty dstQuotaRuleUUIDs since QuotaId is not set)
+		mockStore.EXPECT().ReplaceDstQuotaRulesWithSrc(
+			ctx,
+			volume.ID,
+			volume.AccountID,
+			[]string{},
+			mock.AnythingOfType("[]*datamodel.QuotaRule"),
+		).Return(createdQuotaRules, nil)
+
+		result, err := orchestrator.ReplaceDstQuotaRulesWithSrc(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Len(tt, result, 0)
+	})
+}
+
+// Test_convertQuotaRulesV1betaToDataModel tests the _convertQuotaRulesV1betaToDataModel function
+func Test_convertQuotaRulesV1betaToDataModel(t *testing.T) {
+	t.Run("WhenAllFieldsPresent_IndividualUserQuota", func(tt *testing.T) {
+		clientRule := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-1",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+			DiskLimitInMib: 100,
+			QuotaTarget:    gcpgenserver.NewOptString("user:alice"),
+			QuotaId:        gcpgenserver.NewOptString("quota-uuid-1"),
+			State:          gcpgenserver.NewOptQuotaRulesV1betaState(gcpgenserver.QuotaRulesV1betaStateREADY),
+			StateDetails:   gcpgenserver.NewOptString("Ready state"),
+			Description:    gcpgenserver.NewOptString("Test description"),
+		}
+
+		result := _convertQuotaRulesV1betaToDataModel(clientRule)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "quota-rule-1", result.Name)
+		assert.Equal(tt, int64(100*1024), result.DiskLimitInKib)
+		assert.Equal(tt, "quota-uuid-1", result.UUID)
+		assert.Equal(tt, IndividualUserQuota, result.QuotaType)
+		assert.Equal(tt, "user:alice", result.QuotaTarget)
+		assert.Equal(tt, "READY", result.State)
+		assert.Equal(tt, "Ready state", result.StateDetails)
+	})
+
+	t.Run("WhenAllFieldsPresent_IndividualGroupQuota", func(tt *testing.T) {
+		clientRule := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-2",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeINDIVIDUALGROUPQUOTA,
+			DiskLimitInMib: 200,
+			QuotaTarget:    gcpgenserver.NewOptString("group:developers"),
+			QuotaId:        gcpgenserver.NewOptString("quota-uuid-2"),
+		}
+
+		result := _convertQuotaRulesV1betaToDataModel(clientRule)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "quota-rule-2", result.Name)
+		assert.Equal(tt, int64(200*1024), result.DiskLimitInKib)
+		assert.Equal(tt, "quota-uuid-2", result.UUID)
+		assert.Equal(tt, IndividualGroupQuota, result.QuotaType)
+		assert.Equal(tt, "group:developers", result.QuotaTarget)
+	})
+
+	t.Run("WhenAllFieldsPresent_DefaultUserQuota", func(tt *testing.T) {
+		clientRule := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-3",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeDEFAULTUSERQUOTA,
+			DiskLimitInMib: 300,
+			QuotaId:        gcpgenserver.NewOptString("quota-uuid-3"),
+		}
+
+		result := _convertQuotaRulesV1betaToDataModel(clientRule)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "quota-rule-3", result.Name)
+		assert.Equal(tt, int64(300*1024), result.DiskLimitInKib)
+		assert.Equal(tt, "quota-uuid-3", result.UUID)
+		assert.Equal(tt, DefaultUserQuota, result.QuotaType)
+	})
+
+	t.Run("WhenAllFieldsPresent_DefaultGroupQuota", func(tt *testing.T) {
+		clientRule := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-4",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeDEFAULTGROUPQUOTA,
+			DiskLimitInMib: 400,
+			QuotaId:        gcpgenserver.NewOptString("quota-uuid-4"),
+		}
+
+		result := _convertQuotaRulesV1betaToDataModel(clientRule)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "quota-rule-4", result.Name)
+		assert.Equal(tt, int64(400*1024), result.DiskLimitInKib)
+		assert.Equal(tt, "quota-uuid-4", result.UUID)
+		assert.Equal(tt, DefaultGroupQuota, result.QuotaType)
+	})
+
+	t.Run("WhenUnknownQuotaType", func(tt *testing.T) {
+		clientRule := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-5",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaType("UNKNOWN_TYPE"),
+			DiskLimitInMib: 500,
+			QuotaId:        gcpgenserver.NewOptString("quota-uuid-5"),
+		}
+
+		result := _convertQuotaRulesV1betaToDataModel(clientRule)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "quota-rule-5", result.Name)
+		assert.Equal(tt, "UNKNOWN_TYPE", result.QuotaType)
+	})
+
+	t.Run("WhenOptionalFieldsAreMissing", func(tt *testing.T) {
+		clientRule := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-6",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+			DiskLimitInMib: 600,
+			// QuotaId, QuotaTarget, State, StateDetails are not set
+		}
+
+		result := _convertQuotaRulesV1betaToDataModel(clientRule)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "quota-rule-6", result.Name)
+		assert.Equal(tt, int64(600*1024), result.DiskLimitInKib)
+		assert.Empty(tt, result.UUID)
+		assert.Empty(tt, result.QuotaTarget)
+		assert.Empty(tt, result.State)
+		assert.Empty(tt, result.StateDetails)
+	})
+
+	t.Run("WhenOnlyQuotaTargetIsSet", func(tt *testing.T) {
+		clientRule := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-7",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+			DiskLimitInMib: 700,
+			QuotaTarget:    gcpgenserver.NewOptString("user:bob"),
+		}
+
+		result := _convertQuotaRulesV1betaToDataModel(clientRule)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "user:bob", result.QuotaTarget)
+	})
+
+	t.Run("WhenOnlyStateIsSet", func(tt *testing.T) {
+		clientRule := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-8",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeDEFAULTUSERQUOTA,
+			DiskLimitInMib: 800,
+			State:          gcpgenserver.NewOptQuotaRulesV1betaState(gcpgenserver.QuotaRulesV1betaStateCREATING),
+		}
+
+		result := _convertQuotaRulesV1betaToDataModel(clientRule)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "CREATING", result.State)
+	})
+
+	t.Run("WhenOnlyStateDetailsIsSet", func(tt *testing.T) {
+		clientRule := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-9",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeDEFAULTGROUPQUOTA,
+			DiskLimitInMib: 900,
+			StateDetails:   gcpgenserver.NewOptString("Creating state details"),
+		}
+
+		result := _convertQuotaRulesV1betaToDataModel(clientRule)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "Creating state details", result.StateDetails)
 	})
 }

@@ -410,6 +410,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 		dbRep := &datamodel.VolumeReplication{Name: "rep-1"}
 		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
 		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, mock.Anything, mock.Anything).Return(nil, nil)
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, int64(1)).Return([]*datamodel.QuotaRule{}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("failed to create job"))
 		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(dbRep, nil)
 
@@ -453,6 +454,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 
 		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
 		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, mock.Anything, mock.Anything).Return(nil, nil)
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, int64(1)).Return([]*datamodel.QuotaRule{}, nil)
 		mockStorage.On("CreateVolumeReplication", ctx, dbRep).Return(nil, errors.New("failed to create volume replication in db"))
 
 		params := &commonparams.CreateVolumeReplicationParams{
@@ -503,6 +505,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 
 		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
 		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, mock.Anything, mock.Anything).Return(nil, nil)
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, int64(1)).Return([]*datamodel.QuotaRule{}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(dbRep, nil)
 		mockStorage.On("DeleteVolumeReplication", ctx, mock.Anything).Return(dbRep, nil)
@@ -562,6 +565,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 
 		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
 		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, mock.Anything, mock.Anything).Return(nil, nil)
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, int64(1)).Return([]*datamodel.QuotaRule{}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
 		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(dbRep, nil)
 		mockStorage.On("DeleteVolumeReplication", ctx, mock.Anything).Return(dbRep, nil)
@@ -620,6 +624,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 
 		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
 		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, mock.Anything, mock.Anything).Return(nil, nil)
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, int64(1)).Return([]*datamodel.QuotaRule{}, nil)
 
 		params := &commonparams.CreateVolumeReplicationParams{
 			AccountName:      "test-account",
@@ -4716,7 +4721,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 		assert.Equal(tt, statusDetails, result.StateDetails.Value)
 		assert.False(tt, result.Destination.IsSet())
 	})
-	
+
 	t.Run("FindDbReplicationWithEmptyDestinationVolumeUuid", func(tt *testing.T) {
 		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
 			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
@@ -10829,5 +10834,255 @@ func TestEstablishReplicationPeering(t *testing.T) {
 		assert.Equal(tt, models.LifeCycleStateUpdatingDetails, volumeReplication.StateDetails)
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
+	})
+}
+
+func Test_validateQuotaRulesForVolume(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+	volumeID := int64(123)
+
+	t.Run("WhenNoQuotaRulesExist", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, volumeID).Return([]*datamodel.QuotaRule{}, nil)
+
+		err := validateQuotaRulesForVolume(ctx, mockStorage, volumeID)
+		assert.NoError(tt, err, "Expected no error when no quota rules exist")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenQuotaRulesExistButNoneInErrorState", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-1",
+				},
+				Name:  "quota-rule-1",
+				State: models.LifeCycleStateAvailable,
+			},
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-2",
+				},
+				Name:  "quota-rule-2",
+				State: models.LifeCycleStateCreating,
+			},
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-3",
+				},
+				Name:  "quota-rule-3",
+				State: models.LifeCycleStateUpdating,
+			},
+		}
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, volumeID).Return(quotaRules, nil)
+
+		err := validateQuotaRulesForVolume(ctx, mockStorage, volumeID)
+		assert.NoError(tt, err, "Expected no error when quota rules exist but none are in error state")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetQuotaRulesByVolumeIDFails", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		expectedErr := errors.New("database error")
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, volumeID).Return(nil, expectedErr)
+
+		err := validateQuotaRulesForVolume(ctx, mockStorage, volumeID)
+		assert.Error(tt, err, "Expected error when GetQuotaRulesByVolumeID fails")
+		assert.Equal(tt, expectedErr, err, "Expected the same error from GetQuotaRulesByVolumeID")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenOneQuotaRuleInErrorState", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-1",
+				},
+				Name:         "quota-rule-1",
+				State:        models.LifeCycleStateError,
+				StateDetails: "Error details for quota rule 1",
+			},
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-2",
+				},
+				Name:  "quota-rule-2",
+				State: models.LifeCycleStateAvailable,
+			},
+		}
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, volumeID).Return(quotaRules, nil)
+
+		err := validateQuotaRulesForVolume(ctx, mockStorage, volumeID)
+		assert.Error(tt, err, "Expected error when quota rule is in error state")
+		assert.Contains(tt, err.Error(), "Cannot create volume replication", "Expected error message to contain validation message")
+		assert.Contains(tt, err.Error(), "quota-rule-uuid-1", "Expected error message to contain errored quota rule UUID")
+		assert.Contains(tt, err.Error(), "quota-rule-1", "Expected error message to contain errored quota rule name")
+		assert.Contains(tt, err.Error(), models.LifeCycleStateError, "Expected error message to contain error state")
+		assert.Contains(tt, err.Error(), "Error details for quota rule 1", "Expected error message to contain state details")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenMultipleQuotaRulesInErrorState", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-1",
+				},
+				Name:         "quota-rule-1",
+				State:        models.LifeCycleStateError,
+				StateDetails: "Error details for quota rule 1",
+			},
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-2",
+				},
+				Name:         "quota-rule-2",
+				State:        models.LifeCycleStateError,
+				StateDetails: "Error details for quota rule 2",
+			},
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-3",
+				},
+				Name:  "quota-rule-3",
+				State: models.LifeCycleStateAvailable,
+			},
+		}
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, volumeID).Return(quotaRules, nil)
+
+		err := validateQuotaRulesForVolume(ctx, mockStorage, volumeID)
+		assert.Error(tt, err, "Expected error when multiple quota rules are in error state")
+		assert.Contains(tt, err.Error(), "Cannot create volume replication", "Expected error message to contain validation message")
+		assert.Contains(tt, err.Error(), "quota-rule-uuid-1", "Expected error message to contain first errored quota rule UUID")
+		assert.Contains(tt, err.Error(), "quota-rule-uuid-2", "Expected error message to contain second errored quota rule UUID")
+		assert.Contains(tt, err.Error(), "quota-rule-1", "Expected error message to contain first errored quota rule name")
+		assert.Contains(tt, err.Error(), "quota-rule-2", "Expected error message to contain second errored quota rule name")
+		assert.Contains(tt, err.Error(), ";", "Expected error message to contain semicolon separator between errored rules")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenAllQuotaRulesInErrorState", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-1",
+				},
+				Name:         "quota-rule-1",
+				State:        models.LifeCycleStateError,
+				StateDetails: "Error details 1",
+			},
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-2",
+				},
+				Name:         "quota-rule-2",
+				State:        models.LifeCycleStateError,
+				StateDetails: "Error details 2",
+			},
+		}
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, volumeID).Return(quotaRules, nil)
+
+		err := validateQuotaRulesForVolume(ctx, mockStorage, volumeID)
+		assert.Error(tt, err, "Expected error when all quota rules are in error state")
+		assert.Contains(tt, err.Error(), "Cannot create volume replication", "Expected error message to contain validation message")
+		assert.Contains(tt, err.Error(), "quota-rule-uuid-1", "Expected error message to contain first errored quota rule UUID")
+		assert.Contains(tt, err.Error(), "quota-rule-uuid-2", "Expected error message to contain second errored quota rule UUID")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenQuotaRuleInErrorStateWithEmptyName", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-1",
+				},
+				Name:         "",
+				State:        models.LifeCycleStateError,
+				StateDetails: "Error details",
+			},
+		}
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, volumeID).Return(quotaRules, nil)
+
+		err := validateQuotaRulesForVolume(ctx, mockStorage, volumeID)
+		assert.Error(tt, err, "Expected error when quota rule is in error state")
+		assert.Contains(tt, err.Error(), "quota-rule-uuid-1", "Expected error message to contain quota rule UUID even when name is empty")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenQuotaRuleInErrorStateWithEmptyStateDetails", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-1",
+				},
+				Name:         "quota-rule-1",
+				State:        models.LifeCycleStateError,
+				StateDetails: "",
+			},
+		}
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, volumeID).Return(quotaRules, nil)
+
+		err := validateQuotaRulesForVolume(ctx, mockStorage, volumeID)
+		assert.Error(tt, err, "Expected error when quota rule is in error state")
+		assert.Contains(tt, err.Error(), "quota-rule-uuid-1", "Expected error message to contain quota rule UUID")
+		assert.Contains(tt, err.Error(), "quota-rule-1", "Expected error message to contain quota rule name")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenQuotaRulesWithVariousStates", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-1",
+				},
+				Name:  "quota-rule-1",
+				State: models.LifeCycleStateAvailable,
+			},
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-2",
+				},
+				Name:  "quota-rule-2",
+				State: models.LifeCycleStateCreating,
+			},
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-3",
+				},
+				Name:  "quota-rule-3",
+				State: models.LifeCycleStateUpdating,
+			},
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-4",
+				},
+				Name:  "quota-rule-4",
+				State: models.LifeCycleStateDeleting,
+			},
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-5",
+				},
+				Name:  "quota-rule-5",
+				State: models.LifeCycleStateError,
+			},
+		}
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, volumeID).Return(quotaRules, nil)
+
+		err := validateQuotaRulesForVolume(ctx, mockStorage, volumeID)
+		assert.Error(tt, err, "Expected error when one quota rule is in error state among various states")
+		assert.Contains(tt, err.Error(), "quota-rule-uuid-5", "Expected error message to contain only the errored quota rule UUID")
+		assert.NotContains(tt, err.Error(), "quota-rule-uuid-1", "Expected error message to not contain non-errored quota rule UUID")
+		assert.NotContains(tt, err.Error(), "quota-rule-uuid-2", "Expected error message to not contain non-errored quota rule UUID")
+		mockStorage.AssertExpectations(tt)
 	})
 }

@@ -623,6 +623,43 @@ func (o *Orchestrator) GetReplicationCount(ctx context.Context, projectNumber st
 	return count, nil
 }
 
+// validateQuotaRulesForVolume validates that no quota rules for the volume are in error state.
+// If any quota rules are in error state, it logs them and returns an error.
+func validateQuotaRulesForVolume(ctx context.Context, se database.Storage, volumeID int64) error {
+	logger := util.GetLogger(ctx)
+
+	// Fetch all quota rules for the volume
+	quotaRules, err := se.GetQuotaRulesByVolumeID(ctx, volumeID)
+	if err != nil {
+		logger.Error("Failed to fetch quota rules for volume", "volumeID", volumeID, "error", err)
+		return err
+	}
+
+	// Check for quota rules in error state
+	var erroredQuotaRules []*datamodel.QuotaRule
+	for _, quotaRule := range quotaRules {
+		if quotaRule.State == models.LifeCycleStateError {
+			erroredQuotaRules = append(erroredQuotaRules, quotaRule)
+		}
+	}
+
+	// If there are errored quota rules, log them and return an error
+	if len(erroredQuotaRules) > 0 {
+		var erroredRuleDetails []string
+		for _, rule := range erroredQuotaRules {
+			erroredRuleDetails = append(erroredRuleDetails,
+				"UUID: "+rule.UUID+", Name: "+rule.Name+", State: "+rule.State+", StateDetails: "+rule.StateDetails)
+		}
+		logger.Error("Volume has quota rules in error state",
+			"volumeID", volumeID,
+			"errorCount", len(erroredQuotaRules),
+			"erroredRules", erroredRuleDetails)
+		return errors.NewUserInputValidationErr("Cannot create volume replication: volume has quota rules in error state. Errored quota rules: " + strings.Join(erroredRuleDetails, "; "))
+	}
+
+	return nil
+}
+
 // CreateVolume creates the specified volume and adds it to the list of volume belonging to the specified owner
 func (o *Orchestrator) CreateVolumeReplication(ctx context.Context, params *commonparams.CreateVolumeReplicationParams) (*models.VolumeReplication, string, error) {
 	return createVolumeReplication(ctx, o.storage, o.temporal, params)
@@ -671,6 +708,12 @@ func _createVolumeReplication(ctx context.Context, se database.Storage, temporal
 	}
 
 	dbRepl, err := validateCreateReplicationParams(ctx, &event, se)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Validate quota rules for the source volume
+	err = validateQuotaRulesForVolume(ctx, se, srcVolume.ID)
 	if err != nil {
 		return nil, "", err
 	}

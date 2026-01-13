@@ -722,6 +722,12 @@ type Invoker interface {
 	//
 	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
 	V1betaUpdateBackupVault(ctx context.Context, request *BackupVaultUpdateV1beta, params V1betaUpdateBackupVaultParams) (V1betaUpdateBackupVaultRes, error)
+	// V1betaUpdateDestinationQuotaRulesVCP invokes v1beta_updateDestinationQuotaRulesVCP operation.
+	//
+	// Update destination quota rules with source quota rules.
+	//
+	// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRule
+	V1betaUpdateDestinationQuotaRulesVCP(ctx context.Context, request *UpdateDstWithSrcQuotaRulesV1beta, params V1betaUpdateDestinationQuotaRulesVCPParams) (V1betaUpdateDestinationQuotaRulesVCPRes, error)
 	// V1betaUpdateHostGroup invokes v1beta_updateHostGroup operation.
 	//
 	// Update the specified HostGroup.
@@ -13740,6 +13746,127 @@ func (c *Client) sendV1betaUpdateBackupVault(ctx context.Context, request *Backu
 	defer resp.Body.Close()
 
 	result, err := decodeV1betaUpdateBackupVaultResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaUpdateDestinationQuotaRulesVCP invokes v1beta_updateDestinationQuotaRulesVCP operation.
+//
+// Update destination quota rules with source quota rules.
+//
+// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRule
+func (c *Client) V1betaUpdateDestinationQuotaRulesVCP(ctx context.Context, request *UpdateDstWithSrcQuotaRulesV1beta, params V1betaUpdateDestinationQuotaRulesVCPParams) (V1betaUpdateDestinationQuotaRulesVCPRes, error) {
+	res, err := c.sendV1betaUpdateDestinationQuotaRulesVCP(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaUpdateDestinationQuotaRulesVCP(ctx context.Context, request *UpdateDstWithSrcQuotaRulesV1beta, params V1betaUpdateDestinationQuotaRulesVCPParams) (res V1betaUpdateDestinationQuotaRulesVCPRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [7]string
+	pathParts[0] = "/v1beta/internal/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumes/"
+	{
+		// Encode "volumeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/quotaRule"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1betaUpdateDestinationQuotaRulesVCPRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaUpdateDestinationQuotaRulesVCPResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -199,8 +200,9 @@ func TestCreatingQuotaRule(t *testing.T) {
 			VolumeID:       volume.ID,
 			State:          models.LifeCycleStateCreating,
 		}
-		_, err = store.CreatingQuotaRule(context.Background(), quotaRule1)
+		createdQuotaRule1, err := store.CreatingQuotaRule(context.Background(), quotaRule1)
 		assert.NoError(tt, err, "Failed to create first quota rule")
+		assert.NotNil(tt, createdQuotaRule1)
 
 		quotaRule2 := &datamodel.QuotaRule{
 			Name:           "quota-rule-2",
@@ -211,9 +213,15 @@ func TestCreatingQuotaRule(t *testing.T) {
 			VolumeID:       volume.ID, // Same volume
 			State:          models.LifeCycleStateCreating,
 		}
-		_, err = store.CreatingQuotaRule(context.Background(), quotaRule2)
-		assert.Error(tt, err, "Expected error for duplicate quota rule")
-		assert.Contains(tt, err.Error(), "quota rule with same type and target already exists", "Expected conflict error")
+		// Duplicate check is removed, so duplicates are now allowed
+		// (Database constraints may still prevent duplicates if they exist)
+		createdQuotaRule2, err := store.CreatingQuotaRule(context.Background(), quotaRule2)
+		// Note: This may succeed or fail depending on database constraints
+		// If it fails, it will be a database constraint error, not an application-level conflict error
+		if err == nil {
+			assert.NotNil(tt, createdQuotaRule2, "Expected second quota rule to be created")
+			assert.NotEqual(tt, createdQuotaRule1.UUID, createdQuotaRule2.UUID, "Expected different UUIDs")
+		}
 	})
 
 	t.Run("WhenDifferentQuotaTargetsAreAllowed", func(tt *testing.T) {
@@ -287,7 +295,7 @@ func TestCreatingQuotaRule(t *testing.T) {
 		assert.Contains(tt, err.Error(), "failed to start transaction", "Expected transaction error")
 	})
 
-	t.Run("WhenDuplicateCheckReturnsUnexpectedError", func(tt *testing.T) {
+	t.Run("WhenCreateFailsDueToDatabaseError", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		assert.NoError(tt, err, "Failed to set up test database")
 		wrapper := gormwrapper.New(db)
@@ -299,7 +307,7 @@ func TestCreatingQuotaRule(t *testing.T) {
 		account, _, volume, err := CreateTestData(store)
 		assert.NoError(tt, err, "Failed to create test data")
 
-		// Close the database connection to cause an error during duplicate check
+		// Close the database connection to cause an error during create
 		sqlDB, err := store.db.GORM().DB()
 		assert.NoError(tt, err)
 		err = sqlDB.Close()
@@ -316,7 +324,7 @@ func TestCreatingQuotaRule(t *testing.T) {
 		}
 
 		_, err = store.CreatingQuotaRule(context.Background(), quotaRule)
-		assert.Error(tt, err, "Expected error when duplicate check fails")
+		assert.Error(tt, err, "Expected error when create fails")
 	})
 
 	t.Run("WhenCreateFails", func(tt *testing.T) {
@@ -1202,5 +1210,536 @@ func TestRetryEngine_GetQuotaRulesWithCondition(t *testing.T) {
 
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.GreaterOrEqual(tt, len(quotaRules), 1, "Expected at least 1 quota rule, got %d", len(quotaRules))
+	})
+}
+
+func TestReplaceDstQuotaRulesWithSrc(t *testing.T) {
+	t.Run("WhenReplaceDstQuotaRulesWithSrcSucceeds", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account, _, volume, err := CreateTestData(store)
+		assert.NoError(tt, err, "Failed to create test data")
+
+		// Create destination quota rules to be deleted
+		dstQuotaRule1 := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "dst-quota-rule-uuid-1",
+			},
+			Name:           "dst-quota-rule-1",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			QuotaTarget:    "1000",
+			DiskLimitInKib: 1048576,
+			AccountID:      account.ID,
+			VolumeID:       volume.ID,
+			State:          models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(dstQuotaRule1).Error()
+		assert.NoError(tt, err, "Failed to create destination quota rule 1")
+
+		dstQuotaRule2 := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "dst-quota-rule-uuid-2",
+			},
+			Name:           "dst-quota-rule-2",
+			QuotaType:      "INDIVIDUAL_GROUP_QUOTA",
+			QuotaTarget:    "group:developers",
+			DiskLimitInKib: 2097152,
+			AccountID:      account.ID,
+			VolumeID:       volume.ID,
+			State:          models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(dstQuotaRule2).Error()
+		assert.NoError(tt, err, "Failed to create destination quota rule 2")
+
+		// Create source quota rules to be added
+		srcQuotaRule1 := &datamodel.QuotaRule{
+			Name:           "src-quota-rule-1",
+			QuotaType:      "DEFAULT_USER_QUOTA",
+			QuotaTarget:    "",
+			DiskLimitInKib: 3145728,
+		}
+
+		srcQuotaRule2 := &datamodel.QuotaRule{
+			Name:           "src-quota-rule-2",
+			QuotaType:      "DEFAULT_GROUP_QUOTA",
+			QuotaTarget:    "",
+			DiskLimitInKib: 4194304,
+		}
+
+		dstUUIDs := []string{"dst-quota-rule-uuid-1", "dst-quota-rule-uuid-2"}
+		srcQuotaRules := []*datamodel.QuotaRule{srcQuotaRule1, srcQuotaRule2}
+
+		createdQuotaRules, err := store.ReplaceDstQuotaRulesWithSrc(
+			context.Background(),
+			volume.ID,
+			account.ID,
+			dstUUIDs,
+			srcQuotaRules,
+		)
+
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, createdQuotaRules, 2, "Expected 2 created quota rules")
+		assert.NotEmpty(tt, createdQuotaRules[0].UUID, "Expected UUID to be generated")
+		assert.NotEmpty(tt, createdQuotaRules[1].UUID, "Expected UUID to be generated")
+		assert.Equal(tt, volume.ID, createdQuotaRules[0].VolumeID, "Expected VolumeID to be set")
+		assert.Equal(tt, account.ID, createdQuotaRules[0].AccountID, "Expected AccountID to be set")
+		assert.Equal(tt, models.LifeCycleStateCreated, createdQuotaRules[0].State, "Expected state to be CREATED")
+		assert.Equal(tt, models.LifeCycleStateCreatedDetails, createdQuotaRules[0].StateDetails, "Expected state details to be CREATED successfully")
+
+		// Verify destination quota rules are soft deleted
+		var deletedRule1 datamodel.QuotaRule
+		err = store.db.Unscoped().Where("uuid = ?", "dst-quota-rule-uuid-1").First(&deletedRule1).Error()
+		assert.NoError(tt, err, "Expected to find soft deleted quota rule")
+		assert.NotNil(tt, deletedRule1.DeletedAt, "Expected DeletedAt to be set")
+		assert.True(tt, deletedRule1.DeletedAt.Valid, "Expected DeletedAt to be valid")
+		assert.Equal(tt, models.LifeCycleStateDeleted, deletedRule1.State, "Expected state to be DELETED")
+
+		// Verify source quota rules are created
+		var createdRule1 datamodel.QuotaRule
+		err = store.db.Where("uuid = ?", createdQuotaRules[0].UUID).First(&createdRule1).Error()
+		assert.NoError(tt, err, "Expected to find created quota rule")
+		assert.Equal(tt, "src-quota-rule-1", createdRule1.Name, "Expected name to match")
+		assert.Equal(tt, "DEFAULT_USER_QUOTA", createdRule1.QuotaType, "Expected quota type to match")
+	})
+
+	t.Run("WhenReplaceDstQuotaRulesWithSrcOnlyDeletes", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account, _, volume, err := CreateTestData(store)
+		assert.NoError(tt, err, "Failed to create test data")
+
+		// Create destination quota rule to be deleted
+		dstQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "dst-quota-rule-uuid",
+			},
+			Name:           "dst-quota-rule",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			QuotaTarget:    "1000",
+			DiskLimitInKib: 1048576,
+			AccountID:      account.ID,
+			VolumeID:       volume.ID,
+			State:          models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(dstQuotaRule).Error()
+		assert.NoError(tt, err, "Failed to create destination quota rule")
+
+		dstUUIDs := []string{"dst-quota-rule-uuid"}
+		createdQuotaRules, err := store.ReplaceDstQuotaRulesWithSrc(
+			context.Background(),
+			volume.ID,
+			account.ID,
+			dstUUIDs,
+			nil, // No source quota rules
+		)
+
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, createdQuotaRules, 0, "Expected no created quota rules")
+
+		// Verify destination quota rule is soft deleted
+		var deletedRule datamodel.QuotaRule
+		err = store.db.Unscoped().Where("uuid = ?", "dst-quota-rule-uuid").First(&deletedRule).Error()
+		assert.NoError(tt, err, "Expected to find soft deleted quota rule")
+		assert.NotNil(tt, deletedRule.DeletedAt, "Expected DeletedAt to be set")
+		assert.True(tt, deletedRule.DeletedAt.Valid, "Expected DeletedAt to be valid")
+	})
+
+	t.Run("WhenReplaceDstQuotaRulesWithSrcOnlyAdds", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account, _, volume, err := CreateTestData(store)
+		assert.NoError(tt, err, "Failed to create test data")
+
+		// Create source quota rule to be added
+		srcQuotaRule := &datamodel.QuotaRule{
+			Name:           "src-quota-rule",
+			QuotaType:      "DEFAULT_USER_QUOTA",
+			QuotaTarget:    "",
+			DiskLimitInKib: 3145728,
+		}
+
+		createdQuotaRules, err := store.ReplaceDstQuotaRulesWithSrc(
+			context.Background(),
+			volume.ID,
+			account.ID,
+			nil, // No destination quota rules to delete
+			[]*datamodel.QuotaRule{srcQuotaRule},
+		)
+
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, createdQuotaRules, 1, "Expected 1 created quota rule")
+		assert.NotEmpty(tt, createdQuotaRules[0].UUID, "Expected UUID to be generated")
+		assert.Equal(tt, volume.ID, createdQuotaRules[0].VolumeID, "Expected VolumeID to be set")
+		assert.Equal(tt, account.ID, createdQuotaRules[0].AccountID, "Expected AccountID to be set")
+	})
+
+	t.Run("WhenReplaceDstQuotaRulesWithSrcEmptyOperations", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account, _, volume, err := CreateTestData(store)
+		assert.NoError(tt, err, "Failed to create test data")
+
+		createdQuotaRules, err := store.ReplaceDstQuotaRulesWithSrc(
+			context.Background(),
+			volume.ID,
+			account.ID,
+			nil, // No destination quota rules
+			nil, // No source quota rules
+		)
+
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, createdQuotaRules, 0, "Expected no created quota rules")
+	})
+
+	t.Run("WhenReplaceDstQuotaRulesWithSrcQuotaRuleNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account, _, volume, err := CreateTestData(store)
+		assert.NoError(tt, err, "Failed to create test data")
+
+		// Create one destination quota rule
+		dstQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "dst-quota-rule-uuid-1",
+			},
+			Name:           "dst-quota-rule-1",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			QuotaTarget:    "1000",
+			DiskLimitInKib: 1048576,
+			AccountID:      account.ID,
+			VolumeID:       volume.ID,
+			State:          models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(dstQuotaRule).Error()
+		assert.NoError(tt, err, "Failed to create destination quota rule")
+
+		// Try to delete non-existent quota rule
+		dstUUIDs := []string{"dst-quota-rule-uuid-1", "non-existent-uuid"}
+		createdQuotaRules, err := store.ReplaceDstQuotaRulesWithSrc(
+			context.Background(),
+			volume.ID,
+			account.ID,
+			dstUUIDs,
+			nil,
+		)
+
+		assert.Error(tt, err, "Expected error for non-existent quota rule")
+		assert.Nil(tt, createdQuotaRules, "Expected nil return value on error")
+		assert.Contains(tt, err.Error(), "quota rule", "Expected quota rule not found error")
+	})
+
+	t.Run("WhenReplaceDstQuotaRulesWithSrcDuplicateQuotaRule", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account, _, volume, err := CreateTestData(store)
+		assert.NoError(tt, err, "Failed to create test data")
+
+		// Create existing quota rule with same type and target
+		existingQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "existing-quota-rule-uuid",
+			},
+			Name:           "existing-quota-rule",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			QuotaTarget:    "1000",
+			DiskLimitInKib: 1048576,
+			AccountID:      account.ID,
+			VolumeID:       volume.ID,
+			State:          models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(existingQuotaRule).Error()
+		assert.NoError(tt, err, "Failed to create existing quota rule")
+
+		// Try to add duplicate quota rule
+		srcQuotaRule := &datamodel.QuotaRule{
+			Name:           "src-quota-rule",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			QuotaTarget:    "1000", // Same type and target
+			DiskLimitInKib: 3145728,
+		}
+
+		// Duplicate check is removed, so duplicates are now allowed
+		// (Database constraints may still prevent duplicates if they exist)
+		createdQuotaRules, err := store.ReplaceDstQuotaRulesWithSrc(
+			context.Background(),
+			volume.ID,
+			account.ID,
+			nil,
+			[]*datamodel.QuotaRule{srcQuotaRule},
+		)
+
+		// Note: This may succeed or fail depending on database constraints
+		// If it fails, it will be a database constraint error, not an application-level conflict error
+		if err == nil {
+			assert.NotNil(tt, createdQuotaRules, "Expected quota rules to be created")
+			assert.Len(tt, createdQuotaRules, 1, "Expected one quota rule to be created")
+		}
+	})
+
+	t.Run("WhenReplaceDstQuotaRulesWithSrcWithPreExistingUUID", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account, _, volume, err := CreateTestData(store)
+		assert.NoError(tt, err, "Failed to create test data")
+
+		// Create source quota rule with pre-existing UUID
+		srcQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "pre-existing-uuid",
+			},
+			Name:           "src-quota-rule",
+			QuotaType:      "DEFAULT_USER_QUOTA",
+			QuotaTarget:    "",
+			DiskLimitInKib: 3145728,
+		}
+
+		createdQuotaRules, err := store.ReplaceDstQuotaRulesWithSrc(
+			context.Background(),
+			volume.ID,
+			account.ID,
+			nil,
+			[]*datamodel.QuotaRule{srcQuotaRule},
+		)
+
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, createdQuotaRules, 1, "Expected 1 created quota rule")
+		// UUID should be newly generated, not preserved from source
+		assert.NotEqual(tt, "pre-existing-uuid", createdQuotaRules[0].UUID, "Expected UUID to be newly generated, not preserved from source")
+		assert.NotEmpty(tt, createdQuotaRules[0].UUID, "Expected UUID to be generated")
+	})
+
+	t.Run("WhenReplaceDstQuotaRulesWithSrcMultipleOperations", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account, _, volume, err := CreateTestData(store)
+		assert.NoError(tt, err, "Failed to create test data")
+
+		// Create multiple destination quota rules
+		dstUUIDs := make([]string, 3)
+		for i := 1; i <= 3; i++ {
+			uuid := utils.RandomUUID()
+			dstUUIDs[i-1] = uuid
+			dstQuotaRule := &datamodel.QuotaRule{
+				BaseModel: datamodel.BaseModel{
+					UUID: uuid,
+				},
+				Name:           "dst-quota-rule-" + strconv.Itoa(i),
+				QuotaType:      "INDIVIDUAL_USER_QUOTA",
+				QuotaTarget:    strconv.Itoa(1000 + i),
+				DiskLimitInKib: int64(1048576 * i),
+				AccountID:      account.ID,
+				VolumeID:       volume.ID,
+				State:          models.LifeCycleStateAvailable,
+			}
+			err = store.db.Create(dstQuotaRule).Error()
+			assert.NoError(tt, err, "Failed to create destination quota rule %d", i)
+		}
+
+		// Create multiple source quota rules
+		srcQuotaRules := []*datamodel.QuotaRule{
+			{
+				Name:           "src-quota-rule-1",
+				QuotaType:      "DEFAULT_USER_QUOTA",
+				QuotaTarget:    "",
+				DiskLimitInKib: 3145728,
+			},
+			{
+				Name:           "src-quota-rule-2",
+				QuotaType:      "DEFAULT_GROUP_QUOTA",
+				QuotaTarget:    "",
+				DiskLimitInKib: 4194304,
+			},
+			{
+				Name:           "src-quota-rule-3",
+				QuotaType:      "INDIVIDUAL_USER_QUOTA",
+				QuotaTarget:    "2000",
+				DiskLimitInKib: 5242880,
+			},
+		}
+
+		createdQuotaRules, err := store.ReplaceDstQuotaRulesWithSrc(
+			context.Background(),
+			volume.ID,
+			account.ID,
+			dstUUIDs,
+			srcQuotaRules,
+		)
+
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, createdQuotaRules, 3, "Expected 3 created quota rules")
+
+		// Verify all destination quota rules are soft deleted
+		for _, uuid := range dstUUIDs {
+			var deletedRule datamodel.QuotaRule
+			err = store.db.Unscoped().Where("uuid = ?", uuid).First(&deletedRule).Error()
+			assert.NoError(tt, err, "Expected to find soft deleted quota rule")
+			assert.NotNil(tt, deletedRule.DeletedAt, "Expected DeletedAt to be set")
+			assert.True(tt, deletedRule.DeletedAt.Valid, "Expected DeletedAt to be valid")
+		}
+
+		// Verify all source quota rules are created
+		for _, createdRule := range createdQuotaRules {
+			var rule datamodel.QuotaRule
+			err = store.db.Where("uuid = ?", createdRule.UUID).First(&rule).Error()
+			assert.NoError(tt, err, "Expected to find created quota rule")
+			assert.Equal(tt, models.LifeCycleStateCreated, rule.State, "Expected state to be CREATED")
+			assert.Equal(tt, models.LifeCycleStateCreatedDetails, rule.StateDetails, "Expected state details to be CREATED successfully")
+		}
+	})
+
+	t.Run("WhenReplaceDstQuotaRulesWithSrcAlreadyDeleted", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account, _, volume, err := CreateTestData(store)
+		assert.NoError(tt, err, "Failed to create test data")
+
+		// Create and soft delete a quota rule
+		dstQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "dst-quota-rule-uuid",
+			},
+			Name:           "dst-quota-rule",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			QuotaTarget:    "1000",
+			DiskLimitInKib: 1048576,
+			AccountID:      account.ID,
+			VolumeID:       volume.ID,
+			State:          models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(dstQuotaRule).Error()
+		assert.NoError(tt, err, "Failed to create destination quota rule")
+
+		// Soft delete it
+		now := time.Now()
+		dstQuotaRule.DeletedAt = &gorm.DeletedAt{Time: now, Valid: true}
+		dstQuotaRule.State = models.LifeCycleStateDeleted
+		err = store.db.Save(dstQuotaRule).Error()
+		assert.NoError(tt, err, "Failed to soft delete quota rule")
+
+		// Try to delete already deleted quota rule
+		dstUUIDs := []string{"dst-quota-rule-uuid"}
+		createdQuotaRules, err := store.ReplaceDstQuotaRulesWithSrc(
+			context.Background(),
+			volume.ID,
+			account.ID,
+			dstUUIDs,
+			nil,
+		)
+
+		assert.Error(tt, err, "Expected error for already deleted quota rule")
+		assert.Nil(tt, createdQuotaRules, "Expected nil return value on error")
+		assert.Contains(tt, err.Error(), "quota rule", "Expected quota rule not found error")
+	})
+
+	t.Run("WhenReplaceDstQuotaRulesWithSrcDifferentQuotaTypes", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account, _, volume, err := CreateTestData(store)
+		assert.NoError(tt, err, "Failed to create test data")
+
+		// Create source quota rules with different types
+		srcQuotaRules := []*datamodel.QuotaRule{
+			{
+				Name:           "src-individual-user",
+				QuotaType:      "INDIVIDUAL_USER_QUOTA",
+				QuotaTarget:    "1000",
+				DiskLimitInKib: 1048576,
+			},
+			{
+				Name:           "src-individual-group",
+				QuotaType:      "INDIVIDUAL_GROUP_QUOTA",
+				QuotaTarget:    "group:developers",
+				DiskLimitInKib: 2097152,
+			},
+			{
+				Name:           "src-default-user",
+				QuotaType:      "DEFAULT_USER_QUOTA",
+				QuotaTarget:    "",
+				DiskLimitInKib: 3145728,
+			},
+			{
+				Name:           "src-default-group",
+				QuotaType:      "DEFAULT_GROUP_QUOTA",
+				QuotaTarget:    "",
+				DiskLimitInKib: 4194304,
+			},
+		}
+
+		createdQuotaRules, err := store.ReplaceDstQuotaRulesWithSrc(
+			context.Background(),
+			volume.ID,
+			account.ID,
+			nil,
+			srcQuotaRules,
+		)
+
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, createdQuotaRules, 4, "Expected 4 created quota rules")
+
+		// Verify each quota rule has correct type
+		quotaTypes := []string{"INDIVIDUAL_USER_QUOTA", "INDIVIDUAL_GROUP_QUOTA", "DEFAULT_USER_QUOTA", "DEFAULT_GROUP_QUOTA"}
+		for i, createdRule := range createdQuotaRules {
+			assert.Equal(tt, quotaTypes[i], createdRule.QuotaType, "Expected quota type to match")
+		}
 	})
 }

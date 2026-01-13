@@ -2489,6 +2489,22 @@ func (re *retryEngine) DeleteQuotaRule(ctx context.Context, id string) (*datamod
 	return var0, err
 }
 
+func (re *retryEngine) ReplaceDstQuotaRulesWithSrc(ctx context.Context, volumeID int64, accountID int64, dstQuotaRuleUUIDs []string, srcQuotaRules []*datamodel.QuotaRule) ([]*datamodel.QuotaRule, error) {
+	var var0 []*datamodel.QuotaRule
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ReplaceDstQuotaRulesWithSrc(ctx, volumeID, accountID, dstQuotaRuleUUIDs, srcQuotaRules)
+		if err != nil {
+			re.logError("ReplaceDstQuotaRulesWithSrc", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetMultipleKmsConfigs(ctx context.Context, conditions [][]interface{}) ([]*datamodel.KmsConfig, error) {
 	var var0 []*datamodel.KmsConfig
 	err := retry.Do(func(attempt int) (bool, error) {

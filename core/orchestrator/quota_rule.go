@@ -51,6 +51,8 @@ var (
 	internalUtilGetSignedToken       = auth.GetSignedJwtToken
 	internalUtilGetPairedRegionURI   = utils.GetPairedRegionURI
 	internalParseRegionAndZone       = utils.ParseRegionAndZone
+	convertQuotaRulesV1betaToDM      = _convertQuotaRulesV1betaToDataModel
+	replaceDstQuotaRulesWithSrcFn    = _replaceDstQuotaRulesWithSrc
 )
 
 // isTransitionState checks if state is in a transitioning state
@@ -105,7 +107,7 @@ func validateReplicationState(ctx context.Context, se database.Storage, volume *
 	}
 
 	// If no replications exist, validation passes
-	if replications == nil || len(replications) == 0 {
+	if len(replications) == 0 {
 		return nil
 	}
 
@@ -213,6 +215,86 @@ func validateReplicationState(ctx context.Context, se database.Storage, volume *
 	return nil
 }
 
+// ReplaceDstQuotaRulesWithSrc removes destination quota rules and adds source quota rules within a single transaction.
+func _replaceDstQuotaRulesWithSrc(ctx context.Context, se database.Storage, req *gcpgenserver.UpdateDstWithSrcQuotaRulesV1beta, params gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPParams) ([]*datamodel.QuotaRule, error) {
+	logger := util.GetLogger(ctx)
+
+	// Fetch volume to obtain volume and account IDs
+	volume, err := se.GetVolume(ctx, params.VolumeId)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert destination quota rules to UUIDs array
+	dstQuotaRuleUUIDs := make([]string, 0, len(req.DstQuotaRules))
+	for _, dstRule := range req.DstQuotaRules {
+		if quotaId, hasQuotaId := dstRule.QuotaId.Get(); hasQuotaId {
+			dstQuotaRuleUUIDs = append(dstQuotaRuleUUIDs, quotaId)
+		}
+	}
+
+	// Convert source quota rules to datamodel.QuotaRule array
+	// IMPORTANT: UUIDs will be cleared/generated in ReplaceDstQuotaRulesWithSrc
+	// Destination quota rules should have unique UUIDs, not reuse source UUIDs
+	srcQuotaRules := make([]*datamodel.QuotaRule, 0, len(req.SrcQuotaRules))
+	for _, srcRule := range req.SrcQuotaRules {
+		quotaRule := convertQuotaRulesV1betaToDM(srcRule)
+		// Clear UUID - ReplaceDstQuotaRulesWithSrc will always generate new UUID
+		quotaRule.UUID = ""
+		quotaRule.VolumeID = volume.ID
+		quotaRule.AccountID = volume.AccountID
+		// State will be set to CREATED in ReplaceDstQuotaRulesWithSrc
+		srcQuotaRules = append(srcQuotaRules, quotaRule)
+	}
+
+	createdQuotaRules, err := se.ReplaceDstQuotaRulesWithSrc(ctx, volume.ID, volume.AccountID, dstQuotaRuleUUIDs, srcQuotaRules)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Infof("Successfully synced %d source quota rules and deleted %d destination rules for volume %s", len(srcQuotaRules), len(dstQuotaRuleUUIDs), params.VolumeId)
+	return createdQuotaRules, nil
+}
+
+// _convertQuotaRulesV1betaToDataModel converts gcpgenserver.QuotaRulesV1beta to datamodel.QuotaRule
+func _convertQuotaRulesV1betaToDataModel(clientRule gcpgenserver.QuotaRulesV1beta) *datamodel.QuotaRule {
+	rule := &datamodel.QuotaRule{
+		Name:           clientRule.ResourceId,
+		DiskLimitInKib: clientRule.DiskLimitInMib * mibToKibMultiplier, // Convert MiB to KiB
+	}
+
+	if quotaId, hasQuotaId := clientRule.QuotaId.Get(); hasQuotaId {
+		rule.UUID = quotaId
+	}
+
+	switch clientRule.QuotaType {
+	case gcpgenserver.QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA:
+		rule.QuotaType = IndividualUserQuota
+	case gcpgenserver.QuotaRulesV1betaQuotaTypeINDIVIDUALGROUPQUOTA:
+		rule.QuotaType = IndividualGroupQuota
+	case gcpgenserver.QuotaRulesV1betaQuotaTypeDEFAULTUSERQUOTA:
+		rule.QuotaType = DefaultUserQuota
+	case gcpgenserver.QuotaRulesV1betaQuotaTypeDEFAULTGROUPQUOTA:
+		rule.QuotaType = DefaultGroupQuota
+	default:
+		rule.QuotaType = string(clientRule.QuotaType)
+	}
+
+	if quotaTarget, hasQuotaTarget := clientRule.QuotaTarget.Get(); hasQuotaTarget {
+		rule.QuotaTarget = quotaTarget
+	}
+
+	if state, hasState := clientRule.State.Get(); hasState {
+		rule.State = string(state)
+	}
+
+	if stateDetails, hasStateDetails := clientRule.StateDetails.Get(); hasStateDetails {
+		rule.StateDetails = stateDetails
+	}
+
+	return rule
+}
+
 // CreateQuotaRule creates a new quota rule for a volume
 func (o *Orchestrator) CreateQuotaRule(ctx context.Context, params *common.CreateQuotaRulesParam) (*models.QuotaRule, string, error) {
 	return createQuotaRule(ctx, o.storage, o.temporal, params)
@@ -309,6 +391,12 @@ func (o *Orchestrator) DescribeQuotaRule(ctx context.Context, volumeUuid string,
 
 	modelQuotaRule := convertDatastoreQuotaRuleToModel(dbQuotaRule)
 	return modelQuotaRule, nil
+}
+
+// ReplaceDstQuotaRulesWithSrc replaces destination quota rules with source quota rules via internal API.
+// Returns the created quota rules.
+func (o *Orchestrator) ReplaceDstQuotaRulesWithSrc(ctx context.Context, req *gcpgenserver.UpdateDstWithSrcQuotaRulesV1beta, params gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPParams) ([]*datamodel.QuotaRule, error) {
+	return replaceDstQuotaRulesWithSrcFn(ctx, o.storage, req, params)
 }
 
 func _createQuotaRule(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateQuotaRulesParam) (*models.QuotaRule, string, error) {
@@ -1144,9 +1232,6 @@ func validateVolumeType(ctx context.Context, volumeDataModel *datamodel.Volume, 
 		logger.Errorf("FlexCache volume check failed: quota rule creation is not supported for flexcache volumes")
 		return customerrors.NewNotSupportedErrWithMessage("quota rule creation is not supported for flexcache volume")
 	}
-
-	// TODO : validate onprem volume check
-
 	// Validate volume size: quota rule size cannot exceed volume size
 	diskLimitInBytes := uint64(params.DiskLimitInMib) * mibToBytesMultiplier
 	if uint64(volumeDataModel.SizeInBytes) < diskLimitInBytes {

@@ -54,30 +54,32 @@ type DestinationVolumeParams struct {
 }
 
 type CreateReplicationResult struct {
-	Ctx              context.Context
-	EventBytes       []byte
-	Event            *CreateReplicationEvent
-	DstBasePath      *string
-	SrcBasePath      *string
-	DstProjectNumber *string
-	SrcProjectNumber *string
-	DstJwtToken      *string
-	SrcJwtToken      *string
-	DstReplication   *googleproxyclient.VolumeReplicationInternalV1beta
-	DstVolume        *gcpgenserver.VolumeV1beta
-	SrcVolume        *gcpgenserver.VolumeV1beta
-	DstPool          *googleproxyclient.PoolInternalV1beta
-	SrcIps           []string
-	DstIps           []string
-	Error            error
-	Passphrase       *string
-	ClusterPeerUUID  *string
-	JobId            *string
-	SrcNode          *models.Node
-	SrcSvm           *string
-	DstSvm           *string
-	DbVolReplication *datamodel.VolumeReplication
-	Operation        *common.Operations
+	Ctx                   context.Context
+	EventBytes            []byte
+	Event                 *CreateReplicationEvent
+	DstBasePath           *string
+	SrcBasePath           *string
+	DstProjectNumber      *string
+	SrcProjectNumber      *string
+	DstJwtToken           *string
+	SrcJwtToken           *string
+	DstReplication        *googleproxyclient.VolumeReplicationInternalV1beta
+	DstVolume             *gcpgenserver.VolumeV1beta
+	SrcVolume             *gcpgenserver.VolumeV1beta
+	DstPool               *googleproxyclient.PoolInternalV1beta
+	SrcIps                []string
+	DstIps                []string
+	Error                 error
+	Passphrase            *string
+	ClusterPeerUUID       *string
+	JobId                 *string
+	SrcNode               *models.Node
+	SrcSvm                *string
+	DstSvm                *string
+	DbVolReplication      *datamodel.VolumeReplication
+	Operation             *common.Operations
+	SourceQuotaRules      []*datamodel.QuotaRule `json:"sourceQuotaRules,omitempty"`
+	DestinationQuotaRules []*datamodel.QuotaRule `json:"destinationQuotaRules,omitempty"`
 }
 type StopReplicationResult struct {
 	Ctx                       context.Context

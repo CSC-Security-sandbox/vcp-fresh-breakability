@@ -13775,6 +13775,68 @@ func (_c *MockStorage_Migrate_Call) RunAndReturn(run func(context.Context) error
 	return _c
 }
 
+// ReplaceDstQuotaRulesWithSrc provides a mock function with given fields: ctx, volumeID, accountID, dstQuotaRuleUUIDs, srcQuotaRules
+func (_m *MockStorage) ReplaceDstQuotaRulesWithSrc(ctx context.Context, volumeID int64, accountID int64, dstQuotaRuleUUIDs []string, srcQuotaRules []*datamodel.QuotaRule) ([]*datamodel.QuotaRule, error) {
+	ret := _m.Called(ctx, volumeID, accountID, dstQuotaRuleUUIDs, srcQuotaRules)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReplaceDstQuotaRulesWithSrc")
+	}
+
+	var r0 []*datamodel.QuotaRule
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64, int64, []string, []*datamodel.QuotaRule) ([]*datamodel.QuotaRule, error)); ok {
+		return rf(ctx, volumeID, accountID, dstQuotaRuleUUIDs, srcQuotaRules)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64, int64, []string, []*datamodel.QuotaRule) []*datamodel.QuotaRule); ok {
+		r0 = rf(ctx, volumeID, accountID, dstQuotaRuleUUIDs, srcQuotaRules)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.QuotaRule)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64, int64, []string, []*datamodel.QuotaRule) error); ok {
+		r1 = rf(ctx, volumeID, accountID, dstQuotaRuleUUIDs, srcQuotaRules)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_ReplaceDstQuotaRulesWithSrc_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReplaceDstQuotaRulesWithSrc'
+type MockStorage_ReplaceDstQuotaRulesWithSrc_Call struct {
+	*mock.Call
+}
+
+// ReplaceDstQuotaRulesWithSrc is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeID int64
+//   - accountID int64
+//   - dstQuotaRuleUUIDs []string
+//   - srcQuotaRules []*datamodel.QuotaRule
+func (_e *MockStorage_Expecter) ReplaceDstQuotaRulesWithSrc(ctx interface{}, volumeID interface{}, accountID interface{}, dstQuotaRuleUUIDs interface{}, srcQuotaRules interface{}) *MockStorage_ReplaceDstQuotaRulesWithSrc_Call {
+	return &MockStorage_ReplaceDstQuotaRulesWithSrc_Call{Call: _e.mock.On("ReplaceDstQuotaRulesWithSrc", ctx, volumeID, accountID, dstQuotaRuleUUIDs, srcQuotaRules)}
+}
+
+func (_c *MockStorage_ReplaceDstQuotaRulesWithSrc_Call) Run(run func(ctx context.Context, volumeID int64, accountID int64, dstQuotaRuleUUIDs []string, srcQuotaRules []*datamodel.QuotaRule)) *MockStorage_ReplaceDstQuotaRulesWithSrc_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64), args[2].(int64), args[3].([]string), args[4].([]*datamodel.QuotaRule))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ReplaceDstQuotaRulesWithSrc_Call) Return(_a0 []*datamodel.QuotaRule, _a1 error) *MockStorage_ReplaceDstQuotaRulesWithSrc_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ReplaceDstQuotaRulesWithSrc_Call) RunAndReturn(run func(context.Context, int64, int64, []string, []*datamodel.QuotaRule) ([]*datamodel.QuotaRule, error)) *MockStorage_ReplaceDstQuotaRulesWithSrc_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RevertedVolume provides a mock function with given fields: ctx, volume, snapshot
 func (_m *MockStorage) RevertedVolume(ctx context.Context, volume *datamodel.Volume, snapshot *datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
 	ret := _m.Called(ctx, volume, snapshot)

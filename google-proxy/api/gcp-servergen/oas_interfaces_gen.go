@@ -449,6 +449,10 @@ type V1betaUpdateBackupVaultRes interface {
 	v1betaUpdateBackupVaultRes()
 }
 
+type V1betaUpdateDestinationQuotaRulesVCPRes interface {
+	v1betaUpdateDestinationQuotaRulesVCPRes()
+}
+
 type V1betaUpdateHostGroupRes interface {
 	v1betaUpdateHostGroupRes()
 }

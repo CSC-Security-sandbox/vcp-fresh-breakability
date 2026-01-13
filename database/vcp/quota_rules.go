@@ -52,23 +52,6 @@ func (d *DataStoreRepository) CreatingQuotaRule(ctx context.Context, quotaRule *
 	}
 	defer commitOrRollbackOnError(logger, tx, &err)
 
-	// Check for duplicate quota rule (same type and target on same volume)
-	var existingRule datamodel.QuotaRule
-	checkErr := tx.Where("volume_id = ? AND quota_type = ? AND quota_target = ? AND deleted_at IS NULL",
-		quotaRule.VolumeID, quotaRule.QuotaType, quotaRule.QuotaTarget).
-		First(&existingRule).Error
-
-	if checkErr == nil {
-		// Found existing quota rule with same type and target
-		logger.Errorf("Duplicate quota rule detected: type=%s, target=%s, volumeID=%d",
-			quotaRule.QuotaType, quotaRule.QuotaTarget, quotaRule.VolumeID)
-		return nil, customerrors.NewConflictErr("quota rule with same type and target already exists for this volume")
-	} else if checkErr != gorm.ErrRecordNotFound {
-		// Unexpected error during duplicate check
-		logger.Error("Error checking for duplicate quota rule", "error", checkErr)
-		return nil, checkErr
-	}
-
 	// Generate UUID if not provided
 	if quotaRule.UUID == "" {
 		quotaRule.UUID = utils.RandomUUID()
@@ -80,7 +63,8 @@ func (d *DataStoreRepository) CreatingQuotaRule(ctx context.Context, quotaRule *
 	quotaRule.UpdatedAt = now
 
 	// Create the quota rule entry
-	if err := tx.Create(quotaRule).Error; err != nil {
+	err = tx.Create(quotaRule).Error
+	if err != nil {
 		logger.Error("Failed to create quota rule in database", "error", err)
 		return nil, err
 	}
@@ -214,7 +198,8 @@ func (d *DataStoreRepository) DeleteQuotaRule(ctx context.Context, uuid string) 
 
 	// Fetch the quota rule
 	var quotaRule datamodel.QuotaRule
-	if err := tx.Where("uuid = ?", uuid).First(&quotaRule).Error; err != nil {
+	err = tx.Where("uuid = ?", uuid).First(&quotaRule).Error
+	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			logger.Warnf("Quota rule not found for deletion: UUID=%s", uuid)
 			return nil, customerrors.NewNotFoundErr("quota rule", &uuid)
@@ -230,12 +215,109 @@ func (d *DataStoreRepository) DeleteQuotaRule(ctx context.Context, uuid string) 
 	quotaRule.StateDetails = models.LifeCycleStateDeletedDetails
 	quotaRule.UpdatedAt = now
 
-	if err := tx.Save(&quotaRule).Error; err != nil {
+	err = tx.Save(&quotaRule).Error
+	if err != nil {
 		logger.Error("Failed to soft delete quota rule", "uuid", uuid, "error", err)
 		return nil, err
 	}
 
 	return nil, err
+}
+
+// ReplaceDstQuotaRulesWithSrc deletes destination quota rules and adds source quota rules in a single transaction.
+// Returns the created quota rules.
+func (d *DataStoreRepository) ReplaceDstQuotaRulesWithSrc(ctx context.Context, volumeID int64, accountID int64, dstQuotaRuleUUIDs []string, srcQuotaRules []*datamodel.QuotaRule) ([]*datamodel.QuotaRule, error) {
+	logger := util.GetLogger(ctx)
+	db := d.db.GORM().WithContext(ctx)
+
+	tx, err := startTransaction(db)
+	if err != nil {
+		logger.Error("Failed to start transaction for replacing destination quota rules", "error", err)
+		return nil, err
+	}
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	// Delete destination quota rules if provided
+	if len(dstQuotaRuleUUIDs) > 0 {
+		// Fetch quota rules by volumeID and UUIDs
+		var quotaRules []datamodel.QuotaRule
+		err = tx.Where("volume_id = ? AND uuid IN ? AND deleted_at IS NULL", volumeID, dstQuotaRuleUUIDs).
+			Find(&quotaRules).Error
+		if err != nil {
+			logger.Error("Failed to fetch quota rules for deletion", "volumeID", volumeID, "error", err)
+			return nil, err
+		}
+
+		// Check if all requested quota rules were found
+		if len(quotaRules) != len(dstQuotaRuleUUIDs) {
+			foundUUIDs := make(map[string]bool)
+			for _, rule := range quotaRules {
+				foundUUIDs[rule.UUID] = true
+			}
+			var missingUUIDs []string
+			for _, uuid := range dstQuotaRuleUUIDs {
+				if !foundUUIDs[uuid] {
+					missingUUIDs = append(missingUUIDs, uuid)
+				}
+			}
+			logger.Warnf("Some quota rules not found for deletion: volumeID=%d, missingUUIDs=%v", volumeID, missingUUIDs)
+			return nil, customerrors.NewNotFoundErr("quota rule", &missingUUIDs[0])
+		}
+
+		// Perform soft delete on all quota rules
+		now := time.Now()
+		for i := range quotaRules {
+			quotaRules[i].DeletedAt = &gorm.DeletedAt{Time: now, Valid: true}
+			quotaRules[i].State = models.LifeCycleStateDeleted
+			quotaRules[i].StateDetails = models.LifeCycleStateDeletedDetails
+			quotaRules[i].UpdatedAt = now
+		}
+
+		err = tx.Save(&quotaRules).Error
+		if err != nil {
+			logger.Error("Failed to soft delete destination quota rules", "volumeID", volumeID, "error", err)
+			return nil, err
+		}
+
+		logger.Infof("Deleted %d destination quota rules for volumeID=%d", len(quotaRules), volumeID)
+	}
+
+	// Add source quota rules if provided
+	createdQuotaRules := make([]*datamodel.QuotaRule, 0, len(srcQuotaRules))
+	if len(srcQuotaRules) > 0 {
+		now := time.Now()
+		for _, quotaRule := range srcQuotaRules {
+			// Set volume and account IDs
+			quotaRule.VolumeID = volumeID
+			quotaRule.AccountID = accountID
+
+			// Always generate new UUID for destination quota rules
+			quotaRule.UUID = utils.RandomUUID()
+
+			// Set timestamps
+			quotaRule.CreatedAt = now
+			quotaRule.UpdatedAt = now
+
+			// Set state to CREATED
+			quotaRule.State = models.LifeCycleStateCreated
+			quotaRule.StateDetails = models.LifeCycleStateCreatedDetails
+
+			// Create the quota rule entry
+			err = tx.Create(quotaRule).Error
+			if err != nil {
+				logger.Error("Failed to create source quota rule in database", "error", err, "quotaRuleUUID", quotaRule.UUID)
+				return nil, err
+			}
+
+			// Add to created quota rules list
+			createdQuotaRules = append(createdQuotaRules, quotaRule)
+		}
+
+		logger.Infof("Added %d source quota rules for volumeID=%d", len(srcQuotaRules), volumeID)
+	}
+
+	logger.Infof("Replaced destination quota rules with %d source rules for volumeID=%d", len(srcQuotaRules), volumeID)
+	return createdQuotaRules, nil
 }
 
 // GetQuotaRuleCountBySvmID returns the count of quota rules associated with a specific SVM

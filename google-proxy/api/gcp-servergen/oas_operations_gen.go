@@ -118,6 +118,7 @@ const (
 	V1betaUpdateBackupOperation                              OperationName = "V1betaUpdateBackup"
 	V1betaUpdateBackupPolicyOperation                        OperationName = "V1betaUpdateBackupPolicy"
 	V1betaUpdateBackupVaultOperation                         OperationName = "V1betaUpdateBackupVault"
+	V1betaUpdateDestinationQuotaRulesVCPOperation            OperationName = "V1betaUpdateDestinationQuotaRulesVCP"
 	V1betaUpdateHostGroupOperation                           OperationName = "V1betaUpdateHostGroup"
 	V1betaUpdateKmsConfigurationOperation                    OperationName = "V1betaUpdateKmsConfiguration"
 	V1betaUpdatePoolOperation                                OperationName = "V1betaUpdatePool"

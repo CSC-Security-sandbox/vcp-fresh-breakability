@@ -63,6 +63,40 @@ func convertToVCPQuotaRulesV1Beta(quotaRules []*models.QuotaRule) []gcpgenserver
 	return quotaRulesV1Beta
 }
 
+// convertDatastoreQuotaRuleToModel converts a datamodel.QuotaRule to models.QuotaRule
+func convertDatastoreQuotaRuleToModel(quotaRule *datamodel.QuotaRule) *models.QuotaRule {
+	if quotaRule == nil {
+		return nil
+	}
+
+	// Convert disk limit from KiB (database storage) back to MiB (API response)
+	const kibToMibDivisor = 1024
+	diskLimitInMib := quotaRule.DiskLimitInKib / kibToMibDivisor
+
+	// Helper function to convert DeletedAt
+	var deletedAt *time.Time
+	if quotaRule.DeletedAt != nil && quotaRule.DeletedAt.Valid {
+		deletedAt = &quotaRule.DeletedAt.Time
+	}
+
+	result := &models.QuotaRule{
+		BaseModel: models.BaseModel{
+			UUID:      quotaRule.UUID,
+			CreatedAt: quotaRule.CreatedAt,
+			UpdatedAt: quotaRule.UpdatedAt,
+			DeletedAt: deletedAt,
+		},
+		Name:                  quotaRule.Name,
+		Description:           quotaRule.Description,
+		LifeCycleState:        quotaRule.State,
+		LifeCycleStateDetails: quotaRule.StateDetails,
+		QuotaType:             quotaRule.QuotaType,
+		QuotaTarget:           quotaRule.QuotaTarget,
+		DiskLimitInMib:        diskLimitInMib,
+	}
+	return result
+}
+
 // QuotaRuleQuotaTypeV1Beta converts a quota type string to gcpgenserver.QuotaRulesV1betaQuotaType
 func QuotaRuleQuotaTypeV1Beta(quotaType string) gcpgenserver.QuotaRulesV1betaQuotaType {
 	switch quotaType {
@@ -748,4 +782,57 @@ func (h Handler) V1betaDescribeQuotaRule(ctx context.Context, params gcpgenserve
 	}
 
 	return convertQuotaRuleToV1beta(quotaRule), nil
+}
+
+// V1betaUpdateDestinationQuotaRulesVCP is a handler for updating destination quota rules with source quota rules via internal VCP API
+func (h Handler) V1betaUpdateDestinationQuotaRulesVCP(ctx context.Context, req *gcpgenserver.UpdateDstWithSrcQuotaRulesV1beta, params gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPParams) (gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	// Validate locationId
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPBadRequest{
+			Code:    400,
+			Message: parsingErr.GetMessage(),
+		}, nil
+	}
+
+	// Replace destination quota rules with source quota rules via orchestrator (handles transaction)
+	createdQuotaRules, err := h.Orchestrator.ReplaceDstQuotaRulesWithSrc(ctx, req, params)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPNotFound{
+				Code:    404,
+				Message: err.Error(),
+			}, nil
+		}
+		if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPUnprocessableEntity{
+				Code:    422,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Errorf("Failed to replace destination quota rules: %v", err)
+		return &gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPInternalServerError{
+			Code:    500,
+			Message: "Internal server error",
+		}, err
+	}
+
+	// Convert datamodel.QuotaRule to models.QuotaRule, then to API response format
+	quotaRulesV1Beta := make([]gcpgenserver.QuotaRulesV1beta, 0, len(createdQuotaRules))
+	for _, quotaRule := range createdQuotaRules {
+		// Convert datamodel.QuotaRule to models.QuotaRule
+		modelsQuotaRule := convertDatastoreQuotaRuleToModel(quotaRule)
+		// Convert models.QuotaRule to API response format
+		apiQuotaRule := convertQuotaRuleToV1beta(modelsQuotaRule)
+		quotaRulesV1Beta = append(quotaRulesV1Beta, *apiQuotaRule)
+	}
+
+	// Return success response with quota rules
+	return &gcpgenserver.UpdateDestinationQuotaRulesResponseV1beta{
+		State:      gcpgenserver.NewOptString("SUCCESS"),
+		QuotaRules: quotaRulesV1Beta,
+	}, nil
 }

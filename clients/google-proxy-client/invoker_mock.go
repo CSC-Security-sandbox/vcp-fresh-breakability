@@ -6680,6 +6680,66 @@ func (_c *MockInvoker_V1betaUpdateBackupVault_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// V1betaUpdateDestinationQuotaRulesVCP provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1betaUpdateDestinationQuotaRulesVCP(ctx context.Context, request *UpdateDstWithSrcQuotaRulesV1beta, params V1betaUpdateDestinationQuotaRulesVCPParams) (V1betaUpdateDestinationQuotaRulesVCPRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaUpdateDestinationQuotaRulesVCP")
+	}
+
+	var r0 V1betaUpdateDestinationQuotaRulesVCPRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *UpdateDstWithSrcQuotaRulesV1beta, V1betaUpdateDestinationQuotaRulesVCPParams) (V1betaUpdateDestinationQuotaRulesVCPRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *UpdateDstWithSrcQuotaRulesV1beta, V1betaUpdateDestinationQuotaRulesVCPParams) V1betaUpdateDestinationQuotaRulesVCPRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaUpdateDestinationQuotaRulesVCPRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *UpdateDstWithSrcQuotaRulesV1beta, V1betaUpdateDestinationQuotaRulesVCPParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaUpdateDestinationQuotaRulesVCP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaUpdateDestinationQuotaRulesVCP'
+type MockInvoker_V1betaUpdateDestinationQuotaRulesVCP_Call struct {
+	*mock.Call
+}
+
+// V1betaUpdateDestinationQuotaRulesVCP is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *UpdateDstWithSrcQuotaRulesV1beta
+//   - params V1betaUpdateDestinationQuotaRulesVCPParams
+func (_e *MockInvoker_Expecter) V1betaUpdateDestinationQuotaRulesVCP(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1betaUpdateDestinationQuotaRulesVCP_Call {
+	return &MockInvoker_V1betaUpdateDestinationQuotaRulesVCP_Call{Call: _e.mock.On("V1betaUpdateDestinationQuotaRulesVCP", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1betaUpdateDestinationQuotaRulesVCP_Call) Run(run func(ctx context.Context, request *UpdateDstWithSrcQuotaRulesV1beta, params V1betaUpdateDestinationQuotaRulesVCPParams)) *MockInvoker_V1betaUpdateDestinationQuotaRulesVCP_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*UpdateDstWithSrcQuotaRulesV1beta), args[2].(V1betaUpdateDestinationQuotaRulesVCPParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaUpdateDestinationQuotaRulesVCP_Call) Return(_a0 V1betaUpdateDestinationQuotaRulesVCPRes, _a1 error) *MockInvoker_V1betaUpdateDestinationQuotaRulesVCP_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaUpdateDestinationQuotaRulesVCP_Call) RunAndReturn(run func(context.Context, *UpdateDstWithSrcQuotaRulesV1beta, V1betaUpdateDestinationQuotaRulesVCPParams) (V1betaUpdateDestinationQuotaRulesVCPRes, error)) *MockInvoker_V1betaUpdateDestinationQuotaRulesVCP_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaUpdateHostGroup provides a mock function with given fields: ctx, request, params
 func (_m *MockInvoker) V1betaUpdateHostGroup(ctx context.Context, request *HostGroupUpdateV1beta, params V1betaUpdateHostGroupParams) (V1betaUpdateHostGroupRes, error) {
 	ret := _m.Called(ctx, request, params)

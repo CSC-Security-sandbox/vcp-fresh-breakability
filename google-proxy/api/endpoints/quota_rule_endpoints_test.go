@@ -21,6 +21,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"gorm.io/gorm"
 )
 
 func TestV1betaCreateQuotaRule(t *testing.T) {
@@ -1351,7 +1352,7 @@ func TestConvertToVCPQuotaRulesV1Beta(t *testing.T) {
 				QuotaType:             "INDIVIDUAL_USER_QUOTA",
 				DiskLimitInMib:        1024,
 				QuotaTarget:           "user:alice",
-				LifeCycleState:        models.LifeCycleStateAvailable,
+				LifeCycleState:        models.LifeCycleStateREADY,
 				LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
 			},
 			{
@@ -3011,5 +3012,399 @@ func Test_getMultipleQuotaRulesFromCVP(t *testing.T) {
 		assert.Len(tt, ok.QuotaRules, 2)
 		assert.Equal(tt, "cvp-quota-id-1", ok.QuotaRules[0].QuotaId.Value)
 		assert.Equal(tt, "cvp-quota-id-2", ok.QuotaRules[1].QuotaId.Value)
+	})
+}
+
+// TestConvertDatastoreQuotaRuleToModel tests the convertDatastoreQuotaRuleToModel function
+func TestConvertDatastoreQuotaRuleToModel(t *testing.T) {
+	t.Run("WhenQuotaRuleIsNil", func(tt *testing.T) {
+		result := convertDatastoreQuotaRuleToModel(nil)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("WhenQuotaRuleHasAllFields", func(tt *testing.T) {
+		deletedAtTime := time.Now()
+		deletedAt := gorm.DeletedAt{
+			Time:  deletedAtTime,
+			Valid: true,
+		}
+		quotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				ID:        1,
+				UUID:      "quota-uuid-1",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				DeletedAt: &deletedAt,
+			},
+			Name:           "quota-rule-1",
+			Description:    "Test description",
+			State:          models.LifeCycleStateREADY,
+			StateDetails:   "Ready state",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			QuotaTarget:    "user:alice",
+			DiskLimitInKib: 1024 * 100, // 100 MiB in KiB
+		}
+
+		result := convertDatastoreQuotaRuleToModel(quotaRule)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "quota-uuid-1", result.UUID)
+		assert.Equal(tt, "quota-rule-1", result.Name)
+		assert.Equal(tt, "Test description", result.Description)
+		assert.Equal(tt, models.LifeCycleStateREADY, result.LifeCycleState)
+		assert.Equal(tt, "Ready state", result.LifeCycleStateDetails)
+		assert.Equal(tt, "INDIVIDUAL_USER_QUOTA", result.QuotaType)
+		assert.Equal(tt, "user:alice", result.QuotaTarget)
+		assert.Equal(tt, int64(100), result.DiskLimitInMib)
+		assert.NotNil(tt, result.DeletedAt)
+		assert.Equal(tt, deletedAtTime, *result.DeletedAt)
+	})
+
+	t.Run("WhenQuotaRuleHasNoDeletedAt", func(tt *testing.T) {
+		quotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				ID:        1,
+				UUID:      "quota-uuid-2",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				DeletedAt: nil,
+			},
+			Name:           "quota-rule-2",
+			State:          models.LifeCycleStateCreating,
+			QuotaType:      "DEFAULT_USER_QUOTA",
+			DiskLimitInKib: 200 * 1024, // 200 MiB in KiB
+		}
+
+		result := convertDatastoreQuotaRuleToModel(quotaRule)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "quota-uuid-2", result.UUID)
+		assert.Equal(tt, "quota-rule-2", result.Name)
+		assert.Equal(tt, int64(200), result.DiskLimitInMib)
+		assert.Nil(tt, result.DeletedAt)
+	})
+
+	t.Run("WhenQuotaRuleDeletedAtIsNotValid", func(tt *testing.T) {
+		deletedAt := gorm.DeletedAt{
+			Time:  time.Now(),
+			Valid: false, // Not valid
+		}
+		quotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				ID:        1,
+				UUID:      "quota-uuid-3",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				DeletedAt: &deletedAt,
+			},
+			Name:           "quota-rule-3",
+			State:          models.LifeCycleStateAvailable,
+			QuotaType:      "DEFAULT_GROUP_QUOTA",
+			DiskLimitInKib: 300 * 1024, // 300 MiB in KiB
+		}
+
+		result := convertDatastoreQuotaRuleToModel(quotaRule)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "quota-uuid-3", result.UUID)
+		assert.Equal(tt, int64(300), result.DiskLimitInMib)
+		assert.Nil(tt, result.DeletedAt) // Should be nil when Valid is false
+	})
+}
+
+// TestV1betaUpdateDestinationQuotaRulesVCP tests the V1betaUpdateDestinationQuotaRulesVCP handler
+func TestV1betaUpdateDestinationQuotaRulesVCP(t *testing.T) {
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			VolumeId:      "vol-1",
+		}
+
+		srcQuotaRule := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-1",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+			DiskLimitInMib: 100,
+			QuotaTarget:    gcpgenserver.NewOptString("user:alice"),
+			QuotaId:        gcpgenserver.NewOptString("quota-uuid-1"),
+		}
+
+		dstQuotaRule := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-2",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeDEFAULTUSERQUOTA,
+			DiskLimitInMib: 200,
+			QuotaId:        gcpgenserver.NewOptString("quota-uuid-2"),
+		}
+
+		req := &gcpgenserver.UpdateDstWithSrcQuotaRulesV1beta{
+			SrcQuotaRules: []gcpgenserver.QuotaRulesV1beta{srcQuotaRule},
+			DstQuotaRules: []gcpgenserver.QuotaRulesV1beta{dstQuotaRule},
+		}
+
+		createdQuotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        1,
+					UUID:      "quota-uuid-1",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				Name:           "quota-rule-1",
+				Description:    "Test description",
+				State:          models.LifeCycleStateREADY,
+				StateDetails:   "Ready state",
+				QuotaType:      "INDIVIDUAL_USER_QUOTA",
+				QuotaTarget:    "user:alice",
+				DiskLimitInKib: 100 * 1024,
+			},
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrch.EXPECT().ReplaceDstQuotaRulesWithSrc(mock.Anything, req, params).
+			Return(createdQuotaRules, nil)
+
+		ctx := context.Background()
+		res, err := handler.V1betaUpdateDestinationQuotaRulesVCP(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		ok, okType := res.(*gcpgenserver.UpdateDestinationQuotaRulesResponseV1beta)
+		assert.True(tt, okType)
+		assert.True(tt, ok.State.IsSet())
+		assert.Equal(tt, "SUCCESS", ok.State.Value)
+		assert.Len(tt, ok.QuotaRules, 1)
+		assert.Equal(tt, "quota-uuid-1", ok.QuotaRules[0].QuotaId.Value)
+	})
+
+	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPParams{
+			ProjectNumber: "project-1",
+			LocationId:    "invalid-location",
+			VolumeId:      "vol-1",
+		}
+
+		req := &gcpgenserver.UpdateDstWithSrcQuotaRulesV1beta{
+			SrcQuotaRules: []gcpgenserver.QuotaRulesV1beta{},
+			DstQuotaRules: []gcpgenserver.QuotaRulesV1beta{},
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "", "", &gcpgenserver.Error{
+				Code:    400,
+				Message: "Invalid location",
+			}
+		}
+
+		ctx := context.Background()
+		res, err := handler.V1betaUpdateDestinationQuotaRulesVCP(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		badRequest, okType := res.(*gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPBadRequest)
+		assert.True(tt, okType)
+		assert.Equal(tt, float64(400), badRequest.Code)
+		assert.Equal(tt, "Invalid location", badRequest.Message)
+	})
+
+	t.Run("WhenOrchestratorReturnsNotFoundError", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			VolumeId:      "vol-1",
+		}
+
+		req := &gcpgenserver.UpdateDstWithSrcQuotaRulesV1beta{
+			SrcQuotaRules: []gcpgenserver.QuotaRulesV1beta{},
+			DstQuotaRules: []gcpgenserver.QuotaRulesV1beta{},
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrch.EXPECT().ReplaceDstQuotaRulesWithSrc(mock.Anything, req, params).
+			Return(nil, errors.NewNotFoundErr("Volume", nillable.ToPointer("vol-1")))
+
+		ctx := context.Background()
+		res, err := handler.V1betaUpdateDestinationQuotaRulesVCP(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		notFound, okType := res.(*gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPNotFound)
+		assert.True(tt, okType)
+		assert.Equal(tt, float64(404), notFound.Code)
+		assert.Contains(tt, notFound.Message, "Volume")
+	})
+
+	t.Run("WhenOrchestratorReturnsConflictError", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			VolumeId:      "vol-1",
+		}
+
+		req := &gcpgenserver.UpdateDstWithSrcQuotaRulesV1beta{
+			SrcQuotaRules: []gcpgenserver.QuotaRulesV1beta{},
+			DstQuotaRules: []gcpgenserver.QuotaRulesV1beta{},
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrch.EXPECT().ReplaceDstQuotaRulesWithSrc(mock.Anything, req, params).
+			Return(nil, errors.NewConflictErr("Quota rule conflict"))
+
+		ctx := context.Background()
+		res, err := handler.V1betaUpdateDestinationQuotaRulesVCP(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		unprocessable, okType := res.(*gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPUnprocessableEntity)
+		assert.True(tt, okType)
+		assert.Equal(tt, float64(422), unprocessable.Code)
+		assert.Contains(tt, unprocessable.Message, "Quota rule conflict")
+	})
+
+	t.Run("WhenOrchestratorReturnsInternalError", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			VolumeId:      "vol-1",
+		}
+
+		req := &gcpgenserver.UpdateDstWithSrcQuotaRulesV1beta{
+			SrcQuotaRules: []gcpgenserver.QuotaRulesV1beta{},
+			DstQuotaRules: []gcpgenserver.QuotaRulesV1beta{},
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrch.EXPECT().ReplaceDstQuotaRulesWithSrc(mock.Anything, req, params).
+			Return(nil, errors.New("database connection failed"))
+
+		ctx := context.Background()
+		res, err := handler.V1betaUpdateDestinationQuotaRulesVCP(ctx, req, params)
+
+		assert.Error(tt, err)
+		assert.NotNil(tt, res)
+		internalError, okType := res.(*gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPInternalServerError)
+		assert.True(tt, okType)
+		assert.Equal(tt, float64(500), internalError.Code)
+		assert.Equal(tt, "Internal server error", internalError.Message)
+	})
+
+	t.Run("WhenMultipleQuotaRulesAreCreated", func(tt *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			VolumeId:      "vol-1",
+		}
+
+		srcQuotaRule1 := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-1",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+			DiskLimitInMib: 100,
+			QuotaId:        gcpgenserver.NewOptString("quota-uuid-1"),
+		}
+
+		srcQuotaRule2 := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-2",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeDEFAULTUSERQUOTA,
+			DiskLimitInMib: 200,
+			QuotaId:        gcpgenserver.NewOptString("quota-uuid-2"),
+		}
+
+		req := &gcpgenserver.UpdateDstWithSrcQuotaRulesV1beta{
+			SrcQuotaRules: []gcpgenserver.QuotaRulesV1beta{srcQuotaRule1, srcQuotaRule2},
+			DstQuotaRules: []gcpgenserver.QuotaRulesV1beta{},
+		}
+
+		createdQuotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        1,
+					UUID:      "quota-uuid-1",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				Name:           "quota-rule-1",
+				State:          models.LifeCycleStateREADY,
+				QuotaType:      "INDIVIDUAL_USER_QUOTA",
+				DiskLimitInKib: 100 * 1024,
+			},
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        2,
+					UUID:      "quota-uuid-2",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				Name:           "quota-rule-2",
+				State:          models.LifeCycleStateREADY,
+				QuotaType:      "DEFAULT_USER_QUOTA",
+				DiskLimitInKib: 200 * 1024,
+			},
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrch.EXPECT().ReplaceDstQuotaRulesWithSrc(mock.Anything, req, params).
+			Return(createdQuotaRules, nil)
+
+		ctx := context.Background()
+		res, err := handler.V1betaUpdateDestinationQuotaRulesVCP(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		ok, okType := res.(*gcpgenserver.UpdateDestinationQuotaRulesResponseV1beta)
+		assert.True(tt, okType)
+		assert.Equal(tt, "SUCCESS", ok.State.Value)
+		assert.Len(tt, ok.QuotaRules, 2)
+		assert.Equal(tt, "quota-uuid-1", ok.QuotaRules[0].QuotaId.Value)
+		assert.Equal(tt, "quota-uuid-2", ok.QuotaRules[1].QuotaId.Value)
 	})
 }

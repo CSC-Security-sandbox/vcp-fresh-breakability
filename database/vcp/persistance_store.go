@@ -1562,3 +1562,7 @@ func (s *PersistenceStore) DeleteExpertModeVolume(ctx context.Context, volumeUUI
 func (s *PersistenceStore) GetVolumeByJunctionPath(ctx context.Context, junctionPath string, accountID int64, poolId int64) (*datamodel.Volume, error) {
 	return s.dataStore.GetVolumeByJunctionPath(ctx, junctionPath, accountID, poolId)
 }
+
+func (s *PersistenceStore) ReplaceDstQuotaRulesWithSrc(ctx context.Context, volumeID int64, accountID int64, dstQuotaRuleUUIDs []string, srcQuotaRules []*datamodel.QuotaRule) ([]*datamodel.QuotaRule, error) {
+	return s.dataStore.ReplaceDstQuotaRulesWithSrc(ctx, volumeID, accountID, dstQuotaRuleUUIDs, srcQuotaRules)
+}

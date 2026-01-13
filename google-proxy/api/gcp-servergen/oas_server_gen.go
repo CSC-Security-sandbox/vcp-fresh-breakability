@@ -709,6 +709,12 @@ type Handler interface {
 	//
 	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}
 	V1betaUpdateBackupVault(ctx context.Context, req *BackupVaultUpdateV1beta, params V1betaUpdateBackupVaultParams) (V1betaUpdateBackupVaultRes, error)
+	// V1betaUpdateDestinationQuotaRulesVCP implements v1beta_updateDestinationQuotaRulesVCP operation.
+	//
+	// Update destination quota rules with source quota rules.
+	//
+	// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRule
+	V1betaUpdateDestinationQuotaRulesVCP(ctx context.Context, req *UpdateDstWithSrcQuotaRulesV1beta, params V1betaUpdateDestinationQuotaRulesVCPParams) (V1betaUpdateDestinationQuotaRulesVCPRes, error)
 	// V1betaUpdateHostGroup implements v1beta_updateHostGroup operation.
 	//
 	// Update the specified HostGroup.

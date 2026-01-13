@@ -6752,7 +6752,7 @@ paths:
           $ref: '#/components/responses/StandardError-500'
         default:
           description: Unexpected error
-          content:
+          CONTENT:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
@@ -7327,6 +7327,68 @@ paths:
           $ref: '#/components/responses/StandardError-500'
         '503':
           $ref: '#/components/responses/StandardError-503'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+    put:
+      operationId: v1beta_updateDestinationQuotaRulesVCP
+      summary: Update destination quota rules with source quota rules
+      description: Update destination quota rules with source quota rules
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to replace destination with source quota rules.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDstWithSrcQuotaRules_v1beta'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateDestinationQuotaRulesResponse_v1beta'
+              examples:
+                success:
+                  summary: Success response
+                  value:
+                    state: "SUCCESS"
+                    quotaRules:
+                      - quotaId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                        resourceId: quotarule1
+                        quotaType: INDIVIDUAL_USER_QUOTA
+                        quotaTarget: "1001"
+                        diskLimitInMib: 1024
+                        state: CREATING
+                        stateDetails: Creation in progress
+                        createdAt: "2016-11-30T20:32:50.459Z"
+                        updatedAt: "2016-11-29T20:32:50.459Z"
+                        description: My quota Rules description
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
         default:
           description: Unexpected error
           content:
@@ -13847,6 +13909,39 @@ components:
               readOnly: true
               items:
                 $ref: '#/components/schemas/Job_v1beta'
+    UpdateDstWithSrcQuotaRules_v1beta:
+      title: UpdateDstQuotaRulesWithSrc
+      type: object
+      description: Update the destination volume's quota rules with the source volume's quota rules
+      required:
+        - srcQuotaRules
+        - dstQuotaRules
+      properties:
+        srcQuotaRules:
+          title: srcQuotaRules
+          type: array
+          items:
+            $ref: '#/components/schemas/QuotaRules_v1beta'
+        dstQuotaRules:
+          title: dstQuotaRules
+          type: array
+          items:
+            $ref: '#/components/schemas/QuotaRules_v1beta'
+    UpdateDestinationQuotaRulesResponse_v1beta:
+      title: UpdateDestinationQuotaRuleResponse
+      type: object
+      description: Update destination quota rules response
+      properties:
+        state:
+          type: string
+          description: State message can be success or failure
+          example: "SUCCESS"
+        quotaRules:
+          title: quotaRules
+          type: array
+          description: Array of quota rules that were updated/created
+          items:
+            $ref: '#/components/schemas/QuotaRules_v1beta'
     CloneDetails_v1beta:
       title: Clone Parent Info
       type: object

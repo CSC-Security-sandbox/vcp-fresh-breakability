@@ -888,8 +888,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 														args[1],
 														args[2],
 													}, elemIsEscaped, w, r)
+												case "PUT":
+													s.handleV1betaUpdateDestinationQuotaRulesVCPRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
 												default:
-													s.notAllowed(w, r, "POST")
+													s.notAllowed(w, r, "POST,PUT")
 												}
 
 												return
@@ -3767,6 +3773,14 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 													r.name = V1betaCreateQuotaRuleVCPOperation
 													r.summary = "Create a quota rule for a volume (Internal VCP API)"
 													r.operationID = "v1beta_createQuotaRuleVCP"
+													r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRule"
+													r.args = args
+													r.count = 3
+													return r, true
+												case "PUT":
+													r.name = V1betaUpdateDestinationQuotaRulesVCPOperation
+													r.summary = "Update destination quota rules with source quota rules"
+													r.operationID = "v1beta_updateDestinationQuotaRulesVCP"
 													r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/quotaRule"
 													r.args = args
 													r.count = 3

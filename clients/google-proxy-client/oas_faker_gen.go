@@ -5626,6 +5626,55 @@ func (s *TransferStatsV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *UpdateDestinationQuotaRulesResponseV1beta) SetFake() {
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.QuotaRules = nil
+			for i := 0; i < 0; i++ {
+				var elem QuotaRulesV1beta
+				{
+					elem.SetFake()
+				}
+				s.QuotaRules = append(s.QuotaRules, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *UpdateDstWithSrcQuotaRulesV1beta) SetFake() {
+	{
+		{
+			s.SrcQuotaRules = nil
+			for i := 0; i < 0; i++ {
+				var elem QuotaRulesV1beta
+				{
+					elem.SetFake()
+				}
+				s.SrcQuotaRules = append(s.SrcQuotaRules, elem)
+			}
+		}
+	}
+	{
+		{
+			s.DstQuotaRules = nil
+			for i := 0; i < 0; i++ {
+				var elem QuotaRulesV1beta
+				{
+					elem.SetFake()
+				}
+				s.DstQuotaRules = append(s.DstQuotaRules, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *V1betaCheckKmsConfigBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -13876,6 +13925,69 @@ func (s *V1betaUpdateBackupVaultUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaUpdateBackupVaultUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateDestinationQuotaRulesVCPBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateDestinationQuotaRulesVCPBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateDestinationQuotaRulesVCPForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateDestinationQuotaRulesVCPForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateDestinationQuotaRulesVCPInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateDestinationQuotaRulesVCPInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateDestinationQuotaRulesVCPNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateDestinationQuotaRulesVCPNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateDestinationQuotaRulesVCPTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateDestinationQuotaRulesVCPTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateDestinationQuotaRulesVCPUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateDestinationQuotaRulesVCPUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateDestinationQuotaRulesVCPUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateDestinationQuotaRulesVCPUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

@@ -22,6 +22,7 @@ import (
 
 var (
 	ReplicationJobsRetryMaxAttempts = env.GetInt("REPLICATION_JOBS_RETRY_MAX_ATTEMPTS", 10)
+	quotaRuleSync                   = env.GetBool("QUOTA_RULE_SYNC", true)
 )
 
 type createVolumeReplicationWorkflow struct {
@@ -259,6 +260,36 @@ func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...int
 	err = workflow.ExecuteActivity(ctx, replicationActivity.MountReplication, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	if quotaRuleSync {
+		// Fetch source quota rules from database
+		var sourceQuotaRules []*datamodel.QuotaRule
+		err = workflow.ExecuteActivity(ctx, replicationActivity.ListQuotaRulesLocal, &replicationResult).Get(ctx, &sourceQuotaRules)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+		replicationResult.SourceQuotaRules = sourceQuotaRules
+
+		// Sync quota rules from source to destination
+		// This activity now returns the quota rules in the response, so we don't need to call ListQuotaRulesOnDestination
+		err = workflow.ExecuteActivity(ctx, replicationActivity.CreateQuotaRulesOnDestination, &replicationResult).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		// Hydrate quota rules to CCFE if quota rules exist
+		if len(replicationResult.DestinationQuotaRules) > 0 {
+			err = workflow.ExecuteActivity(ctx, replicationActivity.HydrateQuotaRules,
+				replicationResult.DestinationQuotaRules,
+				replicationResult.DstVolume.ResourceId,
+				replicationResult.Event.DestinationLocationID,
+				*replicationResult.DstProjectNumber,
+			).Get(ctx, nil)
+			if err != nil {
+				return nil, workflows.ConvertToVSAError(err)
+			}
+		}
 	}
 
 	return nil, workflows.ConvertToVSAError(err)
