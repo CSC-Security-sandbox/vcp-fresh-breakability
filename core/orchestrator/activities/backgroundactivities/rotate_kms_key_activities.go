@@ -114,7 +114,7 @@ func (a *RotateKmsSAKeyActivity) RotateServiceAccountKey(ctx context.Context, se
 	// Check if any pools are in CREATING state
 	for _, pool := range pools {
 		if pool.State == string(gcpserver.PoolV1betaStoragePoolStateCREATING) {
-			logger.Warn("KMS_KEY_ROTATION: Pool %s is in CREATING state, skipping key rotation for this schedule", pool.Name)
+			logger.Warnf("KMS_KEY_ROTATION: Pool %s is in CREATING state, skipping key rotation for this schedule", pool.Name)
 			return utilserrors.NewConflictErr("Storage pool present which is in creating state: " + pool.Name)
 		}
 	}
@@ -190,7 +190,7 @@ func (a *RotateKmsSAKeyActivity) RotateServiceAccountKey(ctx context.Context, se
 		return err
 	}
 
-	logger.Infof("Successfully rotated service account key for service account: %s", serviceAccount.ServiceAccountEmail)
+	logger.Infof("KMS_KEY_ROTATION: Successfully rotated service account key for service account: %s", serviceAccount.ServiceAccountEmail)
 	return nil
 }
 

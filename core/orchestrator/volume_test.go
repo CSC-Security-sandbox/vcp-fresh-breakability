@@ -9267,6 +9267,10 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 				err = validateCreateVolumeParams(ctx, store, params, poolView)
 				if tc.expectedError != "" {
 					assert.EqualError(t, err, tc.expectedError)
+					// For degraded pool with KMS config, verify it's a ConflictErr (409)
+					if tc.hasKmsConfig {
+						assert.True(t, customerrors.IsConflictErr(err), "Expected conflict error for degraded pool with KMS config")
+					}
 				} else {
 					// Should not error on degraded state check, but may error on other validations
 					// Verify that the error is NOT about degraded state

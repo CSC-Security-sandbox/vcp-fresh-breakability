@@ -1218,7 +1218,7 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		return customerrors.NewUserInputValidationErr("Pool is currently unavailable for creating volume")
 	case models.LifeCycleStateDegraded:
 		if pool.KmsConfigID.Valid {
-			return customerrors.NewUserInputValidationErr("Pool is in degraded state, hence CMEK enabled volumes cannot be created")
+			return customerrors.NewConflictErr("Pool is in degraded state, hence CMEK enabled volumes cannot be created")
 		}
 	}
 
