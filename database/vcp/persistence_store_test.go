@@ -5666,6 +5666,36 @@ func TestPersistenceStore_GetPoolByID(t *testing.T) {
 	assert.Nil(t, result)
 }
 
+func TestPersistenceStore_GetPoolStateByUUID(t *testing.T) {
+	db, err := SetupInMemoryDB()
+	assert.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := &PersistenceStore{
+		db:        wrapper,
+		dataStore: retryEngine{dataStore: NewDataStoreRepository(wrapper)},
+	}
+
+	// Create a pool with a specific state
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 102,
+			UUID: "pool-uuid-102",
+		},
+		State: "READY",
+	}
+	err = db.Create(pool).Error
+	assert.NoError(t, err)
+
+	// Should retrieve the pool state by UUID
+	result, err := store.GetPoolStateByUUID(context.Background(), "pool-uuid-102")
+	assert.NoError(t, err)
+	assert.Equal(t, "READY", result)
+
+	// Should return error for non-existent pool
+	result, err = store.GetPoolStateByUUID(context.Background(), "non-existent-uuid")
+	assert.Error(t, err)
+	assert.Empty(t, result)
+}
+
 // TestPersistenceStore_ExpertModeVolumeWrapperMethods tests the expert mode volume wrapper methods
 // that delegate to dataStore in persistance_store.go
 func TestPersistenceStore_ExpertModeVolumeWrapperMethods(t *testing.T) {

@@ -367,6 +367,10 @@ func (s *PersistenceStore) GetPoolByUUID(ctx context.Context, poolUUID string) (
 	return s.dataStore.GetPoolByUUID(ctx, poolUUID)
 }
 
+func (s *PersistenceStore) GetPoolStateByUUID(ctx context.Context, poolUUID string) (string, error) {
+	return s.dataStore.GetPoolStateByUUID(ctx, poolUUID)
+}
+
 func (s *PersistenceStore) GetPoolByID(ctx context.Context, poolID int64) (*datamodel.Pool, error) {
 	return s.dataStore.GetPoolByID(ctx, poolID)
 }

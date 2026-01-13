@@ -48,6 +48,7 @@ type (
 		DescribePool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)
 		GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)
 		GetPoolByUUID(ctx context.Context, poolUUID string) (*datamodel.Pool, error)
+		GetPoolStateByUUID(ctx context.Context, poolUUID string) (string, error)
 		GetPoolByID(ctx context.Context, poolID int64) (*datamodel.Pool, error)
 		ListPools(ctx context.Context, filter *dbutils.Filter) ([]*datamodel.PoolView, error)
 		// ListPoolsWithPagination includes deleted pools as well, it's using unscoped for fetching all pools.

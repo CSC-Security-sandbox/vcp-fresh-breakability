@@ -1078,7 +1078,11 @@ func TestSyncVSAClusterHealth(t *testing.T) {
 		ontapVersion := "9.18.1"
 		mockProvider.On("GetONTAPVersion").Return(&ontapVersion, nil).Times(2)
 
-		// Mock GetPoolByUUID for _getVSAProviderUnit (called once per pool = 2 calls) and updatePoolState
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		// Called once per pool (2 pools = 2 calls) - pools are already in READY state
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(models.LifeCycleStateREADY, nil)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-2").Return(models.LifeCycleStateREADY, nil)
+		// Mock GetPoolByUUID for _getVSAProviderUnit (called once per pool = 2 calls)
 		// Convert PoolView to Pool for GetPoolByUUID return value
 		pool := database.ConvertPoolViewToPool(poolView)
 		mockStorage.On("GetPoolByUUID", mock.Anything, mock.Anything).Return(pool, nil)
@@ -1359,9 +1363,9 @@ func TestUpdatePoolToReadyState(t *testing.T) {
 			},
 		}
 
-		// Mock GetPoolByUUID for updatePoolState (updatePoolState now uses GetPoolByUUID instead of GetPool)
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
+		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(nil)
 
 		UpdatePoolToReadyState(mockStorage, poolIdentifier, logger, correlationID)
@@ -1387,9 +1391,9 @@ func TestUpdatePoolToReadyState(t *testing.T) {
 			},
 		}
 
-		// Mock GetPoolByUUID for updatePoolState (updatePoolState now uses GetPoolByUUID instead of GetPool)
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
+		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(errors.New("database error"))
 
 		UpdatePoolToReadyState(mockStorage, poolIdentifier, logger, correlationID)
@@ -1413,9 +1417,9 @@ func TestUpdatePoolState(t *testing.T) {
 			},
 		}
 
-		// Mock GetPoolByUUID for updatePoolState (updatePoolState now uses GetPoolByUUID instead of GetPool)
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
+		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(nil)
 
 		err := UpdatePoolState(mockStorage, poolIdentifier, models.LifeCycleStateDegraded, models.LifeCycleStateDegradedDetails)
@@ -1437,9 +1441,8 @@ func TestUpdatePoolState(t *testing.T) {
 			},
 		}
 
-		// Mock GetPoolByUUID for updatePoolState (updatePoolState now uses GetPoolByUUID instead of GetPool)
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
 		// Note: No UpdatePoolFields call expected since state is already READY
 
 		err := UpdatePoolState(mockStorage, poolIdentifier, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
@@ -1461,9 +1464,8 @@ func TestUpdatePoolState(t *testing.T) {
 			},
 		}
 
-		// Mock GetPoolByUUID for updatePoolState (updatePoolState now uses GetPoolByUUID instead of GetPool)
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
 		// Note: No UpdatePoolFields call expected
 
 		err := UpdatePoolState(mockStorage, poolIdentifier, models.LifeCycleStateDegraded, models.LifeCycleStateDegradedDetails)
@@ -1478,12 +1480,12 @@ func TestUpdatePoolState(t *testing.T) {
 			AccountID: 1,
 		}
 
-		// Mock GetPoolByUUID for updatePoolState (updatePoolState now uses GetPoolByUUID instead of GetPool)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(nil, errors.New("pool not found"))
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return("", errors.New("pool not found"))
 
 		err := UpdatePoolState(mockStorage, poolIdentifier, models.LifeCycleStateDegraded, models.LifeCycleStateDegradedDetails)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to get pool for state update")
+		assert.Contains(t, err.Error(), "failed to get pool state for update")
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -1501,9 +1503,9 @@ func TestUpdatePoolState(t *testing.T) {
 			},
 		}
 
-		// Mock GetPoolByUUID for updatePoolState (updatePoolState now uses GetPoolByUUID instead of GetPool)
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
+		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(errors.New("update failed"))
 
 		err := UpdatePoolState(mockStorage, poolIdentifier, models.LifeCycleStateDegraded, models.LifeCycleStateDegradedDetails)
@@ -1536,9 +1538,9 @@ func TestExecuteJSwapAction_AdditionalCoverage(t *testing.T) {
 			Records: []vsa.NodeHealthStatus{},
 		}
 
-		// Mock GetPoolByUUID for updatePoolState (updatePoolState now uses GetPoolByUUID instead of GetPool)
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
+		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(nil)
 
 		// Patch UpdatePoolToDegradedState to avoid context issues
@@ -1582,9 +1584,8 @@ func TestExecuteJSwapAction_AdditionalCoverage(t *testing.T) {
 			Records: []vsa.NodeHealthStatus{},
 		}
 
-		// Mock GetPoolByUUID for updatePoolState (updatePoolState now uses GetPoolByUUID instead of GetPool)
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
 		// Note: UpdatePoolFields expectation removed as this tries to update READY->READY, which is skipped by optimization
 
 		// Patch UpdatePoolToReadyStateFromHealth to avoid context issues
@@ -1624,9 +1625,8 @@ func TestExecuteJSwapAction_AdditionalCoverage(t *testing.T) {
 			},
 		}
 
-		// Mock GetPoolByUUID for updatePoolState (JSwapActionNone calls updatePoolToReadyStateSimple which calls updatePoolState)
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
 		// Note: UpdatePoolFields expectation removed as state is already READY so update is skipped
 
 		// Create IMTPContext mock
@@ -1674,9 +1674,9 @@ func TestUpdatePoolToDegradedState_ConditionalJSwap(t *testing.T) {
 			},
 		}
 
-		// Mock GetPoolByUUID for updatePoolState (updatePoolState now uses GetPoolByUUID instead of GetPool)
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
+		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(nil)
 
 		bgCtx := context.Background()
@@ -1753,9 +1753,9 @@ func TestUpdatePoolToDegradedState_ConditionalJSwap(t *testing.T) {
 			},
 		}
 
-		// Mock GetPoolByUUID for updatePoolState (updatePoolState now uses GetPoolByUUID instead of GetPool)
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
+		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(nil)
 
 		bgCtx := context.Background()
@@ -1829,9 +1829,9 @@ func TestUpdatePoolToDegradedState_ConditionalJSwap(t *testing.T) {
 			},
 		}
 
-		// Mock GetPoolByUUID for updatePoolState (updatePoolState now uses GetPoolByUUID instead of GetPool)
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
+		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(nil)
 
 		bgCtx := context.Background()
@@ -1904,9 +1904,9 @@ func TestUpdatePoolToDegradedState_ConditionalJSwap(t *testing.T) {
 			},
 		}
 
-		// Mock GetPoolByUUID for updatePoolState (updatePoolState now uses GetPoolByUUID instead of GetPool)
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
+		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(nil)
 
 		bgCtx := context.Background()
@@ -1985,9 +1985,9 @@ func TestUpdatePoolToReadyState_ConditionalJSwap(t *testing.T) {
 			},
 		}
 
-		// Mock GetPoolByUUID for updatePoolState (updatePoolState now uses GetPoolByUUID instead of GetPool)
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
+		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(nil)
 
 		bgCtx := context.Background()
@@ -2064,9 +2064,9 @@ func TestUpdatePoolToReadyState_ConditionalJSwap(t *testing.T) {
 			},
 		}
 
-		// Mock GetPoolByUUID for updatePoolState (updatePoolState now uses GetPoolByUUID instead of GetPool)
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
+		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(nil)
 
 		bgCtx := context.Background()
@@ -2140,9 +2140,9 @@ func TestUpdatePoolToReadyState_ConditionalJSwap(t *testing.T) {
 			},
 		}
 
-		// Mock GetPoolByUUID for updatePoolState (updatePoolState now uses GetPoolByUUID instead of GetPool)
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
+		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(nil)
 
 		bgCtx := context.Background()
@@ -2779,8 +2779,9 @@ func TestUpdatePoolToDegradedState_JSwapError(t *testing.T) {
 			NumRecords: 1,
 		}
 
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
+		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(nil)
 
 		bgCtx := context.Background()
@@ -2846,8 +2847,9 @@ func TestUpdatePoolToDegradedState_JSwapError(t *testing.T) {
 			NumRecords: 1,
 		}
 
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
+		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(nil)
 
 		bgCtx := context.Background()
@@ -2900,8 +2902,9 @@ func TestUpdatePoolToDegradedState_JSwapError(t *testing.T) {
 			NumRecords: 1,
 		}
 
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
+		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(nil)
 
 		bgCtx := context.Background()
@@ -2958,8 +2961,9 @@ func TestUpdatePoolToReadyState_JSwapError(t *testing.T) {
 			NumRecords: 1,
 		}
 
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
+		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(nil)
 
 		bgCtx := context.Background()
@@ -3012,8 +3016,9 @@ func TestUpdatePoolToReadyState_JSwapError(t *testing.T) {
 			NumRecords: 1,
 		}
 
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
+		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(nil)
 
 		bgCtx := context.Background()
@@ -3066,8 +3071,9 @@ func TestUpdatePoolToReadyState_JSwapError(t *testing.T) {
 			NumRecords: 1,
 		}
 
-		pool := database.ConvertPoolViewToPool(poolView)
-		mockStorage.On("GetPoolByUUID", mock.Anything, "pool-1").Return(pool, nil)
+		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
+		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(poolView.Pool.State, nil)
+		// Mock UpdatePoolFields for updatePoolState
 		mockStorage.On("UpdatePoolFields", mock.Anything, "pool-1", mock.Anything).Return(nil)
 
 		bgCtx := context.Background()

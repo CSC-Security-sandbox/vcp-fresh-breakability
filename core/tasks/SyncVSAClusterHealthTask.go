@@ -496,12 +496,10 @@ func updatePoolState(se database.Storage, poolIdentifier *database.PoolIdentifie
 	logger := util.GetLogger(ctx)
 
 	// Get current pool state for validation
-	pool, err := se.GetPoolByUUID(ctx, poolIdentifier.UUID)
+	poolState, err := se.GetPoolStateByUUID(ctx, poolIdentifier.UUID)
 	if err != nil {
-		return fmt.Errorf("failed to get pool for state update: %v", err)
+		return fmt.Errorf("failed to get pool state for update: %v", err)
 	}
-
-	poolState := pool.State
 
 	// Only update if pool is in expected states (READY or DEGRADED)
 	// This prevents race conditions where pool may have transitioned to DELETING, UPDATING, etc.

@@ -3156,6 +3156,50 @@ func TestDataStoreRepository_GetPoolByUUID(t *testing.T) {
 	})
 }
 
+func TestDataStoreRepository_GetPoolStateByUUID(t *testing.T) {
+	db, err := SetupTestDB()
+	require.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	err = ClearInMemoryDB(store.db.GORM())
+	require.NoError(t, err)
+
+	// Create test account and pool
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"}, Name: "test_account"}
+	require.NoError(t, store.db.Create(account).Error())
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}, Name: "test_pool", AccountID: account.ID, Account: account, State: "READY"}
+	require.NoError(t, store.db.Create(pool).Error())
+
+	t.Run("ReturnsPoolStateWhenExists", func(tt *testing.T) {
+		result, err := store.GetPoolStateByUUID(context.Background(), pool.UUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "READY", result)
+	})
+
+	t.Run("ReturnsNotFoundErrorWhenPoolDoesNotExist", func(tt *testing.T) {
+		result, err := store.GetPoolStateByUUID(context.Background(), "non-existent-uuid")
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsNotFoundErr(err))
+		assert.Contains(tt, err.Error(), "not found")
+	})
+
+	t.Run("ReturnsErrorOnDBFailure", func(tt *testing.T) {
+		db, mock, err := sqlmock.New()
+		require.NoError(tt, err)
+		gdb, err := gorm.Open(postgres.New(postgres.Config{Conn: db}), &gorm.Config{})
+		require.NoError(tt, err)
+		wrapper := gormwrapper.New(gdb)
+		store := NewDataStoreRepository(wrapper)
+
+		mock.ExpectQuery("SELECT \"state\" FROM \"pools\" WHERE .*").WillReturnError(errors.New("db error"))
+		result, err := store.GetPoolStateByUUID(context.Background(), "test-uuid")
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.Contains(tt, err.Error(), "db error")
+	})
+}
+
 func TestListExpertModePool(t *testing.T) {
 	t.Run("ReturnsAllOntapPools", func(tt *testing.T) {
 		store := setup(tt)

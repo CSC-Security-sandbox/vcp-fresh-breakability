@@ -115,6 +115,24 @@ func (d *DataStoreRepository) GetPoolByUUID(ctx context.Context, poolUUID string
 	return &pool, nil
 }
 
+func (d *DataStoreRepository) GetPoolStateByUUID(ctx context.Context, poolUUID string) (string, error) {
+	var result struct {
+		State string `gorm:"column:state"`
+	}
+	err := d.db.GORM().WithContext(ctx).
+		Model(&datamodel.Pool{}).
+		Select("state").
+		Where("uuid = ? AND deleted_at IS NULL", poolUUID).
+		First(&result).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", customerrors.NewNotFoundErr("Pool", &poolUUID)
+		}
+		return "", err
+	}
+	return result.State, nil
+}
+
 func (d *DataStoreRepository) GetPoolByID(ctx context.Context, poolID int64) (*datamodel.Pool, error) {
 	var pool datamodel.Pool
 	err := d.db.GORM().WithContext(ctx).Where("id = ?", poolID).First(&pool).Error
