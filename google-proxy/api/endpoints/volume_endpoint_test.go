@@ -6817,6 +6817,11 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.Equal(t, "10.72.177.18", out.MountPoints[1].IpAddress.Value)
 		assert.Equal(t, getFilesMountInstructions("10.72.177.17", vol.FileProperties.JunctionPath, "/"+vol.DisplayName, "NFSV3", ""), out.MountPoints[0].Instructions)
 		assert.Equal(t, getFilesMountInstructions("10.72.177.18", vol.FileProperties.JunctionPath, "/"+vol.DisplayName, "NFSV3", ""), out.MountPoints[1].Instructions)
+		// Verify Export and ExportFull for both mount points
+		assert.Equal(t, "/large-volume", out.MountPoints[0].Export.Value)
+		assert.Equal(t, "10.72.177.17:/large-volume", out.MountPoints[0].ExportFull.Value)
+		assert.Equal(t, "/large-volume", out.MountPoints[1].Export.Value)
+		assert.Equal(t, "10.72.177.18:/large-volume", out.MountPoints[1].ExportFull.Value)
 	})
 
 	t.Run("WithLargeCapacityTrue_NoConstituentCount", func(t *testing.T) {
@@ -10212,6 +10217,9 @@ func TestConvertModelToVCPVolume_NFSMountPoints(t *testing.T) {
 		assert.Equal(tt, gcpgenserver.ProtocolsV1betaNFSV3, result.MountPoints[0].Protocol.Value)
 		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "Mount Instructions for NFSv3")
 		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "vers=3")
+		// Verify Export and ExportFull fields
+		assert.Equal(tt, "/testvolume", result.MountPoints[0].Export.Value)
+		assert.Equal(tt, "192.168.1.100:/testvolume", result.MountPoints[0].ExportFull.Value)
 	})
 
 	t.Run("NFSv4_SingleProtocol_ShouldCreateMountPoints", func(tt *testing.T) {
@@ -10247,6 +10255,9 @@ func TestConvertModelToVCPVolume_NFSMountPoints(t *testing.T) {
 		assert.Equal(tt, gcpgenserver.ProtocolsV1betaNFSV4, result.MountPoints[0].Protocol.Value)
 		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "Mount Instructions for NFSv4")
 		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "vers=4.1")
+		// Verify Export and ExportFull fields
+		assert.Equal(tt, "/vol1", result.MountPoints[0].Export.Value)
+		assert.Equal(tt, "10.0.0.50:/vol1", result.MountPoints[0].ExportFull.Value)
 	})
 
 	t.Run("MultipleProtocols_NFSv3AndNFSv4_ShouldCreateMultipleMountPoints", func(tt *testing.T) {
@@ -10284,12 +10295,18 @@ func TestConvertModelToVCPVolume_NFSMountPoints(t *testing.T) {
 		assert.Equal(tt, gcpgenserver.ProtocolsV1betaNFSV3, result.MountPoints[0].Protocol.Value)
 		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "Mount Instructions for NFSv3")
 		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "vers=3")
+		// Verify Export and ExportFull for NFSv3
+		assert.Equal(tt, "/dualprotocol", result.MountPoints[0].Export.Value)
+		assert.Equal(tt, "192.168.1.100:/dualprotocol", result.MountPoints[0].ExportFull.Value)
 
 		// Verify second mount point (NFSv4)
 		assert.Equal(tt, "192.168.1.100", result.MountPoints[1].IpAddress.Value)
 		assert.Equal(tt, gcpgenserver.ProtocolsV1betaNFSV4, result.MountPoints[1].Protocol.Value)
 		assert.Contains(tt, result.MountPoints[1].Instructions.Value, "Mount Instructions for NFSv4")
 		assert.Contains(tt, result.MountPoints[1].Instructions.Value, "vers=4.1")
+		// Verify Export and ExportFull for NFSv4
+		assert.Equal(tt, "/dualprotocol", result.MountPoints[1].Export.Value)
+		assert.Equal(tt, "192.168.1.100:/dualprotocol", result.MountPoints[1].ExportFull.Value)
 	})
 
 	t.Run("MultipleIPAddressesAndProtocols_ShouldCreateAllCombinations", func(tt *testing.T) {
@@ -10339,6 +10356,12 @@ func TestConvertModelToVCPVolume_NFSMountPoints(t *testing.T) {
 			for _, protocol := range protocols {
 				assert.True(tt, mountPointsMap[ip][protocol], "Missing mount point for IP %s and protocol %s", ip, protocol)
 			}
+		}
+
+		// Verify Export and ExportFull for all mount points
+		for _, mp := range result.MountPoints {
+			assert.Equal(tt, "/multiip", mp.Export.Value)
+			assert.Equal(tt, mp.IpAddress.Value+":/multiip", mp.ExportFull.Value)
 		}
 	})
 
@@ -10395,6 +10418,9 @@ func TestConvertModelToVCPVolume_NFSMountPoints(t *testing.T) {
 		protocols := make(map[gcpgenserver.ProtocolsV1beta]bool)
 		for _, mp := range result.MountPoints {
 			protocols[mp.Protocol.Value] = true
+			// Verify Export and ExportFull for all mount points
+			assert.Equal(tt, "/mixedvolume", mp.Export.Value)
+			assert.Equal(tt, "192.168.1.100:/mixedvolume", mp.ExportFull.Value)
 		}
 
 		assert.True(tt, protocols[gcpgenserver.ProtocolsV1betaNFSV3])
@@ -10436,6 +10462,9 @@ func TestConvertModelToVCPVolume_NFSMountPoints(t *testing.T) {
 		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "Mapping your network drive")
 		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "Click the Start button")
 		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "\\\\netbios.domain.com\\smb-share")
+		// Verify Export and ExportFull for SMB
+		assert.Equal(tt, "/smb-share", result.MountPoints[0].Export.Value)
+		assert.Equal(tt, "192.168.1.200:/smb-share", result.MountPoints[0].ExportFull.Value)
 	})
 
 	t.Run("VolumeNotReady_ShouldNotCreateMountPoints", func(tt *testing.T) {

@@ -1492,6 +1492,8 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 				for _, protocol := range volume.ProtocolTypes {
 					if utils.IsFilesProtocol(protocol) {
 						res.MountPoints = append(res.MountPoints, gcpgenserver.MountPointV1beta{
+							Export:       gcpgenserver.NewOptString(volume.FileProperties.JunctionPath),
+							ExportFull:   gcpgenserver.NewOptString(ipAddress + ":" + volume.FileProperties.JunctionPath),
 							IpAddress:    gcpgenserver.NewOptString(ipAddress),
 							Protocol:     gcpgenserver.NewOptProtocolsV1beta(gcpgenserver.ProtocolsV1beta(protocol)),
 							Instructions: getFilesMountInstructions(ipAddress, volume.FileProperties.JunctionPath, "/"+volume.DisplayName, protocol, volume.FileProperties.Fqdn),
