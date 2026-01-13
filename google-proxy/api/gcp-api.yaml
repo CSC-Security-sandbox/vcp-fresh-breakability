@@ -10533,11 +10533,6 @@ components:
       type: object
       description: FlexCache type volumes include an object containing details of
         the FlexCache
-      required:
-        - peerVolumeName
-        - peerClusterName
-        - peerSvmName
-        - peerIpAddresses
       properties:
         peerVolumeName:
           type: string
@@ -10554,7 +10549,6 @@ components:
         peerIpAddresses:
           type: array
           x-omitempty: true
-          minItems: 1
           items:
             type: string
             description: String list of node IP addresses to be peered with

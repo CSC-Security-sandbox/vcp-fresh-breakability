@@ -4382,12 +4382,12 @@ func (s *FlexCachePrePopulateV1beta) SetRecursion(val OptNilBool) {
 // Ref: #/components/schemas/FlexCache_v1beta
 type FlexCacheV1beta struct {
 	// Name of origin volume for FlexCache.
-	PeerVolumeName string `json:"peerVolumeName"`
+	PeerVolumeName OptString `json:"peerVolumeName"`
 	// Name of origin volume's ONTAP cluster for FlexCache.
-	PeerClusterName string `json:"peerClusterName"`
+	PeerClusterName OptString `json:"peerClusterName"`
 	// Name of origin volume's SVM for FlexCache.
-	PeerSvmName     string   `json:"peerSvmName"`
-	PeerIpAddresses []string `json:"peerIpAddresses"`
+	PeerSvmName     OptString `json:"peerSvmName"`
+	PeerIpAddresses []string  `json:"peerIpAddresses"`
 	// Specify whether this FlexCache volume has global file lock enabled.
 	EnableGlobalFileLock OptNilBool               `json:"enableGlobalFileLock"`
 	CacheConfig          OptFlexCacheConfigV1beta `json:"cacheConfig"`
@@ -4408,17 +4408,17 @@ type FlexCacheV1beta struct {
 }
 
 // GetPeerVolumeName returns the value of PeerVolumeName.
-func (s *FlexCacheV1beta) GetPeerVolumeName() string {
+func (s *FlexCacheV1beta) GetPeerVolumeName() OptString {
 	return s.PeerVolumeName
 }
 
 // GetPeerClusterName returns the value of PeerClusterName.
-func (s *FlexCacheV1beta) GetPeerClusterName() string {
+func (s *FlexCacheV1beta) GetPeerClusterName() OptString {
 	return s.PeerClusterName
 }
 
 // GetPeerSvmName returns the value of PeerSvmName.
-func (s *FlexCacheV1beta) GetPeerSvmName() string {
+func (s *FlexCacheV1beta) GetPeerSvmName() OptString {
 	return s.PeerSvmName
 }
 
@@ -4473,17 +4473,17 @@ func (s *FlexCacheV1beta) GetPassphrase() OptNilString {
 }
 
 // SetPeerVolumeName sets the value of PeerVolumeName.
-func (s *FlexCacheV1beta) SetPeerVolumeName(val string) {
+func (s *FlexCacheV1beta) SetPeerVolumeName(val OptString) {
 	s.PeerVolumeName = val
 }
 
 // SetPeerClusterName sets the value of PeerClusterName.
-func (s *FlexCacheV1beta) SetPeerClusterName(val string) {
+func (s *FlexCacheV1beta) SetPeerClusterName(val OptString) {
 	s.PeerClusterName = val
 }
 
 // SetPeerSvmName sets the value of PeerSvmName.
-func (s *FlexCacheV1beta) SetPeerSvmName(val string) {
+func (s *FlexCacheV1beta) SetPeerSvmName(val OptString) {
 	s.PeerSvmName = val
 }
 

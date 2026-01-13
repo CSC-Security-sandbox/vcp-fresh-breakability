@@ -3761,17 +3761,6 @@ func (s *FlexCacheV1beta) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.PeerIpAddresses == nil {
-			return errors.New("nil is invalid value")
-		}
-		if err := (validate.Array{
-			MinLength:    1,
-			MinLengthSet: true,
-			MaxLength:    0,
-			MaxLengthSet: false,
-		}).ValidateLength(len(s.PeerIpAddresses)); err != nil {
-			return errors.Wrap(err, "array")
-		}
 		var failures []validate.FieldError
 		for i, elem := range s.PeerIpAddresses {
 			if err := func() error {

@@ -367,11 +367,17 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			CacheState:            cvpmodels.FlexCacheV1betaPreviousCacheStatePENDINGCLUSTERPEERING,
 			CacheStateDetailsCode: models.InitiatingClusterPeeringCode,
 			CacheStateDetails:     models.InitiatingClusterPeering,
-			PeerVolumeName:        reqCacheProperties.PeerVolumeName,
-			PeerClusterName:       reqCacheProperties.PeerClusterName,
-			PeerSvmName:           reqCacheProperties.PeerSvmName,
-			PeerIPAddresses:       reqCacheProperties.PeerIpAddresses,
 		}
+		if reqCacheProperties.PeerVolumeName.IsSet() {
+			param.CacheParameters.PeerVolumeName = reqCacheProperties.PeerVolumeName.Value
+		}
+		if reqCacheProperties.PeerClusterName.IsSet() {
+			param.CacheParameters.PeerClusterName = reqCacheProperties.PeerClusterName.Value
+		}
+		if reqCacheProperties.PeerSvmName.IsSet() {
+			param.CacheParameters.PeerSvmName = reqCacheProperties.PeerSvmName.Value
+		}
+		param.CacheParameters.PeerIPAddresses = reqCacheProperties.PeerIpAddresses
 
 		if reqCacheProperties.PeeringCommandExpiryTime.IsSet() {
 			param.CacheParameters.PeerExpiryTime = &reqCacheProperties.PeeringCommandExpiryTime.Value
@@ -1142,10 +1148,18 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 				param.CacheParameters = &models.CacheParameters{}
 			}
 			param.CacheParameters.CacheConfig = &models.CacheConfig{}
-			param.CacheParameters.PeerVolumeName = reqCacheProperties.PeerVolumeName
-			param.CacheParameters.PeerClusterName = reqCacheProperties.PeerClusterName
-			param.CacheParameters.PeerSvmName = reqCacheProperties.PeerSvmName
-			param.CacheParameters.PeerIPAddresses = reqCacheProperties.PeerIpAddresses
+			if reqCacheProperties.PeerVolumeName.IsSet() {
+				param.CacheParameters.PeerVolumeName = reqCacheProperties.PeerVolumeName.Value
+			}
+			if reqCacheProperties.PeerClusterName.IsSet() {
+				param.CacheParameters.PeerClusterName = reqCacheProperties.PeerClusterName.Value
+			}
+			if reqCacheProperties.PeerSvmName.IsSet() {
+				param.CacheParameters.PeerSvmName = reqCacheProperties.PeerSvmName.Value
+			}
+			if reqCacheProperties.PeerIpAddresses != nil {
+				param.CacheParameters.PeerIPAddresses = reqCacheProperties.PeerIpAddresses
+			}
 
 			if cacheConfig.WritebackEnabled.IsSet() {
 				param.CacheParameters.CacheConfig.WritebackEnabled = &cacheConfig.WritebackEnabled.Value
@@ -2194,12 +2208,18 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 
 	if in.CacheParameters != nil {
 		cacheParams := gcpgenserver.FlexCacheV1beta{
-			PeerVolumeName:  in.CacheParameters.PeerVolumeName,
-			PeerClusterName: in.CacheParameters.PeerClusterName,
-			PeerSvmName:     in.CacheParameters.PeerSvmName,
 			PeerIpAddresses: in.CacheParameters.PeerIPAddresses,
 			CacheState:      gcpgenserver.NewOptFlexCacheV1betaCacheState(gcpgenserver.FlexCacheV1betaCacheState(in.CacheParameters.CacheState)),
 			Command:         gcpgenserver.NewOptString(in.CacheParameters.Command),
+		}
+		if in.CacheParameters.PeerVolumeName != "" {
+			cacheParams.PeerVolumeName = gcpgenserver.NewOptString(in.CacheParameters.PeerVolumeName)
+		}
+		if in.CacheParameters.PeerClusterName != "" {
+			cacheParams.PeerClusterName = gcpgenserver.NewOptString(in.CacheParameters.PeerClusterName)
+		}
+		if in.CacheParameters.PeerSvmName != "" {
+			cacheParams.PeerSvmName = gcpgenserver.NewOptString(in.CacheParameters.PeerSvmName)
 		}
 
 		// Add nil checks for these pointer fields
@@ -2492,12 +2512,18 @@ func convertToFlexCacheV1(cp *models.CacheParameters) gcpgenserver.FlexCacheV1be
 	cacheState := gcpgenserver.FlexCacheV1betaCacheState(cp.CacheState)
 	prevCacheState := gcpgenserver.FlexCacheV1betaPreviousCacheState(cp.CacheState)
 	cacheParameters := gcpgenserver.FlexCacheV1beta{
-		PeerVolumeName:     cp.PeerVolumeName,
-		PeerClusterName:    cp.PeerClusterName,
-		PeerSvmName:        cp.PeerSvmName,
 		PeerIpAddresses:    cp.PeerIPAddresses,
 		CacheState:         gcpgenserver.NewOptFlexCacheV1betaCacheState(cacheState),
 		PreviousCacheState: gcpgenserver.NewOptFlexCacheV1betaPreviousCacheState(prevCacheState),
+	}
+	if cp.PeerVolumeName != "" {
+		cacheParameters.PeerVolumeName = gcpgenserver.NewOptString(cp.PeerVolumeName)
+	}
+	if cp.PeerClusterName != "" {
+		cacheParameters.PeerClusterName = gcpgenserver.NewOptString(cp.PeerClusterName)
+	}
+	if cp.PeerSvmName != "" {
+		cacheParameters.PeerSvmName = gcpgenserver.NewOptString(cp.PeerSvmName)
 	}
 
 	if cp.PeeringCommand != "" {
@@ -2712,23 +2738,35 @@ func validateFlexCacheRequest(req *gcpgenserver.VolumeCreateV1beta) error {
 
 	cp := vol.CacheParameters.Value
 
-	if cp.PeerClusterName == "" {
+	var peerClusterName string
+	if cp.PeerClusterName.IsSet() {
+		peerClusterName = cp.PeerClusterName.Value
+	}
+	if peerClusterName == "" {
 		return fmt.Errorf("cache volume creation requires cacheParameters.peerClusterName")
 	}
 
-	if cp.PeerVolumeName == "" {
+	var peerVolumeName string
+	if cp.PeerVolumeName.IsSet() {
+		peerVolumeName = cp.PeerVolumeName.Value
+	}
+	if peerVolumeName == "" {
 		return fmt.Errorf("cache volume creation requires cacheParameters.peerVolumeName")
 	} else {
 		originVolumeNamePattern := `^[a-zA-Z_][a-zA-Z0-9_]{0,202}$`
-		if matched, _ := regexp.MatchString(originVolumeNamePattern, cp.PeerVolumeName); !matched {
+		if matched, _ := regexp.MatchString(originVolumeNamePattern, peerVolumeName); !matched {
 			return fmt.Errorf(
 				"origin volume name '%s' is invalid. It must start with an alphabetic character or underscore, contain only letters, digits, and underscores, and be between 1 and 203 characters in length",
-				cp.PeerVolumeName,
+				peerVolumeName,
 			)
 		}
 	}
 
-	if cp.PeerSvmName == "" {
+	var peerSvmName string
+	if cp.PeerSvmName.IsSet() {
+		peerSvmName = cp.PeerSvmName.Value
+	}
+	if peerSvmName == "" {
 		return fmt.Errorf("cache volume creation requires cacheParameters.peerSvmName")
 	}
 
@@ -3141,8 +3179,8 @@ func validateFlexCacheUpdateParams(cacheParams *gcpgenserver.FlexCacheV1beta, db
 			}
 		}
 
-		if cacheParams.PeerClusterName != "" {
-			if cacheParams.PeerClusterName != dbVolume.CacheParameters.PeerClusterName {
+		if cacheParams.PeerClusterName.IsSet() {
+			if cacheParams.PeerClusterName.Value != dbVolume.CacheParameters.PeerClusterName {
 				return errors.NewUserInputValidationErr(
 					"PeerClusterName is immutable and cannot be changed",
 				)
@@ -3157,16 +3195,16 @@ func validateFlexCacheUpdateParams(cacheParams *gcpgenserver.FlexCacheV1beta, db
 			}
 		}
 
-		if cacheParams.PeerSvmName != "" {
-			if cacheParams.PeerSvmName != dbVolume.CacheParameters.PeerSvmName {
+		if cacheParams.PeerSvmName.IsSet() {
+			if cacheParams.PeerSvmName.Value != dbVolume.CacheParameters.PeerSvmName {
 				return errors.NewUserInputValidationErr(
 					"PeerSvmName is immutable and cannot be changed",
 				)
 			}
 		}
 
-		if cacheParams.PeerVolumeName != "" {
-			if cacheParams.PeerVolumeName != dbVolume.CacheParameters.PeerVolumeName {
+		if cacheParams.PeerVolumeName.IsSet() {
+			if cacheParams.PeerVolumeName.Value != dbVolume.CacheParameters.PeerVolumeName {
 				return errors.NewUserInputValidationErr(
 					"PeerVolumeName is immutable and cannot be changed",
 				)

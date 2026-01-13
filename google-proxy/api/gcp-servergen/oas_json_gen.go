@@ -7786,24 +7786,32 @@ func (s *FlexCacheV1beta) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FlexCacheV1beta) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("peerVolumeName")
-		e.Str(s.PeerVolumeName)
-	}
-	{
-		e.FieldStart("peerClusterName")
-		e.Str(s.PeerClusterName)
-	}
-	{
-		e.FieldStart("peerSvmName")
-		e.Str(s.PeerSvmName)
-	}
-	{
-		e.FieldStart("peerIpAddresses")
-		e.ArrStart()
-		for _, elem := range s.PeerIpAddresses {
-			e.Str(elem)
+		if s.PeerVolumeName.Set {
+			e.FieldStart("peerVolumeName")
+			s.PeerVolumeName.Encode(e)
 		}
-		e.ArrEnd()
+	}
+	{
+		if s.PeerClusterName.Set {
+			e.FieldStart("peerClusterName")
+			s.PeerClusterName.Encode(e)
+		}
+	}
+	{
+		if s.PeerSvmName.Set {
+			e.FieldStart("peerSvmName")
+			s.PeerSvmName.Encode(e)
+		}
+	}
+	{
+		if s.PeerIpAddresses != nil {
+			e.FieldStart("peerIpAddresses")
+			e.ArrStart()
+			for _, elem := range s.PeerIpAddresses {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
 	}
 	{
 		if s.EnableGlobalFileLock.Set {
@@ -7882,17 +7890,14 @@ func (s *FlexCacheV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FlexCacheV1beta to nil")
 	}
-	var requiredBitSet [2]uint8
 	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
 		case "peerVolumeName":
-			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.PeerVolumeName = string(v)
-				if err != nil {
+				s.PeerVolumeName.Reset()
+				if err := s.PeerVolumeName.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -7900,11 +7905,9 @@ func (s *FlexCacheV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"peerVolumeName\"")
 			}
 		case "peerClusterName":
-			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
-				v, err := d.Str()
-				s.PeerClusterName = string(v)
-				if err != nil {
+				s.PeerClusterName.Reset()
+				if err := s.PeerClusterName.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -7912,11 +7915,9 @@ func (s *FlexCacheV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"peerClusterName\"")
 			}
 		case "peerSvmName":
-			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
-				v, err := d.Str()
-				s.PeerSvmName = string(v)
-				if err != nil {
+				s.PeerSvmName.Reset()
+				if err := s.PeerSvmName.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -7924,7 +7925,6 @@ func (s *FlexCacheV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"peerSvmName\"")
 			}
 		case "peerIpAddresses":
-			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.PeerIpAddresses = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -8039,39 +8039,6 @@ func (s *FlexCacheV1beta) Decode(d *jx.Decoder) error {
 		return nil
 	}); err != nil {
 		return errors.Wrap(err, "decode FlexCacheV1beta")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [2]uint8{
-		0b00001111,
-		0b00000000,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfFlexCacheV1beta) {
-					name = jsonFieldsNameOfFlexCacheV1beta[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
 	}
 
 	return nil

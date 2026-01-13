@@ -1653,23 +1653,23 @@ func (s *FlexCachePrePopulateV1beta) SetFake() {
 func (s *FlexCacheV1beta) SetFake() {
 	{
 		{
-			s.PeerVolumeName = "string"
+			s.PeerVolumeName.SetFake()
 		}
 	}
 	{
 		{
-			s.PeerClusterName = "string"
+			s.PeerClusterName.SetFake()
 		}
 	}
 	{
 		{
-			s.PeerSvmName = "string"
+			s.PeerSvmName.SetFake()
 		}
 	}
 	{
 		{
 			s.PeerIpAddresses = nil
-			for i := 0; i < 1; i++ {
+			for i := 0; i < 0; i++ {
 				var elem string
 				{
 					elem = "string"

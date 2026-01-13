@@ -76,9 +76,9 @@ func TestPrepareCreateVolumeParams_CacheParametersWithoutExpiryTime(t *testing.T
 			},
 			CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(
 				gcpgenserver.FlexCacheV1beta{
-					PeerClusterName: "origin-cluster",
-					PeerVolumeName:  "origin_volume",
-					PeerSvmName:     "origin-svm",
+					PeerClusterName: gcpgenserver.NewOptString("origin-cluster"),
+					PeerVolumeName:  gcpgenserver.NewOptString("origin_volume"),
+					PeerSvmName:     gcpgenserver.NewOptString("origin-svm"),
 					PeerIpAddresses: []string{"10.0.0.1", "10.0.0.2"},
 				},
 			),
@@ -133,9 +133,9 @@ func TestPrepareCreateVolumeParams_CacheParametersWithExpiryTime(t *testing.T) {
 			},
 			CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(
 				gcpgenserver.FlexCacheV1beta{
-					PeerClusterName:          "origin-cluster",
-					PeerVolumeName:           "origin_volume",
-					PeerSvmName:              "origin-svm",
+					PeerClusterName:          gcpgenserver.NewOptString("origin-cluster"),
+					PeerVolumeName:           gcpgenserver.NewOptString("origin_volume"),
+					PeerSvmName:              gcpgenserver.NewOptString("origin-svm"),
 					PeerIpAddresses:          []string{"10.0.0.1", "10.0.0.2", "10.0.0.3"},
 					PeeringCommandExpiryTime: gcpgenserver.NewOptNilDateTime(expiryTime),
 				},
@@ -3095,10 +3095,13 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.Equal(tt, gcpgenserver.NewOptVolumeV1betaServiceLevel(gcpgenserver.VolumeV1betaServiceLevelFLEX), res.ServiceLevel)
 		assert.Equal(tt, "us-central1", res.Zone.Value)
 		assert.Equal(tt, "test-passphrase", res.CacheParameters.Value.Passphrase.Value)
-		assert.Equal(tt, "peer-svm", res.CacheParameters.Value.PeerSvmName)
-		assert.Equal(tt, "peer-volume", res.CacheParameters.Value.PeerVolumeName)
+		assert.True(tt, res.CacheParameters.Value.PeerSvmName.IsSet())
+		assert.Equal(tt, "peer-svm", res.CacheParameters.Value.PeerSvmName.Value)
+		assert.True(tt, res.CacheParameters.Value.PeerVolumeName.IsSet())
+		assert.Equal(tt, "peer-volume", res.CacheParameters.Value.PeerVolumeName.Value)
 		assert.Equal(tt, "test-command", res.CacheParameters.Value.Command.Value)
-		assert.Equal(tt, "alderan", res.CacheParameters.Value.PeerClusterName)
+		assert.True(tt, res.CacheParameters.Value.PeerClusterName.IsSet())
+		assert.Equal(tt, "alderan", res.CacheParameters.Value.PeerClusterName.Value)
 		assert.Equal(tt, "test-passphrase", res.CacheParameters.Value.Passphrase.Value)
 		assert.Equal(tt, "network-id", res.Network.Value)
 		assert.Equal(tt, "pool-id", res.PoolId.Value)
@@ -3468,7 +3471,8 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.True(tt, result.CacheParameters.IsSet())
 		cache := result.CacheParameters.Value
 
-		assert.Equal(tt, "origin-volume", cache.PeerVolumeName)
+		assert.True(tt, cache.PeerVolumeName.IsSet())
+		assert.Equal(tt, "origin-volume", cache.PeerVolumeName.Value)
 		assert.False(tt, cache.EnableGlobalFileLock.IsSet())
 		assert.False(tt, cache.PeeringCommandExpiryTime.IsSet())
 		assert.False(tt, cache.Passphrase.IsSet())
@@ -3671,9 +3675,12 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 
 		assert.Equal(tt, "vol-123", result.VolumeId.Value)
 		assert.True(tt, result.CacheParameters.IsSet(), "CacheParameters should be set")
-		assert.Equal(tt, "test-cluster", result.CacheParameters.Value.PeerClusterName)
-		assert.Equal(tt, "test-svm", result.CacheParameters.Value.PeerSvmName)
-		assert.Equal(tt, "test-volume", result.CacheParameters.Value.PeerVolumeName)
+		assert.True(tt, result.CacheParameters.Value.PeerClusterName.IsSet())
+		assert.Equal(tt, "test-cluster", result.CacheParameters.Value.PeerClusterName.Value)
+		assert.True(tt, result.CacheParameters.Value.PeerSvmName.IsSet())
+		assert.Equal(tt, "test-svm", result.CacheParameters.Value.PeerSvmName.Value)
+		assert.True(tt, result.CacheParameters.Value.PeerVolumeName.IsSet())
+		assert.Equal(tt, "test-volume", result.CacheParameters.Value.PeerVolumeName.Value)
 
 		// PeerIpAddresses should be properly set when input slice is non-empty
 		assert.Len(tt, result.CacheParameters.Value.PeerIpAddresses, 3, "PeerIpAddresses should have 3 elements")
@@ -4989,9 +4996,12 @@ func TestConvertToFlexCacheV1(t *testing.T) {
 
 		result := convertToFlexCacheV1(cp)
 
-		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName)
-		assert.Equal(tt, "test-peer-cluster", result.PeerClusterName)
-		assert.Equal(tt, "test-peer-svm", result.PeerSvmName)
+		assert.True(tt, result.PeerVolumeName.IsSet())
+		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName.Value)
+		assert.True(tt, result.PeerClusterName.IsSet())
+		assert.Equal(tt, "test-peer-cluster", result.PeerClusterName.Value)
+		assert.True(tt, result.PeerSvmName.IsSet())
+		assert.Equal(tt, "test-peer-svm", result.PeerSvmName.Value)
 		assert.Equal(tt, []string{"192.168.1.1", "192.168.1.2"}, result.PeerIpAddresses)
 		assert.True(tt, result.CacheConfig.IsSet())
 		assert.True(tt, result.CacheConfig.Value.CachePrePopulate.IsSet())
@@ -5009,7 +5019,8 @@ func TestConvertToFlexCacheV1(t *testing.T) {
 
 		result := convertToFlexCacheV1(cp)
 
-		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName)
+		assert.True(tt, result.PeerVolumeName.IsSet())
+		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName.Value)
 		assert.True(tt, result.CacheConfig.IsSet())
 		assert.False(tt, result.CacheConfig.Value.CachePrePopulate.IsSet())
 	})
@@ -5023,7 +5034,8 @@ func TestConvertToFlexCacheV1(t *testing.T) {
 
 		result := convertToFlexCacheV1(cp)
 
-		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName)
+		assert.True(tt, result.PeerVolumeName.IsSet())
+		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName.Value)
 		assert.False(tt, result.CacheConfig.IsSet())
 	})
 	t.Run("WhenCachePrePopulateStateSet", func(tt *testing.T) {
@@ -5040,7 +5052,8 @@ func TestConvertToFlexCacheV1(t *testing.T) {
 
 		result := convertToFlexCacheV1(cp)
 
-		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName)
+		assert.True(tt, result.PeerVolumeName.IsSet())
+		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName.Value)
 		assert.True(tt, result.CacheConfig.IsSet())
 		assert.True(tt, result.CacheConfig.Value.CachePrePopulateState.IsSet())
 		assert.Equal(tt, gcpgenserver.FlexCacheConfigV1betaCachePrePopulateState("COMPLETE"), result.CacheConfig.Value.CachePrePopulateState.Value)
@@ -5073,9 +5086,12 @@ func TestConvertToFlexCacheV1(t *testing.T) {
 
 		result := convertToFlexCacheV1(cp)
 
-		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName)
-		assert.Equal(tt, "test-peer-cluster", result.PeerClusterName)
-		assert.Equal(tt, "test-peer-svm", result.PeerSvmName)
+		assert.True(tt, result.PeerVolumeName.IsSet())
+		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName.Value)
+		assert.True(tt, result.PeerClusterName.IsSet())
+		assert.Equal(tt, "test-peer-cluster", result.PeerClusterName.Value)
+		assert.True(tt, result.PeerSvmName.IsSet())
+		assert.Equal(tt, "test-peer-svm", result.PeerSvmName.Value)
 		assert.Equal(tt, []string{"192.168.1.1"}, result.PeerIpAddresses)
 		assert.True(tt, result.Command.IsSet())
 		assert.Equal(tt, "peer-command", result.Command.Value)
@@ -5127,7 +5143,8 @@ func TestConvertToFlexCacheV1(t *testing.T) {
 
 		result := convertToFlexCacheV1(cp)
 
-		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName)
+		assert.True(tt, result.PeerVolumeName.IsSet())
+		assert.Equal(tt, "test-peer-volume", result.PeerVolumeName.Value)
 		assert.False(tt, result.Command.IsSet())
 		assert.False(tt, result.StateDetails.IsSet())
 		assert.False(tt, result.StateDetailsCode.IsSet())
@@ -10647,9 +10664,9 @@ func TestPrepareCreateVolumeParams_CacheParams(t *testing.T) {
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			CacheParameters: gcpgenserver.OptFlexCacheV1beta{
 				Value: gcpgenserver.FlexCacheV1beta{
-					PeerVolumeName:  "peer-vol-1",
-					PeerClusterName: "peer-cluster-1",
-					PeerSvmName:     "peer-svm-1",
+					PeerVolumeName:  gcpgenserver.NewOptString("peer-vol-1"),
+					PeerClusterName: gcpgenserver.NewOptString("peer-cluster-1"),
+					PeerSvmName:     gcpgenserver.NewOptString("peer-svm-1"),
 					PeerIpAddresses: []string{
 						"1.1.1.1",
 						"2.2.2.2",
@@ -10737,9 +10754,9 @@ func TestPrepareCreateVolumeParams_CacheParams(t *testing.T) {
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			CacheParameters: gcpgenserver.OptFlexCacheV1beta{
 				Value: gcpgenserver.FlexCacheV1beta{
-					PeerVolumeName:  "peer-vol-1",
-					PeerClusterName: "peer-cluster-1",
-					PeerSvmName:     "peer-svm-1",
+					PeerVolumeName:  gcpgenserver.NewOptString("peer-vol-1"),
+					PeerClusterName: gcpgenserver.NewOptString("peer-cluster-1"),
+					PeerSvmName:     gcpgenserver.NewOptString("peer-svm-1"),
 					PeerIpAddresses: []string{
 						"1.1.1.1",
 						"2.2.2.2",
@@ -10918,9 +10935,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 				},
@@ -10932,9 +10949,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1", "10.0.0.2"},
 						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
 							WritebackEnabled:        gcpgenserver.NewOptNilBool(true),
@@ -10952,9 +10969,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
 							CachePrePopulate: gcpgenserver.NewOptFlexCachePrePopulateV1beta(gcpgenserver.FlexCachePrePopulateV1beta{
@@ -10973,9 +10990,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					SnapshotDirectory: gcpgenserver.NewOptBool(false),
@@ -10988,9 +11005,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					SnapReserve: gcpgenserver.NewOptFloat64(0),
@@ -11003,9 +11020,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(gcpgenserver.BackupConfigV1beta{
@@ -11021,9 +11038,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(gcpgenserver.TieringPolicyV1beta{
@@ -11038,9 +11055,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					SmbSettings: gcpgenserver.SMBSettingsV1beta{},
@@ -11053,9 +11070,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					SmbSettings: gcpgenserver.SMBSettingsV1beta{
@@ -11071,9 +11088,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					LargeCapacity: gcpgenserver.NewOptNilBool(false),
@@ -11086,9 +11103,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "_valid_name_123",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("_valid_name_123"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 				},
@@ -11100,9 +11117,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
 							AtimeScrubEnabled: gcpgenserver.NewOptNilBool(false),
@@ -11119,9 +11136,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 				},
@@ -11135,9 +11152,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 				},
@@ -11153,9 +11170,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString(""),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 				},
@@ -11168,9 +11185,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString(""),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 				},
@@ -11183,9 +11200,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "1invalid",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("1invalid"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 				},
@@ -11198,9 +11215,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "invalid-name",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("invalid-name"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 				},
@@ -11213,9 +11230,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString(""),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 				},
@@ -11228,9 +11245,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{},
 					}),
 				},
@@ -11245,9 +11262,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
 							CachePrePopulate: gcpgenserver.NewOptFlexCachePrePopulateV1beta(gcpgenserver.FlexCachePrePopulateV1beta{
@@ -11265,9 +11282,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
 							CachePrePopulate: gcpgenserver.NewOptFlexCachePrePopulateV1beta(gcpgenserver.FlexCachePrePopulateV1beta{
@@ -11285,9 +11302,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
 							CachePrePopulate: gcpgenserver.NewOptFlexCachePrePopulateV1beta(gcpgenserver.FlexCachePrePopulateV1beta{
@@ -11307,9 +11324,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
 							AtimeScrubDays: gcpgenserver.NewOptNilInt16(30),
@@ -11325,9 +11342,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 						CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
 							AtimeScrubEnabled: gcpgenserver.NewOptNilBool(false),
@@ -11346,9 +11363,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					Protocols: []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3, gcpgenserver.ProtocolsV1betaSMB, gcpgenserver.ProtocolsV1betaNFSV4},
@@ -11364,9 +11381,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					SnapshotPolicy: gcpgenserver.NewOptSnapshotPolicyV1beta(gcpgenserver.SnapshotPolicyV1beta{
@@ -11384,9 +11401,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					SnapReserve: gcpgenserver.NewOptFloat64(10),
@@ -11402,9 +11419,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					SnapshotDirectory: gcpgenserver.NewOptBool(true),
@@ -11420,9 +11437,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(gcpgenserver.BackupConfigV1beta{
@@ -11438,9 +11455,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(gcpgenserver.BackupConfigV1beta{
@@ -11458,9 +11475,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(gcpgenserver.TieringPolicyV1beta{
@@ -11478,9 +11495,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 				},
@@ -11498,9 +11515,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					SmbSettings: gcpgenserver.SMBSettingsV1beta{
@@ -11516,9 +11533,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					SmbSettings: gcpgenserver.SMBSettingsV1beta{
@@ -11534,9 +11551,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					SmbSettings: gcpgenserver.SMBSettingsV1beta{
@@ -11552,9 +11569,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					SmbSettings: gcpgenserver.SMBSettingsV1beta{
@@ -11571,9 +11588,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					SmbSettings: gcpgenserver.SMBSettingsV1beta{
@@ -11593,9 +11610,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					LargeVolumeConstituentCount: gcpgenserver.NewOptNilInt32(8),
@@ -11609,9 +11626,9 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
 					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
-						PeerSvmName:     "svm_test",
-						PeerVolumeName:  "vol_test",
-						PeerClusterName: "cluster_test",
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
 						PeerIpAddresses: []string{"10.0.0.1"},
 					}),
 					LargeCapacity: gcpgenserver.NewOptNilBool(true),
@@ -11619,6 +11636,19 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			},
 			expectError: true,
 			errorMsg:    "large capacity is not allowed for FlexCache volumes",
+		},
+		{
+			name: "FlexCache request without required fields - accepted by OpenAPI, validated by application",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						// All required fields are missing - this should pass OpenAPI validation
+						// but be caught by application-level validation
+					}),
+				},
+			},
+			expectError: true,
+			errorMsg:    "cache volume creation requires cacheParameters.peerClusterName",
 		},
 	}
 
@@ -12896,7 +12926,7 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 		{
 			name: "Valid - cacheConfig not set",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
-				PeerVolumeName: "origin",
+				PeerVolumeName: gcpgenserver.NewOptString("origin"),
 			},
 			dbVolume: &models.Volume{
 				CacheParameters: &models.CacheParameters{
@@ -12934,7 +12964,7 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 		{
 			name: "Invalid - immutable field PeerVolumeName set",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
-				PeerVolumeName: "origin",
+				PeerVolumeName: gcpgenserver.NewOptString("origin"),
 				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
 					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
 				}),
@@ -12962,7 +12992,7 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 		{
 			name: "Invalid - immutable field PeerClusterName set (different from DB)",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
-				PeerClusterName: "cluster1",
+				PeerClusterName: gcpgenserver.NewOptString("cluster1"),
 				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
 					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
 				}),
@@ -12994,7 +13024,7 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 		{
 			name: "Invalid - immutable field PeerSvmName set (different from DB)",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
-				PeerSvmName: "svm1",
+				PeerSvmName: gcpgenserver.NewOptString("svm1"),
 				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
 					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
 				}),
@@ -13010,7 +13040,7 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 		{
 			name: "Invalid - immutable field PeerVolumeName set (different from DB)",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
-				PeerVolumeName: "origin",
+				PeerVolumeName: gcpgenserver.NewOptString("origin"),
 				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
 					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
 				}),
@@ -13130,9 +13160,9 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 		{
 			name: "Valid - immutable fields match DB values",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
-				PeerVolumeName:       "origin",
-				PeerClusterName:      "cluster1",
-				PeerSvmName:          "svm1",
+				PeerVolumeName:       gcpgenserver.NewOptString("origin"),
+				PeerClusterName:      gcpgenserver.NewOptString("cluster1"),
+				PeerSvmName:          gcpgenserver.NewOptString("svm1"),
 				PeerIpAddresses:      []string{"10.0.0.1"},
 				EnableGlobalFileLock: gcpgenserver.NewOptNilBool(false),
 				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
@@ -13153,7 +13183,7 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 		{
 			name: "Invalid - PeerVolumeName changed",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
-				PeerVolumeName: "different-origin",
+				PeerVolumeName: gcpgenserver.NewOptString("different-origin"),
 				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
 					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
 				}),
@@ -13169,7 +13199,7 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 		{
 			name: "Invalid - PeerClusterName changed",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
-				PeerClusterName: "different-cluster",
+				PeerClusterName: gcpgenserver.NewOptString("different-cluster"),
 				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
 					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
 				}),
@@ -13217,9 +13247,9 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 		{
 			name: "Valid - all immutable fields match DB",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
-				PeerVolumeName:       "origin",
-				PeerClusterName:      "cluster1",
-				PeerSvmName:          "svm1",
+				PeerVolumeName:       gcpgenserver.NewOptString("origin"),
+				PeerClusterName:      gcpgenserver.NewOptString("cluster1"),
+				PeerSvmName:          gcpgenserver.NewOptString("svm1"),
 				PeerIpAddresses:      []string{"10.0.0.1", "10.0.0.2"},
 				EnableGlobalFileLock: gcpgenserver.NewOptNilBool(false),
 				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
@@ -13234,6 +13264,40 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 					PeerSvmName:          "svm1",
 					PeerIPAddresses:      []string{"10.0.0.1", "10.0.0.2"},
 					EnableGlobalFileLock: nillable.GetBoolPtr(false),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid - update request without required fields (accepted by OpenAPI and application)",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				// All required fields (peerVolumeName, peerClusterName, peerSvmName, peerIpAddresses) are missing
+				// This should pass OpenAPI validation and application validation for updates
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(true),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					PeerVolumeName:  "origin",
+					PeerClusterName: "cluster1",
+					PeerSvmName:     "svm1",
+					PeerIPAddresses: []string{"10.0.0.1"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:        "Valid - update request with completely empty FlexCache (no required fields, no cacheConfig)",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				// All fields are missing - this should pass validation for updates
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					PeerVolumeName:  "origin",
+					PeerClusterName: "cluster1",
+					PeerSvmName:     "svm1",
+					PeerIPAddresses: []string{"10.0.0.1"},
 				},
 			},
 			wantErr: false,
