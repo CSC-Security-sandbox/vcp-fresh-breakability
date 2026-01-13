@@ -8894,7 +8894,7 @@ func (s *SimpleExportPolicyRuleV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.AnonUID.Get(); ok {
+		if value, ok := s.AnonUid.Get(); ok {
 			if err := func() error {
 				if err := (validate.Int{
 					MinSet:        true,
@@ -8916,7 +8916,7 @@ func (s *SimpleExportPolicyRuleV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "anonUID",
+			Name:  "anonUid",
 			Error: err,
 		})
 	}

@@ -523,8 +523,8 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 				if rule.AllSquash.IsSet() {
 					exportRule.AllSquash = nillable.ToPointer(rule.AllSquash.Value)
 				}
-				if rule.AnonUID.IsSet() {
-					exportRule.AnonUID = nillable.ToPointer(rule.AnonUID.Value)
+				if rule.AnonUid.IsSet() {
+					exportRule.AnonUid = nillable.ToPointer(rule.AnonUid.Value)
 				}
 				exportRules = append(exportRules, exportRule)
 			}
@@ -717,8 +717,8 @@ func validateAllSquash(rules []gcpgenserver.SimpleExportPolicyRuleV1beta) error 
 			if hasAllSquashRule {
 				return errors.NewUserInputValidationErr("only one AllSquash rule is allowed per export policy")
 			}
-			if _, ok := rule.AnonUID.Get(); !ok {
-				return errors.NewUserInputValidationErr("AnonUID must be set when AllSquash is enabled")
+			if _, ok := rule.AnonUid.Get(); !ok {
+				return errors.NewUserInputValidationErr("AnonUid must be set when AllSquash is enabled")
 			}
 			if rule.AccessType != gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE {
 				return errors.NewUserInputValidationErr("AccessType must be READ_WRITE when AllSquash is enabled")
@@ -1117,8 +1117,8 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 				if rule.AllSquash.IsSet() {
 					exportRule.AllSquash = nillable.ToPointer(rule.AllSquash.Value)
 				}
-				if rule.AnonUID.IsSet() {
-					exportRule.AnonUID = nillable.ToPointer(rule.AnonUID.Value)
+				if rule.AnonUid.IsSet() {
+					exportRule.AnonUid = nillable.ToPointer(rule.AnonUid.Value)
 				}
 			}
 			param.FileProperties.ExportPolicy.ExportRules = append(param.FileProperties.ExportPolicy.ExportRules, exportRule)
@@ -1459,12 +1459,12 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 			} else {
 				ruleV1beta.HasRootAccess = gcpgenserver.NewOptNilSimpleExportPolicyRuleV1betaHasRootAccess(gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessFalse)
 			}
-			// Only set AllSquash and AnonUID if they are explicitly set (not nil)
+			// Only set AllSquash and AnonUid if they are explicitly set (not nil)
 			if rule.AllSquash != nil {
 				ruleV1beta.AllSquash = gcpgenserver.NewOptNilBool(*rule.AllSquash)
 			}
-			if rule.AnonUID != nil {
-				ruleV1beta.AnonUID = gcpgenserver.NewOptNilInt64(*rule.AnonUID)
+			if rule.AnonUid != nil {
+				ruleV1beta.AnonUid = gcpgenserver.NewOptNilInt64(*rule.AnonUid)
 			}
 			rules = append(rules, ruleV1beta)
 		}
@@ -2037,12 +2037,12 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 					Nfsv3:               utils.SafeBool(rule.Nfsv3),
 					Nfsv4:               utils.SafeBool(rule.Nfsv4),
 				}
-				// Only set AllSquash and AnonUID if they are explicitly set (not nil)
+				// Only set AllSquash and AnonUid if they are explicitly set (not nil)
 				if rule.AllSquash != nil {
 					exportRule.AllSquash = gcpgenserver.NewOptNilBool(*rule.AllSquash)
 				}
-				if rule.AnonUID != nil {
-					exportRule.AnonUID = gcpgenserver.NewOptNilInt64(*rule.AnonUID)
+				if rule.AnonUid != nil {
+					exportRule.AnonUid = gcpgenserver.NewOptNilInt64(*rule.AnonUid)
 				}
 				if rule.AccessType != nil {
 					exportRule.AccessType = gcpgenserver.SimpleExportPolicyRuleV1betaAccessType(*rule.AccessType)

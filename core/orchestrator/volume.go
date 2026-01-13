@@ -100,7 +100,7 @@ func convertExportRulesToDatamodel(modelRules []*models.ExportRule) []*datamodel
 			Kerberos5pReadOnly:  rule.Kerberos5pReadOnly,
 			Superuser:           rule.Superuser,
 			AllSquash:           rule.AllSquash,
-			AnonUID:             rule.AnonUID,
+			AnonUid:             rule.AnonUid,
 		})
 	}
 	return exportRules
@@ -1522,7 +1522,7 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 					S3:                  rule.S3,
 					Superuser:           rule.Superuser,
 					AllSquash:           rule.AllSquash,
-					AnonUID:             rule.AnonUID,
+					AnonUid:             rule.AnonUid,
 				})
 			}
 			res.FileProperties = &models.FileProperties{

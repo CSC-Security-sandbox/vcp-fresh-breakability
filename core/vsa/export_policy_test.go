@@ -866,7 +866,7 @@ func TestConvertStorageExportPolicyRuleToONTAP_AllSquashEnabled(t *testing.T) {
 	utils.EnableAllSquashForTesting(true)
 
 	allSquashVal := true
-	anonUIDVal := int64(1001)
+	anonUidVal := int64(1001)
 	rule := ExportRule{
 		AllowedClients: "10.0.0.0/24",
 		AnonymousUser:  "",
@@ -877,7 +877,7 @@ func TestConvertStorageExportPolicyRuleToONTAP_AllSquashEnabled(t *testing.T) {
 		NFSv4:          false,
 		Superuser:      false,
 		AllSquash:      &allSquashVal,
-		AnonUID:        &anonUIDVal,
+		AnonUid:        &anonUidVal,
 	}
 
 	got := convertStorageExportPolicyRuleToONTAP(rule)
@@ -901,7 +901,7 @@ func TestConvertStorageExportPolicyRuleToONTAP_AllSquashDisabled(t *testing.T) {
 	originalValue := utils.IsAllSquashEnabled
 	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
 	allSquashVal := false
-	anonUIDVal := int64(1001)
+	anonUidVal := int64(1001)
 	rule := ExportRule{
 		AllowedClients: "10.0.0.0/24",
 		AnonymousUser:  "nobody",
@@ -912,7 +912,7 @@ func TestConvertStorageExportPolicyRuleToONTAP_AllSquashDisabled(t *testing.T) {
 		NFSv4:          true,
 		Superuser:      true,
 		AllSquash:      &allSquashVal,
-		AnonUID:        &anonUIDVal,
+		AnonUid:        &anonUidVal,
 	}
 
 	got := convertStorageExportPolicyRuleToONTAP(rule)
@@ -934,17 +934,17 @@ func TestConvertStorageExportPolicyRuleToONTAP_AllSquashDisabled(t *testing.T) {
 	assert.Equal(t, expected, got)
 }
 
-func TestConvertStorageExportPolicyRuleToONTAP_AllSquashEnabledWithZeroAnonUID(t *testing.T) {
+func TestConvertStorageExportPolicyRuleToONTAP_AllSquashEnabledWithZeroAnonUid(t *testing.T) {
 	// Enable the feature flag for this test
 	originalValue := utils.IsAllSquashEnabled
 	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
 	utils.EnableAllSquashForTesting(true)
 
 	allSquashVal := true
-	anonUIDVal := int64(0) // Explicitly set to 0 (root UID)
+	anonUidVal := int64(0) // Explicitly set to 0 (root UID)
 	rule := ExportRule{
 		AllowedClients: "10.0.0.0/24",
-		AnonymousUser:  "", // Empty, should be overridden by AnonUID
+		AnonymousUser:  "", // Empty, should be overridden by AnonUid
 		Index:          1,
 		ChownMode:      "",
 		CIFS:           false,
@@ -952,7 +952,7 @@ func TestConvertStorageExportPolicyRuleToONTAP_AllSquashEnabledWithZeroAnonUID(t
 		NFSv4:          false,
 		Superuser:      false,
 		AllSquash:      &allSquashVal,
-		AnonUID:        &anonUIDVal,
+		AnonUid:        &anonUidVal,
 	}
 
 	got := convertStorageExportPolicyRuleToONTAP(rule)
@@ -972,16 +972,16 @@ func TestConvertStorageExportPolicyRuleToONTAP_AllSquashEnabledWithZeroAnonUID(t
 	assert.Equal(t, expected, got)
 }
 
-func TestConvertStorageExportPolicyRuleToONTAP_AllSquashEnabledAnonUIDTakesPrecedence(t *testing.T) {
+func TestConvertStorageExportPolicyRuleToONTAP_AllSquashEnabledAnonUidTakesPrecedence(t *testing.T) {
 	originalValue := utils.IsAllSquashEnabled
 	defer func() { utils.EnableAllSquashForTesting(originalValue) }()
 	utils.EnableAllSquashForTesting(true)
 
 	allSquashVal := true
-	anonUIDVal := int64(0) // Should take precedence over AnonymousUser
+	anonUidVal := int64(0) // Should take precedence over AnonymousUser
 	rule := ExportRule{
 		AllowedClients: "10.0.0.0/24",
-		AnonymousUser:  "nobody", // Set but should be overridden by AnonUID
+		AnonymousUser:  "nobody", // Set but should be overridden by AnonUid
 		Index:          1,
 		ChownMode:      "",
 		CIFS:           false,
@@ -989,7 +989,7 @@ func TestConvertStorageExportPolicyRuleToONTAP_AllSquashEnabledAnonUIDTakesPrece
 		NFSv4:          false,
 		Superuser:      false,
 		AllSquash:      &allSquashVal,
-		AnonUID:        &anonUIDVal,
+		AnonUid:        &anonUidVal,
 	}
 
 	got := convertStorageExportPolicyRuleToONTAP(rule)
@@ -1003,7 +1003,7 @@ func TestConvertStorageExportPolicyRuleToONTAP_AllSquashEnabledAnonUIDTakesPrece
 		Index:            1,
 		NtfsUnixSecurity: *nillable.ToPointer("ignore"),
 		Protocols:        []string{utils.GetOntapValue(utils.ProtocolNFSv3)},
-		AnonymousUser:    "0", // AnonUID should take precedence, not "nobody"
+		AnonymousUser:    "0", // AnonUid should take precedence, not "nobody"
 	}
 
 	assert.Equal(t, expected, got)

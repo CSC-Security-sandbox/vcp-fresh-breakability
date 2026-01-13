@@ -24700,9 +24700,9 @@ func (s *SimpleExportPolicyRuleV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.AnonUID.Set {
-			e.FieldStart("anonUID")
-			s.AnonUID.Encode(e)
+		if s.AnonUid.Set {
+			e.FieldStart("anonUid")
+			s.AnonUid.Encode(e)
 		}
 	}
 }
@@ -24720,7 +24720,7 @@ var jsonFieldsNameOfSimpleExportPolicyRuleV1beta = [13]string{
 	9:  "kerberos5pReadOnly",
 	10: "kerberos5pReadWrite",
 	11: "allSquash",
-	12: "anonUID",
+	12: "anonUid",
 }
 
 // Decode decodes SimpleExportPolicyRuleV1beta from json.
@@ -24855,15 +24855,15 @@ func (s *SimpleExportPolicyRuleV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"allSquash\"")
 			}
-		case "anonUID":
+		case "anonUid":
 			if err := func() error {
-				s.AnonUID.Reset()
-				if err := s.AnonUID.Decode(d); err != nil {
+				s.AnonUid.Reset()
+				if err := s.AnonUid.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"anonUID\"")
+				return errors.Wrap(err, "decode field \"anonUid\"")
 			}
 		default:
 			return d.Skip()

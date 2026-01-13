@@ -5397,7 +5397,7 @@ func (s *SimpleExportPolicyRuleV1beta) SetFake() {
 	}
 	{
 		{
-			s.AnonUID.SetFake()
+			s.AnonUid.SetFake()
 		}
 	}
 }

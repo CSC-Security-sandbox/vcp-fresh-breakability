@@ -43,11 +43,11 @@ func convertStorageExportPolicyRuleToONTAP(rule ExportRule) *ontapRest.ExportRul
 	}
 	anonUser := models.RootAnonymousUser
 
-	// When AllSquash is enabled, AnonUID takes precedence (even if it's 0, which is a valid root UID)
-	// Validation ensures AnonUID is required when AllSquash is true, so we can trust it's explicitly set
+	// When AllSquash is enabled, AnonUid takes precedence (even if it's 0, which is a valid root UID)
+	// Validation ensures AnonUid is required when AllSquash is true, so we can trust it's explicitly set
 	if utils.IsAllSquashEnabled && rule.AllSquash != nil && *rule.AllSquash {
-		if rule.AnonUID != nil {
-			anonUser = strconv.FormatInt(*rule.AnonUID, 10)
+		if rule.AnonUid != nil {
+			anonUser = strconv.FormatInt(*rule.AnonUid, 10)
 		}
 	} else if rule.AnonymousUser != "" {
 		anonUser = rule.AnonymousUser

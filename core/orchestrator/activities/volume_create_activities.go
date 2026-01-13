@@ -322,7 +322,7 @@ func (a VolumeCreateActivity) CreateExportPolicyInOntap(ctx context.Context, vol
 			Kerberos5iReadWrite: rule.Kerberos5iReadWrite,
 			Superuser:           rule.Superuser,
 			AllSquash:           rule.AllSquash,
-			AnonUID:             rule.AnonUID,
+			AnonUid:             rule.AnonUid,
 		}
 		vsaExportRules = append(vsaExportRules, vsaExportRule)
 	}

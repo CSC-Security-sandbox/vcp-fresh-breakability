@@ -10468,11 +10468,11 @@ components:
         allSquash:
           type: boolean
           description:
-            If enabled (true), all UIDs are mapped to the anonymous UID specified by anonUID.
+            If enabled (true), all UIDs are mapped to the anonymous UID specified by anonUid.
             When true, hasRootAccess must be false for that particular rule.
           nullable: true
           example: true
-        anonUID:
+        anonUid:
           type: integer
           format: int64
           description:

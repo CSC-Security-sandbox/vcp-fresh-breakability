@@ -621,7 +621,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 								Nfsv3:               gcpgenserver.NewOptNilBool(true),
 								Nfsv4:               gcpgenserver.NewOptNilBool(false),
 								AllSquash:           gcpgenserver.NewOptNilBool(true),
-								AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+								AnonUid:             gcpgenserver.NewOptNilInt64(1001),
 								Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 								Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
 								Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
@@ -635,7 +635,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 								Nfsv3:               gcpgenserver.NewOptNilBool(false),
 								Nfsv4:               gcpgenserver.NewOptNilBool(true),
 								AllSquash:           gcpgenserver.NewOptNilBool(false),
-								AnonUID:             gcpgenserver.NewOptNilInt64(0),
+								AnonUid:             gcpgenserver.NewOptNilInt64(0),
 								Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 								Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
 								Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
@@ -667,16 +667,16 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.Equal(tt, "READ_WRITE", rule1.AccessType)
 		assert.NotNil(tt, rule1.AllSquash)
 		assert.True(tt, *rule1.AllSquash)
-		assert.NotNil(tt, rule1.AnonUID)
-		assert.Equal(tt, int64(1001), *rule1.AnonUID)
+		assert.NotNil(tt, rule1.AnonUid)
+		assert.Equal(tt, int64(1001), *rule1.AnonUid)
 
 		rule2 := result.FileProperties.ExportPolicy.ExportRules[1]
 		assert.Equal(tt, "10.0.0.0/8", rule2.AllowedClients)
 		assert.Equal(tt, "READ_ONLY", rule2.AccessType)
 		assert.NotNil(tt, rule2.AllSquash)
 		assert.False(tt, *rule2.AllSquash)
-		assert.NotNil(tt, rule2.AnonUID)
-		assert.Equal(tt, int64(0), *rule2.AnonUID)
+		assert.NotNil(tt, rule2.AnonUid)
+		assert.Equal(tt, int64(0), *rule2.AnonUid)
 	})
 
 	t.Run("ValidInputWithFilePropertiesAndExportRulesAllSquashEnabled_ValidationError", func(tt *testing.T) {
@@ -702,7 +702,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 								Nfsv3:          gcpgenserver.NewOptNilBool(true),
 								Nfsv4:          gcpgenserver.NewOptNilBool(false),
 								AllSquash:      gcpgenserver.NewOptNilBool(true),
-								// Missing AnonUID - should fail validation
+								// Missing AnonUid - should fail validation
 								Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 								Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
 								Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
@@ -725,7 +725,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		result, err := prepareCreateVolumeParams(req, params, region, zone, nil)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Contains(tt, err.Error(), "AnonUID must be set when AllSquash is enabled")
+		assert.Contains(tt, err.Error(), "AnonUid must be set when AllSquash is enabled")
 	})
 
 	t.Run("ValidInputWithFilePropertiesAndExportRulesAllSquashEnabled_WithHasRootAccessTrue", func(tt *testing.T) {
@@ -751,7 +751,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 								Nfsv3:               gcpgenserver.NewOptNilBool(true),
 								Nfsv4:               gcpgenserver.NewOptNilBool(false),
 								AllSquash:           gcpgenserver.NewOptNilBool(true),
-								AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+								AnonUid:             gcpgenserver.NewOptNilInt64(1001),
 								HasRootAccess:       gcpgenserver.NewOptNilSimpleExportPolicyRuleV1betaHasRootAccess(gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue),
 								Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 								Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
@@ -801,7 +801,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 								Nfsv3:               gcpgenserver.NewOptNilBool(true),
 								Nfsv4:               gcpgenserver.NewOptNilBool(false),
 								AllSquash:           gcpgenserver.NewOptNilBool(true),
-								AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+								AnonUid:             gcpgenserver.NewOptNilInt64(1001),
 								HasRootAccess:       gcpgenserver.NewOptNilSimpleExportPolicyRuleV1betaHasRootAccess(gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn),
 								Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 								Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
@@ -3204,7 +3204,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 					Nfsv3:              nillable.GetBoolPtr(true),
 					Nfsv4:              nillable.GetBoolPtr(false),
 					AllSquash:          nillable.GetBoolPtr(true),
-					AnonUID:            nillable.GetInt64Ptr(int64(1001)),
+					AnonUid:            nillable.GetInt64Ptr(int64(1001)),
 				},
 				{
 					AccessType:         nillable.GetStringPtr("ReadOnly"),
@@ -3215,7 +3215,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 					Nfsv3:              nillable.GetBoolPtr(false),
 					Nfsv4:              nillable.GetBoolPtr(true),
 					AllSquash:          nillable.GetBoolPtr(false),
-					AnonUID:            nillable.GetInt64Ptr(int64(0)),
+					AnonUid:            nillable.GetInt64Ptr(int64(0)),
 				},
 			},
 		}
@@ -3235,16 +3235,16 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.Equal(tt, "0.0.0.0/0", rule1.AllowedClients)
 		assert.True(tt, rule1.AllSquash.IsSet())
 		assert.True(tt, rule1.AllSquash.Value)
-		assert.True(tt, rule1.AnonUID.IsSet())
-		assert.Equal(tt, int64(1001), rule1.AnonUID.Value)
+		assert.True(tt, rule1.AnonUid.IsSet())
+		assert.Equal(tt, int64(1001), rule1.AnonUid.Value)
 
 		rule2 := result.ExportPolicy.Value.Rules[1]
 		assert.Equal(tt, gcpgenserver.SimpleExportPolicyRuleV1betaAccessType("ReadOnly"), rule2.AccessType)
 		assert.Equal(tt, "10.0.0.0/8", rule2.AllowedClients)
 		assert.True(tt, rule2.AllSquash.IsSet())
 		assert.False(tt, rule2.AllSquash.Value)
-		assert.True(tt, rule2.AnonUID.IsSet())
-		assert.Equal(tt, int64(0), rule2.AnonUID.Value)
+		assert.True(tt, rule2.AnonUid.IsSet())
+		assert.Equal(tt, int64(0), rule2.AnonUid.Value)
 	})
 
 	t.Run("WhenVolumeIsInCreatingStateWithNilExportPolicy", func(tt *testing.T) {
@@ -6129,9 +6129,9 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.False(t, rule1.Kerberos5iReadWrite.Value)
 		assert.False(t, rule1.Kerberos5pReadOnly.Value)
 		assert.False(t, rule1.Kerberos5pReadWrite.Value)
-		// Verify AllSquash and AnonUID are not set (nil pointers)
+		// Verify AllSquash and AnonUid are not set (nil pointers)
 		assert.False(t, rule1.AllSquash.IsSet())
-		assert.False(t, rule1.AnonUID.IsSet())
+		assert.False(t, rule1.AnonUid.IsSet())
 
 		// Verify second rule
 		rule2 := exportPolicy.Rules[1]
@@ -6146,7 +6146,7 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.False(t, rule2.Kerberos5pReadOnly.Value)
 		assert.False(t, rule2.Kerberos5pReadWrite.Value)
 		assert.False(t, rule2.AllSquash.IsSet())
-		assert.False(t, rule2.AnonUID.IsSet())
+		assert.False(t, rule2.AnonUid.IsSet())
 	})
 
 	t.Run("WithFilePropertiesAndKerberosExportRules", func(t *testing.T) {
@@ -6378,7 +6378,7 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 							Kerberos5pReadWrite: false,
 							Index:               1,
 							AllSquash:           nillable.ToPointer(true),
-							AnonUID:             nillable.ToPointer(int64(1000)),
+							AnonUid:             nillable.ToPointer(int64(1000)),
 						},
 						{
 							AllowedClients:      "10.0.0.0/8",
@@ -6393,7 +6393,7 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 							Kerberos5pReadWrite: false,
 							Index:               2,
 							AllSquash:           nillable.ToPointer(false),
-							AnonUID:             nillable.ToPointer(int64(0)),
+							AnonUid:             nillable.ToPointer(int64(0)),
 						},
 					},
 				},
@@ -6423,8 +6423,8 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.False(t, rule1.Kerberos5pReadWrite.Value)
 		assert.True(t, rule1.AllSquash.IsSet())
 		assert.True(t, rule1.AllSquash.Value)
-		assert.True(t, rule1.AnonUID.IsSet())
-		assert.Equal(t, int64(1000), rule1.AnonUID.Value)
+		assert.True(t, rule1.AnonUid.IsSet())
+		assert.Equal(t, int64(1000), rule1.AnonUid.Value)
 
 		// Verify second rule
 		rule2 := exportPolicy.Rules[1]
@@ -6440,8 +6440,8 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.False(t, rule2.Kerberos5pReadWrite.Value)
 		assert.True(t, rule2.AllSquash.IsSet())
 		assert.False(t, rule2.AllSquash.Value)
-		assert.True(t, rule2.AnonUID.IsSet())
-		assert.Equal(t, int64(0), rule2.AnonUID.Value)
+		assert.True(t, rule2.AnonUid.IsSet())
+		assert.Equal(t, int64(0), rule2.AnonUid.Value)
 	})
 
 	t.Run("WithBlockDevices_ShouldConvertToAPIFormat", func(t *testing.T) {
@@ -8197,7 +8197,7 @@ func TestV1betaDescribeVolume(t *testing.T) {
 			VolumeId:      "vol-1",
 		}
 
-		// Create a volume with export rules that don't have AllSquash and AnonUID set
+		// Create a volume with export rules that don't have AllSquash and AnonUid set
 		// (they will be nil pointers, not zero values)
 		volume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
@@ -8221,7 +8221,7 @@ func TestV1betaDescribeVolume(t *testing.T) {
 							Kerberos5pReadOnly:  false,
 							Kerberos5pReadWrite: false,
 							Index:               1,
-							// AllSquash and AnonUID are nil (not set) - this is for old volumes
+							// AllSquash and AnonUid are nil (not set) - this is for old volumes
 						},
 					},
 				},
@@ -8240,17 +8240,17 @@ func TestV1betaDescribeVolume(t *testing.T) {
 		exportPolicy := volumeResponse.ExportPolicy.Value
 		assert.Len(tt, exportPolicy.Rules, 1)
 
-		// Verify that AllSquash and AnonUID fields are not set in the export rule
+		// Verify that AllSquash and AnonUid fields are not set in the export rule
 		rule := exportPolicy.Rules[0]
 		assert.False(tt, rule.AllSquash.IsSet(), "AllSquash should not be set")
-		assert.False(tt, rule.AnonUID.IsSet(), "AnonUID should not be set")
+		assert.False(tt, rule.AnonUid.IsSet(), "AnonUid should not be set")
 
 		// Marshal to JSON and verify the fields are not present in the JSON string
 		jsonData, err := json.Marshal(volumeResponse)
 		assert.NoError(tt, err)
 		jsonString := string(jsonData)
 		assert.NotContains(tt, jsonString, "allSquash", "JSON should not contain 'allSquash' field")
-		assert.NotContains(tt, jsonString, "anonUID", "JSON should not contain 'anonUID' field")
+		assert.NotContains(tt, jsonString, "anonUid", "JSON should not contain 'anonUid' field")
 	})
 }
 
@@ -9535,7 +9535,7 @@ func TestPrepareUpdateVolumeParamsExportPolicy(t *testing.T) {
 						Nfsv3:               gcpgenserver.NewOptNilBool(true),
 						Nfsv4:               gcpgenserver.NewOptNilBool(false),
 						AllSquash:           gcpgenserver.NewOptNilBool(true),
-						AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+						AnonUid:             gcpgenserver.NewOptNilInt64(1001),
 						Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 						Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
 						Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
@@ -9549,7 +9549,7 @@ func TestPrepareUpdateVolumeParamsExportPolicy(t *testing.T) {
 						Nfsv3:               gcpgenserver.NewOptNilBool(false),
 						Nfsv4:               gcpgenserver.NewOptNilBool(true),
 						AllSquash:           gcpgenserver.NewOptNilBool(false),
-						AnonUID:             gcpgenserver.NewOptNilInt64(0),
+						AnonUid:             gcpgenserver.NewOptNilInt64(0),
 						Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 						Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
 						Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
@@ -9573,16 +9573,16 @@ func TestPrepareUpdateVolumeParamsExportPolicy(t *testing.T) {
 		assert.Equal(tt, "READ_WRITE", rule1.AccessType)
 		assert.NotNil(tt, rule1.AllSquash)
 		assert.True(tt, *rule1.AllSquash)
-		assert.NotNil(tt, rule1.AnonUID)
-		assert.Equal(tt, int64(1001), *rule1.AnonUID)
+		assert.NotNil(tt, rule1.AnonUid)
+		assert.Equal(tt, int64(1001), *rule1.AnonUid)
 
 		rule2 := result.FileProperties.ExportPolicy.ExportRules[1]
 		assert.Equal(tt, "10.0.0.0/8", rule2.AllowedClients)
 		assert.Equal(tt, "READ_ONLY", rule2.AccessType)
 		assert.NotNil(tt, rule2.AllSquash)
 		assert.False(tt, *rule2.AllSquash)
-		assert.NotNil(tt, rule2.AnonUID)
-		assert.Equal(tt, int64(0), *rule2.AnonUID)
+		assert.NotNil(tt, rule2.AnonUid)
+		assert.Equal(tt, int64(0), *rule2.AnonUid)
 	})
 
 	t.Run("ExportPolicy_WithAllSquashEnabled_ValidationError", func(tt *testing.T) {
@@ -9600,7 +9600,7 @@ func TestPrepareUpdateVolumeParamsExportPolicy(t *testing.T) {
 						Nfsv3:          gcpgenserver.NewOptNilBool(true),
 						Nfsv4:          gcpgenserver.NewOptNilBool(false),
 						AllSquash:      gcpgenserver.NewOptNilBool(true),
-						// Missing AnonUID - should fail validation
+						// Missing AnonUid - should fail validation
 						Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 						Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
 						Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
@@ -9616,7 +9616,7 @@ func TestPrepareUpdateVolumeParamsExportPolicy(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Contains(tt, err.Error(), "AnonUID must be set when AllSquash is enabled")
+		assert.Contains(tt, err.Error(), "AnonUid must be set when AllSquash is enabled")
 	})
 
 	t.Run("ExportPolicy_WithAllSquashEnabled_OnlyAllSquashSet", func(tt *testing.T) {
@@ -9633,7 +9633,7 @@ func TestPrepareUpdateVolumeParamsExportPolicy(t *testing.T) {
 						AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
 						Nfsv3:          gcpgenserver.NewOptNilBool(true),
 						Nfsv4:          gcpgenserver.NewOptNilBool(false),
-						// AllSquash not set, AnonUID not set - should work fine
+						// AllSquash not set, AnonUid not set - should work fine
 						Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 						Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
 						Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
@@ -9655,9 +9655,9 @@ func TestPrepareUpdateVolumeParamsExportPolicy(t *testing.T) {
 		rule := result.FileProperties.ExportPolicy.ExportRules[0]
 		assert.Equal(tt, "192.168.1.0/24", rule.AllowedClients)
 		assert.Equal(tt, "READ_WRITE", rule.AccessType)
-		// AllSquash and AnonUID should be nil when not set
+		// AllSquash and AnonUid should be nil when not set
 		assert.Nil(tt, rule.AllSquash)
-		assert.Nil(tt, rule.AnonUID)
+		assert.Nil(tt, rule.AnonUid)
 	})
 
 	t.Run("ExportPolicy_MultipleRules_ShouldCreateAllRules", func(tt *testing.T) {
@@ -13269,7 +13269,7 @@ func TestValidateAllSquash_Positive(t *testing.T) {
 				Nfsv3:               gcpgenserver.NewOptNilBool(true),
 				Nfsv4:               gcpgenserver.NewOptNilBool(false),
 				AllSquash:           gcpgenserver.NewOptNilBool(true),
-				AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+				AnonUid:             gcpgenserver.NewOptNilInt64(1001),
 				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
 				Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
@@ -13291,7 +13291,7 @@ func TestValidateAllSquash_Positive(t *testing.T) {
 				Nfsv3:               gcpgenserver.NewOptNilBool(true),
 				Nfsv4:               gcpgenserver.NewOptNilBool(false),
 				AllSquash:           gcpgenserver.NewOptNilBool(true),
-				AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+				AnonUid:             gcpgenserver.NewOptNilInt64(1001),
 				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
 				Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
@@ -13326,7 +13326,7 @@ func TestValidateAllSquash_Positive(t *testing.T) {
 				Nfsv3:               gcpgenserver.NewOptNilBool(true),
 				Nfsv4:               gcpgenserver.NewOptNilBool(false),
 				AllSquash:           gcpgenserver.NewOptNilBool(true),
-				AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+				AnonUid:             gcpgenserver.NewOptNilInt64(1001),
 				HasRootAccess:       gcpgenserver.NewOptNilSimpleExportPolicyRuleV1betaHasRootAccess(gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessFalse),
 				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
@@ -13341,7 +13341,7 @@ func TestValidateAllSquash_Positive(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("AllSquashWithAnonUIDSet_ShouldPass", func(t *testing.T) {
+	t.Run("AllSquashWithAnonUidSet_ShouldPass", func(t *testing.T) {
 		rules := []gcpgenserver.SimpleExportPolicyRuleV1beta{
 			{
 				AllowedClients:      "192.168.1.0/24",
@@ -13349,7 +13349,7 @@ func TestValidateAllSquash_Positive(t *testing.T) {
 				Nfsv3:               gcpgenserver.NewOptNilBool(true),
 				Nfsv4:               gcpgenserver.NewOptNilBool(false),
 				AllSquash:           gcpgenserver.NewOptNilBool(true),
-				AnonUID:             gcpgenserver.NewOptNilInt64(65534),
+				AnonUid:             gcpgenserver.NewOptNilInt64(65534),
 				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
 				Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
@@ -13371,7 +13371,7 @@ func TestValidateAllSquash_Positive(t *testing.T) {
 				Nfsv3:               gcpgenserver.NewOptNilBool(true),
 				Nfsv4:               gcpgenserver.NewOptNilBool(false),
 				AllSquash:           gcpgenserver.NewOptNilBool(true),
-				AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+				AnonUid:             gcpgenserver.NewOptNilInt64(1001),
 				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
 				Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
@@ -13399,7 +13399,7 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 				Nfsv3:               gcpgenserver.NewOptNilBool(true),
 				Nfsv4:               gcpgenserver.NewOptNilBool(false),
 				AllSquash:           gcpgenserver.NewOptNilBool(true),
-				AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+				AnonUid:             gcpgenserver.NewOptNilInt64(1001),
 				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
 				Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
@@ -13413,7 +13413,7 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 				Nfsv3:               gcpgenserver.NewOptNilBool(false),
 				Nfsv4:               gcpgenserver.NewOptNilBool(true),
 				AllSquash:           gcpgenserver.NewOptNilBool(true),
-				AnonUID:             gcpgenserver.NewOptNilInt64(2001),
+				AnonUid:             gcpgenserver.NewOptNilInt64(2001),
 				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
 				Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
@@ -13436,7 +13436,7 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 				Nfsv3:               gcpgenserver.NewOptNilBool(true),
 				Nfsv4:               gcpgenserver.NewOptNilBool(false),
 				AllSquash:           gcpgenserver.NewOptNilBool(true),
-				AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+				AnonUid:             gcpgenserver.NewOptNilInt64(1001),
 				HasRootAccess:       gcpgenserver.NewOptNilSimpleExportPolicyRuleV1betaHasRootAccess(gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue),
 				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
@@ -13460,7 +13460,7 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 				Nfsv3:               gcpgenserver.NewOptNilBool(true),
 				Nfsv4:               gcpgenserver.NewOptNilBool(false),
 				AllSquash:           gcpgenserver.NewOptNilBool(true),
-				AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+				AnonUid:             gcpgenserver.NewOptNilInt64(1001),
 				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(true),
 				Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
@@ -13475,7 +13475,7 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 		assert.Contains(t, err.Error(), "AllSquash cannot be enabled for Kerberos-enabled export rules")
 	})
 
-	t.Run("AllSquashWithoutAnonUID_ShouldFail", func(t *testing.T) {
+	t.Run("AllSquashWithoutAnonUid_ShouldFail", func(t *testing.T) {
 		rules := []gcpgenserver.SimpleExportPolicyRuleV1beta{
 			{
 				AllowedClients:      "192.168.1.0/24",
@@ -13494,12 +13494,12 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 
 		err := validateAllSquash(rules)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "AnonUID must be set when AllSquash is enabled")
+		assert.Contains(t, err.Error(), "AnonUid must be set when AllSquash is enabled")
 	})
 
-	t.Run("AllSquashWithAnonUIDSetToNull_ShouldFail", func(t *testing.T) {
-		anonUID := gcpgenserver.OptNilInt64{}
-		anonUID.SetToNull()
+	t.Run("AllSquashWithAnonUidSetToNull_ShouldFail", func(t *testing.T) {
+		anonUid := gcpgenserver.OptNilInt64{}
+		anonUid.SetToNull()
 		rules := []gcpgenserver.SimpleExportPolicyRuleV1beta{
 			{
 				AllowedClients:      "192.168.1.0/24",
@@ -13507,7 +13507,7 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 				Nfsv3:               gcpgenserver.NewOptNilBool(true),
 				Nfsv4:               gcpgenserver.NewOptNilBool(false),
 				AllSquash:           gcpgenserver.NewOptNilBool(true),
-				AnonUID:             anonUID,
+				AnonUid:             anonUid,
 				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
 				Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
@@ -13519,7 +13519,7 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 
 		err := validateAllSquash(rules)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "AnonUID must be set when AllSquash is enabled")
+		assert.Contains(t, err.Error(), "AnonUid must be set when AllSquash is enabled")
 	})
 
 	t.Run("AllSquashWithReadOnlyAccessType_ShouldFail", func(t *testing.T) {
@@ -13530,7 +13530,7 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 				Nfsv3:               gcpgenserver.NewOptNilBool(true),
 				Nfsv4:               gcpgenserver.NewOptNilBool(false),
 				AllSquash:           gcpgenserver.NewOptNilBool(true),
-				AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+				AnonUid:             gcpgenserver.NewOptNilInt64(1001),
 				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
 				Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
@@ -13553,7 +13553,7 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 				Nfsv3:               gcpgenserver.NewOptNilBool(true),
 				Nfsv4:               gcpgenserver.NewOptNilBool(false),
 				AllSquash:           gcpgenserver.NewOptNilBool(true),
-				AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+				AnonUid:             gcpgenserver.NewOptNilInt64(1001),
 				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
 				Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
@@ -13576,7 +13576,7 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 				Nfsv3:               gcpgenserver.NewOptNilBool(true),
 				Nfsv4:               gcpgenserver.NewOptNilBool(false),
 				AllSquash:           gcpgenserver.NewOptNilBool(true),
-				AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+				AnonUid:             gcpgenserver.NewOptNilInt64(1001),
 				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
 				Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
@@ -13599,7 +13599,7 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 				Nfsv3:               gcpgenserver.NewOptNilBool(true),
 				Nfsv4:               gcpgenserver.NewOptNilBool(false),
 				AllSquash:           gcpgenserver.NewOptNilBool(true),
-				AnonUID:             gcpgenserver.NewOptNilInt64(1001),
+				AnonUid:             gcpgenserver.NewOptNilInt64(1001),
 				Kerberos5ReadOnly:   gcpgenserver.NewOptNilBool(false),
 				Kerberos5ReadWrite:  gcpgenserver.NewOptNilBool(false),
 				Kerberos5iReadOnly:  gcpgenserver.NewOptNilBool(false),
