@@ -666,7 +666,11 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 		// Validate volume size against backup size
 		dbVolume.VolumeAttributes.RestoredBackupID = backup.UUID
-		requiredVolumeSize := utils.CalculateRequiredVolumeSize(backup.SizeInBytes)
+		var backupAttributes datamodel.BackupAttributes
+		if backup.Attributes != nil {
+			backupAttributes = *backup.Attributes
+		}
+		requiredVolumeSize := utils.CalculateRequiredVolumeSize(backup.SizeInBytes, backupAttributes)
 		if dbVolume.SizeInBytes < requiredVolumeSize {
 			log.Errorf("Volume size %d is too small for backup (requires %d bytes)", dbVolume.SizeInBytes, requiredVolumeSize)
 			err = fmt.Errorf("restored volume size should be greater than or equal to the logical size of the backup: %d bytes", requiredVolumeSize)

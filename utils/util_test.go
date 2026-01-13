@@ -910,7 +910,7 @@ func Test_calculateRequiredVolumeSize(t *testing.T) {
 
 		for _, tt := range testCases {
 			t.Run(tt.name, func(t *testing.T) {
-				result := _calculateRequiredVolumeSize(tt.backupSize)
+				result := _calculateRequiredVolumeSize(tt.backupSize, datamodel.BackupAttributes{})
 				if result != tt.expected {
 					t.Errorf("Expected %d, got %d", tt.expected, result)
 				}
@@ -962,7 +962,8 @@ func Test_calculateRequiredVolumeSize(t *testing.T) {
 
 		for _, tt := range testCases {
 			t.Run(tt.name, func(t *testing.T) {
-				result := _calculateRequiredVolumeSize(tt.backupSize)
+				// Use SAN protocols to get the ceil calculation when flag is disabled
+				result := _calculateRequiredVolumeSize(tt.backupSize, datamodel.BackupAttributes{Protocols: []string{ProtocolISCSI}})
 				if result != tt.expected {
 					t.Errorf("Expected %d, got %d", tt.expected, result)
 				}

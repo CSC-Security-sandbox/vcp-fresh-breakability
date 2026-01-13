@@ -1142,10 +1142,10 @@ func SetRestoreVolumeBufferEnabledForTesting(enabled bool) {
 }
 
 // _calculateRequiredVolumeSize calculates the required volume size based on backup size
-// If RESTORE_VOLUME_BUFFER_ENABLED is true, returns 20% more than backup size
+// If RESTORE_VOLUME_BUFFER_ENABLED is true or Not SAN Protocol, returns 20% more than backup size
 // Otherwise, returns ceil of backup size + 1 GiB
-func _calculateRequiredVolumeSize(backupSizeInBytes int64) int64 {
-	if RestoreVolumeBufferEnabled {
+func _calculateRequiredVolumeSize(backupSizeInBytes int64, backupAttribute datamodel.BackupAttributes) int64 {
+	if RestoreVolumeBufferEnabled || !IsSanProtocols(backupAttribute.Protocols) {
 		// 20% more than backup size
 		return int64(float64(backupSizeInBytes) * 1.20)
 	}
