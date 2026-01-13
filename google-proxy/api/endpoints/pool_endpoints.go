@@ -326,6 +326,25 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 				Name: gcpgenserver.NewOptString(operationID),
 				Done: gcpgenserver.NewOptBool(job.State == models.JobsStateDONE || job.State == models.JobsStateERROR), // Done if job is in DONE or ERROR state
 			}, nil
+		case models.LifeCycleStateCreating:
+			if params.XCorrelationID.IsSet() && params.XCorrelationID.Value != "" {
+				log := util.GetLogger(ctx)
+				poolCategory := models.GetPoolCategory(existingPool.LargeCapacity)
+				deleteJobType := string(models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationDelete, poolCategory))
+				job, jobErr := h.Orchestrator.GetJobByResourceUUID(ctx, existingPool.UUID, deleteJobType)
+				if jobErr == nil && job != nil {
+					// Checking if correlation ID matches - return existing job for idempotency
+					if job.CorrelationID == params.XCorrelationID.Value {
+						log.Infof("Found existing delete job %s for pool %s in CREATING state with matching correlation ID %s (cleanup case), returning existing job UUID",
+							job.UUID, existingPool.UUID, params.XCorrelationID.Value)
+						operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, job.UUID)
+						return &gcpgenserver.OperationV1beta{
+							Name: gcpgenserver.NewOptString(operationID),
+							Done: gcpgenserver.NewOptBool(job.State == models.JobsStateDONE || job.State == models.JobsStateERROR),
+						}, nil
+					}
+				}
+			}
 		case models.LifeCycleStateUpdating:
 			msg := "Error deleting pool - Pool is already transitioning between states"
 			return &gcpgenserver.V1betaDeletePoolConflict{

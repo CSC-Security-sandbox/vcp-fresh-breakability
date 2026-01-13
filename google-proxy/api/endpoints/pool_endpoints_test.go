@@ -3406,6 +3406,346 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.Equal(tt, result.(*gcpgenserver.OperationV1beta).Name.Value, "/v1beta/projects/project-number/locations/us-east4/operations/00000000-0000-0000-0000-000000000000")
 		assert.True(tt, result.(*gcpgenserver.OperationV1beta).Done.Value)
 	})
+	t.Run("WhenPoolIsInCreatingStateWithCorrelationIDAndExistingDeleteJob_ReturnsExistingJobUUID", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		correlationID := "test-correlation-id"
+		params := gcpgenserver.V1betaDeletePoolParams{
+			LocationId:     "us-east4",
+			ProjectNumber:  "project-number",
+			PoolId:         "creating-pool-id",
+			XCorrelationID: gcpgenserver.OptString{Value: correlationID, Set: true},
+		}
+
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "creating-pool-id",
+			},
+			State:          models.LifeCycleStateCreating,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		existingDeleteJob := &models.Job{
+			BaseModel: models.BaseModel{
+				UUID: "existing-delete-job-uuid",
+			},
+			Type:          models.JobTypeDeletePool,
+			CorrelationID: correlationID,
+			State:         models.JobsStatePROCESSING,
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeDeletePool)).Return(existingDeleteJob, nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaDeletePool(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/us-east4/operations/existing-delete-job-uuid", op.Name.Value)
+		assert.False(tt, op.Done.Value) // Job is PROCESSING, not done
+	})
+	t.Run("WhenPoolIsInCreatingStateWithCorrelationIDAndExistingDeleteJobInDoneState_ReturnsExistingJobUUIDWithDone", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		correlationID := "test-correlation-id"
+		params := gcpgenserver.V1betaDeletePoolParams{
+			LocationId:     "us-east4",
+			ProjectNumber:  "project-number",
+			PoolId:         "creating-pool-id",
+			XCorrelationID: gcpgenserver.OptString{Value: correlationID, Set: true},
+		}
+
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "creating-pool-id",
+			},
+			State:          models.LifeCycleStateCreating,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		existingDeleteJob := &models.Job{
+			BaseModel: models.BaseModel{
+				UUID: "existing-delete-job-uuid",
+			},
+			Type:          models.JobTypeDeletePool,
+			CorrelationID: correlationID,
+			State:         models.JobsStateDONE,
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeDeletePool)).Return(existingDeleteJob, nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaDeletePool(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/us-east4/operations/existing-delete-job-uuid", op.Name.Value)
+		assert.True(tt, op.Done.Value) // Job is DONE
+	})
+	t.Run("WhenPoolIsInCreatingStateWithCorrelationIDAndExistingDeleteJobWithMismatchedCorrelationID_ProceedsWithNormalDelete", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		correlationID := "test-correlation-id"
+		params := gcpgenserver.V1betaDeletePoolParams{
+			LocationId:     "us-east4",
+			ProjectNumber:  "project-number",
+			PoolId:         "creating-pool-id",
+			XCorrelationID: gcpgenserver.OptString{Value: correlationID, Set: true},
+		}
+
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "creating-pool-id",
+			},
+			State:          models.LifeCycleStateCreating,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		existingDeleteJob := &models.Job{
+			BaseModel: models.BaseModel{
+				UUID: "existing-delete-job-uuid",
+			},
+			Type:          models.JobTypeDeletePool,
+			CorrelationID: "different-correlation-id", // Mismatched
+			State:         models.JobsStatePROCESSING,
+		}
+
+		deletePoolParams := &commonparams.DeletePoolParams{
+			AccountName: params.ProjectNumber,
+			PoolID:      existingPool.UUID,
+		}
+		deletedPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "creating-pool-id",
+			},
+			State:          models.LifeCycleStateDeleting,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeDeletePool)).Return(existingDeleteJob, nil)
+		mockOrchestrator.EXPECT().DeletePool(mock.Anything, deletePoolParams).Return(deletedPool, "new-operation-id", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaDeletePool(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		// Should proceed with normal delete and return new operation ID
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/us-east4/operations/new-operation-id", op.Name.Value)
+	})
+	t.Run("WhenPoolIsInCreatingStateWithCorrelationIDAndNoExistingDeleteJob_ProceedsWithNormalDelete", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		correlationID := "test-correlation-id"
+		params := gcpgenserver.V1betaDeletePoolParams{
+			LocationId:     "us-east4",
+			ProjectNumber:  "project-number",
+			PoolId:         "creating-pool-id",
+			XCorrelationID: gcpgenserver.OptString{Value: correlationID, Set: true},
+		}
+
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "creating-pool-id",
+			},
+			State:          models.LifeCycleStateCreating,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		deletePoolParams := &commonparams.DeletePoolParams{
+			AccountName: params.ProjectNumber,
+			PoolID:      existingPool.UUID,
+		}
+		deletedPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "creating-pool-id",
+			},
+			State:          models.LifeCycleStateDeleting,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeDeletePool)).Return(nil, errors.NewNotFoundErr("not found", nil))
+		mockOrchestrator.EXPECT().DeletePool(mock.Anything, deletePoolParams).Return(deletedPool, "new-operation-id", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaDeletePool(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		// Should proceed with normal delete and return new operation ID
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/us-east4/operations/new-operation-id", op.Name.Value)
+	})
+	t.Run("WhenPoolIsInCreatingStateWithoutCorrelationID_ProceedsWithNormalDelete", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaDeletePoolParams{
+			LocationId:     "us-east4",
+			ProjectNumber:  "project-number",
+			PoolId:         "creating-pool-id",
+			XCorrelationID: gcpgenserver.OptString{}, // Not set
+		}
+
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "creating-pool-id",
+			},
+			State:          models.LifeCycleStateCreating,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		deletePoolParams := &commonparams.DeletePoolParams{
+			AccountName: params.ProjectNumber,
+			PoolID:      existingPool.UUID,
+		}
+		deletedPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "creating-pool-id",
+			},
+			State:          models.LifeCycleStateDeleting,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
+		// Should not call GetJobByResourceUUID when correlation ID is not set
+		mockOrchestrator.EXPECT().DeletePool(mock.Anything, deletePoolParams).Return(deletedPool, "new-operation-id", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaDeletePool(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		// Should proceed with normal delete
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/us-east4/operations/new-operation-id", op.Name.Value)
+	})
+	t.Run("WhenPoolIsInCreatingStateWithCorrelationIDAndGetJobByResourceUUIDFails_ProceedsWithNormalDelete", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		correlationID := "test-correlation-id"
+		params := gcpgenserver.V1betaDeletePoolParams{
+			LocationId:     "us-east4",
+			ProjectNumber:  "project-number",
+			PoolId:         "creating-pool-id",
+			XCorrelationID: gcpgenserver.OptString{Value: correlationID, Set: true},
+		}
+
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "creating-pool-id",
+			},
+			State:          models.LifeCycleStateCreating,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		deletePoolParams := &commonparams.DeletePoolParams{
+			AccountName: params.ProjectNumber,
+			PoolID:      existingPool.UUID,
+		}
+		deletedPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "creating-pool-id",
+			},
+			State:          models.LifeCycleStateDeleting,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeDeletePool)).Return(nil, stderrors.New("database error"))
+		mockOrchestrator.EXPECT().DeletePool(mock.Anything, deletePoolParams).Return(deletedPool, "new-operation-id", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaDeletePool(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		// Should proceed with normal delete when GetJobByResourceUUID fails
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/us-east4/operations/new-operation-id", op.Name.Value)
+	})
+	t.Run("WhenPoolIsInCreatingStateWithCorrelationIDAndExistingDeleteJobInErrorState_ReturnsExistingJobUUIDWithDone", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		correlationID := "test-correlation-id"
+		params := gcpgenserver.V1betaDeletePoolParams{
+			LocationId:     "us-east4",
+			ProjectNumber:  "project-number",
+			PoolId:         "creating-pool-id",
+			XCorrelationID: gcpgenserver.OptString{Value: correlationID, Set: true},
+		}
+
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "creating-pool-id",
+			},
+			State:          models.LifeCycleStateCreating,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		existingDeleteJob := &models.Job{
+			BaseModel: models.BaseModel{
+				UUID: "existing-delete-job-uuid",
+			},
+			Type:          models.JobTypeDeletePool,
+			CorrelationID: correlationID,
+			State:         models.JobsStateERROR, // Job is in ERROR state
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, existingPool.UUID, string(models.JobTypeDeletePool)).Return(existingDeleteJob, nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaDeletePool(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		// Should return existing job UUID even when in ERROR state (idempotency)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/us-east4/operations/existing-delete-job-uuid", op.Name.Value)
+		assert.True(tt, op.Done.Value) // Job is ERROR, so Done should be true
+	})
 }
 
 func TestV1betaDescribePool(t *testing.T) {

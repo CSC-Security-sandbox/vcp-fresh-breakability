@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -215,6 +216,7 @@ func HandleCancellationInDeleteWorkflow(
 		createJob := &datamodel.Job{
 			BaseModel:    datamodel.BaseModel{UUID: createJobResult.JobUUID},
 			State:        string(models.JobsStateERROR),
+			TrackingID:   vsaerrors.ErrInternalServerError,
 			ErrorDetails: "Resource creation cancelled due to delete request",
 		}
 		if err := workflow.ExecuteActivity(ctx, commonActivity.UpdateJobStatus, createJob).Get(ctx, nil); err != nil {
@@ -243,6 +245,7 @@ func HandleCancellationInDeleteWorkflow(
 	}
 
 	// Handle timeout or success
+	var errorMessage string
 	if !acknowledged {
 		// Terminating the parent workflow
 		logger.Warnf("Timeout waiting for cancellation acknowledgment (> %v), forcefully terminating workflow %s (this will also stop all child workflows)",
@@ -265,15 +268,18 @@ func HandleCancellationInDeleteWorkflow(
 				logger.Warnf("Force cancellation wait timeout for workflow %s, proceeding anyway", createJobResult.WorkflowID)
 			}
 		}
+		errorMessage = "Resource creation forcefully terminated due to delete request (timeout exceeded)"
 	} else {
 		logger.Infof("Create workflow %s cancelled successfully", createJobResult.WorkflowID)
+		errorMessage = "Resource creation cancelled due to delete request"
 	}
 
 	// Updating create job with error details
 	createJob := &datamodel.Job{
 		BaseModel:    datamodel.BaseModel{UUID: createJobResult.JobUUID},
 		State:        string(models.JobsStateERROR),
-		ErrorDetails: "Resource creation cancelled due to delete request",
+		TrackingID:   vsaerrors.ErrInternalServerError,
+		ErrorDetails: errorMessage,
 	}
 	updateErr := workflow.ExecuteActivity(ctx, commonActivity.UpdateJobStatus, createJob).Get(ctx, nil)
 	if updateErr != nil {

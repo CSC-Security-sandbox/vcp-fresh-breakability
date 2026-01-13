@@ -2124,7 +2124,7 @@ func Test_FindTenancy(t *testing.T) {
 	})
 	t.Run("WhenGetTenantProjectSucceedsWithEmptyTPRegion", func(tt *testing.T) {
 		mgs := hyperscaler2.NewMockGoogleServices(tt)
-		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, "").Return("tp-projct", nil)
+		mgs.On("GetTenantProject", consumerVPC, customerProjectNumber, activities.Region).Return("tp-projct", nil)
 
 		tenancyInfo, err := activities.FindTenancy(mgs, consumerVPC, customerProjectNumber, nil)
 		assert.NoError(tt, err)

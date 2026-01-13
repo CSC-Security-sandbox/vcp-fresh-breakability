@@ -3174,7 +3174,7 @@ func Test_releaseSubnet_Error(t *testing.T) {
 	subnetName := "test-subnet"
 	expectedErr := errors.New("release failed")
 
-	mockSvc.On("ReleaseSubnetworkOp", "", snHost, subnetName).Return("", expectedErr)
+	mockSvc.On("ReleaseSubnetworkOp", activities.Region, snHost, subnetName).Return("", expectedErr)
 
 	operationName, err := activities.ReleaseSubnetOp(mockSvc, snHost, subnetName)
 	assert.Error(t, err)

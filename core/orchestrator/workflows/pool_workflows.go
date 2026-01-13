@@ -1323,9 +1323,11 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 				return nil, ConvertToVSAError(err)
 			}
 		}
-		err = workflow.ExecuteActivity(ctx, poolActivity.DeleteOnTapCredentials, dbPool).Get(ctx, nil)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
+		if hasPoolCredentials {
+			err = workflow.ExecuteActivity(ctx, poolActivity.DeleteOnTapCredentials, dbPool).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
 		}
 	}
 
