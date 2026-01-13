@@ -2689,7 +2689,9 @@ func _restoreFilesFromBackup(ctx context.Context, se database.Storage, temporal 
 		}
 		backupVaultName := components[BackupVaultNameIndex]
 		if backupRegion != volumeRegion {
-			backupVault, err = se.GetBackupVaultByCrossRegionBackupVaultName(ctx, backupVaultName, account.ID)
+			// Construct the complete backup vault path (without the /backups/backup part)
+			backupVaultPath := strings.Join(components[:BackupVaultNameIndex+1], "/")
+			backupVault, err = se.GetBackupVaultByCrossRegionBackupVaultName(ctx, backupVaultPath, account.ID)
 			if err != nil {
 				return "", err
 			}

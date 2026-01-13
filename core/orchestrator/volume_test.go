@@ -22712,7 +22712,7 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
 
 		mockStorage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return(volume, nil)
-		mockStorage.EXPECT().GetBackupVaultByCrossRegionBackupVaultName(mock.Anything, "vault", int64(1)).Return(nil, errors.New("cross-region vault not found"))
+		mockStorage.EXPECT().GetBackupVaultByCrossRegionBackupVaultName(mock.Anything, "projects/123/locations/us-east1/backupVaults/vault", int64(1)).Return(nil, errors.New("cross-region vault not found"))
 
 		result, err := _restoreFilesFromBackup(ctx, mockStorage, mockTemporal, params)
 		assert.Error(tt, err)
@@ -22763,7 +22763,7 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
 
 		mockStorage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return(volume, nil)
-		mockStorage.EXPECT().GetBackupVaultByCrossRegionBackupVaultName(mock.Anything, "vault", int64(1)).Return(backupVault, nil)
+		mockStorage.EXPECT().GetBackupVaultByCrossRegionBackupVaultName(mock.Anything, "projects/123/locations/us-east1/backupVaults/vault", int64(1)).Return(backupVault, nil)
 		mockStorage.EXPECT().GetBackupByNameAndBackupVaultID(mock.Anything, "backup", int64(10)).Return(nil, errors.New("backup not found"))
 
 		result, err := _restoreFilesFromBackup(ctx, mockStorage, mockTemporal, params)
