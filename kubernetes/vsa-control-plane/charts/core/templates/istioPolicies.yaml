@@ -17,7 +17,7 @@ spec:
     - from:
         - source:
             principals:
-              - "cluster.local/ns/ontap-proxy/sa/ontap-proxy"
+              - "cluster.local/ns/ontap-proxy/sa/ontap-proxy-ksa"
       to:
         - operation:
             paths: ["/v1/expertMode/*"]

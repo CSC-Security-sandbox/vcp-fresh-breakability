@@ -1,5 +1,5 @@
 enabled: true
-serviceAccountName: ontap-proxy
+serviceAccountName: ontap-proxy-ksa
 replicaCount: 3
 
 # Global configuration (required for image registry helpers)
