@@ -21,10 +21,8 @@ func TestGetProxyRules(t *testing.T) {
 		assert.True(t, ok, "Should have rule for /api/private/*")
 		assert.NotNil(t, rule.GET)
 		assert.NotNil(t, rule.POST)
-		assert.NotNil(t, rule.PUT)
 		assert.NotNil(t, rule.PATCH)
 		assert.NotNil(t, rule.DELETE)
-		assert.NotNil(t, rule.HEAD)
 	})
 
 	t.Run("ShouldContainStorageVolumesRule", func(t *testing.T) {
@@ -143,6 +141,49 @@ func TestStorageVolumesRule(t *testing.T) {
 		assert.NotEmpty(t, reason)
 	})
 
+	t.Run("WhenPOSTWithValidSnaplockTypeEnterprise_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/volumes"]
+		body := bytes.NewBufferString(`{"size": 1073741824, "name": "test-volume", "snaplock": {"type": "enterprise"}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/volumes", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST with snaplock.type='enterprise' should be allowed")
+	})
+
+	t.Run("WhenPOSTWithValidSnaplockTypeNonSnaplock_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/volumes"]
+		body := bytes.NewBufferString(`{"size": 1073741824, "name": "test-volume", "snaplock": {"type": "non_snaplock"}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/volumes", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST with snaplock.type='non_snaplock' should be allowed")
+	})
+
+	t.Run("WhenPOSTWithInvalidSnaplockType_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/volumes"]
+		body := bytes.NewBufferString(`{"size": 1073741824, "name": "test-volume", "snaplock": {"type": "compliance"}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/volumes", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "POST with snaplock.type='compliance' should be denied")
+		assert.NotEmpty(t, reason)
+	})
+
 	t.Run("WhenPOSTWithoutSizeField_ShouldDeny", func(t *testing.T) {
 		rules := GetProxyRules()
 		rule := rules["/api/storage/volumes"]
@@ -239,7 +280,7 @@ func TestStorageVolumesUUIDRule(t *testing.T) {
 		assert.True(t, allowed, "PATCH with guarantee.type='none' should be allowed")
 	})
 
-	t.Run("WhenPATCHWithValidGuaranteeTypeVolume_ShouldAllow", func(t *testing.T) {
+	t.Run("WhenPATCHWithInvalidGuaranteeTypeVolume_ShouldDeny", func(t *testing.T) {
 		rules := GetProxyRules()
 		rule := rules["/api/storage/volumes/{uuid}"]
 		body := bytes.NewBufferString(`{"size": 2147483648, "name": "updated-volume", "guarantee": {"type": "volume"}}`)
@@ -249,8 +290,9 @@ func TestStorageVolumesUUIDRule(t *testing.T) {
 		action := rule.GetAction(req)
 
 		assert.NotNil(t, action)
-		allowed, _ := action.ShouldAllow(req)
-		assert.True(t, allowed, "PATCH with guarantee.type='volume' should be allowed")
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "PATCH with guarantee.type='volume' should be denied")
+		assert.NotEmpty(t, reason)
 	})
 
 	t.Run("WhenPATCHWithInvalidGuaranteeType_ShouldDeny", func(t *testing.T) {
@@ -265,6 +307,49 @@ func TestStorageVolumesUUIDRule(t *testing.T) {
 		assert.NotNil(t, action)
 		allowed, reason := action.ShouldAllow(req)
 		assert.False(t, allowed, "PATCH with invalid guarantee.type should be denied")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenPATCHWithValidSnaplockTypeEnterprise_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/volumes/{uuid}"]
+		body := bytes.NewBufferString(`{"size": 2147483648, "snaplock": {"type": "enterprise"}}`)
+		req := httptest.NewRequest(http.MethodPatch, "/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "PATCH with snaplock.type='enterprise' should be allowed")
+	})
+
+	t.Run("WhenPATCHWithValidSnaplockTypeNonSnaplock_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/volumes/{uuid}"]
+		body := bytes.NewBufferString(`{"size": 2147483648, "snaplock": {"type": "non_snaplock"}}`)
+		req := httptest.NewRequest(http.MethodPatch, "/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "PATCH with snaplock.type='non_snaplock' should be allowed")
+	})
+
+	t.Run("WhenPATCHWithInvalidSnaplockType_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/volumes/{uuid}"]
+		body := bytes.NewBufferString(`{"size": 2147483648, "snaplock": {"type": "compliance"}}`)
+		req := httptest.NewRequest(http.MethodPatch, "/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "PATCH with snaplock.type='compliance' should be denied")
 		assert.NotEmpty(t, reason)
 	})
 
@@ -359,6 +444,110 @@ func TestStorageAggregatesRule(t *testing.T) {
 		assert.NotNil(t, action)
 		allowed, reason := action.ShouldAllow(req)
 		assert.False(t, allowed, "DELETE should be denied for aggregates")
+		assert.NotEmpty(t, reason)
+	})
+}
+
+func TestSecurityCertificatesRule(t *testing.T) {
+	t.Run("WhenGET_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/security/certificates"]
+		req := httptest.NewRequest(http.MethodGet, "/api/security/certificates", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "GET should be allowed for certificates collection")
+	})
+
+	t.Run("WhenPOST_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/security/certificates"]
+		req := httptest.NewRequest(http.MethodPost, "/api/security/certificates", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST should be allowed for certificates collection")
+	})
+
+	t.Run("WhenPATCH_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/security/certificates"]
+		req := httptest.NewRequest(http.MethodPatch, "/api/security/certificates", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "PATCH should be denied for certificates collection")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenDELETE_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/security/certificates"]
+		req := httptest.NewRequest(http.MethodDelete, "/api/security/certificates", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "DELETE should be denied for certificates collection")
+		assert.NotEmpty(t, reason)
+	})
+}
+
+func TestSecurityCertificatesUUIDRule(t *testing.T) {
+	t.Run("WhenGET_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/security/certificates/{uuid}"]
+		req := httptest.NewRequest(http.MethodGet, "/api/security/certificates/550e8400-e29b-41d4-a716-446655440000", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "GET should be allowed for specific certificate")
+	})
+
+	t.Run("WhenPOST_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/security/certificates/{uuid}"]
+		req := httptest.NewRequest(http.MethodPost, "/api/security/certificates/550e8400-e29b-41d4-a716-446655440000", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "POST should be denied for specific certificate")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenPATCH_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/security/certificates/{uuid}"]
+		req := httptest.NewRequest(http.MethodPatch, "/api/security/certificates/550e8400-e29b-41d4-a716-446655440000", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "PATCH should be allowed for specific certificate")
+	})
+
+	t.Run("WhenDELETE_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/security/certificates/{uuid}"]
+		req := httptest.NewRequest(http.MethodDelete, "/api/security/certificates/550e8400-e29b-41d4-a716-446655440000", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "DELETE should be denied for specific certificate")
 		assert.NotEmpty(t, reason)
 	})
 }

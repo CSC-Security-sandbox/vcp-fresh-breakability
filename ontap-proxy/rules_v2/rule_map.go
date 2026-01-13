@@ -12,10 +12,8 @@ func GetProxyRules() map[string]Rule {
 		"/api/private/*": {
 			GET:    Deny{Name: "Private API access denied"},
 			POST:   Deny{Name: "Private API access denied"},
-			PUT:    Deny{Name: "Private API access denied"},
 			PATCH:  Deny{Name: "Private API access denied"},
 			DELETE: Deny{Name: "Private API access denied"},
-			HEAD:   Deny{Name: "Private API access denied"},
 		},
 
 		// Storage Volumes - list and create
@@ -37,6 +35,7 @@ func GetProxyRules() map[string]Rule {
 				Condition: And(
 					HasFields("size", "name"),
 					IfPresentThenValue("guarantee.type", "none"),
+					IfPresentThenValue("snaplock.type", "enterprise", "non_snaplock"),
 					IfPresentThenEquals("space.logical_space.enforcement", true),
 					IfPresentThenEquals("space.logical_space.reporting", true),
 					validateVolumeCreation, // Returns specific error from core API
@@ -58,10 +57,8 @@ func GetProxyRules() map[string]Rule {
 					},
 				},
 			},
-			PUT:    DenyAll{},
 			PATCH:  DenyAll{},
 			DELETE: DenyAll{},
-			HEAD:   AllowAll{},
 		},
 
 		// Storage Volumes - specific volume operations
@@ -78,11 +75,11 @@ func GetProxyRules() map[string]Rule {
 				},
 			},
 			POST: DenyAll{},
-			PUT:  DenyAll{},
 			PATCH: When{
 				Name: "Volume modification validation",
 				Condition: And(
-					IfPresentThenValue("guarantee.type", "none", "volume"),
+					IfPresentThenValue("guarantee.type", "none"),
+					IfPresentThenValue("snaplock.type", "enterprise", "non_snaplock"),
 					IfPresentThenEquals("space.logical_space.enforcement", true),
 					validateVolumeModification,
 				),
@@ -110,27 +107,38 @@ func GetProxyRules() map[string]Rule {
 					},
 				},
 			},
-			HEAD: AllowAll{},
 		},
 
 		// Storage Aggregates
 		"/api/storage/aggregates": {
 			GET:    Allow{Name: "Allow aggregate listing"},
 			POST:   Deny{Name: "Aggregate creation not allowed"},
-			PUT:    Deny{Name: "Aggregate modification not allowed"},
 			PATCH:  Deny{Name: "Aggregate modification not allowed"},
 			DELETE: Deny{Name: "Aggregate deletion not allowed"},
-			HEAD:   AllowAll{},
 		},
 
 		// Storage Aggregates - specific aggregate
 		"/api/storage/aggregates/{uuid}": {
 			GET:    Allow{Name: "Allow aggregate details"},
 			POST:   DenyAll{},
-			PUT:    DenyAll{},
 			PATCH:  Deny{Name: "Aggregate modification not allowed"},
 			DELETE: Deny{Name: "Aggregate deletion not allowed"},
-			HEAD:   AllowAll{},
+		},
+
+		// Security Certificates
+		"/api/security/certificates": {
+			GET:    AllowAll{},
+			POST:   AllowAll{},
+			PATCH:  Deny{Name: "Certificate collection modification not allowed"},
+			DELETE: Deny{Name: "Certificate deletion not allowed"},
+		},
+
+		// Security Certificates - specific certificate
+		"/api/security/certificates/{uuid}": {
+			GET:    AllowAll{},
+			POST:   DenyAll{},
+			PATCH:  AllowAll{},
+			DELETE: Deny{Name: "Certificate deletion not allowed"},
 		},
 	}
 }
