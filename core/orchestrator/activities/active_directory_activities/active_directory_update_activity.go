@@ -294,13 +294,13 @@ func (a ActiveDirectoryUpdateActivity) UpdateSdeActiveDirectory(ctx context.Cont
 	if params.AesEncryption != nil {
 		body.AesEncryption = params.AesEncryption
 	}
-	if len(params.SecurityOperators) > 0 {
+	if params.SecurityOperators != nil {
 		body.SecurityOperators = params.SecurityOperators
 	}
-	if len(params.BackupOperators) > 0 {
+	if params.BackupOperators != nil {
 		body.BackupOperators = params.BackupOperators
 	}
-	if len(params.Administrators) > 0 {
+	if params.Administrators != nil {
 		body.Administrators = params.Administrators
 	}
 

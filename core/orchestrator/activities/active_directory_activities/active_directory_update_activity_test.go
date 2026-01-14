@@ -934,6 +934,165 @@ func TestActiveDirectoryUpdateActivity_UpdateSdeActiveDirectory_SecurityGroupsUp
 	assert.NotNil(t, result)
 }
 
+func TestActiveDirectoryUpdateActivity_UpdateSdeActiveDirectory_UpdateToEmptyLists(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	// Test updating all three user groups to empty lists for SDE
+	params := &common.UpdateActiveDirectoryParams{
+		ActiveDirectoryId: "test-ad-uuid",
+		AccountId:         "123456789",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
+		SecurityOperators: []string{}, // Empty list - should be sent to SDE
+		BackupOperators:   []string{}, // Empty list - should be sent to SDE
+		Administrators:    []string{}, // Empty list - should be sent to SDE
+	}
+
+	// Mock JWT token in context
+	ctx = context.WithValue(ctx, "jwt_token", "test-jwt-token")
+
+	expectedDone := false
+	expectedResponse := &active_directories.V1betaUpdateActiveDirectoryAccepted{
+		Payload: &cvpModels.OperationV1beta{
+			Done: &expectedDone,
+			Name: "operations/test-operation-123",
+		},
+	}
+
+	mockActiveDirectoriesClient := active_directories.NewMockClientService(t)
+	// Verify that the request includes empty lists (not nil)
+	mockActiveDirectoriesClient.On("V1betaUpdateActiveDirectory", mock.MatchedBy(func(req *active_directories.V1betaUpdateActiveDirectoryParams) bool {
+		// Verify empty lists are sent (not nil)
+		return req.Body != nil &&
+			req.Body.SecurityOperators != nil && len(req.Body.SecurityOperators) == 0 &&
+			req.Body.BackupOperators != nil && len(req.Body.BackupOperators) == 0 &&
+			req.Body.Administrators != nil && len(req.Body.Administrators) == 0
+	})).Return(expectedResponse, nil)
+
+	cvpClient := &cvpapi.Cvp{ActiveDirectories: mockActiveDirectoriesClient}
+	originalCvpClient := CvpClient
+	defer func() { CvpClient = originalCvpClient }()
+	CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	result, err := activity.UpdateSdeActiveDirectory(ctx, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	mockActiveDirectoriesClient.AssertExpectations(t)
+}
+
+func TestActiveDirectoryUpdateActivity_UpdateSdeActiveDirectory_UpdateOnlyOneToEmptyList(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	// Test updating only SecurityOperators to empty list, others not provided
+	params := &common.UpdateActiveDirectoryParams{
+		ActiveDirectoryId: "test-ad-uuid",
+		AccountId:         "123456789",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
+		SecurityOperators: []string{}, // Empty list - should be sent
+		// BackupOperators and Administrators are nil (not being updated)
+	}
+
+	// Mock JWT token in context
+	ctx = context.WithValue(ctx, "jwt_token", "test-jwt-token")
+
+	expectedDone := false
+	expectedResponse := &active_directories.V1betaUpdateActiveDirectoryAccepted{
+		Payload: &cvpModels.OperationV1beta{
+			Done: &expectedDone,
+			Name: "operations/test-operation-123",
+		},
+	}
+
+	mockActiveDirectoriesClient := active_directories.NewMockClientService(t)
+	// Verify that only SecurityOperators is set (empty), others are nil
+	mockActiveDirectoriesClient.On("V1betaUpdateActiveDirectory", mock.MatchedBy(func(req *active_directories.V1betaUpdateActiveDirectoryParams) bool {
+		return req.Body != nil &&
+			req.Body.SecurityOperators != nil && len(req.Body.SecurityOperators) == 0 &&
+			req.Body.BackupOperators == nil &&
+			req.Body.Administrators == nil
+	})).Return(expectedResponse, nil)
+
+	cvpClient := &cvpapi.Cvp{ActiveDirectories: mockActiveDirectoriesClient}
+	originalCvpClient := CvpClient
+	defer func() { CvpClient = originalCvpClient }()
+	CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	result, err := activity.UpdateSdeActiveDirectory(ctx, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	mockActiveDirectoriesClient.AssertExpectations(t)
+}
+
+func TestActiveDirectoryUpdateActivity_UpdateSdeActiveDirectory_MixedEmptyAndNonEmptyLists(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	// Test mixed: empty SecurityOperators, non-empty BackupOperators, empty Administrators
+	params := &common.UpdateActiveDirectoryParams{
+		ActiveDirectoryId: "test-ad-uuid",
+		AccountId:         "123456789",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
+		SecurityOperators: []string{},                 // Empty list
+		BackupOperators:   []string{"backup-user-1"}, // Non-empty list
+		Administrators:    []string{},                 // Empty list
+	}
+
+	// Mock JWT token in context
+	ctx = context.WithValue(ctx, "jwt_token", "test-jwt-token")
+
+	expectedDone := false
+	expectedResponse := &active_directories.V1betaUpdateActiveDirectoryAccepted{
+		Payload: &cvpModels.OperationV1beta{
+			Done: &expectedDone,
+			Name: "operations/test-operation-123",
+		},
+	}
+
+	mockActiveDirectoriesClient := active_directories.NewMockClientService(t)
+	// Verify the correct mix is sent to SDE
+	mockActiveDirectoriesClient.On("V1betaUpdateActiveDirectory", mock.MatchedBy(func(req *active_directories.V1betaUpdateActiveDirectoryParams) bool {
+		return req.Body != nil &&
+			req.Body.SecurityOperators != nil && len(req.Body.SecurityOperators) == 0 &&
+			req.Body.BackupOperators != nil && len(req.Body.BackupOperators) == 1 && req.Body.BackupOperators[0] == "backup-user-1" &&
+			req.Body.Administrators != nil && len(req.Body.Administrators) == 0
+	})).Return(expectedResponse, nil)
+
+	cvpClient := &cvpapi.Cvp{ActiveDirectories: mockActiveDirectoriesClient}
+	originalCvpClient := CvpClient
+	defer func() { CvpClient = originalCvpClient }()
+	CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	result, err := activity.UpdateSdeActiveDirectory(ctx, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	mockActiveDirectoriesClient.AssertExpectations(t)
+}
+
 func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_TokenError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 
