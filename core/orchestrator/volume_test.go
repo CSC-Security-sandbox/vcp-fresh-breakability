@@ -408,6 +408,42 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		assert.ErrorContains(tt, err, "pool large capacity setting does not match volume large capacity setting")
 	})
 
+	t.Run("CacheVolumeAllowsLargeCapacityMismatch", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewMockLogger(tt)
+		mockLogger.EXPECT().InfoContext(mock.Anything, "Running AutoMigrate for model changes")
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			LargeCapacity: true, // Pool is large capacity
+		}
+
+		params := &common.CreateVolumeParams{
+			LargeCapacity: false, // Volume is NOT large capacity - mismatch!
+			CacheParameters: &models.CacheParameters{
+				PeerClusterName: "peer-cluster",
+			},
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		mm.EXPECT().utilGetLogger(mock.Anything).Return(mockLogger)
+		mockLogger.EXPECT().Debug("Allowing cache volume to have different large capacity setting than pool")
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		// Verify that the large capacity mismatch error is NOT returned for cache volumes
+		if err != nil {
+			assert.NotContains(tt, err.Error(), "pool large capacity setting does not match volume large capacity setting", "Cache volumes should be allowed to have different large capacity setting than pool")
+		}
+	})
+
 	t.Run("LargeCapacitySANProtocolRestriction", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -8769,6 +8805,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		mm.EXPECT().envIsLocalEnv().Return(true)
+		mm.EXPECT().utilGetLogger(mock.Anything).Return(mockLogger)
 
 		err = _validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.Nil(tt, err, "some error")

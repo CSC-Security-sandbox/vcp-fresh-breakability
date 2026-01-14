@@ -1061,9 +1061,14 @@ func getMaxConstituentVolumesPerAggregate(logger log.Logger, config string) (int
 }
 
 func _validateCreateVolumeParams(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
-	logger := util.GetLogger(ctx)
+	logger := utilGetLogger(ctx)
 	if pool.LargeCapacity != params.LargeCapacity {
-		return customerrors.NewUserInputValidationErr("pool large capacity setting does not match volume large capacity setting")
+		if params.CacheParameters != nil {
+			// Cache Volumes cannot have large capacity set but should still be allowed to be created on a large capacity pool.
+			logger.Debug("Allowing cache volume to have different large capacity setting than pool")
+		} else {
+			return customerrors.NewUserInputValidationErr("pool large capacity setting does not match volume large capacity setting")
+		}
 	}
 
 	if hp := params.HybridReplicationParameters; hp != nil {
