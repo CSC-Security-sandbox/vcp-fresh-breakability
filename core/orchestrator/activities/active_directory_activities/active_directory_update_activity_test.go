@@ -446,6 +446,177 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_UpdateSecurityGr
 	mockStorage.On("UpdateActiveDirectory", mock.Anything, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
 		return len(ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectorySeSecurityPrivilege]) == 2 &&
 			len(ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInBackupOperators]) == 1 &&
+			ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInAdministrators] == nil
+	})).Return(updatedRecord, nil)
+
+	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id")
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_UpdateToEmptyLists(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	// Test updating all three user groups to empty lists
+	params := &common.UpdateActiveDirectoryParams{
+		ActiveDirectoryId: "test-ad-uuid",
+		AccountId:         "123",
+		SecurityOperators: []string{}, // Empty list
+		BackupOperators:   []string{}, // Empty list
+		Administrators:    []string{}, // Empty list
+	}
+
+	ad := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{
+			UUID: "test-ad-uuid",
+		},
+		AdName: "test-ad",
+		ActiveDirectoryAttributes: &models.ActiveDirectoryAttributes{
+			SecurityOperators: []string{"old-security"},
+			BackupOperators:   []string{"old-backup"},
+			Administrators:    []string{"old-admin"},
+		},
+	}
+
+	existingRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{
+			ID:   1,
+			UUID: "test-ad-uuid",
+		},
+		AdName:    "test-ad",
+		AccountId: 123,
+		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+			AdUsers: map[string][]string{
+				utils.ActiveDirectorySeSecurityPrivilege:         []string{"old-security"},
+				utils.ActiveDirectoryGroupBuiltInBackupOperators: []string{"old-backup"},
+				utils.ActiveDirectoryGroupBuiltInAdministrators:  []string{"old-admin"},
+			},
+		},
+	}
+
+	updatedRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{
+			ID:   1,
+			UUID: "test-ad-uuid",
+		},
+		AdName:       "test-ad",
+		State:        models.LifeCycleStateREADY,
+		StateDetails: models.LifeCycleStateReadyDetails,
+		AccountId:    123,
+		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+			AdUsers: map[string][]string{
+				utils.ActiveDirectorySeSecurityPrivilege:         nil,
+				utils.ActiveDirectoryGroupBuiltInBackupOperators: nil,
+				utils.ActiveDirectoryGroupBuiltInAdministrators:  nil,
+			},
+		},
+	}
+
+	accountID := int64(123)
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: accountID},
+		Name:      "test-account",
+	}
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
+
+	mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).
+		Return(existingRecord, nil)
+
+	mockStorage.On("UpdateActiveDirectory", mock.Anything, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+		// Verify all three lists are nil (empty lists converted to nil)
+		return ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectorySeSecurityPrivilege] == nil &&
+			ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInBackupOperators] == nil &&
+			ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInAdministrators] == nil
+	})).Return(updatedRecord, nil)
+
+	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id")
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_UpdateOnlyOneToEmptyList(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	// Test updating only SecurityOperators to empty list, leave others unchanged
+	params := &common.UpdateActiveDirectoryParams{
+		ActiveDirectoryId: "test-ad-uuid",
+		AccountId:         "123",
+		SecurityOperators: []string{}, // Empty list
+		// BackupOperators and Administrators are nil (not being updated)
+	}
+
+	ad := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{
+			UUID: "test-ad-uuid",
+		},
+		AdName: "test-ad",
+		ActiveDirectoryAttributes: &models.ActiveDirectoryAttributes{
+			SecurityOperators: []string{"old-security"},
+			BackupOperators:   []string{"old-backup"},
+			Administrators:    []string{"old-admin"},
+		},
+	}
+
+	existingRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{
+			ID:   1,
+			UUID: "test-ad-uuid",
+		},
+		AdName:    "test-ad",
+		AccountId: 123,
+		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+			AdUsers: map[string][]string{
+				utils.ActiveDirectorySeSecurityPrivilege:         []string{"old-security"},
+				utils.ActiveDirectoryGroupBuiltInBackupOperators: []string{"old-backup"},
+				utils.ActiveDirectoryGroupBuiltInAdministrators:  []string{"old-admin"},
+			},
+		},
+	}
+
+	updatedRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{
+			ID:   1,
+			UUID: "test-ad-uuid",
+		},
+		AdName:       "test-ad",
+		State:        models.LifeCycleStateREADY,
+		StateDetails: models.LifeCycleStateReadyDetails,
+		AccountId:    123,
+		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+			AdUsers: map[string][]string{
+				utils.ActiveDirectorySeSecurityPrivilege:         nil,
+				utils.ActiveDirectoryGroupBuiltInBackupOperators: []string{"old-backup"},
+				utils.ActiveDirectoryGroupBuiltInAdministrators:  []string{"old-admin"},
+			},
+		},
+	}
+
+	accountID := int64(123)
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: accountID},
+		Name:      "test-account",
+	}
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
+
+	mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).
+		Return(existingRecord, nil)
+
+	mockStorage.On("UpdateActiveDirectory", mock.Anything, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+		// Verify SecurityOperators is nil (empty list converted to nil), others remain unchanged
+		return ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectorySeSecurityPrivilege] == nil &&
+			len(ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInBackupOperators]) == 1 &&
 			len(ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInAdministrators]) == 1
 	})).Return(updatedRecord, nil)
 
@@ -455,7 +626,97 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_UpdateSecurityGr
 	mockStorage.AssertExpectations(t)
 }
 
-func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_NilAttributes(t *testing.T) {
+func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_MixedEmptyAndNonEmptyLists(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	// Test mixed scenario: empty list for SecurityOperators, non-empty for BackupOperators, empty for Administrators
+	params := &common.UpdateActiveDirectoryParams{
+		ActiveDirectoryId: "test-ad-uuid",
+		AccountId:         "123",
+		SecurityOperators: []string{},                   // Empty list -> should become nil
+		BackupOperators:   []string{"backup-user-1"},   // Non-empty list -> should remain as array
+		Administrators:    []string{},                   // Empty list -> should become nil
+	}
+
+	ad := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{
+			UUID: "test-ad-uuid",
+		},
+		AdName: "test-ad",
+		ActiveDirectoryAttributes: &models.ActiveDirectoryAttributes{
+			SecurityOperators: []string{"old-security"},
+			BackupOperators:   []string{"old-backup"},
+			Administrators:    []string{"old-admin"},
+		},
+	}
+
+	existingRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{
+			ID:   1,
+			UUID: "test-ad-uuid",
+		},
+		AdName:    "test-ad",
+		AccountId: 123,
+		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+			AdUsers: map[string][]string{
+				utils.ActiveDirectorySeSecurityPrivilege:         []string{"old-security"},
+				utils.ActiveDirectoryGroupBuiltInBackupOperators: []string{"old-backup"},
+				utils.ActiveDirectoryGroupBuiltInAdministrators:  []string{"old-admin"},
+			},
+		},
+	}
+
+	updatedRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{
+			ID:   1,
+			UUID: "test-ad-uuid",
+		},
+		AdName:       "test-ad",
+		State:        models.LifeCycleStateREADY,
+		StateDetails: models.LifeCycleStateReadyDetails,
+		AccountId:    123,
+		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+			AdUsers: map[string][]string{
+				utils.ActiveDirectorySeSecurityPrivilege:         nil,
+				utils.ActiveDirectoryGroupBuiltInBackupOperators: []string{"backup-user-1"},
+				utils.ActiveDirectoryGroupBuiltInAdministrators:  nil,
+			},
+		},
+	}
+
+	accountID := int64(123)
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: accountID},
+		Name:      "test-account",
+	}
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
+
+	mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).
+		Return(existingRecord, nil)
+
+	mockStorage.On("UpdateActiveDirectory", mock.Anything, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+		// Verify:
+		// - SecurityOperators is nil (empty list converted to nil)
+		// - BackupOperators has 1 element (non-empty list stays as array)
+		// - Administrators is nil (empty list converted to nil)
+		return ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectorySeSecurityPrivilege] == nil &&
+			len(ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInBackupOperators]) == 1 &&
+			ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInBackupOperators][0] == "backup-user-1" &&
+			ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInAdministrators] == nil
+	})).Return(updatedRecord, nil)
+
+	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id")
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestActiveDirectoryUpdateActivity_NilAttributes(t *testing.T) {
 	ctx := context.Background()
 	mockStorage := database.NewMockStorage(t)
 

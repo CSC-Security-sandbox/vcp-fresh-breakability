@@ -373,15 +373,18 @@ func convertUpdateParamsToModel(params *common.UpdateActiveDirectoryParams, oldA
 	if params.Site != nil && *params.Site != "" {
 		ad.ActiveDirectoryAttributes.Site = *params.Site
 	}
-	if len(params.SecurityOperators) > 0 {
-		ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectorySeSecurityPrivilege] = params.SecurityOperators
+	updateAdUsers := func(key string, values []string) {
+		if values != nil {
+			if len(values) == 0 {
+				ad.ActiveDirectoryAttributes.AdUsers[key] = nil
+			} else {
+				ad.ActiveDirectoryAttributes.AdUsers[key] = values
+			}
+		}
 	}
-	if len(params.BackupOperators) > 0 {
-		ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInBackupOperators] = params.BackupOperators
-	}
-	if len(params.Administrators) > 0 {
-		ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInAdministrators] = params.Administrators
-	}
+	updateAdUsers(utils.ActiveDirectorySeSecurityPrivilege, params.SecurityOperators)
+	updateAdUsers(utils.ActiveDirectoryGroupBuiltInBackupOperators, params.BackupOperators)
+	updateAdUsers(utils.ActiveDirectoryGroupBuiltInAdministrators, params.Administrators)
 	if params.KdcIP != nil && *params.KdcIP != "" {
 		ad.ActiveDirectoryAttributes.KdcIP = *params.KdcIP
 	}
