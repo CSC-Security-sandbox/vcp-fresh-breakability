@@ -200,7 +200,7 @@ func TestReverseHybridReplicationActivity_CheckClusterPeerHealthForHybridReverse
 		assert.Error(tt, err)
 		assert.Nil(tt, updatedResult)
 	})
-	
+
 	t.Run("WhenClusterPeerIsNil", func(tt *testing.T) {
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -1971,6 +1971,11 @@ func TestReverseHybridReplicationActivity_HydrateReplicationSateAndTypeForRevers
 		defer func() { hydrateReplicationStateAndTypeForHybrid = originalHydrateReplicationStateAndTypeForHybrid }()
 
 		result := &replication.ReverseHybridReplicationResult{
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					Location: "us-east1",
+				},
+			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				Name: "test-replication",
 				Uri:  "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
@@ -1995,6 +2000,11 @@ func TestReverseHybridReplicationActivity_HydrateReplicationSateAndTypeForRevers
 		defer func() { hydrationEnabled = originalHydrationEnabled }()
 
 		result := &replication.ReverseHybridReplicationResult{
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					Location: "us-east1",
+				},
+			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				Name: "test-replication",
 				Uri:  "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
@@ -2019,6 +2029,11 @@ func TestReverseHybridReplicationActivity_HydrateReplicationSateAndTypeForRevers
 		defer func() { hydrationEnabled = originalHydrationEnabled }()
 
 		result := &replication.ReverseHybridReplicationResult{
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					Location: "us-east1",
+				},
+			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				Name: "test-replication",
 				Uri:  "invalid-uri",
@@ -2050,6 +2065,11 @@ func TestReverseHybridReplicationActivity_HydrateReplicationSateAndTypeForRevers
 		defer func() { hydrateReplicationStateAndTypeForHybrid = originalHydrateReplicationStateAndTypeForHybrid }()
 
 		result := &replication.ReverseHybridReplicationResult{
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					Location: "us-east1",
+				},
+			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				Name: "test-replication",
 				Uri:  "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
@@ -2099,7 +2119,7 @@ func TestHydrateReplicationStateAndTypeForHybridReplication(t *testing.T) {
 			},
 		}
 
-		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM)
+		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM, "us-east1")
 
 		assert.NoError(tt, err)
 	})
@@ -2119,7 +2139,7 @@ func TestHydrateReplicationStateAndTypeForHybridReplication(t *testing.T) {
 			},
 		}
 
-		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM)
+		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM, "us-east1")
 
 		assert.NoError(tt, err)
 	})
@@ -2139,7 +2159,7 @@ func TestHydrateReplicationStateAndTypeForHybridReplication(t *testing.T) {
 			},
 		}
 
-		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM)
+		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM, "us-east1")
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "failed to parse project number")
@@ -2167,7 +2187,7 @@ func TestHydrateReplicationStateAndTypeForHybridReplication(t *testing.T) {
 			},
 		}
 
-		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM)
+		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM, "us-east1")
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "hydration error")
@@ -2197,7 +2217,7 @@ func TestHydrateReplicationStateAndTypeForHybridReplication(t *testing.T) {
 			},
 		}
 
-		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateExternalManaged, models.HybridReplicationParametersReplicationTypeREVERSE)
+		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateExternalManaged, models.HybridReplicationParametersReplicationTypeREVERSE, "us-east1")
 
 		assert.NoError(tt, err)
 	})

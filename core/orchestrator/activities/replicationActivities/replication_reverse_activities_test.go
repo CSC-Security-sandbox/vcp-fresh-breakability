@@ -3122,6 +3122,11 @@ func TestReverseVolumeReplicationActivity_HydrateReplicationSateAndTypeForRevers
 		defer func() { hydrateReplicationStateAndTypeForHybrid = originalHydrateReplicationStateAndTypeForHybrid }()
 
 		result := &replication.ReverseReplicationResult{
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					Location: "us-east1",
+				},
+			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				Name: "test-replication",
 				Uri:  "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
@@ -3146,6 +3151,11 @@ func TestReverseVolumeReplicationActivity_HydrateReplicationSateAndTypeForRevers
 		defer func() { hydrationEnabled = originalHydrationEnabled }()
 
 		result := &replication.ReverseReplicationResult{
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					Location: "us-east1",
+				},
+			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				Name: "test-replication",
 				Uri:  "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
@@ -3170,6 +3180,11 @@ func TestReverseVolumeReplicationActivity_HydrateReplicationSateAndTypeForRevers
 		defer func() { hydrationEnabled = originalHydrationEnabled }()
 
 		result := &replication.ReverseReplicationResult{
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					Location: "us-east1",
+				},
+			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				Name: "test-replication",
 				Uri:  "invalid-uri",
@@ -3201,6 +3216,11 @@ func TestReverseVolumeReplicationActivity_HydrateReplicationSateAndTypeForRevers
 		defer func() { hydrateReplicationStateAndTypeForHybrid = originalHydrateReplicationStateAndTypeForHybrid }()
 
 		result := &replication.ReverseReplicationResult{
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					Location: "us-east1",
+				},
+			},
 			DbVolReplication: &datamodel.VolumeReplication{
 				Name: "test-replication",
 				Uri:  "projects/123456789/locations/us-central1/volumes/test-volume/replications/test-replication",
