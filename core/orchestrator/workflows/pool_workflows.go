@@ -66,6 +66,8 @@ var (
 	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "")
 	vsaFilesImageName            = env.GetString("VSA_FILES_IMAGE_NAME", "")
 	filesMediatorImage           = env.GetString("VSA_FILES_MEDIATOR_IMAGE_NAME", "")
+	vsaExperimentalImageName     = env.GetString("VSA_IMAGE_EXPERIMENTAL", "")
+	experimentalMediatorImage    = env.GetString("VSA_MEDIATOR_IMAGE_EXPERIMENTAL", "")
 	waitTimeForGCPOperationInSec = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)
 	parallelNumberOfNodesForITC  = env.GetInt("PARALLEL_NUMBER_OF_NODES_FOR_ITC", 4) // As of now it's 4 as per the VLM design document
 
@@ -522,18 +524,11 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		}
 	}
 
-	// Determine which images to use based on file protocol support
-	buildImage, buildMediatorImage := vsaImageName, mediatorImage
-	if utils.IsFileProtocolSupported(pool.Account.Name) {
-		buildImage = vsaFilesImageName
-		buildMediatorImage = filesMediatorImage
-	}
-
 	// Create pool build info with current image details
 	poolBuildInfo := &datamodel.PoolBuildInfo{
-		VSABuildImage:      buildImage,
-		MediatorBuildImage: buildMediatorImage,
-		OntapVersion:       env.CurrentOntapVersionDetails,
+		VSABuildImage:      vlmConfig.Deployment.Images.VSAImageName,
+		MediatorBuildImage: vlmConfig.Deployment.Images.MediatorImageName,
+		OntapVersion:       utils.GetOntapVersionBasedOnAllowlisting(pool.Account.Name),
 		BuildTimestamp:     time.Now(),
 	}
 	dbPool.BuildInfo = poolBuildInfo
@@ -1845,17 +1840,26 @@ func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest 
 	vlmConfig.Deployment.Labels["pool_uuid"] = pool.UUID
 	if pool.Account != nil {
 		vlmConfig.Deployment.Labels["account_id"] = pool.Account.Name
-		if utils.IsFileProtocolSupported(pool.Account.Name) {
-			// Use file-specific images for file protocol enabled accounts
-			vlmConfig.Deployment.Images.VSAImageName = vsaFilesImageName
-			vlmConfig.Deployment.Images.MediatorImageName = filesMediatorImage
-			// Set the NFS V3 support flag based on the file protocol support
+		ontapVersion := ExtractOntapVersion(utils.GetOntapVersionBasedOnAllowlisting(pool.Account.Name))
+		if (utils.IsOntapVersionGreaterOrEqual(ontapVersion, env.FileSupportOntapVersion) && pool.APIAccessMode == ONTAPMode) || (utils.IsFileProtocolSupportedV2(ontapVersion) && pool.LargeCapacity) {
+			// Set the NFS V3 support flag based on file support
 			vlmConfig.Deployment.DevFlags.EnableIlbSupport = true
-			if pool.LargeCapacity {
-				vlmConfig.Deployment.DeploymentConfigFlags.EnableNfsV364BitIdentifier = "true"
-			}
+			vlmConfig.Deployment.DeploymentConfigFlags.EnableNfsV364BitIdentifier = "true"
 		} else {
-			log.Debugf("File protocol support is disabled. NFS V3 over ILB will not be enabled for pool: %s", pool.Name)
+			log.Debugf("File support is disabled for pool: %s", pool.Name)
+		}
+
+		// 2. Image selection is based on account allowlisting (independent of file support)
+		if utils.IsAccountAllowlisted(pool.Account.Name) {
+			// Use experimental images if account is allowlisted
+			if vsaExperimentalImageName != "" {
+				vlmConfig.Deployment.Images.VSAImageName = vsaExperimentalImageName
+				log.Debugf("Using experimental VSA image for allowlisted account: %s", pool.Account.Name)
+			}
+			if experimentalMediatorImage != "" {
+				vlmConfig.Deployment.Images.MediatorImageName = experimentalMediatorImage
+				log.Debugf("Using experimental mediator image for allowlisted account: %s", pool.Account.Name)
+			}
 		}
 	}
 	createVSAClusterDeploymentRequest.VLMConfig = vlmConfig

@@ -185,7 +185,10 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 		params.Aggregates = []string{AggregateName}
 	}
 
-	if utils.IsFileProtocolSupported(volume.Account.Name) && volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil && volume.VolumeAttributes.FileProperties.ExportPolicy != nil {
+	// This can be removed once files protocols are fully supported
+	ontapVersion := GetOntapVersionFromPool(volume.Pool)
+
+	if utils.IsFileProtocolSupportedV2(ontapVersion) && volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil && volume.VolumeAttributes.FileProperties.ExportPolicy != nil {
 		if !utils.IsSMBProtocols(volume.VolumeAttributes.Protocols) {
 			params.ExportPolicy = &volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName
 		}

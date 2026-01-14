@@ -84,7 +84,7 @@ spec:
               value: "false"
             - name: FILES_PROTOCOL_SUPPORT
               value: "false"
-            - name: FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS
+            - name: EXPERIMENTAL_VERSION_ALLOWLISTED_ACCOUNTS
               value: ""
             - name: IS_ALL_SQUASH_ENABLED
               value: "true"

@@ -11703,14 +11703,18 @@ func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testi
 	// for NFS V3 compatibility. This is used for accounts that require file protocol support.
 	t.Run("FileProtocolSupported_ConfiguresFileImagesAndIlbSupport", func(t *testing.T) {
 		testAccountID := "test-account-123"
-		// Save original value and restore it after test
+		// Save original values and restore them after test
 		originalFileProtocolSupported := utils.FileProtocolSupported
+		originalExperimentalOntapVersion := envs.ExperimentalOntapVersionDetails
 		defer func() {
 			utils.FileProtocolSupported = originalFileProtocolSupported
+			envs.ExperimentalOntapVersionDetails = originalExperimentalOntapVersion
 		}()
 		// Enable file protocol support for this account
 		utils.FileProtocolSupported = true
-		utils.SetFileProtocolAllowlistedAccountsForTesting(testAccountID)
+		utils.SetExperimentalVersionAllowlistedAccountsForTesting(testAccountID)
+		// Set experimental ONTAP version to >= 9.18 for file protocol support
+		envs.ExperimentalOntapVersionDetails = "9.18.1"
 
 		// Setup test data
 		vlmConfig := vlm.VLMConfig{
@@ -11737,6 +11741,7 @@ func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testi
 				},
 				Name: testAccountID,
 			},
+			LargeCapacity: true, // Required for EnableIlbSupport to be set
 		}
 		resolvedLocationInfo := &common.LocationInfo{
 			PrimaryZone:   "zone-1",
@@ -11747,10 +11752,13 @@ func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testi
 		req := &vlm.CreateVSAClusterDeploymentRequest{}
 		prepareCreateVSAClusterDeploymentRequest(req, vlmConfig, ontapCreds, pool, resolvedLocationInfo)
 
-		// Verify file protocol configuration is applied: ILB support enabled and file-specific images used
-		assert.True(t, req.VLMConfig.Deployment.DevFlags.EnableIlbSupport, "EnableIlbSupport should be true to support NFS V3 when file protocol is enabled")
-		assert.Equal(t, "x-9-18-1rc1", req.VLMConfig.Deployment.Images.VSAImageName, "VSAImageName should be set to file-specific image (vsaFilesImageName)")
-		assert.Equal(t, "cvo-mediator-x-9-18-1rc1", req.VLMConfig.Deployment.Images.MediatorImageName, "MediatorImageName should be set to file-specific mediator image (filesMediatorImage)")
+		// Verify file protocol configuration is applied: ILB support enabled
+		// Note: Image selection is now based on account allowlisting, not file protocol support
+		// Since experimental images are not set in this test, default images will be used
+		assert.True(t, req.VLMConfig.Deployment.DevFlags.EnableIlbSupport, "EnableIlbSupport should be true to support NFS V3 when file protocol is enabled and pool is large capacity")
+		// Images will be default since experimental images are not configured in this test
+		assert.Equal(t, "x-9-17-1p2-gcnv", req.VLMConfig.Deployment.Images.VSAImageName, "VSAImageName should use default image when experimental images are not configured")
+		assert.Equal(t, "cvo-mediator-x-9-17-1p2d1", req.VLMConfig.Deployment.Images.MediatorImageName, "MediatorImageName should use default mediator image when experimental images are not configured")
 
 		// Verify other fields are set correctly
 		assert.Equal(t, "test-pool", req.VLMConfig.Deployment.Labels["pool_name"])
@@ -11764,11 +11772,15 @@ func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testi
 	t.Run("FileProtocolSupported_LargeCapacityEnablesNfs64BitIdentifier", func(t *testing.T) {
 		testAccountID := "test-account-999"
 		originalFileProtocolSupported := utils.FileProtocolSupported
+		originalExperimentalOntapVersion := envs.ExperimentalOntapVersionDetails
 		defer func() {
 			utils.FileProtocolSupported = originalFileProtocolSupported
+			envs.ExperimentalOntapVersionDetails = originalExperimentalOntapVersion
 		}()
 		utils.FileProtocolSupported = true
-		utils.SetFileProtocolAllowlistedAccountsForTesting(testAccountID)
+		utils.SetExperimentalVersionAllowlistedAccountsForTesting(testAccountID)
+		// Set experimental ONTAP version to >= 9.18 for file protocol support
+		envs.ExperimentalOntapVersionDetails = "9.18.1"
 
 		vlmConfig := vlm.VLMConfig{
 			Deployment: vlm.DeploymentConfig{
@@ -11880,7 +11892,7 @@ func TestPrepareCreateVSAClusterDeploymentRequest_FileProtocolSupported(t *testi
 		}()
 		// Even with file protocol enabled, it should be ignored when account is nil
 		utils.FileProtocolSupported = true
-		utils.SetFileProtocolAllowlistedAccountsForTesting("test-account-789")
+		utils.SetExperimentalVersionAllowlistedAccountsForTesting("test-account-789")
 
 		// Setup test data with nil account
 		vlmConfig := vlm.VLMConfig{
@@ -12694,10 +12706,10 @@ func TestCreatePoolWorkflow_BuildInfo_FilesProtocol(t *testing.T) {
 	// Files protocol account - enable file protocol support for this specific account
 	accountName := "files-enabled-account"
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting(accountName)
+	utils.SetExperimentalVersionAllowlistedAccountsForTesting(accountName)
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+		utils.SetExperimentalVersionAllowlistedAccountsForTesting("")
 	}()
 
 	var ts testsuite.WorkflowTestSuite

@@ -129,6 +129,8 @@ workerConfig:
   cloudDnsCacheTtl: 300
   vsaLifecycleManagerQueuePrefix: "vsa-lifecycle-manager"
   ontapVersionDetails: "9.18.1X29"
+  ontapVersionDetailsExperimental: ""
+  fileSupportOntapVersion: "9.18.1"
   enforceMinSpConfig: "false"
   maxNodesPerGroup: 200
   maxNestedCloneLimit: 499
@@ -136,7 +138,7 @@ workerConfig:
   isAllSquashEnabled: "true"
   # "" implies only block support is enabled. #"*" implies all accounts are allowlisted for files protocol support
   # "Comma-separated list of account IDs" implies only those accounts are allowlisted for files protocol support
-  fileProtocolAllowlistedAccounts: ""
+  experimentalVersionAllowlistedAccounts: ""
   flexcacheForceEncryption: "false"
   ontapRestAsyncPollTimeoutMinutes: 30
   vsaImageName: "x-9-18-1x29"
@@ -146,6 +148,8 @@ workerConfig:
   validateImageDigest: false
   # this will be removed after AGA
   vsaFilesImageName: "x-9-18-1x29"
+  vsaImageExperimental: ""
+  vsaMediatorImageExperimental: ""
   vsaImageProject: ""
   vsaMediatorImageProject: ""
   # VSA Image Bucket for signed URL generation

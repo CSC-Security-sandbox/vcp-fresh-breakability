@@ -233,10 +233,10 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 
 		// Setup file protocol support for this test
 		utils.SetFileProtocolSupportedForTesting(true)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("test-account")
+		utils.SetExperimentalVersionAllowlistedAccountsForTesting("test-account")
 		defer func() {
 			utils.SetFileProtocolSupportedForTesting(false)
-			utils.SetFileProtocolAllowlistedAccountsForTesting("")
+			utils.SetExperimentalVersionAllowlistedAccountsForTesting("")
 		}()
 
 		// Arrange
@@ -257,8 +257,14 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 			Name:    "test-volume",
 			Svm:     &datamodel.Svm{Name: "test-svm"},
 			Account: &datamodel.Account{Name: "test-account"},
+			Pool: &datamodel.Pool{
+				BuildInfo: &datamodel.PoolBuildInfo{
+					OntapVersion: "9.18.1",
+				},
+			},
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				IsDataProtection: false,
+				Protocols:        []string{"NFSV3"},
 				FileProperties: &datamodel.FileProperties{
 					JunctionPath: "/test/junction/path",
 					ExportPolicy: &datamodel.ExportPolicy{
@@ -2708,11 +2714,11 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 func TestUpdateClonedVolumeBeforeSplit_WithFileVolumeAndExportPolicy_Success(t *testing.T) {
 	// Set up file protocol support for testing
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test-account")
+	utils.SetExperimentalVersionAllowlistedAccountsForTesting("test-account")
 	defer func() {
 		// Clean up environment variables after test
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+		utils.SetExperimentalVersionAllowlistedAccountsForTesting("")
 	}()
 
 	mockStorage := database.NewMockStorage(t)
@@ -11502,4 +11508,67 @@ func TestFetchBackupFromCVP_SuccessWithFlexgroup(t *testing.T) {
 	assert.Equal(t, "flexgroup", backup.Attributes.OntapVolumeStyle)
 	assert.Equal(t, int32(8), backup.Attributes.ConstituentCountOfBackup)
 	mockBackupsClient.AssertExpectations(t)
+}
+
+// TestCreateVolumeInONTAP_ClusterDetailsOntapVersion tests lines 193-194
+// This test covers the else if branch for ClusterDetails.OntapVersion when BuildInfo.OntapVersion is empty
+func TestCreateVolumeInONTAP_ClusterDetailsOntapVersion(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	// Arrange
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{
+		SE: database.NewMockStorage(t),
+	}
+	env.RegisterActivity(activity.CreateVolumeInONTAP)
+
+	// Setup file protocol support
+	utils.SetFileProtocolSupportedForTesting(true)
+	defer func() {
+		utils.SetFileProtocolSupportedForTesting(false)
+	}()
+
+	// Create volume with Pool that has ClusterDetails.OntapVersion but no BuildInfo.OntapVersion
+	volume := &datamodel.Volume{
+		Name:    "test-volume",
+		Svm:     &datamodel.Svm{Name: "test-svm"},
+		Account: &datamodel.Account{Name: "test-account"},
+		Pool: &datamodel.Pool{
+			// BuildInfo is nil or BuildInfo.OntapVersion is empty
+			ClusterDetails: datamodel.ClusterDetails{
+				OntapVersion: "9.18.1", // This should be used (line 194)
+			},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: false,
+			Protocols:        []string{"NFSV3"},
+			FileProperties: &datamodel.FileProperties{
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "test-export-policy",
+				},
+			},
+		},
+	}
+	node := &models.Node{}
+	expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024}
+
+	mockProvider.On("CreateVolume", mock.Anything).Return(expectedResponse, nil)
+
+	// Act
+	val, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
+
+	// Assert
+	assert.NoError(t, err)
+	var result *vsa.VolumeResponse
+	_ = val.Get(&result)
+	assert.Equal(t, expectedResponse, result)
+	mockProvider.AssertExpectations(t)
 }

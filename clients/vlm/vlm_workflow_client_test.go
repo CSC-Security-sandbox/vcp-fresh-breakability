@@ -2235,6 +2235,226 @@ func TestCreateVSAClusterDeployment_RetryErrorPattern(t *testing.T) {
 	})
 }
 
+// TestModifyVSASVMWorkflow tests the ModifyVSASVMWorkflow method
+func TestModifyVSASVMWorkflow(t *testing.T) {
+	t.Run("TestModifyVSASVMWorkflow_Success", func(t *testing.T) {
+		// Test lines 328,330-332,335,337-339,342,355,357-360,364-365,367-369,371-373,376
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+			"requestCorrelationID": "test-correlation-id",
+		})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		// Set up test data
+		req := &ModifySVMRequest{
+			VLMConfig: VLMConfig{
+				Deployment: DeploymentConfig{
+					DeploymentID: "test-deployment",
+					Labels: map[string]string{
+						"account_id": "test-account",
+					},
+				},
+			},
+		}
+
+		expectedResponse := &ModifySVMResponse{
+			VLMConfig: VLMConfig{
+				Deployment: DeploymentConfig{
+					DeploymentID: "test-deployment",
+				},
+			},
+		}
+
+		// Register child workflow
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context, req *ModifySVMRequest) (*ModifySVMResponse, error) {
+				return expectedResponse, nil
+			},
+			workflow.RegisterOptions{Name: ModifyVSASVMWorkflowName},
+		)
+
+		// Execute workflow
+		env.ExecuteWorkflow(func(ctx workflow.Context) (*ModifySVMResponse, error) {
+			vlmManager := &VSAClientWorkflowManager{}
+			return vlmManager.ModifyVSASVMWorkflow(ctx, req)
+		})
+
+		// Assert workflow execution
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Nil(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("TestModifyVSASVMWorkflow_RetryPolicyError", func(t *testing.T) {
+		// Test lines 328,330-332 - error path when PopulateRetryPolicyParams fails
+		// Temporarily modify environment to cause retry policy error
+		originalTimeout := VlmWorkflowStartToCloseTimeout
+		VlmWorkflowStartToCloseTimeout = "invalid-duration"
+		defer func() {
+			VlmWorkflowStartToCloseTimeout = originalTimeout
+		}()
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+			"requestCorrelationID": "test-correlation-id",
+		})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		req := &ModifySVMRequest{
+			VLMConfig: VLMConfig{
+				Deployment: DeploymentConfig{
+					DeploymentID: "test-deployment",
+					Labels: map[string]string{
+						"account_id": "test-account",
+					},
+				},
+			},
+		}
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) (*ModifySVMResponse, error) {
+			vlmManager := &VSAClientWorkflowManager{}
+			return vlmManager.ModifyVSASVMWorkflow(ctx, req)
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+	})
+
+	t.Run("TestModifyVSASVMWorkflow_TimeoutMapLookup", func(t *testing.T) {
+		// Test lines 337-339 - workflow execution timeout map lookup
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+			"requestCorrelationID": "test-correlation-id",
+		})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		// Test global timeout retrieval
+		globalTimeout := temporalUtils.GetWorkflowGlobalTimeout()
+		assert.NotNil(t, globalTimeout)
+
+		// Test timeout map lookup
+		if timeout, ok := WorkflowExecutionTimeoutMap[ModifyVSASVMWorkflowName]; ok {
+			assert.NotNil(t, timeout)
+		}
+
+		req := &ModifySVMRequest{
+			VLMConfig: VLMConfig{
+				Deployment: DeploymentConfig{
+					DeploymentID: "test-deployment",
+					Labels: map[string]string{
+						"account_id": "test-account",
+					},
+				},
+			},
+		}
+
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context, req *ModifySVMRequest) (*ModifySVMResponse, error) {
+				return &ModifySVMResponse{}, nil
+			},
+			workflow.RegisterOptions{Name: ModifyVSASVMWorkflowName},
+		)
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) (*ModifySVMResponse, error) {
+			vlmManager := &VSAClientWorkflowManager{}
+			return vlmManager.ModifyVSASVMWorkflow(ctx, req)
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+	})
+
+	t.Run("TestModifyVSASVMWorkflow_Error", func(t *testing.T) {
+		// Test lines 367-369,371-373 - error handling path
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+			"requestCorrelationID": "test-correlation-id",
+		})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		req := &ModifySVMRequest{
+			VLMConfig: VLMConfig{
+				Deployment: DeploymentConfig{
+					DeploymentID: "test-deployment",
+					Labels: map[string]string{
+						"account_id": "test-account",
+					},
+				},
+			},
+		}
+
+		// Register child workflow with error
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context, req *ModifySVMRequest) (*ModifySVMResponse, error) {
+				return nil, errors.New("modify SVM failed")
+			},
+			workflow.RegisterOptions{Name: ModifyVSASVMWorkflowName},
+		)
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) (*ModifySVMResponse, error) {
+			vlmManager := &VSAClientWorkflowManager{}
+			return vlmManager.ModifyVSASVMWorkflow(ctx, req)
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+	})
+
+	t.Run("TestModifyVSASVMWorkflow_CorrelationIDError", func(t *testing.T) {
+		// Test lines 357-360 - correlation ID error path
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		// Don't set context propagators to trigger correlation ID error
+
+		req := &ModifySVMRequest{
+			VLMConfig: VLMConfig{
+				Deployment: DeploymentConfig{
+					DeploymentID: "test-deployment",
+					Labels: map[string]string{
+						"account_id": "test-account",
+					},
+				},
+			},
+		}
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) (*ModifySVMResponse, error) {
+			vlmManager := &VSAClientWorkflowManager{}
+			return vlmManager.ModifyVSASVMWorkflow(ctx, req)
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+	})
+}
+
 // TestUpdateVSAMediatorWorkflow tests the UpdateVSAMediatorWorkflow method
 func TestUpdateVSAMediatorWorkflow(t *testing.T) {
 	t.Run("TestUpdateVSAMediatorWorkflow_Success", func(t *testing.T) {

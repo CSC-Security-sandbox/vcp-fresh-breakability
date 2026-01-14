@@ -70,6 +70,7 @@ global:
     temporalTlsKey: ""
     vcpPairedRegions: ""
     ontapVersionDetails: "9.18.1X29"
+    fileSupportOntapVersion: "9.18.1"
     skipOntapImageVersionMatch: "false"
     gcpKmsKeyRotationEnabled: "false"
     enableJSwapVersionCheck: "false"

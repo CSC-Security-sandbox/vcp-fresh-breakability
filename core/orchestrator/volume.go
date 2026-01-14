@@ -810,12 +810,12 @@ func (v *FileVolumeProcessor) Validate(ctx context.Context, se database.Storage,
 	return nil
 }
 
-func GetVolumeTypeValidator(protocols []string, accountName string) (VolumeTypeProcessor, error) {
+func GetVolumeTypeValidator(protocols []string, ontapVersion string) (VolumeTypeProcessor, error) {
 	if utils.IsSanProtocols(protocols) {
 		return &BlockVolumeProcessor{}, nil
 	}
 	if utils.IsNasProtocols(protocols) {
-		if !utils.IsFileProtocolSupported(accountName) {
+		if !utils.IsFileProtocolSupportedV2(ontapVersion) {
 			return nil, customerrors.NewUserInputValidationErr("file protocols are not enabled")
 		}
 		return &FileVolumeProcessor{}, nil
@@ -1351,8 +1351,11 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		return customerrors.NewUserInputValidationErr("at least one protocol must be specified")
 	}
 
+	// Extract ONTAP version from pool
+	ontapVersion := activities.GetOntapVersionFromPool(&pool.Pool)
+
 	// Protocol-specific validation
-	validator, err := GetVolumeTypeValidator(params.Protocols, params.AccountName)
+	validator, err := GetVolumeTypeValidator(params.Protocols, ontapVersion)
 	if err != nil {
 		return err
 	}
@@ -2163,9 +2166,17 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 			return err
 		}
 	}
+	ontapVersion := activities.GetOntapVersionFromPool(&pool.Pool)
+	if len(params.Protocols) > 0 {
+		// Protocol-specific validation
+		_, err := GetVolumeTypeValidator(params.Protocols, ontapVersion)
+		if err != nil {
+			return err
+		}
+	}
 
 	if params.FileProperties != nil {
-		err := validateUpdateFileProperties(params, volume)
+		err := validateUpdateFileProperties(params, volume, ontapVersion)
 		if err != nil {
 			return err
 		}
@@ -2353,13 +2364,13 @@ func validateBlockProperties(ctx context.Context, se database.Storage, hostGroup
 	return nil
 }
 
-func validateUpdateFileProperties(params *common.UpdateVolumeParams, volume *datamodel.Volume) error {
+func validateUpdateFileProperties(params *common.UpdateVolumeParams, volume *datamodel.Volume, ontapVersion string) error {
 	if volume.VolumeAttributes == nil || volume.VolumeAttributes.FileProperties == nil {
 		return customerrors.NewUserInputValidationErr("File properties is mandatory to update file properties on the volume")
 	}
 
 	// Validate that the volume supports NFS protocols before allowing file property updates
-	if !utils.IsFileProtocolSupported(volume.Account.Name) {
+	if !utils.IsFileProtocolSupportedV2(ontapVersion) {
 		return customerrors.NewUserInputValidationErr("file properties can only be supported for volumes with NAS protocols")
 	}
 

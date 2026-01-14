@@ -59,10 +59,10 @@ func TestPrepareCreateVolumeParams_SnapshotIdWithLargeVolumeConstituentCount_Ret
 func TestPrepareCreateVolumeParams_CacheParametersWithoutExpiryTime(t *testing.T) {
 	// Setup file protocol support for NFS
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test-project")
+	utils.SetExperimentalVersionAllowlistedAccountsForTesting("test-project")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+		utils.SetExperimentalVersionAllowlistedAccountsForTesting("")
 	}()
 
 	req := &gcpgenserver.VolumeCreateV1beta{
@@ -115,10 +115,10 @@ func TestPrepareCreateVolumeParams_CacheParametersWithoutExpiryTime(t *testing.T
 func TestPrepareCreateVolumeParams_CacheParametersWithExpiryTime(t *testing.T) {
 	// Setup file protocol support for NFS
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test-project")
+	utils.SetExperimentalVersionAllowlistedAccountsForTesting("test-project")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+		utils.SetExperimentalVersionAllowlistedAccountsForTesting("")
 	}()
 
 	expiryTime := time.Now().Add(24 * time.Hour)
@@ -178,10 +178,10 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 
 	// Setup file protocol support for NFS tests
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test-project")
+	utils.SetExperimentalVersionAllowlistedAccountsForTesting("test-project")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+		utils.SetExperimentalVersionAllowlistedAccountsForTesting("")
 	}()
 
 	t.Run("ValidInputWithBlockProperties", func(tt *testing.T) {
@@ -4472,15 +4472,6 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		assert.Nil(t, out.Labels)
 	})
 
-	t.Run("WhenProtocolsIsOtherThanISCSII_ThenThrowError", func(t *testing.T) {
-		req := &gcpgenserver.VolumeUpdateV1beta{
-			Protocols: []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3},
-		}
-		out, err := _prepareUpdateVolumeParams(req, params, region, nil)
-		assert.Error(t, err, "only ISCSI protocol is supported")
-		assert.Nil(t, out)
-	})
-
 	t.Run("WhenBlockPropertiesSetWithoutOsType_ThenBlockPropertiesIsNil", func(t *testing.T) {
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(gcpgenserver.BlockPropertiesV1beta{}),
@@ -7332,10 +7323,10 @@ func TestPrepareCreateVolumeParams_KerberosValidationErrorConversion(t *testing.
 	defer func() { validateKerberosPolicyV1beta = origValidator }()
 
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test-project")
+	utils.SetExperimentalVersionAllowlistedAccountsForTesting("test-project")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+		utils.SetExperimentalVersionAllowlistedAccountsForTesting("")
 	}()
 
 	req := &gcpgenserver.VolumeCreateV1beta{
@@ -9926,10 +9917,10 @@ func TestPrepareCreateVolumeParams_SnapshotDirectory(t *testing.T) {
 
 	// Setup file protocol support for NFS tests
 	utils.SetFileProtocolSupportedForTesting(true)
-	utils.SetFileProtocolAllowlistedAccountsForTesting("test-project")
+	utils.SetExperimentalVersionAllowlistedAccountsForTesting("test-project")
 	defer func() {
 		utils.SetFileProtocolSupportedForTesting(false)
-		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+		utils.SetExperimentalVersionAllowlistedAccountsForTesting("")
 	}()
 
 	t.Run("SnapshotDirectory_WhenSetToTrue_ShouldSetParamToTrue", func(tt *testing.T) {

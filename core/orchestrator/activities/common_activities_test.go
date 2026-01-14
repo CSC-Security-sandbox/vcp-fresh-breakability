@@ -2820,3 +2820,50 @@ func TestCommonActivities_UnsetSvmActiveDirectory_Success(t *testing.T) {
 	assert.Equal(t, updatedSvm, result)
 	mockStorage.AssertExpectations(t)
 }
+
+// TestGetOntapVersionFromPool tests GetOntapVersionFromPool function
+func TestGetOntapVersionFromPool(t *testing.T) {
+	t.Run("ReturnsEmptyString_WhenPoolIsNil", func(t *testing.T) {
+		result := GetOntapVersionFromPool(nil)
+		assert.Equal(t, "", result)
+	})
+
+	t.Run("ReturnsVersionFromBuildInfo", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			BuildInfo: &datamodel.PoolBuildInfo{
+				OntapVersion: "9.18.1",
+			},
+		}
+		result := GetOntapVersionFromPool(pool)
+		assert.Equal(t, "9.18.1", result)
+	})
+
+	t.Run("ReturnsVersionFromClusterDetails_WhenBuildInfoIsNil", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			ClusterDetails: datamodel.ClusterDetails{
+				OntapVersion: "9.17.1",
+			},
+		}
+		result := GetOntapVersionFromPool(pool)
+		assert.Equal(t, "9.17.1", result)
+	})
+
+	t.Run("ReturnsVersionFromClusterDetails_WhenBuildInfoVersionIsEmpty", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			BuildInfo: &datamodel.PoolBuildInfo{
+				OntapVersion: "",
+			},
+			ClusterDetails: datamodel.ClusterDetails{
+				OntapVersion: "9.17.1",
+			},
+		}
+		result := GetOntapVersionFromPool(pool)
+		assert.Equal(t, "9.17.1", result)
+	})
+
+	t.Run("ReturnsEmptyString_WhenNoVersionAvailable", func(t *testing.T) {
+		pool := &datamodel.Pool{}
+		result := GetOntapVersionFromPool(pool)
+		assert.Equal(t, "", result)
+	})
+}

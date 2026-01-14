@@ -71,6 +71,7 @@ type WorkflowRetryPolicy struct {
 type VlmWorkflowClient interface {
 	CreateVSAClusterDeployment(ctx workflow.Context, createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest, taskQueue string) (*CreateVSAClusterDeploymentResponse, error)
 	CreateVSASVM(ctx workflow.Context, createSVMRequest *CreateSVMRequest) (*CreateSVMResponse, error)
+	ModifyVSASVMWorkflow(ctx workflow.Context, req *ModifySVMRequest) (*ModifySVMResponse, error)
 	DeleteVSAClusterDeployment(ctx workflow.Context, deleteVSAClusterDeploymentRequest *DeleteVSAClusterDeploymentRequest, ontapVersion string) error
 	UpdateVSAClusterDeployment(ctx workflow.Context, updateVSAClusterDeploymentRequest *UpdateVSAClusterDeploymentRequest, ontapVersion string) (*UpdateVSAClusterDeploymentResponse, error)
 	ValidateClusterHealth(ctx workflow.Context, validateClusterHealthRequest *ValidateClusterHealthRequest) error
@@ -94,12 +95,7 @@ func _newVSAClientWorkflowManager() VlmWorkflowClient {
 
 // GetVLMWorkerQueue returns the VLM worker queue name based on the account and ONTAP version
 func GetVLMWorkerQueue(logger log.Logger, account string) string {
-	ontapVersion := ExtractedOntapVersion
-	if utils.IsFileProtocolSupported(account) {
-		// not made it has configurable as this will be removed after AGA
-		ontapVersion = "9.18.1" // file protocol is supported in 9.18.1 and later
-		logger.Info("using 9.18.1 as ontap version for file protocol support", "account", account)
-	}
+	ontapVersion := utils.GetOntapVersionBasedOnAllowlisting(account)
 	return fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, ontapVersion)
 }
 func (vlmManager *VSAClientWorkflowManager) CreateVSAExpertModeUser(ctx workflow.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig) (OntapExpertModeUserResponse, error) {
@@ -221,10 +217,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 					CloudProvider: VLMCloudProvider,
 				}
 
-				ontapVersion := ExtractedOntapVersion
-				if utils.IsFileProtocolSupported(accountID) {
-					ontapVersion = "9.18.1"
-				}
+				ontapVersion := utils.GetOntapVersionBasedOnAllowlisting(accountID)
 
 				deleteErr := vlmManager.DeleteVSAClusterDeployment(ctx, deleteRequest, ontapVersion)
 				if deleteErr == nil {
@@ -329,6 +322,58 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSASVM(ctx workflow.Context, c
 	}
 
 	return createSVMResponse, nil
+}
+
+func (vlmManager *VSAClientWorkflowManager) ModifyVSASVMWorkflow(ctx workflow.Context, req *ModifySVMRequest) (*ModifySVMResponse, error) {
+	logger := util.GetLogger(ctx)
+
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, err
+	}
+
+	accountID := req.VLMConfig.Deployment.Labels["account_id"]
+
+	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
+	if timeout, ok := WorkflowExecutionTimeoutMap[ModifyVSASVMWorkflowName]; ok {
+		workflowExecutionTimeout = timeout
+	}
+
+	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+		TaskQueue:             GetVLMWorkerQueue(logger, accountID),
+		WaitForCancellation:   true,
+		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+		WorkflowExecutionTimeout: workflowExecutionTimeout,
+	})
+
+	modifySVMResponse := &ModifySVMResponse{}
+
+	correlationID, err := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
+	if err != nil {
+		logger.Error("Failed to get correlation ID from workflow context logger fields", "error", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Add correlation and deployment IDs to context
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, CorrelationIDKey, correlationID)
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, DeploymentIDKey, req.VLMConfig.Deployment.DeploymentID)
+
+	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, ModifyVSASVMWorkflowName, req).Get(childWorkflowContxt, &modifySVMResponse)
+	if err != nil {
+		logger.Error("Failed to modify SVM", "error", err)
+		// Handle VLM-specific errors and convert them to user-facing errors
+		vlmErrorHandler := NewVLMErrorHandler()
+		handledErr := vlmErrorHandler.HandleVLMError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(handledErr)
+	}
+
+	return modifySVMResponse, nil
 }
 
 func (vlmManager *VSAClientWorkflowManager) DeleteVSAClusterDeployment(ctx workflow.Context, deleteVSAClusterDeploymentRequest *DeleteVSAClusterDeploymentRequest, ontapVersion string) error {

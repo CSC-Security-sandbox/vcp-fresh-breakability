@@ -60,7 +60,7 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 	if err != nil {
 		return nil, "", err
 	}
-	err = ValidateCreatePoolParams(params)
+	err = ValidateCreatePoolParams(params, logger)
 	if err != nil {
 		return nil, "", err
 	}
@@ -472,7 +472,7 @@ func _validatePoolParams(perf *validators.CustomPerformance, serviceLevel string
 }
 
 // _validateCreatePoolParams now just builds CustomPerformance and calls the unified validator
-func _validateCreatePoolParams(params *commonparams.CreatePoolParams) error {
+func _validateCreatePoolParams(params *commonparams.CreatePoolParams, logger log.Logger) error {
 	// Build CustomPerformance params first
 	perf := validators.NewCustomPerformanceFromCreate(params)
 
@@ -480,6 +480,16 @@ func _validateCreatePoolParams(params *commonparams.CreatePoolParams) error {
 	err := ValidatePoolParams(perf, params.ServiceLevel)
 	if err != nil {
 		return err
+	}
+
+	// Validate ONTAP version meets minimum requirement (9.18) for ONTAP mode pool creation
+	// ONTAP mode pools require minimum ONTAP version 9.18 to function properly
+	if params.Mode == workflows.ONTAPMode {
+		ontapVersion := utils.ExtractOntapVersion(utils.GetOntapVersionBasedOnAllowlisting(params.AccountName))
+		if !utils.IsOntapVersionGreaterOrEqual(ontapVersion, env.FileSupportOntapVersion) {
+			logger.Errorf("ONTAP version %s is below the minimum required version %s for ONTAP mode pool creation.", ontapVersion, env.FileSupportOntapVersion)
+			return customerrors.NewUnavailableErr(fmt.Sprintf("ONTAP version %s is below the minimum required version %s for ONTAP mode pool creation.", ontapVersion, env.FileSupportOntapVersion))
+		}
 	}
 
 	if params.KmsConfig != nil {

@@ -283,7 +283,7 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
-		
+
 		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.SnapmirrorGetOrCreate, node, &SnapmirrorRelationshipParams).Get(ctx, &snapmirrorRelationship)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
@@ -327,7 +327,8 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 	}
 
 	// Post-provisioning child workflow
-	postWorkflowFunc, err := selectVolumeChildWorkflow(backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.Protocols, PhasePost, backupActivitiesContext.BackupWorkflowInit.Volume.Account.Name)
+	ontapVersion := activities.GetOntapVersionFromPool(backupActivitiesContext.BackupWorkflowInit.Volume.Pool)
+	postWorkflowFunc, err := selectVolumeChildWorkflow(backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.Protocols, PhasePost, ontapVersion)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}

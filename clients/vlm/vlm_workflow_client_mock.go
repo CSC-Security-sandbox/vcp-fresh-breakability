@@ -350,6 +350,65 @@ func (_c *MockVlmWorkflowClient_GetClusterZiZsDetails_Call) RunAndReturn(run fun
 	return _c
 }
 
+// ModifyVSASVMWorkflow provides a mock function with given fields: ctx, req
+func (_m *MockVlmWorkflowClient) ModifyVSASVMWorkflow(ctx internal.Context, req *ModifySVMRequest) (*ModifySVMResponse, error) {
+	ret := _m.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ModifyVSASVMWorkflow")
+	}
+
+	var r0 *ModifySVMResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(internal.Context, *ModifySVMRequest) (*ModifySVMResponse, error)); ok {
+		return rf(ctx, req)
+	}
+	if rf, ok := ret.Get(0).(func(internal.Context, *ModifySVMRequest) *ModifySVMResponse); ok {
+		r0 = rf(ctx, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ModifySVMResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(internal.Context, *ModifySVMRequest) error); ok {
+		r1 = rf(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockVlmWorkflowClient_ModifyVSASVMWorkflow_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ModifyVSASVMWorkflow'
+type MockVlmWorkflowClient_ModifyVSASVMWorkflow_Call struct {
+	*mock.Call
+}
+
+// ModifyVSASVMWorkflow is a helper method to define mock.On call
+//   - ctx internal.Context
+//   - req *ModifySVMRequest
+func (_e *MockVlmWorkflowClient_Expecter) ModifyVSASVMWorkflow(ctx interface{}, req interface{}) *MockVlmWorkflowClient_ModifyVSASVMWorkflow_Call {
+	return &MockVlmWorkflowClient_ModifyVSASVMWorkflow_Call{Call: _e.mock.On("ModifyVSASVMWorkflow", ctx, req)}
+}
+
+func (_c *MockVlmWorkflowClient_ModifyVSASVMWorkflow_Call) Run(run func(ctx internal.Context, req *ModifySVMRequest)) *MockVlmWorkflowClient_ModifyVSASVMWorkflow_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(internal.Context), args[1].(*ModifySVMRequest))
+	})
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_ModifyVSASVMWorkflow_Call) Return(_a0 *ModifySVMResponse, _a1 error) *MockVlmWorkflowClient_ModifyVSASVMWorkflow_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_ModifyVSASVMWorkflow_Call) RunAndReturn(run func(internal.Context, *ModifySVMRequest) (*ModifySVMResponse, error)) *MockVlmWorkflowClient_ModifyVSASVMWorkflow_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateLicenseWorkflow provides a mock function with given fields: ctx, req
 func (_m *MockVlmWorkflowClient) UpdateLicenseWorkflow(ctx internal.Context, req *UpdateLicenseRequest) error {
 	ret := _m.Called(ctx, req)

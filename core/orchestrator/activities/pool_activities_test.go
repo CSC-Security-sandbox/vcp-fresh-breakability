@@ -3150,6 +3150,175 @@ func Test_setupNetworkFirewallsForIlbHealthCheck(t *testing.T) {
 	})
 }
 
+func TestPoolActivity_SetupNasFirewalls(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	poolActivity := activities.PoolActivity{SE: mockStorage}
+	snHostProject := "test-sn-host-project"
+	network := "test-network"
+
+	// Save original functions
+	originalGetGCPService := hyperscaler2.GetGCPService
+	originalSetupNetworkFirewallsForNFS := activities.SetupNetworkFirewallsForNFS
+	originalSetupNetworkFirewallsForSMB := activities.SetupNetworkFirewallsForSMB
+	originalSetupNetworkFirewallsForIlbHealthCheck := activities.SetupNetworkFirewallsForIlbHealthCheck
+
+	defer func() {
+		hyperscaler2.GetGCPService = originalGetGCPService
+		activities.SetupNetworkFirewallsForNFS = originalSetupNetworkFirewallsForNFS
+		activities.SetupNetworkFirewallsForSMB = originalSetupNetworkFirewallsForSMB
+		activities.SetupNetworkFirewallsForIlbHealthCheck = originalSetupNetworkFirewallsForIlbHealthCheck
+	}()
+
+	t.Run("WhenGetGCPServiceFails", func(t *testing.T) {
+		// Setup Temporal test environment
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		env.RegisterActivity(poolActivity.SetupNasFirewalls)
+
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("failed to get GCP service")
+		}
+
+		_, err := env.ExecuteActivity(poolActivity.SetupNasFirewalls, snHostProject, network)
+		assert.Error(t, err)
+		// WrapAsTemporalApplicationError only wraps CustomError types, regular errors are returned unchanged
+		// So we just check that the error message contains the expected text
+		assert.Contains(t, err.Error(), "failed to get GCP service")
+	})
+
+	t.Run("WhenSetupNetworkFirewallsForNFSFails", func(t *testing.T) {
+		// Setup Temporal test environment
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		env.RegisterActivity(poolActivity.SetupNasFirewalls)
+
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			// Return a minimal GcpServices - the actual service methods will use the mocked functions
+			return &google.GcpServices{}, nil
+		}
+		activities.SetupNetworkFirewallsForNFS = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", errors.New("NFS firewall setup failed")
+		}
+
+		_, err := env.ExecuteActivity(poolActivity.SetupNasFirewalls, snHostProject, network)
+		assert.Error(t, err)
+		// WrapAsTemporalApplicationError only wraps CustomError types, regular errors are returned unchanged
+		// So we just check that the error message contains the expected text
+		assert.Contains(t, err.Error(), "NFS firewall setup failed")
+	})
+
+	t.Run("WhenSetupNetworkFirewallsForSMBFails", func(t *testing.T) {
+		// Setup Temporal test environment
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		env.RegisterActivity(poolActivity.SetupNasFirewalls)
+
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			// Return a minimal GcpServices - the actual service methods will use the mocked functions
+			return &google.GcpServices{}, nil
+		}
+		activities.SetupNetworkFirewallsForNFS = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "nfs-op", nil
+		}
+		activities.SetupNetworkFirewallsForSMB = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", errors.New("SMB firewall setup failed")
+		}
+
+		_, err := env.ExecuteActivity(poolActivity.SetupNasFirewalls, snHostProject, network)
+		assert.Error(t, err)
+		// WrapAsTemporalApplicationError only wraps CustomError types, regular errors are returned unchanged
+		// So we just check that the error message contains the expected text
+		assert.Contains(t, err.Error(), "SMB firewall setup failed")
+	})
+
+	t.Run("WhenSetupNetworkFirewallsForIlbHealthCheckFails", func(t *testing.T) {
+		// Setup Temporal test environment
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		env.RegisterActivity(poolActivity.SetupNasFirewalls)
+
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			// Return a minimal GcpServices - the actual service methods will use the mocked functions
+			return &google.GcpServices{}, nil
+		}
+		activities.SetupNetworkFirewallsForNFS = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "nfs-op", nil
+		}
+		activities.SetupNetworkFirewallsForSMB = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "smb-op", nil
+		}
+		activities.SetupNetworkFirewallsForIlbHealthCheck = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", errors.New("ILB health check firewall setup failed")
+		}
+
+		_, err := env.ExecuteActivity(poolActivity.SetupNasFirewalls, snHostProject, network)
+		assert.Error(t, err)
+		// WrapAsTemporalApplicationError only wraps CustomError types, regular errors are returned unchanged
+		// So we just check that the error message contains the expected text
+		assert.Contains(t, err.Error(), "ILB health check firewall setup failed")
+	})
+
+	t.Run("WhenAllFirewallsSetupSucceeds", func(t *testing.T) {
+		// Setup Temporal test environment
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		env.RegisterActivity(poolActivity.SetupNasFirewalls)
+
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			// Return a minimal GcpServices - the actual service methods will use the mocked functions
+			return &google.GcpServices{}, nil
+		}
+		activities.SetupNetworkFirewallsForNFS = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "nfs-op", nil
+		}
+		activities.SetupNetworkFirewallsForSMB = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "smb-op", nil
+		}
+		activities.SetupNetworkFirewallsForIlbHealthCheck = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "ilb-op", nil
+		}
+
+		encodedValue, err := env.ExecuteActivity(poolActivity.SetupNasFirewalls, snHostProject, network)
+		assert.NoError(t, err)
+		assert.NotNil(t, encodedValue)
+		var result *[]commonparams.Operations
+		err = encodedValue.Get(&result)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 3, len(*result))
+	})
+
+	t.Run("WhenFirewallsAlreadyExist", func(t *testing.T) {
+		// Setup Temporal test environment
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		env.RegisterActivity(poolActivity.SetupNasFirewalls)
+
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			// Return a minimal GcpServices - the actual service methods will use the mocked functions
+			return &google.GcpServices{}, nil
+		}
+		activities.SetupNetworkFirewallsForNFS = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", nil // Empty string means firewall already exists
+		}
+		activities.SetupNetworkFirewallsForSMB = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", nil
+		}
+		activities.SetupNetworkFirewallsForIlbHealthCheck = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", nil
+		}
+
+		encodedValue, err := env.ExecuteActivity(poolActivity.SetupNasFirewalls, snHostProject, network)
+		assert.NoError(t, err)
+		assert.NotNil(t, encodedValue)
+		var result *[]commonparams.Operations
+		err = encodedValue.Get(&result)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 0, len(*result)) // No operations if all firewalls already exist
+	})
+}
+
 func Test_CreateGCPBucket_Success(t *testing.T) {
 	mockGcp := hyperscaler2.NewMockGoogleServices(t)
 

@@ -415,9 +415,6 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		if err != nil {
 			return nil, err
 		}
-		if !utils.IsFileProtocolSupported(params.ProjectNumber) && string(protocolStr) != string(gcpgenserver.ProtocolsV1betaISCSI) {
-			return nil, errors.NewUserInputValidationErr("only ISCSI protocol is supported")
-		}
 		protocolName := string(protocolStr)
 		if smbProtocolRequested && utils.IsSMBProtocol(protocolName) {
 			if !enableSmb {
@@ -896,9 +893,6 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		protocolStr, err := protocol.MarshalText()
 		if err != nil {
 			return nil, err
-		}
-		if !utils.IsFileProtocolSupported(params.ProjectNumber) && string(protocolStr) != string(gcpgenserver.ProtocolsV1betaISCSI) {
-			return nil, errors.NewUserInputValidationErr("only ISCSI protocol is supported")
 		}
 		param.Protocols = append(param.Protocols, string(protocolStr))
 	}

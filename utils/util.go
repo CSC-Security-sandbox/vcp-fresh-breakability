@@ -93,15 +93,15 @@ var (
 	ParsePEMCertificate             = _parsePEMCertificate
 	CalculateRequiredVolumeSize     = _calculateRequiredVolumeSize
 	// FileProtocolSupported controls whether file-based protocols (NFS/CIFS) are allowed
-	FileProtocolSupported           = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
-	fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
-	IsAllSquashEnabled              = env.GetBool("IS_ALL_SQUASH_ENABLED", true)
-	isProberProject                 = ParseCommaSeparatedStringToMap(env.GetString("PROBER_PROJECT_LIST", ""))
-	AutoTieringEnabled              = env.GetBool("AUTO_TIERING_ENABLED", false)
-	immutableBackupEnabled          = env.GetBool("IMMUTABLE_BACKUP_ENABLED", false)
-	crossRegionBackupEnabled        = env.GetBool("CROSS_REGION_BACKUP_ENABLED", false)
-	RestoreVolumeBufferEnabled      = env.GetBool("RESTORE_VOLUME_BUFFER_ENABLED", false)
-	enableKerberos                  = env.GetBool("ENABLE_KERBEROS", false)
+	FileProtocolSupported                  = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
+	experimentalVersionAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("EXPERIMENTAL_VERSION_ALLOWLISTED_ACCOUNTS", ""))
+	IsAllSquashEnabled                     = env.GetBool("IS_ALL_SQUASH_ENABLED", true)
+	isProberProject                        = ParseCommaSeparatedStringToMap(env.GetString("PROBER_PROJECT_LIST", ""))
+	AutoTieringEnabled                     = env.GetBool("AUTO_TIERING_ENABLED", false)
+	immutableBackupEnabled                 = env.GetBool("IMMUTABLE_BACKUP_ENABLED", false)
+	crossRegionBackupEnabled               = env.GetBool("CROSS_REGION_BACKUP_ENABLED", false)
+	RestoreVolumeBufferEnabled             = env.GetBool("RESTORE_VOLUME_BUFFER_ENABLED", false)
+	enableKerberos                         = env.GetBool("ENABLE_KERBEROS", false)
 
 	// Will match ONTAP version strings like "9.7.1", "9.8.2P3", "10.1.0", "10.3.1P2", etc.
 	ontapVersionRegex = regexp.MustCompile(`\d+\.\d+\.\d+(?:P\d+)?`)
@@ -1060,12 +1060,12 @@ func IsFileProtocolSupported(accountID string) bool {
 	}
 
 	// If no allowlisted accounts are configured, return false
-	if len(fileProtocolAllowlistedAccounts) == 0 {
+	if len(experimentalVersionAllowlistedAccounts) == 0 {
 		return false
 	}
 
-	if _, exists := fileProtocolAllowlistedAccounts[wildCardForAllowlist]; exists {
-		if len(fileProtocolAllowlistedAccounts) == 1 {
+	if _, exists := experimentalVersionAllowlistedAccounts[wildCardForAllowlist]; exists {
+		if len(experimentalVersionAllowlistedAccounts) == 1 {
 			// If the only entry is "*", allow all accounts
 			return true
 		}
@@ -1075,8 +1075,65 @@ func IsFileProtocolSupported(accountID string) bool {
 
 	// Check if the accountID is in the allowlisted accounts
 	// Exact matching (account IDs are typically numbered strings)
-	_, exists := fileProtocolAllowlistedAccounts[accountID]
+	_, exists := experimentalVersionAllowlistedAccounts[accountID]
 	return exists
+}
+
+// IsAccountAllowlisted returns true if the provided accountID is in the allowlisted accounts config map.
+// This is separate from file support checks and is used for image selection.
+func IsAccountAllowlisted(accountID string) bool {
+	// If no allowlisted accounts are configured, return false
+	if len(experimentalVersionAllowlistedAccounts) == 0 {
+		return false
+	}
+
+	// Check if the accountID is in the allowlisted accounts
+	// Exact matching (account IDs are typically numbered strings)
+	_, exists := experimentalVersionAllowlistedAccounts[accountID]
+	return exists
+}
+
+// IsFileProtocolSupportedV2 returns true if file protocol support is enabled based on:
+// 1. FileProtocolSupported flag is enabled
+// 2. ONTAP version is >= 9.18.1
+// This version does not check account allowlisting, only the flag and ONTAP version.
+// Note: Callers are expected to pass already-extracted versions.
+func IsFileProtocolSupportedV2(ontapVersion string) bool {
+	// First check if the flag is enabled
+	if !FileProtocolSupported {
+		return false
+	}
+
+	// Check if ONTAP version is provided
+	if ontapVersion == "" {
+		return false
+	}
+
+	// Validate that the version matches the expected format (callers pass extracted versions)
+	// If the version doesn't match the format, CompareOntapVersion will return 0 (equal),
+	// which would incorrectly make IsOntapVersionGreaterOrEqual return true.
+	if !ontapVersionRegex.MatchString(ontapVersion) {
+		return false
+	}
+
+	// Check if version >= file support ONTAP version
+	return IsOntapVersionGreaterOrEqual(ontapVersion, env.FileSupportOntapVersion)
+}
+
+// GetOntapVersionBasedOnAllowlisting returns the appropriate ONTAP version based on account allowlisting.
+// If the account is allowlisted and experimental ONTAP version is configured, returns experimental version.
+// Otherwise, returns the current/default ONTAP version.
+func GetOntapVersionBasedOnAllowlisting(accountID string) string {
+	// Check if experimental version is configured
+	if env.ExperimentalOntapVersionDetails == "" {
+		return env.CurrentOntapVersionDetails
+	}
+
+	if IsAccountAllowlisted(accountID) {
+		return env.ExperimentalOntapVersionDetails
+	}
+
+	return env.CurrentOntapVersionDetails
 }
 
 // IsProberProject checks if the given project number is a prober project by search it in PROBER_PROJECT_LIST.
@@ -1110,16 +1167,16 @@ func EnableAllSquashForTesting(enabled bool) {
 	IsAllSquashEnabled = env.GetBool("IS_ALL_SQUASH_ENABLED", true)
 }
 
-// SetFileProtocolAllowlistedAccountsForTesting is a test helper function that allows tests to set
+// SetExperimentalVersionAllowlistedAccountsForTesting is a test helper function that allows tests to set
 // the allowlisted accounts by setting the environment variable.
 // This should only be used in tests.
-func SetFileProtocolAllowlistedAccountsForTesting(accounts string) {
-	err := os.Setenv("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", accounts)
+func SetExperimentalVersionAllowlistedAccountsForTesting(accounts string) {
+	err := os.Setenv("EXPERIMENTAL_VERSION_ALLOWLISTED_ACCOUNTS", accounts)
 	if err != nil {
 		return
 	}
 	// Re-parse the accounts to update the cached value
-	fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
+	experimentalVersionAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("EXPERIMENTAL_VERSION_ALLOWLISTED_ACCOUNTS", ""))
 }
 
 func GetSnHostProject(pool *datamodel.Pool) string {
@@ -1245,6 +1302,73 @@ func GetNLFSecretPath() string {
 func ExtractOntapVersion(input string) string {
 	match := ontapVersionRegex.FindString(input)
 	return match
+}
+
+// CompareOntapVersion compares two ONTAP version strings.
+// Returns:
+//   - 1 if version1 > version2
+//   - 0 if version1 == version2
+//   - -1 if version1 < version2
+//
+// Handles versions like "9.17.1", "9.18.1", "9.18.1P2", "9.18.1X29", etc.
+// Patch levels (P2, P3, X29, etc.) are ignored for comparison purposes.
+func CompareOntapVersion(version1, version2 string) int {
+	// Extract base versions (remove patch suffixes like P2)
+	v1 := ExtractOntapVersion(version1)
+	v2 := ExtractOntapVersion(version2)
+
+	if v1 == "" || v2 == "" {
+		return 0 // Can't compare if extraction failed
+	}
+
+	// Strip patch levels (P2, P3, X29, etc.) for comparison purposes
+	// We only want the base version (e.g., "9.18.1" from "9.18.1P2" or "9.18.1X29")
+	// Check for both "P" and "X" patch formats
+	if idx := strings.IndexAny(v1, "PXD"); idx != -1 {
+		v1 = v1[:idx]
+	}
+	if idx := strings.IndexAny(v2, "PXD"); idx != -1 {
+		v2 = v2[:idx]
+	}
+
+	parts1 := strings.Split(v1, ".")
+	parts2 := strings.Split(v2, ".")
+
+	maxParts := 3
+	if len(parts1) < maxParts {
+		maxParts = len(parts1)
+	}
+	if len(parts2) < maxParts {
+		maxParts = len(parts2)
+	}
+
+	for i := 0; i < maxParts; i++ {
+		num1, err1 := strconv.Atoi(parts1[i])
+		num2, err2 := strconv.Atoi(parts2[i])
+		if err1 != nil || err2 != nil {
+			return 0 // On error, return 0 (equal)
+		}
+		if num1 < num2 {
+			return -1
+		}
+		if num1 > num2 {
+			return 1
+		}
+	}
+
+	// If all compared parts are equal, a version with fewer parts is considered less
+	if len(parts1) < len(parts2) {
+		return -1
+	}
+	if len(parts1) > len(parts2) {
+		return 1
+	}
+	return 0
+}
+
+// IsOntapVersionGreaterOrEqual checks if the given ONTAP version is greater than or equal to the target version.
+func IsOntapVersionGreaterOrEqual(version, targetVersion string) bool {
+	return CompareOntapVersion(version, targetVersion) >= 0
 }
 
 func ConvertLabelsMapToJSONB(labels map[string]string) *datamodel.JSONB {

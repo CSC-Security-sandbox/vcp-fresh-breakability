@@ -760,48 +760,12 @@ func (j *PoolActivity) CreateFirewalls(ctx context.Context, project, snHostProje
 		})
 	}
 
-	if utils.FileProtocolSupported {
-		op, err = SetupNetworkFirewallsForNFS(service, snHostProject, network)
-		if err != nil {
-			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
-		}
-		if op != "" {
-			operations = append(operations, commonparams.Operations{
-				OperationName:      op,
-				OperationType:      "firewall",
-				IsDone:             false,
-				IsRegionalResource: false,
-				Project:            snHostProject,
-			})
-		}
-
-		op, err = SetupNetworkFirewallsForSMB(service, snHostProject, network)
-		if err != nil {
-			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
-		}
-		if op != "" {
-			operations = append(operations, commonparams.Operations{
-				OperationName:      op,
-				OperationType:      "firewall",
-				IsDone:             false,
-				IsRegionalResource: false,
-				Project:            snHostProject,
-			})
-		}
-
-		op, err = SetupNetworkFirewallsForIlbHealthCheck(service, snHostProject, network)
-		if err != nil {
-			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
-		}
-		if op != "" {
-			operations = append(operations, commonparams.Operations{
-				OperationName:      op,
-				OperationType:      "firewall",
-				IsDone:             false,
-				IsRegionalResource: false,
-				Project:            snHostProject,
-			})
-		}
+	nasFirewallOps, err := j.SetupNasFirewalls(ctx, snHostProject, network)
+	if err != nil {
+		return nil, err
+	}
+	if nasFirewallOps != nil && len(*nasFirewallOps) > 0 {
+		operations = append(operations, *nasFirewallOps...)
 	}
 
 	return &operations, nil
@@ -1171,6 +1135,67 @@ func setupNetworkFirewallsForIlbHealthCheck(service hyperscaler2.GoogleServices,
 	return InsertFirewall(service, snHostProject, ILBHealthCheckFirewallName, network, FirewallPriority, IngressTrafficDirection, strings.Split(IlbHealthCheckFirewallSourceRangesConfig, ","), strings.Split(IlbHealthCheckFirewallAllowedPortRulesConfig, ","))
 }
 
+// SetupNasFirewalls sets up NAS-related firewalls (NFS, SMB, and ILB health check) for a pool.
+// This is used when NAS infrastructure is being enabled for the first time (e.g., during upgrade from 9.17 to 9.18).
+// The function is idempotent - it will not create duplicate firewalls if they already exist.
+func (j *PoolActivity) SetupNasFirewalls(ctx context.Context, snHostProject, network string) (*[]commonparams.Operations, error) {
+	serviceStruct, err := hyperscaler2.GetGCPService(ctx)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	service := hyperscaler2.GoogleServices(serviceStruct)
+	// Record heartbeat to indicate progress to temporal server
+	activity.RecordHeartbeat(ctx, "Setting up NAS firewalls (NFS, SMB, ILB health check)")
+	operations := make([]commonparams.Operations, 0)
+	op := ""
+
+	// Setup NFS firewall
+	op, err = SetupNetworkFirewallsForNFS(service, snHostProject, network)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	if op != "" {
+		operations = append(operations, commonparams.Operations{
+			OperationName:      op,
+			OperationType:      "firewall",
+			IsDone:             false,
+			IsRegionalResource: false,
+			Project:            snHostProject,
+		})
+	}
+
+	// Setup SMB firewall
+	op, err = SetupNetworkFirewallsForSMB(service, snHostProject, network)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	if op != "" {
+		operations = append(operations, commonparams.Operations{
+			OperationName:      op,
+			OperationType:      "firewall",
+			IsDone:             false,
+			IsRegionalResource: false,
+			Project:            snHostProject,
+		})
+	}
+
+	// Setup ILB health check firewall
+	op, err = SetupNetworkFirewallsForIlbHealthCheck(service, snHostProject, network)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	if op != "" {
+		operations = append(operations, commonparams.Operations{
+			OperationName:      op,
+			OperationType:      "firewall",
+			IsDone:             false,
+			IsRegionalResource: false,
+			Project:            snHostProject,
+		})
+	}
+
+	return &operations, nil
+}
 func (j *PoolActivity) DeployDeploymentManager(ctx context.Context, deploymentName, region, zone, network, subnet, projectId, snHostProject string, size int) (*[]map[string]string, error) {
 	return DeploymentsInsert(ctx, deploymentName, region, zone, network, subnet, projectId, snHostProject, size)
 }
@@ -3378,4 +3403,37 @@ func (j *PoolActivity) GetCreateJobByResourceUUID(ctx context.Context, resourceU
 		JobUUID:    createJob.UUID,
 		WorkflowID: createJob.WorkflowID,
 	}, nil
+}
+
+// HasNasLifInVLMConfig checks if the VLMConfig has naslif (ilbnas) details in any SVM.
+// This checks for LIFTypeIlbNas in the SVMLIFs of any SVM in the config.
+func (j *PoolActivity) HasNasLifInVLMConfig(ctx context.Context, vlmConfig vlm.VLMConfig) (bool, error) {
+	activity.RecordHeartbeat(ctx, "Checking for NAS LIF in VLM config")
+	if vlmConfig.Svm == nil || len(vlmConfig.Svm) == 0 {
+		return false, nil
+	}
+
+	// Iterate through all SVMs
+	for _, svmConfig := range vlmConfig.Svm {
+		if svmConfig.SVMLIFs == nil {
+			continue
+		}
+
+		// Check if ilbnas exists in svm_lifs and has at least one LIF
+		if ilbNasLifs, exists := svmConfig.SVMLIFs[vlm.LIFTypeIlbNas]; exists && len(ilbNasLifs) > 0 {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// MarshalVLMConfig marshals a VLMConfig to JSON string.
+func (j *PoolActivity) MarshalVLMConfig(ctx context.Context, vlmConfig vlm.VLMConfig) (string, error) {
+	activity.RecordHeartbeat(ctx, "Marshaling VLM config")
+	marshalledVlmConfig, err := json.Marshal(vlmConfig)
+	if err != nil {
+		return "", vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return string(marshalledVlmConfig), nil
 }

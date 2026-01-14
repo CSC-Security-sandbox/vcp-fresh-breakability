@@ -630,7 +630,7 @@ func TestCreatePool(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
-		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams, logger log.Logger) error {
 			return errors.New("invalid pool params")
 		}
 
@@ -665,7 +665,7 @@ func TestCreatePool(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
-		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams, logger log.Logger) error {
 			return nil
 		}
 
@@ -720,7 +720,7 @@ func TestCreatePool(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
-		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams, logger log.Logger) error {
 			return nil
 		}
 
@@ -795,7 +795,7 @@ func TestCreatePool(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
-		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams, logger log.Logger) error {
 			return nil
 		}
 
@@ -854,7 +854,7 @@ func TestCreatePool(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
-		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams, logger log.Logger) error {
 			return nil
 		}
 
@@ -918,7 +918,7 @@ func TestCreatePool(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
-		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams, logger log.Logger) error {
 			return nil
 		}
 
@@ -973,7 +973,7 @@ func TestCreatePool(t *testing.T) {
 		}
 
 		mockStorage.On("UpdateKmsConfigState", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("some error")).Once()
-		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams, logger log.Logger) error {
 			return nil
 		}
 
@@ -3382,6 +3382,7 @@ func TestValidatePoolParams(t *testing.T) {
 
 // Tests for the refactored _validateCreatePoolParams function
 func TestValidateCreatePoolParamsRefactored(t *testing.T) {
+	logger := log.NewLogger()
 	t.Run("ValidParams_StandardPool", func(tt *testing.T) {
 		params := &common.CreatePoolParams{
 			SizeInBytes:   uint64(2 * utils.TiBInBytes),
@@ -3394,7 +3395,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			},
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.NoError(tt, err, "Valid create params should pass validation")
 	})
 
@@ -3412,7 +3413,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			HotTierSizeInBytes: uint64(10 * utils.TiBInBytes),
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.Error(tt, err, "Auto-tiering feature is currently disabled")
 		assert.Contains(tt, err.Error(), "Auto-Tiering feature is currently not enabled")
 	})
@@ -3429,7 +3430,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			},
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.Error(tt, err)
 		assert.EqualError(tt, err, "Given service level not supported. Supported service level is "+ServiceLevelNameFLEX)
 	})
@@ -3443,7 +3444,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			// CustomPerformanceParams is nil
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.Error(tt, err, "Nil CustomPerformanceParams should cause validation error")
 		assert.Contains(tt, err.Error(), "TotalThroughputMibps must be between")
 	})
@@ -3463,7 +3464,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			HotTierSizeInBytes: uint64(2 * utils.TiBInBytes),
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.Error(tt, err, "Auto-tiering feature is currently disabled")
 		assert.Contains(tt, err.Error(), "Auto-Tiering feature is currently not enabled")
 	})
@@ -3485,7 +3486,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			Labels: labels,
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.NoError(tt, err, "Valid create params with labels should pass validation")
 	})
 
@@ -3502,7 +3503,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			IsRegionalHA: true,
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.NoError(tt, err, "Valid create params with regional HA should pass validation")
 	})
 
@@ -3519,7 +3520,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			},
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "Given pool size not supported")
 	})
@@ -3536,7 +3537,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			},
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "Given pool size not supported")
 	})
@@ -3553,7 +3554,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			},
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "SizeInBytes must be at least")
 	})
@@ -3570,7 +3571,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			},
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "TotalThroughputMibps must be set and must be greater than 0")
 	})
@@ -3587,7 +3588,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			},
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "TotalThroughputMibps must be between")
 	})
@@ -3604,7 +3605,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			},
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "TotalIops must be between")
 	})
@@ -3621,7 +3622,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			},
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "TotalIops must be between")
 	})
@@ -3640,7 +3641,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			HotTierSizeInBytes: uint64(10 * utils.TiBInBytes), // Hot tier larger than pool size
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.Error(tt, err, "Auto-tiering should fail when globally disabled")
 		assert.Contains(tt, err.Error(), "Auto-Tiering feature is currently not enabled")
 	})
@@ -3657,7 +3658,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			},
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.NoError(tt, err, "Boundary size for standard pool should pass validation")
 	})
 
@@ -3673,7 +3674,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			},
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.NoError(tt, err, "Boundary size for large capacity pool should pass validation")
 	})
 
@@ -3692,7 +3693,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			EnableHotTierAutoResize: true,
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.Error(tt, err, "Auto-tiering should fail when globally disabled")
 		assert.Contains(tt, err.Error(), "Auto-Tiering feature is currently not enabled")
 	})
@@ -3710,7 +3711,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			KmsConfigId: "test-kms-config-id",
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.NoError(tt, err, "Valid create params with KMS config should pass validation")
 	})
 
@@ -3727,7 +3728,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			Tags: "environment=production,team=storage",
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.NoError(tt, err, "Valid create params with tags should pass validation")
 	})
 
@@ -3750,7 +3751,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			},
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.NoError(tt, err, "Valid KMS config in READY state should pass validation")
 	})
 
@@ -3772,7 +3773,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			},
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.NoError(tt, err, "Valid KMS config in IN_USE state should pass validation")
 	})
 
@@ -3794,7 +3795,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			},
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "Invalid KMS configuration state for pool creation: CREATING")
 	})
@@ -3817,7 +3818,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			},
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "Invalid KMS configuration state for pool creation: DISABLED")
 	})
@@ -3835,7 +3836,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			KmsConfig: nil, // No KMS config should be valid
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.NoError(tt, err, "Nil KMS config should pass validation")
 	})
 
@@ -3855,8 +3856,96 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 			},
 		}
 
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.NoError(tt, err, "KMS config with nil service account should pass validation")
+	})
+
+	// Tests for ONTAP mode version validation
+	t.Run("ONTAPMode_ValidVersion_ShouldPass", func(tt *testing.T) {
+		// Set environment to return a valid version (>= 9.18)
+		originalCurrent := env.CurrentOntapVersionDetails
+		originalExperimental := env.ExperimentalOntapVersionDetails
+		defer func() {
+			env.CurrentOntapVersionDetails = originalCurrent
+			env.ExperimentalOntapVersionDetails = originalExperimental
+		}()
+		env.CurrentOntapVersionDetails = "9.18.1" // Valid version >= 9.18
+		env.ExperimentalOntapVersionDetails = ""
+
+		params := &common.CreatePoolParams{
+			AccountName:   "test-account",
+			Mode:          workflows.ONTAPMode,
+			SizeInBytes:   uint64(2 * utils.TiBInBytes),
+			ServiceLevel:  ServiceLevelNameFLEX,
+			QosType:       QosTypeAuto,
+			LargeCapacity: false,
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				ThroughputMibps: 128,
+				Iops:            nillable.ToPointer(int64(2048)),
+			},
+		}
+
+		err := _validateCreatePoolParams(params, logger)
+		assert.NoError(tt, err, "ONTAP mode with valid version should pass validation")
+	})
+
+	t.Run("ONTAPMode_InvalidVersion_ShouldFail", func(tt *testing.T) {
+		// Set environment to return an invalid version (< 9.18)
+		originalCurrent := env.CurrentOntapVersionDetails
+		originalExperimental := env.ExperimentalOntapVersionDetails
+		defer func() {
+			env.CurrentOntapVersionDetails = originalCurrent
+			env.ExperimentalOntapVersionDetails = originalExperimental
+		}()
+		env.CurrentOntapVersionDetails = "9.17.1" // Invalid version < 9.18
+		env.ExperimentalOntapVersionDetails = ""
+
+		params := &common.CreatePoolParams{
+			AccountName:   "test-account",
+			Mode:          workflows.ONTAPMode,
+			SizeInBytes:   uint64(2 * utils.TiBInBytes),
+			ServiceLevel:  ServiceLevelNameFLEX,
+			QosType:       QosTypeAuto,
+			LargeCapacity: false,
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				ThroughputMibps: 128,
+				Iops:            nillable.ToPointer(int64(2048)),
+			},
+		}
+
+		err := _validateCreatePoolParams(params, logger)
+		assert.Error(tt, err, "ONTAP mode with invalid version should fail validation")
+		assert.Contains(tt, err.Error(), "ONTAP version")
+		assert.Contains(tt, err.Error(), "below the minimum required version")
+	})
+
+	t.Run("DEFAULTMode_ShouldNotValidateOntapVersion", func(tt *testing.T) {
+		// Set environment to return an invalid version
+		// This should not matter since we're in DEFAULT mode
+		originalCurrent := env.CurrentOntapVersionDetails
+		originalExperimental := env.ExperimentalOntapVersionDetails
+		defer func() {
+			env.CurrentOntapVersionDetails = originalCurrent
+			env.ExperimentalOntapVersionDetails = originalExperimental
+		}()
+		env.CurrentOntapVersionDetails = "9.17.1" // Invalid version, but shouldn't be checked for DEFAULT mode
+		env.ExperimentalOntapVersionDetails = ""
+
+		params := &common.CreatePoolParams{
+			AccountName:   "test-account",
+			Mode:          workflows.DEFAULTMode,
+			SizeInBytes:   uint64(2 * utils.TiBInBytes),
+			ServiceLevel:  ServiceLevelNameFLEX,
+			QosType:       QosTypeAuto,
+			LargeCapacity: false,
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				ThroughputMibps: 128,
+				Iops:            nillable.ToPointer(int64(2048)),
+			},
+		}
+
+		err := _validateCreatePoolParams(params, logger)
+		assert.NoError(tt, err, "DEFAULT mode should not validate ONTAP version")
 	})
 }
 
@@ -5743,6 +5832,7 @@ func TestGetResourceJobType_Comprehensive(t *testing.T) {
 		})
 	})
 	t.Run("KmsConfigIsNotReady", func(tt *testing.T) {
+		logger := log.NewLogger()
 		ipos := int64(160001)
 		params := &common.CreatePoolParams{
 			SizeInBytes:             uint64(1 * utils.TiBInBytes),
@@ -5759,7 +5849,7 @@ func TestGetResourceJobType_Comprehensive(t *testing.T) {
 		ValidatePoolParams = func(perf *validators.CustomPerformance, serviceLevel string) error {
 			return nil
 		}
-		err := _validateCreatePoolParams(params)
+		err := _validateCreatePoolParams(params, logger)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "KMS configuration state")
 		assert.Contains(tt, err.Error(), "KEY_CHECK_PENDING")
@@ -5872,7 +5962,7 @@ func TestCreatePoolIntegration_ActiveDirectoryConfigId(t *testing.T) {
 		// Mock the validation functions to avoid complex setup
 		originalValidateCreatePoolParams := ValidateCreatePoolParams
 		defer func() { ValidateCreatePoolParams = originalValidateCreatePoolParams }()
-		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams, logger log.Logger) error {
 			return nil
 		}
 
@@ -5923,7 +6013,7 @@ func TestCreatePoolIntegration_ActiveDirectoryConfigId(t *testing.T) {
 		// Mock the validation functions
 		originalValidateCreatePoolParams := ValidateCreatePoolParams
 		defer func() { ValidateCreatePoolParams = originalValidateCreatePoolParams }()
-		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams, logger log.Logger) error {
 			return nil
 		}
 

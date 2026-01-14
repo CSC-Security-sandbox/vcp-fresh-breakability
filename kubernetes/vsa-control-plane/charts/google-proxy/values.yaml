@@ -46,7 +46,7 @@ regionalSupportEnabled: true
 filesProtocolSupport: true
 # "" implies only block support is enabled. #"*" implies all accounts are allowlisted for files protocol support
 # "Comma-separated list of account IDs" implies only those accounts are allowlisted for files protocol support
-fileProtocolAllowlistedAccounts: ""
+experimentalVersionAllowlistedAccounts: ""
 backupEnabled: false
 expertModeBackupEnabled: false
 sfrEnabled: false

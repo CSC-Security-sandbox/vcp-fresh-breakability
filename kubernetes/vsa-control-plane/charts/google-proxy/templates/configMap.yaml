@@ -57,7 +57,7 @@ data:
   BLOCK_UPDATE_POOL_TO_AT_POOL: "{{ index .Values "blockUpdatePoolToATPool" }}"
   REGIONAL_SUPPORT_ENABLED: "{{ index .Values "regionalSupportEnabled" }}"
   FILES_PROTOCOL_SUPPORT: "{{ index .Values "filesProtocolSupport" }}"
-  FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS: "{{ index .Values "fileProtocolAllowlistedAccounts" }}"
+  EXPERIMENTAL_VERSION_ALLOWLISTED_ACCOUNTS: "{{ index .Values "experimentalVersionAllowlistedAccounts" }}"
   IS_ALL_SQUASH_ENABLED: "{{ index .Values "isAllSquashEnabled" }}"
   MIN_QUOTA_IN_BYTES_POOL: "{{ index .Values "minQuotaInBytesPool" }}"
   MAX_QUOTA_IN_BYTES_POOL: "{{ index .Values "maxQuotaInBytesPool" }}"

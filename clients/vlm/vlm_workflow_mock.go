@@ -65,6 +65,16 @@ func (vlmManager *VSAClientWorkflowManagerMock) CreateVSASVM(ctx workflow.Contex
 	return createSVMResponse, nil
 }
 
+func (vlmManager *VSAClientWorkflowManagerMock) ModifyVSASVMWorkflow(ctx workflow.Context, req *ModifySVMRequest) (*ModifySVMResponse, error) {
+	logger := util.GetLogger(ctx)
+	logger.Info("Mock ModifyVSASVMWorkflow")
+	modifySVMResponse := &ModifySVMResponse{
+		VLMConfig: req.VLMConfig,
+	}
+
+	return modifySVMResponse, nil
+}
+
 func (vlmManager *VSAClientWorkflowManagerMock) DeleteVSAClusterDeployment(ctx workflow.Context, deleteVSAClusterDeploymentRequest *DeleteVSAClusterDeploymentRequest, ontapVersion string) error {
 	logger := util.GetLogger(ctx)
 	logger.Info("Mock DeleteVSAClusterDeployment")

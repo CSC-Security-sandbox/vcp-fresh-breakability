@@ -727,3 +727,19 @@ func (wle *WFLastExecutionActivity) GetWorkflowLastExecutionTime(ctx context.Con
 	// This will return the completion time of the workflow if it has completed, either Success or Failure.
 	return &wfCompletionTime, nil
 }
+
+// GetOntapVersionFromPool extracts the ONTAP version from a pool, checking BuildInfo first,
+// then falling back to ClusterDetails if BuildInfo is not available or doesn't have the version.
+// Returns an empty string if the version cannot be found.
+func GetOntapVersionFromPool(pool *datamodel.Pool) string {
+	if pool == nil {
+		return ""
+	}
+	if pool.BuildInfo != nil && pool.BuildInfo.OntapVersion != "" {
+		return pool.BuildInfo.OntapVersion
+	}
+	if pool.ClusterDetails.OntapVersion != "" {
+		return pool.ClusterDetails.OntapVersion
+	}
+	return ""
+}

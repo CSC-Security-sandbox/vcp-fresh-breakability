@@ -104,6 +104,8 @@ data:
   CLOUD_DNS_CACHE_TTL: {{$.Values.workerConfig.cloudDnsCacheTtl | quote }}
   VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX: {{$.Values.workerConfig.vsaLifecycleManagerQueuePrefix | quote }}
   ONTAP_VERSION_DETAILS: {{$.Values.workerConfig.ontapVersionDetails | quote }}
+  ONTAP_VERSION_DETAILS_EXPERIMENTAL: {{$.Values.workerConfig.ontapVersionDetailsExperimental | quote }}
+  FILE_SUPPORT_ONTAP_VERSION: {{$.Values.workerConfig.fileSupportOntapVersion | quote }}
   ONTAP_REST_ASYNC_POLL_TIMEOUT_MINUTES: {{$.Values.workerConfig.ontapRestAsyncPollTimeoutMinutes | quote }}
   ENFORCE_MIN_SP_CONFIG: {{$.Values.workerConfig.enforceMinSpConfig | quote }}
   MAX_NODES_PER_GROUP: {{$.Values.workerConfig.maxNodesPerGroup | quote }}
@@ -143,7 +145,7 @@ data:
   POOL_WORKFLOW_FORCE_CANCEL_WAIT_TIMEOUT: {{$.Values.workerConfig.poolWorkflowForceTerminationAckTimeout | quote }}
   FILES_PROTOCOL_SUPPORT: {{$.Values.workerConfig.filesProtocolSupport | quote }}
   IS_ALL_SQUASH_ENABLED: {{$.Values.workerConfig.isAllSquashEnabled | quote }}
-  FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS: {{$.Values.workerConfig.fileProtocolAllowlistedAccounts | quote }}
+  EXPERIMENTAL_VERSION_ALLOWLISTED_ACCOUNTS: {{$.Values.workerConfig.experimentalVersionAllowlistedAccounts | quote }}
   FLEXCACHE_FORCE_ENCRYPTION: {{$.Values.workerConfig.flexcacheForceEncryption | quote }}
   VSA_IMAGE_NAME: {{$.Values.workerConfig.vsaImageName | quote }}
   VSA_FILES_IMAGE_NAME: {{$.Values.workerConfig.vsaFilesImageName | quote }}
@@ -156,6 +158,8 @@ data:
   VSA_MEDIATOR_DISK_TYPE: {{$.Values.workerConfig.vsaMediatorDiskType | quote }}
   VSA_MEDIATOR_IMAGE_NAME: {{$.Values.workerConfig.vsaMediatorImageName | quote }}
   VSA_FILES_MEDIATOR_IMAGE_NAME: {{$.Values.workerConfig.vsaFilesMediatorImageName | quote }}
+  VSA_IMAGE_EXPERIMENTAL: {{$.Values.workerConfig.vsaImageExperimental | quote }}
+  VSA_MEDIATOR_IMAGE_EXPERIMENTAL: {{$.Values.workerConfig.vsaMediatorImageExperimental | quote }}
   METRICS_PORT: {{$.Values.workerConfig.metricsPort | quote }}
   ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION: {{$.Values.workerConfig.enableUniqueSerialNumberGeneration | quote }}
   CLUSTER_SERIAL_NUMBER_PREFIX: {{$.Values.workerConfig.clusterSerialNumberPrefix | quote }}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -71,11 +72,12 @@ type PostVolumeProvisioningParams struct {
 // Parameters:
 //   - protocols: Slice of protocol strings to determine workflow type
 //   - phase: Provisioning phase (use PhasePre or PhasePost constants)
+//   - ontapVersion: ONTAP version string to check file protocol support
 //
 // Returns:
 //   - For post phase with both NFS and SMB protocols: returns a slice of workflows [PostFileVolumeWorkflow, PostFileVolumeWorkflowForSMB]
 //   - For all other cases: returns a single workflow function
-func selectVolumeChildWorkflow(protocols []string, phase, accountName string) (interface{}, error) {
+func selectVolumeChildWorkflow(protocols []string, phase, ontapVersion string) (interface{}, error) {
 	if utils.IsSanProtocols(protocols) {
 		switch phase {
 		case PhasePre:
@@ -87,7 +89,7 @@ func selectVolumeChildWorkflow(protocols []string, phase, accountName string) (i
 		}
 	}
 	if utils.IsNasProtocols(protocols) {
-		if !utils.IsFileProtocolSupported(accountName) {
+		if !utils.IsFileProtocolSupportedV2(ontapVersion) {
 			return nil, ConvertToVSAError(fmt.Errorf("file protocols are not enabled"))
 		}
 		switch phase {
@@ -210,11 +212,127 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
+	log := util.GetLogger(ctx)
+
+	// Check if NAS LIF needs to be configured
+	poolActivity := &activities.PoolActivity{}
+	var vlmConfig *vlm.VLMConfig
+	err = workflow.ExecuteActivity(ctx, poolActivity.ParseVlmConfig, dbVolume.Pool).Get(ctx, &vlmConfig)
+	if err != nil {
+		log.Error("Failed to parse VLM config for NAS LIF check", "error", err)
+		return nil, ConvertToVSAError(fmt.Errorf("Failed to parse VLM config: %w", err))
+	}
+
+	// Check if pool details are loaded before proceeding
+	if dbVolume.Pool == nil {
+		err = fmt.Errorf("pool details not loaded for volume %s", dbVolume.UUID)
+		log.Error("Pool details missing during NAS LIF check", "error", err)
+		return nil, ConvertToVSAError(err)
+	}
+
+	ontapVersion := activities.GetOntapVersionFromPool(dbVolume.Pool)
+
+	// Check file support conditions: FileProtocolSupported flag + ONTAP >= 9.18
+	if utils.IsFileProtocolSupportedV2(ExtractOntapVersion(ontapVersion)) {
+		// Check if naslif exists in VLMConfig using activity
+		var hasNasLif bool
+		err = workflow.ExecuteActivity(ctx, poolActivity.HasNasLifInVLMConfig, *vlmConfig).Get(ctx, &hasNasLif)
+		if err != nil {
+			log.Error("Failed to check for NAS LIF in VLM config", "error", err)
+			return nil, ConvertToVSAError(fmt.Errorf("Failed to check for NAS LIF in VLM config: %w", err))
+		}
+		if !hasNasLif {
+			log.Info("NAS LIF not found in VLMConfig, setting up NAS infrastructure", "pool", dbVolume.Pool.Name, "svm", dbVolume.Svm.Name)
+
+			// Setup NAS firewalls (NFS, SMB, ILB health check) first, before configuring NAS LIF.
+			// This is needed for pools upgraded from 9.17 to 9.18 where firewalls were not set up during pool creation.
+			// The firewall setup is idempotent, so it's safe to call even if firewalls already exist.
+			poolClusterDetails := dbVolume.Pool.ClusterDetails
+			if poolClusterDetails.SnHostProject == "" || poolClusterDetails.Network == "" {
+				log.Warn("Pool missing SN host project or network details, skipping NAS firewall setup", "pool", dbVolume.Pool.UUID, "snHostProject", poolClusterDetails.SnHostProject, "network", poolClusterDetails.Network)
+			} else {
+				log.Info("Setting up NAS firewalls for first file volume creation", "pool", dbVolume.Pool.Name, "snHostProject", poolClusterDetails.SnHostProject, "network", poolClusterDetails.Network)
+				var firewallOperations *[]common.Operations
+				err = workflow.ExecuteActivity(ctx, poolActivity.SetupNasFirewalls, poolClusterDetails.SnHostProject, poolClusterDetails.Network).Get(ctx, &firewallOperations)
+				if err != nil {
+					log.Error("Failed to setup NAS firewalls", "error", err, "pool", dbVolume.Pool.Name)
+					return nil, ConvertToVSAError(fmt.Errorf("Failed to setup NAS firewalls: %w", err))
+				}
+				// Wait for firewall operations to complete using child workflow
+				if firewallOperations != nil && len(*firewallOperations) > 0 {
+					err = workflow.ExecuteChildWorkflow(ctx, WaitForGCPNetworkOperationStatusWorkflow, firewallOperations, retryPolicy.StartToCloseTimeout).Get(ctx, nil)
+					if err != nil {
+						log.Error("Failed to wait for NAS firewall operations to complete", "error", err, "pool", dbVolume.Pool.Name)
+						return nil, ConvertToVSAError(fmt.Errorf("Failed to wait for NAS firewall operations: %w", err))
+					}
+					log.Info("Successfully set up NAS firewalls", "pool", dbVolume.Pool.Name, "operations", len(*firewallOperations))
+				} else {
+					log.Debug("NAS firewalls already exist, no operations needed", "pool", dbVolume.Pool.Name)
+				}
+			}
+
+			// Configure NAS LIF by calling ModifyVSASVMWorkflow
+			// VLM will handle the actual NAS LIF configuration
+			// Get ONTAP credentials from pool
+			var ontapCredentials vlm.OntapCredentials
+			err = workflow.ExecuteActivity(ctx, poolActivity.GetOnTapCredentials, dbVolume.Pool).Get(ctx, &ontapCredentials)
+			if err != nil {
+				log.Error("Failed to get ONTAP credentials for ModifyVSASVMWorkflow", "error", err)
+				return nil, ConvertToVSAError(err)
+			}
+			// Update VLMConfig with EnableIlbSupport = true
+			vlmConfig.Deployment.DevFlags.EnableIlbSupport = true
+
+			modifySVMRequest := &vlm.ModifySVMRequest{
+				Name:             dbVolume.Svm.Name,
+				VLMConfig:        *vlmConfig,
+				OntapCredentials: ontapCredentials,
+			}
+
+			vlmClient := vlm.NewVSAClientWorkflowManager()
+			var modifySVMResponse *vlm.ModifySVMResponse
+			modifySVMResponse, err = vlmClient.ModifyVSASVMWorkflow(ctx, modifySVMRequest)
+			if err != nil {
+				log.Error("Failed to configure NAS LIF via ModifyVSASVMWorkflow", "error", err)
+				return nil, ConvertToVSAError(fmt.Errorf("Failed to configure NAS LIF: %w", err))
+			}
+
+			// Get the updated VLMConfig from the response
+			if modifySVMResponse != nil {
+				vlmConfig = &modifySVMResponse.VLMConfig
+			}
+
+			// Save updated VLMConfig back to pool using UpdatePoolFields
+			// Marshal VLMConfig using activity
+			var marshalledVlmConfig string
+			err = workflow.ExecuteActivity(ctx, poolActivity.MarshalVLMConfig, *vlmConfig).Get(ctx, &marshalledVlmConfig)
+			if err != nil {
+				log.Error("Failed to marshal VLMConfig", "error", err)
+				return nil, ConvertToVSAError(fmt.Errorf("Failed to marshal VLMConfig: %w", err))
+			}
+			updates := map[string]interface{}{
+				"vlm_config": marshalledVlmConfig,
+			}
+
+			err = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolFields, dbVolume.Pool.UUID, updates).Get(ctx, nil)
+			if err != nil {
+				log.Error("Failed to update pool with VLMConfig after NAS LIF configuration", "error", err)
+				return nil, ConvertToVSAError(fmt.Errorf("Failed to update pool with VLMConfig: %w", err))
+			} else {
+				log.Info("Successfully configured NAS LIF and updated pool VLMConfig", "pool", dbVolume.Pool.Name)
+			}
+		} else {
+			log.Debug("NAS LIF already exists in VLMConfig", "pool", dbVolume.Pool.Name)
+		}
+	} else {
+		log.Debug("Skipping NAS LIF configuration due to unsupported file protocol or ONTAP version", "pool", dbVolume.Pool.Name, "ontapVersion", ontapVersion)
+		return nil, ConvertToVSAError(fmt.Errorf("file protocols are not supported"))
+	}
+
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateExportPolicyInOntap, &dbVolume, &node).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	log := util.GetLogger(ctx)
 	log.Info("File pre-provisioning: create export policy, etc. (placeholder)")
 	return dbVolume, nil
 }
@@ -722,7 +840,8 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	// Pre-provisioning child workflow
-	preWorkflowFunc, preErr := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePre, dbVolume.Account.Name)
+	ontapVersion := activities.GetOntapVersionFromPool(dbVolume.Pool)
+	preWorkflowFunc, preErr := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePre, ontapVersion)
 	if preErr != nil {
 		err = preErr
 		return nil, ConvertToVSAError(err)
@@ -812,8 +931,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	if !isRestoreFromBackup {
-		// Post-provisioning child workflow
-		postWorkflowFunc, postErr := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePost, dbVolume.Account.Name)
+		postWorkflowFunc, postErr := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePost, ontapVersion)
 		if postErr != nil {
 			err = postErr
 			return nil, ConvertToVSAError(err)
@@ -1054,4 +1172,34 @@ func _verifyBackupRestoreCompatibilityForLargeVolumes(backup *datamodel.Backup, 
 		return nil, customerrors.NewUserInputValidationErr(fmt.Sprintf("Constituent count provided (%d) does not match with that of backup (%d)", customerConstituentCount, backupConstituentCount))
 	}
 	return params, nil
+}
+
+// WaitForGCPNetworkOperationStatusWorkflow is a wrapper workflow that calls WaitForGCPNetworkOperationStatus
+// This allows it to be called as a child workflow to prevent deadlocks
+func WaitForGCPNetworkOperationStatusWorkflow(ctx workflow.Context, operations *[]common.Operations, timeout time.Duration) error {
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return ConvertToVSAError(err)
+	}
+	// Parse the configurable timeout for network operation activities
+	// Use StartToCloseTimeoutForConfigureNetwork as default, or fallback to 5 minutes
+	startToCloseTimeout, parseErr := time.ParseDuration(StartToCloseTimeoutForConfigureNetwork)
+	if parseErr != nil {
+		// Fallback to default 5 minutes if parsing fails
+		startToCloseTimeout = 5 * time.Minute
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: startToCloseTimeout,
+		HeartbeatTimeout:    startToCloseTimeout / 2,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+	poolActivity := &activities.PoolActivity{}
+	return WaitForGCPNetworkOperationStatus(ctx, poolActivity, operations, timeout)
 }
