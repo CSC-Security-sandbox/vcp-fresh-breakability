@@ -234,13 +234,17 @@ func TestGetExpertModePoolUsedCapacity_Success(t *testing.T) {
 	_, err = store.CreateExpertModeVolume(ctx, volume4)
 	assert.NoError(t, err)
 
-	// Get total size for pool1
+	// Get total size and count for pool1
 	// Expected: 1TB + 200GB + 500GB = 1,700GB = 1,851,130,904,576 bytes
+	// Expected count: 3 volumes
 	expectedTotal := int64(1099511627776 + 214748364800 + 536870912000)
-	totalSize, err := store.GetExpertModePoolUsedCapacity(ctx, pool.ID)
+	expectedCount := int64(3)
+	capacity, err := store.GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID)
 
 	assert.NoError(t, err)
-	assert.Equal(t, expectedTotal, totalSize)
+	assert.NotNil(t, capacity)
+	assert.Equal(t, expectedTotal, capacity.TotalSize)
+	assert.Equal(t, expectedCount, capacity.VolumeCount)
 }
 
 func TestGetExpertModePoolUsedCapacity_EmptyPool(t *testing.T) {
@@ -249,20 +253,24 @@ func TestGetExpertModePoolUsedCapacity_EmptyPool(t *testing.T) {
 	account, pool := createTestAccountAndPoolForExpertMode(t, store)
 	_ = account
 
-	totalSize, err := store.GetExpertModePoolUsedCapacity(ctx, pool.ID)
+	capacity, err := store.GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID)
 
 	assert.NoError(t, err)
-	assert.Equal(t, int64(0), totalSize)
+	assert.NotNil(t, capacity)
+	assert.Equal(t, int64(0), capacity.TotalSize)
+	assert.Equal(t, int64(0), capacity.VolumeCount)
 }
 
 func TestGetExpertModePoolUsedCapacity_NonExistentPool(t *testing.T) {
 	store := setup(t)
 	ctx := context.Background()
 
-	totalSize, err := store.GetExpertModePoolUsedCapacity(ctx, 99999)
+	capacity, err := store.GetExpertModePoolUsedCapacityAndVolumeCount(ctx, 99999)
 
 	assert.NoError(t, err)
-	assert.Equal(t, int64(0), totalSize)
+	assert.NotNil(t, capacity)
+	assert.Equal(t, int64(0), capacity.TotalSize)
+	assert.Equal(t, int64(0), capacity.VolumeCount)
 }
 
 func TestGetExpertModePoolUsedCapacity_WithDeletedVolumes(t *testing.T) {
@@ -291,11 +299,13 @@ func TestGetExpertModePoolUsedCapacity_WithDeletedVolumes(t *testing.T) {
 	err = store.db.GORM().Delete(createdVolume).Error
 	assert.NoError(t, err)
 
-	// Total size should NOT include deleted volumes (GORM excludes soft-deleted records)
-	totalSize, err := store.GetExpertModePoolUsedCapacity(ctx, pool.ID)
+	// Total size and count should NOT include deleted volumes (GORM excludes soft-deleted records)
+	capacity, err := store.GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID)
 
 	assert.NoError(t, err)
-	assert.Equal(t, int64(0), totalSize)
+	assert.NotNil(t, capacity)
+	assert.Equal(t, int64(0), capacity.TotalSize)
+	assert.Equal(t, int64(0), capacity.VolumeCount)
 }
 
 func TestCreateExpertModeVolume_ForeignKeyConstraint(t *testing.T) {
@@ -1359,18 +1369,22 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 		_, err = store.CreateExpertModeVolume(ctx, volume2)
 		assert.NoError(tt, err)
 
-		// Check initial capacity
-		initialCapacity, err := store.GetExpertModePoolUsedCapacity(ctx, pool.ID)
+		// Check initial capacity and count
+		initialCapacity, err := store.GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID)
 		assert.NoError(tt, err)
-		assert.Equal(tt, int64(1099511627776+536870912000), initialCapacity)
+		assert.NotNil(tt, initialCapacity)
+		assert.Equal(tt, int64(1099511627776+536870912000), initialCapacity.TotalSize)
+		assert.Equal(tt, int64(2), initialCapacity.VolumeCount)
 
 		// Delete volume1
 		err = store.DeleteExpertModeVolume(ctx, createdVolume1.UUID)
 		assert.NoError(tt, err)
 
-		// Check capacity after deletion - should only include volume2
-		finalCapacity, err := store.GetExpertModePoolUsedCapacity(ctx, pool.ID)
+		// Check capacity and count after deletion - should only include volume2
+		finalCapacity, err := store.GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID)
 		assert.NoError(tt, err)
-		assert.Equal(tt, int64(536870912000), finalCapacity) // Only volume2 size
+		assert.NotNil(tt, finalCapacity)
+		assert.Equal(tt, int64(536870912000), finalCapacity.TotalSize) // Only volume2 size
+		assert.Equal(tt, int64(1), finalCapacity.VolumeCount)          // Only volume2 count
 	})
 }

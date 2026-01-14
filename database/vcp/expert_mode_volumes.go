@@ -11,6 +11,12 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
+// ExpertModePoolCapacity represents the total size and volume count for expert mode volumes in a pool
+type ExpertModePoolCapacity struct {
+	TotalSize   int64
+	VolumeCount int64
+}
+
 // CreateExpertModeVolume creates a new expert mode volume record
 func (d *DataStoreRepository) CreateExpertModeVolume(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) (*datamodel.ExpertModeVolumes, error) {
 	db := d.db.GORM().WithContext(ctx)
@@ -31,21 +37,27 @@ func (d *DataStoreRepository) CreateExpertModeVolume(ctx context.Context, expert
 	return expertModeVolume, nil
 }
 
-// GetExpertModePoolUsedCapacity calculates the total size of all expert mode volumes for a given pool ID
-func (d *DataStoreRepository) GetExpertModePoolUsedCapacity(ctx context.Context, poolID int64) (int64, error) {
-	var totalSize int64
+// GetExpertModePoolUsedCapacityAndVolumeCount calculates the total size and count of all expert mode volumes for a given pool ID, returns total size in bytes and volume count
+func (d *DataStoreRepository) GetExpertModePoolUsedCapacityAndVolumeCount(ctx context.Context, poolID int64) (*ExpertModePoolCapacity, error) {
+	var result struct {
+		TotalSize   int64 `gorm:"column:total_size"`
+		VolumeCount int64 `gorm:"column:volume_count"`
+	}
 
 	err := d.db.GORM().WithContext(ctx).
 		Model(&datamodel.ExpertModeVolumes{}).
+		Select("COALESCE(SUM(size_in_bytes), 0) as total_size, COUNT(*) as volume_count").
 		Where("pool_id = ?", poolID).
-		Select("COALESCE(SUM(size_in_bytes), 0)").
-		Scan(&totalSize).Error
+		Scan(&result).Error
 
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return totalSize, nil
+	return &ExpertModePoolCapacity{
+		TotalSize:   result.TotalSize,
+		VolumeCount: result.VolumeCount,
+	}, nil
 }
 
 // GetExpertModeVolumeByNameAndPoolID retrieves an expert mode volume by its name and pool ID

@@ -66,11 +66,12 @@ func _createExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 	}
 
 	// Calculate total existing size to validate pool capacity
-	totalUsedSize, err := se.GetExpertModePoolUsedCapacity(ctx, dbPoolView.ID)
+	capacity, err := se.GetExpertModePoolUsedCapacityAndVolumeCount(ctx, dbPoolView.ID)
 	if err != nil {
 		logger.Error("Failed to calculate total existing size", "poolID", dbPoolView.ID, "error", err)
 		return err
 	}
+	totalUsedSize := capacity.TotalSize
 
 	// Check if new volume can fit in the pool
 	if totalUsedSize+params.SizeInBytes > int64(dbPoolView.SizeInBytes) {

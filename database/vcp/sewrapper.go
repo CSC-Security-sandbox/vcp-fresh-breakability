@@ -4709,13 +4709,13 @@ func (re *retryEngine) ListExpertModePools(ctx context.Context) ([]*datamodel.Po
 	return var0, err
 }
 
-func (re *retryEngine) GetExpertModePoolUsedCapacity(ctx context.Context, poolID int64) (int64, error) {
-	var var0 int64
+func (re *retryEngine) GetExpertModePoolUsedCapacityAndVolumeCount(ctx context.Context, poolID int64) (*ExpertModePoolCapacity, error) {
+	var var0 *ExpertModePoolCapacity
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.GetExpertModePoolUsedCapacity(ctx, poolID)
+		var0, err = re.dataStore.GetExpertModePoolUsedCapacityAndVolumeCount(ctx, poolID)
 		if err != nil {
-			re.logError("GetExpertModePoolUsedCapacity", err)
+			re.logError("GetExpertModePoolUsedCapacityAndVolumeCount", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

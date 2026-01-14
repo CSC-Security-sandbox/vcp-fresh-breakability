@@ -6697,23 +6697,25 @@ func (_c *MockDataStore_GetEligibleVolumes_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
-// GetExpertModePoolUsedCapacity provides a mock function with given fields: ctx, poolID
-func (_m *MockDataStore) GetExpertModePoolUsedCapacity(ctx context.Context, poolID int64) (int64, error) {
+// GetExpertModePoolUsedCapacityAndVolumeCount provides a mock function with given fields: ctx, poolID
+func (_m *MockDataStore) GetExpertModePoolUsedCapacityAndVolumeCount(ctx context.Context, poolID int64) (*ExpertModePoolCapacity, error) {
 	ret := _m.Called(ctx, poolID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetExpertModePoolUsedCapacity")
+		panic("no return value specified for GetExpertModePoolUsedCapacityAndVolumeCount")
 	}
 
-	var r0 int64
+	var r0 *ExpertModePoolCapacity
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, int64) (int64, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (*ExpertModePoolCapacity, error)); ok {
 		return rf(ctx, poolID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, int64) int64); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, int64) *ExpertModePoolCapacity); ok {
 		r0 = rf(ctx, poolID)
 	} else {
-		r0 = ret.Get(0).(int64)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ExpertModePoolCapacity)
+		}
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
@@ -6725,31 +6727,31 @@ func (_m *MockDataStore) GetExpertModePoolUsedCapacity(ctx context.Context, pool
 	return r0, r1
 }
 
-// MockDataStore_GetExpertModePoolUsedCapacity_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetExpertModePoolUsedCapacity'
-type MockDataStore_GetExpertModePoolUsedCapacity_Call struct {
+// MockDataStore_GetExpertModePoolUsedCapacityAndVolumeCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetExpertModePoolUsedCapacityAndVolumeCount'
+type MockDataStore_GetExpertModePoolUsedCapacityAndVolumeCount_Call struct {
 	*mock.Call
 }
 
-// GetExpertModePoolUsedCapacity is a helper method to define mock.On call
+// GetExpertModePoolUsedCapacityAndVolumeCount is a helper method to define mock.On call
 //   - ctx context.Context
 //   - poolID int64
-func (_e *MockDataStore_Expecter) GetExpertModePoolUsedCapacity(ctx interface{}, poolID interface{}) *MockDataStore_GetExpertModePoolUsedCapacity_Call {
-	return &MockDataStore_GetExpertModePoolUsedCapacity_Call{Call: _e.mock.On("GetExpertModePoolUsedCapacity", ctx, poolID)}
+func (_e *MockDataStore_Expecter) GetExpertModePoolUsedCapacityAndVolumeCount(ctx interface{}, poolID interface{}) *MockDataStore_GetExpertModePoolUsedCapacityAndVolumeCount_Call {
+	return &MockDataStore_GetExpertModePoolUsedCapacityAndVolumeCount_Call{Call: _e.mock.On("GetExpertModePoolUsedCapacityAndVolumeCount", ctx, poolID)}
 }
 
-func (_c *MockDataStore_GetExpertModePoolUsedCapacity_Call) Run(run func(ctx context.Context, poolID int64)) *MockDataStore_GetExpertModePoolUsedCapacity_Call {
+func (_c *MockDataStore_GetExpertModePoolUsedCapacityAndVolumeCount_Call) Run(run func(ctx context.Context, poolID int64)) *MockDataStore_GetExpertModePoolUsedCapacityAndVolumeCount_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(int64))
 	})
 	return _c
 }
 
-func (_c *MockDataStore_GetExpertModePoolUsedCapacity_Call) Return(_a0 int64, _a1 error) *MockDataStore_GetExpertModePoolUsedCapacity_Call {
+func (_c *MockDataStore_GetExpertModePoolUsedCapacityAndVolumeCount_Call) Return(_a0 *ExpertModePoolCapacity, _a1 error) *MockDataStore_GetExpertModePoolUsedCapacityAndVolumeCount_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockDataStore_GetExpertModePoolUsedCapacity_Call) RunAndReturn(run func(context.Context, int64) (int64, error)) *MockDataStore_GetExpertModePoolUsedCapacity_Call {
+func (_c *MockDataStore_GetExpertModePoolUsedCapacityAndVolumeCount_Call) RunAndReturn(run func(context.Context, int64) (*ExpertModePoolCapacity, error)) *MockDataStore_GetExpertModePoolUsedCapacityAndVolumeCount_Call {
 	_c.Call.Return(run)
 	return _c
 }

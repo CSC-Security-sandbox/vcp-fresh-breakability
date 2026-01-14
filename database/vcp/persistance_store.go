@@ -384,8 +384,8 @@ func (s *PersistenceStore) CreateExpertModeVolume(ctx context.Context, expertMod
 	return s.dataStore.CreateExpertModeVolume(ctx, expertModeVolume)
 }
 
-func (s *PersistenceStore) GetExpertModePoolUsedCapacity(ctx context.Context, poolID int64) (int64, error) {
-	return s.dataStore.GetExpertModePoolUsedCapacity(ctx, poolID)
+func (s *PersistenceStore) GetExpertModePoolUsedCapacityAndVolumeCount(ctx context.Context, poolID int64) (*ExpertModePoolCapacity, error) {
+	return s.dataStore.GetExpertModePoolUsedCapacityAndVolumeCount(ctx, poolID)
 }
 
 func (s *PersistenceStore) GetExpertModeVolumeByNameAndPoolID(ctx context.Context, name string, poolID int64) (*datamodel.ExpertModeVolumes, error) {

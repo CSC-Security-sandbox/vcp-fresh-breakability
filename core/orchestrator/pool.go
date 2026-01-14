@@ -450,6 +450,11 @@ func (o *Orchestrator) DescribePool(ctx context.Context, poolId string, accountN
 		return nil, err
 	}
 
+	// For ONTAP mode pools, get used capacity and volume count from expert mode volume table
+	if err = enrichSinglePoolWithExpertModeCapacity(ctx, se, pool); err != nil {
+		return nil, err
+	}
+
 	return convertDatastorePoolToModel(pool, pool.Account.Name), nil
 }
 
@@ -554,6 +559,12 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, "", customerrors.NewNotFoundErr("pool not found", nil)
 		}
+		return nil, "", err
+	}
+
+	// For ONTAP mode pools, get used capacity and volume count from expert mode volume table
+	err = enrichSinglePoolWithExpertModeCapacity(ctx, se, pool)
+	if err != nil {
 		return nil, "", err
 	}
 
@@ -664,6 +675,11 @@ func (o *Orchestrator) ListPools(ctx context.Context, accountName string, includ
 		return nil, err
 	}
 
+	// For ONTAP mode pools, get used capacity and volume count from expert mode volume table
+	if err = enrichPoolsWithExpertModeCapacity(ctx, se, pools); err != nil {
+		return nil, err
+	}
+
 	return convertDatastorePoolsToModel(pools, account.Name), nil
 }
 
@@ -673,6 +689,11 @@ func (o *Orchestrator) ListAllPools(ctx context.Context) ([]*models.Pool, error)
 
 	pools, err := se.ListPools(ctx, nil)
 	if err != nil {
+		return nil, err
+	}
+
+	// For ONTAP mode pools, get used capacity and volume count from expert mode volume table
+	if err = enrichPoolsWithExpertModeCapacity(ctx, se, pools); err != nil {
 		return nil, err
 	}
 
@@ -697,6 +718,11 @@ func (o *Orchestrator) GetMultiplePools(ctx context.Context, accountName string,
 		utils2.NewFilterCondition("account_id", "=", account.ID))
 	pools, err := se.ListPools(ctx, filter)
 	if err != nil {
+		return nil, err
+	}
+
+	// For ONTAP mode pools, get used capacity and volume count from expert mode volume table
+	if err = enrichPoolsWithExpertModeCapacity(ctx, se, pools); err != nil {
 		return nil, err
 	}
 
@@ -1003,4 +1029,31 @@ func getPoolIsRegionalHA(pool *datamodel.Pool) bool {
 		return false
 	}
 	return pool.PoolAttributes.IsRegionalHA
+}
+
+// enrichSinglePoolWithExpertModeCapacity updates a single ONTAP mode pool with expert mode capacity and volume count
+func enrichSinglePoolWithExpertModeCapacity(ctx context.Context, se database.Storage, pool *datamodel.PoolView) error {
+	if pool.APIAccessMode == workflows.ONTAPMode {
+		capacity, getError := se.GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID)
+		if getError != nil {
+			util.GetLogger(ctx).Errorf("Failed to get expert mode capacity for pool %s: %v", pool.UUID, getError)
+			return getError
+		}
+		if capacity == nil {
+			return nil
+		}
+		pool.QuotaInBytes = uint64(capacity.TotalSize)
+		pool.VolumeCount = capacity.VolumeCount
+	}
+	return nil
+}
+
+// enrichPoolsWithExpertModeCapacity updates ONTAP mode pools with expert mode capacity and volume count
+func enrichPoolsWithExpertModeCapacity(ctx context.Context, se database.Storage, pools []*datamodel.PoolView) error {
+	for _, pool := range pools {
+		if err := enrichSinglePoolWithExpertModeCapacity(ctx, se, pool); err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -449,7 +449,7 @@ func TestCreateExpertModeVolume(t *testing.T) {
 
 		// Create a mock storage that will fail on GetExpertModeVolumeByUUID
 		mockStorage := database.NewMockStorage(tt)
-		
+
 		// Mock getAccountWithName to return the account
 		originalGetAccountWithName := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -458,7 +458,7 @@ func TestCreateExpertModeVolume(t *testing.T) {
 		defer func() {
 			getAccountWithName = originalGetAccountWithName
 		}()
-		
+
 		// Mock all the calls that happen before GetExpertModeVolumeByUUID
 		mockStorage.EXPECT().GetPool(ctx, params.PoolUUID, account.ID).Return(&datamodel.PoolView{
 			Pool: datamodel.Pool{
@@ -471,7 +471,7 @@ func TestCreateExpertModeVolume(t *testing.T) {
 			},
 		}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, params.VolumeName, pool.ID).Return(nil, gorm.ErrRecordNotFound).Once()
-		mockStorage.EXPECT().GetExpertModePoolUsedCapacity(ctx, pool.ID).Return(int64(0), nil).Once()
+		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID).Return(&database.ExpertModePoolCapacity{TotalSize: 0, VolumeCount: 0}, nil).Once()
 		mockStorage.EXPECT().GetSvmByExternalUUID(ctx, params.SvmUuid, pool.ID).Return(svm, nil).Once()
 		createdVolume := &datamodel.ExpertModeVolumes{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},

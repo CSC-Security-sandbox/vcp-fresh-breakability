@@ -1878,6 +1878,168 @@ func TestMultiplePools(t *testing.T) {
 		assert.Equal(tt, dbPools[0].Name, result[0].Name, "Returned pool does not match expected pool")
 		assert.Equal(tt, dbPools[1].Name, result[1].Name, "Returned pool does not match expected pool")
 	})
+	t.Run("WhenPoolsHaveONTAPMode_SetsQuotaInBytesAndVolumeCount", func(tt *testing.T) {
+		accountName := "test_account"
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		orch := &Orchestrator{
+			storage: mockStorage,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      accountName,
+		}
+
+		// Create pools with ONTAP mode (using PoolView since ListPools returns PoolView)
+		ontapPool1 := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "ontap-pool-uuid1",
+				},
+				Name:           "ontap_pool_1",
+				AccountID:      account.ID,
+				APIAccessMode:  workflows.ONTAPMode,
+				PoolAttributes: &datamodel.PoolAttributes{},
+			},
+		}
+		ontapPool2 := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   2,
+					UUID: "ontap-pool-uuid2",
+				},
+				Name:           "ontap_pool_2",
+				AccountID:      account.ID,
+				APIAccessMode:  workflows.ONTAPMode,
+				PoolAttributes: &datamodel.PoolAttributes{},
+			},
+		}
+		// Create a pool with different mode (should not call GetExpertModePoolUsedCapacityAndVolumeCount)
+		nonOntapPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   3,
+					UUID: "non-ontap-pool-uuid",
+				},
+				Name:           "non_ontap_pool",
+				AccountID:      account.ID,
+				APIAccessMode:  workflows.DEFAULTMode,
+				PoolAttributes: &datamodel.PoolAttributes{},
+			},
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		expectedSize1 := int64(1099511627776) // 1TB
+		expectedCount1 := int64(5)
+		expectedSize2 := int64(214748364800) // 200GB
+		expectedCount2 := int64(3)
+
+		// Mock ListPools to return the pools
+		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{ontapPool1, ontapPool2, nonOntapPool}, nil)
+
+		// Mock GetExpertModePoolUsedCapacityAndVolumeCount for ONTAP pools only
+		mockStorage.On("GetExpertModePoolUsedCapacityAndVolumeCount", ctx, int64(1)).Return(&database.ExpertModePoolCapacity{TotalSize: expectedSize1, VolumeCount: expectedCount1}, nil).Once()
+		mockStorage.On("GetExpertModePoolUsedCapacityAndVolumeCount", ctx, int64(2)).Return(&database.ExpertModePoolCapacity{TotalSize: expectedSize2, VolumeCount: expectedCount2}, nil).Once()
+
+		result, err := orch.GetMultiplePools(ctx, accountName, []string{"ontap-pool-uuid1", "ontap-pool-uuid2", "non-ontap-pool-uuid"})
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 3, "Expected 3 pools, got %d", len(result))
+
+		// Find the pools in the result
+		var resultOntapPool1, resultOntapPool2, resultNonOntapPool *models.Pool
+		for _, pool := range result {
+			if pool.UUID == "ontap-pool-uuid1" {
+				resultOntapPool1 = pool
+			} else if pool.UUID == "ontap-pool-uuid2" {
+				resultOntapPool2 = pool
+			} else if pool.UUID == "non-ontap-pool-uuid" {
+				resultNonOntapPool = pool
+			}
+		}
+
+		// Verify ONTAP pool 1 has QuotaInBytes and VolumeCount set (mapped to PoolAttributes)
+		assert.NotNil(tt, resultOntapPool1, "ONTAP pool 1 should be in result")
+		assert.NotNil(tt, resultOntapPool1.PoolAttributes, "PoolAttributes should be set for ONTAP pool 1")
+		assert.Equal(tt, float64(expectedSize1), resultOntapPool1.PoolAttributes.AllocatedBytes, "AllocatedBytes should be set for ONTAP pool 1")
+		assert.Equal(tt, expectedCount1, resultOntapPool1.PoolAttributes.NumberOfVolumes, "NumberOfVolumes should be set for ONTAP pool 1")
+
+		// Verify ONTAP pool 2 has QuotaInBytes and VolumeCount set (mapped to PoolAttributes)
+		assert.NotNil(tt, resultOntapPool2, "ONTAP pool 2 should be in result")
+		assert.NotNil(tt, resultOntapPool2.PoolAttributes, "PoolAttributes should be set for ONTAP pool 2")
+		assert.Equal(tt, float64(expectedSize2), resultOntapPool2.PoolAttributes.AllocatedBytes, "AllocatedBytes should be set for ONTAP pool 2")
+		assert.Equal(tt, expectedCount2, resultOntapPool2.PoolAttributes.NumberOfVolumes, "NumberOfVolumes should be set for ONTAP pool 2")
+
+		// Verify non-ONTAP pool does NOT have QuotaInBytes and VolumeCount set (should be 0/default)
+		assert.NotNil(tt, resultNonOntapPool, "Non-ONTAP pool should be in result")
+		if resultNonOntapPool.PoolAttributes != nil {
+			assert.Equal(tt, float64(0), resultNonOntapPool.PoolAttributes.AllocatedBytes, "AllocatedBytes should not be set for non-ONTAP pool")
+			assert.Equal(tt, int64(0), resultNonOntapPool.PoolAttributes.NumberOfVolumes, "NumberOfVolumes should not be set for non-ONTAP pool")
+		}
+
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenGetExpertModePoolUsedCapacityAndVolumeCountReturnsError_ReturnsError", func(tt *testing.T) {
+		accountName := "test_account"
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		orch := &Orchestrator{
+			storage: mockStorage,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      accountName,
+		}
+
+		ontapPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "ontap-pool-uuid",
+				},
+				Name:           "ontap_pool",
+				AccountID:      account.ID,
+				APIAccessMode:  workflows.ONTAPMode,
+				PoolAttributes: &datamodel.PoolAttributes{},
+			},
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		expectedError := errors.New("failed to get expert mode capacity")
+
+		// Mock ListPools to return the pool
+		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{ontapPool}, nil)
+
+		// Mock GetExpertModePoolUsedCapacityAndVolumeCount to return error
+		mockStorage.On("GetExpertModePoolUsedCapacityAndVolumeCount", ctx, int64(1)).Return((*database.ExpertModePoolCapacity)(nil), expectedError).Once()
+
+		result, err := orch.GetMultiplePools(ctx, accountName, []string{"ontap-pool-uuid"})
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.EqualError(tt, err, expectedError.Error())
+
+		mockStorage.AssertExpectations(tt)
+	})
 }
 
 func TestListPools(t *testing.T) {
@@ -6852,5 +7014,402 @@ func TestGetPoolIsRegionalHA(t *testing.T) {
 		}
 		result := getPoolIsRegionalHA(pool)
 		assert.True(tt, result)
+	})
+}
+
+func TestEnrichSinglePoolWithExpertModeCapacity(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	t.Run("WhenONTAPModePoolAndCapacityIsRetrievedSuccessfully_UpdatesPoolFields", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "test-pool-uuid",
+				},
+				APIAccessMode: workflows.ONTAPMode,
+			},
+			QuotaInBytes: 0,
+			VolumeCount:  0,
+		}
+
+		expectedCapacity := &database.ExpertModePoolCapacity{
+			TotalSize:   1099511627776, // 1TB
+			VolumeCount: 5,
+		}
+
+		mockStorage.On("GetExpertModePoolUsedCapacityAndVolumeCount", ctx, int64(1)).Return(expectedCapacity, nil).Once()
+
+		err := enrichSinglePoolWithExpertModeCapacity(ctx, mockStorage, pool)
+		assert.NoError(tt, err)
+		assert.Equal(tt, uint64(1099511627776), pool.QuotaInBytes)
+		assert.Equal(tt, int64(5), pool.VolumeCount)
+
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenONTAPModePoolAndGetExpertModePoolUsedCapacityAndVolumeCountReturnsError_ReturnsError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "test-pool-uuid",
+				},
+				APIAccessMode: workflows.ONTAPMode,
+			},
+			QuotaInBytes: 100,
+			VolumeCount:  2,
+		}
+
+		expectedError := errors.New("database error")
+		mockStorage.On("GetExpertModePoolUsedCapacityAndVolumeCount", ctx, int64(1)).Return((*database.ExpertModePoolCapacity)(nil), expectedError).Once()
+
+		err := enrichSinglePoolWithExpertModeCapacity(ctx, mockStorage, pool)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, expectedError.Error())
+		// Pool fields should remain unchanged on error
+		assert.Equal(tt, uint64(100), pool.QuotaInBytes)
+		assert.Equal(tt, int64(2), pool.VolumeCount)
+
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenONTAPModePoolAndCapacityIsNil_ReturnsNilWithoutError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "test-pool-uuid",
+				},
+				APIAccessMode: workflows.ONTAPMode,
+			},
+			QuotaInBytes: 100,
+			VolumeCount:  2,
+		}
+
+		mockStorage.On("GetExpertModePoolUsedCapacityAndVolumeCount", ctx, int64(1)).Return((*database.ExpertModePoolCapacity)(nil), nil).Once()
+
+		err := enrichSinglePoolWithExpertModeCapacity(ctx, mockStorage, pool)
+		assert.NoError(tt, err)
+		// Pool fields should remain unchanged when capacity is nil
+		assert.Equal(tt, uint64(100), pool.QuotaInBytes)
+		assert.Equal(tt, int64(2), pool.VolumeCount)
+
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenONTAPModePoolAndCapacityIsZero_UpdatesPoolFieldsToZero", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "test-pool-uuid",
+				},
+				APIAccessMode: workflows.ONTAPMode,
+			},
+			QuotaInBytes: 100,
+			VolumeCount:  2,
+		}
+
+		expectedCapacity := &database.ExpertModePoolCapacity{
+			TotalSize:   0,
+			VolumeCount: 0,
+		}
+
+		mockStorage.On("GetExpertModePoolUsedCapacityAndVolumeCount", ctx, int64(1)).Return(expectedCapacity, nil).Once()
+
+		err := enrichSinglePoolWithExpertModeCapacity(ctx, mockStorage, pool)
+		assert.NoError(tt, err)
+		assert.Equal(tt, uint64(0), pool.QuotaInBytes)
+		assert.Equal(tt, int64(0), pool.VolumeCount)
+
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNonONTAPModePool_DoesNotCallGetExpertModePoolUsedCapacityAndVolumeCount", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "test-pool-uuid",
+				},
+				APIAccessMode: workflows.DEFAULTMode,
+			},
+			QuotaInBytes: 100,
+			VolumeCount:  5,
+		}
+
+		err := enrichSinglePoolWithExpertModeCapacity(ctx, mockStorage, pool)
+		assert.NoError(tt, err)
+		// Pool fields should remain unchanged
+		assert.Equal(tt, uint64(100), pool.QuotaInBytes)
+		assert.Equal(tt, int64(5), pool.VolumeCount)
+
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestEnrichPoolsWithExpertModeCapacity(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	t.Run("WhenAllPoolsAreONTAPMode_EnrichesAllPools", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		pools := []*datamodel.PoolView{
+			{
+				Pool: datamodel.Pool{
+					BaseModel: datamodel.BaseModel{
+						ID:   1,
+						UUID: "ontap-pool-1",
+					},
+					APIAccessMode: workflows.ONTAPMode,
+				},
+				QuotaInBytes: 0,
+				VolumeCount:  0,
+			},
+			{
+				Pool: datamodel.Pool{
+					BaseModel: datamodel.BaseModel{
+						ID:   2,
+						UUID: "ontap-pool-2",
+					},
+					APIAccessMode: workflows.ONTAPMode,
+				},
+				QuotaInBytes: 0,
+				VolumeCount:  0,
+			},
+		}
+
+		capacity1 := &database.ExpertModePoolCapacity{
+			TotalSize:   214748364800, // 200GB
+			VolumeCount: 3,
+		}
+		capacity2 := &database.ExpertModePoolCapacity{
+			TotalSize:   536870912000, // 500GB
+			VolumeCount: 7,
+		}
+
+		mockStorage.On("GetExpertModePoolUsedCapacityAndVolumeCount", ctx, int64(1)).Return(capacity1, nil).Once()
+		mockStorage.On("GetExpertModePoolUsedCapacityAndVolumeCount", ctx, int64(2)).Return(capacity2, nil).Once()
+
+		err := enrichPoolsWithExpertModeCapacity(ctx, mockStorage, pools)
+		assert.NoError(tt, err)
+		assert.Equal(tt, uint64(214748364800), pools[0].QuotaInBytes)
+		assert.Equal(tt, int64(3), pools[0].VolumeCount)
+		assert.Equal(tt, uint64(536870912000), pools[1].QuotaInBytes)
+		assert.Equal(tt, int64(7), pools[1].VolumeCount)
+
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenPoolsHaveMixedModes_OnlyEnrichesONTAPModePools", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		pools := []*datamodel.PoolView{
+			{
+				Pool: datamodel.Pool{
+					BaseModel: datamodel.BaseModel{
+						ID:   1,
+						UUID: "ontap-pool",
+					},
+					APIAccessMode: workflows.ONTAPMode,
+				},
+				QuotaInBytes: 0,
+				VolumeCount:  0,
+			},
+			{
+				Pool: datamodel.Pool{
+					BaseModel: datamodel.BaseModel{
+						ID:   2,
+						UUID: "default-pool",
+					},
+					APIAccessMode: workflows.DEFAULTMode,
+				},
+				QuotaInBytes: 100,
+				VolumeCount:  5,
+			},
+			{
+				Pool: datamodel.Pool{
+					BaseModel: datamodel.BaseModel{
+						ID:   3,
+						UUID: "ontap-pool-2",
+					},
+					APIAccessMode: workflows.ONTAPMode,
+				},
+				QuotaInBytes: 0,
+				VolumeCount:  0,
+			},
+		}
+
+		capacity1 := &database.ExpertModePoolCapacity{
+			TotalSize:   107374182400, // 100GB
+			VolumeCount: 2,
+		}
+		capacity3 := &database.ExpertModePoolCapacity{
+			TotalSize:   322122547200, // 300GB
+			VolumeCount: 4,
+		}
+
+		mockStorage.On("GetExpertModePoolUsedCapacityAndVolumeCount", ctx, int64(1)).Return(capacity1, nil).Once()
+		mockStorage.On("GetExpertModePoolUsedCapacityAndVolumeCount", ctx, int64(3)).Return(capacity3, nil).Once()
+
+		err := enrichPoolsWithExpertModeCapacity(ctx, mockStorage, pools)
+		assert.NoError(tt, err)
+		// ONTAP pool 1 should be enriched
+		assert.Equal(tt, uint64(107374182400), pools[0].QuotaInBytes)
+		assert.Equal(tt, int64(2), pools[0].VolumeCount)
+		// DEFAULT mode pool should remain unchanged
+		assert.Equal(tt, uint64(100), pools[1].QuotaInBytes)
+		assert.Equal(tt, int64(5), pools[1].VolumeCount)
+		// ONTAP pool 2 should be enriched
+		assert.Equal(tt, uint64(322122547200), pools[2].QuotaInBytes)
+		assert.Equal(tt, int64(4), pools[2].VolumeCount)
+
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNoPoolsAreONTAPMode_DoesNotCallGetExpertModePoolUsedCapacityAndVolumeCount", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		pools := []*datamodel.PoolView{
+			{
+				Pool: datamodel.Pool{
+					BaseModel: datamodel.BaseModel{
+						ID:   1,
+						UUID: "default-pool-1",
+					},
+					APIAccessMode: workflows.DEFAULTMode,
+				},
+				QuotaInBytes: 100,
+				VolumeCount:  5,
+			},
+			{
+				Pool: datamodel.Pool{
+					BaseModel: datamodel.BaseModel{
+						ID:   2,
+						UUID: "default-pool-2",
+					},
+					APIAccessMode: workflows.DEFAULTMode,
+				},
+				QuotaInBytes: 200,
+				VolumeCount:  10,
+			},
+		}
+
+		err := enrichPoolsWithExpertModeCapacity(ctx, mockStorage, pools)
+		assert.NoError(tt, err)
+		// Pools should remain unchanged
+		assert.Equal(tt, uint64(100), pools[0].QuotaInBytes)
+		assert.Equal(tt, int64(5), pools[0].VolumeCount)
+		assert.Equal(tt, uint64(200), pools[1].QuotaInBytes)
+		assert.Equal(tt, int64(10), pools[1].VolumeCount)
+
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetExpertModePoolUsedCapacityAndVolumeCountReturnsError_ReturnsError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		pools := []*datamodel.PoolView{
+			{
+				Pool: datamodel.Pool{
+					BaseModel: datamodel.BaseModel{
+						ID:   1,
+						UUID: "ontap-pool-1",
+					},
+					APIAccessMode: workflows.ONTAPMode,
+				},
+				QuotaInBytes: 0,
+				VolumeCount:  0,
+			},
+			{
+				Pool: datamodel.Pool{
+					BaseModel: datamodel.BaseModel{
+						ID:   2,
+						UUID: "ontap-pool-2",
+					},
+					APIAccessMode: workflows.ONTAPMode,
+				},
+				QuotaInBytes: 0,
+				VolumeCount:  0,
+			},
+		}
+
+		expectedError := errors.New("database error")
+		mockStorage.On("GetExpertModePoolUsedCapacityAndVolumeCount", ctx, int64(1)).Return((*database.ExpertModePoolCapacity)(nil), expectedError).Once()
+
+		err := enrichPoolsWithExpertModeCapacity(ctx, mockStorage, pools)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, expectedError.Error())
+		// First pool should remain unchanged due to error
+		assert.Equal(tt, uint64(0), pools[0].QuotaInBytes)
+		assert.Equal(tt, int64(0), pools[0].VolumeCount)
+		// Second pool should not be processed (error returned early)
+		assert.Equal(tt, uint64(0), pools[1].QuotaInBytes)
+		assert.Equal(tt, int64(0), pools[1].VolumeCount)
+
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenEmptyPoolsSlice_ReturnsNilWithoutError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		pools := []*datamodel.PoolView{}
+
+		err := enrichPoolsWithExpertModeCapacity(ctx, mockStorage, pools)
+		assert.NoError(tt, err)
+
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCapacityIsNil_ContinuesToNextPool", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		pools := []*datamodel.PoolView{
+			{
+				Pool: datamodel.Pool{
+					BaseModel: datamodel.BaseModel{
+						ID:   1,
+						UUID: "ontap-pool-1",
+					},
+					APIAccessMode: workflows.ONTAPMode,
+				},
+				QuotaInBytes: 100,
+				VolumeCount:  5,
+			},
+			{
+				Pool: datamodel.Pool{
+					BaseModel: datamodel.BaseModel{
+						ID:   2,
+						UUID: "ontap-pool-2",
+					},
+					APIAccessMode: workflows.ONTAPMode,
+				},
+				QuotaInBytes: 0,
+				VolumeCount:  0,
+			},
+		}
+
+		capacity2 := &database.ExpertModePoolCapacity{
+			TotalSize:   107374182400, // 100GB
+			VolumeCount: 3,
+		}
+
+		mockStorage.On("GetExpertModePoolUsedCapacityAndVolumeCount", ctx, int64(1)).Return((*database.ExpertModePoolCapacity)(nil), nil).Once()
+		mockStorage.On("GetExpertModePoolUsedCapacityAndVolumeCount", ctx, int64(2)).Return(capacity2, nil).Once()
+
+		err := enrichPoolsWithExpertModeCapacity(ctx, mockStorage, pools)
+		assert.NoError(tt, err)
+		// First pool should remain unchanged (capacity was nil)
+		assert.Equal(tt, uint64(100), pools[0].QuotaInBytes)
+		assert.Equal(tt, int64(5), pools[0].VolumeCount)
+		// Second pool should be enriched
+		assert.Equal(tt, uint64(107374182400), pools[1].QuotaInBytes)
+		assert.Equal(tt, int64(3), pools[1].VolumeCount)
+
+		mockStorage.AssertExpectations(tt)
 	})
 }

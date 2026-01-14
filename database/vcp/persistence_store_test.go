@@ -5851,10 +5851,13 @@ func TestPersistenceStore_ExpertModeVolumeWrapperMethods(t *testing.T) {
 		require.NoError(t, err)
 
 		// Test the wrapper method
-		totalSize, err := store.GetExpertModePoolUsedCapacity(ctx, testPool.ID)
+		capacity, err := store.GetExpertModePoolUsedCapacityAndVolumeCount(ctx, testPool.ID)
 		assert.NoError(t, err)
+		assert.NotNil(t, capacity)
 		expectedTotal := int64(1099511627776 + 214748364800 + 536870912000) // 1TB + 200GB + 500GB
-		assert.Equal(t, expectedTotal, totalSize, "Total size should be sum of all volumes")
+		expectedCount := int64(3) // 3 volumes
+		assert.Equal(t, expectedTotal, capacity.TotalSize, "Total size should be sum of all volumes")
+		assert.Equal(t, expectedCount, capacity.VolumeCount, "Volume count should be 3")
 
 		// Test with empty pool
 		emptyPool := &datamodel.Pool{
@@ -5874,9 +5877,11 @@ func TestPersistenceStore_ExpertModeVolumeWrapperMethods(t *testing.T) {
 		err = store.DB().Create(emptyPool).Error
 		require.NoError(t, err)
 
-		emptyTotal, err := store.GetExpertModePoolUsedCapacity(ctx, emptyPool.ID)
+		emptyCapacity, err := store.GetExpertModePoolUsedCapacityAndVolumeCount(ctx, emptyPool.ID)
 		assert.NoError(t, err)
-		assert.Equal(t, int64(0), emptyTotal, "Total size should be 0 for empty pool")
+		assert.NotNil(t, emptyCapacity)
+		assert.Equal(t, int64(0), emptyCapacity.TotalSize, "Total size should be 0 for empty pool")
+		assert.Equal(t, int64(0), emptyCapacity.VolumeCount, "Volume count should be 0 for empty pool")
 	})
 }
 
