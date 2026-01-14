@@ -4067,3 +4067,224 @@ func TestListPoolsForMetrics(t *testing.T) {
 		assert.False(tt, noTieringResult.AllowAutoTiering, "AllowAutoTiering should be false for non-tiering pool")
 	})
 }
+
+// TestGetBlockOnlyPoolIDs_BlockOnlyPool verifies that a pool with only ISCSI volumes is identified
+// Uses sqlmock with PostgreSQL dialector to test PostgreSQL-specific JSONB operators
+func TestGetBlockOnlyPoolIDs_BlockOnlyPool(t *testing.T) {
+	dbSQL, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, mock.ExpectationsWereMet())
+	}()
+
+	dialector := postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true})
+	gormDB, err := gorm.Open(dialector, &gorm.Config{})
+	require.NoError(t, err)
+
+	wrapper := gormwrapper.New(gormDB)
+	store := NewDataStoreRepository(wrapper)
+	ctx := context.Background()
+
+	// Mock the query to return a block-only pool ID
+	rows := sqlmock.NewRows([]string{"id"}).AddRow(int64(1))
+	mock.ExpectQuery("SELECT DISTINCT pools.id").WillReturnRows(rows)
+
+	// Get block-only pool IDs
+	blockOnlyPools, err := store.GetBlockOnlyPoolIDs(ctx)
+	assert.NoError(t, err)
+	assert.True(t, blockOnlyPools[1], "Pool with only ISCSI volumes should be in block-only map")
+}
+
+// TestGetBlockOnlyPoolIDs_FileOnlyPool verifies that a pool with only NAS volumes is NOT identified
+// Uses sqlmock with PostgreSQL dialector to test PostgreSQL-specific JSONB operators
+func TestGetBlockOnlyPoolIDs_FileOnlyPool(t *testing.T) {
+	dbSQL, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, mock.ExpectationsWereMet())
+	}()
+
+	dialector := postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true})
+	gormDB, err := gorm.Open(dialector, &gorm.Config{})
+	require.NoError(t, err)
+
+	wrapper := gormwrapper.New(gormDB)
+	store := NewDataStoreRepository(wrapper)
+	ctx := context.Background()
+
+	// Mock the query to return empty rows (file-only pool is not detected)
+	rows := sqlmock.NewRows([]string{"id"})
+	mock.ExpectQuery("SELECT DISTINCT pools.id").WillReturnRows(rows)
+
+	// Get block-only pool IDs
+	blockOnlyPools, err := store.GetBlockOnlyPoolIDs(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(blockOnlyPools), "Pool with only NAS volumes should NOT be in block-only map")
+}
+
+// TestGetBlockOnlyPoolIDs_MixedPool verifies that a pool with both ISCSI and NAS volumes is NOT identified
+// Uses sqlmock with PostgreSQL dialector to test PostgreSQL-specific JSONB operators
+func TestGetBlockOnlyPoolIDs_MixedPool(t *testing.T) {
+	dbSQL, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, mock.ExpectationsWereMet())
+	}()
+
+	dialector := postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true})
+	gormDB, err := gorm.Open(dialector, &gorm.Config{})
+	require.NoError(t, err)
+
+	wrapper := gormwrapper.New(gormDB)
+	store := NewDataStoreRepository(wrapper)
+	ctx := context.Background()
+
+	// Mock the query to return empty rows (mixed pool is not detected)
+	rows := sqlmock.NewRows([]string{"id"})
+	mock.ExpectQuery("SELECT DISTINCT pools.id").WillReturnRows(rows)
+
+	// Get block-only pool IDs
+	blockOnlyPools, err := store.GetBlockOnlyPoolIDs(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(blockOnlyPools), "Mixed pool should NOT be in block-only map")
+}
+
+// TestGetBlockOnlyPoolIDs_EmptyPool verifies that a pool with no volumes is NOT identified
+// Uses sqlmock with PostgreSQL dialector to test PostgreSQL-specific JSONB operators
+func TestGetBlockOnlyPoolIDs_EmptyPool(t *testing.T) {
+	dbSQL, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, mock.ExpectationsWereMet())
+	}()
+
+	dialector := postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true})
+	gormDB, err := gorm.Open(dialector, &gorm.Config{})
+	require.NoError(t, err)
+
+	wrapper := gormwrapper.New(gormDB)
+	store := NewDataStoreRepository(wrapper)
+	ctx := context.Background()
+
+	// Mock the query to return empty rows (empty pool has no volumes)
+	rows := sqlmock.NewRows([]string{"id"})
+	mock.ExpectQuery("SELECT DISTINCT pools.id").WillReturnRows(rows)
+
+	// Get block-only pool IDs
+	blockOnlyPools, err := store.GetBlockOnlyPoolIDs(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(blockOnlyPools), "Empty pool should NOT be in block-only map")
+}
+
+// TestGetBlockOnlyPoolIDs_DeletedVolumes verifies that deleted NAS volumes don't affect classification
+// Uses sqlmock with PostgreSQL dialector to test PostgreSQL-specific JSONB operators
+func TestGetBlockOnlyPoolIDs_DeletedVolumes(t *testing.T) {
+	dbSQL, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, mock.ExpectationsWereMet())
+	}()
+
+	dialector := postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true})
+	gormDB, err := gorm.Open(dialector, &gorm.Config{})
+	require.NoError(t, err)
+
+	wrapper := gormwrapper.New(gormDB)
+	store := NewDataStoreRepository(wrapper)
+	ctx := context.Background()
+
+	// Mock the query to return the pool ID (NFS volume is deleted, so pool is block-only now)
+	rows := sqlmock.NewRows([]string{"id"}).AddRow(int64(1))
+	mock.ExpectQuery("SELECT DISTINCT pools.id").WillReturnRows(rows)
+
+	// Get block-only pool IDs - should include this pool since NFS volume is deleted
+	blockOnlyPools, err := store.GetBlockOnlyPoolIDs(ctx)
+	assert.NoError(t, err)
+	assert.True(t, blockOnlyPools[1], "Pool should be block-only after NAS volume is deleted")
+}
+
+// TestGetBlockOnlyPoolIDs_MultiplePools verifies handling of multiple pools with different types
+// Uses sqlmock with PostgreSQL dialector to test PostgreSQL-specific JSONB operators
+func TestGetBlockOnlyPoolIDs_MultiplePools(t *testing.T) {
+	dbSQL, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, mock.ExpectationsWereMet())
+	}()
+
+	dialector := postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true})
+	gormDB, err := gorm.Open(dialector, &gorm.Config{})
+	require.NoError(t, err)
+
+	wrapper := gormwrapper.New(gormDB)
+	store := NewDataStoreRepository(wrapper)
+	ctx := context.Background()
+
+	// Mock the query to return only the block-only pool ID (pool 1)
+	// File pool (2) and mixed pool (3) should not be returned
+	rows := sqlmock.NewRows([]string{"id"}).AddRow(int64(1))
+	mock.ExpectQuery("SELECT DISTINCT pools.id").WillReturnRows(rows)
+
+	// Get block-only pool IDs
+	blockOnlyPools, err := store.GetBlockOnlyPoolIDs(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(blockOnlyPools), "Should have exactly 1 block-only pool")
+	assert.True(t, blockOnlyPools[1], "Block pool should be in block-only map")
+	assert.False(t, blockOnlyPools[2], "File pool should NOT be in block-only map")
+	assert.False(t, blockOnlyPools[3], "Mixed pool should NOT be in block-only map")
+}
+
+// TestGetBlockOnlyPoolIDs_BlockOnlyPoolWithoutAutoTiering verifies that a block-only pool
+// WITHOUT AllowAutoTiering enabled is NOT detected (optimization: we only care about
+// block-only pools that have AllowAutoTiering enabled for billing purposes)
+// Uses sqlmock with PostgreSQL dialector to test PostgreSQL-specific JSONB operators
+func TestGetBlockOnlyPoolIDs_BlockOnlyPoolWithoutAutoTiering(t *testing.T) {
+	dbSQL, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, mock.ExpectationsWereMet())
+	}()
+
+	dialector := postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true})
+	gormDB, err := gorm.Open(dialector, &gorm.Config{})
+	require.NoError(t, err)
+
+	wrapper := gormwrapper.New(gormDB)
+	store := NewDataStoreRepository(wrapper)
+	ctx := context.Background()
+
+	// Mock the query to return empty rows (pool without AllowAutoTiering is not detected)
+	rows := sqlmock.NewRows([]string{"id"})
+	mock.ExpectQuery("SELECT DISTINCT pools.id").WillReturnRows(rows)
+
+	// Get block-only pool IDs
+	blockOnlyPools, err := store.GetBlockOnlyPoolIDs(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(blockOnlyPools), "Should have no block-only pools when AllowAutoTiering is disabled")
+}
+
+// TestGetBlockOnlyPoolIDs_DBError verifies error handling when database query fails
+// Uses sqlmock with PostgreSQL dialector to test error propagation
+func TestGetBlockOnlyPoolIDs_DBError(t *testing.T) {
+	dbSQL, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, mock.ExpectationsWereMet())
+	}()
+
+	dialector := postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true})
+	gormDB, err := gorm.Open(dialector, &gorm.Config{})
+	require.NoError(t, err)
+
+	wrapper := gormwrapper.New(gormDB)
+	store := NewDataStoreRepository(wrapper)
+	ctx := context.Background()
+
+	// Mock the query to return an error
+	mock.ExpectQuery("SELECT DISTINCT pools.id").WillReturnError(fmt.Errorf("database connection lost"))
+
+	// Get block-only pool IDs - should return error
+	blockOnlyPools, err := store.GetBlockOnlyPoolIDs(ctx)
+	assert.Error(t, err, "Expected error when database query fails")
+	assert.Nil(t, blockOnlyPools, "Expected nil result on error")
+}

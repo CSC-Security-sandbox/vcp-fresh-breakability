@@ -344,6 +344,22 @@ func (re *retryEngine) ListPoolsForResourceData(ctx context.Context, startTime, 
 	return var0, err
 }
 
+func (re *retryEngine) GetBlockOnlyPoolIDs(ctx context.Context) (map[int64]bool, error) {
+	var var0 map[int64]bool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBlockOnlyPoolIDs(ctx)
+		if err != nil {
+			re.logError("GetBlockOnlyPoolIDs", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) ListPendingResourceDeletions(ctx context.Context, offset, limit int) ([]*datamodel.PendingResourceDeletions, error) {
 	var var0 []*datamodel.PendingResourceDeletions
 	err := retry.Do(func(attempt int) (bool, error) {

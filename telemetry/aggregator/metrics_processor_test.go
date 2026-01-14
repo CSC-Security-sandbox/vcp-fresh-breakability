@@ -224,6 +224,7 @@ func TestProcessMetrics_EmptyMetrics(t *testing.T) {
 	now := time.Now()
 
 	// Mock VCP database calls for label fetching - now uses conditions approach
+	vcpDB.On("GetBlockOnlyPoolIDs", mock.Anything).Return(map[int64]bool{}, nil).Once()
 	vcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
 	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 	vcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
@@ -703,6 +704,7 @@ func TestProcessMetricsSuccess(t *testing.T) {
 	startTime := now.Add(-1 * time.Hour)
 
 	// Mock VCP database calls for label fetching - return resource data that matches the metrics
+	vcpDB.On("GetBlockOnlyPoolIDs", mock.Anything).Return(map[int64]bool{}, nil).Once()
 	vcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
 	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{
 		{
@@ -855,6 +857,7 @@ func TestProcessMetricsWithJobDefErrors(t *testing.T) {
 	startTime := now.Add(-1 * time.Hour)
 
 	// Mock VCP database calls for label fetching - return resource data that matches the metrics
+	vcpDB.On("GetBlockOnlyPoolIDs", mock.Anything).Return(map[int64]bool{}, nil).Once()
 	vcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
 	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{
 		{
@@ -1076,6 +1079,7 @@ func TestProcessMetrics_GetUnsentUsagesError(t *testing.T) {
 	now := time.Now()
 
 	// Mock VCP database calls for label fetching
+	vcpDB.On("GetBlockOnlyPoolIDs", mock.Anything).Return(map[int64]bool{}, nil).Once()
 	vcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
 	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 	vcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
@@ -1138,6 +1142,7 @@ func TestProcessMetrics_WithAggregatedRecordsDelivery(t *testing.T) {
 	}
 
 	// Mock VCP database calls for label fetching - return resource data that matches the metrics
+	vcpDB.On("GetBlockOnlyPoolIDs", mock.Anything).Return(map[int64]bool{}, nil).Once()
 	vcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
 	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{
 		{
@@ -1241,6 +1246,7 @@ func TestProcessMetrics_DeliveryError(t *testing.T) {
 	startTime := now.Add(-1 * time.Hour)
 
 	// Mock VCP database calls for label fetching - return resource data that matches the metrics
+	vcpDB.On("GetBlockOnlyPoolIDs", mock.Anything).Return(map[int64]bool{}, nil).Once()
 	vcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
 	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{
 		{
@@ -3631,6 +3637,381 @@ func TestFetchResourceData_VolumeWithNilVolumeAttributes(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, resourceCollection.VolumeData, 0) // Volume should be skipped
 	mockVcpDB.AssertExpectations(t)
+}
+
+// TestFetchResourceData_GetBlockOnlyPoolIDsQueryOptimization tests that GetBlockOnlyPoolIDs is only called
+// when EnableAutoTieringBillingMetrics=true AND EnableFilesAutoTieringBilling=false
+func TestFetchResourceData_GetBlockOnlyPoolIDsQueryOptimization(t *testing.T) {
+	t.Run("SkipsQueryWhenAutoTieringBillingDisabled", func(t *testing.T) {
+		mockDB := database.NewMockStorage(t)
+		mockVCPDB := database2.NewMockStorage(t)
+
+		config := &common.TelemetryConfig{
+			EnableAutoTieringBillingMetrics: false,
+			EnableFilesAutoTieringBilling:   false,
+			EnableReplicationBillingMetrics: false,
+			PoolVolumeLabelPageSize:         10,
+			GoogleBillingLabelsMaxEntries:   10,
+		}
+
+		provider := &BillingProvider{
+			config:       config,
+			vcpDataStore: mockVCPDB,
+			metricsDB:    mockDB,
+		}
+
+		ctx := context.Background()
+		aggregationStartTime := time.Now().Add(-time.Hour)
+		aggregationEndTime := time.Now()
+
+		// Mock the calls that fetchResourceData makes
+		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil)
+		mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
+
+		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+		assert.NoError(t, err)
+		assert.NotNil(t, resourceCollection)
+
+		// GetBlockOnlyPoolIDs should NOT be called when auto-tiering billing is disabled
+		mockVCPDB.AssertNotCalled(t, "GetBlockOnlyPoolIDs", mock.Anything)
+	})
+
+	t.Run("SkipsQueryWhenFilesAutoTieringBillingEnabled", func(t *testing.T) {
+		mockDB := database.NewMockStorage(t)
+		mockVCPDB := database2.NewMockStorage(t)
+
+		config := &common.TelemetryConfig{
+			EnableAutoTieringBillingMetrics: true,
+			EnableFilesAutoTieringBilling:   true, // Files billing enabled
+			EnableReplicationBillingMetrics: false,
+			PoolVolumeLabelPageSize:         10,
+			GoogleBillingLabelsMaxEntries:   10,
+		}
+
+		provider := &BillingProvider{
+			config:       config,
+			vcpDataStore: mockVCPDB,
+			metricsDB:    mockDB,
+		}
+
+		ctx := context.Background()
+		aggregationStartTime := time.Now().Add(-time.Hour)
+		aggregationEndTime := time.Now()
+
+		// Mock the calls that fetchResourceData makes
+		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil)
+		mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
+
+		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+		assert.NoError(t, err)
+		assert.NotNil(t, resourceCollection)
+
+		// GetBlockOnlyPoolIDs should NOT be called when files auto-tiering billing is enabled
+		// (all pools pass Tier 3 anyway, so no need to query)
+		mockVCPDB.AssertNotCalled(t, "GetBlockOnlyPoolIDs", mock.Anything)
+	})
+
+	t.Run("CallsQueryWhenAutoTieringEnabledAndFilesBillingDisabled", func(t *testing.T) {
+		mockDB := database.NewMockStorage(t)
+		mockVCPDB := database2.NewMockStorage(t)
+
+		config := &common.TelemetryConfig{
+			EnableAutoTieringBillingMetrics: true,
+			EnableFilesAutoTieringBilling:   false, // Files billing disabled
+			EnableReplicationBillingMetrics: false,
+			PoolVolumeLabelPageSize:         10,
+			GoogleBillingLabelsMaxEntries:   10,
+		}
+
+		provider := &BillingProvider{
+			config:       config,
+			vcpDataStore: mockVCPDB,
+			metricsDB:    mockDB,
+		}
+
+		ctx := context.Background()
+		aggregationStartTime := time.Now().Add(-time.Hour)
+		aggregationEndTime := time.Now()
+
+		// Mock GetBlockOnlyPoolIDs - should be called
+		mockVCPDB.On("GetBlockOnlyPoolIDs", mock.Anything).Return(map[int64]bool{1: true, 2: true}, nil).Once()
+
+		// Mock the calls that fetchResourceData makes
+		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil)
+		mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
+
+		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+		assert.NoError(t, err)
+		assert.NotNil(t, resourceCollection)
+
+		// GetBlockOnlyPoolIDs SHOULD be called when auto-tiering is enabled and files billing is disabled
+		mockVCPDB.AssertCalled(t, "GetBlockOnlyPoolIDs", mock.Anything)
+	})
+
+	t.Run("HandlesGetBlockOnlyPoolIDsError", func(t *testing.T) {
+		mockDB := database.NewMockStorage(t)
+		mockVCPDB := database2.NewMockStorage(t)
+
+		config := &common.TelemetryConfig{
+			EnableAutoTieringBillingMetrics: true,
+			EnableFilesAutoTieringBilling:   false, // Files billing disabled - triggers query
+			EnableReplicationBillingMetrics: false,
+			PoolVolumeLabelPageSize:         10,
+			GoogleBillingLabelsMaxEntries:   10,
+		}
+
+		provider := &BillingProvider{
+			config:       config,
+			vcpDataStore: mockVCPDB,
+			metricsDB:    mockDB,
+		}
+
+		ctx := context.Background()
+		aggregationStartTime := time.Now().Add(-time.Hour)
+		aggregationEndTime := time.Now()
+
+		// Mock GetBlockOnlyPoolIDs to return an error - should be handled gracefully
+		mockVCPDB.On("GetBlockOnlyPoolIDs", mock.Anything).Return(nil, errors.New("database error")).Once()
+
+		// Mock the calls that fetchResourceData makes
+		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil)
+		mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
+
+		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+		// Should NOT return error - gracefully handles GetBlockOnlyPoolIDs error
+		assert.NoError(t, err)
+		assert.NotNil(t, resourceCollection)
+
+		mockVCPDB.AssertCalled(t, "GetBlockOnlyPoolIDs", mock.Anything)
+	})
+
+	t.Run("SetsHasOnlyBlockVolumesFromBlockOnlyPoolIDs", func(t *testing.T) {
+		mockDB := database.NewMockStorage(t)
+		mockVCPDB := database2.NewMockStorage(t)
+
+		config := &common.TelemetryConfig{
+			EnableAutoTieringBillingMetrics: true,
+			EnableFilesAutoTieringBilling:   false, // Files billing disabled - triggers query
+			EnableReplicationBillingMetrics: false,
+			PoolVolumeLabelPageSize:         10,
+			GoogleBillingLabelsMaxEntries:   10,
+		}
+
+		provider := &BillingProvider{
+			config:       config,
+			vcpDataStore: mockVCPDB,
+			metricsDB:    mockDB,
+		}
+
+		ctx := context.Background()
+		aggregationStartTime := time.Now().Add(-time.Hour)
+		aggregationEndTime := time.Now()
+
+		// Pool ID 1 is block-only, Pool ID 2 is not
+		mockVCPDB.On("GetBlockOnlyPoolIDs", mock.Anything).Return(map[int64]bool{1: true}, nil).Once()
+
+		// Return pools with IDs 1 and 2
+		poolData := []*database2.PoolResourceData{
+			{
+				ID:               1,
+				UUID:             "block-pool-uuid",
+				Name:             "block-pool",
+				AccountID:        100,
+				AllowAutoTiering: true,
+				PoolAttributes:   &datamodel.PoolAttributes{AccountName: "test-account"},
+			},
+			{
+				ID:               2,
+				UUID:             "file-pool-uuid",
+				Name:             "file-pool",
+				AccountID:        100,
+				AllowAutoTiering: true,
+				PoolAttributes:   &datamodel.PoolAttributes{AccountName: "test-account"},
+			},
+		}
+		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolData, nil).Once()
+		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+		mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
+
+		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+		assert.NoError(t, err)
+		assert.NotNil(t, resourceCollection)
+
+		// Verify HasOnlyBlockVolumes is set correctly
+		// Note: ResourceKey includes ConsumerID (account name) from pool attributes
+		blockPoolKey := ResourceKey{ResourceType: metadata.VolumePool, ResourceName: "block-pool", DeploymentName: "", ConsumerID: "test-account"}
+		filePoolKey := ResourceKey{ResourceType: metadata.VolumePool, ResourceName: "file-pool", DeploymentName: "", ConsumerID: "test-account"}
+
+		blockPoolData, found := resourceCollection.PoolData[blockPoolKey]
+		assert.True(t, found, "Block pool should be in pool data")
+		assert.True(t, blockPoolData.HasOnlyBlockVolumes, "Block pool should have HasOnlyBlockVolumes=true")
+
+		filePoolData, found := resourceCollection.PoolData[filePoolKey]
+		assert.True(t, found, "File pool should be in pool data")
+		assert.False(t, filePoolData.HasOnlyBlockVolumes, "File pool should have HasOnlyBlockVolumes=false")
+	})
+}
+
+// TestFetchPoolData_HasOnlyBlockVolumesMapping tests that HasOnlyBlockVolumes is correctly set
+// for pools based on the block-only pool IDs returned from GetBlockOnlyPoolIDs
+func TestFetchPoolData_HasOnlyBlockVolumesMapping(t *testing.T) {
+	t.Run("NonBlockOnlyPoolHasHasOnlyBlockVolumesFalse", func(t *testing.T) {
+		mockDB := database.NewMockStorage(t)
+		mockVCPDB := database2.NewMockStorage(t)
+
+		config := &common.TelemetryConfig{
+			EnableAutoTieringBillingMetrics: true,
+			EnableFilesAutoTieringBilling:   false, // Files billing disabled - triggers query
+			EnableReplicationBillingMetrics: false,
+			PoolVolumeLabelPageSize:         10,
+			GoogleBillingLabelsMaxEntries:   10,
+		}
+
+		provider := &BillingProvider{
+			config:       config,
+			vcpDataStore: mockVCPDB,
+			metricsDB:    mockDB,
+		}
+
+		ctx := context.Background()
+		aggregationStartTime := time.Now().Add(-time.Hour)
+		aggregationEndTime := time.Now()
+
+		// Pool ID 1 is block-only, Pool ID 2 is NOT block-only (has file volumes)
+		mockVCPDB.On("GetBlockOnlyPoolIDs", mock.Anything).Return(map[int64]bool{1: true}, nil).Once()
+
+		// Return pool data - pool 2 has AllowAutoTiering=true but is NOT in block-only map
+		poolData := []*database2.PoolResourceData{
+			{
+				ID:               2,
+				UUID:             "file-pool-uuid",
+				Name:             "file-pool",
+				AccountID:        100,
+				AllowAutoTiering: true, // Auto-tiering enabled
+				PoolAttributes:   &datamodel.PoolAttributes{AccountName: "test-account"},
+			},
+		}
+		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolData, nil).Once()
+		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+		mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
+
+		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+		assert.NoError(t, err)
+		assert.NotNil(t, resourceCollection)
+
+		// Verify that pool 2 (file-pool) has HasOnlyBlockVolumes=false
+		// Note: ResourceKey includes ConsumerID (account name) from pool attributes
+		filePoolKey := ResourceKey{ResourceType: metadata.VolumePool, ResourceName: "file-pool", DeploymentName: "", ConsumerID: "test-account"}
+		filePoolData, found := resourceCollection.PoolData[filePoolKey]
+		assert.True(t, found, "File pool should be in pool data")
+		assert.False(t, filePoolData.HasOnlyBlockVolumes, "Non-block-only pool should have HasOnlyBlockVolumes=false")
+	})
+
+	t.Run("BlockOnlyPoolHasHasOnlyBlockVolumesTrue", func(t *testing.T) {
+		mockDB := database.NewMockStorage(t)
+		mockVCPDB := database2.NewMockStorage(t)
+
+		config := &common.TelemetryConfig{
+			EnableAutoTieringBillingMetrics: true,
+			EnableFilesAutoTieringBilling:   false, // Files billing disabled - triggers query
+			EnableReplicationBillingMetrics: false,
+			PoolVolumeLabelPageSize:         10,
+			GoogleBillingLabelsMaxEntries:   10,
+		}
+
+		provider := &BillingProvider{
+			config:       config,
+			vcpDataStore: mockVCPDB,
+			metricsDB:    mockDB,
+		}
+
+		ctx := context.Background()
+		aggregationStartTime := time.Now().Add(-time.Hour)
+		aggregationEndTime := time.Now()
+
+		// Pool ID 1 is block-only
+		mockVCPDB.On("GetBlockOnlyPoolIDs", mock.Anything).Return(map[int64]bool{1: true}, nil).Once()
+
+		// Return pool data - pool 1 is in block-only map
+		poolData := []*database2.PoolResourceData{
+			{
+				ID:               1,
+				UUID:             "block-pool-uuid",
+				Name:             "block-pool",
+				AccountID:        100,
+				AllowAutoTiering: true,
+				PoolAttributes:   &datamodel.PoolAttributes{AccountName: "test-account"},
+			},
+		}
+		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolData, nil).Once()
+		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+		mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
+
+		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+		assert.NoError(t, err)
+		assert.NotNil(t, resourceCollection)
+
+		// Verify that pool 1 (block-pool) has HasOnlyBlockVolumes=true
+		// Note: ResourceKey includes ConsumerID (account name) from pool attributes
+		blockPoolKey := ResourceKey{ResourceType: metadata.VolumePool, ResourceName: "block-pool", DeploymentName: "", ConsumerID: "test-account"}
+		blockPoolData, found := resourceCollection.PoolData[blockPoolKey]
+		assert.True(t, found, "Block pool should be in pool data")
+		assert.True(t, blockPoolData.HasOnlyBlockVolumes, "Block-only pool should have HasOnlyBlockVolumes=true")
+	})
+
+	t.Run("AllPoolsHaveHasOnlyBlockVolumesFalseWhenFilesAutoTieringEnabled", func(t *testing.T) {
+		mockDB := database.NewMockStorage(t)
+		mockVCPDB := database2.NewMockStorage(t)
+
+		config := &common.TelemetryConfig{
+			EnableAutoTieringBillingMetrics: true,
+			EnableFilesAutoTieringBilling:   true, // Files billing ENABLED - no query needed
+			EnableReplicationBillingMetrics: false,
+			PoolVolumeLabelPageSize:         10,
+			GoogleBillingLabelsMaxEntries:   10,
+		}
+
+		provider := &BillingProvider{
+			config:       config,
+			vcpDataStore: mockVCPDB,
+			metricsDB:    mockDB,
+		}
+
+		ctx := context.Background()
+		aggregationStartTime := time.Now().Add(-time.Hour)
+		aggregationEndTime := time.Now()
+
+		// GetBlockOnlyPoolIDs should NOT be called when files billing is enabled
+
+		// Return pool data
+		poolData := []*database2.PoolResourceData{
+			{
+				ID:               1,
+				UUID:             "pool-uuid",
+				Name:             "pool-1",
+				AccountID:        100,
+				AllowAutoTiering: true,
+				PoolAttributes:   &datamodel.PoolAttributes{AccountName: "test-account"},
+			},
+		}
+		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(poolData, nil).Once()
+		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+		mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
+
+		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+		assert.NoError(t, err)
+		assert.NotNil(t, resourceCollection)
+
+		// Verify GetBlockOnlyPoolIDs was NOT called
+		mockVCPDB.AssertNotCalled(t, "GetBlockOnlyPoolIDs", mock.Anything)
+
+		// Pool should have HasOnlyBlockVolumes=false (since blockOnlyPoolIDs is empty map)
+		// Note: ResourceKey includes ConsumerID (account name) from pool attributes
+		poolKey := ResourceKey{ResourceType: metadata.VolumePool, ResourceName: "pool-1", DeploymentName: "", ConsumerID: "test-account"}
+		poolDataResult, found := resourceCollection.PoolData[poolKey]
+		assert.True(t, found, "Pool should be in pool data")
+		assert.False(t, poolDataResult.HasOnlyBlockVolumes, "Pool should have HasOnlyBlockVolumes=false when files billing is enabled")
+	})
 }
 
 // TestIsAutoTieringBillingMetric tests the isAutoTieringBillingMetric function

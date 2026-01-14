@@ -803,6 +803,7 @@ func (d *DataStoreRepository) ListPoolsForMetrics(ctx context.Context) ([]*PoolM
 // PoolResourceData contains only the fields required for aggregator resource data collection.
 // This is an optimized structure for fetchPoolData in telemetry aggregator.
 type PoolResourceData struct {
+	ID               int64                     `gorm:"column:id"`
 	UUID             string                    `gorm:"column:uuid"`
 	Name             string                    `gorm:"column:name"`
 	AccountID        int64                     `gorm:"column:account_id"`
@@ -847,6 +848,7 @@ func (d *DataStoreRepository) ListPoolsForResourceData(ctx context.Context, star
 	// Account name and labels are available in pool_attributes JSONB, no JOIN needed
 	query := db.Table("pools").
 		Select(`
+			id,
 			uuid,
 			name,
 			account_id,
@@ -872,4 +874,47 @@ func (d *DataStoreRepository) ListPoolsForResourceData(ctx context.Context, star
 	}
 
 	return results, nil
+}
+
+// GetBlockOnlyPoolIDs returns a map of pool IDs that contain ONLY block volumes (ISCSI)
+// and have AllowAutoTiering enabled.
+// Returns map[poolID]true for pools that have at least one ISCSI volume and NO NAS volumes.
+// Used for auto-tiering billing guardrails to identify pure block pools eligible for billing.
+func (d *DataStoreRepository) GetBlockOnlyPoolIDs(ctx context.Context) (map[int64]bool, error) {
+	var poolIDs []int64
+
+	err := d.db.GORM().WithContext(ctx).Raw(`
+		SELECT DISTINCT pools.id
+		FROM pools
+		WHERE pools.deleted_at IS NULL
+		  AND pools.allow_auto_tiering = true
+		  AND EXISTS (
+		    SELECT 1
+		    FROM volumes
+		    WHERE volumes.pool_id = pools.id
+		      AND volumes.deleted_at IS NULL
+		      AND volumes.volume_attributes->'protocols' ? 'ISCSI'
+		  )
+		  AND NOT EXISTS (
+		    SELECT 1
+		    FROM volumes
+		    WHERE volumes.pool_id = pools.id
+		      AND volumes.deleted_at IS NULL
+		      AND (
+		        volumes.volume_attributes->'protocols' ?| ARRAY['NFS','NFSV3','NFSV4','SMB']
+		      )
+		  )
+	`).Scan(&poolIDs).Error
+
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	// Convert slice to map for O(1) lookups
+	result := make(map[int64]bool, len(poolIDs))
+	for _, id := range poolIDs {
+		result[id] = true
+	}
+
+	return result, nil
 }

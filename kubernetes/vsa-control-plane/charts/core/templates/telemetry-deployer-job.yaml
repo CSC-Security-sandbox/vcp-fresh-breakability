@@ -147,6 +147,8 @@ spec:
               value: {{ .Values.telemetryDeployer.enableReplicationBillingMetrics | default "false" | quote }}
             - name: ENABLE_AUTO_TIERING_BILLING_METRICS
               value: {{ .Values.telemetryDeployer.enableAutoTieringBillingMetrics | default "false" | quote }}
+            - name: ENABLE_FILES_AUTO_TIERING_BILLING
+              value: {{ .Values.telemetryDeployer.enableFilesAutoTieringBilling | default "false" | quote }}
             - name: ENABLE_FILES_REPLICATION_BILLING_METRICS
               value: {{ .Values.telemetryDeployer.enableFilesReplicationBillingMetrics | default "false" | quote }}
             - name: ENABLE_CROSS_REGION_BACKUP_BILLING_METRICS

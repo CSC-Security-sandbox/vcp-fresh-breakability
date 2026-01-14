@@ -48,6 +48,7 @@ type ResourceData struct {
 	Labels                Labels
 	VolumeReplicationInfo *VolumeReplicationInfo
 	AllowAutoTiering      bool
+	HasOnlyBlockVolumes   bool
 }
 
 type VolumeReplicationInfo struct {
@@ -157,8 +158,15 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 			// Skip auto-tiering billing metrics for pools without AllowAutoTiering enabled
 			if isAutoTieringBillingMetric(key.MeasuredType) {
 				poolData, found := resourceCollection.PoolData[resourceIdentifier]
+
 				if !found || !poolData.AllowAutoTiering {
 					logger.Debugf("Skipping auto-tiering metric %s for pool %s - pool data not found or AllowAutoTiering disabled",
+						key.MeasuredType, resourceIdentifier.ResourceName)
+					continue
+				}
+
+				if !p.config.EnableFilesAutoTieringBilling && !poolData.HasOnlyBlockVolumes {
+					logger.Debugf("Skipping auto-tiering metric %s for pool %s - not block-only pool (EnableFilesAutoTieringBilling=false)",
 						key.MeasuredType, resourceIdentifier.ResourceName)
 					continue
 				}
@@ -302,6 +310,24 @@ func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStar
 func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, resourceCollection *ResourceCollection) error {
 	logger := util.GetLogger(ctx)
 
+	// Only fetch block-only pool IDs if:
+	// 1. Auto-tiering billing is enabled (EnableAutoTieringBillingMetrics)
+	// 2. Files auto-tiering billing is disabled (EnableFilesAutoTieringBilling = false)
+	var blockOnlyPoolIDs map[int64]bool
+	if p.config.EnableAutoTieringBillingMetrics && !p.config.EnableFilesAutoTieringBilling {
+		var err error
+		blockOnlyPoolIDs, err = p.vcpDataStore.GetBlockOnlyPoolIDs(ctx)
+		if err != nil {
+			logger.Warnf("Failed to get block-only pool IDs: %v", err)
+			// Safe default: empty map means skip billing for all pools when files billing is disabled
+			blockOnlyPoolIDs = make(map[int64]bool)
+		}
+		logger.Debugf("Fetched %d block-only pools", len(blockOnlyPoolIDs))
+	} else {
+		// Skip query: either auto-tiering billing is disabled, or files billing is enabled (all pools pass)
+		blockOnlyPoolIDs = make(map[int64]bool)
+	}
+
 	offset := 0
 	// Use configurable limit from config
 	limit := p.config.PoolVolumeLabelPageSize
@@ -344,10 +370,11 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTim
 			}
 
 			poolResourceData := ResourceData{
-				UUID:             pool.UUID,
-				AccountID:        pool.AccountID,
-				Labels:           limitedLabels,
-				AllowAutoTiering: pool.AllowAutoTiering,
+				UUID:                pool.UUID,
+				AccountID:           pool.AccountID,
+				Labels:              limitedLabels,
+				AllowAutoTiering:    pool.AllowAutoTiering,
+				HasOnlyBlockVolumes: blockOnlyPoolIDs[pool.ID], // Set based on block-only pool IDs map
 			}
 			resourceType := metadata.VolumePool
 			if pool.IsRegionalHA() {

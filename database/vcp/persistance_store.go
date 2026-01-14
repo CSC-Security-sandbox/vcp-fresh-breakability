@@ -460,6 +460,10 @@ func (s *PersistenceStore) ListPoolsForResourceData(ctx context.Context, startTi
 	return s.dataStore.ListPoolsForResourceData(ctx, startTime, endTime, pagination)
 }
 
+func (s *PersistenceStore) GetBlockOnlyPoolIDs(ctx context.Context) (map[int64]bool, error) {
+	return s.dataStore.GetBlockOnlyPoolIDs(ctx)
+}
+
 func (s *PersistenceStore) ListPoolUUIDs(ctx context.Context, filter *dbutils.Filter) ([]*PoolIdentifier, error) {
 	return s.dataStore.ListPoolUUIDs(ctx, filter)
 }

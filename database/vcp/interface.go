@@ -60,6 +60,7 @@ type (
 		ListPoolsForMetrics(ctx context.Context) ([]*PoolMetricsData, error)
 		// ListPoolsForResourceData returns only the fields needed for aggregator resource data, optimized for telemetry with pagination.
 		ListPoolsForResourceData(ctx context.Context, startTime, endTime time.Time, pagination *dbutils.Pagination) ([]*PoolResourceData, error)
+		GetBlockOnlyPoolIDs(ctx context.Context) (map[int64]bool, error)
 		ListPendingResourceDeletions(ctx context.Context, offset, limit int) ([]*datamodel.PendingResourceDeletions, error)
 		GetResourcesCount(ctx context.Context) (int64, error)
 		GetPoolsCount(ctx context.Context, filter *dbutils.Filter) (int64, error)

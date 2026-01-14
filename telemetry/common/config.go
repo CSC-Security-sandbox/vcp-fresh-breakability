@@ -28,6 +28,7 @@ type TelemetryConfig struct {
 	EnableCrossRegionBackupBillingMetrics bool
 	EnableReplicationBillingMetrics       bool
 	EnableAutoTieringBillingMetrics       bool
+	EnableFilesAutoTieringBilling         bool
 	EnableFilesReplicationBillingMetrics  bool
 	SFRMetricsEnabled                     bool
 	PushBatchSize                         int64
@@ -74,6 +75,7 @@ func LoadConfig() *TelemetryConfig {
 	enableFilesBackupBilling := env.GetBool("ENABLE_FILES_BACKUP_BILLING", false)
 	enableReplicationBillingMetrics := env.GetBool("ENABLE_REPLICATION_BILLING_METRICS", false)
 	enableAutoTieringBillingMetrics := env.GetBool("ENABLE_AUTO_TIERING_BILLING_METRICS", false)
+	enableFilesAutoTieringBilling := env.GetBool("ENABLE_FILES_AUTO_TIERING_BILLING", false)
 	enableFilesReplicationBillingMetrics := env.GetBool("ENABLE_FILES_REPLICATION_BILLING_METRICS", false)
 	sfrMetricsEnabled := env.GetBool("ENABLE_SFR_METRICS", false)
 	enableCrossRegionBackupBillingMetrics := env.GetBool("ENABLE_CROSS_REGION_BACKUP_BILLING_METRICS", false)
@@ -113,6 +115,7 @@ func LoadConfig() *TelemetryConfig {
 		EnableCrossRegionBackupBillingMetrics: enableCrossRegionBackupBillingMetrics,
 		EnableReplicationBillingMetrics:       enableReplicationBillingMetrics,
 		EnableAutoTieringBillingMetrics:       enableAutoTieringBillingMetrics,
+		EnableFilesAutoTieringBilling:         enableFilesAutoTieringBilling,
 		EnableFilesReplicationBillingMetrics:  enableFilesReplicationBillingMetrics,
 		SFRMetricsEnabled:                     sfrMetricsEnabled,
 		NumWorkersPerformance:                 numWorkersPerformance,
