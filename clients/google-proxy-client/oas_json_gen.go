@@ -14753,41 +14753,6 @@ func (s *OptFlexCacheV1betaPreviousCacheState) UnmarshalJSON(data []byte) error 
 	return s.Decode(d)
 }
 
-// Encode encodes float32 as json.
-func (o OptFloat32) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	e.Float32(float32(o.Value))
-}
-
-// Decode decodes float32 from json.
-func (o *OptFloat32) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptFloat32 to nil")
-	}
-	o.Set = true
-	v, err := d.Float32()
-	if err != nil {
-		return err
-	}
-	o.Value = float32(v)
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptFloat32) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptFloat32) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode encodes float64 as json.
 func (o OptFloat64) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -65039,22 +65004,16 @@ func (s *VolumePerformanceGroupCreateV1beta) encodeFields(e *jx.Encoder) {
 		e.Str(s.ResourceId)
 	}
 	{
-		if s.ThroughputMibps.Set {
-			e.FieldStart("throughputMibps")
-			s.ThroughputMibps.Encode(e)
-		}
+		e.FieldStart("throughputMibps")
+		e.Int64(s.ThroughputMibps)
 	}
 	{
-		if s.Iops.Set {
-			e.FieldStart("iops")
-			s.Iops.Encode(e)
-		}
+		e.FieldStart("iops")
+		e.Int64(s.Iops)
 	}
 	{
-		if s.IsShared.Set {
-			e.FieldStart("isShared")
-			s.IsShared.Encode(e)
-		}
+		e.FieldStart("isShared")
+		e.Bool(s.IsShared)
 	}
 }
 
@@ -65088,9 +65047,11 @@ func (s *VolumePerformanceGroupCreateV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"resourceId\"")
 			}
 		case "throughputMibps":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
-				s.ThroughputMibps.Reset()
-				if err := s.ThroughputMibps.Decode(d); err != nil {
+				v, err := d.Int64()
+				s.ThroughputMibps = int64(v)
+				if err != nil {
 					return err
 				}
 				return nil
@@ -65098,9 +65059,11 @@ func (s *VolumePerformanceGroupCreateV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"throughputMibps\"")
 			}
 		case "iops":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
-				s.Iops.Reset()
-				if err := s.Iops.Decode(d); err != nil {
+				v, err := d.Int64()
+				s.Iops = int64(v)
+				if err != nil {
 					return err
 				}
 				return nil
@@ -65108,9 +65071,11 @@ func (s *VolumePerformanceGroupCreateV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"iops\"")
 			}
 		case "isShared":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
-				s.IsShared.Reset()
-				if err := s.IsShared.Decode(d); err != nil {
+				v, err := d.Bool()
+				s.IsShared = bool(v)
+				if err != nil {
 					return err
 				}
 				return nil
@@ -65127,7 +65092,7 @@ func (s *VolumePerformanceGroupCreateV1beta) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000001,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -65317,32 +65282,24 @@ func (s *VolumePerformanceGroupV1beta) encodeFields(e *jx.Encoder) {
 		e.Str(s.ResourceId)
 	}
 	{
-		if s.VolumePerformanceGroupId.Set {
-			e.FieldStart("volumePerformanceGroupId")
-			s.VolumePerformanceGroupId.Encode(e)
-		}
+		e.FieldStart("volumePerformanceGroupId")
+		e.Str(s.VolumePerformanceGroupId)
 	}
 	{
 		e.FieldStart("poolId")
 		e.Str(s.PoolId)
 	}
 	{
-		if s.ThroughputMibps.Set {
-			e.FieldStart("throughputMibps")
-			s.ThroughputMibps.Encode(e)
-		}
+		e.FieldStart("throughputMibps")
+		e.Int64(s.ThroughputMibps)
 	}
 	{
-		if s.Iops.Set {
-			e.FieldStart("iops")
-			s.Iops.Encode(e)
-		}
+		e.FieldStart("iops")
+		e.Int64(s.Iops)
 	}
 	{
-		if s.IsShared.Set {
-			e.FieldStart("isShared")
-			s.IsShared.Encode(e)
-		}
+		e.FieldStart("isShared")
+		e.Bool(s.IsShared)
 	}
 }
 
@@ -65378,9 +65335,11 @@ func (s *VolumePerformanceGroupV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"resourceId\"")
 			}
 		case "volumePerformanceGroupId":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
-				s.VolumePerformanceGroupId.Reset()
-				if err := s.VolumePerformanceGroupId.Decode(d); err != nil {
+				v, err := d.Str()
+				s.VolumePerformanceGroupId = string(v)
+				if err != nil {
 					return err
 				}
 				return nil
@@ -65400,9 +65359,11 @@ func (s *VolumePerformanceGroupV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"poolId\"")
 			}
 		case "throughputMibps":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
-				s.ThroughputMibps.Reset()
-				if err := s.ThroughputMibps.Decode(d); err != nil {
+				v, err := d.Int64()
+				s.ThroughputMibps = int64(v)
+				if err != nil {
 					return err
 				}
 				return nil
@@ -65410,9 +65371,11 @@ func (s *VolumePerformanceGroupV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"throughputMibps\"")
 			}
 		case "iops":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
-				s.Iops.Reset()
-				if err := s.Iops.Decode(d); err != nil {
+				v, err := d.Int64()
+				s.Iops = int64(v)
+				if err != nil {
 					return err
 				}
 				return nil
@@ -65420,9 +65383,11 @@ func (s *VolumePerformanceGroupV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"iops\"")
 			}
 		case "isShared":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
-				s.IsShared.Reset()
-				if err := s.IsShared.Decode(d); err != nil {
+				v, err := d.Bool()
+				s.IsShared = bool(v)
+				if err != nil {
 					return err
 				}
 				return nil
@@ -65439,7 +65404,7 @@ func (s *VolumePerformanceGroupV1beta) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000101,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

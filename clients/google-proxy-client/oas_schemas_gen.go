@@ -9556,52 +9556,6 @@ func (o OptFlexCacheV1betaPreviousCacheState) Or(d FlexCacheV1betaPreviousCacheS
 	return d
 }
 
-// NewOptFloat32 returns new OptFloat32 with value set to v.
-func NewOptFloat32(v float32) OptFloat32 {
-	return OptFloat32{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptFloat32 is optional float32.
-type OptFloat32 struct {
-	Value float32
-	Set   bool
-}
-
-// IsSet returns true if OptFloat32 was set.
-func (o OptFloat32) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptFloat32) Reset() {
-	var v float32
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptFloat32) SetTo(v float32) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptFloat32) Get() (v float32, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptFloat32) Or(d float32) float32 {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewOptFloat64 returns new OptFloat64 with value set to v.
 func NewOptFloat64(v float64) OptFloat64 {
 	return OptFloat64{
@@ -24269,12 +24223,12 @@ type VolumePerformanceGroupCreateV1beta struct {
 	// the first character a letter, the last a letter or a number, and a 63 character maximum.
 	ResourceId string `json:"resourceId"`
 	// Throughput in MiB/s (non-null).
-	ThroughputMibps OptFloat32 `json:"throughputMibps"`
+	ThroughputMibps int64 `json:"throughputMibps"`
 	// IOPS limit for throughput (nullable).
-	Iops OptInt32 `json:"iops"`
+	Iops int64 `json:"iops"`
 	// Specifies whether volumes assigned to this Volume Performance Group share or split all of the
 	// throughput available to the parent pool.
-	IsShared OptBool `json:"isShared"`
+	IsShared bool `json:"isShared"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -24283,17 +24237,17 @@ func (s *VolumePerformanceGroupCreateV1beta) GetResourceId() string {
 }
 
 // GetThroughputMibps returns the value of ThroughputMibps.
-func (s *VolumePerformanceGroupCreateV1beta) GetThroughputMibps() OptFloat32 {
+func (s *VolumePerformanceGroupCreateV1beta) GetThroughputMibps() int64 {
 	return s.ThroughputMibps
 }
 
 // GetIops returns the value of Iops.
-func (s *VolumePerformanceGroupCreateV1beta) GetIops() OptInt32 {
+func (s *VolumePerformanceGroupCreateV1beta) GetIops() int64 {
 	return s.Iops
 }
 
 // GetIsShared returns the value of IsShared.
-func (s *VolumePerformanceGroupCreateV1beta) GetIsShared() OptBool {
+func (s *VolumePerformanceGroupCreateV1beta) GetIsShared() bool {
 	return s.IsShared
 }
 
@@ -24303,17 +24257,17 @@ func (s *VolumePerformanceGroupCreateV1beta) SetResourceId(val string) {
 }
 
 // SetThroughputMibps sets the value of ThroughputMibps.
-func (s *VolumePerformanceGroupCreateV1beta) SetThroughputMibps(val OptFloat32) {
+func (s *VolumePerformanceGroupCreateV1beta) SetThroughputMibps(val int64) {
 	s.ThroughputMibps = val
 }
 
 // SetIops sets the value of Iops.
-func (s *VolumePerformanceGroupCreateV1beta) SetIops(val OptInt32) {
+func (s *VolumePerformanceGroupCreateV1beta) SetIops(val int64) {
 	s.Iops = val
 }
 
 // SetIsShared sets the value of IsShared.
-func (s *VolumePerformanceGroupCreateV1beta) SetIsShared(val OptBool) {
+func (s *VolumePerformanceGroupCreateV1beta) SetIsShared(val bool) {
 	s.IsShared = val
 }
 
@@ -24323,9 +24277,9 @@ type VolumePerformanceGroupUpdateV1beta struct {
 	// the first character a letter, the last a letter or a number, and a 63 character maximum.
 	ResourceId string `json:"resourceId"`
 	// Throughput in MiB/s (non-null).
-	ThroughputMibps OptFloat32 `json:"throughputMibps"`
+	ThroughputMibps OptInt64 `json:"throughputMibps"`
 	// IOPS limit for throughput (nullable).
-	Iops OptInt32 `json:"iops"`
+	Iops OptInt64 `json:"iops"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -24334,12 +24288,12 @@ func (s *VolumePerformanceGroupUpdateV1beta) GetResourceId() string {
 }
 
 // GetThroughputMibps returns the value of ThroughputMibps.
-func (s *VolumePerformanceGroupUpdateV1beta) GetThroughputMibps() OptFloat32 {
+func (s *VolumePerformanceGroupUpdateV1beta) GetThroughputMibps() OptInt64 {
 	return s.ThroughputMibps
 }
 
 // GetIops returns the value of Iops.
-func (s *VolumePerformanceGroupUpdateV1beta) GetIops() OptInt32 {
+func (s *VolumePerformanceGroupUpdateV1beta) GetIops() OptInt64 {
 	return s.Iops
 }
 
@@ -24349,12 +24303,12 @@ func (s *VolumePerformanceGroupUpdateV1beta) SetResourceId(val string) {
 }
 
 // SetThroughputMibps sets the value of ThroughputMibps.
-func (s *VolumePerformanceGroupUpdateV1beta) SetThroughputMibps(val OptFloat32) {
+func (s *VolumePerformanceGroupUpdateV1beta) SetThroughputMibps(val OptInt64) {
 	s.ThroughputMibps = val
 }
 
 // SetIops sets the value of Iops.
-func (s *VolumePerformanceGroupUpdateV1beta) SetIops(val OptInt32) {
+func (s *VolumePerformanceGroupUpdateV1beta) SetIops(val OptInt64) {
 	s.Iops = val
 }
 
@@ -24364,16 +24318,16 @@ type VolumePerformanceGroupV1beta struct {
 	// the first character a letter, the last a letter or a number, and a 63 character maximum.
 	ResourceId string `json:"resourceId"`
 	// UUID v4 used to identify the performance group.
-	VolumePerformanceGroupId OptString `json:"volumePerformanceGroupId"`
+	VolumePerformanceGroupId string `json:"volumePerformanceGroupId"`
 	// Uuid of the pool under which this VPG exists.
 	PoolId string `json:"poolId"`
 	// Throughput in MiB/s (non-null).
-	ThroughputMibps OptFloat32 `json:"throughputMibps"`
+	ThroughputMibps int64 `json:"throughputMibps"`
 	// IOPS limit for throughput (nullable).
-	Iops OptInt32 `json:"iops"`
+	Iops int64 `json:"iops"`
 	// Specifies whether volumes assigned to this Volume Performance Group share or split all of the
 	// throughput available to the parent pool.
-	IsShared OptBool `json:"isShared"`
+	IsShared bool `json:"isShared"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -24382,7 +24336,7 @@ func (s *VolumePerformanceGroupV1beta) GetResourceId() string {
 }
 
 // GetVolumePerformanceGroupId returns the value of VolumePerformanceGroupId.
-func (s *VolumePerformanceGroupV1beta) GetVolumePerformanceGroupId() OptString {
+func (s *VolumePerformanceGroupV1beta) GetVolumePerformanceGroupId() string {
 	return s.VolumePerformanceGroupId
 }
 
@@ -24392,17 +24346,17 @@ func (s *VolumePerformanceGroupV1beta) GetPoolId() string {
 }
 
 // GetThroughputMibps returns the value of ThroughputMibps.
-func (s *VolumePerformanceGroupV1beta) GetThroughputMibps() OptFloat32 {
+func (s *VolumePerformanceGroupV1beta) GetThroughputMibps() int64 {
 	return s.ThroughputMibps
 }
 
 // GetIops returns the value of Iops.
-func (s *VolumePerformanceGroupV1beta) GetIops() OptInt32 {
+func (s *VolumePerformanceGroupV1beta) GetIops() int64 {
 	return s.Iops
 }
 
 // GetIsShared returns the value of IsShared.
-func (s *VolumePerformanceGroupV1beta) GetIsShared() OptBool {
+func (s *VolumePerformanceGroupV1beta) GetIsShared() bool {
 	return s.IsShared
 }
 
@@ -24412,7 +24366,7 @@ func (s *VolumePerformanceGroupV1beta) SetResourceId(val string) {
 }
 
 // SetVolumePerformanceGroupId sets the value of VolumePerformanceGroupId.
-func (s *VolumePerformanceGroupV1beta) SetVolumePerformanceGroupId(val OptString) {
+func (s *VolumePerformanceGroupV1beta) SetVolumePerformanceGroupId(val string) {
 	s.VolumePerformanceGroupId = val
 }
 
@@ -24422,17 +24376,17 @@ func (s *VolumePerformanceGroupV1beta) SetPoolId(val string) {
 }
 
 // SetThroughputMibps sets the value of ThroughputMibps.
-func (s *VolumePerformanceGroupV1beta) SetThroughputMibps(val OptFloat32) {
+func (s *VolumePerformanceGroupV1beta) SetThroughputMibps(val int64) {
 	s.ThroughputMibps = val
 }
 
 // SetIops sets the value of Iops.
-func (s *VolumePerformanceGroupV1beta) SetIops(val OptInt32) {
+func (s *VolumePerformanceGroupV1beta) SetIops(val int64) {
 	s.Iops = val
 }
 
 // SetIsShared sets the value of IsShared.
-func (s *VolumePerformanceGroupV1beta) SetIsShared(val OptBool) {
+func (s *VolumePerformanceGroupV1beta) SetIsShared(val bool) {
 	s.IsShared = val
 }
 

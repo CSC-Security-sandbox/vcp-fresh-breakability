@@ -9844,8 +9844,12 @@ components:
     VolumePerformanceGroup_v1beta:
       title: Volume Performance Group v1beta model definition
       required:
-        - poolId
         - resourceId
+        - volumePerformanceGroupId
+        - poolId
+        - throughputMibps
+        - iops
+        - isShared
       type: object
       properties:
         resourceId:
@@ -9875,15 +9879,15 @@ components:
           example: 9760acf5-4638-11e7-9bdb-020073ca7773
         throughputMibps:
           title: mibps
-          type: number
-          format: float
+          type: integer
+          format: int64
           description: Throughput in MiB/s (non-null)
           minimum: 1
           example: 200
         iops:
           title: iops
           type: integer
-          format: int32
+          format: int64
           description: IOPS limit for throughput (nullable)
           minimum: 1
           example: 20
@@ -9897,6 +9901,9 @@ components:
       title: Volume Performance Group Create v1beta model definition
       required:
         - resourceId
+        - throughputMibps
+        - iops
+        - isShared
       type: object
       properties:
         resourceId:
@@ -9910,15 +9917,15 @@ components:
           example: some-volume-performance-group-name
         throughputMibps:
           title: mibps
-          type: number
-          format: float
+          type: integer
+          format: int64
           description: Throughput in MiB/s (non-null)
           minimum: 1
           example: 200
         iops:
           title: iops
           type: integer
-          format: int32
+          format: int64
           description: IOPS limit for throughput (nullable)
           minimum: 1
           example: 20
@@ -9945,15 +9952,15 @@ components:
           example: some-volume-performance-group-name
         throughputMibps:
           title: mibps
-          type: number
-          format: float
+          type: integer
+          format: int64
           description: Throughput in MiB/s (non-null)
           minimum: 1
           example: 200
         iops:
           title: iops
           type: integer
-          format: int32
+          format: int64
           description: IOPS limit for throughput (nullable)
           minimum: 1
           example: 20

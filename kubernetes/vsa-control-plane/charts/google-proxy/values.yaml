@@ -109,6 +109,8 @@ enableSmb: false
 enableKerberos: false
 enableMultiAd: true
 maxNumberOfAdPerAccount: 5
+enableMqos: false
+enableVpgEndpoints: false
 autoPoolScalingLimits:
   c3-standard-4-lssd:
     min_volume_count: 0

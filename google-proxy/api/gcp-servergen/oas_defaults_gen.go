@@ -410,7 +410,7 @@ func (s *VolumeBackupDetailsV1beta) setDefaults() {
 func (s *VolumePerformanceGroupCreateV1beta) setDefaults() {
 	{
 		val := bool(true)
-		s.IsShared.SetTo(val)
+		s.IsShared = val
 	}
 }
 
@@ -418,7 +418,7 @@ func (s *VolumePerformanceGroupCreateV1beta) setDefaults() {
 func (s *VolumePerformanceGroupV1beta) setDefaults() {
 	{
 		val := bool(true)
-		s.IsShared.SetTo(val)
+		s.IsShared = val
 	}
 }
 

@@ -18355,24 +18355,17 @@ func (s *VolumePerformanceGroupCreateV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.ThroughputMibps.Get(); ok {
-			if err := func() error {
-				if err := (validate.Float{
-					MinSet:        true,
-					Min:           1,
-					MaxSet:        false,
-					Max:           0,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    nil,
-				}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        false,
+			Max:           0,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+		}).Validate(int64(s.ThroughputMibps)); err != nil {
+			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
@@ -18382,24 +18375,17 @@ func (s *VolumePerformanceGroupCreateV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.Iops.Get(); ok {
-			if err := func() error {
-				if err := (validate.Int{
-					MinSet:        true,
-					Min:           1,
-					MaxSet:        false,
-					Max:           0,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    0,
-				}).Validate(int64(value)); err != nil {
-					return errors.Wrap(err, "int")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        false,
+			Max:           0,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+		}).Validate(int64(s.Iops)); err != nil {
+			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
@@ -18442,7 +18428,7 @@ func (s *VolumePerformanceGroupUpdateV1beta) Validate() error {
 	if err := func() error {
 		if value, ok := s.ThroughputMibps.Get(); ok {
 			if err := func() error {
-				if err := (validate.Float{
+				if err := (validate.Int{
 					MinSet:        true,
 					Min:           1,
 					MaxSet:        false,
@@ -18450,9 +18436,9 @@ func (s *VolumePerformanceGroupUpdateV1beta) Validate() error {
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
-					MultipleOf:    nil,
-				}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
+					MultipleOf:    0,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
 				}
 				return nil
 			}(); err != nil {
@@ -18525,23 +18511,16 @@ func (s *VolumePerformanceGroupV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.VolumePerformanceGroupId.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:    36,
-					MinLengthSet: true,
-					MaxLength:    36,
-					MaxLengthSet: true,
-					Email:        false,
-					Hostname:     false,
-					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
+		if err := (validate.String{
+			MinLength:    36,
+			MinLengthSet: true,
+			MaxLength:    36,
+			MaxLengthSet: true,
+			Email:        false,
+			Hostname:     false,
+			Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+		}).Validate(string(s.VolumePerformanceGroupId)); err != nil {
+			return errors.Wrap(err, "string")
 		}
 		return nil
 	}(); err != nil {
@@ -18570,24 +18549,17 @@ func (s *VolumePerformanceGroupV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.ThroughputMibps.Get(); ok {
-			if err := func() error {
-				if err := (validate.Float{
-					MinSet:        true,
-					Min:           1,
-					MaxSet:        false,
-					Max:           0,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    nil,
-				}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        false,
+			Max:           0,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+		}).Validate(int64(s.ThroughputMibps)); err != nil {
+			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
@@ -18597,24 +18569,17 @@ func (s *VolumePerformanceGroupV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.Iops.Get(); ok {
-			if err := func() error {
-				if err := (validate.Int{
-					MinSet:        true,
-					Min:           1,
-					MaxSet:        false,
-					Max:           0,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    0,
-				}).Validate(int64(value)); err != nil {
-					return errors.Wrap(err, "int")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        false,
+			Max:           0,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+		}).Validate(int64(s.Iops)); err != nil {
+			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {

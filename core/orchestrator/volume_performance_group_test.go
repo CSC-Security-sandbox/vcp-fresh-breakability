@@ -18,8 +18,8 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			AccountName:     "test-account",
 			PoolID:          "test-pool-id",
 			Name:            "test-vpg",
-			ThroughputMibps: 100.0,
-			Iops:            nil,
+			ThroughputMibps: 100,
+			Iops:            1000,
 			IsShared:        false,
 		}
 
@@ -70,15 +70,13 @@ func TestUpdateVolumePerformanceGroup(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		orchestrator := &Orchestrator{storage: mockStorage}
 
-		throughput := float32(200.0)
-		iops := int32(5000)
 		params := &common.UpdateVolumePerformanceGroupParams{
 			AccountName:              "test-account",
 			PoolID:                   "test-pool-id",
 			VolumePerformanceGroupID: "test-vpg-id",
 			Name:                     "updated-vpg",
-			ThroughputMibps:          &throughput,
-			Iops:                     &iops,
+			ThroughputMibps:          200,
+			Iops:                     5000,
 		}
 
 		result, err := orchestrator.UpdateVolumePerformanceGroup(context.Background(), params)

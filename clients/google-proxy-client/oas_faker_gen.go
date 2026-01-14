@@ -3227,15 +3227,6 @@ func (s *OptFlexCacheV1betaPreviousCacheState) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *OptFloat32) SetFake() {
-	var elem float32
-	{
-		elem = float32(0)
-	}
-	s.SetTo(elem)
-}
-
-// SetFake set fake values.
 func (s *OptFloat64) SetFake() {
 	var elem float64
 	{
@@ -14766,17 +14757,17 @@ func (s *VolumePerformanceGroupCreateV1beta) SetFake() {
 	}
 	{
 		{
-			s.ThroughputMibps.SetFake()
+			s.ThroughputMibps = int64(0)
 		}
 	}
 	{
 		{
-			s.Iops.SetFake()
+			s.Iops = int64(0)
 		}
 	}
 	{
 		{
-			s.IsShared.SetFake()
+			s.IsShared = true
 		}
 	}
 }
@@ -14809,7 +14800,7 @@ func (s *VolumePerformanceGroupV1beta) SetFake() {
 	}
 	{
 		{
-			s.VolumePerformanceGroupId.SetFake()
+			s.VolumePerformanceGroupId = "string"
 		}
 	}
 	{
@@ -14819,17 +14810,17 @@ func (s *VolumePerformanceGroupV1beta) SetFake() {
 	}
 	{
 		{
-			s.ThroughputMibps.SetFake()
+			s.ThroughputMibps = int64(0)
 		}
 	}
 	{
 		{
-			s.Iops.SetFake()
+			s.Iops = int64(0)
 		}
 	}
 	{
 		{
-			s.IsShared.SetFake()
+			s.IsShared = true
 		}
 	}
 }

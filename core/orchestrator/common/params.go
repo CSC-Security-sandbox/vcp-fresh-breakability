@@ -848,8 +848,8 @@ type CreateVolumePerformanceGroupParams struct {
 	AccountName     string
 	PoolID          string
 	Name            string // resourceId
-	ThroughputMibps float32
-	Iops            *int32 // nullable
+	ThroughputMibps int64
+	Iops            int64
 	IsShared        bool
 }
 
@@ -858,9 +858,9 @@ type UpdateVolumePerformanceGroupParams struct {
 	AccountName              string
 	PoolID                   string
 	VolumePerformanceGroupID string
-	Name                     string   // resourceId
-	ThroughputMibps          *float32 // optional
-	Iops                     *int32   // optional, nullable
+	Name                     string // resourceId
+	ThroughputMibps          int64  // optional
+	Iops                     int64  // optional
 }
 
 // DeleteVolumePerformanceGroupParams describes parameters supplied to DeleteVolumePerformanceGroup
