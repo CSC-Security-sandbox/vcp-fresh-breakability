@@ -394,7 +394,7 @@ configMapCleanup:
   # RBAC configuration for ConfigMap cleanup
   # Set to true to create Role and RoleBinding for ConfigMap cleanup permissions
   rbac:
-    enabled: false  # Set to false to disable RBAC creation for ConfigMap cleanup
+    enabled: true  # Set to false to disable RBAC creation for ConfigMap cleanup
   # Regex pattern to match ConfigMaps to check
   # Matches only vcp-background-worker and vcp-customer-worker ConfigMaps ending with -config
   # Examples: vcp-customer-worker-v0-1-0-config, vcp-background-worker-v0-2-0-config
@@ -405,7 +405,7 @@ configMapCleanup:
   # CronJob configuration for scheduled cleanup
   # This runs independently of Helm install/upgrade hooks
   cronJob:
-    enabled: false  # Set to false to disable the CronJob
+    enabled: true  # Set to false to disable the CronJob
     schedule: "0 2 * * 0" # Default: Every Sunday at 2:00 AM (weekly)
     successfulJobsHistoryLimit: 3  # Number of successful job history to keep
     failedJobsHistoryLimit: 3  # Number of failed job history to keep
