@@ -285,6 +285,8 @@ const (
 	ErrVolumePoolTypeMismatch                                                                = 6220
 	ErrCleanupSvmPeering                                                                     = 6221
 	ErrValidateSourceStoragePoolState                                                        = 6222
+	ErrValidateSourceStoragePoolStateDegraded                                                = 6223
+	ErrValidateDestinationStoragePoolStateDegraded                                           = 6224
 
 	ErrKMSRotate                        = 8001
 	ErrServiceAccountNotFound           = 8002

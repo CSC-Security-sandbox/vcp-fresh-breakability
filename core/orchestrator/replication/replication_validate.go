@@ -208,6 +208,10 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 	if !isPoolHealthy(event.SourcePool.State) {
 		typeErr := errors.NewVCPError(
 			errors.ErrValidateSourceStoragePoolState, errors.New("source pool is in unhealthy state, please try after some time"))
+		if event.SourcePool.State == string(googleproxyclient.PoolV1betaStoragePoolStateDEGRADED) {
+			typeErr = errors.NewVCPError(
+				errors.ErrValidateSourceStoragePoolStateDegraded, errors.New("source pool is in degraded state, please try after some time"))
+		}
 		logger.Error("Source pool is in unhealthy state, Please try after some time", "error", typeErr)
 		return nil, typeErr
 	}
@@ -232,6 +236,10 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 	if !isPoolHealthy(string(destPool.StoragePoolState.Value)) {
 		typeErr := errors.NewVCPError(
 			errors.ErrValidateDestinationStoragePoolState, errors.New("destination pool is in unhealthy state, please try after some time"))
+		if destPool.StoragePoolState.Value == googleproxyclient.PoolV1betaStoragePoolStateDEGRADED {
+			typeErr = errors.NewVCPError(
+				errors.ErrValidateDestinationStoragePoolStateDegraded, errors.New("destination pool is in degraded state, please try after some time"))
+		}
 		logger.Error("Destination pool is in unhealthy state, Please try after some time", "error", typeErr)
 		return nil, typeErr
 	}

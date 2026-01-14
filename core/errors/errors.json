@@ -1493,6 +1493,18 @@
     "retriable": false,
     "http_code": 400
   },
+  "6223": {
+    "description": "Validate Source Storage Pool State Degraded Error",
+    "message": "Source pool is in degraded state, please try after some time",
+    "retriable": false,
+    "http_code": 409
+  },
+  "6224": {
+    "description": "Validate Destination Storage Pool State Degraded Error",
+    "message": "Destination pool is in degraded state, please try after some time",
+    "retriable": false,
+    "http_code": 409
+  },
   "8001": {
     "description": "Kms key rotation failure",
     "message": "Error rotating kms key",
