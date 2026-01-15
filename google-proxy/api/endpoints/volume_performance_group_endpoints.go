@@ -66,17 +66,38 @@ func (h Handler) V1betaListVolumePerformanceGroups(ctx context.Context, params g
 			Message: "Listing volume performance groups is not enabled",
 		}, nil
 	}
+	logger := util.GetLogger(ctx)
 	listParams := &common.ListVolumePerformanceGroupsParams{}
-	_, err := h.Orchestrator.ListVolumePerformanceGroups(ctx, listParams)
+	vpgs, err := h.Orchestrator.ListVolumePerformanceGroups(ctx, listParams)
 	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaListVolumePerformanceGroupsNotFound{
+				Code:    http.StatusNotFound,
+				Message: "Pool not found",
+			}, nil
+		}
+		if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaListVolumePerformanceGroupsBadRequest{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to list volume performance groups", "error", err.Error())
 		return &gcpgenserver.V1betaListVolumePerformanceGroupsInternalServerError{
 			Code:    http.StatusInternalServerError,
 			Message: "Internal server error",
 		}, err
 	}
-	return &gcpgenserver.V1betaListVolumePerformanceGroupsNotImplemented{
-		Code:    http.StatusNotImplemented,
-		Message: "Listing volume performance groups is not implemented",
+
+	// Convert to response model
+	vpgResponses := make([]gcpgenserver.VolumePerformanceGroupV1beta, 0, len(vpgs))
+	for _, vpg := range vpgs {
+		vpgResponse := convertModelToVCPVolumePerformanceGroup(vpg, params.PoolId)
+		vpgResponses = append(vpgResponses, *vpgResponse)
+	}
+
+	return &gcpgenserver.V1betaListVolumePerformanceGroupsOK{
+		VolumePerformanceGroups: vpgResponses,
 	}, nil
 }
 
@@ -87,18 +108,32 @@ func (h Handler) V1betaDescribeVolumePerformanceGroup(ctx context.Context, param
 			Message: "Describing volume performance group is not enabled",
 		}, nil
 	}
+	logger := util.GetLogger(ctx)
 	getParams := &common.GetVolumePerformanceGroupParams{}
-	_, err := h.Orchestrator.GetVolumePerformanceGroup(ctx, getParams)
+	vpg, err := h.Orchestrator.GetVolumePerformanceGroup(ctx, getParams)
 	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaDescribeVolumePerformanceGroupNotFound{
+				Code:    http.StatusNotFound,
+				Message: "Volume performance group not found",
+			}, nil
+		}
+		if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaDescribeVolumePerformanceGroupBadRequest{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to describe volume performance group", "error", err.Error())
 		return &gcpgenserver.V1betaDescribeVolumePerformanceGroupInternalServerError{
 			Code:    http.StatusInternalServerError,
 			Message: "Internal server error",
 		}, err
 	}
-	return &gcpgenserver.V1betaDescribeVolumePerformanceGroupNotImplemented{
-		Code:    http.StatusNotImplemented,
-		Message: "Describing volume performance group is not implemented",
-	}, nil
+
+	// Convert to response model
+	response := convertModelToVCPVolumePerformanceGroup(vpg, params.PoolId)
+	return response, nil
 }
 
 func (h Handler) V1betaUpdateVolumePerformanceGroup(ctx context.Context, req *gcpgenserver.VolumePerformanceGroupUpdateV1beta, params gcpgenserver.V1betaUpdateVolumePerformanceGroupParams) (gcpgenserver.V1betaUpdateVolumePerformanceGroupRes, error) {
