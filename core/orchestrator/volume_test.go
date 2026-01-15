@@ -12545,32 +12545,17 @@ func TestUpdateVolumeV2(t *testing.T) {
 		_, _, err := o.UpdateVolumeV2(ctx, param)
 		assert.EqualError(tt, err, "volume not found")
 	})
-	t.Run("WhenGetVolumeReplicationsFails", func(tt *testing.T) {
+	t.Run("WhenReplicationNotFound", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid"}
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
-		o := &Orchestrator{
-			storage:  se,
-			temporal: temporal,
-		}
-		dbVol := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: 1, UUID: "vid"},
-		}
-		count := int64(0)
-		se.On("GetVolume", ctx, "vid").Return(dbVol, nil)
-		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(count, errors.New("replication not found"))
-		_, _, err := o.UpdateVolumeV2(ctx, param)
-		assert.EqualError(tt, err, "replication not found")
-	})
-	t.Run("WhenSuccess", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-		se := &database.MockStorage{}
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid"}
-		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		var isReplicationFlag bool
 		updateVolume = func(ctx context.Context, se database.Storage, te client.Client, param *common.UpdateVolumeParams, isReplication bool) (*models.Volume, string, error) {
+			isReplicationFlag = isReplication
 			return &models.Volume{DisplayName: "vol"}, "job-id", nil
 		}
+		defer func() { updateVolume = _updateVolume }()
 		o := &Orchestrator{
 			storage:  se,
 			temporal: temporal,
@@ -12578,12 +12563,90 @@ func TestUpdateVolumeV2(t *testing.T) {
 		dbVol := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "vid"},
 		}
-		count := int64(1)
+		notFoundErr := customerrors.NewNotFoundErr("volume replication", nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVol, nil)
-		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(count, nil)
+		se.On("GetVolumeReplicationByVolumeID", ctx, dbVol.ID).Return(nil, notFoundErr)
 		_, job, err := o.UpdateVolumeV2(ctx, param)
 		assert.NoError(tt, err)
 		assert.Equal(tt, "job-id", job)
+		assert.False(tt, isReplicationFlag, "isReplication should be false when replication not found")
+	})
+	t.Run("WhenReplicationExistsWithHybridReplication", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid"}
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		var isReplicationFlag bool
+		updateVolume = func(ctx context.Context, se database.Storage, te client.Client, param *common.UpdateVolumeParams, isReplication bool) (*models.Volume, string, error) {
+			isReplicationFlag = isReplication
+			return &models.Volume{DisplayName: "vol"}, "job-id", nil
+		}
+		defer func() { updateVolume = _updateVolume }()
+		o := &Orchestrator{
+			storage:  se,
+			temporal: temporal,
+		}
+		dbVol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "vid"},
+		}
+		volumeReplication := &datamodel.VolumeReplication{
+			BaseModel:                datamodel.BaseModel{ID: 1, UUID: "rep-uuid"},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{},
+		}
+		se.On("GetVolume", ctx, "vid").Return(dbVol, nil)
+		se.On("GetVolumeReplicationByVolumeID", ctx, dbVol.ID).Return(volumeReplication, nil)
+		_, job, err := o.UpdateVolumeV2(ctx, param)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "job-id", job)
+		assert.False(tt, isReplicationFlag, "isReplication should be false for hybrid replication")
+	})
+	t.Run("WhenReplicationExistsWithoutHybridReplication", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid"}
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		var isReplicationFlag bool
+		updateVolume = func(ctx context.Context, se database.Storage, te client.Client, param *common.UpdateVolumeParams, isReplication bool) (*models.Volume, string, error) {
+			isReplicationFlag = isReplication
+			return &models.Volume{DisplayName: "vol"}, "job-id", nil
+		}
+		defer func() { updateVolume = _updateVolume }()
+		o := &Orchestrator{
+			storage:  se,
+			temporal: temporal,
+		}
+		dbVol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "vid"},
+		}
+		volumeReplication := &datamodel.VolumeReplication{
+			BaseModel:                datamodel.BaseModel{ID: 1, UUID: "rep-uuid"},
+			HybridReplicationAttributes: nil,
+		}
+		se.On("GetVolume", ctx, "vid").Return(dbVol, nil)
+		se.On("GetVolumeReplicationByVolumeID", ctx, dbVol.ID).Return(volumeReplication, nil)
+		_, job, err := o.UpdateVolumeV2(ctx, param)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "job-id", job)
+		assert.True(tt, isReplicationFlag, "isReplication should be true for non-hybrid replication")
+	})
+	t.Run("WhenGetVolumeReplicationReturnsNonNotFoundError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid"}
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		o := &Orchestrator{
+			storage:  se,
+			temporal: temporal,
+		}
+		dbVol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "vid"},
+		}
+		se.On("GetVolume", ctx, "vid").Return(dbVol, nil)
+		se.On("GetVolumeReplicationByVolumeID", ctx, dbVol.ID).Return(nil, errors.New("database error"))
+		_, job, err := o.UpdateVolumeV2(ctx, param)
+		assert.Error(tt, err, "Non-NotFound errors should cause failure")
+		assert.EqualError(tt, err, "database error")
+		assert.Equal(tt, "", job)
 	})
 }
 

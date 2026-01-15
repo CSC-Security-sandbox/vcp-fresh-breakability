@@ -11184,6 +11184,65 @@ func (_c *MockDataStore_GetVolumeReplicationByProjectId_Call) RunAndReturn(run f
 	return _c
 }
 
+// GetVolumeReplicationByVolumeID provides a mock function with given fields: ctx, volumeID
+func (_m *MockDataStore) GetVolumeReplicationByVolumeID(ctx context.Context, volumeID int64) (*datamodel.VolumeReplication, error) {
+	ret := _m.Called(ctx, volumeID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumeReplicationByVolumeID")
+	}
+
+	var r0 *datamodel.VolumeReplication
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (*datamodel.VolumeReplication, error)); ok {
+		return rf(ctx, volumeID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) *datamodel.VolumeReplication); ok {
+		r0 = rf(ctx, volumeID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, volumeID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetVolumeReplicationByVolumeID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeReplicationByVolumeID'
+type MockDataStore_GetVolumeReplicationByVolumeID_Call struct {
+	*mock.Call
+}
+
+// GetVolumeReplicationByVolumeID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeID int64
+func (_e *MockDataStore_Expecter) GetVolumeReplicationByVolumeID(ctx interface{}, volumeID interface{}) *MockDataStore_GetVolumeReplicationByVolumeID_Call {
+	return &MockDataStore_GetVolumeReplicationByVolumeID_Call{Call: _e.mock.On("GetVolumeReplicationByVolumeID", ctx, volumeID)}
+}
+
+func (_c *MockDataStore_GetVolumeReplicationByVolumeID_Call) Run(run func(ctx context.Context, volumeID int64)) *MockDataStore_GetVolumeReplicationByVolumeID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetVolumeReplicationByVolumeID_Call) Return(_a0 *datamodel.VolumeReplication, _a1 error) *MockDataStore_GetVolumeReplicationByVolumeID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetVolumeReplicationByVolumeID_Call) RunAndReturn(run func(context.Context, int64) (*datamodel.VolumeReplication, error)) *MockDataStore_GetVolumeReplicationByVolumeID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVolumeReplicationCount provides a mock function with given fields: ctx, accountName
 func (_m *MockDataStore) GetVolumeReplicationCount(ctx context.Context, accountName string) (int64, error) {
 	ret := _m.Called(ctx, accountName)

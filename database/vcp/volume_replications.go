@@ -75,6 +75,12 @@ func (d *DataStoreRepository) GetVolumeReplication(ctx context.Context, volumeRe
 	return getVolumeReplicationDetails(db, &datamodel.VolumeReplication{BaseModel: datamodel.BaseModel{UUID: volumeReplicationID}})
 }
 
+// GetVolumeReplicationByVolumeID retrieves a replication by volume ID
+func (d *DataStoreRepository) GetVolumeReplicationByVolumeID(ctx context.Context, volumeID int64) (*datamodel.VolumeReplication, error) {
+	db := d.db.GORM().WithContext(ctx)
+	return getVolumeReplicationDetails(db, &datamodel.VolumeReplication{VolumeID: volumeID})
+}
+
 // GetVolumeReplicationByProjectId retrieves a replication by projectId
 func (d *DataStoreRepository) GetVolumeReplicationByProjectId(ctx context.Context, accountId int64) ([]*datamodel.VolumeReplication, error) {
 	db := d.db.GORM().WithContext(ctx)

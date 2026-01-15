@@ -107,6 +107,7 @@ type (
 
 		CreateVolumeReplication(ctx context.Context, volumeRep *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error)
 		GetVolumeReplication(ctx context.Context, id string) (*datamodel.VolumeReplication, error)
+		GetVolumeReplicationByVolumeID(ctx context.Context, volumeID int64) (*datamodel.VolumeReplication, error)
 		UpdateVolumeReplication(ctx context.Context, volumeRep *datamodel.VolumeReplication) error
 		UpdateVolumeReplicationFields(ctx context.Context, volumeRepUUID string, updates map[string]interface{}) error
 		UpdateVolumeReplicationStates(ctx context.Context, volumeRep *datamodel.VolumeReplication) error

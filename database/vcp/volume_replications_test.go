@@ -277,6 +277,120 @@ func TestGetVolumeReplication(t *testing.T) {
 	})
 }
 
+func TestGetVolumeReplicationByVolumeID(t *testing.T) {
+	t.Run("WhenVolumeReplicationExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		volumeRep := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-rep-uuid"},
+			Name:      "test_volume_rep",
+			Account:   account,
+			Volume:    volume,
+			VolumeID:  volume.ID,
+		}
+		err = store.db.Create(volumeRep).Error()
+		assert.NoError(tt, err, "Failed to create volume replication")
+
+		result, err := store.GetVolumeReplicationByVolumeID(context.Background(), volume.ID)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, result, "Expected volume replication, got nil")
+		assert.Equal(tt, volumeRep.Name, result.Name, "Expected volume replication name %v, got %v", volumeRep.Name, result.Name)
+		assert.Equal(tt, volumeRep.UUID, result.UUID, "Expected volume replication UUID %v, got %v", volumeRep.UUID, result.UUID)
+	})
+	t.Run("WhenVolumeDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		volumeRep, err := store.GetVolumeReplicationByVolumeID(context.Background(), 999)
+		assert.Nil(tt, volumeRep, "Expected nil volume replication, got %v", volumeRep)
+		assert.Error(tt, err, "Expected error, got nil")
+	})
+	t.Run("WhenVolumeExistsButNoReplication", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		volumeRep, err := store.GetVolumeReplicationByVolumeID(context.Background(), volume.ID)
+		assert.Nil(tt, volumeRep, "Expected nil volume replication, got %v", volumeRep)
+		assert.Error(tt, err, "Expected error, got nil")
+		assert.Contains(tt, err.Error(), "volume replication not found", "Expected 'volume replication not found' error, got %v", err)
+	})
+}
+
 func TestDeleteVolumeReplication(t *testing.T) {
 	t.Run("WhenVolumeReplicationIsDeletedSuccessfully", func(tt *testing.T) {
 		db, err := SetupTestDB()

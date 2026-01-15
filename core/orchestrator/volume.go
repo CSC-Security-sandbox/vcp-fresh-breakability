@@ -1809,14 +1809,21 @@ func (o *Orchestrator) UpdateVolumeV2(ctx context.Context, param *common.UpdateV
 	}
 
 	isReplication := false
-	count, err := se.GetVolumeReplicationCountByVolumeID(ctx, dbVolume.ID)
+	volumeReplication, err := se.GetVolumeReplicationByVolumeID(ctx, dbVolume.ID)
 	if err != nil {
-		logger.Error("Failed to get volume replication", "error", err)
-		return nil, "", err
-	}
-
-	if count != 0 {
-		isReplication = true
+		// If replication doesn't exist, it's not an error - just means no replication
+		if !customerrors.IsNotFoundErr(err) {
+			logger.Error("Failed to get volume replication", "error", err)
+			return nil, "", err
+		}
+		logger.Debug("No volume replication found during volume update", "volumeID", dbVolume.ID)
+	} else if volumeReplication != nil {
+		// If it's a hybrid replication, set isReplication to false
+		if volumeReplication.HybridReplicationAttributes != nil {
+			isReplication = false
+		} else {
+			isReplication = true
+		}
 	}
 
 	return updateVolume(ctx, se, o.temporal, param, isReplication)

@@ -1027,6 +1027,22 @@ func (re *retryEngine) GetVolumeReplication(ctx context.Context, id string) (*da
 	return var0, err
 }
 
+func (re *retryEngine) GetVolumeReplicationByVolumeID(ctx context.Context, volumeID int64) (*datamodel.VolumeReplication, error) {
+	var var0 *datamodel.VolumeReplication
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetVolumeReplicationByVolumeID(ctx, volumeID)
+		if err != nil {
+			re.logError("GetVolumeReplicationByVolumeID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) UpdateVolumeReplication(ctx context.Context, volumeRep *datamodel.VolumeReplication) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error

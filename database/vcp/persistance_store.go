@@ -500,6 +500,10 @@ func (s *PersistenceStore) GetVolumeReplication(ctx context.Context, id string) 
 	return s.dataStore.GetVolumeReplication(ctx, id)
 }
 
+func (s *PersistenceStore) GetVolumeReplicationByVolumeID(ctx context.Context, volumeID int64) (*datamodel.VolumeReplication, error) {
+	return s.dataStore.GetVolumeReplicationByVolumeID(ctx, volumeID)
+}
+
 func (s *PersistenceStore) UpdateVolumeReplication(ctx context.Context, volumeRep *datamodel.VolumeReplication) error {
 	return s.dataStore.UpdateVolumeReplication(ctx, volumeRep)
 }
