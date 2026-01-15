@@ -257,7 +257,7 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 			return nil, ConvertToVSAError(err)
 		}
 		var smSourcePath string
-		smSourcePath = fmt.Sprintf("%s:/objstore/%s", objStoreName, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotID)
+		smSourcePath = fmt.Sprintf("%s:/objstore/%s", objStoreName, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotName)
 		log.Debugf("\nsmDestinationPath: %v", smDestinationPath)
 		log.Debugf("\nsmSourcePath: %v", smSourcePath)
 
@@ -288,7 +288,7 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
-		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.SnapmirrorTransfer, node, snapmirrorRelationship.UUID, "").Get(ctx, nil)
+		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.SnapmirrorTransfer, node, snapmirrorRelationship.UUID, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotName).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
