@@ -499,6 +499,32 @@ func (a *ResourceEventsActivity) DeleteReplicationsForVolume(ctx context.Context
 	return nil
 }
 
+func (a *ResourceEventsActivity) DeleteVolumeAssociatedQuotaRules(ctx context.Context, volumeID int64) error {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+
+	logger.Debugf("Retrieving quota rules for volumeID: %d", volumeID)
+	quotaRules, err := se.GetQuotaRulesByVolumeID(ctx, volumeID)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			logger.Debugf("no quota rules found for volumeID: %d", volumeID)
+			return nil
+		}
+		logger.Errorf("failed to get quota rules by volumeID: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Debugf("Deleting volume associated quota rules for volumeID: %d", volumeID)
+	for _, quotaRule := range quotaRules {
+		_, err = se.DeleteQuotaRule(ctx, quotaRule.UUID)
+		if err != nil {
+			logger.Warnf("failed to mark quota rule %s as deleted because of error: %v", quotaRule.Name, err)
+		}
+	}
+	logger.Debugf("Volume associated quota rules deleted successfully for volumeID: %d", volumeID)
+	return nil
+}
+
 func (a *ResourceEventsActivity) handleHostGroup(ctx context.Context, params *common.HandleResourceEventParams, state string, stateDetails string) (bool, error) {
 	logger := util.GetLogger(ctx)
 

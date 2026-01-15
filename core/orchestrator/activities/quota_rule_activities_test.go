@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	coreerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
@@ -3117,6 +3118,29 @@ func Test_GetReplicationDetails(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, result)
 		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("GetReplicationDetails_EmptyVolumeReplicationID_ReturnsError", func(t *testing.T) {
+		basePath := "https://test-base-path.com"
+		projectNumber := "123456789"
+		locationID := "us-central1-a"
+		volumeReplicationID := "" // Empty UUID
+		jwt := "test-jwt-token"
+
+		result, err := GetReplicationDetails(ctx, basePath, projectNumber, locationID, volumeReplicationID, jwt)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		// Verify it's an input validation error
+		var customErr *coreerrors.CustomError
+		assert.ErrorAs(t, err, &customErr, "Error should be a CustomError")
+		if customErr != nil {
+			assert.Equal(t, coreerrors.ErrInputValidationError, customErr.TrackingID)
+			// Verify the original error message contains the expected text
+			if customErr.OriginalErr != nil {
+				assert.Contains(t, customErr.OriginalErr.Error(), "volumeReplicationID cannot be empty")
+			}
+		}
 	})
 }
 

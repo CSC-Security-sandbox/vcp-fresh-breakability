@@ -346,6 +346,13 @@ func GetReplicationDetails(ctx context.Context, basePath string, projectNumber s
 		"volumeReplicationID", volumeReplicationID,
 	)
 
+	// Validate volumeReplicationID is not empty
+	if volumeReplicationID == "" {
+		logger.Error("volumeReplicationID is empty")
+		return nil, coreerrors.NewVCPError(coreerrors.ErrInputValidationError,
+			fmt.Errorf("volumeReplicationID cannot be empty"))
+	}
+
 	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, jwt, logger)
 	params := &googleproxyclient.V1betaGetMultipleReplicationsInternalParams{
 		ProjectNumber:  projectNumber,

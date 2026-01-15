@@ -180,6 +180,29 @@ func (va VolumeDeleteActivity) DeleteVolumeAssociatedSnapshots(ctx context.Conte
 	return nil
 }
 
+func (va VolumeDeleteActivity) DeleteAssociatedQuotaRules(ctx context.Context, volumeID int64) error {
+	logger := util.GetLogger(ctx)
+	se := va.SE
+	quotaRules, err := se.GetQuotaRulesByVolumeID(ctx, volumeID)
+	if err != nil {
+		if utilErrors.IsNotFoundErr(err) {
+			logger.Debugf("no quota rules found for volumeID: %d", volumeID)
+			return nil
+		}
+		logger.Errorf("failed to get quota rules by volumeID: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	for _, quotaRule := range quotaRules {
+		_, err = se.DeleteQuotaRule(ctx, quotaRule.UUID)
+		if err != nil {
+			logger.Errorf("failed to mark quota rule %s as deleted because of error: %v", quotaRule.Name, err)
+			return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to delete quota rule %s (UUID: %s): %w", quotaRule.Name, quotaRule.UUID, err))
+		}
+	}
+	return nil
+}
+
 func (va VolumeDeleteActivity) DetermineIfVolumeIsLastFilesVolume(ctx context.Context, volume *datamodel.Volume, node *models.Node) (bool, error) {
 	logger := util.GetLogger(ctx)
 

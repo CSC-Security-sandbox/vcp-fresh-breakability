@@ -2,6 +2,7 @@ package resource_events_activities
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,10 +20,11 @@ import (
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/testsuite"
 )
 
 func Test_HandleResourceEventForSDEActivity(t *testing.T) {
@@ -984,7 +986,7 @@ func TestCheckKmsConfigExistence(t *testing.T) {
 			ResourceId: "test-kms-config-id",
 		}
 
-		mockSE.On("GetKmsConfig", ctx, params.ResourceId).Return(nil, errors.NewNotFoundErr("KmsConfig", nil))
+		mockSE.On("GetKmsConfig", ctx, params.ResourceId).Return(nil, utilErrors.NewNotFoundErr("KmsConfig", nil))
 
 		result, err := activity.checkKmsConfigExistence(ctx, params)
 		assert.False(tt, result)
@@ -1044,7 +1046,7 @@ func TestCheckStoragePoolExistence(t *testing.T) {
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-project-number"}
 
 		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(account, nil)
-		mockSE.On("GetPool", ctx, params.ResourceId, account.ID).Return(nil, errors.NewNotFoundErr("Pool", nil))
+		mockSE.On("GetPool", ctx, params.ResourceId, account.ID).Return(nil, utilErrors.NewNotFoundErr("Pool", nil))
 
 		result, err := activity.checkStoragePoolExistence(ctx, params)
 		assert.False(tt, result)
@@ -1172,7 +1174,7 @@ func TestHandleHostGroups(t *testing.T) {
 		}
 
 		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
-		mockSE.On("UpdateHostGroupsStateForHandleResource", ctx, params.ResourceId, mockAccount.ID, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails).Return(errors.NewNotFoundErr("HostGroup", nil))
+		mockSE.On("UpdateHostGroupsStateForHandleResource", ctx, params.ResourceId, mockAccount.ID, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails).Return(utilErrors.NewNotFoundErr("HostGroup", nil))
 
 		result, err := activity.handleHostGroup(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
@@ -1269,7 +1271,7 @@ func TestCheckSnapshotExistence(t *testing.T) {
 
 		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(account, nil)
 		mockSE.On("GetVolumeWithAccountID", ctx, params.ParentResourceID, account.ID).Return(volume, nil)
-		mockSE.On("GetSnapshotByUUID", ctx, params.ResourceId, account.ID, volume.ID).Return(nil, errors.NewNotFoundErr("Snapshot", nil))
+		mockSE.On("GetSnapshotByUUID", ctx, params.ResourceId, account.ID, volume.ID).Return(nil, utilErrors.NewNotFoundErr("Snapshot", nil))
 
 		result, err := activity.checkSnapshotExistence(ctx, params)
 		assert.False(tt, result)
@@ -1292,7 +1294,7 @@ func TestCheckSnapshotExistence(t *testing.T) {
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-project-number"}
 
 		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(account, nil)
-		mockSE.On("GetVolumeWithAccountID", ctx, params.ParentResourceID, account.ID).Return(nil, errors.NewNotFoundErr("Volume", nil))
+		mockSE.On("GetVolumeWithAccountID", ctx, params.ParentResourceID, account.ID).Return(nil, utilErrors.NewNotFoundErr("Volume", nil))
 
 		result, err := activity.checkSnapshotExistence(ctx, params)
 		assert.False(tt, result)
@@ -1354,7 +1356,7 @@ func TestCheckVolumeExistence(t *testing.T) {
 			ProjectNumber: "test-project-number",
 		}
 
-		mockSE.On("GetVolume", ctx, params.ResourceId).Return(nil, errors.NewNotFoundErr("Volume", nil))
+		mockSE.On("GetVolume", ctx, params.ResourceId).Return(nil, utilErrors.NewNotFoundErr("Volume", nil))
 
 		result, err := activity.checkVolumeExistence(ctx, params)
 		assert.False(tt, result)
@@ -1604,7 +1606,7 @@ func TestCheckBackupPolicyExistence(t *testing.T) {
 		}
 
 		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
-		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(nil, errors.NewNotFoundErr("BackupPolicy", nil))
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(nil, utilErrors.NewNotFoundErr("BackupPolicy", nil))
 
 		result, err := activity.checkBackupPolicyExistence(ctx, params)
 		assert.False(tt, result)
@@ -1931,12 +1933,12 @@ func Test_HandleBackupPolicyErrorCases(t *testing.T) {
 		}
 
 		mockSE.On("GetAccount", ctx, params.ProjectNumber).Return(mockAccount, nil)
-		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(nil, errors.NewNotFoundErr("BackupPolicy", nil))
+		mockSE.On("GetBackupPolicyByUUIDAndOwnerID", ctx, params.ResourceId, mockAccount.ID).Return(nil, utilErrors.NewNotFoundErr("BackupPolicy", nil))
 
 		result, err := activity.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
 		assert.NotNil(tt, err)
-		assert.True(tt, errors.IsNotFoundErr(err))
+		assert.True(tt, utilErrors.IsNotFoundErr(err))
 	})
 
 	t.Run("PauseBackupPolicyScheduleFails", func(tt *testing.T) {
@@ -2838,7 +2840,7 @@ func Test_HandleKmsConfig_ErrorCoverage(t *testing.T) {
 			State:      coremodels.StateOff,
 		}
 
-		mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, coremodels.LifeCycleStateDisabledDetails, params.State).Return(nil, errors.NewNotFoundErr("KmsConfig", nil))
+		mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, coremodels.LifeCycleStateDisabledDetails, params.State).Return(nil, utilErrors.NewNotFoundErr("KmsConfig", nil))
 
 		result, err := activity.handleKmsConfig(ctx, params, coremodels.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
@@ -2861,7 +2863,7 @@ func Test_HandleKmsConfig_ErrorCoverage(t *testing.T) {
 			State:      coremodels.StateOff,
 		}
 
-		mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, coremodels.LifeCycleStateDisabledDetails, params.State).Return(nil, errors.NewUserInputValidationErr("validation failed"))
+		mockSE.On("UpdateKmsConfigStateForHandleResource", ctx, params.ResourceId, coremodels.LifeCycleStateDisabledDetails, params.State).Return(nil, utilErrors.NewUserInputValidationErr("validation failed"))
 
 		result, err := activity.handleKmsConfig(ctx, params, coremodels.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
@@ -2916,7 +2918,7 @@ func Test_HandleSnapshot_ErrorCoverage(t *testing.T) {
 			StateDetails: coremodels.LifeCycleStateDisabledDetails,
 		}
 
-		mockSE.On("UpdateSnapshotForHandleResource", ctx, expectedSnapshot).Return(nil, errors.NewNotFoundErr("Snapshot", nil))
+		mockSE.On("UpdateSnapshotForHandleResource", ctx, expectedSnapshot).Return(nil, utilErrors.NewNotFoundErr("Snapshot", nil))
 
 		result, err := activity.handleSnapshot(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
@@ -2978,7 +2980,7 @@ func Test_HandleVolume_ErrorCoverage(t *testing.T) {
 			StateDetails: coremodels.LifeCycleStateDisabledDetails,
 		}
 
-		mockSE.On("UpdateVolume", ctx, expectedVolume).Return(errors.NewNotFoundErr("Volume", nil))
+		mockSE.On("UpdateVolume", ctx, expectedVolume).Return(utilErrors.NewNotFoundErr("Volume", nil))
 
 		result, err := activity.handleVolume(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
 		assert.False(tt, result)
@@ -3018,5 +3020,153 @@ func Test_HandleVolume_ErrorCoverage(t *testing.T) {
 		// This should not be converted to ApplicationError for generic errors
 		var applicationError *temporal.ApplicationError
 		assert.False(tt, errors2.As(err, &applicationError))
+	})
+}
+
+func TestResourceEventsActivity_DeleteVolumeAssociatedQuotaRules(t *testing.T) {
+	t.Run("Success", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockStorage}
+		env.RegisterActivity(activity.DeleteVolumeAssociatedQuotaRules)
+		volumeID := int64(123)
+		quotaRules := []*datamodel.QuotaRule{
+			{BaseModel: datamodel.BaseModel{UUID: "qr-uuid-1"}, Name: "quota-rule-1"},
+			{BaseModel: datamodel.BaseModel{UUID: "qr-uuid-2"}, Name: "quota-rule-2"},
+			{BaseModel: datamodel.BaseModel{UUID: "qr-uuid-3"}, Name: "quota-rule-3"},
+		}
+
+		mockStorage.On("GetQuotaRulesByVolumeID", mock.Anything, volumeID).
+			Return(quotaRules, nil)
+		mockStorage.On("DeleteQuotaRule", mock.Anything, "qr-uuid-1").Return(&datamodel.QuotaRule{}, nil)
+		mockStorage.On("DeleteQuotaRule", mock.Anything, "qr-uuid-2").Return(&datamodel.QuotaRule{}, nil)
+		mockStorage.On("DeleteQuotaRule", mock.Anything, "qr-uuid-3").Return(&datamodel.QuotaRule{}, nil)
+
+		_, err := env.ExecuteActivity(activity.DeleteVolumeAssociatedQuotaRules, volumeID)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("NoQuotaRulesFound", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockStorage}
+		env.RegisterActivity(activity.DeleteVolumeAssociatedQuotaRules)
+		volumeID := int64(123)
+
+		mockStorage.On("GetQuotaRulesByVolumeID", mock.Anything, volumeID).
+			Return(nil, utilErrors.NewNotFoundErr("quota rule", nil))
+
+		_, err := env.ExecuteActivity(activity.DeleteVolumeAssociatedQuotaRules, volumeID)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("GetQuotaRulesError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockStorage}
+		env.RegisterActivity(activity.DeleteVolumeAssociatedQuotaRules)
+		volumeID := int64(123)
+
+		mockStorage.On("GetQuotaRulesByVolumeID", mock.Anything, volumeID).
+			Return(nil, errors.New("database connection error"))
+
+		_, err := env.ExecuteActivity(activity.DeleteVolumeAssociatedQuotaRules, volumeID)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("DeleteQuotaRuleError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockStorage}
+		env.RegisterActivity(activity.DeleteVolumeAssociatedQuotaRules)
+		volumeID := int64(123)
+		quotaRules := []*datamodel.QuotaRule{
+			{BaseModel: datamodel.BaseModel{UUID: "qr-uuid-1"}, Name: "quota-rule-1"},
+			{BaseModel: datamodel.BaseModel{UUID: "qr-uuid-2"}, Name: "quota-rule-2"},
+			{BaseModel: datamodel.BaseModel{UUID: "qr-uuid-3"}, Name: "quota-rule-3"},
+		}
+
+		mockStorage.On("GetQuotaRulesByVolumeID", mock.Anything, volumeID).
+			Return(quotaRules, nil)
+		mockStorage.On("DeleteQuotaRule", mock.Anything, "qr-uuid-1").Return(nil, errors.New("delete error for qr-uuid-1"))
+		mockStorage.On("DeleteQuotaRule", mock.Anything, "qr-uuid-2").Return(&datamodel.QuotaRule{}, nil)
+		mockStorage.On("DeleteQuotaRule", mock.Anything, "qr-uuid-3").Return(nil, errors.New("delete error for qr-uuid-3"))
+
+		_, err := env.ExecuteActivity(activity.DeleteVolumeAssociatedQuotaRules, volumeID)
+		assert.NoError(tt, err) // Should continue even if some deletions fail
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("EmptyQuotaRulesList", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockStorage}
+		env.RegisterActivity(activity.DeleteVolumeAssociatedQuotaRules)
+		volumeID := int64(123)
+		emptyQuotaRules := []*datamodel.QuotaRule{}
+
+		mockStorage.On("GetQuotaRulesByVolumeID", mock.Anything, volumeID).
+			Return(emptyQuotaRules, nil)
+
+		_, err := env.ExecuteActivity(activity.DeleteVolumeAssociatedQuotaRules, volumeID)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("SingleQuotaRule", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockStorage}
+		env.RegisterActivity(activity.DeleteVolumeAssociatedQuotaRules)
+		volumeID := int64(123)
+		quotaRules := []*datamodel.QuotaRule{
+			{BaseModel: datamodel.BaseModel{UUID: "qr-uuid-1"}, Name: "quota-rule-1"},
+		}
+
+		mockStorage.On("GetQuotaRulesByVolumeID", mock.Anything, volumeID).
+			Return(quotaRules, nil)
+		mockStorage.On("DeleteQuotaRule", mock.Anything, "qr-uuid-1").Return(&datamodel.QuotaRule{}, nil)
+
+		_, err := env.ExecuteActivity(activity.DeleteVolumeAssociatedQuotaRules, volumeID)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("AllDeleteQuotaRuleErrors", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockStorage}
+		env.RegisterActivity(activity.DeleteVolumeAssociatedQuotaRules)
+		volumeID := int64(123)
+		quotaRules := []*datamodel.QuotaRule{
+			{BaseModel: datamodel.BaseModel{UUID: "qr-uuid-1"}, Name: "quota-rule-1"},
+			{BaseModel: datamodel.BaseModel{UUID: "qr-uuid-2"}, Name: "quota-rule-2"},
+		}
+
+		mockStorage.On("GetQuotaRulesByVolumeID", mock.Anything, volumeID).
+			Return(quotaRules, nil)
+		mockStorage.On("DeleteQuotaRule", mock.Anything, "qr-uuid-1").Return(nil, errors.New("delete error for qr-uuid-1"))
+		mockStorage.On("DeleteQuotaRule", mock.Anything, "qr-uuid-2").Return(nil, errors.New("delete error for qr-uuid-2"))
+
+		_, err := env.ExecuteActivity(activity.DeleteVolumeAssociatedQuotaRules, volumeID)
+		assert.NoError(tt, err) // Should continue even if all deletions fail
+		mockStorage.AssertExpectations(tt)
 	})
 }

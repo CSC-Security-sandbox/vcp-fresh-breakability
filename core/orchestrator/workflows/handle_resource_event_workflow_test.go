@@ -2561,6 +2561,219 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "Volume deletion failed")
 }
 
+// Test case: DeleteVolumeAssociatedQuotaRules called for volumes with FileProperties
+func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDELETEWorkflow_DeleteVolumeAssociatedQuotaRulesWithFileProperties() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	poolActivity := activities.PoolActivity{SE: mockStorage}
+	volumeActivity := activities.VolumeCreateActivity{}
+	resourceEventsActivity := resource_events_activities.ResourceEventsActivity{SE: mockStorage}
+
+	// Mock UpdateJob calls
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(resourceEventsActivity.HandleResourceEventCheckForVCPActivity)
+	s.env.RegisterActivity(poolActivity.GetPoolView)
+	s.env.RegisterActivity(volumeActivity.GetVolumesByPoolID)
+	s.env.RegisterActivity(resourceEventsActivity.DeleteReplicationsForVolume)
+	s.env.RegisterActivity(resourceEventsActivity.DeleteVolumeAssociatedQuotaRules)
+	s.env.RegisterActivity(resourceEventsActivity.DeleteVolumeForPool)
+	s.env.RegisterActivity(poolActivity.GetPool)
+
+	// Mock the DeletePoolWorkflowInternal as a child workflow
+	s.env.OnWorkflow(DeletePoolWorkflowInternal, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}, VolumeCount: 2}
+	volumes := []*datamodel.Volume{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
+			State:     models.StateOn,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{},
+			},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "vol-2", ID: 2},
+			State:     models.StateOff,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{},
+			},
+		},
+	}
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{ID: 1},
+		DeploymentName: "test-deployment",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "test-project",
+			OntapVersion:          "9.11.1",
+		},
+		ServiceAccountId: "test-sa",
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: 1,
+		},
+	}
+
+	s.env.OnActivity(resourceEventsActivity.HandleResourceEventCheckForVCPActivity, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(poolActivity.GetPoolView, mock.Anything, mock.Anything).Return(poolView, nil)
+	s.env.OnActivity(volumeActivity.GetVolumesByPoolID, mock.Anything, mock.Anything).Return(volumes, nil)
+	for _, vol := range volumes {
+		s.env.OnActivity(resourceEventsActivity.DeleteReplicationsForVolume, mock.Anything, mock.MatchedBy(func(v *datamodel.Volume) bool {
+			return v.UUID == vol.UUID
+		})).Return(nil)
+		s.env.OnActivity(resourceEventsActivity.DeleteVolumeAssociatedQuotaRules, mock.Anything, vol.ID).Return(nil)
+		s.env.OnActivity(resourceEventsActivity.DeleteVolumeForPool, mock.Anything, mock.MatchedBy(func(v *datamodel.Volume) bool {
+			return v.UUID == vol.UUID
+		})).Return(nil)
+	}
+	s.env.OnActivity(poolActivity.GetPool, mock.Anything, mock.Anything).Return(pool, nil)
+
+	param := &common.UpdateResourceStateParams{
+		ResourceId:    "pool-id",
+		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
+		State:         models.StateDelete,
+		ProjectNumber: "123456789",
+	}
+	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	// Verify that DeleteVolumeAssociatedQuotaRules was called for each volume
+	s.env.AssertNumberOfCalls(s.T(), "DeleteVolumeAssociatedQuotaRules", 2)
+}
+
+// Test case: DeleteVolumeAssociatedQuotaRules not called for volumes without FileProperties
+func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDELETEWorkflow_DeleteVolumeAssociatedQuotaRulesWithoutFileProperties() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	poolActivity := activities.PoolActivity{SE: mockStorage}
+	volumeActivity := activities.VolumeCreateActivity{}
+	resourceEventsActivity := resource_events_activities.ResourceEventsActivity{SE: mockStorage}
+
+	// Mock UpdateJob calls
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(resourceEventsActivity.HandleResourceEventCheckForVCPActivity)
+	s.env.RegisterActivity(poolActivity.GetPoolView)
+	s.env.RegisterActivity(volumeActivity.GetVolumesByPoolID)
+	s.env.RegisterActivity(resourceEventsActivity.DeleteReplicationsForVolume)
+	s.env.RegisterActivity(resourceEventsActivity.DeleteVolumeAssociatedQuotaRules)
+	s.env.RegisterActivity(resourceEventsActivity.DeleteVolumeForPool)
+	s.env.RegisterActivity(poolActivity.GetPool)
+
+	// Mock the DeletePoolWorkflowInternal as a child workflow
+	s.env.OnWorkflow(DeletePoolWorkflowInternal, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}, VolumeCount: 2}
+	volumes := []*datamodel.Volume{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
+			State:     models.StateOn,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				BlockDevices: &[]datamodel.BlockDevice{},
+			},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "vol-2", ID: 2},
+			State:     models.StateOff,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				BlockProperties: &datamodel.BlockProperties{},
+			},
+		},
+	}
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{ID: 1},
+		DeploymentName: "test-deployment",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "test-project",
+			OntapVersion:          "9.11.1",
+		},
+		ServiceAccountId: "test-sa",
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: 1,
+		},
+	}
+
+	s.env.OnActivity(resourceEventsActivity.HandleResourceEventCheckForVCPActivity, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(poolActivity.GetPoolView, mock.Anything, mock.Anything).Return(poolView, nil)
+	s.env.OnActivity(volumeActivity.GetVolumesByPoolID, mock.Anything, mock.Anything).Return(volumes, nil)
+	for _, vol := range volumes {
+		s.env.OnActivity(resourceEventsActivity.DeleteReplicationsForVolume, mock.Anything, mock.MatchedBy(func(v *datamodel.Volume) bool {
+			return v.UUID == vol.UUID
+		})).Return(nil)
+		s.env.OnActivity(resourceEventsActivity.DeleteVolumeForPool, mock.Anything, mock.MatchedBy(func(v *datamodel.Volume) bool {
+			return v.UUID == vol.UUID
+		})).Return(nil)
+	}
+	s.env.OnActivity(poolActivity.GetPool, mock.Anything, mock.Anything).Return(pool, nil)
+
+	param := &common.UpdateResourceStateParams{
+		ResourceId:    "pool-id",
+		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
+		State:         models.StateDelete,
+		ProjectNumber: "123456789",
+	}
+	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	// Verify that DeleteVolumeAssociatedQuotaRules was NOT called
+	s.env.AssertNumberOfCalls(s.T(), "DeleteVolumeAssociatedQuotaRules", 0)
+}
+
+// Test case: DeleteVolumeAssociatedQuotaRules activity fails
+func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDELETEWorkflow_DeleteVolumeAssociatedQuotaRulesError() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	poolActivity := activities.PoolActivity{}
+	volumeActivity := activities.VolumeCreateActivity{}
+	resourceEventsActivity := resource_events_activities.ResourceEventsActivity{SE: mockStorage}
+
+	// Mock UpdateJob calls
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(resourceEventsActivity.HandleResourceEventCheckForVCPActivity)
+	s.env.RegisterActivity(poolActivity.GetPoolView)
+	s.env.RegisterActivity(volumeActivity.GetVolumesByPoolID)
+	s.env.RegisterActivity(resourceEventsActivity.DeleteReplicationsForVolume)
+	s.env.RegisterActivity(resourceEventsActivity.DeleteVolumeAssociatedQuotaRules)
+
+	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}, VolumeCount: 1}
+	volumes := []*datamodel.Volume{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
+			State:     models.StateOn,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{},
+			},
+		},
+	}
+
+	s.env.OnActivity(resourceEventsActivity.HandleResourceEventCheckForVCPActivity, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(poolActivity.GetPoolView, mock.Anything, mock.Anything).Return(poolView, nil)
+	s.env.OnActivity(volumeActivity.GetVolumesByPoolID, mock.Anything, mock.Anything).Return(volumes, nil)
+	s.env.OnActivity(resourceEventsActivity.DeleteReplicationsForVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(resourceEventsActivity.DeleteVolumeAssociatedQuotaRules, mock.Anything, mock.Anything).Return(errors.New("failed to delete quota rules"))
+
+	param := &common.UpdateResourceStateParams{
+		ResourceId:    "pool-id",
+		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
+		State:         models.StateDelete,
+		ProjectNumber: "123456789",
+	}
+	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	// Should propagate the DeleteVolumeAssociatedQuotaRules error
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "failed to delete quota rules")
+}
+
 // Test case: Verify NotFoundErr does not retry - activity should be called only once
 func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDELETEWorkflow_NotFoundErrNoRetry() {
 	mockStorage := database.NewMockStorage(s.T())

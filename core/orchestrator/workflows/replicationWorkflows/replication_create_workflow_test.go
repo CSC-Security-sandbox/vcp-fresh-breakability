@@ -21,6 +21,15 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+// Helper function to set quotaRuleSync to true and return a cleanup function
+func setQuotaRuleSyncTrue() func() {
+	originalValue := quotaRuleSync
+	quotaRuleSync = true
+	return func() {
+		quotaRuleSync = originalValue
+	}
+}
+
 func TestCreateVolumeReplicationWorkflow(t *testing.T) {
 	t.Run("TestCreateVolumeReplicationWorkflow_Success", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
@@ -285,6 +294,10 @@ func TestCreateVolumeReplicationWorkflow(t *testing.T) {
 	})
 
 	t.Run("TestCreateVolumeReplicationWorkflow_WithQuotaRuleSync", func(tt *testing.T) {
+		// Set quotaRuleSync to true for this test
+		cleanup := setQuotaRuleSyncTrue()
+		defer cleanup()
+
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -452,6 +465,10 @@ func TestCreateVolumeReplicationWorkflow(t *testing.T) {
 	})
 
 	t.Run("TestCreateVolumeReplicationWorkflow_QuotaRuleSyncFails", func(tt *testing.T) {
+		// Set quotaRuleSync to true for this test
+		cleanup := setQuotaRuleSyncTrue()
+		defer cleanup()
+
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})

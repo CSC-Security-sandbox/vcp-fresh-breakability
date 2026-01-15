@@ -28,6 +28,7 @@ var (
 		{"service_accounts", dbQueryAccountID},
 		{"lifs", dbQueryAccountID},
 		{"accounts", dbQueryAccountName},
+		{"quota_rules", dbQueryAccountID},
 	}
 )
 

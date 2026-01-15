@@ -721,6 +721,12 @@ func (s updateResourceStateDELETEWorkflow) Run(ctx workflow.Context, args ...int
 				if err != nil {
 					return nil, ConvertToVSAError(err)
 				}
+				if volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil {
+					err = workflow.ExecuteActivity(ctx, resourceEventsActivity.DeleteVolumeAssociatedQuotaRules, volume.ID).Get(ctx, nil)
+					if err != nil {
+						return nil, ConvertToVSAError(err)
+					}
+				}
 				err = workflow.ExecuteActivity(ctx, resourceEventsActivity.DeleteVolumeForPool, volume).Get(ctx, nil)
 				if err != nil {
 					return nil, ConvertToVSAError(err)

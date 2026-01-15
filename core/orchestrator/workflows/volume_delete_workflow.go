@@ -20,6 +20,7 @@ import (
 var (
 	volumeDeleteJobsRetryMaxAttempts = env.GetInt("REPLICATION_JOBS_RETRY_MAX_ATTEMPTS", 10)
 	enableSmb                        = env.GetBool("ENABLE_SMB", false)
+	enableQuotaRule                  = env.GetBool("ENABLE_QUOTA_RULE", false)
 )
 
 type volumeDeleteWorkflow struct {
@@ -285,6 +286,13 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 	if enableSmb {
 		err = workflow.ExecuteChildWorkflow(ctx, SmbTeardownWorkflow, volume, node).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	}
+
+	if enableQuotaRule && volume.VolumeAttributes.FileProperties != nil {
+		err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteAssociatedQuotaRules, volume.ID).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}

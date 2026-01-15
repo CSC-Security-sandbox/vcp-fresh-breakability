@@ -1263,6 +1263,131 @@ func TestDeleteVolumeAssociatedSnapshots_DeleteSnapshotError(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
+func TestDeleteAssociatedQuotaRules_Success(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	env.RegisterActivity(activity.DeleteAssociatedQuotaRules)
+	volumeID := int64(123)
+	quotaRules := []*datamodel.QuotaRule{
+		{BaseModel: datamodel.BaseModel{UUID: "qr-uuid-1"}, Name: "quota-rule-1"},
+		{BaseModel: datamodel.BaseModel{UUID: "qr-uuid-2"}, Name: "quota-rule-2"},
+		{BaseModel: datamodel.BaseModel{UUID: "qr-uuid-3"}, Name: "quota-rule-3"},
+	}
+
+	mockStorage.On("GetQuotaRulesByVolumeID", mock.Anything, volumeID).
+		Return(quotaRules, nil)
+	mockStorage.On("DeleteQuotaRule", mock.Anything, "qr-uuid-1").Return(&datamodel.QuotaRule{}, nil)
+	mockStorage.On("DeleteQuotaRule", mock.Anything, "qr-uuid-2").Return(&datamodel.QuotaRule{}, nil)
+	mockStorage.On("DeleteQuotaRule", mock.Anything, "qr-uuid-3").Return(&datamodel.QuotaRule{}, nil)
+
+	_, err := env.ExecuteActivity(activity.DeleteAssociatedQuotaRules, volumeID)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteAssociatedQuotaRules_NoQuotaRulesFound(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	env.RegisterActivity(activity.DeleteAssociatedQuotaRules)
+	volumeID := int64(123)
+
+	mockStorage.On("GetQuotaRulesByVolumeID", mock.Anything, volumeID).
+		Return(nil, utilErrors.NewNotFoundErr("quota rule", nil))
+
+	_, err := env.ExecuteActivity(activity.DeleteAssociatedQuotaRules, volumeID)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteAssociatedQuotaRules_GetQuotaRulesError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	env.RegisterActivity(activity.DeleteAssociatedQuotaRules)
+	volumeID := int64(123)
+
+	mockStorage.On("GetQuotaRulesByVolumeID", mock.Anything, volumeID).
+		Return(nil, errors.New("database connection error"))
+
+	_, err := env.ExecuteActivity(activity.DeleteAssociatedQuotaRules, volumeID)
+	assert.Error(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteAssociatedQuotaRules_DeleteQuotaRuleError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	env.RegisterActivity(activity.DeleteAssociatedQuotaRules)
+	volumeID := int64(123)
+	quotaRules := []*datamodel.QuotaRule{
+		{BaseModel: datamodel.BaseModel{UUID: "qr-uuid-1"}, Name: "quota-rule-1"},
+		{BaseModel: datamodel.BaseModel{UUID: "qr-uuid-2"}, Name: "quota-rule-2"},
+		{BaseModel: datamodel.BaseModel{UUID: "qr-uuid-3"}, Name: "quota-rule-3"},
+	}
+
+	mockStorage.On("GetQuotaRulesByVolumeID", mock.Anything, volumeID).
+		Return(quotaRules, nil)
+	deleteError := errors.New("delete error for qr-uuid-1")
+	mockStorage.On("DeleteQuotaRule", mock.Anything, "qr-uuid-1").Return(nil, deleteError)
+	// Note: qr-uuid-2 and qr-uuid-3 should not be called since we fail on the first one
+
+	_, err := env.ExecuteActivity(activity.DeleteAssociatedQuotaRules, volumeID)
+	assert.Error(t, err) // Should return error when quota rule deletion fails
+	assert.Contains(t, err.Error(), "failed to delete quota rule")
+	assert.Contains(t, err.Error(), "quota-rule-1")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteAssociatedQuotaRules_EmptyQuotaRulesList(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	env.RegisterActivity(activity.DeleteAssociatedQuotaRules)
+	volumeID := int64(123)
+	emptyQuotaRules := []*datamodel.QuotaRule{}
+
+	mockStorage.On("GetQuotaRulesByVolumeID", mock.Anything, volumeID).
+		Return(emptyQuotaRules, nil)
+
+	_, err := env.ExecuteActivity(activity.DeleteAssociatedQuotaRules, volumeID)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteAssociatedQuotaRules_SingleQuotaRule(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	env.RegisterActivity(activity.DeleteAssociatedQuotaRules)
+	volumeID := int64(123)
+	quotaRules := []*datamodel.QuotaRule{
+		{BaseModel: datamodel.BaseModel{UUID: "qr-uuid-1"}, Name: "quota-rule-1"},
+	}
+
+	mockStorage.On("GetQuotaRulesByVolumeID", mock.Anything, volumeID).
+		Return(quotaRules, nil)
+	mockStorage.On("DeleteQuotaRule", mock.Anything, "qr-uuid-1").Return(&datamodel.QuotaRule{}, nil)
+
+	_, err := env.ExecuteActivity(activity.DeleteAssociatedQuotaRules, volumeID)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
 func TestDeleteSnapshotPolicyInONTAP_WithNilNode(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestActivityEnvironment()
