@@ -13698,3 +13698,189 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 		assert.Contains(t, err.Error(), "AccessType must be READ_WRITE when AllSquash is enabled")
 	})
 }
+
+func TestPrepareCreateVolumeParams_SMBOnlyVolumeWithExportPolicyRules_ReturnsError(t *testing.T) {
+	origEnableSmb := enableSmb
+	defer func() { enableSmb = origEnableSmb }()
+	enableSmb = true
+
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:    "testvolume",
+			CreationToken: gcpgenserver.NewOptString("test-token"),
+			PoolId:        gcpgenserver.NewNilString("test-pool"),
+			QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+			Protocols: []gcpgenserver.ProtocolsV1beta{
+				gcpgenserver.ProtocolsV1betaSMB,
+			},
+			ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+				Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+					{AllowedClients: "0.0.0.0/0"},
+				},
+			}),
+		},
+	}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	region := "test-region"
+	zone := "test-zone"
+
+	result, err := _prepareCreateVolumeParams(req, params, region, zone, &models.Pool{ActiveDirectoryConfigId: "test-ad-config-id"})
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Cannot specify export policy rules for non-NFS volume")
+}
+
+func TestPrepareCreateVolumeParams_SMBOnlyVolumeWithoutExportPolicyRules_Succeeds(t *testing.T) {
+	origEnableSmb := enableSmb
+	defer func() { enableSmb = origEnableSmb }()
+	enableSmb = true
+
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:    "testvolume",
+			CreationToken: gcpgenserver.NewOptString("test-token"),
+			PoolId:        gcpgenserver.NewNilString("test-pool"),
+			QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+			Protocols: []gcpgenserver.ProtocolsV1beta{
+				gcpgenserver.ProtocolsV1betaSMB,
+			},
+		},
+	}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	region := "test-region"
+	zone := "test-zone"
+
+	result, err := _prepareCreateVolumeParams(req, params, region, zone, &models.Pool{ActiveDirectoryConfigId: "test-ad-config-id"})
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, []string{"SMB"}, result.Protocols)
+}
+
+func TestPrepareCreateVolumeParams_DualProtocolVolumeWithExportPolicyRules_Succeeds(t *testing.T) {
+	origEnableSmb := enableSmb
+	defer func() { enableSmb = origEnableSmb }()
+	enableSmb = true
+
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:    "testvolume",
+			CreationToken: gcpgenserver.NewOptString("test-token"),
+			PoolId:        gcpgenserver.NewNilString("test-pool"),
+			QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+			Protocols: []gcpgenserver.ProtocolsV1beta{
+				gcpgenserver.ProtocolsV1betaNFSV3,
+				gcpgenserver.ProtocolsV1betaSMB,
+			},
+			ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+				Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+					{
+						AllowedClients: "0.0.0.0/0",
+						AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+						Nfsv3:          gcpgenserver.NewOptNilBool(true),
+					},
+				},
+			}),
+		},
+	}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	region := "test-region"
+	zone := "test-zone"
+
+	result, err := _prepareCreateVolumeParams(req, params, region, zone, &models.Pool{ActiveDirectoryConfigId: "test-ad-config-id"})
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, []string{"NFSV3", "SMB"}, result.Protocols)
+	assert.NotNil(t, result.FileProperties)
+	assert.NotNil(t, result.FileProperties.ExportPolicy)
+	assert.Len(t, result.FileProperties.ExportPolicy.ExportRules, 1)
+}
+
+func TestPrepareUpdateVolumeParams_SMBOnlyVolumeWithExportPolicyRules_ReturnsError(t *testing.T) {
+	req := &gcpgenserver.VolumeUpdateV1beta{
+		ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+			Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+				{AllowedClients: "0.0.0.0/0"},
+			},
+		}),
+	}
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+		VolumeId:      "test-volume-id",
+	}
+	dbVolume := &models.Volume{
+		BaseModel:     models.BaseModel{UUID: "test-volume-id"},
+		DisplayName:   "testvolume",
+		ProtocolTypes: []string{"SMB"},
+	}
+	region := "test-region"
+
+	result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Cannot specify export policy rules for non-NFS volume")
+}
+
+func TestPrepareUpdateVolumeParams_SMBOnlyVolumeWithEmptyExportPolicyRules_Succeeds(t *testing.T) {
+	req := &gcpgenserver.VolumeUpdateV1beta{
+		ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+			Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{},
+		}),
+	}
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+		VolumeId:      "test-volume-id",
+	}
+	dbVolume := &models.Volume{
+		BaseModel:     models.BaseModel{UUID: "test-volume-id"},
+		DisplayName:   "testvolume",
+		ProtocolTypes: []string{"SMB"},
+	}
+	region := "test-region"
+
+	result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestPrepareUpdateVolumeParams_DualProtocolVolumeWithExportPolicyRules_Succeeds(t *testing.T) {
+	req := &gcpgenserver.VolumeUpdateV1beta{
+		ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(gcpgenserver.ExportPolicyV1beta{
+			Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+				{
+					AllowedClients: "0.0.0.0/0",
+					AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+					Nfsv3:          gcpgenserver.NewOptNilBool(true),
+				},
+			},
+		}),
+	}
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+		VolumeId:      "test-volume-id",
+	}
+	dbVolume := &models.Volume{
+		BaseModel:     models.BaseModel{UUID: "test-volume-id"},
+		DisplayName:   "testvolume",
+		ProtocolTypes: []string{"NFSV3", "SMB"},
+	}
+	region := "test-region"
+
+	result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotNil(t, result.FileProperties)
+	assert.NotNil(t, result.FileProperties.ExportPolicy)
+	assert.Len(t, result.FileProperties.ExportPolicy.ExportRules, 1)
+}

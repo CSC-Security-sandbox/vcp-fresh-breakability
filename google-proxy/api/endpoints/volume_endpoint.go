@@ -427,6 +427,12 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		param.Protocols = append(param.Protocols, protocolName)
 	}
 
+	if len(param.Protocols) == 1 && utils.IsSMBProtocols(param.Protocols) {
+		if req.Volume.ExportPolicy.IsSet() && len(req.Volume.ExportPolicy.Value.GetRules()) > 0 {
+			return nil, errors.NewUserInputValidationErr("Cannot specify export policy rules for non-NFS volume")
+		}
+	}
+
 	if req.Volume.TieringPolicy.IsSet() {
 		if !autoTieringEnabled {
 			return nil, errors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled.")
@@ -1061,6 +1067,13 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 
 	if req.ExportPolicy.IsSet() {
 		exportPolicy := req.ExportPolicy.Value
+
+		if dbVolume != nil && len(dbVolume.ProtocolTypes) == 1 && utils.IsSMBProtocols(dbVolume.ProtocolTypes) {
+			if len(exportPolicy.GetRules()) > 0 {
+				return nil, errors.NewUserInputValidationErr("Cannot specify export policy rules for non-NFS volume")
+			}
+		}
+
 		if param.FileProperties == nil {
 			param.FileProperties = &models.FileProperties{}
 		}
