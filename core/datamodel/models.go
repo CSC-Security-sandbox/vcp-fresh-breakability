@@ -406,6 +406,8 @@ type VolumeAttributes struct {
 	Mounted            bool             `json:"mounted"`
 	SnapReserve        int64            `json:"snap_reserve"`
 	SnapshotDirectory  bool             `json:"snapshot_directory"`
+	KerberosEnabled    bool             `json:"kerberos_enabled"`
+	LdapEnabled        bool             `json:"ldap_enabled"`
 	Labels             *JSONB           `json:"labels"`
 	RestoredBackupID   string           `json:"restored_backup_id"`
 	RestoredBackupPath string           `json:"restored_backup_path"`

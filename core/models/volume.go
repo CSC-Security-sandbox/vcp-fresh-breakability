@@ -31,6 +31,10 @@ type Volume struct {
 	EncryptionType              string
 	SnapReserve                 int64
 	SnapshotDirectory           bool
+	KerberosEnabled             bool
+	LdapEnabled                 bool
+	ActiveDirectoryConfigId     string
+	ActiveDirectoryResourceId   string
 	AutoTieringPolicy           *AutoTieringPolicy
 	Labels                      map[string]string
 	FileProperties              *FileProperties

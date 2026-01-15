@@ -122,6 +122,7 @@ type CreateVolumeParams struct {
 	CacheParameters             *models.CacheParameters
 	LargeVolumeConstituentCount int32
 	SnapshotDirectory           bool
+	KerberosEnabled             bool
 	HybridReplicationParameters *models.HybridReplicationParameters
 }
 
@@ -375,29 +376,29 @@ type CreateVolumeReplicationParams struct {
 
 // BackupVaultParams describes parameters supplied to BackupVault
 type BackupVaultParams struct {
-	ID                         int64
-	OwnerID                    string
-	BackupVaultID              string
-	Name                       string
-	Description                *string
-	LifeCycleState             string
-	LifeCycleStateDetails      string
-	CreatedAt                  time.Time
-	UpdatedAt                  time.Time
-	DeletedAt                  *time.Time
-	BackupRegion               *string
-	SourceRegion               *string
-	ExternalUUID               string
-	Region                     string
-	AccountVendorID            string
-	BackupRetentionPolicy      BackupRetentionPolicyParams
-	BucketDetails              []*datamodel.BucketDetails
-	SourceBackupVault          *string
-	DestinationBackupVault     *string
-	BackupVaultType            *string
-	AccountName                string
-	CrossRegionBackupVaultName *string
-	BackupVaultIDs             []string
+	ID                           int64
+	OwnerID                      string
+	BackupVaultID                string
+	Name                         string
+	Description                  *string
+	LifeCycleState               string
+	LifeCycleStateDetails        string
+	CreatedAt                    time.Time
+	UpdatedAt                    time.Time
+	DeletedAt                    *time.Time
+	BackupRegion                 *string
+	SourceRegion                 *string
+	ExternalUUID                 string
+	Region                       string
+	AccountVendorID              string
+	BackupRetentionPolicy        BackupRetentionPolicyParams
+	BucketDetails                []*datamodel.BucketDetails
+	SourceBackupVault            *string
+	DestinationBackupVault       *string
+	BackupVaultType              *string
+	AccountName                  string
+	CrossRegionBackupVaultName   *string
+	BackupVaultIDs               []string
 	CmekEncryptionState          *string
 	CmekBackupsPrimaryKeyVersion *string
 }

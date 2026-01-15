@@ -268,6 +268,10 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		clonesSharedBytes = uint64(dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes)
 	}
 	dbPool := database.ConvertPoolViewToPool(pool)
+	ldapEnabled := false
+	if dbPool != nil && dbPool.PoolAttributes != nil {
+		ldapEnabled = dbPool.PoolAttributes.LdapEnabled
+	}
 	volumeObj := &datamodel.Volume{
 		Name:        params.Name,
 		Account:     account,
@@ -284,6 +288,8 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			IsDataProtection:  params.IsDataProtection,
 			SnapReserve:       params.SnapReserve,
 			SnapshotDirectory: params.SnapshotDirectory,
+			KerberosEnabled:   params.KerberosEnabled,
+			LdapEnabled:       ldapEnabled,
 			Labels:            params.Labels,
 			AccountName:       getAccountName(account),
 			DeploymentName:    getPoolDeploymentName(dbPool),
@@ -1416,6 +1422,27 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 		CloneSharedBytes:      volume.ClonesSharedBytes,
 	}
 	attributes := volume.VolumeAttributes
+	if attributes != nil {
+		res.KerberosEnabled = attributes.KerberosEnabled
+		res.LdapEnabled = attributes.LdapEnabled
+	}
+	if volume.Pool != nil {
+		if volume.Pool.PoolAttributes != nil {
+			res.LdapEnabled = volume.Pool.PoolAttributes.LdapEnabled
+		}
+		if volume.Pool.ActiveDirectory != nil {
+			res.ActiveDirectoryConfigId = volume.Pool.ActiveDirectory.UUID
+			if volume.Pool.PoolAttributes != nil {
+				if region, _, err := utils.ParseRegionAndZone(volume.Pool.PoolAttributes.PrimaryZone); err == nil {
+					res.ActiveDirectoryResourceId = fmt.Sprintf("projects/%s/locations/%s/activeDirectories/%s", volume.Account.Name, region, volume.Pool.ActiveDirectory.AdName)
+				} else {
+					res.ActiveDirectoryResourceId = volume.Pool.ActiveDirectory.AdName
+				}
+			} else {
+				res.ActiveDirectoryResourceId = volume.Pool.ActiveDirectory.AdName
+			}
+		}
+	}
 	res.VendorSubnetID = attributes.VendorSubnetID
 	res.CreationToken = attributes.CreationToken
 	res.ProtocolTypes = attributes.Protocols

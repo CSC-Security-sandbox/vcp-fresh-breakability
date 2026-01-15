@@ -6032,19 +6032,27 @@ func TestV1betaCreateVolume(t *testing.T) {
 func TestConvertModelToVCPVolume(t *testing.T) {
 	t.Run("AllFieldsSet", func(t *testing.T) {
 		vol := &models.Volume{
-			CreationToken:   "token",
-			PoolID:          "pool",
-			QuotaInBytes:    1234,
-			BlockProperties: &models.BlockProperties{OSType: "LINUX"},
-			ProtocolTypes:   []string{"ISCSI"},
-			LifeCycleState:  "READY",
-			IPAddresses:     []string{"10.72.177.17"},
+			CreationToken:             "token",
+			PoolID:                    "pool",
+			QuotaInBytes:              1234,
+			BlockProperties:           &models.BlockProperties{OSType: "LINUX"},
+			ProtocolTypes:             []string{"ISCSI"},
+			LifeCycleState:            "READY",
+			IPAddresses:               []string{"10.72.177.17"},
+			KerberosEnabled:           true,
+			LdapEnabled:               true,
+			ActiveDirectoryConfigId:   "ad-config",
+			ActiveDirectoryResourceId: "ad-resource",
 		}
 		out := convertModelToVCPVolume(vol)
 		assert.NotNil(t, out)
 		assert.Equal(t, "token", out.CreationToken.Value)
 		assert.Equal(t, "LINUX", string(out.BlockProperties.Value.OsType.Value))
 		assert.Equal(t, "ISCSI", string(out.Protocols[0]))
+		assert.True(t, out.KerberosEnabled.Value)
+		assert.True(t, out.LdapEnabled.Value)
+		assert.Equal(t, "ad-config", out.ActiveDirectoryConfigId.Value)
+		assert.Equal(t, "ad-resource", out.ActiveDirectoryResourceId.Value)
 	})
 	t.Run("AllFieldsWithKms", func(t *testing.T) {
 		vol := &models.Volume{

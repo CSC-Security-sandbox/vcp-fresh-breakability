@@ -464,7 +464,12 @@ func (d *DataStoreRepository) ListVolumes(ctx context.Context, conditions [][]in
 
 func _listVolumesWithDetails(db *gorm.DB) ([]*datamodel.Volume, error) {
 	var volumes []*datamodel.Volume
-	err := db.Preload("Account").Preload("Pool").Preload("Svm").Preload("Pool.KmsConfig").Find(&volumes).Error
+	err := db.Preload("Account").
+		Preload("Pool").
+		Preload("Pool.ActiveDirectory").
+		Preload("Svm").
+		Preload("Pool.KmsConfig").
+		Find(&volumes).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
@@ -478,7 +483,12 @@ func (d *DataStoreRepository) ListVolumesWithPagination(ctx context.Context, con
 
 func _listVolumesWithDetailsPagination(db *gorm.DB, pagination *dbutils.Pagination) ([]*datamodel.Volume, error) {
 	var volumes []*datamodel.Volume
-	err := db.Preload("Account").Preload("Pool").Preload("Svm").Scopes(dbutils.Paginate(pagination)).Find(&volumes).Error
+	err := db.Preload("Account").
+		Preload("Pool").
+		Preload("Pool.ActiveDirectory").
+		Preload("Svm").
+		Scopes(dbutils.Paginate(pagination)).
+		Find(&volumes).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
@@ -487,7 +497,12 @@ func _listVolumesWithDetailsPagination(db *gorm.DB, pagination *dbutils.Paginati
 
 func getVolumeWithDetails(db *gorm.DB, query *datamodel.Volume) (*datamodel.Volume, error) {
 	volume := &datamodel.Volume{}
-	err := db.Preload("Account").Preload("Pool").Preload("Svm").Preload("Pool.KmsConfig").First(&volume, query).Error
+	err := db.Preload("Account").
+		Preload("Pool").
+		Preload("Pool.ActiveDirectory").
+		Preload("Svm").
+		Preload("Pool.KmsConfig").
+		First(&volume, query).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrVolumeNotFound,
 			customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "volume", nil))
@@ -497,7 +512,14 @@ func getVolumeWithDetails(db *gorm.DB, query *datamodel.Volume) (*datamodel.Volu
 
 func (d *DataStoreRepository) GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error) {
 	var volumes []*datamodel.Volume
-	err := d.db.GORM().WithContext(ctx).Preload("Account").Preload("Pool").Preload("Svm").Preload("Pool.KmsConfig").Where("pool_id = ?", poolID).Find(&volumes).Error
+	err := d.db.GORM().WithContext(ctx).
+		Preload("Account").
+		Preload("Pool").
+		Preload("Pool.ActiveDirectory").
+		Preload("Svm").
+		Preload("Pool.KmsConfig").
+		Where("pool_id = ?", poolID).
+		Find(&volumes).Error
 	if err != nil {
 		return nil, err
 	}
@@ -533,7 +555,12 @@ func (d *DataStoreRepository) GetMultipleVolumes(ctx context.Context, conditions
 
 func _getMultipleVolumes(db *gorm.DB) ([]*datamodel.Volume, error) {
 	var volumes []*datamodel.Volume
-	err := db.Preload("Account").Preload("Pool").Preload("Svm").Preload("Pool.KmsConfig").Find(&volumes).Error
+	err := db.Preload("Account").
+		Preload("Pool").
+		Preload("Pool.ActiveDirectory").
+		Preload("Svm").
+		Preload("Pool.KmsConfig").
+		Find(&volumes).Error
 	if err != nil {
 		return nil, err
 	}

@@ -343,18 +343,21 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		}
 	}
 
+	kerberosEnabled := getKerberosEnabledFlagFromRequest(&req.Volume.KerberosEnabled.Value)
+
 	param := &common.CreateVolumeParams{
-		AccountName:    params.ProjectNumber,
-		Region:         region,
-		Zone:           zone,
-		Name:           req.Volume.ResourceId,
-		VendorID:       vendorId,
-		CreationToken:  req.Volume.CreationToken.Value,
-		PoolID:         req.Volume.PoolId.Value,
-		QuotaInBytes:   uint64(req.Volume.QuotaInBytes.Value),
-		BackupID:       backupID,
-		BackupPath:     backupPath,
-		BackupSchedule: backupSchedule,
+		AccountName:     params.ProjectNumber,
+		Region:          region,
+		Zone:            zone,
+		Name:            req.Volume.ResourceId,
+		VendorID:        vendorId,
+		CreationToken:   req.Volume.CreationToken.Value,
+		PoolID:          req.Volume.PoolId.Value,
+		QuotaInBytes:    uint64(req.Volume.QuotaInBytes.Value),
+		BackupID:        backupID,
+		BackupPath:      backupPath,
+		BackupSchedule:  backupSchedule,
+		KerberosEnabled: kerberosEnabled,
 	}
 
 	if req.Volume.CacheParameters.IsSet() {
@@ -1429,6 +1432,14 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		Zone:               gcpgenserver.NewOptString(volume.Zone),
 		UsedBytes:          gcpgenserver.NewOptNilFloat64(float64(volume.UsedBytes)), // default value for now
 		LargeCapacity:      gcpgenserver.NewOptNilBool(volume.LargeCapacity),
+	}
+	res.KerberosEnabled = gcpgenserver.NewOptNilBool(volume.KerberosEnabled)
+	res.LdapEnabled = gcpgenserver.NewOptNilBool(volume.LdapEnabled)
+	if volume.ActiveDirectoryConfigId != "" {
+		res.ActiveDirectoryConfigId = gcpgenserver.NewOptNilString(volume.ActiveDirectoryConfigId)
+	}
+	if volume.ActiveDirectoryResourceId != "" {
+		res.ActiveDirectoryResourceId = gcpgenserver.NewOptNilString(volume.ActiveDirectoryResourceId)
 	}
 	if volume.LargeVolumeConstituentCount != nil {
 		res.LargeVolumeConstituentCount = gcpgenserver.NewOptNilInt32(*volume.LargeVolumeConstituentCount)
