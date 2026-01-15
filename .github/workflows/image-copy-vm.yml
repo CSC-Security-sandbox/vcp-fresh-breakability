@@ -1,0 +1,459 @@
+name: VSA Copy Image
+
+# This workflow supports two flows:
+# 1. Full flow (autopush): seclab → Pull VM → Push VM → gcnv-autopush-images (with validation)
+# 2. Copy flow (staging/prod): Push VM copies existing image from gcnv-autopush-images (autopush project) → staging/prod (no validation)
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_name:
+        description: 'Image name (ex. x-9-18-1rc1)'
+        required: true
+        type: string
+      cot_bucket_path:
+        description: 'COT path (ex. GCNV_released_bundle/GCNV/9.18.1RC1) - Required for autopush'
+        required: false
+        type: string
+      upgrade_bucket_path:
+        description: 'Upgrade path (ex. GCNV_released_bundle/GCNV/9.18.1RC1) - Optional for autopush'
+        required: false
+        type: string
+      rbac_bucket_path:
+        description: 'RBAC path (ex. GCNV_released_bundle/9.18.1RC1/RBAC) - Optional for autopush'
+        required: false
+        type: string
+      push_vm_project:
+        description: 'Target project: autopush (full flow) or staging/prod (copy from autopush)'
+        required: true
+        type: choice
+        options:
+          - gcnv-autopush-images
+          - gcnv-staging-images
+          - gcnv-prod-images
+        default: 'gcnv-autopush-images'
+
+env:
+  PULL_VM_PROJECT: 'gcnv-vsa-prod'
+  PUSH_VM_PROJECT: ${{ inputs.push_vm_project }}
+  GCP_REGION: 'us-central1'
+  GCP_ZONE: 'us-central1-a'
+  PULL_VM_NAME: 'vsa-pull-image-instance'
+  PUSH_VM_NAME: 'vsa-push-image-instance'
+
+jobs:
+  pull-image:
+    name: Pull Image via Pull VM (seclab → netapp org)
+    runs-on: ubuntu-latest
+    if: inputs.push_vm_project == 'gcnv-autopush-images'
+    
+    permissions:
+      contents: read
+      id-token: write
+    
+    outputs:
+      pull_status: ${{ steps.pull.outputs.status }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Authenticate to Google Cloud (Pull VM)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Configure SSH for non-interactive mode
+        run: |
+          # Configure gcloud to skip SSH key prompts
+          gcloud config set compute/region ${GCP_REGION}
+          gcloud config set core/disable_prompts true
+      
+      - name: Execute image pull on Pull VM
+        id: pull
+        run: |
+          echo "🔽 Pulling image from seclab to netapp org: ${{ inputs.image_name }}"
+          echo "Project: ${PULL_VM_PROJECT}"
+          echo "VM: ${PULL_VM_NAME}"
+          echo ""
+          
+          # Execute the pull command on the Pull VM (has external IP)
+          COT_ARG=""
+          UPGRADE_ARG=""
+          RBAC_ARG=""
+          if [ -n "${{ inputs.cot_bucket_path }}" ]; then
+            COT_ARG="--cot-bucket-path='${{ inputs.cot_bucket_path }}'"
+          fi
+          if [ -n "${{ inputs.upgrade_bucket_path }}" ]; then
+            UPGRADE_ARG="--upgrade-bucket-path='${{ inputs.upgrade_bucket_path }}'"
+          fi
+          if [ -n "${{ inputs.rbac_bucket_path }}" ]; then
+            RBAC_ARG="--rbac-bucket-path='${{ inputs.rbac_bucket_path }}'"
+          fi
+          
+          gcloud beta compute ssh ${PULL_VM_NAME} \
+            --zone=${GCP_ZONE} \
+            --project=${PULL_VM_PROJECT} \
+            --quiet \
+            --command="sudo /opt/vsa-pull-image/run-pull.sh '${{ inputs.image_name }}' ${COT_ARG} ${UPGRADE_ARG} ${RBAC_ARG}" \
+            2>&1 | tee pull-execution.log
+          
+          EXIT_CODE=${PIPESTATUS[0]}
+          
+          # Check if execution was successful
+          if [ ${EXIT_CODE} -eq 0 ]; then
+            echo "✅ Image pull completed successfully"
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Image pull failed with exit code ${EXIT_CODE}"
+            echo "status=failure" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+      
+      - name: Show pull execution summary
+        if: always()
+        run: |
+          echo "## Pull Operation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Operation**: Pull image from sssbu-seclab to gcnv-vsa-prod" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Name**: ${{ inputs.image_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **VM Instance**: ${PULL_VM_NAME}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Zone**: ${GCP_ZONE}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Project**: ${PULL_VM_PROJECT}" >> $GITHUB_STEP_SUMMARY
+          echo "- **COT Bucket Path**: ${{ inputs.cot_bucket_path || 'not set' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Upgrade Bucket Path**: ${{ inputs.upgrade_bucket_path || 'not set' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **RBAC Bucket Path**: ${{ inputs.rbac_bucket_path || 'not set' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ steps.pull.outputs.status || 'unknown' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Steps performed**:" >> $GITHUB_STEP_SUMMARY
+          echo "1. ✅ Pull image from seclab to netapp org" >> $GITHUB_STEP_SUMMARY
+          echo "2. ✅ Export image to GCS (tar.gz)" >> $GITHUB_STEP_SUMMARY
+          echo "3. 🔐 Verify image integrity using COT signature" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Pull Execution Log" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat pull-execution.log | tail -n 100 >> $GITHUB_STEP_SUMMARY || echo "No log available" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+      
+      - name: Upload pull execution logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pull-logs-${{ inputs.image_name }}-${{ github.run_number }}
+          path: pull-execution.log
+          retention-days: 30
+
+  push-image:
+    name: Push Image via Push VM (netapp org → autopush)
+    runs-on: ubuntu-latest
+    needs: pull-image
+    if: inputs.push_vm_project == 'gcnv-autopush-images' && needs.pull-image.outputs.pull_status == 'success'
+    
+    permissions:
+      contents: read
+      id-token: write
+    
+    outputs:
+      push_status: ${{ steps.push.outputs.status }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Authenticate to Google Cloud (Push VM)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER_PUSH }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_PUSH }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Configure SSH for non-interactive mode
+        run: |
+          # Configure gcloud to skip SSH key prompts
+          gcloud config set compute/region ${GCP_REGION}
+          gcloud config set core/disable_prompts true
+      
+      - name: Execute image push on Push VM
+        id: push
+        run: |
+          echo "🔼 Pushing image from netapp org to latchkey org: ${{ inputs.image_name }}"
+          echo "Project: ${PUSH_VM_PROJECT}"
+          echo "VM: ${PUSH_VM_NAME}"
+          echo ""
+          
+          # Build push arguments based on paths being set
+          PUSH_ARGS=""
+          if [ -n "${{ inputs.cot_bucket_path }}" ]; then
+            PUSH_ARGS="$PUSH_ARGS --copy-image"
+          fi
+          if [ -n "${{ inputs.upgrade_bucket_path }}" ]; then
+            PUSH_ARGS="$PUSH_ARGS --copy-upgrade"
+          fi
+          if [ -n "${{ inputs.rbac_bucket_path }}" ]; then
+            PUSH_ARGS="$PUSH_ARGS --copy-rbac"
+          fi
+          
+          echo "Push arguments: $PUSH_ARGS"
+          
+          # Execute the push command on the Push VM using IAP tunneling (no external IP)
+          # Use beta for Workload Identity Federation SSH
+          gcloud beta compute ssh ${PUSH_VM_NAME} \
+            --zone=${GCP_ZONE} \
+            --project=${PUSH_VM_PROJECT} \
+            --tunnel-through-iap \
+            --quiet \
+            --command="sudo /opt/vsa-push-image/run-push.sh '${{ inputs.image_name }}' ${PUSH_ARGS}" \
+            2>&1 | tee push-execution.log
+          
+          EXIT_CODE=${PIPESTATUS[0]}
+          
+          # Check if execution was successful
+          if [ ${EXIT_CODE} -eq 0 ]; then
+            echo "✅ Image push completed successfully"
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Image push failed with exit code ${EXIT_CODE}"
+            echo "status=failure" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      
+      
+      - name: Show push execution summary
+        if: always()
+        run: |
+          echo "## Push Operation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Operation**: Push image from gcnv-vsa-prod to gcnv-autopush-images" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Name**: ${{ inputs.image_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **VM Instance**: ${PUSH_VM_NAME}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Zone**: ${GCP_ZONE}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Project**: ${PUSH_VM_PROJECT}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Copy Image**: ${{ inputs.cot_bucket_path && 'yes' || 'no' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Copy Upgrade**: ${{ inputs.upgrade_bucket_path && 'yes' || 'no' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Copy RBAC**: ${{ inputs.rbac_bucket_path && 'yes' || 'no' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ steps.push.outputs.status || 'unknown' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Push Execution Log" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat push-execution.log | tail -n 100 >> $GITHUB_STEP_SUMMARY || echo "No log available" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+      
+      - name: Upload push execution logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: push-logs-${{ inputs.image_name }}-${{ github.run_number }}
+          path: push-execution.log
+          retention-days: 30
+
+  copy-from-autopush:
+    name: Copy Image via Push VM (autopush → ${{ inputs.push_vm_project }})
+    runs-on: ubuntu-latest
+    if: inputs.push_vm_project != 'gcnv-autopush-images'
+    
+    permissions:
+      contents: read
+      id-token: write
+    
+    outputs:
+      copy_status: ${{ steps.copy.outputs.status }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Authenticate to Google Cloud (Push VM in autopush)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER_PUSH }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_PUSH }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Configure SSH for non-interactive mode
+        run: |
+          gcloud config set compute/region ${GCP_REGION}
+          gcloud config set core/disable_prompts true
+      
+      - name: Execute image copy on Push VM
+        id: copy
+        run: |
+          echo "📋 Copying image from gcnv-autopush-images to ${{ inputs.push_vm_project }}: ${{ inputs.image_name }}"
+          echo "VM: ${PUSH_VM_NAME}"
+          echo "VM Project: gcnv-autopush-images"
+          echo "VM Zone: ${GCP_ZONE}"
+          echo "Destination Project: ${{ inputs.push_vm_project }}"
+          echo "Destination Bucket: (read from VM environment - set by Terraform from config.yaml)"
+          echo ""
+          
+          # Execute the copy command on the Push VM using IAP tunneling
+          # The Push VM is in gcnv-autopush-images project
+          # Destination bucket is read from environment variables on the VM (set by Terraform from config.yaml)
+          gcloud beta compute ssh ${PUSH_VM_NAME} \
+            --zone=${GCP_ZONE} \
+            --project=gcnv-autopush-images \
+            --tunnel-through-iap \
+            --quiet \
+            --command="sudo /opt/vsa-push-image/run-copy.sh '${{ inputs.image_name }}' '${{ inputs.push_vm_project }}'" \
+            2>&1 | tee copy-execution.log
+          
+          EXIT_CODE=${PIPESTATUS[0]}
+          
+          if [ ${EXIT_CODE} -eq 0 ]; then
+            # Check if it was already exists or new copy
+            if grep -q "already exists" copy-execution.log; then
+              echo "status=exists" >> $GITHUB_OUTPUT
+            else
+              echo "status=success" >> $GITHUB_OUTPUT
+            fi
+          else
+            # Check if source image doesn't exist
+            if grep -q "does not exist in bucket" copy-execution.log; then
+              echo "status=source_missing" >> $GITHUB_OUTPUT
+            else
+              echo "status=failure" >> $GITHUB_OUTPUT
+            fi
+            exit 1
+          fi
+      
+      - name: Show copy execution summary
+        if: always()
+        run: |
+          IMAGE_TYPE="VSA"
+          if [[ "${{ inputs.image_name }}" == cvo-mediator-* ]]; then
+            IMAGE_TYPE="Mediator"
+          fi
+          
+          echo "## Copy from Autopush Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Operation**: Copy image from gcnv-autopush-images to ${{ inputs.push_vm_project }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Name**: ${{ inputs.image_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Type**: $IMAGE_TYPE" >> $GITHUB_STEP_SUMMARY
+          echo "- **Execution VM**: ${PUSH_VM_NAME} (in gcnv-autopush-images project)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Source Bucket**: gcnv-autopush-images-bucket" >> $GITHUB_STEP_SUMMARY
+          echo "- **Destination Project**: ${{ inputs.push_vm_project }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Destination Bucket**: (from config.yaml via Terraform)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ steps.copy.outputs.status || 'unknown' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$IMAGE_TYPE" == "VSA" ]; then
+            echo "**Copied**: Image + verification files + upgrade files + RBAC files" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Copied**: Image + verification files only (mediator)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.copy.outputs.status }}" == "source_missing" ]; then
+            echo "⚠️ **Note**: Image does not exist in gcnv-autopush-images-bucket." >> $GITHUB_STEP_SUMMARY
+            echo "Please run the workflow with push_vm_project='gcnv-autopush-images' first." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f copy-execution.log ]; then
+            echo "### Copy Execution Log" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat copy-execution.log | tail -n 100 >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Upload copy execution logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: copy-logs-${{ inputs.image_name }}-${{ github.run_number }}
+          path: copy-execution.log
+          retention-days: 30
+
+  workflow-summary:
+    name: Workflow Summary
+    runs-on: ubuntu-latest
+    needs: [pull-image, push-image, copy-from-autopush]
+    if: always()
+    
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Generate final summary
+        run: |
+          echo "## 🎯 VSA Image Copy Workflow Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Name**: ${{ inputs.image_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Push Project**: ${{ inputs.push_vm_project }}" >> $GITHUB_STEP_SUMMARY
+          
+          # Show different config based on flow type
+          if [ "${{ inputs.push_vm_project }}" == "gcnv-autopush-images" ]; then
+            echo "- **Flow Type**: Full (seclab → netapp → autopush)" >> $GITHUB_STEP_SUMMARY
+            echo "- **COT Bucket Path**: ${{ inputs.cot_bucket_path || 'not set' }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Upgrade Bucket Path**: ${{ inputs.upgrade_bucket_path || 'not set' }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **RBAC Bucket Path**: ${{ inputs.rbac_bucket_path || 'not set' }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Flow Type**: Direct copy from autopush (no validation)" >> $GITHUB_STEP_SUMMARY
+            echo "- **Source Project**: gcnv-autopush-images" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          PULL_STATUS="${{ needs.pull-image.outputs.pull_status || 'skipped' }}"
+          PUSH_STATUS="${{ needs.push-image.outputs.push_status || 'skipped' }}"
+          COPY_STATUS="${{ needs.copy-from-autopush.outputs.copy_status || 'skipped' }}"
+          
+          if [ "${{ inputs.push_vm_project }}" == "gcnv-autopush-images" ]; then
+            # Full flow results
+            if [ "$PULL_STATUS" == "success" ]; then
+              echo "✅ **Pull Operation**: Success (seclab → netapp org) with integrity verification" >> $GITHUB_STEP_SUMMARY
+            elif [ "$PULL_STATUS" == "failure" ]; then
+              echo "❌ **Pull Operation**: Failed" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "⏭️ **Pull Operation**: Skipped" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            if [ "$PUSH_STATUS" == "success" ]; then
+              echo "✅ **Push Operation**: Success (netapp org → autopush)" >> $GITHUB_STEP_SUMMARY
+            elif [ "$PUSH_STATUS" == "failure" ]; then
+              echo "❌ **Push Operation**: Failed" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "⏭️ **Push Operation**: Skipped" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Architecture" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "sssbu-seclab → gcnv-vsa-prod → gcnv-autopush-images" >> $GITHUB_STEP_SUMMARY
+            echo "   (Pull VM)          (Push VM)" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            # Direct copy results
+            if [ "$COPY_STATUS" == "success" ]; then
+              echo "✅ **Copy Operation**: Success (autopush → ${{ inputs.push_vm_project }})" >> $GITHUB_STEP_SUMMARY
+            elif [ "$COPY_STATUS" == "exists" ]; then
+              echo "⚠️ **Copy Operation**: Image already exists in ${{ inputs.push_vm_project }}" >> $GITHUB_STEP_SUMMARY
+            elif [ "$COPY_STATUS" == "source_missing" ]; then
+              echo "❌ **Copy Operation**: Failed - Image not found in gcnv-autopush-images" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Action Required**: Run this workflow with push_vm_project='gcnv-autopush-images' first" >> $GITHUB_STEP_SUMMARY
+            elif [ "$COPY_STATUS" == "failure" ]; then
+              echo "❌ **Copy Operation**: Failed" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "⏭️ **Copy Operation**: Skipped" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Architecture" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "gcnv-autopush-images → ${{ inputs.push_vm_project }}" >> $GITHUB_STEP_SUMMARY
+            echo "  (executed on Push VM in gcnv-autopush-images)" >> $GITHUB_STEP_SUMMARY
+            echo "  (direct image copy, no validation)" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
