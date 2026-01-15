@@ -111,7 +111,7 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 	logger.Infof("Processing metrics from %v to %v", aggregationStartTime, aggregationEndTime)
 
 	// Fetch label values from VCP database at the start of each aggregator cycle
-	resourceCollection, err := p.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+	resourceCollection, err := p.fetchResourceData(ctx, aggregationStartTime)
 	if err != nil {
 		logger.Errorf("Failed to fetch resource data: %v", err)
 	}
@@ -242,7 +242,7 @@ func (p *BillingProvider) populateBackfillLimit(logger log.Logger) {
 }
 
 // fetchResourceData fetches label values from pool and volume tables in VCP database
-func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time) (*ResourceCollection, error) {
+func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStartTime time.Time) (*ResourceCollection, error) {
 	logger := util.GetLogger(ctx)
 	logger.Info("Fetching resource data from VCP database")
 
@@ -257,27 +257,27 @@ func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStar
 	var poolsDataError, volumeDataError, backupDataError, volumeReplicationDataError error
 
 	// Fetch pool labels
-	if err := p.fetchPoolData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection); err != nil {
+	if err := p.fetchPoolData(ctx, aggregationStartTime, resourceCollection); err != nil {
 		logger.Errorf("Failed to fetch pool resource data: %v", err)
 		poolsDataError = err
 	}
 
 	// Fetch volume labels
-	if err := p.fetchVolumeData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection); err != nil {
+	if err := p.fetchVolumeData(ctx, aggregationStartTime, resourceCollection); err != nil {
 		logger.Errorf("Failed to fetch volume labels: %v", err)
 		volumeDataError = err
 	}
 
 	// Fetch backup data only if backup billing is enabled
 	if p.config.EnableBackupBillingMetrics {
-		if err := p.fetchBackupData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection); err != nil {
+		if err := p.fetchBackupData(ctx, aggregationStartTime, resourceCollection); err != nil {
 			logger.Errorf("Failed to fetch backup data: %v", err)
 			backupDataError = err
 		}
 	}
 
 	if p.config.EnableReplicationBillingMetrics {
-		if err := p.fetchVolumeReplicationData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection); err != nil {
+		if err := p.fetchVolumeReplicationData(ctx, aggregationStartTime, resourceCollection); err != nil {
 			logger.Errorf("Failed to fetch volume replication labels: %v", err)
 			volumeReplicationDataError = err
 		}
@@ -307,7 +307,7 @@ func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStar
 }
 
 // fetchPoolData fetches labels from pool table using pagination with optimized query
-func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, resourceCollection *ResourceCollection) error {
+func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTime time.Time, resourceCollection *ResourceCollection) error {
 	logger := util.GetLogger(ctx)
 
 	// Only fetch block-only pool IDs if:
@@ -333,6 +333,7 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTim
 	limit := p.config.PoolVolumeLabelPageSize
 	totalProcessed := 0
 	batchCount := 0
+	aggregationEndTime := time.Now()
 
 	for {
 		// Create pagination with offset and limit
@@ -342,6 +343,7 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTim
 		}
 
 		// Fetch paginated pools using optimized ListPoolsForResourceData
+		// Use time.Now() for deleted_at upper bound to include recently deleted pools
 		pools, err := p.vcpDataStore.ListPoolsForResourceData(ctx, aggregationStartTime, aggregationEndTime, pagination)
 		if err != nil {
 			return fmt.Errorf("failed to list pools (offset %d): %w", offset, err)
@@ -402,7 +404,7 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTim
 }
 
 // fetchVolumeData fetches labels from volume table using pagination with optimized query
-func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, resourceCollection *ResourceCollection) error {
+func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartTime time.Time, resourceCollection *ResourceCollection) error {
 	logger := util.GetLogger(ctx)
 
 	offset := 0
@@ -410,6 +412,7 @@ func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartT
 	limit := p.config.PoolVolumeLabelPageSize
 	totalProcessed := 0
 	batchCount := 0
+	aggregationEndTime := time.Now()
 
 	for {
 		// Create pagination with offset and limit
@@ -419,6 +422,7 @@ func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartT
 		}
 
 		// Fetch paginated volumes using optimized ListVolumesForResourceData
+		// Use time.Now() for deleted_at upper bound to include recently deleted volumes
 		volumes, err := p.vcpDataStore.ListVolumesForResourceData(ctx, aggregationStartTime, aggregationEndTime, pagination)
 		if err != nil {
 			return fmt.Errorf("failed to list volumes (offset %d): %w", offset, err)
@@ -482,20 +486,20 @@ func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartT
 }
 
 // fetchBackupData fetches backup data and constructs ResourceData and ResourceKey
-func (p *BillingProvider) fetchBackupData(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, resourceCollection *ResourceCollection) error {
+func (p *BillingProvider) fetchBackupData(ctx context.Context, aggregationStartTime time.Time, resourceCollection *ResourceCollection) error {
 	logger := util.GetLogger(ctx)
 
 	// First, fetch all backup metadata entries to get volumeUUID -> labels mapping
-	volumeLabelsMap, err := p.fetchBackupMetadata(ctx, aggregationStartTime, aggregationEndTime)
+	volumeLabelsMap, err := p.fetchBackupMetadata(ctx, aggregationStartTime)
 	if err != nil {
 		logger.Warnf("Failed to fetch backup metadata (table may not exist yet): %v", err)
 		// Continue with empty labels map if metadata fetch fails
 		volumeLabelsMap = make(map[string]Labels)
 	}
 
-	// Create conditions for backups including deleted backups where deleted_at is between aggregation times
+	// Create conditions for backups including deleted backups where deleted_at is between aggregation start time and current time
 	conditions := [][]interface{}{
-		{"(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", aggregationStartTime, aggregationEndTime},
+		{"(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", aggregationStartTime, time.Now()},
 	}
 
 	offset := int32(0)
@@ -567,7 +571,7 @@ func (p *BillingProvider) fetchBackupData(ctx context.Context, aggregationStartT
 }
 
 // fetchVolumeReplicationData fetches labels from volume replication table using pagination
-func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, resourceCollection *ResourceCollection) error {
+func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggregationStartTime time.Time, resourceCollection *ResourceCollection) error {
 	logger := util.GetLogger(ctx)
 
 	offset := 0
@@ -576,9 +580,9 @@ func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggreg
 	totalProcessed := 0
 	batchCount := 0
 
-	// Create conditions for backups including deleted backups where deleted_at is between aggregation times
+	// Create conditions for volume replications including deleted ones where deleted_at is between aggregation start time and current time
 	conditions := [][]interface{}{
-		{"(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", aggregationStartTime, aggregationEndTime},
+		{"(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", aggregationStartTime, time.Now()},
 	}
 
 	for {
@@ -666,13 +670,13 @@ func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggreg
 }
 
 // fetchBackupMetadata fetches all backup metadata entries and returns volumeUUID -> labels mapping
-func (p *BillingProvider) fetchBackupMetadata(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time) (map[string]Labels, error) {
+func (p *BillingProvider) fetchBackupMetadata(ctx context.Context, aggregationStartTime time.Time) (map[string]Labels, error) {
 	logger := util.GetLogger(ctx)
 
-	// Create conditions for backup metadata with labels including deleted metadata where deleted_at is between aggregation times
+	// Create conditions for backup metadata with labels including deleted metadata where deleted_at is between aggregation start time and current time
 	conditions := [][]interface{}{
 		{"labels IS NOT NULL"},
-		{"(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", aggregationStartTime, aggregationEndTime},
+		{"(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", aggregationStartTime, time.Now()},
 	}
 
 	offset := int32(0)

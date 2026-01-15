@@ -1653,7 +1653,7 @@ func TestFetchResourceData(t *testing.T) {
 		}, nil).Once()
 		mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
-		resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour), time.Now())
+		resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour))
 		assert.NoError(t, err)
 		assert.Len(t, resourceCollection.PoolData, 1)
 		assert.Len(t, resourceCollection.VolumeData, 1)
@@ -1711,7 +1711,7 @@ func TestFetchResourceData(t *testing.T) {
 			},
 		}, nil).Once()
 		mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
-		resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour), time.Now())
+		resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour))
 
 		assert.NoError(t, err)
 		assert.Len(t, resourceCollection.PoolData, 0)
@@ -1754,7 +1754,7 @@ func TestFetchResourceData(t *testing.T) {
 			},
 		}, nil).Once()
 		mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
-		resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour), time.Now())
+		resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour))
 		assert.NoError(t, err)
 		assert.Len(t, resourceCollection.PoolData, 1)
 		assert.Len(t, resourceCollection.VolumeData, 0)
@@ -1766,7 +1766,7 @@ func TestFetchResourceData(t *testing.T) {
 		mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("pool error")).Once()
 		mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("volume error")).Once()
 		mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("volume replication error")).Once()
-		resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour), time.Now())
+		resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour))
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to fetch any resource data")
 		assert.Nil(t, resourceCollection)
@@ -1805,7 +1805,7 @@ func TestFetchResourceData(t *testing.T) {
 
 		mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("volume replication error")).Once()
 
-		resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour), time.Now())
+		resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour))
 		assert.NoError(t, err)
 		assert.Len(t, resourceCollection.PoolData, 1)
 		assert.Len(t, resourceCollection.VolumeData, 1)
@@ -2625,7 +2625,6 @@ func TestFetchBackupMetadata_Debug(t *testing.T) {
 
 	ctx := context.Background()
 	aggregationStartTime := time.Now().Add(-time.Hour)
-	aggregationEndTime := time.Now()
 
 	backupMetadataList := []*datamodel.BackupMetadata{
 		{VolumeUUID: "volume-uuid-1", Labels: createJSONB(map[string]string{"env": "dev"})},
@@ -2638,7 +2637,7 @@ func TestFetchBackupMetadata_Debug(t *testing.T) {
 		return p.Offset > 0
 	})).Return([]*datamodel.BackupMetadata{}, nil)
 
-	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime, aggregationEndTime)
+	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime)
 
 	t.Logf("BackupMetadata: %+v", backupMetadataList[0])
 	t.Logf("BackupMetadata.Labels: %+v", backupMetadataList[0].Labels)
@@ -2671,7 +2670,6 @@ func TestFetchBackupData_Success(t *testing.T) {
 
 	ctx := context.Background()
 	aggregationStartTime := time.Now().Add(-time.Hour)
-	aggregationEndTime := time.Now()
 	resourceCollection := &ResourceCollection{
 		BackupData: make(map[ResourceKey]ResourceData),
 	}
@@ -2704,7 +2702,7 @@ func TestFetchBackupData_Success(t *testing.T) {
 		return p.Offset > 0
 	})).Return([]*datamodel.Backup{}, nil)
 
-	err := provider.fetchBackupData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection)
+	err := provider.fetchBackupData(ctx, aggregationStartTime, resourceCollection)
 	assert.NoError(t, err)
 	assert.Len(t, resourceCollection.BackupData, 1)
 
@@ -2741,13 +2739,12 @@ func TestFetchResourceData_BackupBillingDisabled(t *testing.T) {
 
 	ctx := context.Background()
 	aggregationStartTime := time.Now().Add(-time.Hour)
-	aggregationEndTime := time.Now()
 
 	// Mock the calls that fetchResourceData makes
 	mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil)
 	mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
 
-	resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+	resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime)
 	assert.NoError(t, err)
 	assert.NotNil(t, resourceCollection)
 	assert.Empty(t, resourceCollection.BackupData) // Should be empty since backup billing is disabled
@@ -2777,7 +2774,6 @@ func TestFetchBackupData_GetBackupMetadataError(t *testing.T) {
 
 	ctx := context.Background()
 	aggregationStartTime := time.Now().Add(-time.Hour)
-	aggregationEndTime := time.Now()
 	resourceCollection := &ResourceCollection{
 		BackupData: make(map[ResourceKey]ResourceData),
 	}
@@ -2787,7 +2783,7 @@ func TestFetchBackupData_GetBackupMetadataError(t *testing.T) {
 		return p.Offset == 0
 	})).Return([]*datamodel.Backup{}, nil) // Still mock GetBackupMetrics to avoid panic
 
-	err := provider.fetchBackupData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection)
+	err := provider.fetchBackupData(ctx, aggregationStartTime, resourceCollection)
 	assert.NoError(t, err) // Should not return error, just log warning and continue with empty labels
 	assert.Empty(t, resourceCollection.BackupData)
 
@@ -2814,7 +2810,6 @@ func TestFetchBackupData_GetBackupMetricsError(t *testing.T) {
 
 	ctx := context.Background()
 	aggregationStartTime := time.Now().Add(-time.Hour)
-	aggregationEndTime := time.Now()
 	resourceCollection := &ResourceCollection{
 		BackupData: make(map[ResourceKey]ResourceData),
 	}
@@ -2822,7 +2817,7 @@ func TestFetchBackupData_GetBackupMetricsError(t *testing.T) {
 	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.BackupMetadata{}, nil)
 	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("metrics error"))
 
-	err := provider.fetchBackupData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection)
+	err := provider.fetchBackupData(ctx, aggregationStartTime, resourceCollection)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to get backup metrics")
 
@@ -2849,7 +2844,6 @@ func TestFetchBackupData_NilAttributes(t *testing.T) {
 
 	ctx := context.Background()
 	aggregationStartTime := time.Now().Add(-time.Hour)
-	aggregationEndTime := time.Now()
 	resourceCollection := &ResourceCollection{
 		BackupData: make(map[ResourceKey]ResourceData),
 	}
@@ -2873,7 +2867,7 @@ func TestFetchBackupData_NilAttributes(t *testing.T) {
 		return p.Offset > 0
 	})).Return([]*datamodel.Backup{}, nil)
 
-	err := provider.fetchBackupData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection)
+	err := provider.fetchBackupData(ctx, aggregationStartTime, resourceCollection)
 	assert.NoError(t, err)
 	assert.Empty(t, resourceCollection.BackupData) // Should be empty due to nil attributes
 
@@ -2900,7 +2894,6 @@ func TestFetchBackupData_NilBackupVault(t *testing.T) {
 
 	ctx := context.Background()
 	aggregationStartTime := time.Now().Add(-time.Hour)
-	aggregationEndTime := time.Now()
 	resourceCollection := &ResourceCollection{
 		BackupData: make(map[ResourceKey]ResourceData),
 	}
@@ -2924,7 +2917,7 @@ func TestFetchBackupData_NilBackupVault(t *testing.T) {
 		return p.Offset > 0
 	})).Return([]*datamodel.Backup{}, nil)
 
-	err := provider.fetchBackupData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection)
+	err := provider.fetchBackupData(ctx, aggregationStartTime, resourceCollection)
 	assert.NoError(t, err)
 	assert.Empty(t, resourceCollection.BackupData) // Should be empty due to nil BackupVault
 
@@ -2950,7 +2943,6 @@ func TestFetchBackupMetadata_Success(t *testing.T) {
 
 	ctx := context.Background()
 	aggregationStartTime := time.Now().Add(-time.Hour)
-	aggregationEndTime := time.Now()
 
 	backupMetadataList := []*datamodel.BackupMetadata{
 		{VolumeUUID: "volume-uuid-1", Labels: createJSONB(map[string]string{"env": "dev"})},
@@ -2964,7 +2956,7 @@ func TestFetchBackupMetadata_Success(t *testing.T) {
 		return p.Offset > 0
 	})).Return([]*datamodel.BackupMetadata{}, nil)
 
-	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime, aggregationEndTime)
+	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime)
 	assert.NoError(t, err)
 	assert.Len(t, volumeLabelsMap, 2)
 	assert.Equal(t, Labels{"env": "dev"}, volumeLabelsMap["volume-uuid-1"])
@@ -2992,11 +2984,10 @@ func TestFetchBackupMetadata_TableDoesNotExist(t *testing.T) {
 
 	ctx := context.Background()
 	aggregationStartTime := time.Now().Add(-time.Hour)
-	aggregationEndTime := time.Now()
 
 	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("relation \"backup_metadata\" does not exist"))
 
-	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime, aggregationEndTime)
+	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime)
 	assert.NoError(t, err) // Should not return error, but an empty map
 	assert.Empty(t, volumeLabelsMap)
 
@@ -3022,11 +3013,10 @@ func TestFetchBackupMetadata_OtherError(t *testing.T) {
 
 	ctx := context.Background()
 	aggregationStartTime := time.Now().Add(-time.Hour)
-	aggregationEndTime := time.Now()
 
 	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("some other database error"))
 
-	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime, aggregationEndTime)
+	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to fetch backup metadata")
 	assert.Nil(t, volumeLabelsMap)
@@ -3053,11 +3043,10 @@ func TestFetchBackupMetadata_EmptyResult(t *testing.T) {
 
 	ctx := context.Background()
 	aggregationStartTime := time.Now().Add(-time.Hour)
-	aggregationEndTime := time.Now()
 
 	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.BackupMetadata{}, nil)
 
-	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime, aggregationEndTime)
+	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime)
 	assert.NoError(t, err)
 	assert.Empty(t, volumeLabelsMap)
 
@@ -3083,7 +3072,6 @@ func TestFetchBackupMetadata_MultipleBatches(t *testing.T) {
 
 	ctx := context.Background()
 	aggregationStartTime := time.Now().Add(-time.Hour)
-	aggregationEndTime := time.Now()
 
 	// Mock first batch
 	backupMetadataList1 := []*datamodel.BackupMetadata{
@@ -3106,7 +3094,7 @@ func TestFetchBackupMetadata_MultipleBatches(t *testing.T) {
 		return p.Offset == 2
 	})).Return([]*datamodel.BackupMetadata{}, nil)
 
-	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime, aggregationEndTime)
+	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime)
 	assert.NoError(t, err)
 	assert.Len(t, volumeLabelsMap, 2)
 	assert.Equal(t, Labels{"env": "dev"}, volumeLabelsMap["volume-uuid-1"])
@@ -3134,7 +3122,6 @@ func TestFetchBackupMetadata_NilLabels(t *testing.T) {
 
 	ctx := context.Background()
 	aggregationStartTime := time.Now().Add(-time.Hour)
-	aggregationEndTime := time.Now()
 
 	backupMetadataList := []*datamodel.BackupMetadata{
 		{VolumeUUID: "volume-uuid-1", Labels: nil}, // Nil labels
@@ -3148,7 +3135,7 @@ func TestFetchBackupMetadata_NilLabels(t *testing.T) {
 		return p.Offset > 0
 	})).Return([]*datamodel.BackupMetadata{}, nil)
 
-	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime, aggregationEndTime)
+	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime)
 	assert.NoError(t, err)
 	assert.Len(t, volumeLabelsMap, 1) // Only one entry with valid labels
 	assert.Equal(t, Labels{"team": "eng"}, volumeLabelsMap["volume-uuid-2"])
@@ -3175,7 +3162,6 @@ func TestFetchBackupMetadata_EmptyVolumeUUID(t *testing.T) {
 
 	ctx := context.Background()
 	aggregationStartTime := time.Now().Add(-time.Hour)
-	aggregationEndTime := time.Now()
 
 	backupMetadataList := []*datamodel.BackupMetadata{
 		{VolumeUUID: "", Labels: createJSONB(map[string]string{"env": "dev"})}, // Empty volume UUID
@@ -3189,7 +3175,7 @@ func TestFetchBackupMetadata_EmptyVolumeUUID(t *testing.T) {
 		return p.Offset > 0
 	})).Return([]*datamodel.BackupMetadata{}, nil)
 
-	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime, aggregationEndTime)
+	volumeLabelsMap, err := provider.fetchBackupMetadata(ctx, aggregationStartTime)
 	assert.NoError(t, err)
 	assert.Len(t, volumeLabelsMap, 1) // Only one entry with valid volume UUID
 	assert.Equal(t, Labels{"team": "eng"}, volumeLabelsMap["volume-uuid-2"])
@@ -3217,7 +3203,6 @@ func TestFetchBackupData_MultipleBatches(t *testing.T) {
 
 	ctx := context.Background()
 	aggregationStartTime := time.Now().Add(-time.Hour)
-	aggregationEndTime := time.Now()
 	resourceCollection := &ResourceCollection{
 		BackupData: make(map[ResourceKey]ResourceData),
 	}
@@ -3263,7 +3248,7 @@ func TestFetchBackupData_MultipleBatches(t *testing.T) {
 		return p.Offset == 2
 	})).Return([]*datamodel.Backup{}, nil).Once()
 
-	err := provider.fetchBackupData(ctx, aggregationStartTime, aggregationEndTime, resourceCollection)
+	err := provider.fetchBackupData(ctx, aggregationStartTime, resourceCollection)
 	assert.NoError(t, err)
 	assert.Len(t, resourceCollection.BackupData, 2)
 
@@ -3492,7 +3477,7 @@ func TestFetchResourceData_SkipsPoolWithEmptyAccountName(t *testing.T) {
 	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 	mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
-	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour), time.Now())
+	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour))
 	assert.NoError(t, err)
 	assert.Len(t, resourceCollection.PoolData, 1) // Only one pool should be added
 	mockVcpDB.AssertExpectations(t)
@@ -3534,7 +3519,7 @@ func TestFetchResourceData_SkipsVolumeWithEmptyAccountName(t *testing.T) {
 	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 	mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
-	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour), time.Now())
+	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour))
 	assert.NoError(t, err)
 	assert.Len(t, resourceCollection.VolumeData, 1) // Only one volume should be added
 	mockVcpDB.AssertExpectations(t)
@@ -3576,7 +3561,7 @@ func TestFetchResourceData_SkipsVolumeWithEmptyDeploymentName(t *testing.T) {
 	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 	mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
-	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour), time.Now())
+	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour))
 	assert.NoError(t, err)
 	assert.Len(t, resourceCollection.VolumeData, 1) // Only one volume should be added
 	mockVcpDB.AssertExpectations(t)
@@ -3605,7 +3590,7 @@ func TestFetchResourceData_PoolWithNilPoolAttributes(t *testing.T) {
 	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 	mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
-	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour), time.Now())
+	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour))
 	assert.NoError(t, err)
 	assert.Len(t, resourceCollection.PoolData, 0) // Pool should be skipped
 	mockVcpDB.AssertExpectations(t)
@@ -3633,7 +3618,7 @@ func TestFetchResourceData_VolumeWithNilVolumeAttributes(t *testing.T) {
 	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 	mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
-	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour), time.Now())
+	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour))
 	assert.NoError(t, err)
 	assert.Len(t, resourceCollection.VolumeData, 0) // Volume should be skipped
 	mockVcpDB.AssertExpectations(t)
@@ -3662,13 +3647,12 @@ func TestFetchResourceData_GetBlockOnlyPoolIDsQueryOptimization(t *testing.T) {
 
 		ctx := context.Background()
 		aggregationStartTime := time.Now().Add(-time.Hour)
-		aggregationEndTime := time.Now()
 
 		// Mock the calls that fetchResourceData makes
 		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil)
 		mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
 
-		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime)
 		assert.NoError(t, err)
 		assert.NotNil(t, resourceCollection)
 
@@ -3696,13 +3680,12 @@ func TestFetchResourceData_GetBlockOnlyPoolIDsQueryOptimization(t *testing.T) {
 
 		ctx := context.Background()
 		aggregationStartTime := time.Now().Add(-time.Hour)
-		aggregationEndTime := time.Now()
 
 		// Mock the calls that fetchResourceData makes
 		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil)
 		mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
 
-		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime)
 		assert.NoError(t, err)
 		assert.NotNil(t, resourceCollection)
 
@@ -3731,7 +3714,6 @@ func TestFetchResourceData_GetBlockOnlyPoolIDsQueryOptimization(t *testing.T) {
 
 		ctx := context.Background()
 		aggregationStartTime := time.Now().Add(-time.Hour)
-		aggregationEndTime := time.Now()
 
 		// Mock GetBlockOnlyPoolIDs - should be called
 		mockVCPDB.On("GetBlockOnlyPoolIDs", mock.Anything).Return(map[int64]bool{1: true, 2: true}, nil).Once()
@@ -3740,7 +3722,7 @@ func TestFetchResourceData_GetBlockOnlyPoolIDsQueryOptimization(t *testing.T) {
 		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil)
 		mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
 
-		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime)
 		assert.NoError(t, err)
 		assert.NotNil(t, resourceCollection)
 
@@ -3768,7 +3750,6 @@ func TestFetchResourceData_GetBlockOnlyPoolIDsQueryOptimization(t *testing.T) {
 
 		ctx := context.Background()
 		aggregationStartTime := time.Now().Add(-time.Hour)
-		aggregationEndTime := time.Now()
 
 		// Mock GetBlockOnlyPoolIDs to return an error - should be handled gracefully
 		mockVCPDB.On("GetBlockOnlyPoolIDs", mock.Anything).Return(nil, errors.New("database error")).Once()
@@ -3777,7 +3758,7 @@ func TestFetchResourceData_GetBlockOnlyPoolIDsQueryOptimization(t *testing.T) {
 		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil)
 		mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
 
-		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime)
 		// Should NOT return error - gracefully handles GetBlockOnlyPoolIDs error
 		assert.NoError(t, err)
 		assert.NotNil(t, resourceCollection)
@@ -3805,7 +3786,6 @@ func TestFetchResourceData_GetBlockOnlyPoolIDsQueryOptimization(t *testing.T) {
 
 		ctx := context.Background()
 		aggregationStartTime := time.Now().Add(-time.Hour)
-		aggregationEndTime := time.Now()
 
 		// Pool ID 1 is block-only, Pool ID 2 is not
 		mockVCPDB.On("GetBlockOnlyPoolIDs", mock.Anything).Return(map[int64]bool{1: true}, nil).Once()
@@ -3833,7 +3813,7 @@ func TestFetchResourceData_GetBlockOnlyPoolIDsQueryOptimization(t *testing.T) {
 		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
 		mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
 
-		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime)
 		assert.NoError(t, err)
 		assert.NotNil(t, resourceCollection)
 
@@ -3875,7 +3855,6 @@ func TestFetchPoolData_HasOnlyBlockVolumesMapping(t *testing.T) {
 
 		ctx := context.Background()
 		aggregationStartTime := time.Now().Add(-time.Hour)
-		aggregationEndTime := time.Now()
 
 		// Pool ID 1 is block-only, Pool ID 2 is NOT block-only (has file volumes)
 		mockVCPDB.On("GetBlockOnlyPoolIDs", mock.Anything).Return(map[int64]bool{1: true}, nil).Once()
@@ -3895,7 +3874,7 @@ func TestFetchPoolData_HasOnlyBlockVolumesMapping(t *testing.T) {
 		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
 		mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
 
-		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime)
 		assert.NoError(t, err)
 		assert.NotNil(t, resourceCollection)
 
@@ -3927,7 +3906,6 @@ func TestFetchPoolData_HasOnlyBlockVolumesMapping(t *testing.T) {
 
 		ctx := context.Background()
 		aggregationStartTime := time.Now().Add(-time.Hour)
-		aggregationEndTime := time.Now()
 
 		// Pool ID 1 is block-only
 		mockVCPDB.On("GetBlockOnlyPoolIDs", mock.Anything).Return(map[int64]bool{1: true}, nil).Once()
@@ -3947,7 +3925,7 @@ func TestFetchPoolData_HasOnlyBlockVolumesMapping(t *testing.T) {
 		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
 		mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
 
-		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime)
 		assert.NoError(t, err)
 		assert.NotNil(t, resourceCollection)
 
@@ -3979,7 +3957,6 @@ func TestFetchPoolData_HasOnlyBlockVolumesMapping(t *testing.T) {
 
 		ctx := context.Background()
 		aggregationStartTime := time.Now().Add(-time.Hour)
-		aggregationEndTime := time.Now()
 
 		// GetBlockOnlyPoolIDs should NOT be called when files billing is enabled
 
@@ -3998,7 +3975,7 @@ func TestFetchPoolData_HasOnlyBlockVolumesMapping(t *testing.T) {
 		mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
 		mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
 
-		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime, aggregationEndTime)
+		resourceCollection, err := provider.fetchResourceData(ctx, aggregationStartTime)
 		assert.NoError(t, err)
 		assert.NotNil(t, resourceCollection)
 
@@ -4096,7 +4073,6 @@ func TestFetchPoolData_AllowAutoTieringField(t *testing.T) {
 	provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
 
 	startTime := time.Now().Add(-1 * time.Hour)
-	endTime := time.Now()
 
 	// Pool with AllowAutoTiering enabled
 	mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{
@@ -4126,7 +4102,7 @@ func TestFetchPoolData_AllowAutoTieringField(t *testing.T) {
 	mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
 	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
 
-	resourceCollection, err := provider.fetchResourceData(ctx, startTime, endTime)
+	resourceCollection, err := provider.fetchResourceData(ctx, startTime)
 	assert.NoError(t, err)
 	assert.Len(t, resourceCollection.PoolData, 2)
 
