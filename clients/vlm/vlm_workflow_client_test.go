@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	temporalUtils "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -1386,7 +1387,10 @@ func TestGetVLMWorkerQueue(t *testing.T) {
 
 		queue := GetVLMWorkerQueue(logger, account)
 
-		expectedQueue := fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, ExtractedOntapVersion)
+		// Calculate expected queue the same way GetVLMWorkerQueue does
+		ontapVersion := utils.GetOntapVersionBasedOnAllowlisting(account)
+		extractedVersion := utils.ExtractOntapVersion(ontapVersion)
+		expectedQueue := fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, extractedVersion)
 		assert.Equal(t, expectedQueue, queue)
 		assert.Contains(t, queue, VSALifecycleManagerQueuePrefix)
 	})
@@ -1413,8 +1417,10 @@ func TestGetVLMWorkerQueue(t *testing.T) {
 
 		queue := GetVLMWorkerQueue(logger, account)
 
-		// Should still return a valid queue name with default ONTAP version
-		expectedQueue := fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, ExtractedOntapVersion)
+		// Calculate expected queue the same way GetVLMWorkerQueue does
+		ontapVersion := utils.GetOntapVersionBasedOnAllowlisting(account)
+		extractedVersion := utils.ExtractOntapVersion(ontapVersion)
+		expectedQueue := fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, extractedVersion)
 		assert.Equal(t, expectedQueue, queue)
 	})
 

@@ -88,6 +88,8 @@ data:
   ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION: "{{ index .Values "enableUniqueSerialNumberGeneration" }}"
   CLUSTER_SERIAL_NUMBER_PREFIX: "{{ index .Values "clusterSerialNumberPrefix" }}"
   REGION_NUMBER_MAP: {{ .Values.global.coreConfig.regionNumberMap | toJson | quote }}
+  ONTAP_VERSION_DETAILS: "{{ index .Values "ontapVersionDetails" }}"
+  ONTAP_VERSION_DETAILS_EXPERIMENTAL: "{{ index .Values "ontapVersionDetailsExperimental" }}"
   FINISH_PROJECT_CVP_CLIENT_RETRY_MAX_ATTEMPTS: "{{ index .Values "finishProjectCvpMaxRetries" }}"
   FINISH_PROJECT_CVP_CLIENT_RETRY_INTERVAL: "{{ index .Values "finishProjectCvpRetryInterval" }}"
   FINISH_PROJECT_CVP_CLIENT_BACKOFF_COEFFICIENT: "{{ index .Values "finishProjectBackoffCoefficient" }}"

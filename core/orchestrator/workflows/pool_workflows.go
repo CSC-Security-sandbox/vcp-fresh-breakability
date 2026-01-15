@@ -1273,12 +1273,12 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 		var ontapVersion string
 		if dbPool == nil || dbPool.BuildInfo == nil {
-			ontapVersion = vlm.ExtractedOntapVersion
+			ontapVersion = utils.ExtractOntapVersion(utils.GetOntapVersionBasedOnAllowlisting(dbPool.Account.Name))
 		} else {
 			ontapVersion = ExtractOntapVersion(dbPool.BuildInfo.OntapVersion)
 		}
 		if ontapVersion == "" {
-			ontapVersion = vlm.ExtractedOntapVersion
+			ontapVersion = utils.ExtractOntapVersion(utils.GetOntapVersionBasedOnAllowlisting(dbPool.Account.Name))
 		}
 
 		if !disableVsaCleanupOnVLMFailure {

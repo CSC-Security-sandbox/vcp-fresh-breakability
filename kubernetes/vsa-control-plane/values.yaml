@@ -97,6 +97,7 @@ global:
     localRegion: ""
     coreApiClientTransportSchema: "https"
     ontapVersionDetails: "9.18.1X29"
+    ontapVersionDetailsExperimental: ""
     skipOntapImageVersionMatch: "false"
     # Below variable is to be enabled when DB rollback is required
     enableDbRollback: "false"

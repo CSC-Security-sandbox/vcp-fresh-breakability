@@ -96,7 +96,7 @@ func _newVSAClientWorkflowManager() VlmWorkflowClient {
 // GetVLMWorkerQueue returns the VLM worker queue name based on the account and ONTAP version
 func GetVLMWorkerQueue(logger log.Logger, account string) string {
 	ontapVersion := utils.GetOntapVersionBasedOnAllowlisting(account)
-	return fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, ontapVersion)
+	return fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, utils.ExtractOntapVersion(ontapVersion))
 }
 func (vlmManager *VSAClientWorkflowManager) CreateVSAExpertModeUser(ctx workflow.Context, createVSAExpertModeUserRequest *OntapExpertModeUserConfig) (OntapExpertModeUserResponse, error) {
 	ontapExpertModeUserResponse := OntapExpertModeUserResponse{}

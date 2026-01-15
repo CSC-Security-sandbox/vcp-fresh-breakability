@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	workflowEngineMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"gorm.io/gorm"
 )
@@ -536,10 +537,10 @@ func TestDetermineTargetBuildImages(t *testing.T) {
 			ClusterID: "test-cluster-id",
 		}
 
-		// Mock image versions
+		// Mock image versions - use env.CurrentOntapVersionDetails to match what the function compares against
 		imageVersions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: testOntapVersion,
+				OntapVersion: env.CurrentOntapVersionDetails,
 				VSAImagePath: testVSAImagePath,
 				VSAName:      testVSAName,
 				MediatorName: testMediatorName,
@@ -556,7 +557,7 @@ func TestDetermineTargetBuildImages(t *testing.T) {
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, targetBuildImages)
-		assert.Equal(t, testOntapVersion, targetBuildImages.OntapVersion)
+		assert.Equal(t, env.CurrentOntapVersionDetails, targetBuildImages.OntapVersion)
 		assert.Equal(t, testVSAImagePath, targetBuildImages.VSAImagePath)
 		assert.Equal(t, testVSAName, targetBuildImages.VSAName)
 		assert.Equal(t, testMediatorName, targetBuildImages.MediatorName)
@@ -1062,18 +1063,6 @@ func TestGetClusterUpgradeStatus(t *testing.T) {
 
 func TestListAvailableVersions(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		// Set up environment variable
-		err := os.Setenv("ONTAP_VERSION_DETAILS", testOntapVersion)
-		if err != nil {
-			return
-		}
-		defer func() {
-			err := os.Unsetenv("ONTAP_VERSION_DETAILS")
-			if err != nil {
-				return
-			}
-		}()
-
 		mockStorage := database.NewMockStorage(t)
 		orchestrator := &Orchestrator{
 			storage: mockStorage,
@@ -1081,10 +1070,10 @@ func TestListAvailableVersions(t *testing.T) {
 
 		ctx := context.Background()
 
-		// Mock available versions
+		// Mock available versions - use env.CurrentOntapVersionDetails to match what the function uses
 		versions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: testOntapVersion,
+				OntapVersion: env.CurrentOntapVersionDetails,
 				VSAImagePath: testVSAImagePath,
 				VSAName:      testVSAName,
 				MediatorName: testMediatorName,
@@ -1108,11 +1097,11 @@ func TestListAvailableVersions(t *testing.T) {
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
-		assert.Equal(t, testOntapVersion, response.Current)
+		assert.Equal(t, env.CurrentOntapVersionDetails, response.Current)
 		assert.Len(t, response.Versions, 2)
 
 		// Check first version (current)
-		assert.Equal(t, testOntapVersion, response.Versions[0].OntapVersion)
+		assert.Equal(t, env.CurrentOntapVersionDetails, response.Versions[0].OntapVersion)
 		assert.Equal(t, testVSAImagePath, response.Versions[0].VSAImagePath)
 		assert.Equal(t, testVSAName, response.Versions[0].VSAName)
 		assert.Equal(t, testMediatorName, response.Versions[0].MediatorName)
@@ -1131,18 +1120,6 @@ func TestListAvailableVersions(t *testing.T) {
 	})
 
 	t.Run("EmptyVersions", func(t *testing.T) {
-		// Set up environment variable
-		err := os.Setenv("ONTAP_VERSION_DETAILS", testOntapVersion)
-		if err != nil {
-			return
-		}
-		defer func() {
-			err := os.Unsetenv("ONTAP_VERSION_DETAILS")
-			if err != nil {
-				return
-			}
-		}()
-
 		mockStorage := database.NewMockStorage(t)
 		orchestrator := &Orchestrator{
 			storage: mockStorage,
@@ -1159,7 +1136,7 @@ func TestListAvailableVersions(t *testing.T) {
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
-		assert.Equal(t, testOntapVersion, response.Current)
+		assert.Equal(t, env.CurrentOntapVersionDetails, response.Current)
 		assert.Len(t, response.Versions, 0)
 		mockStorage.AssertExpectations(t)
 	})
@@ -1198,7 +1175,6 @@ func TestListAvailableVersions(t *testing.T) {
 	})
 
 	t.Run("DefaultVersion", func(t *testing.T) {
-		// Don't set environment variable to test default
 		mockStorage := database.NewMockStorage(t)
 		orchestrator := &Orchestrator{
 			storage: mockStorage,
@@ -1206,10 +1182,10 @@ func TestListAvailableVersions(t *testing.T) {
 
 		ctx := context.Background()
 
-		// Mock available versions
+		// Mock available versions - use env.CurrentOntapVersionDetails to match what the function uses
 		versions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: testOntapVersion,
+				OntapVersion: env.CurrentOntapVersionDetails,
 				VSAImagePath: testVSAImagePath,
 				VSAName:      testVSAName,
 				MediatorName: testMediatorName,
@@ -1226,7 +1202,7 @@ func TestListAvailableVersions(t *testing.T) {
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
-		assert.Equal(t, testOntapVersion, response.Current) // Default value
+		assert.Equal(t, env.CurrentOntapVersionDetails, response.Current)
 		assert.Len(t, response.Versions, 1)
 		assert.True(t, response.Versions[0].IsCurrent)
 		mockStorage.AssertExpectations(t)
@@ -1235,26 +1211,14 @@ func TestListAvailableVersions(t *testing.T) {
 
 func TestListAvailableVersionsInternal(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		// Set up environment variable
-		err := os.Setenv("ONTAP_VERSION_DETAILS", testOntapVersion)
-		if err != nil {
-			return
-		}
-		defer func() {
-			err := os.Unsetenv("ONTAP_VERSION_DETAILS")
-			if err != nil {
-				return
-			}
-		}()
-
 		mockStorage := database.NewMockStorage(t)
 
 		ctx := context.Background()
 
-		// Mock available versions
+		// Mock available versions - use env.CurrentOntapVersionDetails to match what the function uses
 		versions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: testOntapVersion,
+				OntapVersion: env.CurrentOntapVersionDetails,
 				VSAImagePath: testVSAImagePath,
 				VSAName:      testVSAName,
 				MediatorName: testMediatorName,
@@ -1271,27 +1235,15 @@ func TestListAvailableVersionsInternal(t *testing.T) {
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
-		assert.Equal(t, testOntapVersion, response.Current)
+		assert.Equal(t, env.CurrentOntapVersionDetails, response.Current)
 		assert.Len(t, response.Versions, 1)
-		assert.Equal(t, testOntapVersion, response.Versions[0].OntapVersion)
+		assert.Equal(t, env.CurrentOntapVersionDetails, response.Versions[0].OntapVersion)
 		assert.True(t, response.Versions[0].IsCurrent)
 		assert.True(t, response.Versions[0].IsActive)
 		mockStorage.AssertExpectations(t)
 	})
 
 	t.Run("DatabaseError", func(t *testing.T) {
-		// Set up environment variable
-		err := os.Setenv("ONTAP_VERSION_DETAILS", testOntapVersion)
-		if err != nil {
-			return
-		}
-		defer func() {
-			err := os.Unsetenv("ONTAP_VERSION_DETAILS")
-			if err != nil {
-				return
-			}
-		}()
-
 		mockStorage := database.NewMockStorage(t)
 
 		ctx := context.Background()
@@ -1415,16 +1367,8 @@ func TestUpgradeClusterInternal(t *testing.T) {
 		if err != nil {
 			return
 		}
-		err = os.Setenv("ONTAP_VERSION_DETAILS", testOntapVersion)
-		if err != nil {
-			return
-		}
 		defer func() {
 			err := os.Unsetenv("VSA_IMAGE_NAME")
-			if err != nil {
-				return
-			}
-			err = os.Unsetenv("ONTAP_VERSION_DETAILS")
 			if err != nil {
 				return
 			}
@@ -1438,23 +1382,23 @@ func TestUpgradeClusterInternal(t *testing.T) {
 			ClusterID: "test-cluster-id",
 		}
 
-		// Mock pool data - already upgraded
+		// Mock pool data - already upgraded to match env.CurrentOntapVersionDetails
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{
 				UUID: "test-cluster-id",
 			},
 			State: models.LifeCycleStateREADY,
 			BuildInfo: &datamodel.PoolBuildInfo{
-				OntapVersion:       testOntapVersion,
+				OntapVersion:       env.CurrentOntapVersionDetails,
 				VSABuildImage:      testVSAName,
 				MediatorBuildImage: testMediatorName,
 			},
 		}
 
-		// Mock image versions
+		// Mock image versions - use env.CurrentOntapVersionDetails to match what the function compares against
 		imageVersions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: testOntapVersion,
+				OntapVersion: env.CurrentOntapVersionDetails,
 				VSAImagePath: testVSAImagePath,
 				VSAName:      testVSAName,
 				MediatorName: testMediatorName,
@@ -1484,16 +1428,8 @@ func TestUpgradeClusterInternal(t *testing.T) {
 		if err != nil {
 			return
 		}
-		err = os.Setenv("ONTAP_VERSION_DETAILS", testOntapVersion)
-		if err != nil {
-			return
-		}
 		defer func() {
 			err := os.Unsetenv("VSA_IMAGE_NAME")
-			if err != nil {
-				return
-			}
-			err = os.Unsetenv("ONTAP_VERSION_DETAILS")
 			if err != nil {
 				return
 			}
@@ -1529,10 +1465,10 @@ func TestUpgradeClusterInternal(t *testing.T) {
 			Status:    string(models.UpgradeStatusInProgress),
 		}
 
-		// Mock image versions
+		// Mock image versions - use env.CurrentOntapVersionDetails to match what the function compares against
 		imageVersions := []*datamodel.ImageVersion{
 			{
-				OntapVersion: testOntapVersion,
+				OntapVersion: env.CurrentOntapVersionDetails,
 				VSAImagePath: testVSAImagePath,
 				VSAName:      testVSAName,
 				MediatorName: testMediatorName,

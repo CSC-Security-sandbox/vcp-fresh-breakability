@@ -4100,6 +4100,89 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 		assert.NoError(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
+
+	// Test Case 4: BuildInfo.OntapVersion exists but ExtractOntapVersion returns empty string (line 1281)
+	t.Run("BuildInfo.OntapVersion extracts to empty string", func(t *testing.T) {
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		env.SetHeader(mockHeader)
+
+		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+		enableMetrics = true
+		ginLoggingFeatureFlag = true
+		defer func() {
+			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+			enableMetrics = envs.GetBool("ENABLE_METRICS", false)
+			ginLoggingFeatureFlag = false
+		}()
+
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterWorkflow(DataSubnetSequentialPoller)
+		env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
+		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+
+		// Pool with BuildInfo.OntapVersion that extracts to empty string (e.g., invalid format)
+		// and has DeploymentName set to trigger the VSA cleanup path
+		poolWithEmptyExtraction := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 123},
+			Name:      "test-pool",
+			DeploymentName: "test-deployment", // Required to trigger VSA cleanup
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				BucketName: "test-bucket",
+			},
+			ServiceAccountId: "test-service-account",
+			ClusterDetails: datamodel.ClusterDetails{
+				RegionalTenantProject: "test-tenant", // Required to trigger VSA cleanup
+				OntapVersion:          "",
+			},
+			BuildInfo: &datamodel.PoolBuildInfo{
+				// OntapVersion that will extract to empty string (invalid format)
+				OntapVersion: "invalid-version-format",
+			},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+				AuthType: envs.USERNAME_PWD,
+			},
+			Account:     &datamodel.Account{Name: "test-account"},
+			KmsConfig:   &datamodel.KmsConfig{},
+			KmsConfigID: sql.NullInt64{Int64: 1, Valid: true},
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(poolWithEmptyExtraction, nil)
+		env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+		// Mock DeleteVSAClusterDeployment to verify it's called with the fallback ontapVersion
+		mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
+		env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil)
+
+		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+			return mockVSAClientWorkflowManager
+		}
+
+		env.ExecuteWorkflow(DeletePoolWorkflow, params, poolWithEmptyExtraction)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+		mockVSAClientWorkflowManager.AssertExpectations(t)
+	})
 }
 
 func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
