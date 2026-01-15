@@ -750,6 +750,25 @@ func TestVolumeModifyParamsToONTAP(t *testing.T) {
 		result := volumeModifyParamsToONTAP(params)
 		assert.NotNil(tt, result.Info.Qos)
 		assert.NotNil(tt, result.Info.Qos.Policy)
+		assert.Equal(tt, &val, result.Info.Qos.Policy.Name)
+	})
+
+	t.Run("WhenQosPolicyIsNone_ThenPassedThrough", func(tt *testing.T) {
+		noneVal := "none"
+		params := &VolumeModifyParams{UUID: "uuid", QosPolicy: &noneVal}
+		result := volumeModifyParamsToONTAP(params)
+		assert.NotNil(tt, result.Info.Qos)
+		assert.NotNil(tt, result.Info.Qos.Policy)
+		assert.Equal(tt, &noneVal, result.Info.Qos.Policy.Name, "none should be passed through as-is")
+	})
+
+	t.Run("WhenQosPolicyIsEmptyString_ThenPassedThrough", func(tt *testing.T) {
+		emptyVal := ""
+		params := &VolumeModifyParams{UUID: "uuid", QosPolicy: &emptyVal}
+		result := volumeModifyParamsToONTAP(params)
+		assert.NotNil(tt, result.Info.Qos)
+		assert.NotNil(tt, result.Info.Qos.Policy)
+		assert.Equal(tt, &emptyVal, result.Info.Qos.Policy.Name, "Empty string should be passed through as-is (will fail at ONTAP)")
 	})
 
 	t.Run("WhenRestoreToSnapshotUUIDSet_ThenFieldIsSet", func(tt *testing.T) {

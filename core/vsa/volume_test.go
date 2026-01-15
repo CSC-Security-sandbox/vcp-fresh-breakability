@@ -1308,6 +1308,157 @@ func TestUpdateVolume_WithMaxSizeErrorButNoMaxSizeInfo(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
+func TestUpdateVolume_WithQosPolicy(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	t.Run("AssignQosPolicy", func(tt *testing.T) {
+		policyName := "test-qos-policy"
+		params := UpdateVolumeParams{
+			UUID:          "testUUID",
+			QosPolicyName: &policyName,
+		}
+
+		mockStorage.On("VolumeModify", mock.MatchedBy(func(p *ontaprest.VolumeModifyParams) bool {
+			return p.UUID == "testUUID" && p.QosPolicy != nil && *p.QosPolicy == policyName
+		})).Return(true, nil, nil).Once()
+
+		err := rc.UpdateVolume(params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("UnassignQosPolicy_None", func(tt *testing.T) {
+		nonePolicy := "none"
+		params := UpdateVolumeParams{
+			UUID:          "testUUID",
+			QosPolicyName: &nonePolicy,
+		}
+
+		mockStorage.On("VolumeModify", mock.MatchedBy(func(p *ontaprest.VolumeModifyParams) bool {
+			return p.UUID == "testUUID" && p.QosPolicy != nil && *p.QosPolicy == "none"
+		})).Return(true, nil, nil).Once()
+
+		err := rc.UpdateVolume(params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("UnassignQosPolicy_EmptyString_PassesThrough", func(tt *testing.T) {
+		emptyPolicy := ""
+		params := UpdateVolumeParams{
+			UUID:          "testUUID",
+			QosPolicyName: &emptyPolicy,
+		}
+
+		ontapError := errors.New("QoS policy group \"\" does not exist")
+		mockStorage.On("VolumeModify", mock.MatchedBy(func(p *ontaprest.VolumeModifyParams) bool {
+			// Verify empty string is passed through to ONTAP (not converted)
+			return p.UUID == "testUUID" && p.QosPolicy != nil && *p.QosPolicy == ""
+		})).Return(false, nil, ontapError).Once()
+
+		err := rc.UpdateVolume(params)
+		// Error should be returned (wrapped by vsaerrors.NewVCPError)
+		// The empty string passes through and ONTAP rejects it with an error
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("NoQosPolicyChange_Nil", func(tt *testing.T) {
+		params := UpdateVolumeParams{
+			UUID:          "testUUID",
+			QosPolicyName: nil,
+		}
+
+		mockStorage.On("VolumeModify", mock.MatchedBy(func(p *ontaprest.VolumeModifyParams) bool {
+			return p.UUID == "testUUID" && p.QosPolicy == nil
+		})).Return(true, nil, nil).Once()
+
+		err := rc.UpdateVolume(params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("AssignQosPolicyWithOtherParams", func(tt *testing.T) {
+		policyName := "test-qos-policy"
+		snapReserve := int64(10)
+		params := UpdateVolumeParams{
+			UUID:          "testUUID",
+			SnapReserve:   &snapReserve,
+			QosPolicyName: &policyName,
+		}
+
+		mockStorage.On("VolumeModify", mock.MatchedBy(func(p *ontaprest.VolumeModifyParams) bool {
+			return p.UUID == "testUUID" &&
+				p.QosPolicy != nil &&
+				*p.QosPolicy == policyName &&
+				p.SnapReserve != nil &&
+				*p.SnapReserve == snapReserve
+		})).Return(true, nil, nil).Once()
+
+		err := rc.UpdateVolume(params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestUnassignQoSPolicyFromVolume(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	t.Run("Success", func(tt *testing.T) {
+		mockStorage.On("VolumeModify", mock.MatchedBy(func(p *ontaprest.VolumeModifyParams) bool {
+			return p.UUID == "testUUID" && p.QosPolicy != nil && *p.QosPolicy == "none"
+		})).Return(true, nil, nil).Once()
+
+		err := rc.UnassignQoSPolicyFromVolume("testUUID")
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenVolumeModifyReturnsError", func(tt *testing.T) {
+		ontapError := errors.New("volume modify error")
+		mockStorage.On("VolumeModify", mock.MatchedBy(func(p *ontaprest.VolumeModifyParams) bool {
+			return p.UUID == "testUUID" && p.QosPolicy != nil && *p.QosPolicy == "none"
+		})).Return(false, nil, ontapError).Once()
+
+		err := rc.UnassignQoSPolicyFromVolume("testUUID")
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenVolumeModifyReturnsJob", func(tt *testing.T) {
+		mockJob := &ontaprest.JobAccepted{JobUUID: "job-uuid"}
+		mockStorage.On("VolumeModify", mock.MatchedBy(func(p *ontaprest.VolumeModifyParams) bool {
+			return p.UUID == "testUUID" && p.QosPolicy != nil && *p.QosPolicy == "none"
+		})).Return(false, mockJob, nil).Once()
+		mockClient.On("Poll", mockJob.JobUUID).Return(nil).Once()
+
+		err := rc.UnassignQoSPolicyFromVolume("testUUID")
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+}
+
 func TestGetVolumes(t *testing.T) {
 	t.Run("GetVolumesSuccess", func(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)

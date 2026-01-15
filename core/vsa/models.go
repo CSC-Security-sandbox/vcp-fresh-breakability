@@ -457,6 +457,7 @@ type UpdateVolumeParams struct {
 	JunctionPath            *string
 	ExportPolicy            *string
 	SnapshotDirectoryAccess *bool
+	QosPolicyName           *string // QoS policy group name to assign to volume. Use "none" to unassign (no policy). If nil, policy is not changed.
 }
 
 type UpdateFlexCacheVolumeParams struct {

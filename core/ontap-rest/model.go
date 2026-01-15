@@ -1375,6 +1375,8 @@ func volumeModifyParamsToONTAP(params *VolumeModifyParams) *storage.VolumeModify
 	}
 
 	if params.QosPolicy != nil {
+		// Pass through QosPolicy as-is. Use "none" to unassign QoS policy per ONTAP API.
+		// Empty string will be rejected by ONTAP with an appropriate error.
 		info.Qos = &models.VolumeInlineQos{
 			Policy: &models.VolumeInlineQosInlinePolicy{
 				Name: params.QosPolicy,

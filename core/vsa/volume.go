@@ -409,6 +409,16 @@ func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 		volumeModifyParams.SnapshotDirectoryAccessEnabled = params.SnapshotDirectoryAccess
 	}
 
+	// Handle QoS policy assignment/unassignment
+	// If QosPolicyName is provided (not nil), set it:
+	// - Use "none" to unassign (no policy) per ONTAP API specification
+	// - Use policy name to assign that policy
+	// - Empty string will be rejected by ONTAP with an appropriate error
+	// If QosPolicyName is nil, don't change the policy
+	if params.QosPolicyName != nil {
+		volumeModifyParams.QosPolicy = params.QosPolicyName
+	}
+
 	err = handleVolumeCloudWriteModeDisableIfProvided(client, volumeModifyParams)
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
@@ -434,6 +444,18 @@ func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 		return nil
 	}
 	return client.Poll(job.JobUUID)
+}
+
+// UnassignQoSPolicyFromVolume unassigns the QoS policy from a volume by setting it to "none".
+// This is a convenience function that wraps UpdateVolume with the correct "none" value
+// as required by the ONTAP API specification.
+func (rc *OntapRestProvider) UnassignQoSPolicyFromVolume(volumeUUID string) error {
+	none := "none"
+	params := UpdateVolumeParams{
+		UUID:          volumeUUID,
+		QosPolicyName: &none,
+	}
+	return rc.UpdateVolume(params)
 }
 
 func handleVolumeCloudWriteModeDisableIfProvided(client ontapRest.RESTClient, params *ontapRest.VolumeModifyParams) error {
