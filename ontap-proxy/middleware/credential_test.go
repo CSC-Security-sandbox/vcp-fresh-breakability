@@ -133,7 +133,8 @@ func TestExtractPoolDetailsFromRequest(t *testing.T) {
 		assert.Equal(t, "1234", poolDetails.ProjectNumber)
 		assert.Equal(t, "my-pool", poolDetails.PoolID)
 		assert.Equal(t, "1234", poolDetails.AccountName)
-		assert.Equal(t, "gcnvadmin", poolDetails.UserName)
+		// After the change, expert mode uses suffix-based approach, so UserName is set to the suffix
+		assert.Equal(t, "gadmin", poolDetails.UserName)
 	})
 
 	t.Run("WhenValidURI_WithAdminCredential_ShouldExtractDetailsWithAdminUser", func(t *testing.T) {

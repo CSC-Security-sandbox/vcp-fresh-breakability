@@ -5106,7 +5106,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 						CertificateID: "test-cert-id",
 						Password:      "test-password",
 						AuthType:      2, // USER_CERTIFICATE
-						Username:      "test-user",
+						Username:      "test-user_gadmin",
 					},
 				},
 			},
@@ -5134,7 +5134,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		err = store.DB().Create(node2).Error
 		assert.NoError(t, err)
 
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "gadmin")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, credentials)
@@ -5199,7 +5199,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		err = store.DB().Create(node2).Error
 		assert.NoError(t, err)
 
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "gadmin")
 
 		assert.Error(t, err)
 		assert.Nil(t, credentials)
@@ -5215,7 +5215,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		defer func() { getAccountWithName = _getAccountWithName }()
 
 		// Execute
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "non-existent-account", "test-user")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "non-existent-account", "gadmin")
 
 		// Assert
 		assert.Error(t, err)
@@ -5240,7 +5240,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		defer func() { getAccountWithName = _getAccountWithName }()
 
 		// Execute
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "non-existent-pool-uuid", "test_account", "test-user")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "non-existent-pool-uuid", "test_account", "gadmin")
 
 		// Assert
 		assert.Error(t, err)
@@ -5268,7 +5268,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Execute
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "gadmin")
 
 		// Assert
 		assert.NoError(t, err)
@@ -5296,7 +5296,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 						CertificateID: "",
 						Password:      "",
 						AuthType:      0,
-						Username:      "test-user",
+						Username:      "test-user_gadmin",
 					},
 				},
 			},
@@ -5305,7 +5305,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Execute
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "gadmin")
 
 		// Assert
 		assert.NoError(t, err)
@@ -5325,7 +5325,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		defer func() { getAccountWithName = _getAccountWithName }()
 
 		// Execute
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "gadmin")
 
 		// Assert
 		assert.Error(t, err)
@@ -5354,6 +5354,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 						CertificateID: "test-cert-id",
 						Password:      "test-password",
 						AuthType:      1,
+						Username:      "test-user_gadmin",
 					},
 				},
 			},
@@ -5365,9 +5366,9 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "")
 
 		// Assert - should still work even with empty userName
-		assert.NoError(t, err)
-		assert.NotNil(t, credentials)
-		assert.Equal(t, "test-secret-id", credentials.SecretID)
+		assert.Error(t, err)
+		assert.Nil(t, credentials)
+		assert.Equal(t, "expert mode user not found", err.Error())
 	})
 	t.Run("WhenContextIsCancelled", func(t *testing.T) {
 		ctx, _, orch, _ := setup(t)
@@ -5377,7 +5378,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		cancel() // Cancel immediately
 
 		// Execute
-		credentials, err := orch.GetExpertModePoolCreds(cancelledCtx, "test-pool-uuid", "test_account", "test-user")
+		credentials, err := orch.GetExpertModePoolCreds(cancelledCtx, "test-pool-uuid", "test_account", "gadmin")
 
 		// Assert
 		assert.Error(t, err)
@@ -5405,7 +5406,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Execute
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "test-user")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "gadmin")
 
 		// Assert
 		assert.NoError(t, err)
@@ -5584,7 +5585,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 						CertificateID: "expert-cert-id",
 						Password:      "expert-password",
 						AuthType:      2,
-						Username:      "custom-user",
+						Username:      "custom-user_gadmin",
 					},
 				},
 			},
@@ -5603,7 +5604,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Execute with non-admin userName
-		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "custom-user")
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "gadmin")
 
 		// Assert - should return ExpertModeCredentials, not PoolCredentials
 		assert.NoError(t, err)
@@ -5612,6 +5613,67 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.Equal(t, "expert-cert-id", credentials.CertificateID)
 		assert.Equal(t, "expert-password", credentials.Password)
 		assert.Equal(t, 2, credentials.AuthType)
+	})
+	t.Run("WhenOldPoolWithGcnvadminUsername_ShouldReturnCredentials", func(t *testing.T) {
+		// Test backward compatibility: Old pools created before suffix-based approach
+		// have expert mode username set to "gcnvadmin" (the old fixed value)
+		ctx, store, orch, _ := setup(t)
+
+		// Create test data
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.DB().Create(account).Error
+		assert.NoError(t, err)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test-pool-uuid",
+			AccountID: account.ID,
+			PoolCredentials: &datamodel.PoolCredentials{
+				SecretID:      "pool-secret-id",
+				CertificateID: "pool-cert-id",
+				Password:      "pool-password",
+				AuthType:      1,
+			},
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						SecretID:      "expert-secret-id",
+						CertificateID: "expert-cert-id",
+						Password:      "expert-password",
+						AuthType:      2,
+						Username:      "gcnvadmin", // Old hardcoded username from before suffix-based approach
+					},
+				},
+			},
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(t, err)
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "test-node-1-uuid"},
+			Name:            "test-node-1",
+			PoolID:          pool.ID,
+			EndpointAddress: "10.0.0.1",
+			HostDNSName:     "host1.example.com",
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(t, err)
+
+		// Execute with any non-admin userName - should find credentials by matching "gcnvadmin"
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "gcnvadmin")
+
+		// Assert - should return ExpertModeCredentials with old "gcnvadmin" username
+		assert.NoError(t, err)
+		assert.NotNil(t, credentials)
+		assert.Equal(t, "expert-secret-id", credentials.SecretID)
+		assert.Equal(t, "expert-cert-id", credentials.CertificateID)
+		assert.Equal(t, "expert-password", credentials.Password)
+		assert.Equal(t, 2, credentials.AuthType)
+		assert.NotNil(t, credentials.OntapEndpoints)
+		assert.Len(t, credentials.OntapEndpoints, 1)
 	})
 }
 
@@ -7014,6 +7076,90 @@ func TestGetPoolIsRegionalHA(t *testing.T) {
 		}
 		result := getPoolIsRegionalHA(pool)
 		assert.True(tt, result)
+	})
+}
+
+func TestMatchesCredential(t *testing.T) {
+	t.Run("WhenUserNameIsGcnvadmin_MatchesExactGcnvadmin", func(tt *testing.T) {
+		result := matchesCredential("gcnvadmin", "gcnvadmin")
+		assert.True(tt, result, "Should match exact 'gcnvadmin'")
+	})
+
+	t.Run("WhenUserNameIsGcnvadmin_DoesNotMatchOtherUsernames", func(tt *testing.T) {
+		result := matchesCredential("gcnvadmin", "test-user_gadmin")
+		assert.False(tt, result, "Should not match other usernames when userName is 'gcnvadmin'")
+	})
+
+	t.Run("WhenUserNameIsGcnvadmin_DoesNotMatchGcnvadminWithSuffix", func(tt *testing.T) {
+		result := matchesCredential("gcnvadmin", "gcnvadmin_gadmin")
+		assert.False(tt, result, "Should not match 'gcnvadmin' with suffix")
+	})
+
+	t.Run("WhenUserNameIsExpertModeUserSuffix_MatchesCredentialEndingWithSuffix", func(tt *testing.T) {
+		// env.ExpertModeUserSuffix is "gadmin"
+		result := matchesCredential("gadmin", "test-user_gadmin")
+		assert.True(tt, result, "Should match credential ending with '_gadmin'")
+	})
+
+	t.Run("WhenUserNameIsExpertModeUserSuffix_MatchesCredentialWithOnlySuffix", func(tt *testing.T) {
+		result := matchesCredential("gadmin", "_gadmin")
+		assert.True(tt, result, "Should match credential that is just '_gadmin'")
+	})
+
+	t.Run("WhenUserNameIsExpertModeUserSuffix_DoesNotMatchCredentialWithoutSuffix", func(tt *testing.T) {
+		result := matchesCredential("gadmin", "test-user")
+		assert.False(tt, result, "Should not match credential without '_gadmin' suffix")
+	})
+
+	t.Run("WhenUserNameIsExpertModeUserSuffix_DoesNotMatchCredentialWithDifferentSuffix", func(tt *testing.T) {
+		result := matchesCredential("gadmin", "test-user_admin")
+		assert.False(tt, result, "Should not match credential with different suffix")
+	})
+
+	t.Run("WhenUserNameIsExpertModeUserSuffix_DoesNotMatchExactGcnvadmin", func(tt *testing.T) {
+		result := matchesCredential("gadmin", "gcnvadmin")
+		assert.False(tt, result, "Should not match 'gcnvadmin' when userName is suffix")
+	})
+
+	t.Run("WhenUserNameIsOtherValue_ReturnsFalse", func(tt *testing.T) {
+		result := matchesCredential("other-user", "test-user_gadmin")
+		assert.False(tt, result, "Should return false for non-matching userName")
+	})
+
+	t.Run("WhenUserNameIsOtherValue_DoesNotMatchGcnvadmin", func(tt *testing.T) {
+		result := matchesCredential("other-user", "gcnvadmin")
+		assert.False(tt, result, "Should not match 'gcnvadmin' for other userName")
+	})
+
+	t.Run("WhenUserNameIsEmpty_ReturnsFalse", func(tt *testing.T) {
+		result := matchesCredential("", "test-user_gadmin")
+		assert.False(tt, result, "Should return false for empty userName")
+	})
+
+	t.Run("WhenCredUsernameIsEmpty_ReturnsFalse", func(tt *testing.T) {
+		result := matchesCredential("gadmin", "")
+		assert.False(tt, result, "Should return false for empty credUsername")
+	})
+
+	t.Run("WhenUserNameIsExpertModeUserSuffix_MatchesMultipleCredentialFormats", func(tt *testing.T) {
+		testCases := []struct {
+			credUsername string
+			expected     bool
+			description  string
+		}{
+			{"user1_gadmin", true, "standard format"},
+			{"user2_gadmin", true, "another standard format"},
+			{"_gadmin", true, "just suffix with underscore"},
+			{"gadmin", false, "suffix without underscore"},
+			{"user_gadmin_extra", false, "suffix not at end"},
+		}
+
+		for _, tc := range testCases {
+			tt.Run(tc.description, func(t *testing.T) {
+				result := matchesCredential("gadmin", tc.credUsername)
+				assert.Equal(t, tc.expected, result, "Failed for: %s", tc.description)
+			})
+		}
 	})
 }
 

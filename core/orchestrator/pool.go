@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -44,6 +45,7 @@ const (
 	TieringFullnessThresholdOntapDefault = 50
 	VCP_ADMIN_CERT_UN_SUFFIX             = "_admin" // Suffix for VCP admin user certificate
 	AdminUserName                        = "admin"
+	gcnvadmin                            = "gcnvadmin"
 )
 
 // CreatePool creates the specified pool and adds it to the list of pools belonging to the specified owner
@@ -222,7 +224,8 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 	}
 
 	if params.Mode == workflows.ONTAPMode {
-		poolObj.ExpertModeCredentials = createExpertModeUser(poolObj, env.ExpertModeUser)
+		expUserName := fmt.Sprintf("%s_%s", userName, env.ExpertModeUserSuffix)
+		poolObj.ExpertModeCredentials = createExpertModeUser(poolObj, expUserName)
 	}
 	dbPool, err := se.CreatingPool(ctx, poolObj)
 	if err != nil {
@@ -982,7 +985,7 @@ func (o *Orchestrator) GetExpertModePoolCreds(ctx context.Context, poolUUID stri
 	}
 
 	for _, expertModeCredential := range pool.ExpertModeCredentials.ExpertModeCredential {
-		if expertModeCredential.Username == userName {
+		if matchesCredential(userName, expertModeCredential.Username) {
 			useHostDNS := expertModeCredential.AuthType == env.USER_CERTIFICATE
 			endpointMappings := buildOntapEndpoints(nodes, useHostDNS)
 			return &models.UserCredentials{
@@ -997,6 +1000,18 @@ func (o *Orchestrator) GetExpertModePoolCreds(ctx context.Context, poolUUID stri
 	}
 
 	return nil, errors.New("expert mode user not found")
+}
+
+// matchesCredential checks if credential matches the incoming userName
+func matchesCredential(role, credUsername string) bool {
+	if role == gcnvadmin {
+		// If incoming role is "gcnvadmin", only match "gcnvadmin"
+		return credUsername == role
+	} else if role == env.ExpertModeUserSuffix {
+		// If incoming role is just the suffix (e.g., "gadmin"), match any ending with "_gadmin"
+		return strings.HasSuffix(credUsername, fmt.Sprintf("_%s", role))
+	}
+	return false
 }
 
 func buildOntapEndpoints(nodes []*datamodel.Node, useHostDNS bool) []models.OntapEndpoint {

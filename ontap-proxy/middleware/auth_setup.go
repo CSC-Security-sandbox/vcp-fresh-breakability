@@ -41,7 +41,7 @@ func SetupCredentialsForHandler(
 	if credentialType == CredentialTypeAdmin {
 		userName = AdminUserName
 	} else {
-		userName = env.ExpertModeUser
+		userName = env.ExpertModeUserSuffix
 	}
 
 	poolDetails := &models.PoolDetails{

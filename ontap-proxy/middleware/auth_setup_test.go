@@ -55,7 +55,7 @@ func TestSetupCredentialsForHandler(t *testing.T) {
 
 		// Verify cache key is set in context
 		cacheKey := cache.GetAuthDataKeyFromContext(resultCtx)
-		assert.Equal(t, "5678:another-pool:gcnvadmin", cacheKey)
+		assert.Equal(t, "5678:another-pool:gadmin", cacheKey)
 
 		// Cleanup
 		cache.RemoveFromAuthDataCache(cacheKey)
