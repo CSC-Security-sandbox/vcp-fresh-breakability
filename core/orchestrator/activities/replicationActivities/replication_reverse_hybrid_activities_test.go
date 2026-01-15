@@ -1973,7 +1973,8 @@ func TestReverseHybridReplicationActivity_HydrateReplicationSateAndTypeForRevers
 		result := &replication.ReverseHybridReplicationResult{
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
-					Location: "us-east1",
+					Location:         "us-east1",
+					VolumeResourceID: "dest-volume",
 				},
 			},
 			DbVolReplication: &datamodel.VolumeReplication{
@@ -2002,7 +2003,8 @@ func TestReverseHybridReplicationActivity_HydrateReplicationSateAndTypeForRevers
 		result := &replication.ReverseHybridReplicationResult{
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
-					Location: "us-east1",
+					Location:         "us-east1",
+					VolumeResourceID: "dest-volume",
 				},
 			},
 			DbVolReplication: &datamodel.VolumeReplication{
@@ -2031,7 +2033,8 @@ func TestReverseHybridReplicationActivity_HydrateReplicationSateAndTypeForRevers
 		result := &replication.ReverseHybridReplicationResult{
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
-					Location: "us-east1",
+					Location:         "us-east1",
+					VolumeResourceID: "dest-volume",
 				},
 			},
 			DbVolReplication: &datamodel.VolumeReplication{
@@ -2119,7 +2122,7 @@ func TestHydrateReplicationStateAndTypeForHybridReplication(t *testing.T) {
 			},
 		}
 
-		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM, "us-east1")
+		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM, "us-east1", "dest-volume")
 
 		assert.NoError(tt, err)
 	})
@@ -2139,7 +2142,7 @@ func TestHydrateReplicationStateAndTypeForHybridReplication(t *testing.T) {
 			},
 		}
 
-		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM, "us-east1")
+		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM, "us-east1", "dest-volume")
 
 		assert.NoError(tt, err)
 	})
@@ -2159,7 +2162,7 @@ func TestHydrateReplicationStateAndTypeForHybridReplication(t *testing.T) {
 			},
 		}
 
-		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM, "us-east1")
+		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM, "us-east1", "dest-volume")
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "failed to parse project number")
@@ -2187,7 +2190,7 @@ func TestHydrateReplicationStateAndTypeForHybridReplication(t *testing.T) {
 			},
 		}
 
-		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM, "us-east1")
+		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM, "us-east1", "dest-volume")
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "hydration error")
@@ -2217,7 +2220,7 @@ func TestHydrateReplicationStateAndTypeForHybridReplication(t *testing.T) {
 			},
 		}
 
-		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateExternalManaged, models.HybridReplicationParametersReplicationTypeREVERSE, "us-east1")
+		err := HydrateReplicationStateAndTypeForHybridReplication(ctx, dbVolRep, models.VolumeReplicationHydrateStateExternalManaged, models.HybridReplicationParametersReplicationTypeREVERSE, "us-east1", "dest-volume")
 
 		assert.NoError(tt, err)
 	})

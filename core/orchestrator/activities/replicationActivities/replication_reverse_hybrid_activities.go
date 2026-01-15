@@ -556,14 +556,14 @@ func (a *ReverseHybridReplicationActivity) DescribeRemoteJobOnDstForHybridRevers
 }
 
 func (a *ReverseHybridReplicationActivity) HydrateReplicationSateAndTypeForReverseHybridReplication(ctx context.Context, result *replication.ReverseHybridReplicationResult) (*replication.ReverseHybridReplicationResult, error) {
-	err := HydrateReplicationStateAndTypeForHybridReplication(ctx, result.DbVolReplication, models.VolumeReplicationHydrateStateExternalManaged, models.HybridReplicationParametersReplicationTypeREVERSE, result.Event.Location)
+	err := HydrateReplicationStateAndTypeForHybridReplication(ctx, result.DbVolReplication, models.VolumeReplicationHydrateStateExternalManaged, models.HybridReplicationParametersReplicationTypeREVERSE, result.Event.Location, result.Event.VolumeResourceID)
 	if err != nil {
 		return nil, errors.WrapAsTemporalApplicationError(err)
 	}
 	return result, nil
 }
 
-func HydrateReplicationStateAndTypeForHybridReplication(ctx context.Context, dbVolRep *datamodel.VolumeReplication, hydrateState models.VolumeReplicationHydrateState, hydrateType models.HybridReplicationParametersReplicationType, location string) error {
+func HydrateReplicationStateAndTypeForHybridReplication(ctx context.Context, dbVolRep *datamodel.VolumeReplication, hydrateState models.VolumeReplicationHydrateState, hydrateType models.HybridReplicationParametersReplicationType, location, volumeResourceId string) error {
 	if hydrationEnabled {
 		logger := util.GetLogger(ctx)
 		logger.Debugf("Hydrating volume replication for hybrid replication after reverse")
@@ -572,7 +572,7 @@ func HydrateReplicationStateAndTypeForHybridReplication(ctx context.Context, dbV
 			Name: dbVolRep.Name,
 			ReplicationAttributes: &models.ReplicationDetails{
 				DestinationRegion:     location,
-				DestinationVolumeName: dbVolRep.ReplicationAttributes.DestinationVolumeName,
+				DestinationVolumeName: volumeResourceId,
 			},
 		}
 

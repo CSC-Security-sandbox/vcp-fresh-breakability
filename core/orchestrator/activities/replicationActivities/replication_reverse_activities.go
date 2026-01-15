@@ -533,7 +533,7 @@ func ConvertToReversedAttributesForHybridRep(originalAttrs *datamodel.Replicatio
 }
 
 func (a *ReverseVolumeReplicationActivity) HydrateReplicationSateAndTypeForReverseFallbackHybridReplication(ctx context.Context, result *replication.ReverseReplicationResult) (*replication.ReverseReplicationResult, error) {
-	err := HydrateReplicationStateAndTypeForHybridReplication(ctx, result.DbVolReplication, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM, result.Event.Location)
+	err := HydrateReplicationStateAndTypeForHybridReplication(ctx, result.DbVolReplication, models.VolumeReplicationHydrateStateReady, models.HybridReplicationParametersReplicationTypeONPREM, result.Event.Location, result.Event.VolumeResourceID)
 	if err != nil {
 		return nil, errors.WrapAsTemporalApplicationError(err)
 	}

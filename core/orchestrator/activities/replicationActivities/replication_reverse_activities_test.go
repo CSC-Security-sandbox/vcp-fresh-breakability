@@ -3124,7 +3124,8 @@ func TestReverseVolumeReplicationActivity_HydrateReplicationSateAndTypeForRevers
 		result := &replication.ReverseReplicationResult{
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
-					Location: "us-east1",
+					Location:         "us-east1",
+					VolumeResourceID: "dest-volume",
 				},
 			},
 			DbVolReplication: &datamodel.VolumeReplication{
@@ -3153,7 +3154,8 @@ func TestReverseVolumeReplicationActivity_HydrateReplicationSateAndTypeForRevers
 		result := &replication.ReverseReplicationResult{
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
-					Location: "us-east1",
+					Location:         "us-east1",
+					VolumeResourceID: "dest-volume",
 				},
 			},
 			DbVolReplication: &datamodel.VolumeReplication{
@@ -3182,7 +3184,8 @@ func TestReverseVolumeReplicationActivity_HydrateReplicationSateAndTypeForRevers
 		result := &replication.ReverseReplicationResult{
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
-					Location: "us-east1",
+					Location:         "us-east1",
+					VolumeResourceID: "dest-volume",
 				},
 			},
 			DbVolReplication: &datamodel.VolumeReplication{
@@ -3218,7 +3221,8 @@ func TestReverseVolumeReplicationActivity_HydrateReplicationSateAndTypeForRevers
 		result := &replication.ReverseReplicationResult{
 			Event: &replication.ReverseReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
-					Location: "us-east1",
+					Location:         "us-east1",
+					VolumeResourceID: "dest-volume",
 				},
 			},
 			DbVolReplication: &datamodel.VolumeReplication{
