@@ -91,6 +91,7 @@ func init() {
 	CombinedKeyResourceTypeMeasuredTypeMap["pool_client_protocol_reads_raw"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: CoolTierDataReadSizeRaw}
 	CombinedKeyResourceTypeMeasuredTypeMap["pool_cloud_bin_operation_size_raw"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: CoolTierDataWriteSizeRaw}
 	CombinedKeyResourceTypeMeasuredTypeMap["pool_capacity_tier_logical_footprint"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: PoolCapacityTierLogicalFootprint}
+	CombinedKeyResourceTypeMeasuredTypeMap["pool_hot_tier_provisioned_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: PoolHotTierProvisionedSize}
 }
 
 // NewMeasuredType takes a string and converts it to the defined MeasuredType. If the string is not in the map of available measured types, exists is false and the result is nil.

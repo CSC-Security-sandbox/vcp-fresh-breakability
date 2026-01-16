@@ -223,6 +223,12 @@ func (client *GoogleMetricsClient) createOperationsForMetrics(metrics []common.G
 
 		resourceName, err := metric.GetResourceName()
 		if err != nil {
+			client.logger.Errorf("Error getting resource name: %v", err)
+			continue
+		}
+
+		resourceId, err := metric.GetResourceUUID()
+		if err != nil {
 			client.logger.Errorf("Error getting resource ID: %v", err)
 			continue
 		}
@@ -230,6 +236,7 @@ func (client *GoogleMetricsClient) createOperationsForMetrics(metrics []common.G
 		info := ResourceInfo{
 			CustomerId:   customerId,
 			ResourceName: resourceName,
+			ResourceId:   resourceId,
 		}
 		metricsByVolume[info] = append(metricsByVolume[info], metric)
 	}

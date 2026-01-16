@@ -1402,11 +1402,11 @@ func createInvalidCustomerIDMetric() common.GoogleMetric {
 
 // Helper function to create a GoogleMetric with an invalid resource name
 func createInvalidResourceNameMetric() common.GoogleMetric {
-	// Create a metric with empty resource name which will cause GetResourceName to fail
+	// Create a metric with empty ResourceDisplayName which will cause GetResourceName to fail
 	rm := metadata.ResourceMetadata{
 		ResourceUUID:        nillable.ToPointer(uuid.New().String()),
-		ResourceName:        nil, // This will cause GetResourceName to fail
-		ResourceDisplayName: nillable.ToPointer("Test Resource"),
+		ResourceName:        nillable.ToPointer("test-resource"),
+		ResourceDisplayName: nil, // This will cause GetResourceName to fail for HydratedMetric
 		AccountName:         nillable.ToPointer("test-account"),
 		RegionName:          nillable.ToPointer("us-central1"),
 		ResourceType:        metadata.Volume,

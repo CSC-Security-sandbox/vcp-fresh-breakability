@@ -232,7 +232,7 @@ func (mp *MetricsProcessor) ProcessBillingSubmission(ctx context.Context, aggreg
 	}
 
 	successfulCount := len(unsentRecords) - failedCount
-	logger.Info("Completed retry processing, ", "processedRecords: ", len(unsentRecords), ",successfulRecords: ", successfulCount, " ,failedRecords:", failedCount)
+	logger.Info(fmt.Sprintf("Completed retry processing, processedRecords: %d, successfulRecords: %d, failedRecords: %d", len(unsentRecords), successfulCount, failedCount))
 
 	if failedCount > 0 {
 		select {
