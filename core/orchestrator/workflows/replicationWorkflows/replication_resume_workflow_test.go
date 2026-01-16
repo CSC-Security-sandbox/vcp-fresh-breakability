@@ -1181,7 +1181,7 @@ func TestResumeReplicationWorkflow(t *testing.T) {
 	})
 
 	// This test explicitly verifies that quota rule failure error (ErrResumeReplicationQuotaRuleFailure)
-	// returned from Run() is properly detected by isQuotaRuleFailure() and results in DONE status
+	// returned from Run() is properly detected by isResumeQuotaRuleFailure() and results in DONE status
 	t.Run("TestResumeReplicationWorkflow_QuotaRuleFailureError_IsDetectedAndTreatedAsPartialSuccess", func(tt *testing.T) {
 		// Set quotaRuleSync to true for this test
 		cleanup := setQuotaRuleSyncTrue()
@@ -1306,7 +1306,7 @@ func TestResumeReplicationWorkflow(t *testing.T) {
 		})
 		// Hydration fails - this should trigger the quota rule failure error path
 		// Run() returns vsaerrors.NewVCPError(vsaerrors.ErrResumeReplicationQuotaRuleFailure, ...)
-		// which should be detected by isQuotaRuleFailure() and result in DONE status
+		// which should be detected by isResumeQuotaRuleFailure() and result in DONE status
 		env.OnActivity("HydrateQuotaRulesResume", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
 
 		env.ExecuteWorkflow(ResumeReplicationWorkflow, params, event)
@@ -1316,7 +1316,7 @@ func TestResumeReplicationWorkflow(t *testing.T) {
 		assert.NoError(tt, env.GetWorkflowError(), "Workflow should complete without error for quota rule failure (partial success)")
 
 		// Verify that UpdateJob was called with DONE status (not ERROR)
-		// This confirms that isQuotaRuleFailure() correctly detected the quota rule failure error
+		// This confirms that isResumeQuotaRuleFailure() correctly detected the quota rule failure error
 		foundDoneWithQuotaRuleError := false
 		for _, call := range updateJobCalls {
 			if call.status == string(coreModels.JobsStateDONE) {
@@ -1328,7 +1328,7 @@ func TestResumeReplicationWorkflow(t *testing.T) {
 				break
 			}
 		}
-		assert.True(tt, foundDoneWithQuotaRuleError, "UpdateJob should be called with DONE status and quota rule error message. This verifies isQuotaRuleFailure() correctly detected the error")
+		assert.True(tt, foundDoneWithQuotaRuleError, "UpdateJob should be called with DONE status and quota rule error message. This verifies isResumeQuotaRuleFailure() correctly detected the error")
 
 		// Verify no ERROR status was set (quota rule failures should NOT cause workflow failure)
 		for _, call := range updateJobCalls {

@@ -26,8 +26,8 @@ const (
 	replicationQuotaRuleError = "Operation was successful but quota rule sync between source and destination failed"
 )
 
-// isQuotaRuleFailure checks if the error is a quota rule failure error
-func isQuotaRuleFailure(err *vsaerrors.CustomError) bool {
+// isResumeQuotaRuleFailure checks if the error is a resume quota rule failure error
+func isResumeQuotaRuleFailure(err *vsaerrors.CustomError) bool {
 	if err == nil {
 		return false
 	}
@@ -59,7 +59,7 @@ func ResumeReplicationWorkflow(ctx workflow.Context, params *commonparams.Resume
 		logger := util.GetLogger(ctx)
 		logger.Info("Resume Volume Replication workflow run executed with error", "error", customErr)
 		// Check if this is a quota rule failure (partial success case) and quotaRuleSync is enabled
-		if quotaRuleSync && isQuotaRuleFailure(customErr) {
+		if quotaRuleSync && isResumeQuotaRuleFailure(customErr) {
 			// Quota rule sync failed but replication resume succeeded - treat as partial success
 			logger.Warnf("Resume replication succeeded but quota rule operations failed")
 			repWf.Status = workflows.WorkflowStatusCompleted

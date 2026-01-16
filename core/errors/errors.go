@@ -367,6 +367,7 @@ const (
 	ErrQuotaRuleTooManyRequests               = 12012
 	ErrQuotaRuleInternalServerError           = 12013
 	ErrResumeReplicationQuotaRuleFailure      = 12014
+	ErrBreakReplicationQuotaRuleFailure       = 12015
 )
 
 // ErrorMessage struct represents the structure of each error message in the JSON file.

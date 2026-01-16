@@ -1,6 +1,9 @@
 package replicationWorkflows
 
 import (
+	"errors"
+	"strings"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -10,9 +13,15 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+)
+
+var (
+	quotaRuleSyncEnabled = env.GetBool("QUOTA_RULE_SYNC", true)
 )
 
 type internalVolumeReplicationStopWorkflow struct {
@@ -39,6 +48,18 @@ func StopInternalVolumeReplicationWorkflow(ctx workflow.Context, replicationDb *
 	_, customErr := stopRepWf.Run(ctx, replicationDb, forceStop)
 	if customErr != nil {
 		logger.Info("Internal Stop Volume Replication workflow run executed with error", "error", customErr)
+
+		// Check if this is a quota rule failure (partial success case) and quotaRuleSync is enabled
+		if quotaRuleSyncEnabled && isQuotaRuleFailure(customErr) {
+			logger.Warnf("Break replication succeeded but quota rule creation failed, marking workflow as completed")
+			stopRepWf.Status = workflows.WorkflowStatusCompleted
+			// Update job status to DONE with custom message indicating partial success
+			err = stopRepWf.UpdateJobStatus(ctx, string(models.JobsStateDONE),
+				temporal.NewApplicationError(models.VolumeReplicationBreakRelationshipQuotaRuleFailure, "QuotaRuleFailure"))
+			return nil, err
+		}
+
+		// For all other errors, mark workflow as failed
 		stopRepWf.Status = workflows.WorkflowStatusFailed
 		err = stopRepWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		return nil, err
@@ -46,6 +67,14 @@ func StopInternalVolumeReplicationWorkflow(ctx workflow.Context, replicationDb *
 	stopRepWf.Status = workflows.WorkflowStatusCompleted
 	err = stopRepWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	return nil, err
+}
+
+// isQuotaRuleFailure checks if the error is a quota rule failure error
+func isQuotaRuleFailure(err *vsaerrors.CustomError) bool {
+	if err == nil {
+		return false
+	}
+	return err.TrackingID == vsaerrors.ErrBreakReplicationQuotaRuleFailure
 }
 
 func (wf *internalVolumeReplicationStopWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -133,5 +162,182 @@ func (wf *internalVolumeReplicationStopWorkflow) Run(ctx workflow.Context, args 
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeToNonDPVolume, dbReplication).Get(ctx, nil)
-	return nil, workflows.ConvertToVSAError(err)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	// Create quota rules on destination volume after successful break replication
+	// Only process quota rules if quotaRuleSync is enabled
+	var quotaRuleFailure bool = false
+	var failedQuotaRules []*datamodel.QuotaRule
+
+	if quotaRuleSyncEnabled {
+		quotaRuleActivity := &activities.QuotaRuleCommonActivity{}
+
+		// List quota rules for volume (from replication)
+		var quotaRules []*datamodel.QuotaRule
+		err = workflow.ExecuteActivity(ctx, quotaRuleActivity.ListQuotaRulesForVolume, dbReplication).Get(ctx, &quotaRules)
+		if err != nil {
+			// Log error and set failure flag, but continue with workflow
+			log.Errorf("Failed to list quota rules for source volume: %v", err)
+			quotaRuleFailure = true
+		} else {
+			if len(quotaRules) > 0 {
+				// Quota rules found, process them using helper function
+				log.Infof("Found %d quota rules, creating them on destination volume", len(quotaRules))
+				failedQuotaRules = processQuotaRulesPostBreakReplication(ctx, dbReplication, quotaRules, node)
+				if len(failedQuotaRules) > 0 {
+					// Store failed quota rules for future use
+					log.Warnf("Quota rule creation completed with %d failed rules", len(failedQuotaRules))
+					for _, failedRule := range failedQuotaRules {
+						log.Warnf("  - Failed Quota Rule: UUID=%s, Name=%s", failedRule.UUID, failedRule.Name)
+					}
+					quotaRuleFailure = true
+				} else {
+					log.Infof("Successfully created all quota rules on destination volume")
+				}
+			}
+		}
+	}
+
+	// Handle quota rule failures - update states but don't fail the workflow
+	if quotaRuleFailure {
+		log.Warnf("Break replication succeeded but quota rule operations failed")
+		if len(failedQuotaRules) > 0 {
+			// Update failed quota rules state to ERROR
+			err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateQuotaRulesStateToError, failedQuotaRules).Get(ctx, nil)
+			if err != nil {
+				log.Errorf("Failed to update quota rules state to ERROR: %v", err)
+				return nil, workflows.ConvertToVSAError(
+					vsaerrors.NewVCPError(
+						vsaerrors.ErrDatabaseDataUpdateError,
+						errors.New("update quota rule state transaction failed as part of break operation"),
+					),
+				)
+			}
+		}
+
+		// Update volume replication state to ERROR (even if listing failed or quota rule creation failed)
+		err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationForQuotaError, dbReplication).Get(ctx, nil)
+		if err != nil {
+			log.Errorf("Failed to update volume replication state for quota error: %v", err)
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		// Return quota-specific error to be handled specially by error handler
+		// This allows the workflow to be marked as completed (partial success) instead of failed
+		log.Warnf("Break replication succeeded but quota rule operations failed")
+		return nil, workflows.ConvertToVSAError(
+			vsaerrors.NewVCPError(
+				vsaerrors.ErrBreakReplicationQuotaRuleFailure,
+				vsaerrors.New(models.VolumeReplicationBreakRelationshipQuotaRuleFailure),
+			),
+		)
+	}
+
+	return nil, nil
+}
+
+// processQuotaRulesPostBreakReplication is a helper function that orchestrates the creation
+// of quota rules on the destination volume after break replication. It executes a series
+// of activities to handle the complete flow.
+// It accepts a replication object and uses the volume from replication directly to avoid additional DB calls.
+// Returns a list of failed quota rules for future processing.
+func processQuotaRulesPostBreakReplication(
+	ctx workflow.Context,
+	replication *datamodel.VolumeReplication,
+	quotaRules []*datamodel.QuotaRule,
+	node *models.Node,
+) []*datamodel.QuotaRule {
+	log := util.GetLogger(ctx)
+
+	volumeDetails := replication.Volume
+	destinationVolumeUUID := replication.ReplicationAttributes.DestinationVolumeUUID
+
+	// Get SVM external UUID for RQuota operations
+	svmExternalUUID := volumeDetails.Svm.SvmDetails.ExternalUUID
+
+	// Collect failed quota rules for return
+	var failedQuotaRules []*datamodel.QuotaRule
+
+	// Track last successful quota rule response for reinitialization check
+	var lastQuotaRuleResponse *vsa.QuotaRuleProviderResponse
+
+	// Initialize activity instances
+	quotaRuleActivity := &activities.QuotaRuleCommonActivity{}
+	quotaRuleCreateActivity := &activities.QuotaRuleCreateActivity{}
+	var err error
+
+	// Process each quota rule
+	for i, quotaRule := range quotaRules {
+		// Determine if this is the last rule (quota enable required on last rule)
+		isLastRule := (i == len(quotaRules)-1)
+
+		log.Infof("Processing quota rule %d/%d: UUID=%s, Type=%s, Target=%s, IsLastRule=%t",
+			i+1, len(quotaRules), quotaRule.UUID, quotaRule.QuotaType, quotaRule.QuotaTarget, isLastRule)
+
+		if isLastRule {
+			log.Infof("Enabling RQuota on SVM for quota rule: %s", quotaRule.UUID)
+			err = workflow.ExecuteActivity(ctx, quotaRuleActivity.UpdateRQuotaOnSvm,
+				svmExternalUUID, node, true).Get(ctx, nil)
+			if err != nil {
+				log.Errorf("Failed to enable RQuota on SVM: %v", err)
+				failedQuotaRules = append(failedQuotaRules, quotaRule)
+				continue
+			}
+		}
+
+		var quotaRuleResponse *vsa.QuotaRuleProviderResponse
+		var updateErr error
+
+		// Try to update default quota if it's a default quota
+		if quotaRule.QuotaTarget == "" {
+			log.Infof("Attempting to update existing default quota for rule: %s", quotaRule.UUID)
+			updateErr = workflow.ExecuteActivity(ctx, quotaRuleCreateActivity.HandleDefaultQuotaRuleUpdate,
+				volumeDetails, node, quotaRule.QuotaType, quotaRule.DiskLimitInKib).Get(ctx, nil)
+
+			// If update failed with non-NotFoundErr, record failed rule and skip
+			if updateErr != nil {
+				isNotFound := customerrors.IsNotFoundErr(updateErr) ||
+					strings.Contains(strings.ToLower(updateErr.Error()), "not found")
+				if !isNotFound {
+					log.Errorf("Failed to update default quota rule: %v", updateErr)
+					failedQuotaRules = append(failedQuotaRules, quotaRule)
+					continue
+				}
+			}
+		}
+
+		// Create quota if it's an individual quota OR if default quota was not found
+		isNotFound := updateErr != nil && (customerrors.IsNotFoundErr(updateErr) ||
+			strings.Contains(strings.ToLower(updateErr.Error()), "not found"))
+		if quotaRule.QuotaTarget != "" || isNotFound {
+			log.Infof("Creating quota rule: %s (Type=%s, Target=%s)", quotaRule.UUID, quotaRule.QuotaType, quotaRule.QuotaTarget)
+			err = workflow.ExecuteActivity(ctx, quotaRuleCreateActivity.CreateQuotaRuleOnONTAP,
+				node, volumeDetails, quotaRule).Get(ctx, &quotaRuleResponse)
+			if err != nil {
+				log.Errorf("Failed to create quota rule: %v", err)
+				failedQuotaRules = append(failedQuotaRules, quotaRule)
+				continue
+			}
+
+			// Track the last successful response for potential reinitialization
+			if quotaRuleResponse != nil {
+				lastQuotaRuleResponse = quotaRuleResponse
+			}
+
+			// Step 3: Enable quota subsystem on last rule (only after quota creation)
+			if isLastRule {
+				log.Infof("Last quota rule processed, enabling quota subsystem for volume: %s", destinationVolumeUUID)
+				err = workflow.ExecuteActivity(ctx, quotaRuleActivity.HandleQuotaEnablementAndReinitialization,
+					node, volumeDetails, lastQuotaRuleResponse).Get(ctx, nil)
+				if err != nil {
+					log.Errorf("Failed to enable quota subsystem: %v", err)
+					failedQuotaRules = append(failedQuotaRules, quotaRule)
+				}
+			}
+		}
+	}
+
+	return failedQuotaRules
 }

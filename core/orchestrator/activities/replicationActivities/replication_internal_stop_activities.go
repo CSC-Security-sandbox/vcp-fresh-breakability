@@ -150,3 +150,64 @@ func (j *InternalStopVolumeReplicationActivity) UpdateVolumeToNonDPVolume(ctx co
 	}
 	return nil
 }
+
+// UpdateQuotaRulesStateToError updates the state of failed quota rules to ERROR
+// This is called after break replication when quota rule creation fails
+// Returns error immediately on first failure (fail-fast approach)
+func (j *InternalStopVolumeReplicationActivity) UpdateQuotaRulesStateToError(
+	ctx context.Context,
+	failedQuotaRules []*datamodel.QuotaRule,
+) error {
+	logger := util.GetLogger(ctx)
+	se := j.SE
+
+	logger.Infof("Updating %d failed quota rules to ERROR state", len(failedQuotaRules))
+
+	for _, quotaRule := range failedQuotaRules {
+		// Fetch current quota rule from DB
+		currentQuotaRule, err := se.GetQuotaRuleByUUID(ctx, quotaRule.UUID, quotaRule.AccountID)
+		if err != nil {
+			logger.Errorf("Failed to fetch quota rule for state update: uuid=%s, error=%v", quotaRule.UUID, err)
+			return vsaerror.WrapAsTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrDatabaseDataReadError, err))
+		}
+
+		// Update state to ERROR
+		currentQuotaRule.State = models.LifeCycleStateError
+		currentQuotaRule.StateDetails = models.LifeCycleStateCreationErrorDetails
+		currentQuotaRule.UpdatedAt = time.Now()
+
+		_, err = se.UpdateQuotaRule(ctx, currentQuotaRule)
+		if err != nil {
+			logger.Errorf("Failed to update quota rule state to ERROR: uuid=%s, error=%v", quotaRule.UUID, err)
+			return vsaerror.WrapAsTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrDatabaseDataUpdateError, err))
+		}
+
+		logger.Infof("Successfully updated quota rule to ERROR state: uuid=%s, name=%s", quotaRule.UUID, quotaRule.Name)
+	}
+
+	logger.Infof("Successfully updated all %d failed quota rules to ERROR state", len(failedQuotaRules))
+	return nil
+}
+
+// UpdateVolumeReplicationForQuotaError updates the volume replication state to ERROR
+// when quota rule creation fails after successful break operation
+func (j *InternalStopVolumeReplicationActivity) UpdateVolumeReplicationForQuotaError(
+	ctx context.Context,
+	replication *datamodel.VolumeReplication,
+) error {
+	logger := util.GetLogger(ctx)
+	se := j.SE
+
+	logger.Infof("Updating volume replication to ERROR state due to quota rule failures: uuid=%s", replication.UUID)
+
+	replication.State = models.LifeCycleStateError
+	replication.StateDetails = models.VolumeReplicationBreakRelationshipQuotaRuleFailure
+
+	if err := se.UpdateVolumeReplication(ctx, replication); err != nil {
+		logger.Errorf("Failed to update volume replication state: uuid=%s, error=%v", replication.UUID, err)
+		return vsaerror.WrapAsTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrDatabaseDataUpdateError, err))
+	}
+
+	logger.Infof("Successfully updated volume replication to ERROR state: uuid=%s", replication.UUID)
+	return nil
+}

@@ -1370,11 +1370,22 @@ func Test_UpdateRQuotaOnSvm(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		commonActivity := QuotaRuleCommonActivity{SE: mockStorage}
 		node := &models.Node{}
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("ModifyRquota", ctx, "", true).Return(errors.New("SVM UUID cannot be empty"))
 
 		err := commonActivity.UpdateRQuotaOnSvm(ctx, "", node, true)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "SVM ExternalUUID is required")
 	})
 	t.Run("UpdateRQuotaOnSvm_EnableRQuota_Success", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
@@ -7196,3 +7207,798 @@ func TestDescribeQuotaRuleRemoteJob(t *testing.T) {
 		mockInvoker.AssertExpectations(tt)
 	})
 }
+
+// Test_ListQuotaRulesForVolume tests the ListQuotaRulesForVolume activity
+func Test_ListQuotaRulesForVolume(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	t.Run("ListQuotaRulesForVolume_Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		volumeUUID := "volume-uuid-123"
+
+		expectedVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID:   123,
+				UUID: volumeUUID,
+			},
+		}
+
+		replication := &datamodel.VolumeReplication{
+			Volume: expectedVolume,
+		}
+
+		expectedQuotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-1",
+				},
+				Name:           "quota-rule-1",
+				QuotaType:      "INDIVIDUAL_USER_QUOTA",
+				QuotaTarget:    "1000",
+				DiskLimitInKib: 1048576,
+				VolumeID:       123,
+			},
+			{
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-rule-uuid-2",
+				},
+				Name:           "quota-rule-2",
+				QuotaType:      "DEFAULT_USER_QUOTA",
+				QuotaTarget:    "",
+				DiskLimitInKib: 2097152,
+				VolumeID:       123,
+			},
+		}
+
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, int64(123)).Return(expectedQuotaRules, nil)
+
+		result, err := activity.ListQuotaRulesForVolume(ctx, replication)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 2, len(result))
+		assert.Equal(t, "quota-rule-uuid-1", result[0].UUID)
+		assert.Equal(t, "quota-rule-uuid-2", result[1].UUID)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("ListQuotaRulesForVolume_EmptyList_Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		volumeUUID := "volume-uuid-123"
+
+		expectedVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID:   123,
+				UUID: volumeUUID,
+			},
+		}
+
+		replication := &datamodel.VolumeReplication{
+			Volume: expectedVolume,
+		}
+
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, int64(123)).Return([]*datamodel.QuotaRule{}, nil)
+
+		result, err := activity.ListQuotaRulesForVolume(ctx, replication)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 0, len(result))
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("ListQuotaRulesForVolume_NilReplication_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+
+		result, err := activity.ListQuotaRulesForVolume(ctx, nil)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("ListQuotaRulesForVolume_GetQuotaRulesError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		volumeUUID := "volume-uuid-123"
+
+		expectedVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID:   123,
+				UUID: volumeUUID,
+			},
+		}
+
+		replication := &datamodel.VolumeReplication{
+			Volume: expectedVolume,
+		}
+
+		expectedError := errors.New("failed to get quota rules")
+
+		mockStorage.On("GetQuotaRulesByVolumeID", ctx, int64(123)).Return(nil, expectedError)
+
+		result, err := activity.ListQuotaRulesForVolume(ctx, replication)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+// Test_HandleQuotaEnablementAndReinitialization tests the HandleQuotaEnablementAndReinitialization activity
+func Test_HandleQuotaEnablementAndReinitialization(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	t.Run("HandleQuotaEnablementAndReinitialization_QuotaOff_EnableSuccess", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		node := &models.Node{Name: "test-node"}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+		quotaRuleResponse := &vsa.QuotaRuleProviderResponse{
+			State:   vsa.JobRespSuccess,
+			Message: "Quota rule created successfully",
+		}
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		quotaStatus := &vsa.QuotaStatus{
+			Enabled: false,
+			State:   vsa.QuotaStateOff,
+		}
+
+		enableResp := &vsa.JobStatus{
+			State:   vsa.JobRespSuccess,
+			Message: "Quota enabled successfully",
+		}
+
+		mockProvider.On("GetQuotaStatus", ctx, "volume-external-uuid").Return(quotaStatus, nil)
+		mockProvider.On("QuotaEnableDisable", ctx, "volume-external-uuid", "test-svm", true).Return(enableResp, nil)
+
+		err := activity.HandleQuotaEnablementAndReinitialization(ctx, node, volumeDetails, quotaRuleResponse)
+
+		assert.NoError(t, err)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("HandleQuotaEnablementAndReinitialization_QuotaOff_EnableFailure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		node := &models.Node{Name: "test-node"}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+		quotaRuleResponse := &vsa.QuotaRuleProviderResponse{
+			State:   vsa.JobRespSuccess,
+			Message: "Quota rule created successfully",
+		}
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		quotaStatus := &vsa.QuotaStatus{
+			Enabled: false,
+			State:   vsa.QuotaStateOff,
+		}
+
+		enableResp := &vsa.JobStatus{
+			State:   vsa.JobRespFailure,
+			Message: "Failed to enable quota",
+		}
+
+		mockProvider.On("GetQuotaStatus", ctx, "volume-external-uuid").Return(quotaStatus, nil)
+		mockProvider.On("QuotaEnableDisable", ctx, "volume-external-uuid", "test-svm", true).Return(enableResp, nil)
+
+		err := activity.HandleQuotaEnablementAndReinitialization(ctx, node, volumeDetails, quotaRuleResponse)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Failed to enable quota")
+		assert.Contains(t, err.Error(), "please delete the quota rule and try again")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("HandleQuotaEnablementAndReinitialization_QuotaOff_EnableFailure_WithQuotaStatusFailed", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		node := &models.Node{Name: "test-node"}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+		quotaRuleResponse := &vsa.QuotaRuleProviderResponse{
+			State:   vsa.JobRespSuccess,
+			Message: "Quota rule created successfully",
+		}
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		quotaStatus := &vsa.QuotaStatus{
+			Enabled: false,
+			State:   vsa.QuotaStateOff,
+		}
+
+		enableResp := &vsa.JobStatus{
+			State:   vsa.JobRespFailure,
+			Message: "Another quota operation is currently in progress for volume",
+		}
+
+		mockProvider.On("GetQuotaStatus", ctx, "volume-external-uuid").Return(quotaStatus, nil)
+		mockProvider.On("QuotaEnableDisable", ctx, "volume-external-uuid", "test-svm", true).Return(enableResp, nil)
+
+		err := activity.HandleQuotaEnablementAndReinitialization(ctx, node, volumeDetails, quotaRuleResponse)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Another quota operation is currently in progress for volume")
+		assert.NotContains(t, err.Error(), "please delete the quota rule and try again")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("HandleQuotaEnablementAndReinitialization_QuotaOff_EnableFailure_WithSVMName", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		node := &models.Node{Name: "test-node"}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+		quotaRuleResponse := &vsa.QuotaRuleProviderResponse{
+			State:   vsa.JobRespSuccess,
+			Message: "Quota rule created successfully",
+		}
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		quotaStatus := &vsa.QuotaStatus{
+			Enabled: false,
+			State:   vsa.QuotaStateOff,
+		}
+
+		enableResp := &vsa.JobStatus{
+			State:   vsa.JobRespFailure,
+			Message: "Error in test-svm quota operation",
+		}
+
+		mockProvider.On("GetQuotaStatus", ctx, "volume-external-uuid").Return(quotaStatus, nil)
+		mockProvider.On("QuotaEnableDisable", ctx, "volume-external-uuid", "test-svm", true).Return(enableResp, nil)
+
+		err := activity.HandleQuotaEnablementAndReinitialization(ctx, node, volumeDetails, quotaRuleResponse)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Error in test-svm quota operation")
+		assert.NotContains(t, err.Error(), "please delete the quota rule and try again")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("HandleQuotaEnablementAndReinitialization_QuotaOn_NoReinitializationNeeded", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		node := &models.Node{Name: "test-node"}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+		quotaRuleResponse := &vsa.QuotaRuleProviderResponse{
+			State:   vsa.JobRespSuccess,
+			Message: "Quota rule created successfully",
+		}
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		quotaStatus := &vsa.QuotaStatus{
+			Enabled: true,
+			State:   vsa.QuotaStateOn,
+		}
+
+		mockProvider.On("GetQuotaStatus", ctx, "volume-external-uuid").Return(quotaStatus, nil)
+
+		err := activity.HandleQuotaEnablementAndReinitialization(ctx, node, volumeDetails, quotaRuleResponse)
+
+		assert.NoError(t, err)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("HandleQuotaEnablementAndReinitialization_QuotaOn_ResizeFailure_Reinitialization", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		node := &models.Node{Name: "test-node"}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+		quotaRuleResponse := &vsa.QuotaRuleProviderResponse{
+			State:   vsa.JobRespFailure,
+			Message: vsa.ResizeOperationFailed,
+		}
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		quotaStatus := &vsa.QuotaStatus{
+			Enabled: true,
+			State:   vsa.QuotaStateOn,
+		}
+
+		disableResp := &vsa.JobStatus{
+			State:   vsa.JobRespSuccess,
+			Message: "Quota disabled successfully",
+		}
+		enableResp := &vsa.JobStatus{
+			State:   vsa.JobRespSuccess,
+			Message: "Quota enabled successfully",
+		}
+
+		mockProvider.On("GetQuotaStatus", ctx, "volume-external-uuid").Return(quotaStatus, nil)
+		mockProvider.On("QuotaEnableDisable", mock.Anything, "volume-external-uuid", "test-svm", false).Return(disableResp, nil)
+		mockProvider.On("QuotaEnableDisable", mock.Anything, "volume-external-uuid", "test-svm", true).Return(enableResp, nil)
+
+		err := activity.HandleQuotaEnablementAndReinitialization(ctx, node, volumeDetails, quotaRuleResponse)
+
+		assert.NoError(t, err)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("HandleQuotaEnablementAndReinitialization_QuotaOn_ActivationFailure_Reinitialization", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		node := &models.Node{Name: "test-node"}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+		quotaRuleResponse := &vsa.QuotaRuleProviderResponse{
+			State:   vsa.JobRespFailure,
+			Message: vsa.ActivationOperationFailed,
+		}
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		quotaStatus := &vsa.QuotaStatus{
+			Enabled: true,
+			State:   vsa.QuotaStateOn,
+		}
+
+		disableResp := &vsa.JobStatus{
+			State:   vsa.JobRespSuccess,
+			Message: "Quota disabled successfully",
+		}
+		enableResp := &vsa.JobStatus{
+			State:   vsa.JobRespSuccess,
+			Message: "Quota enabled successfully",
+		}
+
+		mockProvider.On("GetQuotaStatus", ctx, "volume-external-uuid").Return(quotaStatus, nil)
+		mockProvider.On("QuotaEnableDisable", mock.Anything, "volume-external-uuid", "test-svm", false).Return(disableResp, nil)
+		mockProvider.On("QuotaEnableDisable", mock.Anything, "volume-external-uuid", "test-svm", true).Return(enableResp, nil)
+
+		err := activity.HandleQuotaEnablementAndReinitialization(ctx, node, volumeDetails, quotaRuleResponse)
+
+		assert.NoError(t, err)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("HandleQuotaEnablementAndReinitialization_QuotaOn_OtherFailure_Error", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		node := &models.Node{Name: "test-node"}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+		quotaRuleResponse := &vsa.QuotaRuleProviderResponse{
+			State:   vsa.JobRespFailure,
+			Message: "Some other error occurred",
+		}
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		quotaStatus := &vsa.QuotaStatus{
+			Enabled: true,
+			State:   vsa.QuotaStateOn,
+		}
+
+		mockProvider.On("GetQuotaStatus", ctx, "volume-external-uuid").Return(quotaStatus, nil)
+
+		err := activity.HandleQuotaEnablementAndReinitialization(ctx, node, volumeDetails, quotaRuleResponse)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Some other error occurred")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("HandleQuotaEnablementAndReinitialization_QuotaOn_NilResponse_NoReinitialization", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		node := &models.Node{Name: "test-node"}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		quotaStatus := &vsa.QuotaStatus{
+			Enabled: true,
+			State:   vsa.QuotaStateOn,
+		}
+
+		mockProvider.On("GetQuotaStatus", ctx, "volume-external-uuid").Return(quotaStatus, nil)
+
+		err := activity.HandleQuotaEnablementAndReinitialization(ctx, node, volumeDetails, nil)
+
+		assert.NoError(t, err)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("HandleQuotaEnablementAndReinitialization_GetProviderByNodeError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		node := &models.Node{Name: "test-node"}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		expectedError := errors.New("failed to create provider")
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return nil, expectedError
+		}
+
+		err := activity.HandleQuotaEnablementAndReinitialization(ctx, node, volumeDetails, nil)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to create provider")
+	})
+
+	t.Run("HandleQuotaEnablementAndReinitialization_NoExternalUUID_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		node := &models.Node{Name: "test-node"}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: nil,
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		err := activity.HandleQuotaEnablementAndReinitialization(ctx, node, volumeDetails, nil)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Volume has no ExternalUUID")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("HandleQuotaEnablementAndReinitialization_NoSVMDetails_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		node := &models.Node{Name: "test-node"}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: nil,
+		}
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		err := activity.HandleQuotaEnablementAndReinitialization(ctx, node, volumeDetails, nil)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Volume has no SVM details")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("HandleQuotaEnablementAndReinitialization_GetQuotaStatusError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		node := &models.Node{Name: "test-node"}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		expectedError := errors.New("failed to get quota status")
+		mockProvider.On("GetQuotaStatus", ctx, "volume-external-uuid").Return(nil, expectedError)
+
+		err := activity.HandleQuotaEnablementAndReinitialization(ctx, node, volumeDetails, nil)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get quota status")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("HandleQuotaEnablementAndReinitialization_QuotaOff_EnableError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		node := &models.Node{Name: "test-node"}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		quotaStatus := &vsa.QuotaStatus{
+			Enabled: false,
+			State:   vsa.QuotaStateOff,
+		}
+
+		expectedError := errors.New("failed to enable quota")
+		mockProvider.On("GetQuotaStatus", ctx, "volume-external-uuid").Return(quotaStatus, nil)
+		mockProvider.On("QuotaEnableDisable", ctx, "volume-external-uuid", "test-svm", true).Return(nil, expectedError)
+
+		err := activity.HandleQuotaEnablementAndReinitialization(ctx, node, volumeDetails, nil)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to enable quota")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("HandleQuotaEnablementAndReinitialization_ReinitializationError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		node := &models.Node{Name: "test-node"}
+		volumeDetails := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "volume-external-uuid",
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+		quotaRuleResponse := &vsa.QuotaRuleProviderResponse{
+			State:   vsa.JobRespFailure,
+			Message: vsa.ResizeOperationFailed,
+		}
+
+		mockProvider := new(vsa.MockProvider)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() {
+			hyperscaler.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		quotaStatus := &vsa.QuotaStatus{
+			Enabled: true,
+			State:   vsa.QuotaStateOn,
+		}
+
+		expectedError := errors.New("reinitialization failed")
+		mockProvider.On("GetQuotaStatus", ctx, "volume-external-uuid").Return(quotaStatus, nil)
+		mockProvider.On("QuotaEnableDisable", mock.Anything, "volume-external-uuid", "test-svm", false).Return(nil, expectedError)
+
+		err := activity.HandleQuotaEnablementAndReinitialization(ctx, node, volumeDetails, quotaRuleResponse)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "reinitialization failed")
+		mockProvider.AssertExpectations(t)
+	})
+}
+
+// Test_ParseQuotaRuleErrors tests the ParseQuotaRuleErrors activity

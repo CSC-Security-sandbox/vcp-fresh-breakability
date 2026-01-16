@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
@@ -146,6 +147,37 @@ func (a *QuotaRuleCommonActivity) GetVolumeByID(ctx context.Context, volumeID in
 	}
 
 	return volume, nil
+}
+
+// ListQuotaRulesForVolume lists all quota rules for a volume (excluding deleted ones).
+// This is used in break replication to get quota rules that need to be recreated and in delete workflows.
+// It accepts a replication object and uses the volume from replication directly to avoid additional DB calls.
+func (a *QuotaRuleCommonActivity) ListQuotaRulesForVolume(
+	ctx context.Context,
+	replication *datamodel.VolumeReplication,
+) ([]*datamodel.QuotaRule, error) {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+
+	// Validate replication and volume are present
+	if replication == nil || replication.Volume == nil {
+		logger.Errorf("Replication or volume is nil")
+		return nil, vsaerrors.WrapAsTemporalApplicationError(customerrors.NewUserInputValidationErr(
+			"Replication and volume must be provided"))
+	}
+
+	volume := replication.Volume
+	volumeUUID := volume.UUID
+
+	// Get quota rules for the volume (excluding deleted) using volume ID from replication
+	quotaRules, err := se.GetQuotaRulesByVolumeID(ctx, volume.ID)
+	if err != nil {
+		logger.Errorf("Failed to list quota rules for volume %s: %v", volumeUUID, err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Found %d quota rules for volume %s", len(quotaRules), volumeUUID)
+	return quotaRules, nil
 }
 
 // CreateQuotaRuleForDataProtectionVolume handles quota rule creation for DP (Data Protection) volumes.
@@ -856,13 +888,6 @@ type RevertQuotaRuleResult struct {
 func (a *QuotaRuleCommonActivity) UpdateRQuotaOnSvm(ctx context.Context, svmExternalUUID string, node *models.Node, rquota bool) error {
 	logger := util.GetLogger(ctx)
 
-	// Validate SVM ExternalUUID
-	if svmExternalUUID == "" {
-		logger.Errorf("SVM ExternalUUID is empty")
-		return vsaerrors.WrapAsTemporalApplicationError(customerrors.NewUserInputValidationErr(
-			"SVM ExternalUUID is required"))
-	}
-
 	// Create provider from node
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -940,7 +965,7 @@ func (a *QuotaRuleCreateActivity) HandleDefaultQuotaRuleUpdate(
 
 		if quotaModifyRuleResp.IsFailure() {
 			logger.Errorf("Quota update job failed: %s", quotaModifyRuleResp.Message)
-			return vsaerrors.WrapAsTemporalApplicationError(customerrors.NewBadRequestErr(
+			return vsaerrors.WrapAsTemporalApplicationError(customerrors.NewUnavailableErr(
 				quotaModifyRuleResp.Message))
 		}
 
@@ -1153,6 +1178,109 @@ func HasNFSv4(protocolTypes []string) bool {
 // HasDualProtocolForUserMapping checks if both SMB and NFS protocols exist (dual protocol)
 func HasDualProtocolForUserMapping(protocolTypes []string) bool {
 	return HasCIFS(protocolTypes) && (HasNFSv3(protocolTypes) || HasNFSv4(protocolTypes))
+}
+
+// HandleQuotaEnablementAndReinitialization encapsulates the complete quota enablement logic
+// including status checking, enabling quota if off, and handling reinitialization if needed
+// based on quota rule response. This implements the logic from spec lines 470-484.
+func (a *QuotaRuleCommonActivity) HandleQuotaEnablementAndReinitialization(
+	ctx context.Context,
+	node *models.Node,
+	volumeDetails *datamodel.Volume,
+	quotaRuleResponse *vsa.QuotaRuleProviderResponse,
+) error {
+	logger := util.GetLogger(ctx)
+
+	// Create provider from node
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		logger.Errorf("Failed to create provider for volume %s: %v", volumeDetails.UUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Validate inputs
+	if volumeDetails.VolumeAttributes == nil || volumeDetails.VolumeAttributes.ExternalUUID == "" {
+		logger.Errorf("Volume %s has no ExternalUUID in VolumeAttributes", volumeDetails.UUID)
+		return vsaerrors.WrapAsTemporalApplicationError(customerrors.NewUserInputValidationErr(
+			"Volume has no ExternalUUID"))
+	}
+
+	volumeUUID := volumeDetails.VolumeAttributes.ExternalUUID
+
+	// Get SVM name
+	var svmName string
+	if volumeDetails.Svm != nil && volumeDetails.Svm.Name != "" {
+		svmName = volumeDetails.Svm.Name
+	} else {
+		logger.Errorf("Volume %s has no SVM details loaded", volumeDetails.UUID)
+		return vsaerrors.WrapAsTemporalApplicationError(customerrors.NewUserInputValidationErr(
+			"Volume has no SVM details"))
+	}
+
+	logger.Infof("Checking quota status for volume: %s", volumeUUID)
+	quotaStatus, err := provider.GetQuotaStatus(ctx, volumeUUID)
+	if err != nil {
+		logger.Errorf("Failed to get quota status: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Quota status for volume %s: enabled=%t, state=%s",
+		volumeUUID, quotaStatus.Enabled, quotaStatus.State)
+
+	if quotaStatus.State == vsa.QuotaStateOff {
+		logger.Infof("Quota is OFF, enabling quota on volume: %s", volumeUUID)
+		quotaEnableResp, err := provider.QuotaEnableDisable(ctx, volumeUUID, svmName, true)
+		if err != nil {
+			logger.Errorf("Failed to enable quota: %v", err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+
+		if quotaEnableResp.State == vsa.JobRespFailure {
+			// Check if failure is due to specific error conditions
+			if !strings.Contains(quotaEnableResp.Message, vsa.QuotaStatusFailed) &&
+				!strings.Contains(quotaEnableResp.Message, svmName) {
+				logger.Errorf("Quota enable failed with non-retryable error: %s", quotaEnableResp.Message)
+				return vsaerrors.WrapAsTemporalApplicationError(errors.New(
+					quotaEnableResp.Message + " - please delete the quota rule and try again"))
+			}
+			// If message contains QuotaStatusFailed or svmName, handle as regular failure
+			logger.Errorf("Quota enable failed: %s", quotaEnableResp.Message)
+			return vsaerrors.WrapAsTemporalApplicationError(customerrors.NewBadRequestErr(
+				quotaEnableResp.Message))
+		}
+
+		logger.Infof("Successfully enabled quota on volume: %s", volumeUUID)
+		return nil
+	} else {
+		logger.Infof("Quota is already ON for volume: %s, checking if reinitialization needed", volumeUUID)
+		if quotaRuleResponse != nil && quotaRuleResponse.State == vsa.JobRespFailure {
+			logger.Warnf("Quota rule operation returned failure state. Message: %s", quotaRuleResponse.Message)
+
+			// Check if failure is due to resize or activation operation
+			if strings.Contains(quotaRuleResponse.Message, vsa.ResizeOperationFailed) ||
+				strings.Contains(quotaRuleResponse.Message, vsa.ActivationOperationFailed) {
+				logger.Infof("Detected resize/activation failure - triggering quota reinitialization")
+
+				// Perform quota reinitialization (disable then enable)
+				err = performQuotaReinitialization(ctx, provider, volumeDetails)
+				if err != nil {
+					logger.Errorf("Quota reinitialization failed: %v", err)
+					return vsaerrors.WrapAsTemporalApplicationError(err)
+				}
+
+				logger.Infof("Successfully reinitialized quota on volume: %s", volumeUUID)
+				return nil
+			}
+
+			// Other failure - return error
+			logger.Errorf("Quota rule operation failed with non-reinitialization error: %s", quotaRuleResponse.Message)
+			return vsaerrors.WrapAsTemporalApplicationError(customerrors.NewBadRequestErr(
+				quotaRuleResponse.Message))
+		}
+
+		logger.Infof("Quota is already enabled and no reinitialization needed for volume: %s", volumeUUID)
+		return nil
+	}
 }
 
 // UpdateQuotaRuleState updates the quota rule state in the database.

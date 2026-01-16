@@ -639,3 +639,232 @@ func TestGetSnapMirrorFromOntap(t *testing.T) {
 		assert.Equal(tt, vsaerrors.ErrProviderGetVolumeReplication, customErr.TrackingID)
 	})
 }
+
+func TestUpdateQuotaRulesStateToError(t *testing.T) {
+	t.Run("EmptyFailedList_Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := InternalStopVolumeReplicationActivity{
+			SE: mockStorage,
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Empty list should return nil without any DB calls
+		err := activity.UpdateQuotaRulesStateToError(ctx, []*datamodel.QuotaRule{})
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("SingleFailure_Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := InternalStopVolumeReplicationActivity{
+			SE: mockStorage,
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		failedQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid-1",
+			},
+			Name:      "test-quota-rule",
+			AccountID: int64(123),
+		}
+
+		currentQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid-1",
+			},
+			Name:         "test-quota-rule",
+			AccountID:    int64(123),
+			State:        models.LifeCycleStateCreating,
+			StateDetails: models.LifeCycleStateCreatingDetails,
+		}
+
+		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid-1", int64(123)).Return(currentQuotaRule, nil)
+		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
+			return qr.UUID == "quota-rule-uuid-1" &&
+				qr.State == models.LifeCycleStateError &&
+				qr.StateDetails == models.LifeCycleStateCreationErrorDetails
+		})).Return(currentQuotaRule, nil)
+
+		err := activity.UpdateQuotaRulesStateToError(ctx, []*datamodel.QuotaRule{failedQuotaRule})
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("DatabaseReadError_Failure", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := InternalStopVolumeReplicationActivity{
+			SE: mockStorage,
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		failedQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid-1",
+			},
+			Name:      "test-quota-rule",
+			AccountID: int64(123),
+		}
+
+		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid-1", int64(123)).Return(nil, errors.New("database read error"))
+
+		err := activity.UpdateQuotaRulesStateToError(ctx, []*datamodel.QuotaRule{failedQuotaRule})
+		assert.Error(tt, err)
+		// Extract CustomError from potentially wrapped Temporal application error
+		customErr := vsaerrors.ExtractCustomError(err)
+		assert.NotNil(tt, customErr, "CustomError should not be nil")
+		assert.Equal(tt, vsaerrors.ErrDatabaseDataReadError, customErr.TrackingID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("DatabaseUpdateError_Failure", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := InternalStopVolumeReplicationActivity{
+			SE: mockStorage,
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		failedQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid-1",
+			},
+			Name:      "test-quota-rule",
+			AccountID: int64(123),
+		}
+
+		currentQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid-1",
+			},
+			Name:         "test-quota-rule",
+			AccountID:    int64(123),
+			State:        models.LifeCycleStateCreating,
+			StateDetails: models.LifeCycleStateCreatingDetails,
+		}
+
+		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid-1", int64(123)).Return(currentQuotaRule, nil)
+		mockStorage.On("UpdateQuotaRule", ctx, mock.Anything).Return(nil, errors.New("database update error"))
+
+		err := activity.UpdateQuotaRulesStateToError(ctx, []*datamodel.QuotaRule{failedQuotaRule})
+		assert.Error(tt, err)
+		// Extract CustomError from potentially wrapped Temporal application error
+		customErr := vsaerrors.ExtractCustomError(err)
+		assert.NotNil(tt, customErr, "CustomError should not be nil")
+		assert.Equal(tt, vsaerrors.ErrDatabaseDataUpdateError, customErr.TrackingID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("MultipleQuotaRules_Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := InternalStopVolumeReplicationActivity{
+			SE: mockStorage,
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		failedQuotaRule1 := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid-1",
+			},
+			Name:      "test-quota-rule-1",
+			AccountID: int64(123),
+		}
+
+		failedQuotaRule2 := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid-2",
+			},
+			Name:      "test-quota-rule-2",
+			AccountID: int64(123),
+		}
+
+		currentQuotaRule1 := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid-1",
+			},
+			Name:         "test-quota-rule-1",
+			AccountID:    int64(123),
+			State:        models.LifeCycleStateCreating,
+			StateDetails: models.LifeCycleStateCreatingDetails,
+		}
+
+		currentQuotaRule2 := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid-2",
+			},
+			Name:         "test-quota-rule-2",
+			AccountID:    int64(123),
+			State:        models.LifeCycleStateCreating,
+			StateDetails: models.LifeCycleStateCreatingDetails,
+		}
+
+		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid-1", int64(123)).Return(currentQuotaRule1, nil)
+		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
+			return qr.UUID == "quota-rule-uuid-1" && qr.State == models.LifeCycleStateError
+		})).Return(currentQuotaRule1, nil)
+
+		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid-2", int64(123)).Return(currentQuotaRule2, nil)
+		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
+			return qr.UUID == "quota-rule-uuid-2" && qr.State == models.LifeCycleStateError
+		})).Return(currentQuotaRule2, nil)
+
+		err := activity.UpdateQuotaRulesStateToError(ctx, []*datamodel.QuotaRule{failedQuotaRule1, failedQuotaRule2})
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestUpdateVolumeReplicationForQuotaError(t *testing.T) {
+	t.Run("Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := InternalStopVolumeReplicationActivity{
+			SE: mockStorage,
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid",
+			},
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		}
+
+		mockStorage.On("UpdateVolumeReplication", ctx, mock.MatchedBy(func(rep *datamodel.VolumeReplication) bool {
+			return rep.UUID == "replication-uuid" &&
+				rep.State == models.LifeCycleStateError &&
+				rep.StateDetails == models.VolumeReplicationBreakRelationshipQuotaRuleFailure
+		})).Return(nil)
+
+		err := activity.UpdateVolumeReplicationForQuotaError(ctx, replication)
+		assert.NoError(t, err)
+		assert.Equal(t, models.LifeCycleStateError, replication.State)
+		assert.Equal(t, models.VolumeReplicationBreakRelationshipQuotaRuleFailure, replication.StateDetails)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("DatabaseUpdateError_Failure", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := InternalStopVolumeReplicationActivity{
+			SE: mockStorage,
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "replication-uuid",
+			},
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		}
+
+		mockStorage.On("UpdateVolumeReplication", ctx, mock.Anything).Return(errors.New("database update error"))
+
+		err := activity.UpdateVolumeReplicationForQuotaError(ctx, replication)
+		assert.Error(tt, err)
+		// Extract CustomError from potentially wrapped Temporal application error
+		customErr := vsaerrors.ExtractCustomError(err)
+		assert.NotNil(tt, customErr, "CustomError should not be nil")
+		assert.Equal(tt, vsaerrors.ErrDatabaseDataUpdateError, customErr.TrackingID)
+		mockStorage.AssertExpectations(tt)
+	})
+}
