@@ -244,7 +244,7 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 		backupActivitiesContext.Node = node
 
 		var objStoreName string
-		err := workflow.ExecuteActivity(ctx, backupActivity.GenerateObjectStoreNameForRestore, backupActivitiesContext.BackupWorkflowInit.BackupVault, backupActivitiesContext.BackupWorkflowInit.Backup).Get(ctx, &objStoreName)
+		err = workflow.ExecuteActivity(ctx, backupActivity.GenerateObjectStoreNameForRestore, backupActivitiesContext.BackupWorkflowInit.BackupVault, backupActivitiesContext.BackupWorkflowInit.Backup).Get(ctx, &objStoreName)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -254,6 +254,11 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 		var smDestinationPath string
 		err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathActivity, backupActivitiesContext.BackupWorkflowInit.Volume).Get(ctx, &smDestinationPath)
 		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		if backupActivitiesContext.BackupWorkflowInit.Backup.Attributes == nil || backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotName == "" {
+			err = vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, vsaerrors.New("could not find snapshot name in backup attributes"))
 			return nil, ConvertToVSAError(err)
 		}
 		var smSourcePath string
@@ -288,6 +293,8 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
+		rollbackManager.AddActivity(activities.BackupActivity.DeleteSnapmirror, node, snapmirrorRelationship.UUID)
+
 		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.SnapmirrorTransfer, node, snapmirrorRelationship.UUID, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotName).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)

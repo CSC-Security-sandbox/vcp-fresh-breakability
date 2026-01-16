@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
@@ -117,8 +118,15 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Succes
 
 	s.env.RegisterActivity(commonActivity.CreateJob)
 	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetBackupPolicyByUUID)
 	s.env.RegisterActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	backupPolicyReady := &datamodel.BackupPolicy{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID:      1,
+		LifeCycleState: models.LifeCycleStateREADY,
+	}
 
 	volumes := []*datamodel.Volume{
 		{
@@ -132,6 +140,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Succes
 	}
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
+	// Mock GetBackupPolicyByUUID returning READY state
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, backupPolicyReady.UUID, backupPolicyReady.AccountID).
+		Return(backupPolicyReady, nil).Once()
 	// Mock first batch returning volumes (2 volumes < 20 batch size, so workflow stops after this)
 	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
 		Return(volumes, nil).Once()
@@ -160,8 +171,15 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Succes
 
 	s.env.RegisterActivity(commonActivity.CreateJob)
 	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetBackupPolicyByUUID)
 	s.env.RegisterActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	backupPolicyReady := &datamodel.BackupPolicy{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID:      1,
+		LifeCycleState: models.LifeCycleStateREADY,
+	}
 
 	volumes := []*datamodel.Volume{
 		{
@@ -175,6 +193,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Succes
 	}
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
+	// Mock GetBackupPolicyByUUID returning READY state
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, backupPolicyReady.UUID, backupPolicyReady.AccountID).
+		Return(backupPolicyReady, nil).Once()
 	// Mock first batch returning volumes (2 volumes < 20 batch size, so workflow stops after this)
 	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
 		Return(volumes, nil).Once()
@@ -235,11 +256,21 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_GetVol
 
 	s.env.RegisterActivity(commonActivity.CreateJob)
 	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetBackupPolicyByUUID)
 	s.env.RegisterActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
+	backupPolicyReady := &datamodel.BackupPolicy{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID:      1,
+		LifeCycleState: models.LifeCycleStateREADY,
+	}
+
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
+	// Mock GetBackupPolicyByUUID returning READY state
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, backupPolicyReady.UUID, backupPolicyReady.AccountID).
+		Return(backupPolicyReady, nil).Once()
 	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
 		Return(nil, errors.New("could not fetch volumes attached to the backup policy"))
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("could not update job"))
@@ -272,11 +303,21 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_NoVolu
 
 	s.env.RegisterActivity(commonActivity.CreateJob)
 	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetBackupPolicyByUUID)
 	s.env.RegisterActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
+	backupPolicyReady := &datamodel.BackupPolicy{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID:      1,
+		LifeCycleState: models.LifeCycleStateREADY,
+	}
+
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
+	// Mock GetBackupPolicyByUUID returning READY state
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, backupPolicyReady.UUID, backupPolicyReady.AccountID).
+		Return(backupPolicyReady, nil).Once()
 	// Mock returning empty volumes list (no volumes attached to this backup policy)
 	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
 		Return([]*datamodel.Volume{}, nil).Once()
@@ -303,8 +344,15 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Pagina
 
 	s.env.RegisterActivity(commonActivity.CreateJob)
 	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetBackupPolicyByUUID)
 	s.env.RegisterActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	backupPolicyReady := &datamodel.BackupPolicy{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID:      1,
+		LifeCycleState: models.LifeCycleStateREADY,
+	}
 
 	// Simulate 50 volumes (will be fetched in 3 batches: 20, 20, 10)
 	batch1 := make([]*datamodel.Volume, 20)
@@ -333,6 +381,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Pagina
 
 	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
 		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
+	// Mock GetBackupPolicyByUUID returning READY state
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, backupPolicyReady.UUID, backupPolicyReady.AccountID).
+		Return(backupPolicyReady, nil).Once()
 	// Mock first batch (20 volumes)
 	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
 		Return(batch1, nil).Once()
@@ -360,6 +411,370 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Pagina
 	s.env.ExecuteWorkflow(CreateScheduledBackupInitWorkflow, backupPolicy)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
+
+// Test cases for backup policy polling logic (lines 143-195)
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_BackupPolicyReadyImmediately() {
+	// Test case: Backup policy is already in READY state, no polling needed
+	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	// Override polling timeout and interval for faster tests
+	originalPollTimeout := pollBackupPolicyTimeout
+	originalPollInterval := pollBackupPolicyInterval
+	pollBackupPolicyTimeout = 1 * time.Minute
+	pollBackupPolicyInterval = 1 * time.Second
+	defer func() {
+		pollBackupPolicyTimeout = originalPollTimeout
+		pollBackupPolicyInterval = originalPollInterval
+	}()
+
+	s.env.RegisterActivity(commonActivity.CreateJob)
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID:      1,
+		LifeCycleState: models.LifeCycleStateREADY,
+	}
+
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
+	// First call: GetBackupPolicyByUUID returns READY state immediately
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, backupPolicy.UUID, backupPolicy.AccountID).
+		Return(backupPolicy, nil).Once()
+	// No volumes to process
+	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
+		Return([]*datamodel.Volume{}, nil).Once()
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(CreateScheduledBackupInitWorkflow, backupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_BackupPolicyUpdatingThenReady() {
+	// Test case: Backup policy starts in UPDATING state, then transitions to READY
+	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	// Override polling timeout and interval for faster tests
+	originalPollTimeout := pollBackupPolicyTimeout
+	originalPollInterval := pollBackupPolicyInterval
+	pollBackupPolicyTimeout = 1 * time.Minute
+	pollBackupPolicyInterval = 1 * time.Second
+	defer func() {
+		pollBackupPolicyTimeout = originalPollTimeout
+		pollBackupPolicyInterval = originalPollInterval
+	}()
+
+	s.env.RegisterActivity(commonActivity.CreateJob)
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	backupPolicyUpdating := &datamodel.BackupPolicy{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID:      1,
+		LifeCycleState: models.LifeCycleStateUpdating,
+	}
+	backupPolicyReady := &datamodel.BackupPolicy{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID:      1,
+		LifeCycleState: models.LifeCycleStateREADY,
+	}
+
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
+	// First call: GetBackupPolicyByUUID returns UPDATING state
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, backupPolicyUpdating.UUID, backupPolicyUpdating.AccountID).
+		Return(backupPolicyUpdating, nil).Once()
+	// Second call: GetBackupPolicyByUUID returns READY state
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, backupPolicyReady.UUID, backupPolicyReady.AccountID).
+		Return(backupPolicyReady, nil).Once()
+	// No volumes to process
+	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
+		Return([]*datamodel.Volume{}, nil).Once()
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID: 1,
+	}
+	s.env.ExecuteWorkflow(CreateScheduledBackupInitWorkflow, backupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_BackupPolicyDeleted() {
+	// Test case: Backup policy is in DELETED state, workflow should exit gracefully
+	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	// Override polling timeout and interval for faster tests
+	originalPollTimeout := pollBackupPolicyTimeout
+	originalPollInterval := pollBackupPolicyInterval
+	pollBackupPolicyTimeout = 1 * time.Minute
+	pollBackupPolicyInterval = 1 * time.Second
+	defer func() {
+		pollBackupPolicyTimeout = originalPollTimeout
+		pollBackupPolicyInterval = originalPollInterval
+	}()
+
+	s.env.RegisterActivity(commonActivity.CreateJob)
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	backupPolicyDeleted := &datamodel.BackupPolicy{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID:      1,
+		LifeCycleState: models.LifeCycleStateDeleted,
+	}
+
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, backupPolicyDeleted.UUID, backupPolicyDeleted.AccountID).
+		Return(backupPolicyDeleted, nil).Once()
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID: 1,
+	}
+	s.env.ExecuteWorkflow(CreateScheduledBackupInitWorkflow, backupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_BackupPolicyDeletingThenDeleted() {
+	// Test case: Backup policy starts in DELETING state, then transitions to DELETED
+	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	// Override polling timeout and interval for faster tests
+	originalPollTimeout := pollBackupPolicyTimeout
+	originalPollInterval := pollBackupPolicyInterval
+	pollBackupPolicyTimeout = 1 * time.Minute
+	pollBackupPolicyInterval = 1 * time.Second
+	defer func() {
+		pollBackupPolicyTimeout = originalPollTimeout
+		pollBackupPolicyInterval = originalPollInterval
+	}()
+
+	s.env.RegisterActivity(commonActivity.CreateJob)
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	backupPolicyDeleting := &datamodel.BackupPolicy{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID:      1,
+		LifeCycleState: models.LifeCycleStateDeleting,
+	}
+	backupPolicyDeleted := &datamodel.BackupPolicy{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID:      1,
+		LifeCycleState: models.LifeCycleStateDeleted,
+	}
+
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
+	// First call: GetBackupPolicyByUUID returns DELETING state
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, backupPolicyDeleting.UUID, backupPolicyDeleting.AccountID).
+		Return(backupPolicyDeleting, nil).Once()
+	// Second call: GetBackupPolicyByUUID returns DELETED state
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, backupPolicyDeleted.UUID, backupPolicyDeleted.AccountID).
+		Return(backupPolicyDeleted, nil).Once()
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID: 1,
+	}
+	s.env.ExecuteWorkflow(CreateScheduledBackupInitWorkflow, backupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_BackupPolicyNotFound() {
+	// Test case: Backup policy not found (NotFound error), workflow should exit gracefully
+	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	// Override polling timeout and interval for faster tests
+	originalPollTimeout := pollBackupPolicyTimeout
+	originalPollInterval := pollBackupPolicyInterval
+	pollBackupPolicyTimeout = 1 * time.Minute
+	pollBackupPolicyInterval = 1 * time.Second
+	defer func() {
+		pollBackupPolicyTimeout = originalPollTimeout
+		pollBackupPolicyInterval = originalPollInterval
+	}()
+
+	s.env.RegisterActivity(commonActivity.CreateJob)
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	notFoundErr := vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("backup policy not found"))
+	temporalErr := vsaerrors.WrapAsTemporalApplicationError(notFoundErr)
+
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
+	// NotFound error is retryable, so it may be called multiple times before the workflow handles it
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, temporalErr)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID: 1,
+	}
+	s.env.ExecuteWorkflow(CreateScheduledBackupInitWorkflow, backupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_BackupPolicyTimeout() {
+	// Test case: Backup policy doesn't reach READY state within timeout
+	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	// Override polling timeout and interval for faster tests
+	originalPollTimeout := pollBackupPolicyTimeout
+	originalPollInterval := pollBackupPolicyInterval
+	pollBackupPolicyTimeout = 100 * time.Millisecond
+	pollBackupPolicyInterval = 10 * time.Millisecond
+	defer func() {
+		pollBackupPolicyTimeout = originalPollTimeout
+		pollBackupPolicyInterval = originalPollInterval
+	}()
+
+	s.env.RegisterActivity(commonActivity.CreateJob)
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	backupPolicyUpdating := &datamodel.BackupPolicy{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID:      1,
+		LifeCycleState: models.LifeCycleStateUpdating,
+	}
+
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
+	// Keep returning UPDATING state until timeout - mock multiple calls
+	// The workflow will call GetBackupPolicyByUUID, then sleep, then call again until timeout
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, backupPolicyUpdating.UUID, backupPolicyUpdating.AccountID).
+		Return(backupPolicyUpdating, nil)
+	// Mock UpdateJobStatus for when the workflow fails due to timeout
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	// Set test timeout to be longer than pollBackupPolicyTimeout to allow the workflow to timeout naturally
+	s.env.SetTestTimeout(pollBackupPolicyTimeout + 100*time.Millisecond)
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID: 1,
+	}
+	s.env.ExecuteWorkflow(CreateScheduledBackupInitWorkflow, backupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	// Verify it's a timeout error
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "did not reach READY state within")
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_BackupPolicyUnexpectedState() {
+	// Test case: Backup policy is in an unexpected state
+	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	// Override polling timeout and interval for faster tests
+	originalPollTimeout := pollBackupPolicyTimeout
+	originalPollInterval := pollBackupPolicyInterval
+	pollBackupPolicyTimeout = 1 * time.Minute
+	pollBackupPolicyInterval = 1 * time.Second
+	defer func() {
+		pollBackupPolicyTimeout = originalPollTimeout
+		pollBackupPolicyInterval = originalPollInterval
+	}()
+
+	s.env.RegisterActivity(commonActivity.CreateJob)
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	// Use an unexpected state (e.g., a state that's not handled in the switch)
+	backupPolicyUnexpected := &datamodel.BackupPolicy{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID:      1,
+		LifeCycleState: "UNEXPECTED_STATE",
+	}
+
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, backupPolicyUnexpected.UUID, backupPolicyUnexpected.AccountID).
+		Return(backupPolicyUnexpected, nil).Once()
+	// Mock UpdateJobStatus for when the workflow fails due to unexpected state
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID: 1,
+	}
+	s.env.ExecuteWorkflow(CreateScheduledBackupInitWorkflow, backupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	// Verify it's a state conflict error - check for the actual error message content
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "is in UNEXPECTED_STATE state, expected READY state")
 	s.env.AssertExpectations(s.T())
 }
 

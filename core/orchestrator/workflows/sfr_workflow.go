@@ -356,7 +356,7 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 	}
 
 	// Wait for service account and HMAC keys to be ready
-	err = workflow.Sleep(ctx, time.Second*60)
+	err = workflow.Sleep(ctx, time.Second*90)
 	if err != nil {
 		log.Errorf("Failed to sleep after ADC service deployment: %v", err)
 	}
@@ -455,6 +455,7 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
+	rollbackManager.AddActivity(activities.BackupActivity.DeleteSnapmirror, node, snapmirrorRelationship.UUID)
 
 	// Step 10: Create snapmirror transfer with inode numbers
 	// Build files list with inode numbers (matching cloud-backup-service pattern)

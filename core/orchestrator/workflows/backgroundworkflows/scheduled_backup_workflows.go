@@ -33,6 +33,8 @@ var (
 	scheduledMonthlyBackupDay                 = env.GetInt("SCHEDULED_MONTHLY_BACKUP_DAY", 1) // Default to 1st day of the month
 	scheduleBackupWorkflowHeartbeatTimeoutSec = env.GetUint64("SCHEDULE_BACKUP_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 600)
 	checkBackupStateRetryMaxAttempts          = env.GetInt("CHECK_BACKUP_STATE_RETRY_MAX_ATTEMPTS", 300) // Default to 300 attempts
+	pollBackupPolicyTimeout                   = 1 * time.Hour                                            // Timeout for polling backup policy to reach READY state
+	pollBackupPolicyInterval                  = 30 * time.Second                                         // Interval between polling attempts for backup policy state
 )
 
 type baseScheduledBackupWorkflow struct {
@@ -137,6 +139,60 @@ func (wf *createScheduledBackupInitWorkflow) Run(ctx workflow.Context, args ...i
 	ctx = workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		ParentClosePolicy: enums.PARENT_CLOSE_POLICY_ABANDON,
 	})
+
+	// Fetch the backup policy from the database as the input backup policy in the temporal schedule could be outdated.
+	// Poll until the backup policy is in READY state, handling UPDATING/DELETING states and NotFound errors.
+	startTime := workflow.Now(ctx)
+
+	for {
+		// Check if timeout has been reached
+		if workflow.Now(ctx).Sub(startTime) > pollBackupPolicyTimeout {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrTimeLimitExceeded, fmt.Errorf("backup policy %s did not reach READY state within %v", backupPolicy.UUID, pollBackupPolicyTimeout))
+		}
+
+		// Fetch the backup policy from the database
+		err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.GetBackupPolicyByUUID,
+			backupPolicy.UUID, backupPolicy.AccountID).Get(ctx, &backupPolicy)
+		if err != nil {
+			// Check if the backup policy was deleted (NotFound error)
+			customErr := workflows.ConvertToVSAError(err)
+			if customErr != nil && customErr.TrackingID == vsaerrors.ErrResourceNotFound {
+				wf.Logger.Infof("Backup policy %s was deleted, exiting workflow", backupPolicy.UUID)
+				return nil, nil
+			}
+			return nil, customErr
+		}
+
+		// Check backup policy state and decide whether to proceed or continue polling
+		switch backupPolicy.LifeCycleState {
+		case models.LifeCycleStateREADY:
+			// Backup policy is ready, proceed with scheduled backup
+			wf.Logger.Infof("Backup policy %s is in READY state, proceeding with scheduled backup", backupPolicy.UUID)
+
+		case models.LifeCycleStateDeleted:
+			// Backup policy was deleted, exit gracefully
+			wf.Logger.Infof("Backup policy %s is DELETED, exiting workflow", backupPolicy.UUID)
+			return nil, nil
+
+		case models.LifeCycleStateUpdating, models.LifeCycleStateDeleting:
+			// Backup policy is in transition state, continue polling
+			wf.Logger.Infof("Backup policy %s is in %s state, waiting for it to reach READY state", backupPolicy.UUID, backupPolicy.LifeCycleState)
+			err = workflow.Sleep(ctx, pollBackupPolicyInterval)
+			if err != nil {
+				return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to sleep while waiting for backup policy %s: %w", backupPolicy.UUID, err))
+			}
+			continue
+
+		default:
+			// Unexpected state, return error
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, fmt.Errorf("backup policy %s is in %s state, expected READY state", backupPolicy.UUID, backupPolicy.LifeCycleState))
+		}
+
+		// Break out of the loop if backup policy is in READY state
+		if backupPolicy.LifeCycleState == models.LifeCycleStateREADY {
+			break
+		}
+	}
 
 	for {
 		var volumes []*datamodel.Volume

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -18,9 +19,11 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"go.temporal.io/sdk/temporal"
 )
 
 func TestCreateScheduledBackup(t *testing.T) {
@@ -1630,6 +1633,144 @@ func TestCheckBackupInCreatingStateByVolume(t *testing.T) {
 
 		err := activity.CheckBackupsInProgressByVolume(ctx, emptyVolumeUUID, excludeBackupUUIDs)
 		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+func TestGetBackupPolicyByUUID(t *testing.T) {
+	ctx := context.Background()
+	backupPolicyUUID := "policy-uuid-123"
+	accountID := int64(42)
+
+	t.Run("GetBackupPolicyByUUIDSuccess", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		expectedBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: backupPolicyUUID,
+			},
+			Name:      "test-backup-policy",
+			AccountID: accountID,
+		}
+
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(expectedBackupPolicy, nil).Once()
+
+		backupPolicy, err := activity.GetBackupPolicyByUUID(ctx, backupPolicyUUID, accountID)
+		assert.NoError(t, err)
+		assert.NotNil(t, backupPolicy)
+		assert.Equal(t, expectedBackupPolicy, backupPolicy)
+		assert.Equal(t, backupPolicyUUID, backupPolicy.UUID)
+		assert.Equal(t, accountID, backupPolicy.AccountID)
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetBackupPolicyByUUIDNotFound", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		notFoundErr := customerrors.NewNotFoundErr("BackupPolicy", &backupPolicyUUID)
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(nil, notFoundErr).Once()
+
+		backupPolicy, err := activity.GetBackupPolicyByUUID(ctx, backupPolicyUUID, accountID)
+		assert.Error(t, err)
+		assert.Nil(t, backupPolicy)
+
+		// Verify it's wrapped as TemporalApplicationError
+		var appErr *temporal.ApplicationError
+		assert.True(t, vsaerrors.As(err, &appErr))
+		assert.Equal(t, "CustomError", appErr.Type())
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetBackupPolicyByUUIDDatabaseError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		dbError := errors.New("database connection failed")
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(nil, dbError).Once()
+
+		backupPolicy, err := activity.GetBackupPolicyByUUID(ctx, backupPolicyUUID, accountID)
+		assert.Error(t, err)
+		assert.Nil(t, backupPolicy)
+		// WrapAsTemporalApplicationError wraps plain errors with WrapAsTemporalApplicationError,
+		// but since it's not a CustomError, it returns the original error unchanged
+		assert.Equal(t, "database connection failed", err.Error())
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetBackupPolicyByUUIDWithDifferentAccountID", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		differentAccountID := int64(999)
+		expectedBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: backupPolicyUUID,
+			},
+			Name:      "test-backup-policy-2",
+			AccountID: differentAccountID,
+		}
+
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, differentAccountID).Return(expectedBackupPolicy, nil).Once()
+
+		backupPolicy, err := activity.GetBackupPolicyByUUID(ctx, backupPolicyUUID, differentAccountID)
+		assert.NoError(t, err)
+		assert.NotNil(t, backupPolicy)
+		assert.Equal(t, expectedBackupPolicy, backupPolicy)
+		assert.Equal(t, differentAccountID, backupPolicy.AccountID)
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetBackupPolicyByUUIDWithEmptyUUID", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		emptyUUID := ""
+		notFoundErr := customerrors.NewNotFoundErr("BackupPolicy", &emptyUUID)
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, emptyUUID, accountID).Return(nil, notFoundErr).Once()
+
+		backupPolicy, err := activity.GetBackupPolicyByUUID(ctx, emptyUUID, accountID)
+		assert.Error(t, err)
+		assert.Nil(t, backupPolicy)
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetBackupPolicyByUUIDWithZeroAccountID", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		zeroAccountID := int64(0)
+		notFoundErr := customerrors.NewNotFoundErr("BackupPolicy", &backupPolicyUUID)
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, zeroAccountID).Return(nil, notFoundErr).Once()
+
+		backupPolicy, err := activity.GetBackupPolicyByUUID(ctx, backupPolicyUUID, zeroAccountID)
+		assert.Error(t, err)
+		assert.Nil(t, backupPolicy)
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("GetBackupPolicyByUUIDWithNegativeAccountID", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		negativeAccountID := int64(-1)
+		dbError := errors.New("invalid account ID")
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, negativeAccountID).Return(nil, dbError).Once()
+
+		backupPolicy, err := activity.GetBackupPolicyByUUID(ctx, backupPolicyUUID, negativeAccountID)
+		assert.Error(t, err)
+		assert.Nil(t, backupPolicy)
+		assert.Contains(t, err.Error(), "invalid account ID")
+
 		mockStorage.AssertExpectations(t)
 	})
 }

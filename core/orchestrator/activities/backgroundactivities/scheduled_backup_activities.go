@@ -14,6 +14,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"github.com/xyproto/randomstring"
 )
@@ -122,6 +123,22 @@ func (j *ScheduledBackupActivity) HydrateDeletedBackupsToCCFE(ctx context.Contex
 		return err
 	}
 	return nil
+}
+
+// GetBackupPolicyByUUID retrieves a backup policy from the database by UUID and account ID.
+// Returns the BackupPolicy object or an error.
+func (j *ScheduledBackupActivity) GetBackupPolicyByUUID(ctx context.Context, backupPolicyUUID string, accountID int64) (*datamodel.BackupPolicy, error) {
+	se := j.SE
+	backupPolicy, err := se.GetBackupPolicyByUUIDAndOwnerID(ctx, backupPolicyUUID, accountID)
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, err),
+			)
+		}
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return backupPolicy, nil
 }
 
 // GetVolumesByBackupPolicyUUID retrieves volumes that have the specified backup policy enabled for a given account.
