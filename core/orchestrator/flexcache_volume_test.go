@@ -12,7 +12,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -56,7 +55,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			AccountID:      account.ID,
 			DeploymentName: "test_pool_deployment",
 			VendorID:       vendorID,
-			APIAccessMode:  workflows.DEFAULTMode, // Set to DEFAULT mode for FlexCache volumes
+			APIAccessMode:  common.DEFAULTMode, // Set to DEFAULT mode for FlexCache volumes
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone: "us-west1-a",
 			},
@@ -92,7 +91,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		var pool datamodel.Pool
 		err := store.DB().Where("name = ?", poolName).First(&pool).Error
 		assert.NoError(tt, err)
-		pool.APIAccessMode = workflows.ONTAPMode
+		pool.APIAccessMode = common.ONTAPMode
 		err = store.DB().Save(&pool).Error
 		assert.NoError(tt, err)
 
@@ -311,7 +310,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
-				APIAccessMode: workflows.DEFAULTMode,
+				APIAccessMode: common.DEFAULTMode,
 			},
 		}
 
@@ -358,7 +357,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
-				APIAccessMode: workflows.DEFAULTMode,
+				APIAccessMode: common.DEFAULTMode,
 			},
 		}
 
@@ -406,7 +405,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
-				APIAccessMode: workflows.DEFAULTMode,
+				APIAccessMode: common.DEFAULTMode,
 			},
 		}
 
@@ -498,7 +497,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 
 		poolView := &datamodel.PoolView{
 			Pool: datamodel.Pool{
-				APIAccessMode: workflows.DEFAULTMode,
+				APIAccessMode: common.DEFAULTMode,
 			},
 		}
 

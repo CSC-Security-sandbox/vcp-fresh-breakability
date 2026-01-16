@@ -1121,6 +1121,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "6159": {
+    "description": "Validate Destination Pool Error",
+    "message": "Cannot create Replication with ONTAP-mode pool using GCNV API",
+    "retriable": false,
+    "http_code": 400
+  },
   "6160": {
     "description": "Dehydrate Volume Error",
     "message": "Failed to dehydrate volume",

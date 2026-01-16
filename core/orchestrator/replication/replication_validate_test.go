@@ -1165,6 +1165,42 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.AssertExpectations(t)
 	})
 
+	t.Run("WhenDestinationPoolInONTAPMode", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		ontapModePool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			Mode:             googleproxyclient.OptPoolV1betaMode{Value: googleproxyclient.PoolV1betaMode(common.ONTAPMode), Set: true},
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(ontapModePool, nil).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrValidateDestinationPoolMode, errors.New("Cannot create Replication with ONTAP-mode pool using GCNV API")), err)
+		mm.AssertExpectations(t)
+	})
+
 	t.Run("WhenDestinationPoolInTransitionState", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
 		mm := &monkeyMock{}
@@ -6800,6 +6836,37 @@ func TestIsPoolHealthy(t *testing.T) {
 		poolState := string(googleproxyclient.PoolV1betaStoragePoolStateUPDATING)
 		result := isPoolHealthy(poolState)
 		assert.True(tt, result, "Pool with UPDATING state should be healthy")
+	})
+}
+
+func TestIsPoolInONTAPMode(t *testing.T) {
+	t.Run("WhenModeIsONTAPAndSet", func(tt *testing.T) {
+		pool := &googleproxyclient.PoolV1beta{
+			Mode: googleproxyclient.OptPoolV1betaMode{Value: googleproxyclient.PoolV1betaMode(common.ONTAPMode), Set: true},
+		}
+		resp := isPoolInONTAPMode(pool)
+		assert.True(tt, resp, "Should be true when mode is ONTAP and Set is true")
+	})
+	t.Run("WhenModeIsONTAPButNotSet", func(tt *testing.T) {
+		pool := &googleproxyclient.PoolV1beta{
+			Mode: googleproxyclient.OptPoolV1betaMode{Value: googleproxyclient.PoolV1betaMode(common.ONTAPMode), Set: false},
+		}
+		resp := isPoolInONTAPMode(pool)
+		assert.False(tt, resp, "Should be false when Set is false")
+	})
+	t.Run("WhenModeIsDEFAULT", func(tt *testing.T) {
+		pool := &googleproxyclient.PoolV1beta{
+			Mode: googleproxyclient.OptPoolV1betaMode{Value: googleproxyclient.PoolV1betaMode(common.DEFAULTMode), Set: true},
+		}
+		resp := isPoolInONTAPMode(pool)
+		assert.False(tt, resp, "Should be false when mode is DEFAULT")
+	})
+	t.Run("WhenModeIsEmpty", func(tt *testing.T) {
+		pool := &googleproxyclient.PoolV1beta{
+			Mode: googleproxyclient.OptPoolV1betaMode{Value: "", Set: false},
+		}
+		resp := isPoolInONTAPMode(pool)
+		assert.False(tt, resp, "Should be false when mode is empty")
 	})
 }
 

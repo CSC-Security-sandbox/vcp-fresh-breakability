@@ -223,7 +223,7 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 		}
 	}
 
-	if params.Mode == workflows.ONTAPMode {
+	if params.Mode == commonparams.ONTAPMode {
 		expUserName := fmt.Sprintf("%s_%s", userName, env.ExpertModeUserSuffix)
 		poolObj.ExpertModeCredentials = createExpertModeUser(poolObj, expUserName)
 	}
@@ -492,7 +492,7 @@ func _validateCreatePoolParams(params *commonparams.CreatePoolParams, logger log
 
 	// Validate ONTAP version meets minimum requirement (9.18) for ONTAP mode pool creation
 	// ONTAP mode pools require minimum ONTAP version 9.18 to function properly
-	if params.Mode == workflows.ONTAPMode {
+	if params.Mode == commonparams.ONTAPMode {
 		ontapVersion := utils.ExtractOntapVersion(utils.GetOntapVersionBasedOnAllowlisting(params.AccountName))
 		if !utils.IsOntapVersionGreaterOrEqual(ontapVersion, env.FileSupportOntapVersion) {
 			logger.Errorf("ONTAP version %s is below the minimum required version %s for ONTAP mode pool creation.", ontapVersion, env.FileSupportOntapVersion)
@@ -1048,7 +1048,7 @@ func getPoolIsRegionalHA(pool *datamodel.Pool) bool {
 
 // enrichSinglePoolWithExpertModeCapacity updates a single ONTAP mode pool with expert mode capacity and volume count
 func enrichSinglePoolWithExpertModeCapacity(ctx context.Context, se database.Storage, pool *datamodel.PoolView) error {
-	if pool.APIAccessMode == workflows.ONTAPMode {
+	if pool.APIAccessMode == commonparams.ONTAPMode {
 		capacity, getError := se.GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID)
 		if getError != nil {
 			util.GetLogger(ctx).Errorf("Failed to get expert mode capacity for pool %s: %v", pool.UUID, getError)

@@ -61,7 +61,7 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 		return nil, "", err
 	}
 
-	if pool.APIAccessMode == workflows.ONTAPMode {
+	if pool.APIAccessMode == common.ONTAPMode {
 		return nil, "", errors.NewUserInputValidationErr("Cannot create Volumes in ONTAP mode pool using GCNV API")
 	}
 

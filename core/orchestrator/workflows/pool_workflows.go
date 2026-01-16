@@ -85,9 +85,7 @@ const (
 	SaIdPrefix        = "vsa-sa-"
 	statusDone        = "DONE"
 	operationProgress = int64(100)
-	ONTAPMode         = "ONTAP"
 	CancelSignalName  = "cancel-pool-creation"
-	DEFAULTMode       = "DEFAULT"
 )
 
 type createPoolWorkflow struct {
@@ -616,7 +614,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	expertCredConfig := &vlm.OntapCredentials{}
-	if params.Mode == ONTAPMode {
+	if params.Mode == common.ONTAPMode {
 		if cancelErr := checkCancellation(); cancelErr != nil {
 			return nil, cancelErr
 		}
@@ -1320,7 +1318,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	if !disableVsaCleanupOnVLMFailure || dbPool.State != models.LifeCycleStateError {
-		if dbPool.APIAccessMode == ONTAPMode {
+		if dbPool.APIAccessMode == common.ONTAPMode {
 			err = workflow.ExecuteActivity(ctx, poolActivity.DeleteExpertModeCredentials, dbPool).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
@@ -1847,7 +1845,7 @@ func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest 
 		// temporarily allowing NAS to be enabled for ontap version greater than 9.18.1 in pool creation workflow
 		// it will be removed once VLM fixes modifySVM workflow
 		// utils.IsOntapVersionGreaterOrEqual(ontapVersion, env.FileSupportOntapVersion) && (pool.APIAccessMode == ONTAPMode) || (utils.IsFileProtocolSupportedV2(ontapVersion) && pool.LargeCapacity)
-		if utils.IsOntapVersionGreaterOrEqual(ontapVersion, env.FileSupportOntapVersion) && (pool.APIAccessMode == ONTAPMode) || (utils.IsFileProtocolSupportedV2(ontapVersion)) {
+		if utils.IsOntapVersionGreaterOrEqual(ontapVersion, env.FileSupportOntapVersion) && (pool.APIAccessMode == common.ONTAPMode) || (utils.IsFileProtocolSupportedV2(ontapVersion)) {
 			// Set the NFS V3 support flag based on file support
 			vlmConfig.Deployment.DevFlags.EnableIlbSupport = true
 			vlmConfig.Deployment.DeploymentConfigFlags.EnableNfsV364BitIdentifier = "true"

@@ -15,7 +15,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/validators"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -699,7 +698,7 @@ func TestCreatePool(t *testing.T) {
 				}
 			}(),
 			Labels: &labels,
-			Mode:   workflows.ONTAPMode,
+			Mode:   common.ONTAPMode,
 		}
 
 		dbAccount := &datamodel.Account{
@@ -774,7 +773,7 @@ func TestCreatePool(t *testing.T) {
 					Iops:            &iopsValue,
 				}
 			}(),
-			Mode: workflows.ONTAPMode,
+			Mode: common.ONTAPMode,
 		}
 
 		dbAccount := &datamodel.Account{
@@ -837,7 +836,7 @@ func TestCreatePool(t *testing.T) {
 					Iops:            &iopsValue,
 				}
 			}(),
-			Mode: workflows.ONTAPMode,
+			Mode: common.ONTAPMode,
 		}
 
 		dbAccount := &datamodel.Account{
@@ -901,7 +900,7 @@ func TestCreatePool(t *testing.T) {
 					Iops:            &iopsValue,
 				}
 			}(),
-			Mode: workflows.ONTAPMode,
+			Mode: common.ONTAPMode,
 		}
 
 		dbAccount := &datamodel.Account{
@@ -1981,7 +1980,7 @@ func TestMultiplePools(t *testing.T) {
 				},
 				Name:           "ontap_pool_1",
 				AccountID:      account.ID,
-				APIAccessMode:  workflows.ONTAPMode,
+				APIAccessMode:  common.ONTAPMode,
 				PoolAttributes: &datamodel.PoolAttributes{},
 			},
 		}
@@ -1993,7 +1992,7 @@ func TestMultiplePools(t *testing.T) {
 				},
 				Name:           "ontap_pool_2",
 				AccountID:      account.ID,
-				APIAccessMode:  workflows.ONTAPMode,
+				APIAccessMode:  common.ONTAPMode,
 				PoolAttributes: &datamodel.PoolAttributes{},
 			},
 		}
@@ -2006,7 +2005,7 @@ func TestMultiplePools(t *testing.T) {
 				},
 				Name:           "non_ontap_pool",
 				AccountID:      account.ID,
-				APIAccessMode:  workflows.DEFAULTMode,
+				APIAccessMode:  common.DEFAULTMode,
 				PoolAttributes: &datamodel.PoolAttributes{},
 			},
 		}
@@ -2091,7 +2090,7 @@ func TestMultiplePools(t *testing.T) {
 				},
 				Name:           "ontap_pool",
 				AccountID:      account.ID,
-				APIAccessMode:  workflows.ONTAPMode,
+				APIAccessMode:  common.ONTAPMode,
 				PoolAttributes: &datamodel.PoolAttributes{},
 			},
 		}
@@ -4115,7 +4114,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 
 		params := &common.CreatePoolParams{
 			AccountName:   "test-account",
-			Mode:          workflows.ONTAPMode,
+			Mode:          common.ONTAPMode,
 			SizeInBytes:   uint64(2 * utils.TiBInBytes),
 			ServiceLevel:  ServiceLevelNameFLEX,
 			QosType:       QosTypeAuto,
@@ -4143,7 +4142,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 
 		params := &common.CreatePoolParams{
 			AccountName:   "test-account",
-			Mode:          workflows.ONTAPMode,
+			Mode:          common.ONTAPMode,
 			SizeInBytes:   uint64(2 * utils.TiBInBytes),
 			ServiceLevel:  ServiceLevelNameFLEX,
 			QosType:       QosTypeAuto,
@@ -4174,7 +4173,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 
 		params := &common.CreatePoolParams{
 			AccountName:   "test-account",
-			Mode:          workflows.DEFAULTMode,
+			Mode:          common.DEFAULTMode,
 			SizeInBytes:   uint64(2 * utils.TiBInBytes),
 			ServiceLevel:  ServiceLevelNameFLEX,
 			QosType:       QosTypeAuto,
@@ -7255,7 +7254,7 @@ func TestEnrichSinglePoolWithExpertModeCapacity(t *testing.T) {
 					ID:   1,
 					UUID: "test-pool-uuid",
 				},
-				APIAccessMode: workflows.ONTAPMode,
+				APIAccessMode: common.ONTAPMode,
 			},
 			QuotaInBytes: 0,
 			VolumeCount:  0,
@@ -7284,7 +7283,7 @@ func TestEnrichSinglePoolWithExpertModeCapacity(t *testing.T) {
 					ID:   1,
 					UUID: "test-pool-uuid",
 				},
-				APIAccessMode: workflows.ONTAPMode,
+				APIAccessMode: common.ONTAPMode,
 			},
 			QuotaInBytes: 100,
 			VolumeCount:  2,
@@ -7311,7 +7310,7 @@ func TestEnrichSinglePoolWithExpertModeCapacity(t *testing.T) {
 					ID:   1,
 					UUID: "test-pool-uuid",
 				},
-				APIAccessMode: workflows.ONTAPMode,
+				APIAccessMode: common.ONTAPMode,
 			},
 			QuotaInBytes: 100,
 			VolumeCount:  2,
@@ -7336,7 +7335,7 @@ func TestEnrichSinglePoolWithExpertModeCapacity(t *testing.T) {
 					ID:   1,
 					UUID: "test-pool-uuid",
 				},
-				APIAccessMode: workflows.ONTAPMode,
+				APIAccessMode: common.ONTAPMode,
 			},
 			QuotaInBytes: 100,
 			VolumeCount:  2,
@@ -7365,7 +7364,7 @@ func TestEnrichSinglePoolWithExpertModeCapacity(t *testing.T) {
 					ID:   1,
 					UUID: "test-pool-uuid",
 				},
-				APIAccessMode: workflows.DEFAULTMode,
+				APIAccessMode: common.DEFAULTMode,
 			},
 			QuotaInBytes: 100,
 			VolumeCount:  5,
@@ -7395,7 +7394,7 @@ func TestEnrichPoolsWithExpertModeCapacity(t *testing.T) {
 						ID:   1,
 						UUID: "ontap-pool-1",
 					},
-					APIAccessMode: workflows.ONTAPMode,
+					APIAccessMode: common.ONTAPMode,
 				},
 				QuotaInBytes: 0,
 				VolumeCount:  0,
@@ -7406,7 +7405,7 @@ func TestEnrichPoolsWithExpertModeCapacity(t *testing.T) {
 						ID:   2,
 						UUID: "ontap-pool-2",
 					},
-					APIAccessMode: workflows.ONTAPMode,
+					APIAccessMode: common.ONTAPMode,
 				},
 				QuotaInBytes: 0,
 				VolumeCount:  0,
@@ -7444,7 +7443,7 @@ func TestEnrichPoolsWithExpertModeCapacity(t *testing.T) {
 						ID:   1,
 						UUID: "ontap-pool",
 					},
-					APIAccessMode: workflows.ONTAPMode,
+					APIAccessMode: common.ONTAPMode,
 				},
 				QuotaInBytes: 0,
 				VolumeCount:  0,
@@ -7455,7 +7454,7 @@ func TestEnrichPoolsWithExpertModeCapacity(t *testing.T) {
 						ID:   2,
 						UUID: "default-pool",
 					},
-					APIAccessMode: workflows.DEFAULTMode,
+					APIAccessMode: common.DEFAULTMode,
 				},
 				QuotaInBytes: 100,
 				VolumeCount:  5,
@@ -7466,7 +7465,7 @@ func TestEnrichPoolsWithExpertModeCapacity(t *testing.T) {
 						ID:   3,
 						UUID: "ontap-pool-2",
 					},
-					APIAccessMode: workflows.ONTAPMode,
+					APIAccessMode: common.ONTAPMode,
 				},
 				QuotaInBytes: 0,
 				VolumeCount:  0,
@@ -7509,7 +7508,7 @@ func TestEnrichPoolsWithExpertModeCapacity(t *testing.T) {
 						ID:   1,
 						UUID: "default-pool-1",
 					},
-					APIAccessMode: workflows.DEFAULTMode,
+					APIAccessMode: common.DEFAULTMode,
 				},
 				QuotaInBytes: 100,
 				VolumeCount:  5,
@@ -7520,7 +7519,7 @@ func TestEnrichPoolsWithExpertModeCapacity(t *testing.T) {
 						ID:   2,
 						UUID: "default-pool-2",
 					},
-					APIAccessMode: workflows.DEFAULTMode,
+					APIAccessMode: common.DEFAULTMode,
 				},
 				QuotaInBytes: 200,
 				VolumeCount:  10,
@@ -7547,7 +7546,7 @@ func TestEnrichPoolsWithExpertModeCapacity(t *testing.T) {
 						ID:   1,
 						UUID: "ontap-pool-1",
 					},
-					APIAccessMode: workflows.ONTAPMode,
+					APIAccessMode: common.ONTAPMode,
 				},
 				QuotaInBytes: 0,
 				VolumeCount:  0,
@@ -7558,7 +7557,7 @@ func TestEnrichPoolsWithExpertModeCapacity(t *testing.T) {
 						ID:   2,
 						UUID: "ontap-pool-2",
 					},
-					APIAccessMode: workflows.ONTAPMode,
+					APIAccessMode: common.ONTAPMode,
 				},
 				QuotaInBytes: 0,
 				VolumeCount:  0,
@@ -7600,7 +7599,7 @@ func TestEnrichPoolsWithExpertModeCapacity(t *testing.T) {
 						ID:   1,
 						UUID: "ontap-pool-1",
 					},
-					APIAccessMode: workflows.ONTAPMode,
+					APIAccessMode: common.ONTAPMode,
 				},
 				QuotaInBytes: 100,
 				VolumeCount:  5,
@@ -7611,7 +7610,7 @@ func TestEnrichPoolsWithExpertModeCapacity(t *testing.T) {
 						ID:   2,
 						UUID: "ontap-pool-2",
 					},
-					APIAccessMode: workflows.ONTAPMode,
+					APIAccessMode: common.ONTAPMode,
 				},
 				QuotaInBytes: 0,
 				VolumeCount:  0,

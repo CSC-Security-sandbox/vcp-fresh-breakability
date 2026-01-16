@@ -20,6 +20,8 @@ const (
 	ScheduleTagDaily        = "daily"
 	ScheduleTagWeekly       = "weekly"
 	ScheduleTagMonthly      = "monthly"
+	ONTAPMode               = "ONTAP"
+	DEFAULTMode             = "DEFAULT"
 )
 
 var (

@@ -229,6 +229,11 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		logger.Error("getDestinationPool error", "error", err)
 		return nil, err
 	}
+	if isPoolInONTAPMode(destPool) {
+		typeErr := errors.NewVCPError(errors.ErrValidateDestinationPoolMode, errors.New("Cannot create Replication with ONTAP-mode pool using GCNV API"))
+		logger.Error("Destination pool is in ONTAP mode, cannot create replication using GCNV API", "error", typeErr)
+		return nil, typeErr
+	}
 
 	if isPoolInTransitionState(destPool) {
 		typeErr := errors.NewVCPError(errors.ErrValidateDestinationPoolTransitioning, errors.New("Destination pool is in transition state"))
@@ -376,6 +381,11 @@ func isPoolInTransitionState(dstPool *googleproxyclient.PoolV1beta) bool {
 		return true
 	}
 	return false
+}
+
+// isPoolInONTAPMode checks if the pool is configured in ONTAP mode
+func isPoolInONTAPMode(pool *googleproxyclient.PoolV1beta) bool {
+	return pool.Mode.Set && pool.Mode.Value == common.ONTAPMode
 }
 
 func _getVolume(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string, volumeResourceId string) (googleproxyclient.VolumeV1beta, error) {

@@ -3050,7 +3050,7 @@ func TestCreateVolume(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:          "test_pool",
 			AccountID:     account.ID,
-			APIAccessMode: workflows.ONTAPMode, // Set to ONTAP mode to test the error condition
+			APIAccessMode: common.ONTAPMode, // Set to ONTAP mode to test the error condition
 			VendorID:      "/projects/project123/locations/us-west1-a/pools/test-pool",
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone:  "us-west1-a",
@@ -3126,7 +3126,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -3280,7 +3280,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -3356,7 +3356,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -3446,7 +3446,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -3549,7 +3549,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -3696,7 +3696,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -3828,7 +3828,7 @@ func TestCreateVolume(t *testing.T) {
 			Name:          "test_pool",
 			AccountID:     account.ID,
 			VendorID:      "/projects/project123/locations/location123/pools/pool123",
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone: "us-west1-a",
 			},
@@ -3976,7 +3976,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -4129,7 +4129,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -4286,7 +4286,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -4440,7 +4440,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -4583,7 +4583,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -4725,7 +4725,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -4869,7 +4869,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -4971,7 +4971,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -5063,7 +5063,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -5162,7 +5162,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a", // Pool primary zone
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -5256,7 +5256,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -5346,7 +5346,7 @@ func TestCreateVolume(t *testing.T) {
 			Name:          "test_pool",
 			AccountID:     account.ID,
 			VendorID:      "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: true,
@@ -5446,7 +5446,7 @@ func TestCreateVolume(t *testing.T) {
 			Name:          "test_pool",
 			AccountID:     account.ID,
 			VendorID:      "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
@@ -5774,7 +5774,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -5884,7 +5884,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -5995,7 +5995,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -6106,7 +6106,7 @@ func TestCreateVolume(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -6244,7 +6244,7 @@ func Test_createVolume_WithSnapshotPolicy(t *testing.T) {
 			PrimaryZone:  "us-west1-a",
 			IsRegionalHA: false,
 		},
-		APIAccessMode: workflows.DEFAULTMode,
+		APIAccessMode: common.DEFAULTMode,
 	}
 	err = store.DB().Create(pool).Error
 	if err != nil {
@@ -6511,7 +6511,7 @@ func Test_createVolume_WithSnapshot(t *testing.T) {
 			PrimaryZone:  "us-west1-a",
 			IsRegionalHA: false,
 		},
-		APIAccessMode: workflows.DEFAULTMode,
+		APIAccessMode: common.DEFAULTMode,
 	}
 	err = store.DB().Create(pool).Error
 	if err != nil {
@@ -6719,7 +6719,7 @@ func Test_createLargeVolume_WithSnapshot(t *testing.T) {
 			PrimaryZone:  "us-west1-a",
 			IsRegionalHA: false,
 		},
-		APIAccessMode: workflows.DEFAULTMode,
+		APIAccessMode: common.DEFAULTMode,
 		LargeCapacity: true,
 	}
 	err = store.DB().Create(pool).Error
@@ -6937,7 +6937,7 @@ func TestCreateVolume_ProtocolValidation(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 		err = store.DB().Create(pool).Error
 		if err != nil {
@@ -7065,7 +7065,7 @@ func TestCreateVolume_ProtocolValidation(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 		err = store.DB().Create(pool).Error
 		if err != nil {
@@ -7189,7 +7189,7 @@ func TestCreateVolume_ProtocolValidation(t *testing.T) {
 			Name:          "test_pool",
 			AccountID:     account.ID,
 			VendorID:      "/projects/project123/locations/us-west1-a/pools/test-pool",
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
@@ -7320,7 +7320,7 @@ func TestCreateVolume_ProtocolValidation(t *testing.T) {
 			Name:          "test_pool",
 			AccountID:     account.ID,
 			VendorID:      "/projects/project123/locations/us-west1-a/pools/test-pool",
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
@@ -7547,7 +7547,7 @@ func TestCreateVolume_ProtocolValidation(t *testing.T) {
 			Name:          "test_pool",
 			AccountID:     account.ID,
 			VendorID:      "/projects/project123/locations/us-west1-a/pools/test-pool",
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
@@ -21744,7 +21744,7 @@ func Test_createVolume_BackupRestoreCompatibilityError(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 			SizeInBytes:   1000 * 1024 * 1024 * 1024, // 1TB
 		}
 		err = store.DB().Create(pool).Error
@@ -21872,7 +21872,7 @@ func Test_createVolume_BackupRestoreCompatibilityError(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 			SizeInBytes:   1000 * 1024 * 1024 * 1024, // 1TB
 		}
 		err = store.DB().Create(pool).Error
@@ -22418,7 +22418,7 @@ func TestCreateVolume_ExistingVolumeConflict(t *testing.T) {
 					PrimaryZone:  "us-west1-a",
 					IsRegionalHA: true, // Regional pool
 				},
-				APIAccessMode: workflows.DEFAULTMode,
+				APIAccessMode: common.DEFAULTMode,
 			},
 		}
 
@@ -22488,7 +22488,7 @@ func TestCreateVolume_ExistingVolumeConflict(t *testing.T) {
 					PrimaryZone:  "us-west1-a",
 					IsRegionalHA: false, // Zonal pool
 				},
-				APIAccessMode: workflows.DEFAULTMode,
+				APIAccessMode: common.DEFAULTMode,
 			},
 		}
 
@@ -22559,7 +22559,7 @@ func TestCreateVolume_ExistingVolumeConflict(t *testing.T) {
 					PrimaryZone:  "us-west1-a",
 					IsRegionalHA: false,
 				},
-				APIAccessMode: workflows.DEFAULTMode,
+				APIAccessMode: common.DEFAULTMode,
 			},
 		}
 
@@ -24276,7 +24276,7 @@ func TestCreateVolume_IdempotencyJobTypeLookup(t *testing.T) {
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
 			},
-			APIAccessMode: workflows.DEFAULTMode,
+			APIAccessMode: common.DEFAULTMode,
 		}
 		poolData.ID = 1
 

@@ -20,7 +20,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -2404,7 +2403,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, capturedParams, "CreatePool should have been called")
-		assert.Equal(tt, workflows.DEFAULTMode, capturedParams.Mode, "Mode should be set to DEFAULTMode when Mode is MODEUNSPECIFIED")
+		assert.Equal(tt, common.DEFAULTMode, capturedParams.Mode, "Mode should be set to DEFAULTMode when Mode is MODEUNSPECIFIED")
 	})
 
 	t.Run("ModeAssignment_DEFAULT_SetsDEFAULTMode", func(tt *testing.T) {
@@ -2462,7 +2461,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, capturedParams, "CreatePool should have been called")
-		assert.Equal(tt, workflows.DEFAULTMode, capturedParams.Mode, "Mode should be set to DEFAULTMode when Mode is DEFAULT")
+		assert.Equal(tt, common.DEFAULTMode, capturedParams.Mode, "Mode should be set to DEFAULTMode when Mode is DEFAULT")
 	})
 
 	t.Run("ModeAssignment_ONTAP_SetsONTAPMode", func(tt *testing.T) {
@@ -2520,7 +2519,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, capturedParams, "CreatePool should have been called")
-		assert.Equal(tt, workflows.ONTAPMode, capturedParams.Mode, "Mode should be set to ONTAPMode when Mode is ONTAP")
+		assert.Equal(tt, common.ONTAPMode, capturedParams.Mode, "Mode should be set to ONTAPMode when Mode is ONTAP")
 	})
 
 	t.Run("ModeAssignment_OtherValue_SetsONTAPMode", func(tt *testing.T) {
@@ -2578,7 +2577,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, capturedParams, "CreatePool should have been called")
-		assert.Equal(tt, workflows.ONTAPMode, capturedParams.Mode, "Mode should be set to ONTAPMode for any value other than MODEUNSPECIFIED or DEFAULT")
+		assert.Equal(tt, common.ONTAPMode, capturedParams.Mode, "Mode should be set to ONTAPMode for any value other than MODEUNSPECIFIED or DEFAULT")
 	})
 }
 

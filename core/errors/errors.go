@@ -223,6 +223,7 @@ const (
 	ErrorCvpReplicationJobAlreadyInProcess                                                   = 6156
 	ErrMountingVolumeReplication                                                             = 6157
 	ErrDeHydrateSnapshots                                                                    = 6158
+	ErrValidateDestinationPoolMode                                                            = 6159
 	ErrDeHydrateVolume                                                                       = 6160
 	ErrDeHydrateVolumeReplication                                                            = 6161
 	ErrorEmptyUpdateReplicationPayload                                                       = 6163

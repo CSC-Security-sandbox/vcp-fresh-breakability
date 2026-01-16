@@ -375,7 +375,7 @@ func TestCreatePoolWorkflowWithExpertMode(t *testing.T) {
 		SecondaryZone:           "test-secondary-zone",
 		AllowAutoTiering:        true,
 		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
-		Mode:                    ONTAPMode,
+		Mode:                    common.ONTAPMode,
 	}
 	pool := &datamodel.Pool{
 		Account: &datamodel.Account{Name: "test-account"},
@@ -389,7 +389,7 @@ func TestCreatePoolWorkflowWithExpertMode(t *testing.T) {
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
 		DeploymentName: "test-deployment",
-		APIAccessMode:  ONTAPMode,
+		APIAccessMode:  common.ONTAPMode,
 		ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 			ExpertModeCredential: []*datamodel.ExpertModeCredential{
 				{
@@ -3239,7 +3239,7 @@ func TestDeletePoolWorkflow(t *testing.T) {
 		},
 		KmsConfig:     &datamodel.KmsConfig{},
 		KmsConfigID:   sql.NullInt64{Int64: 1, Valid: true},
-		APIAccessMode: ONTAPMode,
+		APIAccessMode: common.ONTAPMode,
 	}
 
 	// Mock activity responses
@@ -3328,7 +3328,7 @@ func TestDeletePoolWorkflowFailsOnJobInErrorState(t *testing.T) {
 		},
 		KmsConfig:     &datamodel.KmsConfig{},
 		KmsConfigID:   sql.NullInt64{Int64: 1, Valid: true},
-		APIAccessMode: ONTAPMode,
+		APIAccessMode: common.ONTAPMode,
 	}
 
 	// Mock activity responses
