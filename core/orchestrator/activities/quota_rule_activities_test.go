@@ -7208,11 +7208,11 @@ func TestDescribeQuotaRuleRemoteJob(t *testing.T) {
 	})
 }
 
-// Test_ListQuotaRulesForVolume tests the ListQuotaRulesForVolume activity
-func Test_ListQuotaRulesForVolume(t *testing.T) {
+// Test_ListQuotaRuleForVolume tests the ListQuotaRuleForVolume activity
+func Test_ListQuotaRuleForVolume(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
-	t.Run("ListQuotaRulesForVolume_Success", func(t *testing.T) {
+	t.Run("ListQuotaRuleForVolume_Success", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		volumeUUID := "volume-uuid-123"
@@ -7253,7 +7253,7 @@ func Test_ListQuotaRulesForVolume(t *testing.T) {
 
 		mockStorage.On("GetQuotaRulesByVolumeID", ctx, int64(123)).Return(expectedQuotaRules, nil)
 
-		result, err := activity.ListQuotaRulesForVolume(ctx, replication)
+		result, err := activity.ListQuotaRuleForVolume(ctx, replication)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -7263,7 +7263,7 @@ func Test_ListQuotaRulesForVolume(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 
-	t.Run("ListQuotaRulesForVolume_EmptyList_Success", func(t *testing.T) {
+	t.Run("ListQuotaRuleForVolume_EmptyList_Success", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		volumeUUID := "volume-uuid-123"
@@ -7281,7 +7281,7 @@ func Test_ListQuotaRulesForVolume(t *testing.T) {
 
 		mockStorage.On("GetQuotaRulesByVolumeID", ctx, int64(123)).Return([]*datamodel.QuotaRule{}, nil)
 
-		result, err := activity.ListQuotaRulesForVolume(ctx, replication)
+		result, err := activity.ListQuotaRuleForVolume(ctx, replication)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -7289,18 +7289,18 @@ func Test_ListQuotaRulesForVolume(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 
-	t.Run("ListQuotaRulesForVolume_NilReplication_Failure", func(t *testing.T) {
+	t.Run("ListQuotaRuleForVolume_NilReplication_Failure", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		activity := QuotaRuleCommonActivity{SE: mockStorage}
 
-		result, err := activity.ListQuotaRulesForVolume(ctx, nil)
+		result, err := activity.ListQuotaRuleForVolume(ctx, nil)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
 		mockStorage.AssertExpectations(t)
 	})
 
-	t.Run("ListQuotaRulesForVolume_GetQuotaRulesError_Failure", func(t *testing.T) {
+	t.Run("ListQuotaRuleForVolume_GetQuotaRulesError_Failure", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		activity := QuotaRuleCommonActivity{SE: mockStorage}
 		volumeUUID := "volume-uuid-123"
@@ -7320,7 +7320,7 @@ func Test_ListQuotaRulesForVolume(t *testing.T) {
 
 		mockStorage.On("GetQuotaRulesByVolumeID", ctx, int64(123)).Return(nil, expectedError)
 
-		result, err := activity.ListQuotaRulesForVolume(ctx, replication)
+		result, err := activity.ListQuotaRuleForVolume(ctx, replication)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)

@@ -149,10 +149,10 @@ func (a *QuotaRuleCommonActivity) GetVolumeByID(ctx context.Context, volumeID in
 	return volume, nil
 }
 
-// ListQuotaRulesForVolume lists all quota rules for a volume (excluding deleted ones).
+// ListQuotaRuleForVolume lists all quota rules for a volume (excluding deleted ones).
 // This is used in break replication to get quota rules that need to be recreated and in delete workflows.
 // It accepts a replication object and uses the volume from replication directly to avoid additional DB calls.
-func (a *QuotaRuleCommonActivity) ListQuotaRulesForVolume(
+func (a *QuotaRuleCommonActivity) ListQuotaRuleForVolume(
 	ctx context.Context,
 	replication *datamodel.VolumeReplication,
 ) ([]*datamodel.QuotaRule, error) {

@@ -176,7 +176,7 @@ func (wf *internalVolumeReplicationStopWorkflow) Run(ctx workflow.Context, args 
 
 		// List quota rules for volume (from replication)
 		var quotaRules []*datamodel.QuotaRule
-		err = workflow.ExecuteActivity(ctx, quotaRuleActivity.ListQuotaRulesForVolume, dbReplication).Get(ctx, &quotaRules)
+		err = workflow.ExecuteActivity(ctx, quotaRuleActivity.ListQuotaRuleForVolume, dbReplication).Get(ctx, &quotaRules)
 		if err != nil {
 			// Log error and set failure flag, but continue with workflow
 			log.Errorf("Failed to list quota rules for source volume: %v", err)
