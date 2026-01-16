@@ -464,7 +464,7 @@ jobs:
       - name: Run BlackDuck Scan for container images
         shell: bash -e {0}
         run: |
-            echo "Image used for scan is ${IMAGE} - $([[ "$IMAGE" == "cloud-backup-adc" ]] && echo "2.8" || echo "${{ inputs.tag }}")"
+            echo "Image used for scan is ${IMAGE} - $([[ "$IMAGE" == "cloud-backup-adc" ]] && echo "2.9" || echo "${{ inputs.tag }}")"
             docker run --rm  --network host -v /home/cvs/opt-dir:/home/cvs/opt-dir -v /var/run/docker.sock:/var/run/docker.sock \
             --mount type=bind,source=/bds-inspect,target=/bds-inspect,ro --user root \
             ghcr.io/vcp-vsa-control-plane/vsa-builder:v8 \
@@ -474,7 +474,7 @@ jobs:
             java -jar /bds-inspect/synopsys-detect-9.10.1.jar --detect.project.name=\"GCNV VSA Control Plane\" \
             --detect.project.version.name=current --blackduck.url=https://blackduck.eng.netapp.com --blackduck.trust.cert=true \
             --blackduck.api.token="${{ secrets.BLACKDUCKSCANSATOKEN }}" --detect.cleanup=false --detect.tools=DOCKER \
-            --detect.docker.image=ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}:$([[ "$IMAGE" == "cloud-backup-adc" ]] && echo "2.8" || echo "${{ inputs.tag }}")  \
+            --detect.docker.image=ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}:$([[ "$IMAGE" == "cloud-backup-adc" ]] && echo "2.9" || echo "${{ inputs.tag }}")  \
             --detect.code.location.name=GCNV_VSA_Control_Plane_docker_${IMAGE}_code \
             --detect.docker.path=/__w/_tool/go/1.24.1/x64/bin/docker --detect.tools.excluded=DETECTOR \
             --detect.docker.inspector.air.gap.path=/bds-inspect/packaged-inspectors/docker/ \
@@ -511,7 +511,7 @@ jobs:
         if: ${{ inputs.trivy_scan_format == 'table' }}
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ matrix.image == 'cloud-backup-adc' && format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:2.8', vars.AR_IMAGE_PATH, matrix.image) || format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:{2}', vars.AR_IMAGE_PATH, matrix.image, inputs.tag) }}
+          image-ref: ${{ matrix.image == 'cloud-backup-adc' && format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:2.9', vars.AR_IMAGE_PATH, matrix.image) || format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:{2}', vars.AR_IMAGE_PATH, matrix.image, inputs.tag) }}
           format: ${{ inputs.trivy_scan_format }}
           exit-code: 1
           ignore-unfixed: true
@@ -521,7 +521,7 @@ jobs:
         if: ${{ inputs.trivy_scan_format == 'sarif' }}
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ matrix.image == 'cloud-backup-adc' && format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:2.8', vars.AR_IMAGE_PATH, matrix.image) || format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:{2}', vars.AR_IMAGE_PATH, matrix.image, inputs.tag) }}
+          image-ref: ${{ matrix.image == 'cloud-backup-adc' && format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:2.9', vars.AR_IMAGE_PATH, matrix.image) || format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:{2}', vars.AR_IMAGE_PATH, matrix.image, inputs.tag) }}
           format: 'sarif'
           output: 'repo-dir2/trivy-${{ matrix.image }}.sarif'
 
