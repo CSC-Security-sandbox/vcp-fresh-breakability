@@ -53,6 +53,8 @@ var (
 	validateCreateReplicationParams = replication.ValidateCreateReplicationParams
 	validateReplicationParams       = replication.ValidateReplicationParams
 	verifyDstReplicationResume      = replication.VerifyDstReplicationResume
+	verifySourceQuotaRules          = replication.VerifySourceQuotaRules
+	verifyDestinationQuotaRules     = replication.VerifyDestinationQuotaRules
 	verifyDstReplicationStop        = replication.VerifyDstReplicationStop
 	VerifyReplicationDelete         = replication.VerifyReplication
 	verifyDstReplicationSync        = replication.VerifyDstReplicationSync
@@ -1592,6 +1594,22 @@ func _resumeReplication(ctx context.Context, se database.Storage, temporal clien
 	dstReplication, err := verifyDstReplicationResume(ctx, &event)
 	if err != nil {
 		return nil, "", err
+	}
+
+	// Verify source and destination quota rules only for file volumes
+	// Quota rules are only applicable to file volumes (volumes with FileProperties)
+	if event.ReplicationModel != nil && event.ReplicationModel.Volume != nil && event.ReplicationModel.Volume.VolumeAttributes != nil && event.ReplicationModel.Volume.VolumeAttributes.FileProperties != nil {
+		// Verify source quota rules are ready before resuming replication
+		err = verifySourceQuotaRules(ctx, &event)
+		if err != nil {
+			return nil, "", err
+		}
+
+		// Verify destination quota rules are not in transitioning state
+		err = verifyDestinationQuotaRules(ctx, &event)
+		if err != nil {
+			return nil, "", err
+		}
 	}
 
 	job := &datamodel.Job{

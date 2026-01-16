@@ -5228,7 +5228,7 @@ func TestResumeReplication(t *testing.T) {
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to verify destination replication", err.Error())
 	})
-	t.Run("WhenCreateJobFails", func(tt *testing.T) {
+	t.Run("WhenSourceQuotaRulesValidationFails", func(tt *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
@@ -5238,6 +5238,7 @@ func TestResumeReplication(t *testing.T) {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
 			verifyDstReplicationResume = replication.VerifyDstReplicationResume
+			verifySourceQuotaRules = replication.VerifySourceQuotaRules
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -5250,9 +5251,13 @@ func TestResumeReplication(t *testing.T) {
 		}
 
 		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			// Set up file volume with FileProperties for quota rule verification
 			event.ReplicationModel = &datamodel.VolumeReplication{
 				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
 				Volume: &datamodel.Volume{
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						FileProperties: &datamodel.FileProperties{},
+					},
 					Pool: &datamodel.Pool{
 						BaseModel: datamodel.BaseModel{UUID: "uuid"},
 					},
@@ -5262,7 +5267,133 @@ func TestResumeReplication(t *testing.T) {
 		}
 
 		verifyDstReplicationResume = func(ctx context.Context, event *replication.ResumeReplicationEvent) (*models.VolumeReplication, error) {
-			return nil, nil
+			return &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{},
+			}, nil
+		}
+
+		verifySourceQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			return errors.New("source quota rules not in READY state")
+		}
+
+		params := &commonparams.ResumeReplicationParams{
+			AccountName: "account-name",
+		}
+		_, _, err := _resumeReplication(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "source quota rules not in READY state", err.Error())
+	})
+	t.Run("WhenDestinationQuotaRulesValidationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			verifyDstReplicationResume = replication.VerifyDstReplicationResume
+			verifySourceQuotaRules = replication.VerifySourceQuotaRules
+			verifyDestinationQuotaRules = replication.VerifyDestinationQuotaRules
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			// Set up file volume with FileProperties for quota rule verification
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				Volume: &datamodel.Volume{
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						FileProperties: &datamodel.FileProperties{},
+					},
+					Pool: &datamodel.Pool{
+						BaseModel: datamodel.BaseModel{UUID: "uuid"},
+					},
+				},
+			}
+			return nil, nil, nil
+		}
+
+		verifyDstReplicationResume = func(ctx context.Context, event *replication.ResumeReplicationEvent) (*models.VolumeReplication, error) {
+			return &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{},
+			}, nil
+		}
+
+		verifySourceQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			return nil
+		}
+
+		verifyDestinationQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			return errors.New("destination quota rules in transitioning state")
+		}
+
+		params := &commonparams.ResumeReplicationParams{
+			AccountName: "account-name",
+		}
+		_, _, err := _resumeReplication(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "destination quota rules in transitioning state", err.Error())
+	})
+	t.Run("WhenCreateJobFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			verifyDstReplicationResume = replication.VerifyDstReplicationResume
+			verifySourceQuotaRules = replication.VerifySourceQuotaRules
+			verifyDestinationQuotaRules = replication.VerifyDestinationQuotaRules
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			// Set up file volume with FileProperties for quota rule verification
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				Volume: &datamodel.Volume{
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						FileProperties: &datamodel.FileProperties{},
+					},
+					Pool: &datamodel.Pool{
+						BaseModel: datamodel.BaseModel{UUID: "uuid"},
+					},
+				},
+			}
+			return nil, nil, nil
+		}
+
+		verifyDstReplicationResume = func(ctx context.Context, event *replication.ResumeReplicationEvent) (*models.VolumeReplication, error) {
+			return &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{},
+			}, nil
+		}
+
+		verifySourceQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			return nil
+		}
+
+		verifyDestinationQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			return nil
 		}
 
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("failed to create job"))
@@ -5284,6 +5415,8 @@ func TestResumeReplication(t *testing.T) {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
 			verifyDstReplicationResume = replication.VerifyDstReplicationResume
+			verifySourceQuotaRules = replication.VerifySourceQuotaRules
+			verifyDestinationQuotaRules = replication.VerifyDestinationQuotaRules
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -5308,8 +5441,19 @@ func TestResumeReplication(t *testing.T) {
 		}
 
 		verifyDstReplicationResume = func(ctx context.Context, event *replication.ResumeReplicationEvent) (*models.VolumeReplication, error) {
-			return nil, nil
+			return &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{},
+			}, nil
 		}
+
+		verifySourceQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			return nil
+		}
+
+		verifyDestinationQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			return nil
+		}
+
 		jobResponse := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{
 				ID:   1,
@@ -5338,6 +5482,8 @@ func TestResumeReplication(t *testing.T) {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
 			verifyDstReplicationResume = replication.VerifyDstReplicationResume
+			verifySourceQuotaRules = replication.VerifySourceQuotaRules
+			verifyDestinationQuotaRules = replication.VerifyDestinationQuotaRules
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -5370,6 +5516,15 @@ func TestResumeReplication(t *testing.T) {
 		verifyDstReplicationResume = func(ctx context.Context, event *replication.ResumeReplicationEvent) (*models.VolumeReplication, error) {
 			return expectedResponse, nil
 		}
+
+		verifySourceQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			return nil
+		}
+
+		verifyDestinationQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			return nil
+		}
+
 		jobResponse := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{
 				ID:   1,
@@ -5398,6 +5553,8 @@ func TestResumeReplication(t *testing.T) {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
 			verifyDstReplicationResume = replication.VerifyDstReplicationResume
+			verifySourceQuotaRules = replication.VerifySourceQuotaRules
+			verifyDestinationQuotaRules = replication.VerifyDestinationQuotaRules
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -5434,6 +5591,15 @@ func TestResumeReplication(t *testing.T) {
 			capturedEvent = event
 			return expectedResponse, nil
 		}
+
+		verifySourceQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			return nil
+		}
+
+		verifyDestinationQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			return nil
+		}
+
 		jobResponse := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{
 				ID:   1,
@@ -5468,6 +5634,8 @@ func TestResumeReplication(t *testing.T) {
 			getAccountWithName = _getAccountWithName
 			validateReplicationParams = replication.ValidateReplicationParams
 			verifyDstReplicationResume = replication.VerifyDstReplicationResume
+			verifySourceQuotaRules = replication.VerifySourceQuotaRules
+			verifyDestinationQuotaRules = replication.VerifyDestinationQuotaRules
 		}()
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{
@@ -5504,6 +5672,15 @@ func TestResumeReplication(t *testing.T) {
 			capturedEvent = event
 			return expectedResponse, nil
 		}
+
+		verifySourceQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			return nil
+		}
+
+		verifyDestinationQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			return nil
+		}
+
 		jobResponse := &datamodel.Job{
 			BaseModel: datamodel.BaseModel{
 				ID:   1,
@@ -5573,6 +5750,233 @@ func TestResumeReplication(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, existingJobUUID, jobUUID)
 		// Note: State and StateDetails are no longer updated when duplicate job exists
+	})
+	t.Run("WhenFileVolume_QuotaRuleVerificationCalled", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			verifyDstReplicationResume = replication.VerifyDstReplicationResume
+			verifySourceQuotaRules = replication.VerifySourceQuotaRules
+			verifyDestinationQuotaRules = replication.VerifyDestinationQuotaRules
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		var sourceQuotaRulesCalled, destQuotaRulesCalled bool
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			// Set up file volume with FileProperties
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+				Volume: &datamodel.Volume{
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						FileProperties: &datamodel.FileProperties{},
+					},
+					Pool: &datamodel.Pool{
+						BaseModel: datamodel.BaseModel{UUID: "uuid"},
+					},
+				},
+			}
+			return nil, nil, nil
+		}
+
+		verifyDstReplicationResume = func(ctx context.Context, event *replication.ResumeReplicationEvent) (*models.VolumeReplication, error) {
+			return &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{},
+			}, nil
+		}
+
+		verifySourceQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			sourceQuotaRulesCalled = true
+			return nil
+		}
+
+		verifyDestinationQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			destQuotaRulesCalled = true
+			return nil
+		}
+
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID: "job-uuid",
+			},
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.ResumeReplicationParams{
+			AccountName: "account-name",
+		}
+		_, _, err := _resumeReplication(ctx, mockStorage, mockTemporal, params)
+		assert.Nil(tt, err)
+		assert.True(tt, sourceQuotaRulesCalled, "verifySourceQuotaRules should be called for file volumes")
+		assert.True(tt, destQuotaRulesCalled, "verifyDestinationQuotaRules should be called for file volumes")
+	})
+	t.Run("WhenBlockVolume_QuotaRuleVerificationNotCalled", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			verifyDstReplicationResume = replication.VerifyDstReplicationResume
+			verifySourceQuotaRules = replication.VerifySourceQuotaRules
+			verifyDestinationQuotaRules = replication.VerifyDestinationQuotaRules
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		var sourceQuotaRulesCalled, destQuotaRulesCalled bool
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			// Set up block volume without FileProperties (has BlockProperties instead)
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+				Volume: &datamodel.Volume{
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						BlockProperties: &datamodel.BlockProperties{},
+						// FileProperties is nil for block volumes
+					},
+					Pool: &datamodel.Pool{
+						BaseModel: datamodel.BaseModel{UUID: "uuid"},
+					},
+				},
+			}
+			return nil, nil, nil
+		}
+
+		verifyDstReplicationResume = func(ctx context.Context, event *replication.ResumeReplicationEvent) (*models.VolumeReplication, error) {
+			return &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{},
+			}, nil
+		}
+
+		verifySourceQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			sourceQuotaRulesCalled = true
+			return nil
+		}
+
+		verifyDestinationQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			destQuotaRulesCalled = true
+			return nil
+		}
+
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID: "job-uuid",
+			},
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.ResumeReplicationParams{
+			AccountName: "account-name",
+		}
+		_, _, err := _resumeReplication(ctx, mockStorage, mockTemporal, params)
+		assert.Nil(tt, err)
+		assert.False(tt, sourceQuotaRulesCalled, "verifySourceQuotaRules should NOT be called for block volumes")
+		assert.False(tt, destQuotaRulesCalled, "verifyDestinationQuotaRules should NOT be called for block volumes")
+	})
+	t.Run("WhenVolumeAttributesNil_QuotaRuleVerificationNotCalled", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			verifyDstReplicationResume = replication.VerifyDstReplicationResume
+			verifySourceQuotaRules = replication.VerifySourceQuotaRules
+			verifyDestinationQuotaRules = replication.VerifyDestinationQuotaRules
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		var sourceQuotaRulesCalled, destQuotaRulesCalled bool
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			// Set up volume with nil VolumeAttributes
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+				Volume: &datamodel.Volume{
+					// VolumeAttributes is nil
+					Pool: &datamodel.Pool{
+						BaseModel: datamodel.BaseModel{UUID: "uuid"},
+					},
+				},
+			}
+			return nil, nil, nil
+		}
+
+		verifyDstReplicationResume = func(ctx context.Context, event *replication.ResumeReplicationEvent) (*models.VolumeReplication, error) {
+			return &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{},
+			}, nil
+		}
+
+		verifySourceQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			sourceQuotaRulesCalled = true
+			return nil
+		}
+
+		verifyDestinationQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			destQuotaRulesCalled = true
+			return nil
+		}
+
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID: "job-uuid",
+			},
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.ResumeReplicationParams{
+			AccountName: "account-name",
+		}
+		_, _, err := _resumeReplication(ctx, mockStorage, mockTemporal, params)
+		assert.Nil(tt, err)
+		assert.False(tt, sourceQuotaRulesCalled, "verifySourceQuotaRules should NOT be called when VolumeAttributes is nil")
+		assert.False(tt, destQuotaRulesCalled, "verifyDestinationQuotaRules should NOT be called when VolumeAttributes is nil")
 	})
 }
 

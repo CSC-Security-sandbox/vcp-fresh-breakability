@@ -35,6 +35,7 @@ var (
 	ReplicationDelete              = _hydrateReplicationDelete
 	ReplicationCreate              = _hydrateReplicationCreate
 	HydrateQuotaRuleDelete         = _hydrateQuotaRuleDelete
+	HydrateQuotaRulesDelete        = _hydrateQuotaRulesDelete
 	HydrateQuotaRuleCreate         = _hydrateQuotaRuleCreate
 	GetQuotaLimit                  = _getQuotaLimit
 	createHydrateCreateObject      = _createHydrateCreateObject
@@ -290,12 +291,23 @@ func _hydrateReplicationDelete(ctx context.Context, logger log.Logger, replicati
 }
 
 func _hydrateQuotaRuleDelete(ctx context.Context, logger log.Logger, quotaRuleId string, volumeId string, region string, projectId string, token string) error {
-	nameArray := make([]string, 1)
-	nameArray[0] = "quotaRules/" + quotaRuleId
+	// Backward compatibility wrapper - calls the batched version with a single quota rule
+	return _hydrateQuotaRulesDelete(ctx, logger, []string{quotaRuleId}, volumeId, region, projectId, token)
+}
+
+func _hydrateQuotaRulesDelete(ctx context.Context, logger log.Logger, quotaRuleNames []string, volumeId string, region string, projectId string, token string) error {
+	// Batch size 1: process one quota rule at a time for individual error handling
+	for _, quotaRuleName := range quotaRuleNames {
+		formattedName := "quotaRules/" + quotaRuleName
+		batchedNames := []string{formattedName}
 	url := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s/resources:%s", baseUri, projectId, region, volumeId, Delete)
-	logger.Infof("Hydrating quota rule delete to callbackApi, QuotaRuleId: %s", quotaRuleId)
-	err := hydrateToCffe(ctx, logger, models.GcpHydrateDelete{Names: nameArray}, url, http.MethodPost, token)
+		logger.Infof("Hydrating quota rule delete to callbackApi, QuotaRuleName: %s", quotaRuleName)
+		err := hydrateToCffe(ctx, logger, models.GcpHydrateDelete{Names: batchedNames}, url, http.MethodPost, token)
+		if err != nil {
 	return err
+		}
+	}
+	return nil
 }
 
 func _createHydrateCreateObject(request models.Request) models.GcpHydrateCreate {

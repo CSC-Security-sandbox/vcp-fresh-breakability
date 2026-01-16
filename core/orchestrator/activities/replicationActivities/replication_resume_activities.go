@@ -12,6 +12,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	utilError "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -282,4 +284,156 @@ func (a *ResumeVolumeReplicationActivity) HandleHybridReplicationResumeWhenGcnvI
 
 	logger.Infof("Successfully updated HybridReplicationUserCommands for replication %s", dbReplication.UUID)
 	return result, nil
+}
+
+// ListQuotaRulesOnSourceResume lists quota rules on the source volume via VCP API
+func (a *ResumeVolumeReplicationActivity) ListQuotaRulesOnSourceResume(ctx context.Context, result *replication.ResumeReplicationResult) ([]*datamodel.QuotaRule, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("ListQuotaRulesOnSourceResume")
+
+	// Extract source volume details from the result
+	sourceLocation := result.Event.ReplicationModel.ReplicationAttributes.SourceLocation
+	sourceVolumeUUID := result.Event.ReplicationModel.ReplicationAttributes.SourceVolumeUUID
+	sourceProjectNumber := result.Event.SourceProjectNumber
+
+	// Get correlation ID
+	correlationID := *result.Event.XCorrelationID
+
+	// Call the generic helper function to list quota rules
+	quotaRules, err := ListAllQuotaRulesOnVolume(
+		ctx,
+		logger,
+		*result.SrcBasePath,
+		*result.SrcJwtToken,
+		sourceProjectNumber,
+		sourceLocation,
+		sourceVolumeUUID,
+		correlationID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return quotaRules, nil
+}
+
+// ListQuotaRulesOnDestinationResume lists quota rules on the destination volume via VCP API
+func (a *ResumeVolumeReplicationActivity) ListQuotaRulesOnDestinationResume(ctx context.Context, result *replication.ResumeReplicationResult) ([]*datamodel.QuotaRule, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("ListQuotaRulesOnDestinationResume")
+
+	// Extract destination volume details from the result
+	destinationLocation := result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation
+	destinationVolumeUUID := result.Event.ReplicationModel.ReplicationAttributes.DestinationVolumeUUID
+	destinationProjectNumber := result.Event.DestinationProjectNumber
+
+	// Get correlation ID
+	correlationID := *result.Event.XCorrelationID
+
+	// Call the generic helper function to list quota rules
+	quotaRules, err := ListAllQuotaRulesOnVolume(
+		ctx,
+		logger,
+		*result.DstBasePath,
+		*result.DstJwtToken,
+		destinationProjectNumber,
+		destinationLocation,
+		destinationVolumeUUID,
+		correlationID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return quotaRules, nil
+}
+
+// DehydrateQuotaRulesResume notifies CCFE about quota rule deletions (dehydration)
+func (a *ResumeVolumeReplicationActivity) DehydrateQuotaRulesResume(ctx context.Context, quotaRules []*datamodel.QuotaRule, volumeResourceId string, location string, projectNumber string) ([]*datamodel.QuotaRule, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("DehydrateQuotaRulesResume: volumeResourceId=%s, location=%s, quotaRuleCount=%d",
+		volumeResourceId, location, len(quotaRules))
+
+	// Generate callback token for CCFE authentication
+	callbackToken, err := auth.GenerateCallbackToken(ctx)
+	if err != nil {
+		logger.Errorf("Failed to generate callback token for quota rule dehydration: %v", err)
+		return []*datamodel.QuotaRule{}, errors.NewVCPError(errors.ErrFailedToGenerateAccessToken, fmt.Errorf("failed to generate callback token: %w", err))
+	}
+
+	// Call the tracking function that dehydrates one by one and tracks successes
+	dehydratedQuotaRules, err := DehydrateQuotaRules(
+		ctx,
+		logger,
+		quotaRules,
+		volumeResourceId,
+		location,
+		projectNumber,
+		callbackToken,
+	)
+
+	// Return the list of successfully dehydrated quota rules (even on error)
+	// This allows the caller to handle partial failures
+	return dehydratedQuotaRules, err
+}
+
+// AddSrcQuotaRulesToDstDB syncs source quota rules to destination volume via API and returns the quota rules for hydration
+func (a *ResumeVolumeReplicationActivity) AddSrcQuotaRulesToDstDB(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("AddSrcQuotaRulesToDstDB")
+
+	// Check if there are any quota rules to sync
+	if len(result.SourceQuotaRules) == 0 && len(result.DestinationQuotaRules) == 0 {
+		logger.Infof("No quota rules to sync, skipping")
+		return result, nil
+	}
+
+	// Check for failure recovery scenario: nil source with non-nil destination
+	// This indicates we need to re-sync dehydrated quota rules back to destination
+	if len(result.SourceQuotaRules) == 0 && len(result.DestinationQuotaRules) > 0 {
+		logger.Warnf("Failure recovery mode: re-syncing %d dehydrated quota rules back to destination",
+			len(result.DestinationQuotaRules))
+		// Continue with the API call using nil source and provided destination quota rules
+	}
+
+	// Extract destination volume details
+	destinationLocation := result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation
+	destinationVolumeUUID := result.DstVolume.VolumeId.Value
+	destinationProjectNumber := result.Event.DestinationProjectNumber
+
+	// Get correlation ID for tracing
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+
+	// Call the generic helper function and receive the quota rules returned from the API
+	destinationQuotaRules, err := CreateQuotaRulesRemote(
+		ctx,
+		logger,
+		*result.DstBasePath,
+		*result.DstJwtToken,
+		destinationProjectNumber,
+		destinationLocation,
+		destinationVolumeUUID,
+		correlationID,
+		result.SourceQuotaRules,
+		result.DestinationQuotaRules,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store the quota rules returned from the API in the result
+	result.DestinationQuotaRules = destinationQuotaRules
+	logger.Infof("Stored %d destination quota rules from CreateQuotaRulesRemote response", len(destinationQuotaRules))
+
+	return result, nil
+}
+
+// HydrateQuotaRulesResume hydrates quota rules on the destination volume by calling the callback API.
+// This activity takes the destination quota rules (with their UUIDs) and hydrates them to CCFE.
+func (a *ResumeVolumeReplicationActivity) HydrateQuotaRulesResume(ctx context.Context, quotaRules []*datamodel.QuotaRule, volumeResourceId string, location string, projectNumber string) error {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("HydrateQuotaRulesResume")
+
+	// Call the common hydration function
+	return HydrateQuotaRulesList(ctx, logger, quotaRules, volumeResourceId, location, projectNumber)
 }

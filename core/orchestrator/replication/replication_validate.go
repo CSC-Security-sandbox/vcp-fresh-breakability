@@ -51,6 +51,8 @@ var (
 	getReplicationJobs              = _getReplicationJobs
 	getReplication                  = _getReplication
 	VerifyDstReplicationResume      = _verifyDstReplicationResume
+	VerifySourceQuotaRules          = _verifySourceQuotaRules
+	VerifyDestinationQuotaRules     = _verifyDestinationQuotaRules
 	ValidateReplicationUpdate       = _validateReplicationUpdate
 	VerifyDstReplicationStop        = _verifyDstReplicationStop
 	VerifyDstVolume                 = _verifyDstVolume
@@ -905,6 +907,243 @@ func _verifyDstReplicationResume(ctx context.Context, event *ResumeReplicationEv
 	}
 
 	return dstReplication, nil
+}
+
+// _verifySourceQuotaRules validates that all quota rules on the source volume are in READY state
+// before resuming replication. This ensures quota rules are properly synced during replication resume.
+func _verifySourceQuotaRules(ctx context.Context, event *ResumeReplicationEvent) error {
+	logger := util.GetLogger(ctx)
+
+	// Extract source volume details from the event
+	sourceLocation := event.ReplicationModel.ReplicationAttributes.SourceLocation
+	sourceVolumeUUID := event.ReplicationModel.ReplicationAttributes.SourceVolumeUUID
+	sourceProjectNumber := event.SourceProjectNumber
+	srcBasePath := event.SrcBasePath
+	srcToken := event.SrcToken
+
+	// Create Google Proxy client for the source VCP region
+	googleProxyClient := googleproxyclient.GetGProxyClient(srcBasePath, srcToken, logger)
+
+	// Get correlation ID for tracing
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+
+	// Prepare API parameters
+	params := googleproxyclient.V1betaListAllQuotaRulesParams{
+		ProjectNumber:  sourceProjectNumber,
+		LocationId:     sourceLocation,
+		VolumeId:       sourceVolumeUUID,
+		XCorrelationID: googleproxyclient.NewOptString(correlationID),
+	}
+
+	// Call the VCP API to list quota rules on source
+	logger.Infof("Calling VCP API to list quota rules on source volume: volumeUUID=%s, location=%s",
+		sourceVolumeUUID, sourceLocation)
+	res, err := googleProxyClient.Invoker.V1betaListAllQuotaRules(ctx, params)
+	if err != nil {
+		logger.Errorf("Failed to call V1betaListAllQuotaRules for source volume: %v", err)
+		return fmt.Errorf("failed to list quota rules on source volume: %w", err)
+	}
+
+	// Handle response types
+	switch r := res.(type) {
+	case *googleproxyclient.V1betaListAllQuotaRulesOK:
+		logger.Infof("Successfully fetched quota rules from source volume: count=%d, volumeUUID=%s",
+			len(r.QuotaRules), sourceVolumeUUID)
+
+		// If no quota rules exist, validation passes
+		if len(r.QuotaRules) == 0 {
+			logger.Info("No quota rules found on source volume, validation passed")
+			return nil
+		}
+
+		// Check that all quota rules are in READY state
+		var nonReadyQuotaRules []string
+		for _, quotaRule := range r.QuotaRules {
+			state, ok := quotaRule.State.Get()
+			// Quota rules with no state set are invalid and should be treated as fatal error
+			if !ok {
+				stateDetails, _ := quotaRule.StateDetails.Get()
+				logger.Errorf("Quota rule has no state set: resourceId=%s, stateDetails=%s",
+					quotaRule.ResourceId, stateDetails)
+				errorMsg := fmt.Sprintf("Cannot resume replication: source volume has quota rules not in READY state. "+
+					"Please wait for quota rules to complete. Non-ready quota rules: ResourceId: %s, State: (not set), StateDetails: %s",
+					quotaRule.ResourceId, stateDetails)
+				logger.Error(errorMsg)
+				return utilErrors.NewUserInputValidationErr(errorMsg)
+			}
+
+			if string(state) != coreModels.LifeCycleStateREADY {
+				stateDetails, _ := quotaRule.StateDetails.Get()
+				logger.Warnf("Quota rule not in READY state: resourceId=%s, state=%s, stateDetails=%s",
+					quotaRule.ResourceId, state, stateDetails)
+				nonReadyQuotaRules = append(nonReadyQuotaRules,
+					fmt.Sprintf("ResourceId: %s, State: %s, StateDetails: %s",
+						quotaRule.ResourceId, state, stateDetails))
+			}
+		}
+
+		// If there are non-ready quota rules, return an error
+		if len(nonReadyQuotaRules) > 0 {
+			errorMsg := fmt.Sprintf("Cannot resume replication: source volume has quota rules not in READY state. "+
+				"Please wait for quota rules to complete. Non-ready quota rules: %s",
+				strings.Join(nonReadyQuotaRules, "; "))
+			logger.Error(errorMsg)
+			return utilErrors.NewUserInputValidationErr(errorMsg)
+		}
+
+		return nil
+
+	case *googleproxyclient.V1betaListAllQuotaRulesBadRequest:
+		logger.Errorf("Bad request when listing quota rules on source: %s", r.Message)
+		return errors.NewVCPError(errors.ErrQuotaRuleBadRequest, fmt.Errorf("%s", r.Message))
+	case *googleproxyclient.V1betaListAllQuotaRulesUnauthorized:
+		logger.Errorf("Unauthorized when listing quota rules on source: %s", r.Message)
+		return errors.NewVCPError(errors.ErrQuotaRuleUnauthorized, fmt.Errorf("%s", r.Message))
+	case *googleproxyclient.V1betaListAllQuotaRulesForbidden:
+		logger.Errorf("Forbidden when listing quota rules on source: %s", r.Message)
+		return errors.NewVCPError(errors.ErrQuotaRuleForbidden, fmt.Errorf("%s", r.Message))
+	case *googleproxyclient.V1betaListAllQuotaRulesNotFound:
+		// If volume not found, this is likely a different error - let it propagate
+		logger.Errorf("Not found when listing quota rules on source: %s", r.Message)
+		return errors.NewVCPError(errors.ErrQuotaRuleNotFound, fmt.Errorf("%s", r.Message))
+	case *googleproxyclient.V1betaListAllQuotaRulesConflict:
+		logger.Errorf("Conflict when listing quota rules on source: %s", r.Message)
+		return errors.NewVCPError(errors.ErrQuotaRuleConflict, fmt.Errorf("%s", r.Message))
+	case *googleproxyclient.V1betaListAllQuotaRulesUnprocessableEntity:
+		logger.Errorf("Unprocessable entity when listing quota rules on source: %s", r.Message)
+		return errors.NewVCPError(errors.ErrQuotaRuleBadRequest, fmt.Errorf("%s", r.Message))
+	case *googleproxyclient.V1betaListAllQuotaRulesTooManyRequests:
+		logger.Errorf("Too many requests when listing quota rules on source: %s", r.Message)
+		return errors.NewVCPError(errors.ErrQuotaRuleTooManyRequests, fmt.Errorf("%s", r.Message))
+	case *googleproxyclient.V1betaListAllQuotaRulesInternalServerError:
+		logger.Errorf("Internal server error when listing quota rules on source: %s", r.Message)
+		return errors.NewVCPError(errors.ErrQuotaRuleInternalServerError, fmt.Errorf("%s", r.Message))
+	default:
+		logger.Error("Unexpected response type from Google Proxy when listing quota rules")
+		return errors.NewVCPError(errors.ErrInternalServerError, fmt.Errorf("unexpected response type from Google Proxy"))
+	}
+}
+
+// _verifyDestinationQuotaRules validates that no quota rules on the destination volume are in transitioning states
+// (CREATING, UPDATING, DELETING) before resuming replication. This prevents conflicts with ongoing quota rule operations.
+func _verifyDestinationQuotaRules(ctx context.Context, event *ResumeReplicationEvent) error {
+	logger := util.GetLogger(ctx)
+
+	// Extract destination volume details from the event
+	destinationLocation := event.ReplicationModel.ReplicationAttributes.DestinationLocation
+	destinationVolumeUUID := event.ReplicationModel.ReplicationAttributes.DestinationVolumeUUID
+	destinationProjectNumber := event.DestinationProjectNumber
+	dstBasePath := event.DstBasePath
+	dstToken := event.DstToken
+
+	// Create Google Proxy client for the destination VCP region
+	googleProxyClient := googleproxyclient.GetGProxyClient(dstBasePath, dstToken, logger)
+
+	// Get correlation ID for tracing
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+
+	// Prepare API parameters
+	params := googleproxyclient.V1betaListAllQuotaRulesParams{
+		ProjectNumber:  destinationProjectNumber,
+		LocationId:     destinationLocation,
+		VolumeId:       destinationVolumeUUID,
+		XCorrelationID: googleproxyclient.NewOptString(correlationID),
+	}
+
+	// Call the VCP API to list quota rules on destination
+	logger.Infof("Calling VCP API to list quota rules on destination volume: volumeUUID=%s, location=%s",
+		destinationVolumeUUID, destinationLocation)
+	res, err := googleProxyClient.Invoker.V1betaListAllQuotaRules(ctx, params)
+	if err != nil {
+		logger.Errorf("Failed to call V1betaListAllQuotaRules for destination volume: %v", err)
+		return fmt.Errorf("failed to list quota rules on destination volume: %w", err)
+	}
+
+	// Define transitioning states
+	transitioningStates := map[string]bool{
+		coreModels.LifeCycleStateCreating: true,
+		coreModels.LifeCycleStateUpdating: true,
+		coreModels.LifeCycleStateDeleting: true,
+	}
+
+	// Handle response types
+	switch r := res.(type) {
+	case *googleproxyclient.V1betaListAllQuotaRulesOK:
+		logger.Infof("Successfully fetched quota rules from destination volume: count=%d, volumeUUID=%s",
+			len(r.QuotaRules), destinationVolumeUUID)
+
+		// If no quota rules exist, validation passes
+		if len(r.QuotaRules) == 0 {
+			logger.Info("No quota rules found on destination volume, validation passed")
+			return nil
+		}
+
+		// Check that no quota rules are in transitioning states
+		var transitioningQuotaRules []string
+		for _, quotaRule := range r.QuotaRules {
+			state, ok := quotaRule.State.Get()
+			// Quota rules with no state set are invalid and should be treated as fatal error
+			if !ok {
+				stateDetails, _ := quotaRule.StateDetails.Get()
+				logger.Errorf("Quota rule has no state set: resourceId=%s, stateDetails=%s",
+					quotaRule.ResourceId, stateDetails)
+				errorMsg := fmt.Sprintf("Cannot resume replication: destination volume has quota rules in transitioning state. "+
+					"Please wait for quota rule operations to complete. Transitioning quota rules: ResourceId: %s, State: (not set), StateDetails: %s",
+					quotaRule.ResourceId, stateDetails)
+				logger.Error(errorMsg)
+				return utilErrors.NewUserInputValidationErr(errorMsg)
+			}
+
+			if transitioningStates[string(state)] {
+				stateDetails, _ := quotaRule.StateDetails.Get()
+				logger.Warnf("Quota rule in transitioning state: resourceId=%s, state=%s, stateDetails=%s",
+					quotaRule.ResourceId, state, stateDetails)
+				transitioningQuotaRules = append(transitioningQuotaRules,
+					fmt.Sprintf("ResourceId: %s, State: %s, StateDetails: %s",
+						quotaRule.ResourceId, state, stateDetails))
+			}
+		}
+
+		// If there are transitioning quota rules, return an error
+		if len(transitioningQuotaRules) > 0 {
+			errorMsg := fmt.Sprintf("Cannot resume replication: destination volume has quota rules in transitioning state. "+
+				"Please wait for quota rule operations to complete. Transitioning quota rules: %s",
+				strings.Join(transitioningQuotaRules, "; "))
+			logger.Error(errorMsg)
+			return utilErrors.NewUserInputValidationErr(errorMsg)
+		}
+
+		return nil
+
+	case *googleproxyclient.V1betaListAllQuotaRulesBadRequest:
+		logger.Errorf("Bad request when listing quota rules on destination: %s", r.Message)
+		return errors.NewVCPError(errors.ErrQuotaRuleBadRequest, fmt.Errorf("%s", r.Message))
+	case *googleproxyclient.V1betaListAllQuotaRulesUnauthorized:
+		logger.Errorf("Unauthorized when listing quota rules on destination: %s", r.Message)
+		return errors.NewVCPError(errors.ErrQuotaRuleUnauthorized, fmt.Errorf("%s", r.Message))
+	case *googleproxyclient.V1betaListAllQuotaRulesForbidden:
+		logger.Errorf("Forbidden when listing quota rules on destination: %s", r.Message)
+		return errors.NewVCPError(errors.ErrQuotaRuleForbidden, fmt.Errorf("%s", r.Message))
+	case *googleproxyclient.V1betaListAllQuotaRulesNotFound:
+		// If volume not found, this is likely a different error - let it propagate
+		logger.Errorf("Not found when listing quota rules on destination: %s", r.Message)
+		return errors.NewVCPError(errors.ErrQuotaRuleNotFound, fmt.Errorf("%s", r.Message))
+	case *googleproxyclient.V1betaListAllQuotaRulesConflict:
+		logger.Errorf("Conflict when listing quota rules on destination: %s", r.Message)
+		return errors.NewVCPError(errors.ErrQuotaRuleConflict, fmt.Errorf("%s", r.Message))
+	case *googleproxyclient.V1betaListAllQuotaRulesUnprocessableEntity:
+		logger.Errorf("Unprocessable entity when listing quota rules on destination: %s", r.Message)
+		return errors.NewVCPError(errors.ErrQuotaRuleBadRequest, fmt.Errorf("%s", r.Message))
+	case *googleproxyclient.V1betaListAllQuotaRulesTooManyRequests:
+		logger.Errorf("Too many requests when listing quota rules on destination: %s", r.Message)
+		return errors.NewVCPError(errors.ErrQuotaRuleTooManyRequests, fmt.Errorf("%s", r.Message))
+	case *googleproxyclient.V1betaListAllQuotaRulesInternalServerError:
+		logger.Errorf("Internal server error when listing quota rules on destination: %s", r.Message)
+		return errors.NewVCPError(errors.ErrQuotaRuleInternalServerError, fmt.Errorf("%s", r.Message))
+	default:
+		logger.Error("Unexpected response type from Google Proxy when listing quota rules")
+		return errors.NewVCPError(errors.ErrInternalServerError, fmt.Errorf("unexpected response type from Google Proxy"))
+	}
 }
 
 func _verifyDstReplicationStop(ctx context.Context, event *StopReplicationEvent) (*coreModels.VolumeReplication, error) {

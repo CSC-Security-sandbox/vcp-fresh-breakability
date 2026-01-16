@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -2239,5 +2240,2128 @@ func TestSetHybridReplicationVariablesResume(t *testing.T) {
 		assert.Equal(tt, result, updatedResult)
 		assert.True(tt, updatedResult.IsHybridReplicationVolume)
 		assert.False(tt, updatedResult.IsSrcForHybridReplication)
+	})
+}
+
+func TestListQuotaRulesOnSourceResume(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+	activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+
+	srcBasePath := "https://src-base-path.com"
+	srcJwtToken := "src-jwt-token"
+	srcProjectNumber := "123456789"
+	srcLocation := "us-central1"
+	srcVolumeUUID := "src-volume-uuid"
+	correlationID := "test-correlation-id"
+
+	t.Run("WhenSuccess_WithQuotaRules", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:      &correlationID,
+					SourceProjectNumber: srcProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:   srcLocation,
+							SourceVolumeUUID: srcVolumeUUID,
+						},
+					},
+				},
+			},
+			SrcBasePath: &srcBasePath,
+			SrcJwtToken: &srcJwtToken,
+		}
+
+		expectedResponse := &googleproxyclient.V1betaListAllQuotaRulesOK{
+			QuotaRules: []googleproxyclient.QuotaRulesV1beta{
+				{
+					ResourceId:     "quota-rule-1",
+					QuotaId:        googleproxyclient.NewOptString("quota-uuid-1"),
+					DiskLimitInMib: int64(1024),
+					State:          googleproxyclient.NewOptQuotaRulesV1betaState(googleproxyclient.QuotaRulesV1betaStateREADY),
+				},
+				{
+					ResourceId:     "quota-rule-2",
+					QuotaId:        googleproxyclient.NewOptString("quota-uuid-2"),
+					DiskLimitInMib: int64(2048),
+					State:          googleproxyclient.NewOptQuotaRulesV1betaState(googleproxyclient.QuotaRulesV1betaStateREADY),
+				},
+			},
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(expectedResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnSourceResume(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, quotaRules)
+		assert.Len(tt, quotaRules, 2)
+		assert.Equal(tt, "quota-rule-1", quotaRules[0].Name)
+		assert.Equal(tt, "quota-uuid-1", quotaRules[0].UUID)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccess_NoQuotaRules", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:      &correlationID,
+					SourceProjectNumber: srcProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:   srcLocation,
+							SourceVolumeUUID: srcVolumeUUID,
+						},
+					},
+				},
+			},
+			SrcBasePath: &srcBasePath,
+			SrcJwtToken: &srcJwtToken,
+		}
+
+		expectedResponse := &googleproxyclient.V1betaListAllQuotaRulesOK{
+			QuotaRules: []googleproxyclient.QuotaRulesV1beta{},
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(expectedResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnSourceResume(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, quotaRules)
+		assert.Len(tt, quotaRules, 0)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenAPIError", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:      &correlationID,
+					SourceProjectNumber: srcProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:   srcLocation,
+							SourceVolumeUUID: srcVolumeUUID,
+						},
+					},
+				},
+			},
+			SrcBasePath: &srcBasePath,
+			SrcJwtToken: &srcJwtToken,
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(nil, errors.New("network error"))
+
+		quotaRules, err := activity.ListQuotaRulesOnSourceResume(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenBadRequest", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:      &correlationID,
+					SourceProjectNumber: srcProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:   srcLocation,
+							SourceVolumeUUID: srcVolumeUUID,
+						},
+					},
+				},
+			},
+			SrcBasePath: &srcBasePath,
+			SrcJwtToken: &srcJwtToken,
+		}
+
+		badRequestResponse := &googleproxyclient.V1betaListAllQuotaRulesBadRequest{
+			Message: "Invalid request",
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(badRequestResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnSourceResume(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUnauthorized", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:      &correlationID,
+					SourceProjectNumber: srcProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:   srcLocation,
+							SourceVolumeUUID: srcVolumeUUID,
+						},
+					},
+				},
+			},
+			SrcBasePath: &srcBasePath,
+			SrcJwtToken: &srcJwtToken,
+		}
+
+		unauthorizedResponse := &googleproxyclient.V1betaListAllQuotaRulesUnauthorized{
+			Message: "Unauthorized",
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(unauthorizedResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnSourceResume(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenInternalServerError", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:      &correlationID,
+					SourceProjectNumber: srcProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:   srcLocation,
+							SourceVolumeUUID: srcVolumeUUID,
+						},
+					},
+				},
+			},
+			SrcBasePath: &srcBasePath,
+			SrcJwtToken: &srcJwtToken,
+		}
+
+		internalErrorResponse := &googleproxyclient.V1betaListAllQuotaRulesInternalServerError{
+			Message: "Internal server error",
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(internalErrorResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnSourceResume(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenForbidden", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:      &correlationID,
+					SourceProjectNumber: srcProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:   srcLocation,
+							SourceVolumeUUID: srcVolumeUUID,
+						},
+					},
+				},
+			},
+			SrcBasePath: &srcBasePath,
+			SrcJwtToken: &srcJwtToken,
+		}
+
+		forbiddenResponse := &googleproxyclient.V1betaListAllQuotaRulesForbidden{
+			Message: "Forbidden",
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(forbiddenResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnSourceResume(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNotFound", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:      &correlationID,
+					SourceProjectNumber: srcProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:   srcLocation,
+							SourceVolumeUUID: srcVolumeUUID,
+						},
+					},
+				},
+			},
+			SrcBasePath: &srcBasePath,
+			SrcJwtToken: &srcJwtToken,
+		}
+
+		notFoundResponse := &googleproxyclient.V1betaListAllQuotaRulesNotFound{
+			Message: "Not found",
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(notFoundResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnSourceResume(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenConflict", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:      &correlationID,
+					SourceProjectNumber: srcProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:   srcLocation,
+							SourceVolumeUUID: srcVolumeUUID,
+						},
+					},
+				},
+			},
+			SrcBasePath: &srcBasePath,
+			SrcJwtToken: &srcJwtToken,
+		}
+
+		conflictResponse := &googleproxyclient.V1betaListAllQuotaRulesConflict{
+			Message: "Conflict",
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(conflictResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnSourceResume(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUnprocessableEntity", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:      &correlationID,
+					SourceProjectNumber: srcProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:   srcLocation,
+							SourceVolumeUUID: srcVolumeUUID,
+						},
+					},
+				},
+			},
+			SrcBasePath: &srcBasePath,
+			SrcJwtToken: &srcJwtToken,
+		}
+
+		unprocessableEntityResponse := &googleproxyclient.V1betaListAllQuotaRulesUnprocessableEntity{
+			Message: "Unprocessable entity",
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(unprocessableEntityResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnSourceResume(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenTooManyRequests", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:      &correlationID,
+					SourceProjectNumber: srcProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:   srcLocation,
+							SourceVolumeUUID: srcVolumeUUID,
+						},
+					},
+				},
+			},
+			SrcBasePath: &srcBasePath,
+			SrcJwtToken: &srcJwtToken,
+		}
+
+		tooManyRequestsResponse := &googleproxyclient.V1betaListAllQuotaRulesTooManyRequests{
+			Message: "Too many requests",
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(tooManyRequestsResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnSourceResume(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockClient.AssertExpectations(tt)
+	})
+}
+
+func TestListQuotaRulesOnDestinationResume(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+	activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+
+	dstBasePath := "https://dst-base-path.com"
+	dstJwtToken := "dst-jwt-token"
+	dstProjectNumber := "987654321"
+	dstLocation := "us-east1"
+	dstVolumeUUID := "dst-volume-uuid"
+	correlationID := "test-correlation-id"
+
+	t.Run("WhenSuccess_WithQuotaRules", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath: &dstBasePath,
+			DstJwtToken: &dstJwtToken,
+		}
+
+		expectedResponse := &googleproxyclient.V1betaListAllQuotaRulesOK{
+			QuotaRules: []googleproxyclient.QuotaRulesV1beta{
+				{
+					ResourceId:     "quota-rule-1",
+					QuotaId:        googleproxyclient.NewOptString("quota-uuid-1"),
+					DiskLimitInMib: int64(1024),
+					State:          googleproxyclient.NewOptQuotaRulesV1betaState(googleproxyclient.QuotaRulesV1betaStateREADY),
+				},
+			},
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(expectedResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnDestinationResume(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, quotaRules)
+		assert.Len(tt, quotaRules, 1)
+		assert.Equal(tt, "quota-rule-1", quotaRules[0].Name)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccess_NoQuotaRules", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath: &dstBasePath,
+			DstJwtToken: &dstJwtToken,
+		}
+
+		expectedResponse := &googleproxyclient.V1betaListAllQuotaRulesOK{
+			QuotaRules: []googleproxyclient.QuotaRulesV1beta{},
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(expectedResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnDestinationResume(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, quotaRules)
+		assert.Len(tt, quotaRules, 0)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenAPIError", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath: &dstBasePath,
+			DstJwtToken: &dstJwtToken,
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(nil, errors.New("network error"))
+
+		quotaRules, err := activity.ListQuotaRulesOnDestinationResume(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenBadRequest", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath: &dstBasePath,
+			DstJwtToken: &dstJwtToken,
+		}
+
+		badRequestResponse := &googleproxyclient.V1betaListAllQuotaRulesBadRequest{
+			Message: "Invalid request",
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(badRequestResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnDestinationResume(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUnauthorized", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath: &dstBasePath,
+			DstJwtToken: &dstJwtToken,
+		}
+
+		unauthorizedResponse := &googleproxyclient.V1betaListAllQuotaRulesUnauthorized{
+			Message: "Unauthorized",
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(unauthorizedResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnDestinationResume(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenInternalServerError", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath: &dstBasePath,
+			DstJwtToken: &dstJwtToken,
+		}
+
+		internalErrorResponse := &googleproxyclient.V1betaListAllQuotaRulesInternalServerError{
+			Message: "Internal server error",
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(internalErrorResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnDestinationResume(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenForbidden", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath: &dstBasePath,
+			DstJwtToken: &dstJwtToken,
+		}
+
+		forbiddenResponse := &googleproxyclient.V1betaListAllQuotaRulesForbidden{
+			Message: "Forbidden",
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(forbiddenResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnDestinationResume(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNotFound", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath: &dstBasePath,
+			DstJwtToken: &dstJwtToken,
+		}
+
+		notFoundResponse := &googleproxyclient.V1betaListAllQuotaRulesNotFound{
+			Message: "Not found",
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(notFoundResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnDestinationResume(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenConflict", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath: &dstBasePath,
+			DstJwtToken: &dstJwtToken,
+		}
+
+		conflictResponse := &googleproxyclient.V1betaListAllQuotaRulesConflict{
+			Message: "Conflict",
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(conflictResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnDestinationResume(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUnprocessableEntity", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath: &dstBasePath,
+			DstJwtToken: &dstJwtToken,
+		}
+
+		unprocessableEntityResponse := &googleproxyclient.V1betaListAllQuotaRulesUnprocessableEntity{
+			Message: "Unprocessable entity",
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(unprocessableEntityResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnDestinationResume(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenTooManyRequests", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath: &dstBasePath,
+			DstJwtToken: &dstJwtToken,
+		}
+
+		tooManyRequestsResponse := &googleproxyclient.V1betaListAllQuotaRulesTooManyRequests{
+			Message: "Too many requests",
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(tooManyRequestsResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnDestinationResume(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRules)
+		mockClient.AssertExpectations(tt)
+	})
+}
+
+func TestDehydrateQuotaRulesResume(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+	activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+
+	volumeResourceId := "volume-resource-id"
+	location := "us-central1"
+	projectNumber := "123456789"
+
+	t.Run("WhenSuccess_WithQuotaRules", func(tt *testing.T) {
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		originalHydrateQuotaRulesDelete := common.HydrateQuotaRulesDelete
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+			common.HydrateQuotaRulesDelete = originalHydrateQuotaRulesDelete
+		}()
+
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "quota-rule-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-uuid-1",
+				},
+			},
+			{
+				Name: "quota-rule-2",
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-uuid-2",
+				},
+			},
+		}
+
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-callback-token", nil
+		}
+
+		callCount := 0
+		common.HydrateQuotaRulesDelete = func(ctx context.Context, logger log.Logger, quotaRuleNames []string, volumeResourceId string, location string, projectNumber string, token string) error {
+			callCount++
+			assert.Equal(tt, "test-callback-token", token)
+			assert.Len(tt, quotaRuleNames, 1) // Batch size = 1
+			return nil
+		}
+
+		dehydratedRules, err := activity.DehydrateQuotaRulesResume(ctx, quotaRules, volumeResourceId, location, projectNumber)
+
+		assert.NoError(tt, err)
+		assert.Len(tt, dehydratedRules, 2)
+		assert.Equal(tt, "quota-rule-1", dehydratedRules[0].Name)
+		assert.Equal(tt, "quota-rule-2", dehydratedRules[1].Name)
+		assert.Equal(tt, 2, callCount) // Called once per rule
+	})
+
+	t.Run("WhenSuccess_EmptyQuotaRules", func(tt *testing.T) {
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+		}()
+
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-callback-token", nil
+		}
+
+		quotaRules := []*datamodel.QuotaRule{}
+
+		dehydratedRules, err := activity.DehydrateQuotaRulesResume(ctx, quotaRules, volumeResourceId, location, projectNumber)
+
+		assert.NoError(tt, err)
+		assert.Len(tt, dehydratedRules, 0)
+	})
+
+	t.Run("WhenSuccess_NilQuotaRules", func(tt *testing.T) {
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+		}()
+
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-callback-token", nil
+		}
+
+		var quotaRules []*datamodel.QuotaRule
+
+		dehydratedRules, err := activity.DehydrateQuotaRulesResume(ctx, quotaRules, volumeResourceId, location, projectNumber)
+
+		assert.NoError(tt, err)
+		assert.Len(tt, dehydratedRules, 0)
+	})
+
+	t.Run("WhenGenerateCallbackTokenFails", func(tt *testing.T) {
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+		}()
+
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "quota-rule-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-uuid-1",
+				},
+			},
+		}
+
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "", errors.New("failed to generate token")
+		}
+
+		dehydratedRules, err := activity.DehydrateQuotaRulesResume(ctx, quotaRules, volumeResourceId, location, projectNumber)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Failed To Generate Access Token")
+		assert.Len(tt, dehydratedRules, 0) // No rules dehydrated on token generation failure
+	})
+
+	t.Run("WhenQuotaRuleHasNoName", func(tt *testing.T) {
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+		}()
+
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "",
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-uuid-1",
+				},
+			},
+		}
+
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-callback-token", nil
+		}
+
+		dehydratedRules, err := activity.DehydrateQuotaRulesResume(ctx, quotaRules, volumeResourceId, location, projectNumber)
+
+		// Should fail with fatal error since quota rule has no name
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Invalid input parameters provided")
+		assert.Len(tt, dehydratedRules, 0) // No rules dehydrated before the error
+	})
+
+	t.Run("WhenQuotaRuleUsesName", func(tt *testing.T) {
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		originalHydrateQuotaRulesDelete := common.HydrateQuotaRulesDelete
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+			common.HydrateQuotaRulesDelete = originalHydrateQuotaRulesDelete
+		}()
+
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "quota-rule-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-uuid-1",
+				},
+			},
+		}
+
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-callback-token", nil
+		}
+
+		var capturedNames []string
+		common.HydrateQuotaRulesDelete = func(ctx context.Context, logger log.Logger, quotaRuleNames []string, volumeResourceId string, location string, projectNumber string, token string) error {
+			capturedNames = append(capturedNames, quotaRuleNames...)
+			return nil
+		}
+
+		dehydratedRules, err := activity.DehydrateQuotaRulesResume(ctx, quotaRules, volumeResourceId, location, projectNumber)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, []string{"quota-rule-1"}, capturedNames)
+		assert.Len(tt, dehydratedRules, 1)
+		assert.Equal(tt, "quota-rule-1", dehydratedRules[0].Name)
+	})
+
+	t.Run("WhenHydrateQuotaRulesDeleteFails", func(tt *testing.T) {
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		originalHydrateQuotaRulesDelete := common.HydrateQuotaRulesDelete
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+			common.HydrateQuotaRulesDelete = originalHydrateQuotaRulesDelete
+		}()
+
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "quota-rule-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-uuid-1",
+				},
+			},
+		}
+
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-callback-token", nil
+		}
+
+		common.HydrateQuotaRulesDelete = func(ctx context.Context, logger log.Logger, quotaRuleNames []string, volumeResourceId string, location string, projectNumber string, token string) error {
+			return errors.New("dehydration failed")
+		}
+
+		dehydratedRules, err := activity.DehydrateQuotaRulesResume(ctx, quotaRules, volumeResourceId, location, projectNumber)
+
+		assert.NoError(tt, err)            // Partial failure should not return error
+		assert.Len(tt, dehydratedRules, 0) // No rules dehydrated on first failure
+	})
+
+	t.Run("WhenPartialDehydrationFailure", func(tt *testing.T) {
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		originalHydrateQuotaRulesDelete := common.HydrateQuotaRulesDelete
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+			common.HydrateQuotaRulesDelete = originalHydrateQuotaRulesDelete
+		}()
+
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "quota-rule-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-uuid-1",
+				},
+			},
+			{
+				Name: "quota-rule-2",
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-uuid-2",
+				},
+			},
+			{
+				Name: "quota-rule-3",
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-uuid-3",
+				},
+			},
+		}
+
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-callback-token", nil
+		}
+
+		callCount := 0
+		common.HydrateQuotaRulesDelete = func(ctx context.Context, logger log.Logger, quotaRuleNames []string, volumeResourceId string, location string, projectNumber string, token string) error {
+			callCount++
+			// Fail on the second quota rule
+			if callCount == 2 {
+				return errors.New("dehydration failed for second quota rule")
+			}
+			return nil
+		}
+
+		dehydratedRules, err := activity.DehydrateQuotaRulesResume(ctx, quotaRules, volumeResourceId, location, projectNumber)
+
+		assert.NoError(tt, err) // Partial failure should not return error
+		// Only the first quota rule should be successfully dehydrated
+		assert.Len(tt, dehydratedRules, 1)
+		assert.Equal(tt, "quota-rule-1", dehydratedRules[0].Name)
+		assert.Equal(tt, "quota-uuid-1", dehydratedRules[0].UUID)
+	})
+}
+
+// TestAddSrcQuotaRulesToDstDB tests the AddSrcQuotaRulesToDstDB activity
+func TestAddSrcQuotaRulesToDstDB(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+	activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+
+	dstBasePath := "https://dst-base-path.com"
+	dstJwtToken := "dst-jwt-token"
+	dstProjectNumber := "987654321"
+	dstLocation := "us-east1"
+	dstVolumeUUID := "dst-volume-uuid"
+	correlationID := "test-correlation-id"
+
+	t.Run("WhenSuccess_WithQuotaRules", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		sourceQuotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "src-quota-rule-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "src-quota-uuid-1",
+				},
+			},
+		}
+
+		destinationQuotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "dst-quota-rule-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "dst-quota-uuid-1",
+				},
+			},
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath:           &dstBasePath,
+			DstJwtToken:           &dstJwtToken,
+			SourceQuotaRules:      sourceQuotaRules,
+			DestinationQuotaRules: destinationQuotaRules,
+			DstVolume: &googleproxyclient.VolumeV1beta{
+				VolumeId: googleproxyclient.NewOptString(dstVolumeUUID),
+			},
+		}
+
+		expectedResponse := &googleproxyclient.UpdateDestinationQuotaRulesResponseV1beta{
+			QuotaRules: []googleproxyclient.QuotaRulesV1beta{
+				{
+					ResourceId:     "synced-quota-rule-1",
+					QuotaId:        googleproxyclient.NewOptString("synced-quota-uuid-1"),
+					DiskLimitInMib: int64(1024),
+					State:          googleproxyclient.NewOptQuotaRulesV1betaState(googleproxyclient.QuotaRulesV1betaStateREADY),
+				},
+			},
+		}
+
+		mockClient.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(ctx, mock.Anything, mock.Anything).Return(expectedResponse, nil)
+
+		updatedResult, err := activity.AddSrcQuotaRulesToDstDB(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.NotNil(tt, updatedResult.DestinationQuotaRules)
+		assert.Len(tt, updatedResult.DestinationQuotaRules, 1)
+		assert.Equal(tt, "synced-quota-rule-1", updatedResult.DestinationQuotaRules[0].Name)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccess_NoSourceQuotaRules", func(tt *testing.T) {
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath:           &dstBasePath,
+			DstJwtToken:           &dstJwtToken,
+			SourceQuotaRules:      nil,
+			DestinationQuotaRules: nil,
+		}
+
+		updatedResult, err := activity.AddSrcQuotaRulesToDstDB(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Nil(tt, updatedResult.DestinationQuotaRules)
+	})
+
+	t.Run("WhenSuccess_EmptySourceQuotaRules", func(tt *testing.T) {
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath:           &dstBasePath,
+			DstJwtToken:           &dstJwtToken,
+			SourceQuotaRules:      []*datamodel.QuotaRule{},
+			DestinationQuotaRules: nil,
+		}
+
+		updatedResult, err := activity.AddSrcQuotaRulesToDstDB(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.Nil(tt, updatedResult.DestinationQuotaRules)
+	})
+
+	t.Run("WhenRecoveryScenario_NilSourceWithDehydratedDestination", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		// This represents dehydrated quota rules that need to be re-created
+		dehydratedQuotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "dehydrated-quota-rule-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "dehydrated-quota-uuid-1",
+				},
+			},
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath:           &dstBasePath,
+			DstJwtToken:           &dstJwtToken,
+			SourceQuotaRules:      nil, // nil source indicates recovery scenario
+			DestinationQuotaRules: dehydratedQuotaRules,
+			DstVolume: &googleproxyclient.VolumeV1beta{
+				VolumeId: googleproxyclient.NewOptString(dstVolumeUUID),
+			},
+		}
+
+		expectedResponse := &googleproxyclient.UpdateDestinationQuotaRulesResponseV1beta{
+			QuotaRules: []googleproxyclient.QuotaRulesV1beta{
+				{
+					ResourceId:     "recovered-quota-rule-1",
+					QuotaId:        googleproxyclient.NewOptString("recovered-quota-uuid-1"),
+					DiskLimitInMib: int64(1024),
+					State:          googleproxyclient.NewOptQuotaRulesV1betaState(googleproxyclient.QuotaRulesV1betaStateREADY),
+				},
+			},
+		}
+
+		mockClient.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(ctx, mock.Anything, mock.Anything).Return(expectedResponse, nil)
+
+		updatedResult, err := activity.AddSrcQuotaRulesToDstDB(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
+		assert.NotNil(tt, updatedResult.DestinationQuotaRules)
+		assert.Len(tt, updatedResult.DestinationQuotaRules, 1)
+		assert.Equal(tt, "recovered-quota-rule-1", updatedResult.DestinationQuotaRules[0].Name)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenAPIError", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		sourceQuotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "src-quota-rule-1",
+			},
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			SourceQuotaRules: sourceQuotaRules,
+			DstVolume: &googleproxyclient.VolumeV1beta{
+				VolumeId: googleproxyclient.NewOptString(dstVolumeUUID),
+			},
+		}
+
+		mockClient.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(ctx, mock.Anything, mock.Anything).Return(nil, errors.New("network error"))
+
+		updatedResult, err := activity.AddSrcQuotaRulesToDstDB(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenBadRequest", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		sourceQuotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "src-quota-rule-1",
+			},
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			SourceQuotaRules: sourceQuotaRules,
+			DstVolume: &googleproxyclient.VolumeV1beta{
+				VolumeId: googleproxyclient.NewOptString(dstVolumeUUID),
+			},
+		}
+
+		badRequestResponse := &googleproxyclient.V1betaUpdateDestinationQuotaRulesVCPBadRequest{
+			Message: "Invalid request",
+		}
+
+		mockClient.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(ctx, mock.Anything, mock.Anything).Return(badRequestResponse, nil)
+
+		updatedResult, err := activity.AddSrcQuotaRulesToDstDB(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenInternalServerError", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		sourceQuotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "src-quota-rule-1",
+			},
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			SourceQuotaRules: sourceQuotaRules,
+			DstVolume: &googleproxyclient.VolumeV1beta{
+				VolumeId: googleproxyclient.NewOptString(dstVolumeUUID),
+			},
+		}
+
+		internalErrorResponse := &googleproxyclient.V1betaUpdateDestinationQuotaRulesVCPInternalServerError{
+			Message: "Internal server error",
+		}
+
+		mockClient.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(ctx, mock.Anything, mock.Anything).Return(internalErrorResponse, nil)
+
+		updatedResult, err := activity.AddSrcQuotaRulesToDstDB(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUnauthorized", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		sourceQuotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "src-quota-rule-1",
+			},
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			SourceQuotaRules: sourceQuotaRules,
+			DstVolume: &googleproxyclient.VolumeV1beta{
+				VolumeId: googleproxyclient.NewOptString(dstVolumeUUID),
+			},
+		}
+
+		unauthorizedResponse := &googleproxyclient.V1betaUpdateDestinationQuotaRulesVCPUnauthorized{
+			Message: "Unauthorized",
+		}
+
+		mockClient.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(ctx, mock.Anything, mock.Anything).Return(unauthorizedResponse, nil)
+
+		updatedResult, err := activity.AddSrcQuotaRulesToDstDB(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenForbidden", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		sourceQuotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "src-quota-rule-1",
+			},
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			SourceQuotaRules: sourceQuotaRules,
+			DstVolume: &googleproxyclient.VolumeV1beta{
+				VolumeId: googleproxyclient.NewOptString(dstVolumeUUID),
+			},
+		}
+
+		forbiddenResponse := &googleproxyclient.V1betaUpdateDestinationQuotaRulesVCPForbidden{
+			Message: "Forbidden",
+		}
+
+		mockClient.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(ctx, mock.Anything, mock.Anything).Return(forbiddenResponse, nil)
+
+		updatedResult, err := activity.AddSrcQuotaRulesToDstDB(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNotFound", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		sourceQuotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "src-quota-rule-1",
+			},
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			SourceQuotaRules: sourceQuotaRules,
+			DstVolume: &googleproxyclient.VolumeV1beta{
+				VolumeId: googleproxyclient.NewOptString(dstVolumeUUID),
+			},
+		}
+
+		notFoundResponse := &googleproxyclient.V1betaUpdateDestinationQuotaRulesVCPNotFound{
+			Message: "Not found",
+		}
+
+		mockClient.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(ctx, mock.Anything, mock.Anything).Return(notFoundResponse, nil)
+
+		updatedResult, err := activity.AddSrcQuotaRulesToDstDB(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUnprocessableEntity", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		sourceQuotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "src-quota-rule-1",
+			},
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			SourceQuotaRules: sourceQuotaRules,
+			DstVolume: &googleproxyclient.VolumeV1beta{
+				VolumeId: googleproxyclient.NewOptString(dstVolumeUUID),
+			},
+		}
+
+		unprocessableEntityResponse := &googleproxyclient.V1betaUpdateDestinationQuotaRulesVCPUnprocessableEntity{
+			Message: "Unprocessable entity",
+		}
+
+		mockClient.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(ctx, mock.Anything, mock.Anything).Return(unprocessableEntityResponse, nil)
+
+		updatedResult, err := activity.AddSrcQuotaRulesToDstDB(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenTooManyRequests", func(tt *testing.T) {
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		sourceQuotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "src-quota-rule-1",
+			},
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:           &correlationID,
+					DestinationProjectNumber: dstProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   dstLocation,
+							DestinationVolumeUUID: dstVolumeUUID,
+						},
+					},
+				},
+			},
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			SourceQuotaRules: sourceQuotaRules,
+			DstVolume: &googleproxyclient.VolumeV1beta{
+				VolumeId: googleproxyclient.NewOptString(dstVolumeUUID),
+			},
+		}
+
+		tooManyRequestsResponse := &googleproxyclient.V1betaUpdateDestinationQuotaRulesVCPTooManyRequests{
+			Message: "Too many requests",
+		}
+
+		mockClient.EXPECT().V1betaUpdateDestinationQuotaRulesVCP(ctx, mock.Anything, mock.Anything).Return(tooManyRequestsResponse, nil)
+
+		updatedResult, err := activity.AddSrcQuotaRulesToDstDB(ctx, result)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		mockClient.AssertExpectations(tt)
+	})
+}
+
+// TestHydrateQuotaRulesResume tests the HydrateQuotaRulesResume activity
+func TestHydrateQuotaRulesResume(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+	activity := ResumeVolumeReplicationActivity{SE: mockStorage}
+
+	volumeResourceId := "volume-resource-id"
+	location := "us-central1"
+	projectNumber := "123456789"
+
+	t.Run("WhenSuccess_WithQuotaRules", func(tt *testing.T) {
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		originalHydrateQuotaRuleCreate := hydrateQuotaRuleCreate
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+			hydrateQuotaRuleCreate = originalHydrateQuotaRuleCreate
+		}()
+
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "quota-rule-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-uuid-1",
+				},
+			},
+			{
+				Name: "quota-rule-2",
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-uuid-2",
+				},
+			},
+		}
+
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-callback-token", nil
+		}
+
+		callCount := 0
+		hydrateQuotaRuleCreate = func(ctx context.Context, logger log.Logger, quotaRule coreModels.QuotaRuleHydrateObject, volumeResourceID string, location string, projectId string, token string) error {
+			callCount++
+			assert.Equal(tt, "test-callback-token", token)
+			assert.Equal(tt, volumeResourceId, volumeResourceID)
+			assert.Equal(tt, location, location)
+			assert.Equal(tt, projectNumber, projectId)
+			return nil
+		}
+
+		err := activity.HydrateQuotaRulesResume(ctx, quotaRules, volumeResourceId, location, projectNumber)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, 2, callCount)
+	})
+
+	t.Run("WhenSuccess_EmptyQuotaRules", func(tt *testing.T) {
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+		}()
+
+		quotaRules := []*datamodel.QuotaRule{}
+
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-callback-token", nil
+		}
+
+		err := activity.HydrateQuotaRulesResume(ctx, quotaRules, volumeResourceId, location, projectNumber)
+
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenSuccess_NilQuotaRules", func(tt *testing.T) {
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+		}()
+
+		var quotaRules []*datamodel.QuotaRule
+
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-callback-token", nil
+		}
+
+		err := activity.HydrateQuotaRulesResume(ctx, quotaRules, volumeResourceId, location, projectNumber)
+
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenGenerateCallbackTokenFails", func(tt *testing.T) {
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+		}()
+
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "quota-rule-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-uuid-1",
+				},
+			},
+		}
+
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "", errors.New("failed to generate token")
+		}
+
+		err := activity.HydrateQuotaRulesResume(ctx, quotaRules, volumeResourceId, location, projectNumber)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Failed to hydrate volume creation")
+	})
+
+	t.Run("WhenQuotaRuleHasNoUUID", func(tt *testing.T) {
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		originalHydrateQuotaRuleCreate := hydrateQuotaRuleCreate
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+			hydrateQuotaRuleCreate = originalHydrateQuotaRuleCreate
+		}()
+
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "quota-rule-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "",
+				},
+			},
+		}
+
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-callback-token", nil
+		}
+
+		hydrateQuotaRuleCreate = func(ctx context.Context, logger log.Logger, quotaRule coreModels.QuotaRuleHydrateObject, volumeResourceID string, location string, projectId string, token string) error {
+			return nil
+		}
+
+		err := activity.HydrateQuotaRulesResume(ctx, quotaRules, volumeResourceId, location, projectNumber)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Failed to hydrate volume creation")
+	})
+
+	t.Run("WhenQuotaRuleCreateFails", func(tt *testing.T) {
+		originalGenerateCallbackToken := auth.GenerateCallbackToken
+		originalHydrateQuotaRuleCreate := hydrateQuotaRuleCreate
+		defer func() {
+			auth.GenerateCallbackToken = originalGenerateCallbackToken
+			hydrateQuotaRuleCreate = originalHydrateQuotaRuleCreate
+		}()
+
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				Name: "quota-rule-1",
+				BaseModel: datamodel.BaseModel{
+					UUID: "quota-uuid-1",
+				},
+			},
+		}
+
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "test-callback-token", nil
+		}
+
+		hydrateQuotaRuleCreate = func(ctx context.Context, logger log.Logger, quotaRule coreModels.QuotaRuleHydrateObject, volumeResourceID string, location string, projectId string, token string) error {
+			return errors.New("hydration failed")
+		}
+
+		err := activity.HydrateQuotaRulesResume(ctx, quotaRules, volumeResourceId, location, projectNumber)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Failed to hydrate volume creation")
 	})
 }

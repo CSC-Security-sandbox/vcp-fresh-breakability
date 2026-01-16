@@ -1750,5 +1750,11 @@
     "message": "Internal server error while processing quota rule operation",
     "retriable": true,
     "http_code": 500
+  },
+  "12014": {
+    "description": "Resume replication quota rule failure",
+    "message": "Operation was successful but quota rule sync between source and destination failed",
+    "retriable": false,
+    "http_code": 200
   }
 }

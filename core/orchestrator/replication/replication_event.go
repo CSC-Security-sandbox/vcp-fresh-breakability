@@ -157,6 +157,8 @@ type ResumeReplicationResult struct {
 	DbVolReplication          *datamodel.VolumeReplication
 	IsHybridReplicationVolume bool
 	IsSrcForHybridReplication bool
+	SourceQuotaRules          []*datamodel.QuotaRule
+	DestinationQuotaRules     []*datamodel.QuotaRule
 }
 
 type DeleteReplicationEvent struct {

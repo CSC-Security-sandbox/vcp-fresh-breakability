@@ -3,6 +3,7 @@ package replicationActivities
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -33,6 +34,7 @@ var (
 	replicationInternalParseRegionAndZone                       = replication.InternalParseRegionAndZone
 	replicationInternalUtilGetPairedRegionURI                   = replication.InternalUtilGetPairedRegionURI
 	hydrateQuotaRuleCreate                                      = common.HydrateQuotaRuleCreate
+	DehydrateQuotaRules                                         = _dehydrateQuotaRules
 )
 
 const (
@@ -268,6 +270,10 @@ func convertQuotaRulesV1betaToDbModel(clientRule googleproxyclient.QuotaRulesV1b
 	// Get the quota ID (UUID) from the client rule
 	if quotaId, hasQuotaId := clientRule.QuotaId.Get(); hasQuotaId {
 		rule.UUID = quotaId
+		// Also set in QuotaRuleAttributes for dehydration purposes
+		rule.QuotaRuleAttributes = &datamodel.QuotaRuleAttributes{
+			ExternalUUID: quotaId,
+		}
 	}
 
 	// Convert quota type enum to string
@@ -393,6 +399,89 @@ func CreateQuotaRulesRemote(
 	}
 }
 
+// ListAllQuotaRulesOnVolume is a generic helper function that lists quota rules on a remote volume.
+// It can be used in replication resume and other processes that need to list quota rules from a volume.
+func ListAllQuotaRulesOnVolume(
+	ctx context.Context,
+	logger log.Logger,
+	basePath string,
+	jwtToken string,
+	projectNumber string,
+	locationId string,
+	volumeId string,
+	correlationID string,
+) ([]*datamodel.QuotaRule, error) {
+	// Create Google Proxy client
+	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, jwtToken, logger)
+
+	// Prepare API parameters
+	params := googleproxyclient.V1betaListAllQuotaRulesParams{
+		ProjectNumber:  projectNumber,
+		LocationId:     locationId,
+		VolumeId:       volumeId,
+		XCorrelationID: googleproxyclient.NewOptString(correlationID),
+	}
+
+	// Call the VCP API to list quota rules
+	logger.Infof("Calling VCP API to list quota rules on volume: volumeUUID=%s, location=%s",
+		volumeId, locationId)
+	res, err := googleProxyClient.Invoker.V1betaListAllQuotaRules(ctx, params)
+	if err != nil {
+		logger.Errorf("Failed to call V1betaListAllQuotaRules for volume: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, fmt.Errorf("failed to list quota rules on volume: %w", err)))
+	}
+
+	// Handle response types
+	switch r := res.(type) {
+	case *googleproxyclient.V1betaListAllQuotaRulesOK:
+		logger.Infof("Successfully fetched quota rules from volume: count=%d, volumeUUID=%s",
+			len(r.QuotaRules), volumeId)
+
+		if len(r.QuotaRules) == 0 {
+			logger.Infof("No quota rules found on volume")
+			return []*datamodel.QuotaRule{}, nil
+		}
+
+		// Convert API response to datamodel quota rules
+		quotaRules := make([]*datamodel.QuotaRule, 0, len(r.QuotaRules))
+		for _, clientRule := range r.QuotaRules {
+			quotaRule := convertQuotaRulesV1betaToDbModel(clientRule)
+			quotaRules = append(quotaRules, quotaRule)
+		}
+
+		logger.Infof("Converted %d quota rules from volume", len(quotaRules))
+		return quotaRules, nil
+
+	case *googleproxyclient.V1betaListAllQuotaRulesBadRequest:
+		logger.Errorf("Bad request when listing quota rules: %s", r.Message)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrQuotaRuleBadRequest, fmt.Errorf("%s", r.Message)))
+	case *googleproxyclient.V1betaListAllQuotaRulesUnauthorized:
+		logger.Errorf("Unauthorized when listing quota rules: %s", r.Message)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrQuotaRuleUnauthorized, fmt.Errorf("%s", r.Message)))
+	case *googleproxyclient.V1betaListAllQuotaRulesForbidden:
+		logger.Errorf("Forbidden when listing quota rules: %s", r.Message)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrQuotaRuleForbidden, fmt.Errorf("%s", r.Message)))
+	case *googleproxyclient.V1betaListAllQuotaRulesNotFound:
+		logger.Errorf("Not found when listing quota rules: %s", r.Message)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrQuotaRuleNotFound, fmt.Errorf("%s", r.Message)))
+	case *googleproxyclient.V1betaListAllQuotaRulesConflict:
+		logger.Errorf("Conflict when listing quota rules: %s", r.Message)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrQuotaRuleConflict, fmt.Errorf("%s", r.Message)))
+	case *googleproxyclient.V1betaListAllQuotaRulesUnprocessableEntity:
+		logger.Errorf("Unprocessable entity when listing quota rules: %s", r.Message)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrQuotaRuleBadRequest, fmt.Errorf("%s", r.Message)))
+	case *googleproxyclient.V1betaListAllQuotaRulesTooManyRequests:
+		logger.Errorf("Too many requests when listing quota rules: %s", r.Message)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrQuotaRuleTooManyRequests, fmt.Errorf("%s", r.Message)))
+	case *googleproxyclient.V1betaListAllQuotaRulesInternalServerError:
+		logger.Errorf("Internal server error when listing quota rules: %s", r.Message)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrQuotaRuleInternalServerError, fmt.Errorf("%s", r.Message)))
+	default:
+		logger.Error("Unexpected response type from Google Proxy when listing quota rules")
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, fmt.Errorf("unexpected response type from Google Proxy")))
+	}
+}
+
 // HydrateQuotaRulesList hydrates a list of quota rules by calling the callback API.
 // This is a common function that can be used in replication and other processes.
 func HydrateQuotaRulesList(
@@ -435,4 +524,54 @@ func HydrateQuotaRulesList(
 
 	logger.Infof("Successfully hydrated %d quota rules for volume: %s", len(quotaRules), volumeResourceId)
 	return nil
+}
+
+// DehydrateQuotaRules dehydrates quota rules one by one and tracks successfully dehydrated rules.
+// This is a modular function that can be used for resume, reverse resume, etc.
+// On failure, it returns the list of successfully dehydrated quota rules along with the error.
+func _dehydrateQuotaRules(
+	ctx context.Context,
+	logger log.Logger,
+	quotaRules []*datamodel.QuotaRule,
+	volumeResourceId string,
+	location string,
+	projectNumber string,
+	callbackToken string,
+) ([]*datamodel.QuotaRule, error) {
+	logger.Infof("DehydrateQuotaRules: Starting dehydration of %d quota rules", len(quotaRules))
+
+	// Create tracking array for successfully dehydrated quota rules
+	dehydratedQuotaRules := make([]*datamodel.QuotaRule, 0, len(quotaRules))
+
+	// Dehydrate quota rules one by one
+	for i, quotaRule := range quotaRules {
+		// Validate that the quota rule has a name
+		if quotaRule.Name == "" {
+			logger.Errorf("Quota rule at index %d has no name: uuid=%s", i, quotaRule.UUID)
+			return dehydratedQuotaRules, vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError,
+				fmt.Errorf("quota rule at index %d missing name (uuid=%s)", i, quotaRule.UUID))
+		}
+
+		// Dehydrate this single quota rule (batch size = 1)
+		// TODO add batching for dehydration for a acceptable batch size in future releases
+		quotaRuleNames := []string{quotaRule.Name}
+		logger.Infof("Dehydrating quota rule %d/%d: name=%s", i+1, len(quotaRules), quotaRule.Name)
+
+		err := common.HydrateQuotaRulesDelete(ctx, logger, quotaRuleNames, volumeResourceId, location, projectNumber, callbackToken)
+		if err != nil {
+			// Failure occurred - treat as partial failure and return what was successfully dehydrated so far
+			// Return nil error so workflow can continue with recovery for successfully dehydrated rules
+			logger.Warnf("Failed to dehydrate quota rule '%s' (index %d/%d): %v. Successfully dehydrated %d quota rules before failure. Treating as partial failure.",
+				quotaRule.Name, i+1, len(quotaRules), err, len(dehydratedQuotaRules))
+			return dehydratedQuotaRules, nil
+		}
+
+		// Success - add this quota rule to the dehydrated list
+		dehydratedQuotaRules = append(dehydratedQuotaRules, quotaRule)
+		logger.Infof("Successfully dehydrated quota rule %d/%d: name=%s", i+1, len(quotaRules), quotaRule.Name)
+	}
+
+	// All quota rules dehydrated successfully
+	logger.Infof("Successfully dehydrated all %d quota rules", len(dehydratedQuotaRules))
+	return dehydratedQuotaRules, nil
 }
