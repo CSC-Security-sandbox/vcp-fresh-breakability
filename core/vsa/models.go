@@ -19,6 +19,7 @@ type ProviderDetails struct {
 	Protocol           string            `json:"protocol"`
 	InsecureSkipVerify bool              `json:"insecureSkipVerify"`
 	Certificate        *Certificate      `json:"certificate"`
+	AuthType           int               `json:"authType"` // 0=password, 2=certificate
 	FastConnection     bool              `json:"fastConnection"` // When true, bypasses retries and uses shorter timeout for test connections
 }
 
@@ -1056,6 +1057,47 @@ type SecurityAudit struct {
 	Cli    bool
 	HTTP   bool
 	Ontapi bool
+}
+
+// InstallServerCertificateParams represents the parameters for installing a server certificate
+type InstallServerCertificateParams struct {
+	SvmName         string
+	CertificateName string
+	Certificate     string // PEM-encoded certificate
+	PrivateKey      string // PEM-encoded private key
+	CertificateType string // "server"
+	CommonName      string
+}
+
+// GetServerCertificateParams represents the parameters for getting a server certificate
+type GetServerCertificateParams struct {
+	SvmName         string
+	CertificateName string
+	CertificateType string
+}
+
+// ServerCertificateResponse represents the response from certificate operations
+type ServerCertificateResponse struct {
+	UUID            string
+	Name            string
+	CommonName      string
+	CertificateType string
+	ExpiryTime      string
+	SerialNumber    string
+}
+
+// ModifySSLParams represents the parameters for modifying SSL configuration
+type ModifySSLParams struct {
+	SvmName       string
+	ServerEnabled bool
+	CA            string // Certificate Authority name
+	Serial        string // Certificate serial number
+}
+
+// ModifySSLResponse represents the response from SSL modification
+type ModifySSLResponse struct {
+	Success bool
+	Message string
 }
 
 type SmObjectStoreEndpointt struct {

@@ -160,6 +160,36 @@ func PopulateRetryPolicyParams(largeCapacity ...bool) (*WorkflowRetryPolicy, err
 	}, nil
 }
 
+// PopulateRotationRetryPolicyParams returns retry policy for certificate and password rotation activities
+// This ensures all rotation activities can be retried once (MaximumAttempts = 2: 1 initial attempt + 1 retry)
+// Activity timeout is set to 5 minutes
+func PopulateRotationRetryPolicyParams(largeCapacity ...bool) (*WorkflowRetryPolicy, error) {
+	// Activity timeout is fixed at 5 minutes for rotation activities
+	activityStartToCloseTimeout := 5 * time.Minute
+
+	activityRetryInterval, err := time.ParseDuration(RetryInterval)
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, err)
+	}
+	// Rotation activities should be retried once (1 initial attempt + 1 retry = 2 total attempts)
+	activityRetryMaxAttempts := 2
+	activityRetryMaxInterval, err := time.ParseDuration(RetryMaxInterval)
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, err)
+	}
+	activityRetryBackoff, err := strconv.ParseFloat(RetryBackoff, 64)
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, err)
+	}
+	return &WorkflowRetryPolicy{
+		InitialInterval:     activityRetryInterval,
+		StartToCloseTimeout: activityStartToCloseTimeout,
+		BackoffCoefficient:  activityRetryBackoff,
+		MaximumInterval:     activityRetryMaxInterval,
+		MaximumAttempts:     activityRetryMaxAttempts,
+	}, nil
+}
+
 // populateServiceAccountRetryPolicyParams returns retry policy specific to service account operations
 // with custom values: backoff coefficient 2.0, max attempts 12, max interval 60 seconds
 func populateServiceAccountRetryPolicyParams() (*WorkflowRetryPolicy, error) {

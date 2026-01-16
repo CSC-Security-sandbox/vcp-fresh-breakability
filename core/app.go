@@ -19,6 +19,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/tasks"
 	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/drivers/postgres"
@@ -26,6 +28,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -36,6 +39,11 @@ import (
 	_ "go.uber.org/automaxprocs"
 	"golang.org/x/sync/errgroup"
 )
+
+func init() {
+	// Register the workflow executor to break circular dependency
+	backgroundactivities.RegisterWorkflowExecutor(workflows.ExecuteWorkflowSequentially)
+}
 
 const (
 	syncVSAClusterHealthJobType            = "SYNC_VSA_CLUSTER_HEALTH_STATUS"
@@ -74,6 +82,14 @@ func main() {
 
 	cfg := common.LoadConfig()
 
+	// Validate certificate lifetime before starting the service
+	err = env.ValidateCertificateLifetime()
+	if err != nil {
+		logger.Error("Certificate lifetime validation failed", "error", err.Error())
+		os.Exit(1)
+	}
+	logger.Info("Certificate lifetime validation passed")
+
 	// initialize the database - this can be moved to a separate function
 	dbCon, err := InitializeDatabase(ctx, cfg, logger)
 	if err != nil {
@@ -89,6 +105,11 @@ func main() {
 		os.Exit(1)
 	}
 	defer workflowClient.CloseClient(workflowClient.GetTemporalClient())
+	
+	// Initialize FetchTemporalClient function for use in activities
+	workflowengine.FetchTemporalClient = func() (client.Client, error) {
+		return workflowClient.GetTemporalClient(), nil
+	}
 
 	// Create GCP proxy server and inject required dependencies
 	orch := orchestrator.GetNewOrchestrator(dbCon, workflowClient.GetTemporalClient())

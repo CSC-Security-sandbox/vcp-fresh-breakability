@@ -29,7 +29,18 @@ import (
 var GetProviderByNode = _getProviderByNode
 
 func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	// Validate that we have a valid node
+	if node == nil {
+		util.GetLogger(ctx).Errorf("Node is nil")
+		return nil, errors.NewVCPError(errors.ErrResourceNotFound, fmt.Errorf("node is nil"))
+	}
+	
 	if node.AuthType == env.USER_CERTIFICATE {
+		// For certificate auth, we require EndpointAddressesToHostNameMap to be populated
+		if len(node.EndpointAddressesToHostNameMap) == 0 {
+			util.GetLogger(ctx).Errorf("No endpoint addresses found in EndpointAddressesToHostNameMap for node %s", node.Name)
+			return nil, errors.NewVCPError(errors.ErrVSAClusterNodeIPAddressNotFound, fmt.Errorf("no endpoint addresses found for node %s - this indicates a database consistency issue", node.Name))
+		}
 		// Create PoolCredentials from Node's CA URI for certificate retrieval
 		poolCredentials := &datamodel.PoolCredentials{
 			CaURI:         node.GetCaURIWithFallback(),
@@ -43,8 +54,27 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 			return nil, errors.NewVCPError(errors.ErrGCPResourceFetchError, err)
 		}
 
+		// Get the first IP address from the endpoint map for SSH connections
+		var ipAddress string
+		for endpointAddr := range node.EndpointAddressesToHostNameMap {
+			ipAddress = endpointAddr
+			break // Use the first available IP address
+		}
+		
+		// For certificate-based auth, we still need password for SSH connections
+		// Use the node's password directly - SecretID contains private key, not password
+		var password string
+		if node.Password != "" {
+			password = node.Password
+		} else {
+			util.GetLogger(ctx).Warnf("No password available for SSH authentication with certificate-based auth")
+			// Continue without password - SSH will fail but REST API will work
+		}
+		
 		return vsa.NewProvider(ctx, vsa.ProviderDetails{
+			IPAddress: ipAddress,
 			Hosts: node.EndpointAddressesToHostNameMap,
+			Password: password, // Set password for SSH connections
 			Certificate: &vsa.Certificate{
 				SignedCertificate:        certificate.SignedCertificate,
 				InterMediateCertificates: certificate.InterMediateCertificates,
@@ -52,6 +82,7 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 				PrivateKey:               certificate.PrivateKey,
 			},
 			InsecureSkipVerify: false,
+			AuthType:           node.AuthType, // Set authentication type
 		}), nil
 	}
 
@@ -74,10 +105,19 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 		node.EndpointAddressesToHostNameMap[node.EndpointAddress] = node.EndpointAddress
 	}
 
+	// Get the first IP address from the endpoint map for SSH connections
+	var ipAddress string
+	for endpointAddr := range node.EndpointAddressesToHostNameMap {
+		ipAddress = endpointAddr
+		break // Use the first available IP address
+	}
+	
 	return vsa.NewProvider(ctx, vsa.ProviderDetails{
+		IPAddress:          ipAddress,
 		Hosts:              node.EndpointAddressesToHostNameMap,
 		Password:           password,
 		InsecureSkipVerify: true,
+		AuthType:           node.AuthType, // Set authentication type
 	}), nil
 }
 
@@ -357,7 +397,8 @@ func _createCertificateInCAS(gcpService GoogleServices, certificate *hyperscaler
 func _createPrivateKeyInSecretManager(gcpService GoogleServices, certificate *hyperscalermodels.CustomCertificate, key *rsa.PrivateKey) (*hyperscalermodels.CustomSecret, error) {
 	logger := gcpService.GetLogger()
 	logger.Debugf("Creating private key in Secret Manager for commonName: %s, certificateId : %s", certificate.SubjectCommonName, certificate.CertificateID)
-	// Store the private key in Secret Manager
+	
+	// Store the private key in Secret Manager using the certificate ID directly
 	secretValue := common2.ConvertPrivateKeyToString(key, RsaKeyType)
 	secret, err := gcpService.CreateSecret(env.SecretManagerProjectID, certificate.Region, certificate.CertificateID, secretValue)
 	if err != nil {
@@ -374,6 +415,8 @@ func _getCertificateAndPrivateKeyByID(gcpService GoogleServices, caDeployedProje
 	if err != nil || certificate == nil {
 		return nil, fmt.Errorf("failed to get certficate for project: %s, region: %s, caPoolName : %s, certificateID : %s, err: %s", caDeployedProjectID, region, caPoolName, certificateID, err)
 	}
+	
+	// Get the private key from Secret Manager using the certificate ID directly
 	secret, err := gcpService.GetSecretWithLatestVersion(secretManagerProjectID, certificateID)
 	if err != nil || secret == nil || secret.SecretVersion == nil {
 		return nil, fmt.Errorf("failed to get secret for project: %s, certificateID: %s, err: %s", secretManagerProjectID, certificateID, err)
@@ -387,6 +430,7 @@ func _getCertificateAndPrivateKeyByID(gcpService GoogleServices, caDeployedProje
 // _generatePasswordForVSACluster generates a strong password and creates a secret in GCP Secret Manager.
 func _generatePasswordForVSACluster(gcpService GoogleServices, secretID string) (*hyperscalermodels.CustomSecret, error) {
 	logger := gcpService.GetLogger()
+	
 	var secret *hyperscalermodels.CustomSecret
 	projectID := env.SecretManagerProjectID
 	secret, getSecretError := gcpService.GetSecretWithLatestVersion(projectID, secretID)
@@ -399,10 +443,12 @@ func _generatePasswordForVSACluster(gcpService GoogleServices, secretID string) 
 			logger.Errorf("failed to generate password for secretID: %s, err : %v", secretID, err)
 			return nil, err
 		}
+		
 		secret, err = gcpService.CreateSecret(projectID, env.Region, secretID, password)
 		if err != nil {
 			return nil, err
 		}
+		
 		common.AddToUserAuthCache(secretID, secret.SecretVersion.Value)
 	}
 	return secret, nil
@@ -674,7 +720,7 @@ func _createNodeForProvider(inp NodeProviderInput) *models.Node {
 	caURI := inp.OntapCredentials.GetCaURIWithFallback()
 
 	endpointAddressToHostNameMap := make(map[string]string)
-	if inp.OntapCredentials.AuthType == env.USER_CERTIFICATE {
+	if inp.OntapCredentials != nil && inp.OntapCredentials.AuthType == env.USER_CERTIFICATE {
 		for _, node := range inp.Nodes {
 			if node.EndpointAddress != "" {
 				endpointAddressToHostNameMap[node.EndpointAddress] = node.HostDNSName
@@ -682,6 +728,7 @@ func _createNodeForProvider(inp NodeProviderInput) *models.Node {
 		}
 		return &models.Node{
 			EndpointAddressesToHostNameMap: endpointAddressToHostNameMap,
+			Password:                       inp.OntapCredentials.Password, // Include password for SSH authentication
 			DeploymentName:                 inp.DeploymentName,
 			CertificateID:                  inp.OntapCredentials.CertificateID,
 			SecretID:                       inp.OntapCredentials.SecretID,

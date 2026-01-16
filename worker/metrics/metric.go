@@ -30,6 +30,24 @@ var JobStatusCounter = prometheus.NewCounterVec(
 	[]string{"project_id", "error_details", "state"},
 )
 
+// Counter for certificate rotation failures
+var CertificateRotationFailureCounter = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "vcp_certificate_rotation_failures_total",
+		Help: "Total number of certificate rotation failures",
+	},
+	[]string{"pool_uuid", "pool_name", "failure_type", "error_type"},
+)
+
+// Counter for password rotation failures
+var PasswordRotationFailureCounter = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "vcp_password_rotation_failures_total",
+		Help: "Total number of password rotation failures",
+	},
+	[]string{"pool_uuid", "pool_name", "failure_type", "error_type"},
+)
+
 // Gauge for AutoTier enabled
 var autoTierEnabledGauge = prometheus.NewGaugeVec(
 	prometheus.GaugeOpts{
@@ -171,6 +189,56 @@ func RegisterBackupSizeGauge() {
 			log.Printf("Failed to register backupSizeGauge: %v", err)
 		}
 	}
+}
+
+func RegisterCertificateRotationFailureCounter() {
+	err := prometheus.Register(CertificateRotationFailureCounter)
+	if err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			CertificateRotationFailureCounter = are.ExistingCollector.(*prometheus.CounterVec)
+		} else {
+			log.Printf("Failed to register CertificateRotationFailureCounter: %v", err)
+		}
+	}
+}
+
+func RegisterPasswordRotationFailureCounter() {
+	err := prometheus.Register(PasswordRotationFailureCounter)
+	if err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			PasswordRotationFailureCounter = are.ExistingCollector.(*prometheus.CounterVec)
+		} else {
+			log.Printf("Failed to register PasswordRotationFailureCounter: %v", err)
+		}
+	}
+}
+
+// EmitCertificateRotationFailure emits a metric when certificate rotation fails
+func EmitCertificateRotationFailure(poolUUID, poolName, failureType, errorType string) {
+	// Truncate error type if too long to avoid label cardinality issues
+	if len(errorType) > 200 {
+		errorType = errorType[:200] + "..."
+	}
+	CertificateRotationFailureCounter.WithLabelValues(
+		poolUUID,
+		poolName,
+		failureType,
+		errorType,
+	).Inc()
+}
+
+// EmitPasswordRotationFailure emits a metric when password rotation fails
+func EmitPasswordRotationFailure(poolUUID, poolName, failureType, errorType string) {
+	// Truncate error type if too long to avoid label cardinality issues
+	if len(errorType) > 200 {
+		errorType = errorType[:200] + "..."
+	}
+	PasswordRotationFailureCounter.WithLabelValues(
+		poolUUID,
+		poolName,
+		failureType,
+		errorType,
+	).Inc()
 }
 
 // Aggregate and emit metrics for Autotier enabled volumes

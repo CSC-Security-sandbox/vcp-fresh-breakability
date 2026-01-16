@@ -29,6 +29,10 @@ var (
 var (
 	createClientOptionsFromEnv = _createClientOptionsFromEnv
 	waitTime                   = 5 * time.Second // Time to wait before retrying connection to Temporal server
+	
+	// FetchTemporalClient is a function variable that returns a Temporal client.
+	// This allows for easier mocking in tests and can be overridden at runtime.
+	FetchTemporalClient func() (client.Client, error)
 )
 
 type NamespaceClientFactory func(client.Options) (client.NamespaceClient, error)

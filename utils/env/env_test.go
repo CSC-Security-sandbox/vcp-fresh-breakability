@@ -2414,3 +2414,113 @@ func TestParseCaURI(t *testing.T) {
 		assert.Equal(t, "provided-ca", caName)
 	})
 }
+
+func TestGetCertificateRotationThresholdPercentage(t *testing.T) {
+	key := "CERTIFICATE_ROTATION_THRESHOLD_PERCENTAGE"
+	defer func() {
+		_ = os.Unsetenv(key)
+	}()
+
+	t.Run("WhenValueIsGreaterThanOne_TreatAsPercentage", func(tt *testing.T) {
+		err := os.Setenv(key, "75")
+		assert.NoError(tt, err)
+		result := GetCertificateRotationThresholdPercentage()
+		assert.Equal(tt, 0.75, result)
+	})
+
+	t.Run("WhenValueIsLessThanOrEqualToOne_TreatAsDecimal", func(tt *testing.T) {
+		// Test with value <= 1 - covers line 303
+		err := os.Setenv(key, "0.75")
+		assert.NoError(tt, err)
+		result := GetCertificateRotationThresholdPercentage()
+		assert.Equal(tt, 0.75, result)
+
+		err = os.Setenv(key, "1.0")
+		assert.NoError(tt, err)
+		result = GetCertificateRotationThresholdPercentage()
+		assert.Equal(tt, 1.0, result)
+	})
+
+	t.Run("WhenEnvironmentVariableIsNotSet_UseDefault", func(tt *testing.T) {
+		err := os.Unsetenv(key)
+		assert.NoError(tt, err)
+		result := GetCertificateRotationThresholdPercentage()
+		assert.Equal(tt, 0.75, result) // Default is 75% = 0.75
+	})
+}
+
+func TestValidateCertificateLifetime(t *testing.T) {
+	key1 := "CERTIFICATE_LIFETIME"
+	key2 := "MINIMUM_CERTIFICATE_LIFETIME"
+	defer func() {
+		_ = os.Unsetenv(key1)
+		_ = os.Unsetenv(key2)
+	}()
+
+	t.Run("WhenCertificateLifetimeIsValid", func(tt *testing.T) {
+		err := os.Setenv(key1, "94608000s")
+		assert.NoError(tt, err)
+		err = os.Setenv(key2, "15552000s")
+		assert.NoError(tt, err)
+
+		// Test successful validation - covers lines 501-502, 522
+		err = ValidateCertificateLifetime()
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenCertificateLifetimeHasInvalidFormat", func(tt *testing.T) {
+		err := os.Setenv(key1, "invalid-format")
+		assert.NoError(tt, err)
+		err = os.Setenv(key2, "15552000s")
+		assert.NoError(tt, err)
+
+		// Test invalid certificate lifetime format - covers lines 505-507
+		err = ValidateCertificateLifetime()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "invalid certificate lifetime format")
+	})
+
+	t.Run("WhenMinimumCertificateLifetimeHasInvalidFormat", func(tt *testing.T) {
+		err := os.Setenv(key1, "94608000s")
+		assert.NoError(tt, err)
+		err = os.Setenv(key2, "invalid-format")
+		assert.NoError(tt, err)
+
+		// Test invalid minimum certificate lifetime format - covers lines 511-513
+		err = ValidateCertificateLifetime()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "invalid minimum certificate lifetime format")
+	})
+
+	t.Run("WhenCertificateLifetimeIsLessThanMinimum", func(tt *testing.T) {
+		err := os.Setenv(key1, "10000000s") // 10M seconds
+		assert.NoError(tt, err)
+		err = os.Setenv(key2, "15552000s") // 15.5M seconds (minimum)
+		assert.NoError(tt, err)
+
+		// Test certificate lifetime less than minimum - covers lines 517-518
+		err = ValidateCertificateLifetime()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "is less than minimum required lifetime")
+	})
+
+	t.Run("WhenCertificateLifetimeEqualsMinimum", func(tt *testing.T) {
+		err := os.Setenv(key1, "15552000s")
+		assert.NoError(tt, err)
+		err = os.Setenv(key2, "15552000s")
+		assert.NoError(tt, err)
+
+		err = ValidateCertificateLifetime()
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenCertificateLifetimeIsGreaterThanMinimum", func(tt *testing.T) {
+		err := os.Setenv(key1, "94608000s") // 94.6M seconds
+		assert.NoError(tt, err)
+		err = os.Setenv(key2, "15552000s") // 15.5M seconds
+		assert.NoError(tt, err)
+
+		err = ValidateCertificateLifetime()
+		assert.NoError(tt, err)
+	})
+}

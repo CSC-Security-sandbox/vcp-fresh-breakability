@@ -102,6 +102,7 @@ func TestCreateNodeForProvider(t *testing.T) {
 					"10.0.0.1": "host1.example.com",
 					"10.0.0.2": "host2.example.com",
 				},
+				Password:       "password123", // Password should be included for SSH authentication
 				DeploymentName: "test-deployment",
 				CertificateID:  "cert-id",
 				SecretID:       "secret-id",
@@ -133,6 +134,7 @@ func TestCreateNodeForProvider(t *testing.T) {
 				EndpointAddressesToHostNameMap: map[string]string{
 					"10.0.0.2": "host2.example.com",
 				},
+				Password:       "password123", // Password should be included for SSH authentication
 				DeploymentName: "test-deployment",
 				CertificateID:  "cert-id",
 				SecretID:       "secret-id",
@@ -153,6 +155,7 @@ func TestCreateNodeForProvider(t *testing.T) {
 			},
 			expectedResult: &models.Node{
 				EndpointAddressesToHostNameMap: map[string]string{},
+				Password:                       "password123", // Password should be included for SSH authentication
 				DeploymentName:                 "test-deployment",
 				CertificateID:                  "cert-id",
 				SecretID:                       "secret-id",

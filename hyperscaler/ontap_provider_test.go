@@ -137,6 +137,57 @@ func Test_GetProviderByNode(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, provider)
 	})
+
+	t.Run("GetProviderByNode_NilNode", func(t *testing.T) {
+		// Test with nil node - covers lines 34-35
+		provider, err := GetProviderByNode(ctx, nil)
+		assert.Error(t, err)
+		assert.Nil(t, provider)
+		// The error is wrapped in VCPError, so check for the error type
+		assert.Contains(t, err.Error(), "Resource not found")
+	})
+
+	t.Run("GetProviderByNode_EmptyEndpointAddressesToHostNameMap", func(t *testing.T) {
+		// Test with empty EndpointAddressesToHostNameMap for certificate auth - covers lines 41-42
+		node := &models.Node{
+			Name:                           "node4",
+			CertificateID:                  "cert-id",
+			EndpointAddressesToHostNameMap: map[string]string{}, // Empty map
+			AuthType:                       env.USER_CERTIFICATE,
+		}
+
+		provider, err := GetProviderByNode(ctx, node)
+		assert.Error(t, err)
+		assert.Nil(t, provider)
+		// The error is wrapped in VCPError, so check for the error type
+		assert.Contains(t, err.Error(), "VSA cluster node IP address not found")
+	})
+
+	t.Run("GetProviderByNode_WithPassword", func(t *testing.T) {
+		// Test with node.Password not empty - covers line 68
+		node := &models.Node{
+			Name:                           "node5",
+			CertificateID:                  "cert-id",
+			Password:                       "test-password",
+			EndpointAddressesToHostNameMap: map[string]string{"1.2.3.4": "1.2.3.4"},
+			AuthType:                       env.USER_CERTIFICATE,
+		}
+
+		origGetCert := GetCertificateFromCacheOrSecretManager
+		defer func() { GetCertificateFromCacheOrSecretManager = origGetCert }()
+		GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+			return &models.Certificate{
+				SignedCertificate:        "signed",
+				InterMediateCertificates: []string{"intermediate"},
+				CommonName:               "common",
+				PrivateKey:               "key",
+			}, nil
+		}
+
+		provider, err := GetProviderByNode(ctx, node)
+		assert.NoError(t, err)
+		assert.NotNil(t, provider)
+	})
 }
 
 // Unit test for NewGcpServices in core/orchestrator/activities/pool_activities_test.go
@@ -621,7 +672,7 @@ func Test_CreateNodeForProvider(t *testing.T) {
 		assert.Equal(t, "cert-123", node.CertificateID)
 		assert.Equal(t, "secret-123", node.SecretID)
 		assert.Equal(t, env.USER_CERTIFICATE, node.AuthType)
-		assert.Equal(t, "", node.Password)
+		assert.Equal(t, "", node.Password) // Password should be empty when not provided in input
 
 		expectedMap := map[string]string{
 			"1.2.3.4": "host1.example.com",

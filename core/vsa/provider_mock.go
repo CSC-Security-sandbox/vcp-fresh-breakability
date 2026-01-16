@@ -7574,6 +7574,177 @@ func (_c *MockProvider_UpdateVolumeReplication_Call) RunAndReturn(run func(*Volu
 	return _c
 }
 
+// GetServerCertificates provides a mock function with given fields: params
+func (_m *MockProvider) GetServerCertificates(params GetServerCertificateParams) ([]*ServerCertificateResponse, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetServerCertificates")
+	}
+
+	var r0 []*ServerCertificateResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(GetServerCertificateParams) ([]*ServerCertificateResponse, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(GetServerCertificateParams) []*ServerCertificateResponse); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*ServerCertificateResponse)
+		}
+	}
+	if rf, ok := ret.Get(1).(func(GetServerCertificateParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetServerCertificates_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetServerCertificates'
+type MockProvider_GetServerCertificates_Call struct {
+	*mock.Call
+}
+
+// GetServerCertificates is a helper method to define mock.On call
+//   - params GetServerCertificateParams
+func (_e *MockProvider_Expecter) GetServerCertificates(params interface{}) *MockProvider_GetServerCertificates_Call {
+	return &MockProvider_GetServerCertificates_Call{Call: _e.mock.On("GetServerCertificates", params)}
+}
+
+func (_c *MockProvider_GetServerCertificates_Call) Run(run func(params GetServerCertificateParams)) *MockProvider_GetServerCertificates_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(GetServerCertificateParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetServerCertificates_Call) Return(_a0 []*ServerCertificateResponse, _a1 error) *MockProvider_GetServerCertificates_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetServerCertificates_Call) RunAndReturn(run func(GetServerCertificateParams) ([]*ServerCertificateResponse, error)) *MockProvider_GetServerCertificates_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// InstallServerCertificate provides a mock function with given fields: params
+func (_m *MockProvider) InstallServerCertificate(params InstallServerCertificateParams) (*ServerCertificateResponse, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for InstallServerCertificate")
+	}
+
+	var r0 *ServerCertificateResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(InstallServerCertificateParams) (*ServerCertificateResponse, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(InstallServerCertificateParams) *ServerCertificateResponse); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ServerCertificateResponse)
+		}
+	}
+	if rf, ok := ret.Get(1).(func(InstallServerCertificateParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_InstallServerCertificate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InstallServerCertificate'
+type MockProvider_InstallServerCertificate_Call struct {
+	*mock.Call
+}
+
+// InstallServerCertificate is a helper method to define mock.On call
+//   - params InstallServerCertificateParams
+func (_e *MockProvider_Expecter) InstallServerCertificate(params interface{}) *MockProvider_InstallServerCertificate_Call {
+	return &MockProvider_InstallServerCertificate_Call{Call: _e.mock.On("InstallServerCertificate", params)}
+}
+
+func (_c *MockProvider_InstallServerCertificate_Call) Run(run func(params InstallServerCertificateParams)) *MockProvider_InstallServerCertificate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(InstallServerCertificateParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_InstallServerCertificate_Call) Return(_a0 *ServerCertificateResponse, _a1 error) *MockProvider_InstallServerCertificate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_InstallServerCertificate_Call) RunAndReturn(run func(InstallServerCertificateParams) (*ServerCertificateResponse, error)) *MockProvider_InstallServerCertificate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ModifySSL provides a mock function with given fields: params
+func (_m *MockProvider) ModifySSL(params ModifySSLParams) (*ModifySSLResponse, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ModifySSL")
+	}
+
+	var r0 *ModifySSLResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(ModifySSLParams) (*ModifySSLResponse, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(ModifySSLParams) *ModifySSLResponse); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ModifySSLResponse)
+		}
+	}
+	if rf, ok := ret.Get(1).(func(ModifySSLParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_ModifySSL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ModifySSL'
+type MockProvider_ModifySSL_Call struct {
+	*mock.Call
+}
+
+// ModifySSL is a helper method to define mock.On call
+//   - params ModifySSLParams
+func (_e *MockProvider_Expecter) ModifySSL(params interface{}) *MockProvider_ModifySSL_Call {
+	return &MockProvider_ModifySSL_Call{Call: _e.mock.On("ModifySSL", params)}
+}
+
+func (_c *MockProvider_ModifySSL_Call) Run(run func(params ModifySSLParams)) *MockProvider_ModifySSL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(ModifySSLParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_ModifySSL_Call) Return(_a0 *ModifySSLResponse, _a1 error) *MockProvider_ModifySSL_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_ModifySSL_Call) RunAndReturn(run func(ModifySSLParams) (*ModifySSLResponse, error)) *MockProvider_ModifySSL_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockProvider creates a new instance of MockProvider. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockProvider(t interface {

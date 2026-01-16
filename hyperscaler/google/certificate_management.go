@@ -77,7 +77,7 @@ func (gcpService *GcpServices) GetCertificate(projectID, region, poolName, certi
 	// Check if the certificate has revocation details implies certificate is revoked
 	if certificate.RevocationDetails != nil && certificate.RevocationDetails.RevocationState == PrivilegeWithdrawn {
 		gcpService.Logger.Debug(fmt.Sprintf("Certificate :%s is in revoked state already", certificateName))
-		return nil, nil
+		return nil, fmt.Errorf("certificate %s is revoked and cannot be used", certificateID)
 	}
 
 	gcpService.Logger.Debug(fmt.Sprintf("GetCertificate success with response :  %s", certificateID))

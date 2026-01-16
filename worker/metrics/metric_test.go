@@ -322,3 +322,241 @@ func TestRegisterBackupSizeGauge(t *testing.T) {
 		t.Error("backupSizeGauge is nil after registration")
 	}
 }
+
+func TestRegisterCertificateRotationFailureCounter(t *testing.T) {
+	// Unregister first to ensure clean state
+	prometheus.Unregister(CertificateRotationFailureCounter)
+
+	// Should register without error
+	RegisterCertificateRotationFailureCounter()
+	// Register again to trigger AlreadyRegisteredError
+	RegisterCertificateRotationFailureCounter()
+
+	// Check that the collector is still a CounterVec
+	if CertificateRotationFailureCounter == nil {
+		t.Error("CertificateRotationFailureCounter is nil after registration")
+	}
+}
+
+func TestRegisterPasswordRotationFailureCounter(t *testing.T) {
+	// Unregister first to ensure clean state
+	prometheus.Unregister(PasswordRotationFailureCounter)
+
+	// Should register without error
+	RegisterPasswordRotationFailureCounter()
+	// Register again to trigger AlreadyRegisteredError
+	RegisterPasswordRotationFailureCounter()
+
+	// Check that the collector is still a CounterVec
+	if PasswordRotationFailureCounter == nil {
+		t.Error("PasswordRotationFailureCounter is nil after registration")
+	}
+}
+
+func TestEmitCertificateRotationFailure(t *testing.T) {
+	RegisterCertificateRotationFailureCounter()
+	
+	poolUUID := "test-pool-uuid-123"
+	poolName := "test-pool-name"
+	failureType := "certificate_rotation"
+	errorType := "connection timeout"
+
+	// Emit the metric
+	EmitCertificateRotationFailure(poolUUID, poolName, failureType, errorType)
+
+	// Gather metrics and verify
+	metrics, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Errorf("Failed to gather metrics: %v", err)
+		return
+	}
+
+	found := false
+	for _, mf := range metrics {
+		if *mf.Name == "vcp_certificate_rotation_failures_total" {
+			for _, m := range mf.Metric {
+				expected := map[string]string{
+					"pool_uuid":    poolUUID,
+					"pool_name":    poolName,
+					"failure_type": failureType,
+					"error_type":   errorType,
+				}
+				if metricHasLabels(m.Label, expected) {
+					found = true
+					// Verify counter value is incremented
+					if m.Counter != nil && *m.Counter.Value >= 1.0 {
+						break
+					}
+				}
+			}
+		}
+	}
+
+	if !found {
+		t.Error("CertificateRotationFailureCounter metric not found with expected labels")
+	}
+}
+
+func TestEmitCertificateRotationFailure_TruncatesLongErrorType(t *testing.T) {
+	// Unregister first to ensure clean state
+	prometheus.Unregister(CertificateRotationFailureCounter)
+	RegisterCertificateRotationFailureCounter()
+	
+	poolUUID := "test-pool-uuid-456"
+	poolName := "test-pool-name-2"
+	failureType := "certificate_rotation"
+	// Create a very long error type (> 200 chars)
+	longErrorType := strings.Repeat("a", 250)
+
+	// Emit the metric
+	EmitCertificateRotationFailure(poolUUID, poolName, failureType, longErrorType)
+
+	// Gather metrics and verify truncation
+	metrics, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Errorf("Failed to gather metrics: %v", err)
+		return
+	}
+
+	found := false
+	expectedErrorType := strings.Repeat("a", 200) + "..."
+	for _, mf := range metrics {
+		if *mf.Name == "vcp_certificate_rotation_failures_total" {
+			for _, m := range mf.Metric {
+				// Check that this metric has the expected labels
+				expectedLabels := map[string]string{
+					"pool_uuid":    poolUUID,
+					"pool_name":    poolName,
+					"failure_type": failureType,
+					"error_type":   expectedErrorType,
+				}
+				if metricHasLabels(m.Label, expectedLabels) {
+					found = true
+					// Verify the error_type is truncated correctly
+					for _, label := range m.Label {
+						if *label.Name == "error_type" {
+							errorTypeValue := *label.Value
+							if errorTypeValue != expectedErrorType {
+								t.Errorf("Expected error_type to be %q (length %d), got %q (length %d)", 
+									expectedErrorType, len(expectedErrorType), errorTypeValue, len(errorTypeValue))
+							}
+							if !strings.HasSuffix(errorTypeValue, "...") {
+								t.Error("Long error type should be truncated with '...' suffix")
+							}
+							break
+						}
+					}
+					break
+				}
+			}
+		}
+	}
+
+	if !found {
+		t.Error("CertificateRotationFailureCounter metric not found with expected labels")
+	}
+}
+
+func TestEmitPasswordRotationFailure(t *testing.T) {
+	RegisterPasswordRotationFailureCounter()
+	
+	poolUUID := "test-pool-uuid-789"
+	poolName := "test-pool-name-3"
+	failureType := "password_rotation"
+	errorType := "authentication failed"
+
+	// Emit the metric
+	EmitPasswordRotationFailure(poolUUID, poolName, failureType, errorType)
+
+	// Gather metrics and verify
+	metrics, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Errorf("Failed to gather metrics: %v", err)
+		return
+	}
+
+	found := false
+	for _, mf := range metrics {
+		if *mf.Name == "vcp_password_rotation_failures_total" {
+			for _, m := range mf.Metric {
+				expected := map[string]string{
+					"pool_uuid":    poolUUID,
+					"pool_name":    poolName,
+					"failure_type": failureType,
+					"error_type":   errorType,
+				}
+				if metricHasLabels(m.Label, expected) {
+					found = true
+					// Verify counter value is incremented
+					if m.Counter != nil && *m.Counter.Value >= 1.0 {
+						break
+					}
+				}
+			}
+		}
+	}
+
+	if !found {
+		t.Error("PasswordRotationFailureCounter metric not found with expected labels")
+	}
+}
+
+func TestEmitPasswordRotationFailure_TruncatesLongErrorType(t *testing.T) {
+	// Unregister first to ensure clean state
+	prometheus.Unregister(PasswordRotationFailureCounter)
+	RegisterPasswordRotationFailureCounter()
+	
+	poolUUID := "test-pool-uuid-101"
+	poolName := "test-pool-name-4"
+	failureType := "password_rotation"
+	// Create a very long error type (> 200 chars)
+	longErrorType := strings.Repeat("b", 300)
+
+	// Emit the metric
+	EmitPasswordRotationFailure(poolUUID, poolName, failureType, longErrorType)
+
+	// Gather metrics and verify truncation
+	metrics, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Errorf("Failed to gather metrics: %v", err)
+		return
+	}
+
+	found := false
+	expectedErrorType := strings.Repeat("b", 200) + "..."
+	for _, mf := range metrics {
+		if *mf.Name == "vcp_password_rotation_failures_total" {
+			for _, m := range mf.Metric {
+				// Check that this metric has the expected labels
+				expectedLabels := map[string]string{
+					"pool_uuid":    poolUUID,
+					"pool_name":    poolName,
+					"failure_type": failureType,
+					"error_type":   expectedErrorType,
+				}
+				if metricHasLabels(m.Label, expectedLabels) {
+					found = true
+					// Verify the error_type is truncated correctly
+					for _, label := range m.Label {
+						if *label.Name == "error_type" {
+							errorTypeValue := *label.Value
+							if errorTypeValue != expectedErrorType {
+								t.Errorf("Expected error_type to be %q (length %d), got %q (length %d)", 
+									expectedErrorType, len(expectedErrorType), errorTypeValue, len(errorTypeValue))
+							}
+							if !strings.HasSuffix(errorTypeValue, "...") {
+								t.Error("Long error type should be truncated with '...' suffix")
+							}
+							break
+						}
+					}
+					break
+				}
+			}
+		}
+	}
+
+	if !found {
+		t.Error("PasswordRotationFailureCounter metric not found with expected labels")
+	}
+}

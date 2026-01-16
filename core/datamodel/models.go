@@ -102,11 +102,13 @@ func (emc *ExpertModeCredential) Scan(value interface{}) error {
 }
 
 type PoolCredentials struct {
-	SecretID      string `json:"secret_id"`
-	CertificateID string `json:"certificate_id"`
-	Password      string `json:"password"`
-	AuthType      int    `json:"auth_type"`
-	Username      string `json:"username"`
+	SecretID         string `json:"secret_id"`
+	SecretIDNew      string `json:"secret_id_new"`
+	CertificateID    string `json:"certificate_id"`
+	CertificateIDNew string `json:"certificate_id_new"`
+	Password         string `json:"password"`
+	AuthType         int    `json:"auth_type"`
+	Username         string `json:"username"`
 
 	// Certificate-related configuration (stored from environment variables during pool creation)
 	// Format: ca_pool_deployed_project_id/ca_pool_name/ca_name

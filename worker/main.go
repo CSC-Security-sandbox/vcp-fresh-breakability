@@ -41,6 +41,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+func init() {
+	// Register the workflow executor to break circular dependency
+	// This must be initialized before any activities that use ExecuteWorkflowSequentially
+	backgroundactivities.RegisterWorkflowExecutor(workflows.ExecuteWorkflowSequentially)
+}
+
 // main is the entry point of the worker application. It initializes the Temporal worker,
 // database connection, registers workflows and activities, and starts the worker.
 
@@ -73,6 +79,8 @@ func main() {
 	metrics.RegisterCBSEnabledGauge()
 	metrics.RegisterEligibilityStringGauge()
 	metrics.RegisterBackupSizeGauge()
+	metrics.RegisterCertificateRotationFailureCounter()
+	metrics.RegisterPasswordRotationFailureCounter()
 	// Start metrics HTTP server
 	metricsPort := os.Getenv("METRICS_PORT")
 	if metricsPort == "" {
@@ -104,6 +112,11 @@ func main() {
 	if err != nil {
 		logger.Error("Failed to initialize Temporal client", "error", err.Error())
 		os.Exit(1)
+	}
+
+	// Initialize FetchTemporalClient function for use in activities
+	workflowEngine.FetchTemporalClient = func() (client.Client, error) {
+		return workflowClient.GetTemporalClient(), nil
 	}
 
 	// create database connection
@@ -153,6 +166,14 @@ func main() {
 		logger.Error("Failed to validate environment variables", "error", err.Error())
 		os.Exit(1)
 	}
+
+	// Validate certificate lifetime before starting the worker
+	err = env.ValidateCertificateLifetime()
+	if err != nil {
+		logger.Error("Certificate lifetime validation failed", "error", err.Error())
+		os.Exit(1)
+	}
+	logger.Info("Certificate lifetime validation passed")
 
 	var worker *tManagerPkg.Worker
 
@@ -298,6 +319,8 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterWorkflow(replicationWorkflows.ReverseHybridFallbackReplicationWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.UpdateRbacForPoolsWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.UpdateSinglePoolRbacChildWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.RotatePoolCertificateWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.RotatePoolPasswordWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
@@ -365,6 +388,9 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterActivity(&activities.VolumeSplitActivity{SE: dbcon, Scheduler: temporalScheduler})
 	worker.RegisterActivity(&replicationActivities.HybridReplicationActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.ReverseHybridReplicationActivity{SE: dbcon})
+	worker.RegisterActivity(&backgroundactivities.RotateVcpToVsaCertificateActivity{SE: dbcon})
+	worker.RegisterActivity(backgroundactivities.EmitCertificateRotationFailureMetric)
+	worker.RegisterActivity(backgroundactivities.EmitPasswordRotationFailureMetric)
 }
 
 func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, temporal client.Client, conn database.Storage, telemetryDBConn metricsdb.Storage) {
@@ -406,6 +432,9 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(workflows.RestoreBackupWorkflowWithContext)
 	worker.RegisterWorkflow(backgroundworkflows.UpdateBackupScheduleWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SyncFlexCachePrepopulateWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.RotateVsaCertificateAndPasswordWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.RotatePoolCertificateWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.RotatePoolPasswordWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.BackupSizeDetailsWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.VolumeCreateReconciliationWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.VolumeDeleteReconciliationWorkflow)
@@ -436,5 +465,9 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&backgroundactivities.EligibilityStringActivity{SE: conn, Scheduler: temporalScheduler})
 	worker.RegisterActivity(&backgroundactivities.UpdateBackupScheduleActivity{SE: conn, ScheduleClient: temporal.ScheduleClient()})
 	worker.RegisterActivity(&backgroundactivities.FlexCachePrepopulateActivity{SE: conn})
+	worker.RegisterActivity(&backgroundactivities.RotateVcpToVsaCertificateActivity{SE: conn})
+	worker.RegisterActivity(&backgroundactivities.ControlWorkflowActivity{})
 	worker.RegisterActivity(&expertmodeactivities.ExpertModeVolumeActivity{SE: conn})
+	worker.RegisterActivity(backgroundactivities.EmitCertificateRotationFailureMetric)
+	worker.RegisterActivity(backgroundactivities.EmitPasswordRotationFailureMetric)
 }

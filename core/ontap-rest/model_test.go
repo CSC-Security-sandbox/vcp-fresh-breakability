@@ -4426,6 +4426,47 @@ func TestRolePrivilegeDeleteParamsToONTAP(t *testing.T) {
 	})
 }
 
+func TestSecurityCertificateDeleteCollectionParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		// The function doesn't handle nil params, so we'll test with empty params instead
+		params := &SecurityCertificateDeleteCollectionParams{}
+		otParams := securityCertificateDeleteCollectionParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+	})
+
+	t.Run("WhenAllParamsSet", func(tt *testing.T) {
+		name := "cert1"
+		svmName := "svm1"
+		certType := "server"
+		serialNumber := "12345"
+		params := &SecurityCertificateDeleteCollectionParams{
+			Name:         &name,
+			SvmName:      &svmName,
+			Type:         &certType,
+			SerialNumber: &serialNumber,
+		}
+		otParams := securityCertificateDeleteCollectionParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, name, *otParams.Name)
+		assert.Equal(tt, svmName, *otParams.SvmName)
+		assert.Equal(tt, certType, *otParams.Type)
+		assert.Equal(tt, serialNumber, *otParams.SerialNumber)
+	})
+
+	t.Run("WhenOnlyNameSet", func(tt *testing.T) {
+		name := "cert1"
+		params := &SecurityCertificateDeleteCollectionParams{
+			Name: &name,
+		}
+		otParams := securityCertificateDeleteCollectionParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, name, *otParams.Name)
+		assert.Nil(tt, otParams.SvmName)
+		assert.Nil(tt, otParams.Type)
+		assert.Nil(tt, otParams.SerialNumber)
+	})
+}
+
 func TestQosPolicyDeleteCollectionParamsToONTAP(t *testing.T) {
 	t.Run("WhenParamsIsNil_ThenReturnDefaultParams", func(tt *testing.T) {
 		otParams := qosPolicyDeleteCollectionParamsToONTAP(nil)
@@ -4498,4 +4539,3 @@ func TestQosPolicyDeleteCollectionParamsToONTAP(t *testing.T) {
 		assert.NotNil(tt, otParams.ReturnTimeout)
 	})
 }
-

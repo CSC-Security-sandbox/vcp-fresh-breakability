@@ -792,3 +792,29 @@ func TestRolePrivilegeDelete(t *testing.T) {
 		assert.NoError(tt, err)
 	})
 }
+
+func TestSecurityCertificateDeleteCollection(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("rest call failed")}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		name := "cert1"
+		params := &SecurityCertificateDeleteCollectionParams{
+			Name: &name,
+		}
+		err := client.SecurityCertificateDeleteCollection(params)
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenRESTCallSucceeds_ThenReturnNoError", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.SecurityCertificateDeleteCollectionOK{}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		name := "cert1"
+		params := &SecurityCertificateDeleteCollectionParams{
+			Name: &name,
+		}
+		err := client.SecurityCertificateDeleteCollection(params)
+		assert.NoError(tt, err)
+	})
+}

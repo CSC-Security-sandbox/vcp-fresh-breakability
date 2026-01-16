@@ -1099,3 +1099,62 @@ func TestPollTransferStatusWithContinueAsNewCommon(t *testing.T) {
 		env.AssertExpectations(t)
 	})
 }
+
+func TestPopulateRotationRetryPolicyParams(t *testing.T) {
+	// Save original values
+	originalRetryInterval := RetryInterval
+	originalRetryMaxInterval := RetryMaxInterval
+	originalRetryBackoff := RetryBackoff
+
+	// Restore original values after test
+	defer func() {
+		RetryInterval = originalRetryInterval
+		RetryMaxInterval = originalRetryMaxInterval
+		RetryBackoff = originalRetryBackoff
+	}()
+
+	t.Run("WhenAllParamsValid_ThenReturnRetryPolicy", func(tt *testing.T) {
+		RetryInterval = "5s"
+		RetryMaxInterval = "5m"
+		RetryBackoff = "2.0"
+
+		policy, err := PopulateRotationRetryPolicyParams()
+		assert.NoError(tt, err)
+		assert.NotNil(tt, policy)
+		assert.Equal(tt, 5*time.Minute, policy.StartToCloseTimeout)
+		assert.Equal(tt, 5*time.Second, policy.InitialInterval)
+		assert.Equal(tt, 5*time.Minute, policy.MaximumInterval)
+		assert.Equal(tt, 2.0, policy.BackoffCoefficient)
+		assert.Equal(tt, 2, policy.MaximumAttempts)
+	})
+
+	t.Run("WhenRetryIntervalInvalid_ThenReturnError", func(tt *testing.T) {
+		RetryInterval = "invalid"
+		RetryMaxInterval = "5m"
+		RetryBackoff = "2.0"
+
+		policy, err := PopulateRotationRetryPolicyParams()
+		assert.Error(tt, err)
+		assert.Nil(tt, policy)
+	})
+
+	t.Run("WhenRetryMaxIntervalInvalid_ThenReturnError", func(tt *testing.T) {
+		RetryInterval = "5s"
+		RetryMaxInterval = "invalid"
+		RetryBackoff = "2.0"
+
+		policy, err := PopulateRotationRetryPolicyParams()
+		assert.Error(tt, err)
+		assert.Nil(tt, policy)
+	})
+
+	t.Run("WhenRetryBackoffInvalid_ThenReturnError", func(tt *testing.T) {
+		RetryInterval = "5s"
+		RetryMaxInterval = "5m"
+		RetryBackoff = "invalid"
+
+		policy, err := PopulateRotationRetryPolicyParams()
+		assert.Error(tt, err)
+		assert.Nil(tt, policy)
+	})
+}

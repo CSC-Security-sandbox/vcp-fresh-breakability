@@ -1565,6 +1565,168 @@
     "retriable": true,
     "http_code": 412
   },
+  "8501": {
+    "description": "Certificate rotation failed",
+    "message": "Failed to rotate certificate for VSA cluster",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8502": {
+    "description": "Password rotation failed",
+    "message": "Failed to rotate password for VSA cluster",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8503": {
+    "description": "Certificate generation failed",
+    "message": "Failed to generate new certificate for VSA cluster",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8504": {
+    "description": "Certificate installation failed",
+    "message": "Failed to install certificate on VSA cluster",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8505": {
+    "description": "Certificate connectivity test failed",
+    "message": "New certificate failed connectivity test with VSA cluster",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8506": {
+    "description": "Certificate revocation failed",
+    "message": "Failed to revoke old certificate",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8507": {
+    "description": "Password connectivity test failed",
+    "message": "Password connectivity test failed with VSA cluster",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8508": {
+    "description": "Password update failed",
+    "message": "Failed to update password on VSA cluster",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8509": {
+    "description": "Password revert failed",
+    "message": "Failed to revert password on VSA cluster",
+    "retriable": false,
+    "http_code": 500
+  },
+  "8510": {
+    "description": "Certificate expired",
+    "message": "Certificate has expired and needs rotation",
+    "retriable": false,
+    "http_code": 400
+  },
+  "8511": {
+    "description": "Pool has no nodes",
+    "message": "Pool has no associated nodes for rotation",
+    "retriable": false,
+    "http_code": 500
+  },
+  "8512": {
+    "description": "Pool credentials missing",
+    "message": "Pool credentials are missing or invalid",
+    "retriable": false,
+    "http_code": 400
+  },
+  "8513": {
+    "description": "Certificate cache update failed",
+    "message": "Failed to update certificate cache",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8514": {
+    "description": "Password cache update failed",
+    "message": "Failed to update password cache",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8515": {
+    "description": "Rotation rollback failed",
+    "message": "Failed to rollback rotation changes",
+    "retriable": false,
+    "http_code": 500
+  },
+  "8516": {
+    "description": "Certificate needs rotation check failed",
+    "message": "Failed to check if certificate needs rotation",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8517": {
+    "description": "Password secret creation failed",
+    "message": "Failed to create new password secret",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8518": {
+    "description": "Password secret deletion failed",
+    "message": "Failed to delete old password secret",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8519": {
+    "description": "Certificate ID swap failed",
+    "message": "Failed to swap certificate IDs in database",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8520": {
+    "description": "Password secret ID swap failed",
+    "message": "Failed to swap password secret IDs in database",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8521": {
+    "description": "VSA cluster password update failed",
+    "message": "Failed to update password on VSA cluster nodes",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8522": {
+    "description": "VSA cluster certificate installation failed",
+    "message": "Failed to install certificate on VSA cluster nodes",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8523": {
+    "description": "Pool connectivity failed with no staged credential available",
+    "message": "Connectivity failed with current credential and no staged credential available for fallback",
+    "retriable": false,
+    "http_code": 500
+  },
+  "8524": {
+    "description": "Rotation resource cleanup failed",
+    "message": "Failed to cleanup rotation resources",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8525": {
+    "description": "ONTAP password history policy violation",
+    "message": "New password must be different from last 6 passwords",
+    "retriable": false,
+    "http_code": 400
+  },
+  "8526": {
+    "description": "Certificate staging failed",
+    "message": "Failed to stage certificate for rotation",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8527": {
+    "description": "Password authorization failed",
+    "message": "User is not authorized to change password",
+    "retriable": false,
+    "http_code": 401
+  },
   "10001": {
     "description": "Error creating FlexCache volume",
     "message": "Error creating FlexCache volume",

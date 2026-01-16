@@ -287,6 +287,22 @@ func GetFloat64(key string, def float64) float64 {
 	return def
 }
 
+// GetCertificateRotationThresholdPercentage reads CERTIFICATE_ROTATION_THRESHOLD_PERCENTAGE as a percentage value (0-100)
+// and converts it to a decimal (0-1) for internal calculations.
+// If the value is > 1, it's treated as a percentage (e.g., 75 = 75%) and divided by 100.
+// If the value is <= 1, it's treated as a decimal for backward compatibility (e.g., 0.75 = 75%).
+// Default: 75 (meaning 75% of certificate lifetime)
+func GetCertificateRotationThresholdPercentage() float64 {
+	threshold := GetFloat64("CERTIFICATE_ROTATION_THRESHOLD_PERCENTAGE", 75.0) // Default to 75%
+
+	// If value is > 1, treat as percentage and convert to decimal
+	if threshold > 1.0 {
+		return threshold / 100.0
+	}
+	// If value is <= 1, treat as decimal (backward compatibility)
+	return threshold
+}
+
 // GetBoolFromEnvIfNil returns the specified boolean if non-nil.
 // If nil, returns the boolean representation of the specified environment variable.
 // If the environment variable is not set or is not valid, returns the specified default.
@@ -341,19 +357,21 @@ const (
 )
 
 var (
-	Env                     = GetString("ENV", "")
-	AuthType                = GetInt("VSA_AUTH_TYPE", USERNAME_PWD) // 0 for username/password, 1 for username/password in secret manager and 2 for certificate authentication
-	Region                  = GetString("LOCAL_REGION", "")
-	CaName                  = GetString("CA_NAME", "")
-	CaPoolName              = GetString("CA_POOL_NAME", "")
-	CaPoolDeployedProjectID = GetString("CA_POOL_DEPLOYED_PROJECT_ID", "")
-	SecretManagerProjectID  = GetString("SECRET_MANAGER_PROJECT_ID", "")
-	VsaDeployedDnsName      = GetString("VSA_DEPLOYED_DNS_NAME", "")
-	VsaManagedZone          = GetString("VSA_MANAGED_ZONE", "")
-	CertificateLifetime     = GetString("CERTIFICATE_LIFETIME", "94608000s") // Default to 3 years
-	NodePassword            = GetString("VSA_NODE_PASSWORD", "")
-	CloudDNSCacheTTL        = GetInt64("CLOUD_DNS_CACHE_TTL", 300) // Default to 300 seconds
-	PrivateKeyBits          = GetInt("PRIVATE_KEY_BITS", 4096)     // Default to 4096 bits for RSA keys
+	Env                          = GetString("ENV", "")
+	AuthType                     = GetInt("VSA_AUTH_TYPE", USERNAME_PWD) // 0 for username/password, 1 for username/password in secret manager and 2 for certificate authentication
+	Region                       = GetString("LOCAL_REGION", "")
+	CaName                       = GetString("CA_NAME", "")
+	CaPoolName                   = GetString("CA_POOL_NAME", "")
+	CaPoolDeployedProjectID      = GetString("CA_POOL_DEPLOYED_PROJECT_ID", "")
+	SecretManagerProjectID       = GetString("SECRET_MANAGER_PROJECT_ID", "")
+	VsaDeployedDnsName           = GetString("VSA_DEPLOYED_DNS_NAME", "")
+	VsaManagedZone               = GetString("VSA_MANAGED_ZONE", "")
+	CertificateLifetime          = GetString("CERTIFICATE_LIFETIME", "94608000s")         // Default to 3 years
+	CertificateRotationThreshold = GetCertificateRotationThresholdPercentage()            // Default to 75% of lifetime
+	MinimumCertificateLifetime   = GetString("MINIMUM_CERTIFICATE_LIFETIME", "15552000s") // Default to 6 months
+	NodePassword                 = GetString("VSA_NODE_PASSWORD", "")
+	CloudDNSCacheTTL             = GetInt64("CLOUD_DNS_CACHE_TTL", 300) // Default to 300 seconds
+	PrivateKeyBits               = GetInt("PRIVATE_KEY_BITS", 4096)     // Default to 4096 bits for RSA keys
 
 	MgmtFirewallSourceRanges = GetString("MGMT_FIREWALL_SOURCE_RANGES", "")
 	RsmFirewallSourceRanges  = GetString("RSM_FIREWALL_SOURCE_RANGES", "")
@@ -477,6 +495,34 @@ func validateIpRange(ipRange, basicErrorString, envVariableName string) error {
 	if _, _, err := net.ParseCIDR(ipRange); err != nil {
 		return errors.New(500, "%s%s. Invalid CIDR format in: %s", envVariableName, basicErrorString, ipRange)
 	}
+	return nil
+}
+
+// ValidateCertificateLifetime validates that the certificate lifetime meets the minimum requirement
+// This prevents the worker service from starting if the certificate lifetime is too short
+func ValidateCertificateLifetime() error {
+	// Get current values from environment variables (not package-level variables)
+	certificateLifetime := GetString("CERTIFICATE_LIFETIME", "94608000s")
+	minimumCertificateLifetime := GetString("MINIMUM_CERTIFICATE_LIFETIME", "15552000s")
+
+	// Parse the certificate lifetime duration
+	duration, err := time.ParseDuration(certificateLifetime)
+	if err != nil {
+		return fmt.Errorf("invalid certificate lifetime format '%s': %w. Expected format like '94608000s' (seconds)", certificateLifetime, err)
+	}
+
+	// Parse the minimum certificate lifetime duration
+	minimumDuration, err := time.ParseDuration(minimumCertificateLifetime)
+	if err != nil {
+		return fmt.Errorf("invalid minimum certificate lifetime format '%s': %w. Expected format like '15552000s' (seconds)", minimumCertificateLifetime, err)
+	}
+
+	// Check if certificate lifetime is less than the minimum requirement
+	if duration < minimumDuration {
+		return fmt.Errorf("certificate lifetime '%s' (%v) is less than minimum required lifetime '%s' (%v). Worker service cannot start with such a short certificate lifetime",
+			certificateLifetime, duration, minimumCertificateLifetime, minimumDuration)
+	}
+
 	return nil
 }
 

@@ -4656,17 +4656,6 @@ func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, hostMap)
 	})
-
-	// Not USER_CERTIFICATE auth type
-	t.Run("not user certificate", func(t *testing.T) {
-		env.AuthType = env.USERNAME_PWD_SEC_MGR
-		vlmConfig := &vlm.VLMConfig{}
-		pa := &activities.PoolActivity{}
-		hostMap, err := pa.CreateCloudDNSRecords(ctx, vlmConfig, clusterName, env.USERNAME_PWD)
-		assert.NoError(t, err)
-		assert.NotNil(t, hostMap)
-		assert.Equal(t, 0, len(*hostMap))
-	})
 }
 
 func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {

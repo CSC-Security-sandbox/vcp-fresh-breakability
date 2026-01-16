@@ -28,6 +28,7 @@ type SecurityClient interface { // generate:mock
 	ServerRootCACertificateInstall(params *ServerRootCAInstallParams) (*ServerRootCACertificate, error)
 	ServerRootCACertificateDelete(params *ServerRootCADeleteParams) error
 	ServerRootCACertificateCollectionGet(params *ServerRootCAGetCollectionParams) ([]*ServerRootCACertificate, error)
+	SecurityCertificateDeleteCollection(params *SecurityCertificateDeleteCollectionParams) error
 }
 
 type securityClient struct {
@@ -270,6 +271,7 @@ func (sc *securityClient) securityCertificateCreate(otParams *security.SecurityC
 	if err != nil {
 		return nil, err
 	}
+
 	var cert *ServerRootCACertificate
 	if response != nil && response.Payload != nil && len(response.Payload.SecurityCertificateResponseInlineRecords) > 0 {
 		cert = &ServerRootCACertificate{SecurityCertificate: *response.Payload.SecurityCertificateResponseInlineRecords[0]}
@@ -299,4 +301,10 @@ func serverRootCAGetCollectionParamsToONTAP(params *ServerRootCAGetCollectionPar
 		otParams.SetName(params.Name)
 	}
 	return otParams
+}
+
+// SecurityCertificateDeleteCollection deletes certificates from ONTAP
+func (sc *securityClient) SecurityCertificateDeleteCollection(params *SecurityCertificateDeleteCollectionParams) error {
+	_, err := (*sc.api).SecurityCertificateDeleteCollection(securityCertificateDeleteCollectionParamsToONTAP(params), nil)
+	return err
 }

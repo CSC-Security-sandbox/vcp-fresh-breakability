@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"google.golang.org/api/option"
@@ -558,6 +559,66 @@ func Test_addSecretVersion(t *testing.T) {
 		}
 
 		secret, err := AddSecretVersion(gService, projectId, secretName, secretValue)
+		if err != nil {
+			tt.Errorf("Unexpected error: %v", err)
+		}
+		if secret == nil || secret.Name != secretName {
+			tt.Errorf("Unexpected operation: %+v", secretName)
+		}
+	})
+	t.Run("WhenAddSecretVersionFailsWithEmptySecretValue", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{},
+			Ctx:                               ctx,
+			Logger:                            util.GetLogger(ctx),
+			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
+		}
+
+		// Test with empty secret value - covers lines 143-144
+		secret, err := AddSecretVersion(gService, projectId, secretName, "")
+		if err == nil {
+			tt.Error("Expected an error for empty secret value but got nothing")
+		}
+		if secret != nil {
+			tt.Errorf("Expected nil secret but got: %+v", secret)
+		}
+		// The error is wrapped in VCPError, so just check that we got an error
+		assert.Error(tt, err)
+		// The actual error message is in the underlying error, VCPError wraps it
+	})
+	t.Run("WhenAddSecretVersionWithShortSecretValue", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		url := fmt.Sprintf("/v1/projects/%s/secrets/%s:addVersion", projectId, secretName)
+		resp := &hyperscaler.CustomSecretVersion{Name: secretName, Value: "abc"}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url && req.Method == http.MethodPost {
+				response, _ := json.Marshal(&resp)
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(response)
+				return
+			}
+		}))
+		defer server.Close()
+		svc, err := secretmanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				secretManagerService: svc,
+			},
+			Ctx:                               ctx,
+			Logger:                            util.GetLogger(ctx),
+			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
+		}
+
+		// Test with secret value length <= 4 - covers line 151
+		shortValue := "abc"
+		secret, err := AddSecretVersion(gService, projectId, secretName, shortValue)
 		if err != nil {
 			tt.Errorf("Unexpected error: %v", err)
 		}

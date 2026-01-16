@@ -158,6 +158,10 @@ type Provider interface {
 	CifsShareCollectionGet(svmUUID, shareName string, fields []string) ([]string, error)
 	UpdateCIFSServer(svmUUID, shareName string, shareProperties []string) error
 	UpdateActiveDirectoryCredentials(params UpdateActiveDirectoryCredentialsParams, cifs ontapRest.CifsService, svmName, svmExternalUUID string) error
+	// Legacy certificate methods for backward compatibility
+	InstallServerCertificate(params InstallServerCertificateParams) (*ServerCertificateResponse, error)
+	GetServerCertificates(params GetServerCertificateParams) ([]*ServerCertificateResponse, error)
+	ModifySSL(params ModifySSLParams) (*ModifySSLResponse, error)
 }
 
 type OntapRestProvider struct {

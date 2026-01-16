@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"go.temporal.io/sdk/client"
@@ -21,10 +22,20 @@ const (
 
 	// PoolDataSubnetCreateDelete is a placeholder used for sequence workflow instance that runs all
 	// subnet create and delete operations for a specific account and VPC sequentially.
-	PoolDataSubnetCreateDelete = "Account_%d_VPC_%s_Ops_PoolDataSubnet-CD"
+	PoolDataSubnetCreateDelete = common.PoolDataSubnetCreateDelete
+
+	// PoolOperationsSeq is a placeholder used for sequence workflow instance that runs all
+	// pool-level operations (certificate rotation, password rotation, updates, deletes, etc.) sequentially.
+	// This ensures only one workflow operates on a pool at a time, preventing race conditions.
+	PoolOperationsSeq = common.PoolOperationsSeq
 
 	// Signal is the name of the signal used to call sequential workflows.
-	Signal = "req"
+	Signal = common.Signal
+
+	// Workflow name constants for use with control workflows
+	// These are used to reference workflows by name when executing them sequentially
+	RotatePoolCertificateWorkflowName = common.RotatePoolCertificateWorkflowName
+	RotatePoolPasswordWorkflowName    = common.RotatePoolPasswordWorkflowName
 )
 
 // SignalWorkflowParams holds the parameters for the child workflow to be executed upon receiving a signal.
@@ -145,9 +156,15 @@ func _executeWorkflowSequentially(temporal client.Client, ctx context.Context, s
 	return nil
 }
 
-// getWorkflowName extracts the name of the workflow function from its pointer.
+// getWorkflowName extracts the name of the workflow function from its pointer or returns the string if already a string.
 // This is used to ensure that the workflow name is correctly identified when starting workflows.
 func getWorkflowName(fnx interface{}) string {
+	// If fnx is already a string, return it directly
+	if name, ok := fnx.(string); ok {
+		return name
+	}
+	
+	// Otherwise, use reflection to get the function name from the function pointer
 	// It uses reflection to get the function concrete value pointer, passes it to FuncForPC to get the
 	// function name. It returns the name in the below format -
 	// github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows.<function_name>

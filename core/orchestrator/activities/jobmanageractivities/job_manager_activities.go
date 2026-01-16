@@ -17,6 +17,7 @@ import (
 const (
 	SyncVsaSnapshots              = "SYNC_VSA_SNAPSHOTS"
 	RotateKmsServiceAccounts      = "ROTATE_KMS_SERVICE_ACCOUNTS"
+	RotateVsaCertificateAndPassword = "ROTATE_VSA_CERTIFICATE_AND_PASSWORD"
 	VolumeDetailsTotal            = "VOLUME_DETAILS_TOTAL"
 	OrphanJobScheduler            = "ORPHANED_JOB_SCHEDULER"
 	SyncLatestBackupLogicalSize   = "SYNC_LATEST_BACKUP_LOGICAL_SIZE"
@@ -37,6 +38,7 @@ const (
 var JobTypeToWorkflow = map[string]interface{}{
 	SyncVsaSnapshots:              backgroundworkflows.SnapshotsSyncParentWorkflow,
 	RotateKmsServiceAccounts:      background_kms_workflows.RotateKmsSAKeyWorkflow,
+	RotateVsaCertificateAndPassword: backgroundworkflows.RotateVsaCertificateAndPasswordWorkflow,
 	VolumeDetailsTotal:            backgroundworkflows.VolumeDetailsWorkflow,
 	OrphanJobScheduler:            backgroundworkflows.OrphanJobSchedulerWorkflow,
 	SyncLatestBackupLogicalSize:   backgroundworkflows.SyncLatestBackupLogicalSizeWorkflow,

@@ -9,6 +9,11 @@
     "cronExpression": "0 0 * * *",
     "state": "CREATING"
   },
+  "ROTATE_VSA_CERTIFICATE_AND_PASSWORD": {
+    "jobType": "ROTATE_VSA_CERTIFICATE_AND_PASSWORD",
+    "cronExpression": "0 0 * * *",
+    "state": "CREATING"
+  },
   "VOLUME_DETAILS_TOTAL": {
     "jobType": "VOLUME_DETAILS_TOTAL",
     "cronExpression": "0 0 * * *",

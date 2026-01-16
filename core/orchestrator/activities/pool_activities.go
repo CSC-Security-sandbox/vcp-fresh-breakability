@@ -2061,6 +2061,7 @@ func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlm
 		}
 		return &hostMap, nil
 	}
+
 	return &hostMap, nil
 }
 

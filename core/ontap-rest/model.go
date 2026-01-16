@@ -970,6 +970,10 @@ func serverRootCAInstallParamsToONTAP(params *ServerRootCAInstallParams) *securi
 		return otParams
 	}
 
+	// Set ReturnRecords to true so the API returns the created certificate in the response
+	// This is required to get the certificate details (UUID, SerialNumber, etc.) after creation
+	otParams.SetReturnRecords(nillable.ToPointer("true"))
+
 	otParams.SetInfo(&models.SecurityCertificate{
 		PrivateKey:        params.PrivateKey,
 		PublicCertificate: params.Certificate,
@@ -4946,6 +4950,34 @@ func ldapModifyParamsToONTAP(params *LdapModifyParams) *name_services.LdapModify
 			Schema:                              params.Schema,
 			LdapServiceInlineServers:            params.LdapServers,
 		})
+	return otParams
+}
+
+// SecurityCertificateDeleteCollectionParams represents parameters for deleting certificates
+type SecurityCertificateDeleteCollectionParams struct {
+	Name         *string
+	SvmName      *string
+	Type         *string
+	SerialNumber *string
+}
+
+// securityCertificateDeleteCollectionParamsToONTAP converts internal parameters to ONTAP REST API parameters
+func securityCertificateDeleteCollectionParamsToONTAP(params *SecurityCertificateDeleteCollectionParams) *security.SecurityCertificateDeleteCollectionParams {
+	otParams := security.NewSecurityCertificateDeleteCollectionParams()
+	
+	if params.Name != nil {
+		otParams.SetName(params.Name)
+	}
+	if params.SvmName != nil {
+		otParams.SetSvmName(params.SvmName)
+	}
+	if params.Type != nil {
+		otParams.SetType(params.Type)
+	}
+	if params.SerialNumber != nil {
+		otParams.SetSerialNumber(params.SerialNumber)
+	}
+	
 	return otParams
 }
 

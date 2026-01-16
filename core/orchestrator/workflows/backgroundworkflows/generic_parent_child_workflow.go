@@ -3,6 +3,8 @@ package backgroundworkflows
 import (
 	"fmt"
 	"reflect"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
@@ -19,6 +21,17 @@ var (
 	backgroundWorkflowStartToCloseTimeoutSec = env.GetUint64("BACKGROUND_WORKFLOW_START_TO_CLOSE_TIMEOUT_SEC", 300)
 	backgroundWorkflowHeartbeatTimeoutSec    = env.GetUint64("BACKGROUND_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 150)
 )
+
+// getWorkflowName extracts the name of the workflow function from its pointer.
+// This is used to ensure that the workflow name is correctly identified when starting child workflows.
+func getWorkflowName(fnx interface{}) string {
+	// It uses reflection to get the function concrete value pointer, passes it to FuncForPC to get the
+	// function name. It returns the name in the below format -
+	// github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows.<function_name>
+	// Then, we split it to get the last part, which is the actual function name.
+	strs := strings.Split(runtime.FuncForPC(reflect.ValueOf(fnx).Pointer()).Name(), ".")
+	return strs[len(strs)-1]
+}
 
 // GenericParentWorkflowConfig contains configuration for the generic parent workflow
 type GenericParentWorkflowConfig struct {
@@ -112,6 +125,10 @@ func GenericParentWorkflow(ctx workflow.Context, config GenericParentWorkflowCon
 	// Start all child workflows immediately with controlled concurrency
 	logger.Infof("Parent workflow '%s' -> Starting all %d child workflows", config.WorkflowName, numChildWorkflows)
 
+	// Extract the workflow name from the child workflow function
+	// This is required so Temporal can properly identify the workflow type
+	childWorkflowName := getWorkflowName(config.ChildWorkflowFunc)
+
 	// Start child workflows with chunked data fetching
 	for i := 0; i < numChildWorkflows; i++ {
 		offset := i * config.BatchSize
@@ -126,7 +143,8 @@ func GenericParentWorkflow(ctx workflow.Context, config GenericParentWorkflowCon
 		})
 
 		// Pass offset and limit to child workflow for chunked fetching
-		future := workflow.ExecuteChildWorkflow(childCtx, config.ChildWorkflowFunc, offset, limit)
+		// Pass the workflow name as a string so Temporal can identify the workflow type
+		future := workflow.ExecuteChildWorkflow(childCtx, childWorkflowName, offset, limit)
 		childFutures[childWorkflowID] = future
 	}
 

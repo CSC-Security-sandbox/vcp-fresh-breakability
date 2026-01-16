@@ -359,6 +359,9 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
+	// Note: Password is now fetched from Secret Manager when needed during certificate rotation
+	// No need to store it in pool_credentials as it's already stored in Secret Manager
+
 	if !disableVsaCleanupOnVLMFailure {
 		rollbackManager.AddActivity(poolActivity.DeleteOnTapCredentials, pool)
 	}

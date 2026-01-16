@@ -616,7 +616,7 @@ func Test_convertPrivateCACertificateToCustomCertificate(t *testing.T) {
 			CreateTime:                 createTime,
 			Lifetime:                   lifetime,
 			PemCertificateChain:        []string{"chain1", "chain2"},
-			IssuerCertificateAuthority: "issuer",
+			IssuerCertificateAuthority: "projects/test-project/locations/us-central1/caPools/test-pool/certificateAuthorities/issuer",
 			CertificateDescription: &privateca.CertificateDescription{
 				SubjectDescription: &privateca.SubjectDescription{
 					Subject: &privateca.Subject{
@@ -637,10 +637,11 @@ func Test_convertPrivateCACertificateToCustomCertificate(t *testing.T) {
 			CreateTime:                 &expectedCreateTime,
 			LifeTime:                   lifetime,
 			PemCertificateChain:        []string{"chain1", "chain2"},
-			IssuerCertificateAuthority: "issuer",
+			IssuerCertificateAuthority: "projects/test-project/locations/us-central1/caPools/test-pool/certificateAuthorities/issuer",
 			SubjectCommonName:          "common",
 			SubjectOrganization:        "org",
 			SubjectAltName:             []string{"dns1", "dns2"},
+			CaName:                     "issuer", // CaName should be extracted from IssuerCertificateAuthority
 		}
 		result, err := _validateAndConvertPrivateCACertificateToCustomCertificate("cert-id", input)
 		assert.NoError(tt, err)
@@ -752,6 +753,68 @@ func Test_validateAndConvertToCustomCloudDNSRecord(t *testing.T) {
 		result, err := _validateAndConvertToCustomCloudDNSRecord(recordSet, managedZone)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
+	})
+}
+
+func Test_extractCANameFromAuthority(t *testing.T) {
+	t.Run("WhenAuthorityIsEmpty", func(tt *testing.T) {
+		result, err := extractCANameFromAuthority("")
+		assert.NoError(tt, err, "Expected no error when authority is empty")
+		assert.Equal(tt, "", result, "Expected empty string when authority is empty")
+	})
+
+	t.Run("WhenAuthorityIsValidFullPath", func(tt *testing.T) {
+		authority := "projects/my-project/locations/us-central1/caPools/my-pool/certificateAuthorities/my-ca"
+		result, err := extractCANameFromAuthority(authority)
+		assert.NoError(tt, err, "Expected no error for valid authority")
+		assert.Equal(tt, "my-ca", result, "Expected CA name to be extracted correctly")
+	})
+
+	t.Run("WhenAuthorityHasMultipleCertificateAuthoritiesInPath", func(tt *testing.T) {
+		// Edge case: if the path contains 'certificateAuthorities' multiple times,
+		// it should extract the last one
+		authority := "projects/certificateAuthorities/locations/us-central1/certificateAuthorities/my-ca-name"
+		result, err := extractCANameFromAuthority(authority)
+		assert.NoError(tt, err, "Expected no error for valid authority")
+		assert.Equal(tt, "my-ca-name", result, "Expected CA name to be extracted from last occurrence")
+	})
+
+	t.Run("WhenAuthorityIsMissingCertificateAuthoritiesPrefix", func(tt *testing.T) {
+		authority := "projects/my-project/locations/us-central1/caPools/my-pool/my-ca"
+		result, err := extractCANameFromAuthority(authority)
+		assert.Error(tt, err, "Expected error when authority format is invalid")
+		assert.Equal(tt, "", result, "Expected empty string when error occurs")
+		assert.Contains(tt, err.Error(), "invalid authority format", "Expected error message to mention invalid format")
+	})
+
+	t.Run("WhenAuthorityHasEmptyCAName", func(tt *testing.T) {
+		authority := "projects/my-project/locations/us-central1/caPools/my-pool/certificateAuthorities/"
+		result, err := extractCANameFromAuthority(authority)
+		assert.Error(tt, err, "Expected error when CA name is empty")
+		assert.Equal(tt, "", result, "Expected empty string when error occurs")
+		assert.Contains(tt, err.Error(), "empty CA name", "Expected error message to mention empty CA name")
+	})
+
+	t.Run("WhenAuthorityIsMinimalValid", func(tt *testing.T) {
+		authority := "certificateAuthorities/simple-ca"
+		result, err := extractCANameFromAuthority(authority)
+		assert.NoError(tt, err, "Expected no error for minimal valid authority")
+		assert.Equal(tt, "simple-ca", result, "Expected CA name to be extracted correctly")
+	})
+
+	t.Run("WhenAuthorityHasCANameWithHyphens", func(tt *testing.T) {
+		authority := "projects/my-project/locations/us-central1/caPools/my-pool/certificateAuthorities/my-ca-with-hyphens-123"
+		result, err := extractCANameFromAuthority(authority)
+		assert.NoError(tt, err, "Expected no error for valid authority with hyphens")
+		assert.Equal(tt, "my-ca-with-hyphens-123", result, "Expected CA name with hyphens to be extracted correctly")
+	})
+
+	t.Run("WhenAuthorityHasTrailingContent", func(tt *testing.T) {
+		// This tests if there's any trailing content after the CA name
+		authority := "projects/my-project/locations/us-central1/caPools/my-pool/certificateAuthorities/my-ca/extra/path"
+		result, err := extractCANameFromAuthority(authority)
+		assert.NoError(tt, err, "Expected no error for authority with trailing content")
+		assert.Equal(tt, "my-ca/extra/path", result, "Expected entire remaining path to be returned as CA name")
 	})
 }
 
