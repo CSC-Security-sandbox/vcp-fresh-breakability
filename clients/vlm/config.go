@@ -57,18 +57,20 @@ const (
 	GCPPlacementPolicySpreadMulti string = "spread_multi"
 	// Create a separate placement policy for active, passive and mediator VM sets and assign VMs to respective policies
 	GCPPlacementPolicyCompactMulti string = "compact_multi"
+	// No placement policy created/applied
+	GCPPlacementPolicyNone string = "none"
 )
 
 // TODO: Need to revisit these values for Multi HA configurations
 var WorkflowExecutionTimeoutMap map[string]time.Duration = map[string]time.Duration{
 	"DefaultWorkflowExecutionTimeout":       temporal.GetWorkflowGlobalTimeout(),
 	CreateVSAClusterDeploymentWorkflowName:  time.Duration(env.GetInt("VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES", 30)) * time.Minute,
-	CreateVSASVMWorkflowName:                time.Duration(env.GetInt("VLM_CREATE_VSA_SVM_WF_TIMEOUT_MINUTES", 10)) * time.Minute,
-	ModifyVSASVMWorkflowName:                10 * time.Minute,
+	CreateVSASVMWorkflowName:                time.Duration(env.GetInt("VLM_CREATE_VSA_SVM_WF_TIMEOUT_MINUTES", 15)) * time.Minute,
+	ModifyVSASVMWorkflowName:                15 * time.Minute,
 	DeleteVSAClusterDeploymentWorkflowName:  time.Duration(env.GetInt("VLM_DELETE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES", 20)) * time.Minute,
 	UpdateVSAClusterDeploymentWorkflowName:  time.Duration(env.GetInt("VLM_UPDATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES", 120)) * time.Minute,
 	UpgradeVSAClusterDeploymentWorkflowName: 300 * time.Minute,
-	ClusterPowerCycleWorkflowName:           time.Duration(env.GetInt("VLM_CLUSTER_POWER_OP_WF_TIMEOUT_MINUTES", 30)) * time.Minute,
+	ClusterPowerCycleWorkflowName:           time.Duration(env.GetInt("VLM_CLUSTER_POWER_OP_WF_TIMEOUT_MINUTES", 40)) * time.Minute,
 	ClusterHealthCheckWorkflowName:          time.Duration(env.GetInt("VLM_VALIDATE_CLUSTER_HEALTH_WF_TIMEOUT_MINUTES", 15)) * time.Minute,
 	GetClusterZiZsDetailsWorkflowName:       time.Duration(env.GetInt("VLM_GET_CLUSTER_ZIZS_DETAILS_WF_TIMEOUT_MINUTES", 10)) * time.Minute,
 	UpdateVSAMediatorWorkflowName:           time.Duration(env.GetInt("VLM_UPDATE_VSA_MEDIATOR_WF_TIMEOUT_MINUTES", 30)) * time.Minute,

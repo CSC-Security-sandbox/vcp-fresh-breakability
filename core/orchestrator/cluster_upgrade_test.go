@@ -22,8 +22,8 @@ import (
 const (
 	testOntapVersion    = "9.17.1P2"
 	testVSAImagePath    = "gcr.io/vsa-image:9.17.1p2"
-	testVSAName         = "x-9-18-1x29"
-	testMediatorName    = "cvo-mediator-x-9-18-1x29"
+	testVSAName         = "x-9-18-1x32"
+	testMediatorName    = "cvo-mediator-x-9-18-1x32"
 	testOntapVersionOld = "9.17.1P1"
 	testVSAImagePathOld = "gcr.io/vsa-image:9.17.1p1"
 )

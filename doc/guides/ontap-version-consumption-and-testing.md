@@ -33,8 +33,8 @@ Based on PR #2112, the following changes are required when consuming a new ONTAP
 
 #### Example: Upgrading from 9.17.1P1 to 9.17.1P2
 
-- **VSA Image**: `x-9-17-1p1-gcnv` → `x-9-18-1x29` (new default)
-- **Mediator Image**: `cvo-mediator-x-9-17-1p1` → `cvo-mediator-x-9-18-1x29` (new default)
+- **VSA Image**: `x-9-17-1p1-gcnv` → `x-9-18-1x32` (new default)
+- **Mediator Image**: `cvo-mediator-x-9-17-1p1` → `cvo-mediator-x-9-18-1x32` (new default)
 - **VLM Worker Image Tag (P2)**: `R9.17.1x_7882520` (new entry)
 - **VLM Worker Image Digest (P2)**: `sha256:0b0a7f4063ba4e848af6f5d43c120c830ab1bcadf4f13e11710a3f15f066bf27` (new entry)
 - **ONTAP Version**: `9.17.1P1` → `9.17.1P2` (new default)
@@ -52,8 +52,8 @@ Update the default VSA and mediator image names for new pool deployments:
 ```json
 {
   "images": {
-    "vsa_image_name": "x-9-18-1x29",
-    "mediator_image_name": "cvo-mediator-x-9-18-1x29"
+    "vsa_image_name": "x-9-18-1x32",
+    "mediator_image_name": "cvo-mediator-x-9-18-1x32"
   }
 }
 ```
@@ -62,8 +62,8 @@ Update the default VSA and mediator image names for new pool deployments:
 Update the worker configuration with new default values:
 ```yaml
 workerConfig:
-  vsaImageName: "x-9-18-1x29"
-  vsaMediatorImageName: "cvo-mediator-x-9-18-1x29"
+  vsaImageName: "x-9-18-1x32"
+  vsaMediatorImageName: "cvo-mediator-x-9-18-1x32"
   ontapVersionDetails: "9.17.1P2"  # ⚠️ CRITICAL: This is often missed!
 ```
 
@@ -86,8 +86,8 @@ config:
 #### `core/orchestrator/workflows/pool_workflows.go`
 Update default environment variable values for new pool deployments:
 ```go
-vsaImageName      = env.GetString("VSA_IMAGE_NAME", "x-9-18-1x29")
-mediatorImage     = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-18-1x29")
+vsaImageName      = env.GetString("VSA_IMAGE_NAME", "x-9-18-1x32")
+mediatorImage     = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-18-1x32")
 ```
 
 #### `utils/env/env.go`
@@ -177,8 +177,8 @@ env:
 #### `core/orchestrator/workflows/pool_workflows_test.go`
 Update test assertions that reference specific image names:
 ```go
-assert.Equal(t, "x-9-18-1x29", req.VLMConfig.Deployment.Images.VSAImageName, "...")
-assert.Equal(t, "cvo-mediator-x-9-18-1x29", req.VLMConfig.Deployment.Images.MediatorImageName, "...")
+assert.Equal(t, "x-9-18-1x32", req.VLMConfig.Deployment.Images.VSAImageName, "...")
+assert.Equal(t, "cvo-mediator-x-9-18-1x32", req.VLMConfig.Deployment.Images.MediatorImageName, "...")
 ```
 
 ### 5. Documentation Files
@@ -187,8 +187,8 @@ assert.Equal(t, "cvo-mediator-x-9-18-1x29", req.VLMConfig.Deployment.Images.Medi
 Update documentation to reflect new default values:
 ```markdown
 **Image Configuration**:
-- **VSA Image**: `x-9-18-1x29` (default)
-- **Mediator Image**: `cvo-mediator-x-9-18-1x29` (default)
+- **VSA Image**: `x-9-18-1x32` (default)
+- **Mediator Image**: `cvo-mediator-x-9-18-1x32` (default)
 ```
 
 ---

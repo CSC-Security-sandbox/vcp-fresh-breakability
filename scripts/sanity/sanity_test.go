@@ -169,8 +169,8 @@ func TestUpdatePoolAndWaitForCompletion(t *testing.T) {
 	poolReq := &googleproxyclient.PoolUpdateV1beta{
 		Description:          googleproxyclient.OptNilString{Value: "updated pool", Set: true},
 		SizeInBytes:          googleproxyclient.OptNilFloat64{Value: float64(defaultPoolSize), Set: true},
-		TotalThroughputMibps: googleproxyclient.OptNilFloat64{Value: 100, Set: true},
-		TotalIops:            googleproxyclient.OptNilFloat64{Value: 2048, Set: true},
+		TotalThroughputMibps: googleproxyclient.OptNilFloat64{Value: 65, Set: true},
+		TotalIops:            googleproxyclient.OptNilFloat64{Value: 1040, Set: true},
 		QosType:              googleproxyclient.OptNilString{Value: "auto", Set: true},
 	}
 
