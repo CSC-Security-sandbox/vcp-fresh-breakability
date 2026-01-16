@@ -368,7 +368,7 @@ var (
 	VsaManagedZone               = GetString("VSA_MANAGED_ZONE", "")
 	CertificateLifetime          = GetString("CERTIFICATE_LIFETIME", "94608000s")         // Default to 3 years
 	CertificateRotationThreshold = GetCertificateRotationThresholdPercentage()            // Default to 75% of lifetime
-	MinimumCertificateLifetime   = GetString("MINIMUM_CERTIFICATE_LIFETIME", "15552000s") // Default to 6 months
+	MinimumCertificateLifetime   = GetString("MINIMUM_CERTIFICATE_LIFETIME", "5184000s") // Default to 2 months
 	NodePassword                 = GetString("VSA_NODE_PASSWORD", "")
 	CloudDNSCacheTTL             = GetInt64("CLOUD_DNS_CACHE_TTL", 300) // Default to 300 seconds
 	PrivateKeyBits               = GetInt("PRIVATE_KEY_BITS", 4096)     // Default to 4096 bits for RSA keys
@@ -503,7 +503,7 @@ func validateIpRange(ipRange, basicErrorString, envVariableName string) error {
 func ValidateCertificateLifetime() error {
 	// Get current values from environment variables (not package-level variables)
 	certificateLifetime := GetString("CERTIFICATE_LIFETIME", "94608000s")
-	minimumCertificateLifetime := GetString("MINIMUM_CERTIFICATE_LIFETIME", "15552000s")
+	minimumCertificateLifetime := GetString("MINIMUM_CERTIFICATE_LIFETIME", "5184000s")
 
 	// Parse the certificate lifetime duration
 	duration, err := time.ParseDuration(certificateLifetime)
@@ -514,7 +514,7 @@ func ValidateCertificateLifetime() error {
 	// Parse the minimum certificate lifetime duration
 	minimumDuration, err := time.ParseDuration(minimumCertificateLifetime)
 	if err != nil {
-		return fmt.Errorf("invalid minimum certificate lifetime format '%s': %w. Expected format like '15552000s' (seconds)", minimumCertificateLifetime, err)
+		return fmt.Errorf("invalid minimum certificate lifetime format '%s': %w. Expected format like '5184000s' (seconds)", minimumCertificateLifetime, err)
 	}
 
 	// Check if certificate lifetime is less than the minimum requirement

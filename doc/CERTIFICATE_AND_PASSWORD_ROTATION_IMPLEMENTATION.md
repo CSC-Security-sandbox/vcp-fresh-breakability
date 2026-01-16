@@ -209,7 +209,7 @@ func (a *RotateVcpToVsaCertificateActivity) CleanupPreviousSecret(ctx context.Co
 #### Certificate Rotation
 - `ENABLE_VSA_CERTIFICATE_ROTATION`: Enable/disable certificate rotation (default: false)
 - `CERTIFICATE_ROTATION_THRESHOLD_PERCENTAGE`: Percentage of certificate lifetime after which rotation should occur (default: 75, meaning 75% of lifetime)
-- `MINIMUM_CERTIFICATE_LIFETIME`: Minimum required certificate lifetime for service startup (default: 15552000s, meaning 6 months)
+- `MINIMUM_CERTIFICATE_LIFETIME`: Minimum required certificate lifetime for service startup (default: 5184000s, meaning 2 months)
 - `ENABLE_VSA_EXPIRED_CERTIFICATES_ROTATION`: Enable/disable rotation of expired certificates (default: false)
 
 #### Password Rotation
@@ -235,8 +235,8 @@ export ENABLE_VSA_EXPIRED_CERTIFICATES_ROTATION="false"
 
 #### Minimum Certificate Lifetime
 ```bash
-# Default minimum (6 months)
-export MINIMUM_CERTIFICATE_LIFETIME="15552000s"
+# Default minimum (2 months)
+export MINIMUM_CERTIFICATE_LIFETIME="5184000s"
 
 # Shorter minimum (1 month)
 export MINIMUM_CERTIFICATE_LIFETIME="2592000s"
@@ -245,7 +245,7 @@ export MINIMUM_CERTIFICATE_LIFETIME="2592000s"
 export MINIMUM_CERTIFICATE_LIFETIME="31536000s"
 
 # Using different duration formats
-export MINIMUM_CERTIFICATE_LIFETIME="6m"    # 6 months
+export MINIMUM_CERTIFICATE_LIFETIME="2m"    # 2 months
 export MINIMUM_CERTIFICATE_LIFETIME="8760h" # 1 year in hours
 ```
 

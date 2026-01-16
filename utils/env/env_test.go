@@ -2460,7 +2460,7 @@ func TestValidateCertificateLifetime(t *testing.T) {
 	t.Run("WhenCertificateLifetimeIsValid", func(tt *testing.T) {
 		err := os.Setenv(key1, "94608000s")
 		assert.NoError(tt, err)
-		err = os.Setenv(key2, "15552000s")
+		err = os.Setenv(key2, "5184000s")
 		assert.NoError(tt, err)
 
 		// Test successful validation - covers lines 501-502, 522
@@ -2471,7 +2471,7 @@ func TestValidateCertificateLifetime(t *testing.T) {
 	t.Run("WhenCertificateLifetimeHasInvalidFormat", func(tt *testing.T) {
 		err := os.Setenv(key1, "invalid-format")
 		assert.NoError(tt, err)
-		err = os.Setenv(key2, "15552000s")
+		err = os.Setenv(key2, "5184000s")
 		assert.NoError(tt, err)
 
 		// Test invalid certificate lifetime format - covers lines 505-507
@@ -2493,9 +2493,9 @@ func TestValidateCertificateLifetime(t *testing.T) {
 	})
 
 	t.Run("WhenCertificateLifetimeIsLessThanMinimum", func(tt *testing.T) {
-		err := os.Setenv(key1, "10000000s") // 10M seconds
+		err := os.Setenv(key1, "3000000s") // 3M seconds (less than 2 month minimum)
 		assert.NoError(tt, err)
-		err = os.Setenv(key2, "15552000s") // 15.5M seconds (minimum)
+		err = os.Setenv(key2, "5184000s") // 5.2M seconds (minimum, 2 months)
 		assert.NoError(tt, err)
 
 		// Test certificate lifetime less than minimum - covers lines 517-518
@@ -2505,9 +2505,9 @@ func TestValidateCertificateLifetime(t *testing.T) {
 	})
 
 	t.Run("WhenCertificateLifetimeEqualsMinimum", func(tt *testing.T) {
-		err := os.Setenv(key1, "15552000s")
+		err := os.Setenv(key1, "5184000s")
 		assert.NoError(tt, err)
-		err = os.Setenv(key2, "15552000s")
+		err = os.Setenv(key2, "5184000s")
 		assert.NoError(tt, err)
 
 		err = ValidateCertificateLifetime()
@@ -2517,7 +2517,7 @@ func TestValidateCertificateLifetime(t *testing.T) {
 	t.Run("WhenCertificateLifetimeIsGreaterThanMinimum", func(tt *testing.T) {
 		err := os.Setenv(key1, "94608000s") // 94.6M seconds
 		assert.NoError(tt, err)
-		err = os.Setenv(key2, "15552000s") // 15.5M seconds
+		err = os.Setenv(key2, "5184000s") // 5.2M seconds (minimum, 2 months)
 		assert.NoError(tt, err)
 
 		err = ValidateCertificateLifetime()
