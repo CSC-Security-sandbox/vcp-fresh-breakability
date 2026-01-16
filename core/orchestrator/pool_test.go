@@ -1266,6 +1266,85 @@ func TestUpdatePool(t *testing.T) {
 		assert.Equal(tt, pools[0].Name, pool.Name)
 		assert.Equal(tt, models.LifeCycleStateUpdating, pool.State)
 	})
+	t.Run("WhenUpdatePoolSucceeds_LargeCapacity_UsesLVWorkflowTimeout", func(tt *testing.T) {
+		ctx, store, _, temporal := setup(tt)
+
+		// Create an LV pool in the database
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 100, UUID: "test-account-uuid-lv"},
+			Name:      "test_account_lv",
+		}
+		err := store.DB().Create(account).Error
+		assert.NoError(tt, err)
+
+		lvPool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid-lv"},
+			Name:          "test_pool_lv",
+			AccountID:     account.ID,
+			VendorID:      "test-vendor-id-lv",
+			LargeCapacity: true,
+			State:         models.LifeCycleStateREADY,
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 64,
+				Iops:            1024,
+				PrimaryZone:     "us-central1-a",
+			},
+			DeploymentName: "dep-lv",
+		}
+		err = store.DB().Create(lvPool).Error
+		assert.NoError(tt, err)
+
+		params := &common.UpdatePoolParams{
+			AccountName:          "test_account_lv",
+			PoolId:               "test-pool-uuid-lv",
+			SizeInBytes:          uint64(4 * utils.TiBInBytes),
+			QosType:              QosTypeAuto,
+			LargeCapacity:        nillable.ToPointer(true),
+			TotalThroughputMibps: 256,
+			TotalIops:            nillable.ToPointer(int64(4096)),
+		}
+
+		temporal.EXPECT().ExecuteWorkflow(
+			mock.Anything,
+			mock.MatchedBy(func(opts interface{}) bool {
+				v := reflect.ValueOf(opts)
+				f := v.FieldByName("WorkflowRunTimeout")
+				if !f.IsValid() {
+					return false
+				}
+				timeout, ok := f.Interface().(time.Duration)
+				if !ok {
+					return false
+				}
+				want := workflowengine.GetUpdatePoolWorkflowRunTimeout(true)
+				return want != nil && timeout == *want
+			}),
+			mock.Anything,
+			mock.Anything,
+			mock.Anything,
+			mock.Anything,
+		).Return(nil, nil)
+
+		originalGetAccountWithName := getAccountWithName
+		originalValidateAndSetUpdatePoolParams := ValidateAndSetUpdatePoolParams
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		ValidateAndSetUpdatePoolParams = func(params *common.UpdatePoolParams, pool *datamodel.Pool) error {
+			return nil
+		}
+
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+			ValidateAndSetUpdatePoolParams = originalValidateAndSetUpdatePoolParams
+		}()
+
+		pool, _, err := _updatePool(ctx, store, temporal, params)
+		assert.NoError(tt, err, "Expected no error on updating LV pool")
+		assert.Equal(tt, lvPool.Name, pool.Name)
+		assert.Equal(tt, models.LifeCycleStateUpdating, pool.State)
+	})
 	t.Run("WhenExecuteWorkflowFails", func(tt *testing.T) {
 		ctx, store, _, temporal := setup(tt)
 		params := &common.UpdatePoolParams{

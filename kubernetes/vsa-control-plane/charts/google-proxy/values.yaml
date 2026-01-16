@@ -70,6 +70,7 @@ workflowGlobalTimeoutMinutes: "60" # Global timeout for workflows in minutes
 maxHostsPerHostgroup: "128"
 cmekWorkflowGlobalTimeoutMinutes: "14" # Global timeout for CMEK workflows in minutes
 createPoolWorkflowTimeoutMinutesLV: "120" # Create pool workflow run timeout (LV pools) in minutes
+updatePoolWorkflowTimeoutMinutesLV: "120" # Update pool workflow run timeout (LV pools) in minutes
 createBackupWorkflowTimeoutMinutes: "8640"
 deleteBackupWorkflowTimeoutMinutes: "6480"
 sfrWorkflowTimeoutMinutes: "13680"

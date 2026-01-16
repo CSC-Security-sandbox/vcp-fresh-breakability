@@ -126,6 +126,69 @@ func TestGetCreatePoolWorkflowRunTimeout_LVUsesLVTimeout(t *testing.T) {
 	}
 }
 
+func TestGetUpdatePoolWorkflowTimeout_Defaults(t *testing.T) {
+	origLV := UpdatePoolWorkflowTimeoutMinutesLV
+	defer func() {
+		UpdatePoolWorkflowTimeoutMinutesLV = origLV
+	}()
+
+	UpdatePoolWorkflowTimeoutMinutesLV = "120"
+
+	lv := GetUpdatePoolWorkflowTimeout(true)
+	if lv == nil || *lv != 120*time.Minute {
+		t.Fatalf("expected 120m, got %v", lv)
+	}
+}
+
+func TestGetUpdatePoolWorkflowTimeout_InvalidEnvFallsBack(t *testing.T) {
+	origLV := UpdatePoolWorkflowTimeoutMinutesLV
+	defer func() {
+		UpdatePoolWorkflowTimeoutMinutesLV = origLV
+	}()
+
+	UpdatePoolWorkflowTimeoutMinutesLV = "invalid"
+
+	lv := GetUpdatePoolWorkflowTimeout(true)
+	if lv == nil || *lv != 120*time.Minute {
+		t.Fatalf("expected fallback 120m, got %v", lv)
+	}
+}
+
+func TestGetUpdatePoolWorkflowTimeout_StandardReturnsNil(t *testing.T) {
+	got := GetUpdatePoolWorkflowTimeout(false)
+	if got != nil {
+		t.Fatalf("expected nil, got %v", got)
+	}
+}
+
+func TestGetUpdatePoolWorkflowRunTimeout_StandardUsesGlobal(t *testing.T) {
+	origGlobal := WorkflowGlobalTimeoutMinutes
+	defer func() { WorkflowGlobalTimeoutMinutes = origGlobal }()
+
+	WorkflowGlobalTimeoutMinutes = "75"
+	got := GetUpdatePoolWorkflowRunTimeout(false)
+	if got == nil || *got != 75*time.Minute {
+		t.Fatalf("expected 75m, got %v", got)
+	}
+}
+
+func TestGetUpdatePoolWorkflowRunTimeout_LVUsesLVTimeout(t *testing.T) {
+	origGlobal := WorkflowGlobalTimeoutMinutes
+	origLV := UpdatePoolWorkflowTimeoutMinutesLV
+	defer func() {
+		WorkflowGlobalTimeoutMinutes = origGlobal
+		UpdatePoolWorkflowTimeoutMinutesLV = origLV
+	}()
+
+	WorkflowGlobalTimeoutMinutes = "75"
+	UpdatePoolWorkflowTimeoutMinutesLV = "30"
+
+	got := GetUpdatePoolWorkflowRunTimeout(true)
+	if got == nil || *got != 30*time.Minute {
+		t.Fatalf("expected 30m, got %v", got)
+	}
+}
+
 func TestGetCreateBackupWorkflowTimeout_InvalidEnv(t *testing.T) {
 	original := CreateBackupWorkflowTimeoutMinutes
 	defer func() { CreateBackupWorkflowTimeoutMinutes = original }()
