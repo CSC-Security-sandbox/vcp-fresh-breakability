@@ -34,12 +34,12 @@ const (
 var (
 	ConsecutiveUpdatePoolTimeGapAllowedMinutes                 = env.GetFloat64("CONSECUTIVE_UPDATE_POOL_TIME_GAP_ALLOWED_MINUTES", 240)
 	AutoTieringSyncActivityMaxAttempts                         = env.GetInt("AUTO_TIERING_SYNC_ACTIVITY_MAX_ATTEMPTS", 1)
-	syncVSAAutoTieringWorkflowStartToCloseTimeoutSec           = env.GetUint64("SYNC_VSA_AUTO_TIERING_WORKFLOW_START_TO_CLOSE_TIMEOUT_SEC", 300)
-	autoTieringPauseResumeWorkflowStartToCloseTimeoutSec       = env.GetUint64("AUTO_TIERING_PAUSE_RESUME_WORKFLOW_START_TO_CLOSE_TIMEOUT_SEC", 300)
-	autoTieringHotTierAutoResizeWorkflowStartToCloseTimeoutSec = env.GetUint64("AUTO_TIERING_HOT_TIER_AUTO_RESIZE_WORKFLOW_START_TO_CLOSE_TIMEOUT_SEC", 300)
-	syncVSAAutoTieringWorkflowHeartbeatTimeoutSec              = env.GetUint64("SYNC_VSA_AUTO_TIERING_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 150)
-	autoTieringPauseResumeWorkflowHeartbeatTimeoutSec          = env.GetUint64("AUTO_TIERING_PAUSE_RESUME_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 150)
-	autoTieringHotTierAutoResizeWorkflowHeartbeatTimeoutSec    = env.GetUint64("AUTO_TIERING_HOT_TIER_AUTO_RESIZE_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 150)
+	syncVSAAutoTieringWorkflowStartToCloseTimeoutSec           = env.GetUint64("SYNC_VSA_AUTO_TIERING_WORKFLOW_START_TO_CLOSE_TIMEOUT_SEC", 600)
+	autoTieringPauseResumeWorkflowStartToCloseTimeoutSec       = env.GetUint64("AUTO_TIERING_PAUSE_RESUME_WORKFLOW_START_TO_CLOSE_TIMEOUT_SEC", 600)
+	autoTieringHotTierAutoResizeWorkflowStartToCloseTimeoutSec = env.GetUint64("AUTO_TIERING_HOT_TIER_AUTO_RESIZE_WORKFLOW_START_TO_CLOSE_TIMEOUT_SEC", 600)
+	syncVSAAutoTieringWorkflowHeartbeatTimeoutSec              = env.GetUint64("SYNC_VSA_AUTO_TIERING_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 600)
+	autoTieringPauseResumeWorkflowHeartbeatTimeoutSec          = env.GetUint64("AUTO_TIERING_PAUSE_RESUME_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 600)
+	autoTieringHotTierAutoResizeWorkflowHeartbeatTimeoutSec    = env.GetUint64("AUTO_TIERING_HOT_TIER_AUTO_RESIZE_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 600)
 	AutoTieringPauseResumeActivityMaxAttempts                  = env.GetInt("AUTO_TIERING_PAUSE_RESUME_ACTIVITY_MAX_ATTEMPTS", 3)
 )
 
