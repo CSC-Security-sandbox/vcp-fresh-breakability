@@ -63,6 +63,7 @@ maxQuotaInBytesVolume: "140737488355328" # 128TiB in bytes
 minQuotaInBytesLargeVolume: "13194139533312" # 12TiB in bytes
 maxQuotaInBytesLargeVolume: "22517998136852480" # 20PiB in bytes
 maxConstituentsPerAggregate: "1000" # 1000 constituents per aggregate
+defaultConstituentsPerAggregate: "8" # Default CVs per aggregate for large volume creation
 maxConstituentsPerVolumePerAggregate: "200" # 200 constituents per aggregate per volume
 minSizeGranularity: "1073741824" # 1GiB in bytes
 jwkKidsUrl: "https://www.googleapis.com/service_accounts/v1/metadata/x509/"

@@ -5503,12 +5503,12 @@ func TestCreateVolumeWorkflow_CVCountUpdateLogic(t *testing.T) {
 		description         string
 	}{
 		{
-			name: "Auto-provisioned large volume - should update CV count",
+			name: "Legacy auto-provisioned large volume (nil CV count) - should update CV count",
 			dbVolume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
 				LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
 					LargeCapacity:               true,
-					LargeVolumeConstituentCount: nil, // Auto-provisioned
+					LargeVolumeConstituentCount: nil, // Legacy case: nil before default was set
 				},
 			},
 			volCreateResponse: &vsa.VolumeResponse{
@@ -5516,7 +5516,7 @@ func TestCreateVolumeWorkflow_CVCountUpdateLogic(t *testing.T) {
 			},
 			shouldExecuteUpdate: true,
 			expectedLogMessage:  "Updating CV count for auto-provisioned volume test-uuid: 8",
-			description:         "Should execute CV count update for auto-provisioned large volume",
+			description:         "Should execute CV count update for legacy auto-provisioned large volume (nil CV count)",
 		},
 		{
 			name: "Customer-specified large volume - should NOT update CV count",
@@ -5548,12 +5548,12 @@ func TestCreateVolumeWorkflow_CVCountUpdateLogic(t *testing.T) {
 			description:         "Should NOT execute CV count update for regular volumes",
 		},
 		{
-			name: "Auto-provisioned large volume with no CV count in response - should NOT update",
+			name: "Legacy auto-provisioned large volume with no CV count in response - should NOT update",
 			dbVolume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{UUID: "test-uuid-4"},
 				LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
 					LargeCapacity:               true,
-					LargeVolumeConstituentCount: nil, // Auto-provisioned
+					LargeVolumeConstituentCount: nil, // Legacy case: nil before default was set
 				},
 			},
 			volCreateResponse: &vsa.VolumeResponse{
@@ -5562,6 +5562,22 @@ func TestCreateVolumeWorkflow_CVCountUpdateLogic(t *testing.T) {
 			shouldExecuteUpdate: false,
 			expectedLogMessage:  "",
 			description:         "Should NOT execute CV count update when no CV count in response",
+		},
+		{
+			name: "Default CV count large volume - should NOT update CV count",
+			dbVolume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "test-uuid-5"},
+				LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+					LargeCapacity:               true,
+					LargeVolumeConstituentCount: nillable.GetInt32Ptr(48), // Default: 8 CVs × 6 aggregates = 48
+				},
+			},
+			volCreateResponse: &vsa.VolumeResponse{
+				ConstituentCount: nillable.GetInt32Ptr(48),
+			},
+			shouldExecuteUpdate: false,
+			expectedLogMessage:  "",
+			description:         "Should NOT execute CV count update when default CV count is already set",
 		},
 	}
 
