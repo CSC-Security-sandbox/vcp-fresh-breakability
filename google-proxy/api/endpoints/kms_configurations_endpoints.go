@@ -450,23 +450,33 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 		}
 	}
 
+	checkResourceID := func() (gcpgenserver.V1betaCreateKmsConfigurationRes, bool) {
+		if kmsConfig.ResourceID != req.ResourceId.Value {
+			return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
+				Message: fmt.Sprintf("A KMS configuration with resource ID %s already exists for this region and project", kmsConfig.ResourceID),
+				Code:    http.StatusConflict,
+			}, false
+		}
+		return nil, true
+	}
+
 	done := true
 	switch kmsConfig.State {
 	case coremodel.LifeCycleStateError:
 		// do nothing, return the error state kms config, so that it can be cleaned up with delete later
-	case coremodel.LifeCycleStateCreating:
-		done = false
 	case coremodel.LifeCycleStateDeleting, coremodel.LifeCycleStateUpdating, coremodel.LifeCycleStateMigrating:
 		return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
 			Message: "A KMS configuration already exists for this region and project and another operation is in progress.",
 			Code:    http.StatusConflict,
 		}, nil
+	case coremodel.LifeCycleStateCreating:
+		if res, ok := checkResourceID(); !ok {
+			return res, nil
+		}
+		done = false
 	case coremodel.LifeCycleStateCreated, coremodel.LifeCycleStateInUse:
-		if kmsConfig.ResourceID != req.ResourceId.Value {
-			return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
-				Message: fmt.Sprintf("A KMS configuration with resource ID %s already exists for this region and project", kmsConfig.ResourceID),
-				Code:    http.StatusConflict,
-			}, nil
+		if res, ok := checkResourceID(); !ok {
+			return res, nil
 		}
 		done = true
 	}

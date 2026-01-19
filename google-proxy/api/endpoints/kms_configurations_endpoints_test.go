@@ -425,6 +425,40 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 	})
+	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInCreatingStateWithDifferentResourceID_ReturnsConflict", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
+		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
+			LocationId:    "invalid-location",
+			ProjectNumber: "test-project",
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		req := &gcpgenserver.KmsConfigV1beta{
+			KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key",
+			ResourceId:  gcpgenserver.NewOptString("req-resource-id"),
+		}
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		kmsConfig := &vsaCoreModels.KmsConfig{
+			State:         vsaCoreModels.LifeCycleStateCreating,
+			ResourceID:    "existing-resource-id",
+			KmsAttributes: &vsaCoreModels.KmsAttributes{},
+		}
+		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(kmsConfig, nil)
+
+		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(http.StatusConflict), result.(*gcpgenserver.V1betaCreateKmsConfigurationConflict).Code)
+		assert.Contains(t, result.(*gcpgenserver.V1betaCreateKmsConfigurationConflict).Message, "existing-resource-id")
+	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInInUseState", func(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
