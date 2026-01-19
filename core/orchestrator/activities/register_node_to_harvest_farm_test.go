@@ -86,6 +86,522 @@ func TestRegisterNodeToHarvestFarm_AssignError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// TestRegisterNodeToHarvestFarm_MultipleHAPairs tests Large Volumes pool with multiple HA pairs (6 nodes = 3 HA pairs)
+// This test requires the multi-HA pair registration feature flag to be enabled
+func TestRegisterNodeToHarvestFarm_MultipleHAPairs(t *testing.T) {
+	// Enable multi-HA pair registration for this test
+	oldValue := enableMultiHaPairRegistration
+	enableMultiHaPairRegistration = true
+	defer func() { enableMultiHaPairRegistration = oldValue }()
+
+	mockSE := new(database.MockStorage)
+
+	// Create 6 nodes (3 HA pairs) for a Large Volumes pool
+	nodes := []*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1", PoolID: 100},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "node2", PoolID: 100},
+		{BaseModel: datamodel.BaseModel{ID: 3}, Name: "node3", PoolID: 100},
+		{BaseModel: datamodel.BaseModel{ID: 4}, Name: "node4", PoolID: 100},
+		{BaseModel: datamodel.BaseModel{ID: 5}, Name: "node5", PoolID: 100},
+		{BaseModel: datamodel.BaseModel{ID: 6}, Name: "node6", PoolID: 100},
+	}
+
+	// Create mock mappings for each HA pair
+	pair1Maps := []*datamodel.NodeNodeGroupMap{
+		{BaseModel: datamodel.BaseModel{ID: 1}, NodeID: 1, HarvestConfig: &datamodel.HarvestConfig{}},
+		{BaseModel: datamodel.BaseModel{ID: 2}, NodeID: 2, HarvestConfig: &datamodel.HarvestConfig{}},
+	}
+	pair2Maps := []*datamodel.NodeNodeGroupMap{
+		{BaseModel: datamodel.BaseModel{ID: 3}, NodeID: 3, HarvestConfig: &datamodel.HarvestConfig{}},
+		{BaseModel: datamodel.BaseModel{ID: 4}, NodeID: 4, HarvestConfig: &datamodel.HarvestConfig{}},
+	}
+	pair3Maps := []*datamodel.NodeNodeGroupMap{
+		{BaseModel: datamodel.BaseModel{ID: 5}, NodeID: 5, HarvestConfig: &datamodel.HarvestConfig{}},
+		{BaseModel: datamodel.BaseModel{ID: 6}, NodeID: 6, HarvestConfig: &datamodel.HarvestConfig{}},
+	}
+
+	mockSE.On("GetNodesByPoolID", mock.Anything, int64(100)).Return(nodes, nil)
+
+	// Expect AssignTwoNodesToTwoGroups to be called 3 times (once per HA pair)
+	mockSE.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            nodes[0],
+		Node2:            nodes[1],
+		MaxNodesPerGroup: 10,
+		CustomerProject:  "customer-project",
+		TenantProject:    "tenant-project",
+		DeploymentName:   "lv-deployment",
+		PoolName:         "lv-pool",
+		IsRegionalHA:     false,
+	}).Return(pair1Maps, nil).Once()
+
+	mockSE.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            nodes[2],
+		Node2:            nodes[3],
+		MaxNodesPerGroup: 10,
+		CustomerProject:  "customer-project",
+		TenantProject:    "tenant-project",
+		DeploymentName:   "lv-deployment",
+		PoolName:         "lv-pool",
+		IsRegionalHA:     false,
+	}).Return(pair2Maps, nil).Once()
+
+	mockSE.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            nodes[4],
+		Node2:            nodes[5],
+		MaxNodesPerGroup: 10,
+		CustomerProject:  "customer-project",
+		TenantProject:    "tenant-project",
+		DeploymentName:   "lv-deployment",
+		PoolName:         "lv-pool",
+		IsRegionalHA:     false,
+	}).Return(pair3Maps, nil).Once()
+
+	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
+	ctx := context.Background()
+
+	result, err := activity.RegisterNodeToHarvestFarm(ctx, RegisterNodeToHarvestFarmInput{
+		PoolID:            100,
+		MaxNodesPerGroup:  10,
+		CustomerProjectID: "customer-project",
+		TenantProjectID:   "tenant-project",
+		DeploymentName:    "lv-deployment",
+		PoolName:          "lv-pool",
+		IsRegionalHA:      false,
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result, 6, "Should return 6 node mappings for 3 HA pairs")
+
+	// Verify all 3 HA pairs were processed
+	mockSE.AssertNumberOfCalls(t, "AssignTwoNodesToTwoGroups", 3)
+	mockSE.AssertExpectations(t)
+}
+
+// TestRegisterNodeToHarvestFarm_OddNodeCount tests handling of odd number of nodes (last node skipped)
+// This test requires the multi-HA pair registration feature flag to be enabled
+func TestRegisterNodeToHarvestFarm_OddNodeCount(t *testing.T) {
+	// Enable multi-HA pair registration for this test
+	oldValue := enableMultiHaPairRegistration
+	enableMultiHaPairRegistration = true
+	defer func() { enableMultiHaPairRegistration = oldValue }()
+
+	mockSE := new(database.MockStorage)
+
+	// Create 5 nodes (2 complete HA pairs + 1 orphan node)
+	nodes := []*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1", PoolID: 101},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "node2", PoolID: 101},
+		{BaseModel: datamodel.BaseModel{ID: 3}, Name: "node3", PoolID: 101},
+		{BaseModel: datamodel.BaseModel{ID: 4}, Name: "node4", PoolID: 101},
+		{BaseModel: datamodel.BaseModel{ID: 5}, Name: "node5", PoolID: 101}, // Orphan node
+	}
+
+	pair1Maps := []*datamodel.NodeNodeGroupMap{
+		{BaseModel: datamodel.BaseModel{ID: 1}, NodeID: 1, HarvestConfig: &datamodel.HarvestConfig{}},
+		{BaseModel: datamodel.BaseModel{ID: 2}, NodeID: 2, HarvestConfig: &datamodel.HarvestConfig{}},
+	}
+	pair2Maps := []*datamodel.NodeNodeGroupMap{
+		{BaseModel: datamodel.BaseModel{ID: 3}, NodeID: 3, HarvestConfig: &datamodel.HarvestConfig{}},
+		{BaseModel: datamodel.BaseModel{ID: 4}, NodeID: 4, HarvestConfig: &datamodel.HarvestConfig{}},
+	}
+
+	mockSE.On("GetNodesByPoolID", mock.Anything, int64(101)).Return(nodes, nil)
+
+	// Only 2 calls expected (last odd node is skipped)
+	mockSE.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            nodes[0],
+		Node2:            nodes[1],
+		MaxNodesPerGroup: 10,
+		CustomerProject:  "customer-project",
+		TenantProject:    "tenant-project",
+	}).Return(pair1Maps, nil).Once()
+
+	mockSE.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            nodes[2],
+		Node2:            nodes[3],
+		MaxNodesPerGroup: 10,
+		CustomerProject:  "customer-project",
+		TenantProject:    "tenant-project",
+	}).Return(pair2Maps, nil).Once()
+
+	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
+	ctx := context.Background()
+
+	result, err := activity.RegisterNodeToHarvestFarm(ctx, RegisterNodeToHarvestFarmInput{
+		PoolID:            101,
+		MaxNodesPerGroup:  10,
+		CustomerProjectID: "customer-project",
+		TenantProjectID:   "tenant-project",
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result, 4, "Should return 4 node mappings (2 complete HA pairs, orphan node skipped)")
+
+	// Verify only 2 HA pairs were processed (5th node skipped)
+	mockSE.AssertNumberOfCalls(t, "AssignTwoNodesToTwoGroups", 2)
+	mockSE.AssertExpectations(t)
+}
+
+// TestRegisterNodeToHarvestFarm_RollbackOnSecondPairFailure tests that when the second HA pair fails,
+// the first HA pair's mappings are rolled back (deleted) to maintain atomicity
+func TestRegisterNodeToHarvestFarm_RollbackOnSecondPairFailure(t *testing.T) {
+	// Enable multi-HA pair registration for this test
+	oldValue := enableMultiHaPairRegistration
+	enableMultiHaPairRegistration = true
+	defer func() { enableMultiHaPairRegistration = oldValue }()
+
+	mockSE := new(database.MockStorage)
+
+	// Create 4 nodes (2 HA pairs)
+	nodes := []*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1", PoolID: 200},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "node2", PoolID: 200},
+		{BaseModel: datamodel.BaseModel{ID: 3}, Name: "node3", PoolID: 200},
+		{BaseModel: datamodel.BaseModel{ID: 4}, Name: "node4", PoolID: 200},
+	}
+
+	// First HA pair succeeds
+	pair1Maps := []*datamodel.NodeNodeGroupMap{
+		{BaseModel: datamodel.BaseModel{ID: 101}, NodeID: 1, HarvestConfig: &datamodel.HarvestConfig{}},
+		{BaseModel: datamodel.BaseModel{ID: 102}, NodeID: 2, HarvestConfig: &datamodel.HarvestConfig{}},
+	}
+
+	mockSE.On("GetNodesByPoolID", mock.Anything, int64(200)).Return(nodes, nil)
+
+	// First HA pair assignment succeeds
+	mockSE.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            nodes[0],
+		Node2:            nodes[1],
+		MaxNodesPerGroup: 10,
+		CustomerProject:  "customer-project",
+		TenantProject:    "tenant-project",
+		DeploymentName:   "lv-deployment",
+		PoolName:         "lv-pool",
+		IsRegionalHA:     false,
+	}).Return(pair1Maps, nil).Once()
+
+	// Second HA pair assignment fails
+	mockSE.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            nodes[2],
+		Node2:            nodes[3],
+		MaxNodesPerGroup: 10,
+		CustomerProject:  "customer-project",
+		TenantProject:    "tenant-project",
+		DeploymentName:   "lv-deployment",
+		PoolName:         "lv-pool",
+		IsRegionalHA:     false,
+	}).Return(nil, errors.New("assignment failed for second pair")).Once()
+
+	// Expect rollback: DeleteNodeNodeGroupMap should be called for both mappings from pair 1
+	mockSE.On("DeleteNodeNodeGroupMap", mock.Anything, int64(101)).Return(nil).Once()
+	mockSE.On("DeleteNodeNodeGroupMap", mock.Anything, int64(102)).Return(nil).Once()
+
+	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
+	ctx := context.Background()
+
+	result, err := activity.RegisterNodeToHarvestFarm(ctx, RegisterNodeToHarvestFarmInput{
+		PoolID:            200,
+		MaxNodesPerGroup:  10,
+		CustomerProjectID: "customer-project",
+		TenantProjectID:   "tenant-project",
+		DeploymentName:    "lv-deployment",
+		PoolName:          "lv-pool",
+		IsRegionalHA:      false,
+	})
+
+	// Verify error is returned
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	// Check that the original error contains the expected message
+	customErr, ok := err.(*vsaerrors.CustomError)
+	assert.True(t, ok, "Expected CustomError type")
+	assert.Contains(t, customErr.OriginalErr.Error(), "error assigning nodes to groups")
+
+	// Verify rollback was called
+	mockSE.AssertNumberOfCalls(t, "DeleteNodeNodeGroupMap", 2)
+	mockSE.AssertExpectations(t)
+}
+
+// TestRegisterNodeToHarvestFarm_RollbackOnThirdPairFailure tests rollback with 3 HA pairs where third fails
+func TestRegisterNodeToHarvestFarm_RollbackOnThirdPairFailure(t *testing.T) {
+	// Enable multi-HA pair registration for this test
+	oldValue := enableMultiHaPairRegistration
+	enableMultiHaPairRegistration = true
+	defer func() { enableMultiHaPairRegistration = oldValue }()
+
+	mockSE := new(database.MockStorage)
+
+	// Create 6 nodes (3 HA pairs)
+	nodes := []*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1", PoolID: 201},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "node2", PoolID: 201},
+		{BaseModel: datamodel.BaseModel{ID: 3}, Name: "node3", PoolID: 201},
+		{BaseModel: datamodel.BaseModel{ID: 4}, Name: "node4", PoolID: 201},
+		{BaseModel: datamodel.BaseModel{ID: 5}, Name: "node5", PoolID: 201},
+		{BaseModel: datamodel.BaseModel{ID: 6}, Name: "node6", PoolID: 201},
+	}
+
+	// First two HA pairs succeed
+	pair1Maps := []*datamodel.NodeNodeGroupMap{
+		{BaseModel: datamodel.BaseModel{ID: 201}, NodeID: 1, HarvestConfig: &datamodel.HarvestConfig{}},
+		{BaseModel: datamodel.BaseModel{ID: 202}, NodeID: 2, HarvestConfig: &datamodel.HarvestConfig{}},
+	}
+	pair2Maps := []*datamodel.NodeNodeGroupMap{
+		{BaseModel: datamodel.BaseModel{ID: 203}, NodeID: 3, HarvestConfig: &datamodel.HarvestConfig{}},
+		{BaseModel: datamodel.BaseModel{ID: 204}, NodeID: 4, HarvestConfig: &datamodel.HarvestConfig{}},
+	}
+
+	mockSE.On("GetNodesByPoolID", mock.Anything, int64(201)).Return(nodes, nil)
+
+	// First HA pair assignment succeeds
+	mockSE.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            nodes[0],
+		Node2:            nodes[1],
+		MaxNodesPerGroup: 10,
+		CustomerProject:  "customer-project",
+		TenantProject:    "tenant-project",
+	}).Return(pair1Maps, nil).Once()
+
+	// Second HA pair assignment succeeds
+	mockSE.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            nodes[2],
+		Node2:            nodes[3],
+		MaxNodesPerGroup: 10,
+		CustomerProject:  "customer-project",
+		TenantProject:    "tenant-project",
+	}).Return(pair2Maps, nil).Once()
+
+	// Third HA pair assignment fails
+	mockSE.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            nodes[4],
+		Node2:            nodes[5],
+		MaxNodesPerGroup: 10,
+		CustomerProject:  "customer-project",
+		TenantProject:    "tenant-project",
+	}).Return(nil, errors.New("assignment failed for third pair")).Once()
+
+	// Expect rollback: DeleteNodeNodeGroupMap should be called for all 4 mappings from pairs 1 and 2
+	mockSE.On("DeleteNodeNodeGroupMap", mock.Anything, int64(201)).Return(nil).Once()
+	mockSE.On("DeleteNodeNodeGroupMap", mock.Anything, int64(202)).Return(nil).Once()
+	mockSE.On("DeleteNodeNodeGroupMap", mock.Anything, int64(203)).Return(nil).Once()
+	mockSE.On("DeleteNodeNodeGroupMap", mock.Anything, int64(204)).Return(nil).Once()
+
+	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
+	ctx := context.Background()
+
+	result, err := activity.RegisterNodeToHarvestFarm(ctx, RegisterNodeToHarvestFarmInput{
+		PoolID:            201,
+		MaxNodesPerGroup:  10,
+		CustomerProjectID: "customer-project",
+		TenantProjectID:   "tenant-project",
+	})
+
+	// Verify error is returned
+	assert.Error(t, err)
+	assert.Nil(t, result)
+
+	// Verify rollback was called for all 4 mappings
+	mockSE.AssertNumberOfCalls(t, "DeleteNodeNodeGroupMap", 4)
+	mockSE.AssertExpectations(t)
+}
+
+// TestRegisterNodeToHarvestFarm_RollbackContinuesOnDeleteError tests that rollback continues
+// even if some delete operations fail (best effort cleanup)
+func TestRegisterNodeToHarvestFarm_RollbackContinuesOnDeleteError(t *testing.T) {
+	// Enable multi-HA pair registration for this test
+	oldValue := enableMultiHaPairRegistration
+	enableMultiHaPairRegistration = true
+	defer func() { enableMultiHaPairRegistration = oldValue }()
+
+	mockSE := new(database.MockStorage)
+
+	// Create 4 nodes (2 HA pairs)
+	nodes := []*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1", PoolID: 202},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "node2", PoolID: 202},
+		{BaseModel: datamodel.BaseModel{ID: 3}, Name: "node3", PoolID: 202},
+		{BaseModel: datamodel.BaseModel{ID: 4}, Name: "node4", PoolID: 202},
+	}
+
+	// First HA pair succeeds
+	pair1Maps := []*datamodel.NodeNodeGroupMap{
+		{BaseModel: datamodel.BaseModel{ID: 301}, NodeID: 1, HarvestConfig: &datamodel.HarvestConfig{}},
+		{BaseModel: datamodel.BaseModel{ID: 302}, NodeID: 2, HarvestConfig: &datamodel.HarvestConfig{}},
+	}
+
+	mockSE.On("GetNodesByPoolID", mock.Anything, int64(202)).Return(nodes, nil)
+
+	// First HA pair assignment succeeds
+	mockSE.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            nodes[0],
+		Node2:            nodes[1],
+		MaxNodesPerGroup: 10,
+		CustomerProject:  "customer-project",
+		TenantProject:    "tenant-project",
+	}).Return(pair1Maps, nil).Once()
+
+	// Second HA pair assignment fails
+	mockSE.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            nodes[2],
+		Node2:            nodes[3],
+		MaxNodesPerGroup: 10,
+		CustomerProject:  "customer-project",
+		TenantProject:    "tenant-project",
+	}).Return(nil, errors.New("assignment failed")).Once()
+
+	// First delete fails, second succeeds - rollback should continue
+	mockSE.On("DeleteNodeNodeGroupMap", mock.Anything, int64(301)).Return(errors.New("delete failed")).Once()
+	mockSE.On("DeleteNodeNodeGroupMap", mock.Anything, int64(302)).Return(nil).Once()
+
+	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
+	ctx := context.Background()
+
+	result, err := activity.RegisterNodeToHarvestFarm(ctx, RegisterNodeToHarvestFarmInput{
+		PoolID:            202,
+		MaxNodesPerGroup:  10,
+		CustomerProjectID: "customer-project",
+		TenantProjectID:   "tenant-project",
+	})
+
+	// Verify error is returned (original assignment error)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+
+	// Verify both delete calls were attempted despite first one failing
+	mockSE.AssertNumberOfCalls(t, "DeleteNodeNodeGroupMap", 2)
+	mockSE.AssertExpectations(t)
+}
+
+// TestRegisterNodeToHarvestFarm_RollbackOnInsufficientMappings tests rollback when
+// AssignTwoNodesToTwoGroups returns fewer than 2 mappings
+func TestRegisterNodeToHarvestFarm_RollbackOnInsufficientMappings(t *testing.T) {
+	// Enable multi-HA pair registration for this test
+	oldValue := enableMultiHaPairRegistration
+	enableMultiHaPairRegistration = true
+	defer func() { enableMultiHaPairRegistration = oldValue }()
+
+	mockSE := new(database.MockStorage)
+
+	// Create 4 nodes (2 HA pairs)
+	nodes := []*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1", PoolID: 203},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "node2", PoolID: 203},
+		{BaseModel: datamodel.BaseModel{ID: 3}, Name: "node3", PoolID: 203},
+		{BaseModel: datamodel.BaseModel{ID: 4}, Name: "node4", PoolID: 203},
+	}
+
+	// First HA pair succeeds
+	pair1Maps := []*datamodel.NodeNodeGroupMap{
+		{BaseModel: datamodel.BaseModel{ID: 401}, NodeID: 1, HarvestConfig: &datamodel.HarvestConfig{}},
+		{BaseModel: datamodel.BaseModel{ID: 402}, NodeID: 2, HarvestConfig: &datamodel.HarvestConfig{}},
+	}
+
+	// Second HA pair returns only 1 mapping (insufficient)
+	pair2Maps := []*datamodel.NodeNodeGroupMap{
+		{BaseModel: datamodel.BaseModel{ID: 403}, NodeID: 3, HarvestConfig: &datamodel.HarvestConfig{}},
+	}
+
+	mockSE.On("GetNodesByPoolID", mock.Anything, int64(203)).Return(nodes, nil)
+
+	// First HA pair assignment succeeds
+	mockSE.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            nodes[0],
+		Node2:            nodes[1],
+		MaxNodesPerGroup: 10,
+		CustomerProject:  "customer-project",
+		TenantProject:    "tenant-project",
+	}).Return(pair1Maps, nil).Once()
+
+	// Second HA pair returns insufficient mappings
+	mockSE.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            nodes[2],
+		Node2:            nodes[3],
+		MaxNodesPerGroup: 10,
+		CustomerProject:  "customer-project",
+		TenantProject:    "tenant-project",
+	}).Return(pair2Maps, nil).Once()
+
+	// Expect rollback of first pair's mappings
+	mockSE.On("DeleteNodeNodeGroupMap", mock.Anything, int64(401)).Return(nil).Once()
+	mockSE.On("DeleteNodeNodeGroupMap", mock.Anything, int64(402)).Return(nil).Once()
+
+	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
+	ctx := context.Background()
+
+	result, err := activity.RegisterNodeToHarvestFarm(ctx, RegisterNodeToHarvestFarmInput{
+		PoolID:            203,
+		MaxNodesPerGroup:  10,
+		CustomerProjectID: "customer-project",
+		TenantProjectID:   "tenant-project",
+	})
+
+	// Verify error is returned
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	// Check that the original error contains the expected message
+	customErr, ok := err.(*vsaerrors.CustomError)
+	assert.True(t, ok, "Expected CustomError type")
+	assert.Contains(t, customErr.OriginalErr.Error(), "insufficient mappings")
+
+	// Verify rollback was called for the first pair
+	mockSE.AssertNumberOfCalls(t, "DeleteNodeNodeGroupMap", 2)
+	mockSE.AssertExpectations(t)
+}
+
+// TestRegisterNodeToHarvestFarm_MultiHaPairFlagDisabled tests that only first HA pair is registered
+// when ENABLE_MULTI_HA_PAIR_REGISTRATION feature flag is disabled (default behavior)
+func TestRegisterNodeToHarvestFarm_MultiHaPairFlagDisabled(t *testing.T) {
+	// Ensure multi-HA pair registration is disabled (default)
+	oldValue := enableMultiHaPairRegistration
+	enableMultiHaPairRegistration = false
+	defer func() { enableMultiHaPairRegistration = oldValue }()
+
+	mockSE := new(database.MockStorage)
+
+	// Create 6 nodes (3 HA pairs) - but only first pair should be registered
+	nodes := []*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node1", PoolID: 102},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "node2", PoolID: 102},
+		{BaseModel: datamodel.BaseModel{ID: 3}, Name: "node3", PoolID: 102},
+		{BaseModel: datamodel.BaseModel{ID: 4}, Name: "node4", PoolID: 102},
+		{BaseModel: datamodel.BaseModel{ID: 5}, Name: "node5", PoolID: 102},
+		{BaseModel: datamodel.BaseModel{ID: 6}, Name: "node6", PoolID: 102},
+	}
+
+	pair1Maps := []*datamodel.NodeNodeGroupMap{
+		{BaseModel: datamodel.BaseModel{ID: 1}, NodeID: 1, HarvestConfig: &datamodel.HarvestConfig{}},
+		{BaseModel: datamodel.BaseModel{ID: 2}, NodeID: 2, HarvestConfig: &datamodel.HarvestConfig{}},
+	}
+
+	mockSE.On("GetNodesByPoolID", mock.Anything, int64(102)).Return(nodes, nil)
+
+	// Only expect 1 call for the first HA pair when flag is disabled
+	mockSE.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            nodes[0],
+		Node2:            nodes[1],
+		MaxNodesPerGroup: 10,
+		CustomerProject:  "customer-project",
+		TenantProject:    "tenant-project",
+	}).Return(pair1Maps, nil).Once()
+
+	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
+	ctx := context.Background()
+
+	result, err := activity.RegisterNodeToHarvestFarm(ctx, RegisterNodeToHarvestFarmInput{
+		PoolID:            102,
+		MaxNodesPerGroup:  10,
+		CustomerProjectID: "customer-project",
+		TenantProjectID:   "tenant-project",
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result, 2, "Should return only 2 node mappings (first HA pair) when multi-HA registration is disabled")
+
+	// Verify only 1 HA pair was processed
+	mockSE.AssertNumberOfCalls(t, "AssignTwoNodesToTwoGroups", 1)
+	mockSE.AssertExpectations(t)
+}
+
 func TestUploadHarvestTemplate_Success(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseMultipartForm(10 << 20)

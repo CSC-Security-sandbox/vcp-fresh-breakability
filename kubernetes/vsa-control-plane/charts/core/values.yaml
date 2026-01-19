@@ -275,6 +275,7 @@ telemetryDeployer:
   enableAutoTieringBillingMetrics: false
   enableFilesAutoTieringBilling: false
   enableFilesReplicationBillingMetrics: false
+  enableLargeVolumesBilling: false
   enableBatchUsageUpdates: false  # Feature flag for high-performance batch usage updates (PostgreSQL bulk operations)
   resultUpdateBatchSize: 100
   intervalBackfillLimitMinutes: 60

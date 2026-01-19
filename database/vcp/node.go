@@ -21,7 +21,7 @@ func (d *DataStoreRepository) GetNodesByPoolID(ctx context.Context, poolID int64
 
 func getNodesByPoolID(db *gorm.DB, poolID int64) ([]*datamodel.Node, error) {
 	var nodes []*datamodel.Node
-	err := db.Where("pool_id = ?", poolID).Find(&nodes).Error
+	err := db.Where("pool_id = ?", poolID).Order("id ASC").Find(&nodes).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "node", nil))
 	}

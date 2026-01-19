@@ -787,11 +787,21 @@ func getActivePrepopulateJobs(db *gorm.DB) ([]*datamodel.Job, error) {
 // VolumeResourceData contains only the fields required for aggregator resource data collection.
 // This is an optimized structure for fetchVolumeData in telemetry aggregator.
 // Account name, deployment name, labels, and IsRegionalHA are extracted from volume_attributes JSONB.
+// LargeCapacity is extracted from large_volume_attributes JSONB.
 type VolumeResourceData struct {
-	UUID             string                      `gorm:"column:uuid"`
-	Name             string                      `gorm:"column:name"`
-	AccountID        int64                       `gorm:"column:account_id"`
-	VolumeAttributes *datamodel.VolumeAttributes `gorm:"column:volume_attributes;type:jsonb"`
+	UUID                  string                           `gorm:"column:uuid"`
+	Name                  string                           `gorm:"column:name"`
+	AccountID             int64                            `gorm:"column:account_id"`
+	VolumeAttributes      *datamodel.VolumeAttributes      `gorm:"column:volume_attributes;type:jsonb"`
+	LargeVolumeAttributes *datamodel.LargeVolumeAttributes `gorm:"column:large_volume_attributes;type:jsonb"`
+}
+
+// GetLargeCapacity returns the large capacity flag from LargeVolumeAttributes
+func (v *VolumeResourceData) GetLargeCapacity() bool {
+	if v.LargeVolumeAttributes != nil {
+		return v.LargeVolumeAttributes.LargeCapacity
+	}
+	return false
 }
 
 // GetAccountName returns the account name from VolumeAttributes
@@ -837,12 +847,14 @@ func (d *DataStoreRepository) ListVolumesForResourceData(ctx context.Context, st
 
 	// Select only the required columns from volumes table
 	// Account name, deployment name, labels and IsRegionalHA are in volume_attributes JSONB, no JOIN needed
+	// LargeCapacity is in large_volume_attributes JSONB
 	query := db.Table("volumes").
 		Select(`
 			uuid,
 			name,
 			account_id,
-			volume_attributes
+			volume_attributes,
+			large_volume_attributes
 		`).
 		Where("(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", startTime, endTime)
 

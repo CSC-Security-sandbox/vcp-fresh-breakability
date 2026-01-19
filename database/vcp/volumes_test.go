@@ -5096,6 +5096,34 @@ func TestVolumeResourceData_HelperMethods(t *testing.T) {
 		}
 		assert.False(tt, vol.IsRegionalHA())
 	})
+
+	t.Run("GetLargeCapacity_ReturnsTrueWhenLargeVolumeAttributesExist", func(tt *testing.T) {
+		vol := &VolumeResourceData{
+			UUID: "test-uuid",
+			LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+				LargeCapacity: true,
+			},
+		}
+		assert.True(tt, vol.GetLargeCapacity())
+	})
+
+	t.Run("GetLargeCapacity_ReturnsFalseWhenLargeVolumeAttributesNil", func(tt *testing.T) {
+		vol := &VolumeResourceData{
+			UUID:                  "test-uuid",
+			LargeVolumeAttributes: nil,
+		}
+		assert.False(tt, vol.GetLargeCapacity())
+	})
+
+	t.Run("GetLargeCapacity_ReturnsFalseWhenLargeCapacityIsFalse", func(tt *testing.T) {
+		vol := &VolumeResourceData{
+			UUID: "test-uuid",
+			LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+				LargeCapacity: false,
+			},
+		}
+		assert.False(tt, vol.GetLargeCapacity())
+	})
 }
 
 // Tests for VolumeMetricsData helper methods

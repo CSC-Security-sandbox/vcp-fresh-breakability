@@ -200,6 +200,7 @@ workerConfig:
   harvestHost: "vsa-harvest-farm-service.vcp.svc.cluster.local"
   enableMetrics: "false"
   harvestSecretManagerAuthEnabled: "false"
+  enableMultiHaPairRegistration: "false"
   harvestRestProtocol: "http"
   harvestPortStart: 13001
   harvestPortEnd: 13500

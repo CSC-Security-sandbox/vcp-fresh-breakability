@@ -122,6 +122,7 @@ data:
   HARVEST_HOST: {{ $.Values.workerConfig.harvestHost | quote }}
   ENABLE_METRICS: {{ $.Values.workerConfig.enableMetrics | quote }}
   HARVEST_SECRET_MANAGER_AUTH_ENABLED: {{ $.Values.workerConfig.harvestSecretManagerAuthEnabled | quote }}
+  ENABLE_MULTI_HA_PAIR_REGISTRATION: {{ $.Values.workerConfig.enableMultiHaPairRegistration | quote }}
   HARVEST_REST_PROTOCOL: {{ $.Values.workerConfig.harvestRestProtocol | quote }}
   CVP_HOST: {{$.Values.workerConfig.cvpHost | quote }}
   IMMUTABLE_BACKUP_ENABLED: {{$.Values.workerConfig.immutableBackupEnabled | quote }}

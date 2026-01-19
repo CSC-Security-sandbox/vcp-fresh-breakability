@@ -40,7 +40,7 @@ func TestLoadsConfigWithCustomEnvironmentValues(t *testing.T) {
 	if config.PusherServiceProject != "netapp-au-se1-autopush-sde-tst" {
 		t.Fatalf("Expected PusherServiceProject to be 'netapp-au-se1-autopush-sde-tst', got %s", config.PusherServiceProject)
 	}
-	
+
 	if config.PerformanceRootUrl != "https://perf-root.example.com" {
 		t.Fatalf("Expected PerformanceRootUrl to be 'https://perf-root.example.com', got %s", config.PerformanceRootUrl)
 	}
@@ -84,6 +84,26 @@ func TestRegionNameWithEnvironmentVariable(t *testing.T) {
 
 	if config.RegionName != "us-west-1" {
 		t.Fatalf("Expected RegionName to be 'us-west-1', got %s", config.RegionName)
+	}
+}
+
+func TestEnableLargeVolumesBillingDefaultValue(t *testing.T) {
+	config := LoadConfig()
+
+	// Default should be false (billing disabled for Large Volumes until GA)
+	if config.EnableLargeVolumesBilling {
+		t.Fatalf("Expected EnableLargeVolumesBilling to default to false, got %v", config.EnableLargeVolumesBilling)
+	}
+}
+
+func TestEnableLargeVolumesBillingWithEnvironmentVariable(t *testing.T) {
+	// Test setting to true (enable billing for Large Volumes when GA)
+	t.Setenv("ENABLE_LARGE_VOLUMES_BILLING", "true")
+
+	config := LoadConfig()
+
+	if !config.EnableLargeVolumesBilling {
+		t.Fatalf("Expected EnableLargeVolumesBilling to be true when env var is 'true', got %v", config.EnableLargeVolumesBilling)
 	}
 }
 

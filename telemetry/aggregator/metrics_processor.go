@@ -48,6 +48,8 @@ type ResourceData struct {
 	Labels                Labels
 	VolumeReplicationInfo *VolumeReplicationInfo
 	AllowAutoTiering      bool
+	LargeCapacity         bool   // Track if pool/volume is large capacity
+	VolumeStyle           string // Track volume style (FLEXVOL/FLEXGROUP)
 	HasOnlyBlockVolumes   bool
 }
 
@@ -61,10 +63,11 @@ type VolumeReplicationInfo struct {
 }
 
 type ResourceCollection struct {
-	PoolData              map[ResourceKey]ResourceData
-	VolumeData            map[ResourceKey]ResourceData
-	BackupData            map[ResourceKey]ResourceData
-	VolumeReplicationData map[ResourceKey]ResourceData
+	PoolData                  map[ResourceKey]ResourceData
+	VolumeData                map[ResourceKey]ResourceData
+	BackupData                map[ResourceKey]ResourceData
+	VolumeReplicationData     map[ResourceKey]ResourceData
+	VolumeLargeCapacityLookup map[string]bool // volumeUUID -> LargeCapacity
 }
 
 type BillingProvider struct {
@@ -248,10 +251,11 @@ func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStar
 
 	// Create a new ResourceCollection for this aggregation cycle
 	resourceCollection := &ResourceCollection{
-		PoolData:              make(map[ResourceKey]ResourceData),
-		VolumeData:            make(map[ResourceKey]ResourceData),
-		VolumeReplicationData: make(map[ResourceKey]ResourceData),
-		BackupData:            make(map[ResourceKey]ResourceData),
+		PoolData:                  make(map[ResourceKey]ResourceData),
+		VolumeData:                make(map[ResourceKey]ResourceData),
+		VolumeReplicationData:     make(map[ResourceKey]ResourceData),
+		BackupData:                make(map[ResourceKey]ResourceData),
+		VolumeLargeCapacityLookup: make(map[string]bool),
 	}
 
 	var poolsDataError, volumeDataError, backupDataError, volumeReplicationDataError error
@@ -376,6 +380,8 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTim
 				AccountID:           pool.AccountID,
 				Labels:              limitedLabels,
 				AllowAutoTiering:    pool.AllowAutoTiering,
+				LargeCapacity:       pool.LargeCapacity,
+				VolumeStyle:         "",                        // Empty for pools
 				HasOnlyBlockVolumes: blockOnlyPoolIDs[pool.ID], // Set based on block-only pool IDs map
 			}
 			resourceType := metadata.VolumePool
@@ -455,10 +461,13 @@ func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartT
 				limitedLabels = make(Labels)
 			}
 
+			largeCapacity := volume.GetLargeCapacity()
 			volumeResourceData := ResourceData{
-				UUID:      volume.UUID,
-				AccountID: volume.AccountID,
-				Labels:    limitedLabels,
+				UUID:          volume.UUID,
+				AccountID:     volume.AccountID,
+				Labels:        limitedLabels,
+				LargeCapacity: largeCapacity,
+				VolumeStyle:   getVolumeStyle(largeCapacity),
 			}
 			resourceType := metadata.Volume
 			if volume.IsRegionalHA() {
@@ -471,6 +480,9 @@ func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartT
 				ConsumerID:     accountName,
 			}
 			resourceCollection.VolumeData[id] = volumeResourceData
+
+			// Populate lookup for use by fetchBackupData and fetchVolumeReplicationData
+			resourceCollection.VolumeLargeCapacityLookup[volume.UUID] = largeCapacity
 		}
 
 		totalProcessed += len(volumes)
@@ -544,10 +556,16 @@ func (p *BillingProvider) fetchBackupData(ctx context.Context, aggregationStartT
 				labels = make(Labels)
 			}
 
+			// Get LargeCapacity from lookup (populated in fetchVolumeData)
+			largeCapacity := resourceCollection.VolumeLargeCapacityLookup[backup.VolumeUUID]
+			volumeStyle := getVolumeStyle(largeCapacity)
+
 			backupResourceData := ResourceData{
-				UUID:      backup.VolumeUUID, // Using volume UUID
-				AccountID: backup.BackupVault.AccountID,
-				Labels:    labels,
+				UUID:          backup.VolumeUUID, // Using volume UUID
+				AccountID:     backup.BackupVault.AccountID,
+				Labels:        labels,
+				LargeCapacity: largeCapacity,
+				VolumeStyle:   volumeStyle,
 			}
 			id := ResourceKey{
 				ResourceType:   metadata.Backup,
@@ -611,10 +629,16 @@ func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggreg
 				continue
 			}
 
+			// Check if volume is nil - must be checked before any Volume access
+			if volumeReplication.Volume == nil {
+				logger.Warnf("Skipping volume replication %s (%s) due to nil Volume relationship", volumeReplication.Name, volumeReplication.UUID)
+				continue
+			}
+
 			// Check if we need to skip files volumes
 			if !p.config.EnableFilesReplicationBillingMetrics {
-				if volumeReplication.Volume == nil || volumeReplication.Volume.VolumeAttributes == nil || volumeReplication.Volume.VolumeAttributes.Protocols == nil {
-					logger.Warnf("Skipping volume replication %s (%s) due to missing volume or volume attributes", volumeReplication.Name, volumeReplication.UUID)
+				if volumeReplication.Volume.VolumeAttributes == nil || volumeReplication.Volume.VolumeAttributes.Protocols == nil {
+					logger.Warnf("Skipping volume replication %s (%s) due to missing volume attributes", volumeReplication.Name, volumeReplication.UUID)
 					continue
 				}
 				if !slices.Contains(volumeReplication.Volume.VolumeAttributes.Protocols, "ISCSI") {
@@ -641,11 +665,21 @@ func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggreg
 				}
 			}
 
+			// Get LargeCapacity from lookup (populated in fetchVolumeData)
+			// Fallback to direct access if not in lookup (volume might be outside time window)
+			largeCapacity, found := resourceCollection.VolumeLargeCapacityLookup[volumeReplication.Volume.UUID]
+			if !found && volumeReplication.Volume.LargeVolumeAttributes != nil {
+				largeCapacity = volumeReplication.Volume.LargeVolumeAttributes.LargeCapacity
+			}
+			volumeStyle := getVolumeStyle(largeCapacity)
+
 			volumeReplicationResourceData := ResourceData{
 				UUID:                  volumeReplication.UUID,
 				AccountID:             volumeReplication.AccountID,
 				Labels:                limitedLabels,
 				VolumeReplicationInfo: volRepInfo,
+				LargeCapacity:         largeCapacity,
+				VolumeStyle:           volumeStyle,
 			}
 			id := ResourceKey{
 				ResourceType:   metadata.VolumeReplicationRelationship,
@@ -750,6 +784,14 @@ func (p *BillingProvider) limitLabels(labels *datamodel.JSONB) Labels {
 	}
 
 	return limitedLabels
+}
+
+// getVolumeStyle extracts volume style from LargeCapacity flag (FLEXVOL or FLEXGROUP)
+func getVolumeStyle(largeCapacity bool) string {
+	if largeCapacity {
+		return "FLEXGROUP"
+	}
+	return "FLEXVOL"
 }
 
 // getResourceDataForAggregationUsage returns the billing labels for a given resource
@@ -988,6 +1030,28 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		quantity = BytesToMiB(quantity)
 	}
 
+	// Determine base billability
+	isBillable := common.IsBillableMetric(ctx, metrics.Metadata.ResourceType, metrics.MeasuredType)
+
+	// Disable billing for Large Volumes pools for CRR, Auto Tiering, and Backup features
+	// Only applies when EnableLargeVolumesBilling feature flag is disabled (default: false until GA)
+	// resourceData is guaranteed to be non-nil at this point (checked above)
+	if isBillable && !p.config.EnableLargeVolumesBilling {
+		// Check if this is a Large Volumes pool/volume
+		isLargeVolumesPool := resourceData.LargeCapacity
+
+		// Check if this is a feature we want to disable for Large Volumes pools
+		isCRRMetric := metrics.Metadata.ResourceType == metadata.VolumeReplicationRelationship
+		isBackupMetric := metrics.MeasuredType == metadata.BackupLogicalSize ||
+			metrics.MeasuredType == metadata.BackupEnabledVolumeAllocatedSize
+
+		if isLargeVolumesPool && (isCRRMetric || isBackupMetric || isAutoTieringBillingMetric(metrics.MeasuredType)) {
+			logger.Debugf("Disabling billing for Large Volumes pool resource %s (type: %s, measured: %s)",
+				resourceKey.ResourceName, metrics.Metadata.ResourceType, metrics.MeasuredType)
+			return nil
+		}
+	}
+
 	// Create aggregated record with all available fields
 	aggregated := &datamodel2.AggregatedUsage{
 		ResourceUUID:           resourceUUID,
@@ -1009,9 +1073,10 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		State:                  datamodel2.Unsubmitted,
 		ErrorCount:             0,
 		ErrorMessage:           nil,
-		IsBillable:             common.IsBillableMetric(ctx, metrics.Metadata.ResourceType, metrics.MeasuredType),
+		IsBillable:             isBillable,
 		AggregationType:        string(jobDef.AggregationType),
 		ServiceLevel:           unifiedServiceType,
+		VolumeStyle:            resourceData.VolumeStyle,
 	}
 
 	if aggregated.MeasuredType == metadata.BackupLogicalSize {

@@ -810,6 +810,7 @@ type PoolResourceData struct {
 	DeploymentName   string                    `gorm:"column:deployment_name"`
 	PoolAttributes   *datamodel.PoolAttributes `gorm:"column:pool_attributes;type:jsonb"`
 	AllowAutoTiering bool                      `gorm:"column:allow_auto_tiering"`
+	LargeCapacity    bool                      `gorm:"column:large_capacity"`
 }
 
 // GetAccountName returns the account name from PoolAttributes
@@ -854,7 +855,8 @@ func (d *DataStoreRepository) ListPoolsForResourceData(ctx context.Context, star
 			account_id,
 			deployment_name,
 			pool_attributes,
-			allow_auto_tiering
+			allow_auto_tiering,
+			large_capacity
 		`).
 		Where("(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", startTime, endTime)
 

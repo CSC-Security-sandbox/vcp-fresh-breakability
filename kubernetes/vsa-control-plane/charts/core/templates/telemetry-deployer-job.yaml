@@ -155,6 +155,8 @@ spec:
               value: {{ .Values.telemetryDeployer.enableFilesReplicationBillingMetrics | default "false" | quote }}
             - name: ENABLE_CROSS_REGION_BACKUP_BILLING_METRICS
               value: {{ .Values.telemetryDeployer.enableCrossRegionBackupBillingMetrics | default "false" | quote }}
+            - name: ENABLE_LARGE_VOLUMES_BILLING
+              value: {{ .Values.telemetryDeployer.enableLargeVolumesBilling | default "false" | quote }}
             - name: ENABLE_BATCH_USAGE_UPDATES
               value: {{ .Values.telemetryDeployer.enableBatchUsageUpdates | default "false" | quote }}
             - name: RESULT_UPDATE_BATCH_SIZE

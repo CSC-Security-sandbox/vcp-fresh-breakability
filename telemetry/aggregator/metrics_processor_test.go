@@ -448,6 +448,7 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 	mockDB := &database.MockStorage{}
 	processor := &BillingProvider{
 		metricsDB: mockDB,
+		config:    &common.TelemetryConfig{},
 	}
 	ctx := context.Background()
 	logger := util.GetLogger(ctx)
@@ -612,9 +613,10 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 		// With batch saving, test the collected record instead
 		var aggregatedRecords []datamodel2.AggregatedUsage
 		resourceCollection := &ResourceCollection{
-			PoolData:              make(map[ResourceKey]ResourceData),
-			VolumeData:            make(map[ResourceKey]ResourceData),
-			VolumeReplicationData: make(map[ResourceKey]ResourceData),
+			PoolData:                  make(map[ResourceKey]ResourceData),
+			VolumeData:                make(map[ResourceKey]ResourceData),
+			VolumeReplicationData:     make(map[ResourceKey]ResourceData),
+			VolumeLargeCapacityLookup: make(map[string]bool),
 		}
 
 		resourceIDRep := ResourceKey{
@@ -4126,4 +4128,384 @@ func TestFetchPoolData_AllowAutoTieringField(t *testing.T) {
 		"Pool with AllowAutoTiering=false should have AllowAutoTiering unset in resource data")
 
 	mockVcpDB.AssertExpectations(t)
+}
+
+// TestVolumeLargeCapacityLookup_PopulatedInFetchVolumeData verifies that VolumeLargeCapacityLookup
+// is populated when fetching volumes with LargeCapacity=true
+func TestVolumeLargeCapacityLookup_PopulatedInFetchVolumeData(t *testing.T) {
+	ctx := context.Background()
+	mockVcpDB := &database2.MockStorage{}
+	mockMetricsDB := &database.MockStorage{}
+	mockSink := &MockUsageSink{}
+	config := &common.TelemetryConfig{PoolVolumeLabelPageSize: 100, GoogleBillingLabelsMaxEntries: 10}
+	provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+	// Mock volumes - one with LargeCapacity, one without
+	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{
+		{
+			UUID:      "large-vol-uuid",
+			Name:      "large_volume",
+			AccountID: 1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "account1",
+				DeploymentName: "dep1",
+			},
+			LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+				LargeCapacity: true,
+			},
+		},
+		{
+			UUID:      "regular-vol-uuid",
+			Name:      "regular_volume",
+			AccountID: 1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "account1",
+				DeploymentName: "dep1",
+			},
+			LargeVolumeAttributes: nil, // Regular volume
+		},
+	}, nil).Once()
+	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
+
+	resourceCollection := &ResourceCollection{
+		VolumeData:                make(map[ResourceKey]ResourceData),
+		VolumeLargeCapacityLookup: make(map[string]bool),
+	}
+
+	startTime := time.Now().Add(-1 * time.Hour)
+
+	err := provider.fetchVolumeData(ctx, startTime, resourceCollection)
+	assert.NoError(t, err)
+
+	// Verify lookup is populated correctly
+	assert.True(t, resourceCollection.VolumeLargeCapacityLookup["large-vol-uuid"], "Large volume should have LargeCapacity=true in lookup")
+	assert.False(t, resourceCollection.VolumeLargeCapacityLookup["regular-vol-uuid"], "Regular volume should have LargeCapacity=false in lookup")
+
+	mockVcpDB.AssertExpectations(t)
+}
+
+// TestProcessMetricsWithJobDef_DisableBillingForLargeVolumes_CRR verifies that CRR billing
+// is disabled for Large Volumes when EnableLargeVolumesBilling feature flag is false
+func TestProcessMetricsWithJobDef_DisableBillingForLargeVolumes_CRR(t *testing.T) {
+	mockDB := &database.MockStorage{}
+	processor := &BillingProvider{
+		metricsDB: mockDB,
+		config:    &common.TelemetryConfig{EnableLargeVolumesBilling: false},
+	}
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+	now := time.Now()
+	startTime := now.Add(-1 * time.Hour)
+
+	resourceID := ResourceKey{
+		ResourceType:   metadata.VolumeReplicationRelationship,
+		ResourceName:   "test-replication-uuid",
+		DeploymentName: "dep1",
+		ConsumerID:     "test-customer",
+	}
+
+	repName := "replication1"
+	srcLoc := "us-west"
+	dstLoc := "us-east"
+	dstVolUUID := "dst-vol-uuid"
+
+	resourceCollection := &ResourceCollection{
+		VolumeReplicationData: map[ResourceKey]ResourceData{
+			resourceID: {
+				UUID:          "test-uuid",
+				AccountID:     123,
+				Labels:        Labels{"env": "test"},
+				LargeCapacity: true, // Large Volumes pool
+				VolumeStyle:   "FLEXGROUP",
+				VolumeReplicationInfo: &VolumeReplicationInfo{
+					ReplicationType:       "CROSS_REGION_REPLICATION",
+					ReplicationSchedule:   "hourly",
+					ReplicationName:       &repName,
+					SourceLocation:        &srcLoc,
+					DestinationLocation:   &dstLoc,
+					DestinationVolumeUUID: &dstVolUUID,
+				},
+			},
+		},
+		VolumeLargeCapacityLookup: make(map[string]bool),
+	}
+
+	metrics := []datamodel2.HydratedMetrics{
+		{
+			ResourceName:    "test-uuid",
+			ConsumerID:      "test-customer",
+			Location:        "test-location",
+			Quantity:        100,
+			MetricTimestamp: now,
+			ResourceType:    metadata.VolumeReplicationRelationship,
+			MeasuredType:    metadata.XregionReplicationTotalTransferBytes,
+			DeploymentName:  "dep1",
+		},
+	}
+
+	var aggregatedRecords []datamodel2.AggregatedUsage
+	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+
+	assert.NoError(t, err)
+	assert.Len(t, aggregatedRecords, 0, "No record should be created for Large Volumes with CRR when EnableLargeVolumesBilling is false")
+}
+
+// TestProcessMetricsWithJobDef_DisableBillingForLargeVolumes_Backup verifies that Backup billing
+// is disabled for Large Volumes when EnableLargeVolumesBilling feature flag is false
+func TestProcessMetricsWithJobDef_DisableBillingForLargeVolumes_Backup(t *testing.T) {
+	mockDB := &database.MockStorage{}
+	processor := &BillingProvider{
+		metricsDB: mockDB,
+		config:    &common.TelemetryConfig{EnableLargeVolumesBilling: false},
+	}
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+	now := time.Now()
+	startTime := now.Add(-1 * time.Hour)
+
+	resourceID := ResourceKey{
+		ResourceType:   metadata.Backup,
+		ResourceName:   "test-backup-volume-uuid",
+		DeploymentName: "Vault1",
+		ConsumerID:     "Account1",
+	}
+
+	resourceCollection := &ResourceCollection{
+		BackupData: map[ResourceKey]ResourceData{
+			resourceID: {
+				UUID:          "test-backup-volume-uuid",
+				AccountID:     123,
+				Labels:        Labels{"env": "test"},
+				LargeCapacity: true, // Large Volumes pool
+				VolumeStyle:   "FLEXGROUP",
+			},
+		},
+		VolumeLargeCapacityLookup: make(map[string]bool),
+	}
+
+	metrics := []datamodel2.HydratedMetrics{
+		{
+			ResourceName:    "test-backup-volume-uuid",
+			ConsumerID:      "Account1",
+			Location:        "test-location",
+			Quantity:        1024,
+			MetricTimestamp: now,
+			ResourceType:    metadata.Backup,
+			MeasuredType:    metadata.BackupLogicalSize,
+			DeploymentName:  "Vault1",
+		},
+	}
+
+	var aggregatedRecords []datamodel2.AggregatedUsage
+	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.SumAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+
+	assert.NoError(t, err)
+	assert.Len(t, aggregatedRecords, 0, "No record should be created for Large Volumes with Backup when EnableLargeVolumesBilling is false")
+}
+
+// TestProcessMetricsWithJobDef_EnableBillingForLargeVolumes_WhenFlagEnabled verifies that billing
+// remains enabled for Large Volumes when EnableLargeVolumesBilling is true
+func TestProcessMetricsWithJobDef_EnableBillingForLargeVolumes_WhenFlagEnabled(t *testing.T) {
+	mockDB := &database.MockStorage{}
+	processor := &BillingProvider{
+		metricsDB: mockDB,
+		config:    &common.TelemetryConfig{EnableLargeVolumesBilling: true}, // Feature flag enabled
+	}
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+	now := time.Now()
+	startTime := now.Add(-1 * time.Hour)
+
+	resourceID := ResourceKey{
+		ResourceType:   metadata.VolumeReplicationRelationship,
+		ResourceName:   "test-replication-uuid",
+		DeploymentName: "dep1",
+		ConsumerID:     "test-customer",
+	}
+
+	repName := "replication1"
+	srcLoc := "us-west"
+	dstLoc := "us-east"
+	dstVolUUID := "dst-vol-uuid"
+
+	resourceCollection := &ResourceCollection{
+		VolumeReplicationData: map[ResourceKey]ResourceData{
+			resourceID: {
+				UUID:          "test-uuid",
+				AccountID:     123,
+				Labels:        Labels{"env": "test"},
+				LargeCapacity: true, // Large Volumes pool
+				VolumeStyle:   "FLEXGROUP",
+				VolumeReplicationInfo: &VolumeReplicationInfo{
+					ReplicationType:       "CROSS_REGION_REPLICATION",
+					ReplicationSchedule:   "hourly",
+					ReplicationName:       &repName,
+					SourceLocation:        &srcLoc,
+					DestinationLocation:   &dstLoc,
+					DestinationVolumeUUID: &dstVolUUID,
+				},
+			},
+		},
+		VolumeLargeCapacityLookup: make(map[string]bool),
+	}
+
+	metrics := []datamodel2.HydratedMetrics{
+		{
+			ResourceName:    "test-uuid",
+			ConsumerID:      "test-customer",
+			Location:        "test-location",
+			Quantity:        100,
+			MetricTimestamp: now,
+			ResourceType:    metadata.VolumeReplicationRelationship,
+			MeasuredType:    metadata.XregionReplicationTotalTransferBytes,
+			DeploymentName:  "dep1",
+		},
+	}
+
+	var aggregatedRecords []datamodel2.AggregatedUsage
+	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+
+	assert.NoError(t, err)
+	assert.Len(t, aggregatedRecords, 1)
+	// When feature flag is enabled, billing should remain enabled for Large Volumes
+	assert.True(t, aggregatedRecords[0].IsBillable, "CRR billing should be enabled when EnableLargeVolumesBilling is true")
+}
+
+// TestFetchVolumeReplicationData_NilVolume verifies that volume replications with nil Volume are skipped
+func TestFetchVolumeReplicationData_NilVolume(t *testing.T) {
+	ctx := context.Background()
+	mockVcpDB := &database2.MockStorage{}
+	mockMetricsDB := &database.MockStorage{}
+	mockSink := &MockUsageSink{}
+	config := &common.TelemetryConfig{
+		PoolVolumeLabelPageSize:         100,
+		GoogleBillingLabelsMaxEntries:   10,
+		EnableReplicationBillingMetrics: true,
+	}
+	provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+	// Mock volume replications - one with nil Volume
+	mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "vol-rep-uuid-nil"},
+			Name:      "replication-nil-volume",
+			Volume:    nil, // Nil volume - should be skipped
+			Account:   &datamodel.Account{Name: "account1"},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationType: "CROSS_REGION_REPLICATION",
+				ExternalUUID:    "ext-uuid-nil",
+			},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "vol-rep-uuid-valid"},
+			Name:      "replication-valid",
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+				Name:      "vol1",
+				Pool:      &datamodel.Pool{DeploymentName: "dep1"},
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					Protocols: []string{"ISCSI"},
+				},
+				LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+					LargeCapacity: true,
+				},
+			},
+			Account: &datamodel.Account{Name: "account1"},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationType: "CROSS_REGION_REPLICATION",
+				ExternalUUID:    "ext-uuid-valid",
+				Labels:          &datamodel.JSONB{"env": "prod"},
+			},
+		},
+	}, nil).Once()
+	mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
+
+	resourceCollection := &ResourceCollection{
+		VolumeReplicationData:     make(map[ResourceKey]ResourceData),
+		VolumeLargeCapacityLookup: make(map[string]bool),
+	}
+
+	startTime := time.Now().Add(-1 * time.Hour)
+
+	err := provider.fetchVolumeReplicationData(ctx, startTime, resourceCollection)
+	assert.NoError(t, err)
+
+	// Only the valid replication should be in the collection (nil Volume one was skipped)
+	assert.Len(t, resourceCollection.VolumeReplicationData, 1)
+
+	// Verify the valid replication has LargeCapacity from LargeVolumeAttributes (fallback path)
+	for _, data := range resourceCollection.VolumeReplicationData {
+		assert.True(t, data.LargeCapacity, "Should get LargeCapacity from LargeVolumeAttributes fallback")
+		assert.Equal(t, "FLEXGROUP", data.VolumeStyle, "VolumeStyle should be FLEXGROUP for large capacity")
+	}
+
+	mockVcpDB.AssertExpectations(t)
+}
+
+// TestProcessMetricsWithJobDef_RegularVolumes_BillingEnabled verifies that billing
+// is enabled for regular (non-Large) volumes even when EnableLargeVolumesBilling is false
+func TestProcessMetricsWithJobDef_RegularVolumes_BillingEnabled(t *testing.T) {
+	mockDB := &database.MockStorage{}
+	processor := &BillingProvider{
+		metricsDB: mockDB,
+		config:    &common.TelemetryConfig{EnableLargeVolumesBilling: false}, // Feature flag disabled (billing off for large volumes)
+	}
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+	now := time.Now()
+	startTime := now.Add(-1 * time.Hour)
+
+	resourceID := ResourceKey{
+		ResourceType:   metadata.VolumeReplicationRelationship,
+		ResourceName:   "test-replication-uuid",
+		DeploymentName: "dep1",
+		ConsumerID:     "test-customer",
+	}
+
+	repName := "replication1"
+	srcLoc := "us-west"
+	dstLoc := "us-east"
+	dstVolUUID := "dst-vol-uuid"
+
+	resourceCollection := &ResourceCollection{
+		VolumeReplicationData: map[ResourceKey]ResourceData{
+			resourceID: {
+				UUID:          "test-uuid",
+				AccountID:     123,
+				Labels:        Labels{"env": "test"},
+				LargeCapacity: false, // Regular volume (not Large Volumes pool)
+				VolumeStyle:   "FLEXVOL",
+				VolumeReplicationInfo: &VolumeReplicationInfo{
+					ReplicationType:       "CROSS_REGION_REPLICATION",
+					ReplicationSchedule:   "hourly",
+					ReplicationName:       &repName,
+					SourceLocation:        &srcLoc,
+					DestinationLocation:   &dstLoc,
+					DestinationVolumeUUID: &dstVolUUID,
+				},
+			},
+		},
+		VolumeLargeCapacityLookup: make(map[string]bool),
+	}
+
+	metrics := []datamodel2.HydratedMetrics{
+		{
+			ResourceName:    "test-uuid",
+			ConsumerID:      "test-customer",
+			Location:        "test-location",
+			Quantity:        100,
+			MetricTimestamp: now,
+			ResourceType:    metadata.VolumeReplicationRelationship,
+			MeasuredType:    metadata.XregionReplicationTotalTransferBytes,
+			DeploymentName:  "dep1",
+		},
+	}
+
+	var aggregatedRecords []datamodel2.AggregatedUsage
+	err := processor.processMetricsWithJobDef(ctx, resourceID, hydratedMetricsToTimeSeries(metrics, startTime, now), common.AggregationJobDefinition{AggregationType: common.CounterAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+
+	assert.NoError(t, err)
+	assert.Len(t, aggregatedRecords, 1)
+	// Regular volumes should have billing enabled
+	assert.True(t, aggregatedRecords[0].IsBillable, "CRR billing should be enabled for regular volumes")
 }

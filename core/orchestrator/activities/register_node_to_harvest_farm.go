@@ -28,10 +28,11 @@ const (
 )
 
 var (
-	createKubernetesLease = utils.CreateKubernetesLease
-	leaseExists           = utils.LeaseExists
-	vcpLeaseNameSpace     = env.GetString("LEASE_NAMESPACE", "vcp")
-	smHarvestAuthEnabled  = env.GetBool("HARVEST_SECRET_MANAGER_AUTH_ENABLED", false)
+	createKubernetesLease         = utils.CreateKubernetesLease
+	leaseExists                   = utils.LeaseExists
+	vcpLeaseNameSpace             = env.GetString("LEASE_NAMESPACE", "vcp")
+	smHarvestAuthEnabled          = env.GetBool("HARVEST_SECRET_MANAGER_AUTH_ENABLED", false)
+	enableMultiHaPairRegistration = env.GetBool("ENABLE_MULTI_HA_PAIR_REGISTRATION", false)
 )
 
 // RegisterNodeToHarvestFarmInput holds input parameters for the activity
@@ -62,15 +63,16 @@ type RegisterNodeToHarvestFarmActivity struct {
 	LoadHarvestTemplateFunc func() (string, error)
 }
 
-// RegisterNodeToHarvestFarm registers two nodes to the Harvest farm and assigns them to node groups in the database
+// RegisterNodeToHarvestFarm registers all nodes to the Harvest farm and assigns them to node groups in the database.
+// Nodes are processed in pairs (HA pairs) - for Large Volumes pools with multiple HA pairs, all pairs are registered.
 // Now returns output for the upload activity
 func (a *RegisterNodeToHarvestFarmActivity) RegisterNodeToHarvestFarm(ctx context.Context, input RegisterNodeToHarvestFarmInput) ([]*datamodel.NodeNodeGroupMap, error) {
 	logger := util.GetLogger(ctx)
-	logger.Infof("Registering nodes to Harvest farm: %d", input.PoolID)
+	logger.Infof("Registering nodes to Harvest farm for pool ID: %d", input.PoolID)
 
 	nodes, err := a.SE.GetNodesByPoolID(ctx, input.PoolID)
 	if err != nil {
-		logger.Errorf("Failed to fetch node for pool ID %d: %v", input.PoolID, err)
+		logger.Errorf("Failed to fetch nodes for pool ID %d: %v", input.PoolID, err)
 		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("error fetching nodes for pool ID %d: %w", input.PoolID, err))
 	}
 
@@ -79,28 +81,85 @@ func (a *RegisterNodeToHarvestFarmActivity) RegisterNodeToHarvestFarm(ctx contex
 		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("not enough nodes found for pool"))
 	}
 
-	nodeMappings, err := a.SE.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
-		Node1:            nodes[0],
-		Node2:            nodes[1],
-		MaxNodesPerGroup: input.MaxNodesPerGroup,
-		CustomerProject:  input.CustomerProjectID,
-		TenantProject:    input.TenantProjectID,
-		DeploymentName:   input.DeploymentName,
-		PoolName:         input.PoolName,
-		IsRegionalHA:     input.IsRegionalHA,
-	})
-	if err != nil {
-		logger.Errorf("Failed to assign nodes to groups for pool ID %d: %v", input.PoolID, err)
-		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("error assigning nodes to groups for pool ID %d: %w", input.PoolID, err))
+	// Warn if odd number of nodes (shouldn't happen for HA pairs)
+	if len(nodes)%2 != 0 {
+		logger.Warnf("Pool ID %d has odd number of nodes (%d), last node will be skipped", input.PoolID, len(nodes))
 	}
 
-	if len(nodeMappings) < 2 {
-		logger.Errorf("Node group assignment returned insufficient mappings for pool ID %d", input.PoolID)
-		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("node group assignment returned insufficient mappings for pool"))
+	// Determine how many nodes to process based on feature flag
+	maxNodesToProcess := len(nodes)
+	if !enableMultiHaPairRegistration && maxNodesToProcess > 2 {
+		logger.Infof("Multi-HA pair registration is disabled, registering only first HA pair (2 nodes) for pool ID %d", input.PoolID)
+		maxNodesToProcess = 2
 	}
 
-	logger.Infof("Successfully registered and assigned nodes %d and %d to groups", nodes[0].ID, nodes[1].ID)
-	return nodeMappings, nil
+	logger.Infof("Processing %d nodes (%d HA pairs) for pool ID %d", maxNodesToProcess, maxNodesToProcess/2, input.PoolID)
+
+	var allMappings []*datamodel.NodeNodeGroupMap
+
+	// Process nodes in pairs (HA pairs)
+	for i := 0; i < maxNodesToProcess; i += 2 {
+		if i+1 >= maxNodesToProcess {
+			// Skip if we don't have a complete pair
+			break
+		}
+
+		node1 := nodes[i]
+		node2 := nodes[i+1]
+
+		logger.Debugf("Assigning HA pair %d: node1=%d (%s), node2=%d (%s)",
+			(i/2)+1, node1.ID, node1.Name, node2.ID, node2.Name)
+
+		nodeMappings, err := a.SE.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+			Node1:            node1,
+			Node2:            node2,
+			MaxNodesPerGroup: input.MaxNodesPerGroup,
+			CustomerProject:  input.CustomerProjectID,
+			TenantProject:    input.TenantProjectID,
+			DeploymentName:   input.DeploymentName,
+			PoolName:         input.PoolName,
+			IsRegionalHA:     input.IsRegionalHA,
+		})
+		if err != nil {
+			logger.Errorf("Failed to assign nodes %d and %d to groups for pool ID %d: %v",
+				node1.ID, node2.ID, input.PoolID, err)
+			// Rollback: delete all previously created mappings to maintain atomicity
+			a.rollbackNodeMappings(ctx, allMappings, logger)
+			return nil, vsaerrors.ExtractCustomError(fmt.Errorf("error assigning nodes to groups for pool ID %d: %w", input.PoolID, err))
+		}
+
+		if len(nodeMappings) < 2 {
+			logger.Errorf("Node group assignment returned insufficient mappings for nodes %d and %d in pool ID %d",
+				node1.ID, node2.ID, input.PoolID)
+			// Rollback: delete all previously created mappings to maintain atomicity
+			a.rollbackNodeMappings(ctx, allMappings, logger)
+			return nil, vsaerrors.ExtractCustomError(fmt.Errorf("node group assignment returned insufficient mappings for pool"))
+		}
+
+		allMappings = append(allMappings, nodeMappings...)
+		logger.Infof("Successfully registered HA pair %d: nodes %d and %d", (i/2)+1, node1.ID, node2.ID)
+	}
+
+	logger.Infof("Successfully registered all %d nodes (%d HA pairs) for pool ID %d",
+		len(allMappings), len(allMappings)/2, input.PoolID)
+	return allMappings, nil
+}
+
+// rollbackNodeMappings deletes all previously created node-group mappings to maintain atomicity.
+// This is called when registration fails for any HA pair after previous pairs have been registered.
+func (a *RegisterNodeToHarvestFarmActivity) rollbackNodeMappings(ctx context.Context, mappings []*datamodel.NodeNodeGroupMap, logger log.Logger) {
+	if len(mappings) == 0 {
+		return
+	}
+	logger.Infof("Rolling back %d node mappings due to registration failure", len(mappings))
+	for _, mapping := range mappings {
+		if err := a.SE.DeleteNodeNodeGroupMap(ctx, mapping.ID); err != nil {
+			logger.Warnf("Failed to rollback node mapping ID %d during cleanup: %v", mapping.ID, err)
+		} else {
+			logger.Debugf("Successfully rolled back node mapping ID %d", mapping.ID)
+		}
+	}
+	logger.Infof("Completed rollback of %d node mappings", len(mappings))
 }
 
 func (a *RegisterNodeToHarvestFarmActivity) ValidateAndCreateKubernetesLease(ctx context.Context, nodeGroupsMap []*datamodel.NodeNodeGroupMap) ([]*datamodel.NodeNodeGroupMap, error) {
