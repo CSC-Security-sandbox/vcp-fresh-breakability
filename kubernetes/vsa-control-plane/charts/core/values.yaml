@@ -147,6 +147,7 @@ deployerServiceAccountName: vcp-core
 metricsEnabled: false
 replicaCount: 1
 enableBackgroundTask: true
+enableJSwapVersionCheck: true
 requiredTakeoverReasons:
   - "disabled"
   - "Storage failover mailbox disks are in a degraded state"
