@@ -6,6 +6,7 @@ import (
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -205,6 +206,25 @@ func (m *mockFuture) Get(ctx context.Context, result interface{}) error {
 	return nil
 }
 
+type blockingFuture struct {
+	done chan struct{}
+	err  error
+}
+
+func (b *blockingFuture) GetID() string {
+	return ""
+}
+func (b *blockingFuture) GetRunID() string {
+	return ""
+}
+func (b *blockingFuture) GetWithOptions(ctx context.Context, valuePtr interface{}, options client.WorkflowRunGetOptions) error {
+	return nil
+}
+func (b *blockingFuture) Get(ctx context.Context, result interface{}) error {
+	<-b.done
+	return b.err
+}
+
 func TestPoll_PollOntapJobWorkflow_Success(t *testing.T) {
 	var suite testsuite.WorkflowTestSuite
 	env := suite.NewTestWorkflowEnvironment()
@@ -228,6 +248,56 @@ func TestPoll_PollOntapJobWorkflow_Success(t *testing.T) {
 
 	require.True(t, env.IsWorkflowCompleted())
 	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestPoll_PollOntapJobWorkflow_RecordsHeartbeat(t *testing.T) {
+	var suite testsuite.WorkflowTestSuite
+	env := suite.NewTestWorkflowEnvironment()
+	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
+
+	origFetchTemporalClient := fetchTemporalClient
+	fetchTemporalClient = func(ctx context.Context) client.Client {
+		return mockTemp
+	}
+	defer func() {
+		fetchTemporalClient = origFetchTemporalClient
+	}()
+
+	var heartbeatCount int32
+	origRecordHeartbeat := recordHeartbeat
+	recordHeartbeat = func(ctx context.Context, details ...interface{}) {
+		atomic.AddInt32(&heartbeatCount, 1)
+	}
+	defer func() {
+		recordHeartbeat = origRecordHeartbeat
+	}()
+
+	origHeartbeatInterval := pollerHeartbeatInterval
+	pollerHeartbeatInterval = 5 * time.Millisecond
+	defer func() {
+		pollerHeartbeatInterval = origHeartbeatInterval
+	}()
+
+	done := make(chan struct{})
+	mockFut := &blockingFuture{done: done}
+	mockTemp.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockFut, nil)
+
+	go func() {
+		for {
+			if atomic.LoadInt32(&heartbeatCount) > 0 {
+				close(done)
+				return
+			}
+			time.Sleep(2 * time.Millisecond)
+		}
+	}()
+
+	env.RegisterActivity(activityTest)
+	env.ExecuteWorkflow(workflowTest, RESTClientParams{}, "job-uuid")
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+	require.GreaterOrEqual(t, atomic.LoadInt32(&heartbeatCount), int32(1))
 }
 
 func TestPoll_PollOntapJobWorkflow_Error(t *testing.T) {

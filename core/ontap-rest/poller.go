@@ -21,6 +21,11 @@ import (
 var (
 	timeout = time.Duration(env.GetUint("ONTAP_REST_ASYNC_POLL_TIMEOUT_MINUTES", 30)) * time.Minute
 	wait    = time.Duration(env.GetUint("ONTAP_REST_ASYNC_POLL_WAIT_SECONDS", 3)) * time.Second
+	// pollerHeartbeatInterval is the interval at which heartbeats are recorded during ONTAP job polling.
+	// Note: Temporal SDK throttles heartbeats to send at most once per (HeartbeatTimeout * 0.8).
+	// With the default HeartbeatTimeout of 5 minutes (VOLUME_ACTIVITIES_HEARTBEAT_TIMEOUT_SEC=300),
+	// actual heartbeats will be sent every ~4 minutes regardless of this interval.
+	pollerHeartbeatInterval = 1 * time.Minute
 )
 
 // Poller describes a poller that polls a job
@@ -35,6 +40,7 @@ type poller struct {
 }
 
 var fetchTemporalClient = _fetchTemporalClient
+var recordHeartbeat = activity.RecordHeartbeat
 
 func _fetchTemporalClient(ctx context.Context) client.Client {
 	return activity.GetClient(ctx)
@@ -69,8 +75,34 @@ func (p *poller) Poll(UUID string) error {
 		return errors.New("failed to start ontap-rest job poll workflow")
 	}
 
+	// Spawn goroutine to record heartbeats while waiting for the polling workflow.
+	// This ensures that activities using Poll() don't get killed by HeartbeatTimeout
+	// during long-running ONTAP operations (e.g., large volume creation).
+	// Note: Temporal SDK throttles heartbeats to send at most once per (HeartbeatTimeout * 0.8).
+	heartbeatMsg := "Polling ONTAP job: " + UUID
+	done := make(chan struct{})
+	go func() {
+		// Record initial heartbeat immediately
+		recordHeartbeat(ctx, heartbeatMsg)
+
+		ticker := time.NewTicker(pollerHeartbeatInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				recordHeartbeat(ctx, heartbeatMsg)
+			}
+		}
+	}()
+
 	// Non-blocking wait for the workflow to complete.
-	if err = fut.Get(ctx, nil); err != nil {
+	err = fut.Get(ctx, nil)
+	close(done) // Stop heartbeat goroutine
+	if err != nil {
 		p.logger.Errorf("Failed to poll job with UUID %s, error: %v", UUID, err)
 		return errors.New("failed to poll ontap-rest job")
 	}
