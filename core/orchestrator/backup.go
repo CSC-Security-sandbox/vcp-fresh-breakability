@@ -359,6 +359,8 @@ func _updateBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	backup.StateDetails = models.LifeCycleStateUpdatingDetails
 
 	// Create a job for the update operation
+	backupVaultUUID := backup.BackupVault.UUID
+
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeUpdateBackup),
 		State:         string(models.JobsStateNEW),
@@ -366,6 +368,12 @@ func _updateBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID:         backup.UUID,
+			PreviousState:        originalState,
+			PreviousStateDetails: originalStateDetails,
+			PayloadAttributes:    map[string]interface{}{"backup_vault_uuid": backupVaultUUID, "account_name": account.Name},
+		},
 	}
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
@@ -658,6 +666,10 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	backup.State = models.LifeCycleStateDeleting
 	backup.StateDetails = models.LifeCycleStateDeletingDetails
 
+	backupVaultUUID := ""
+	if backup.BackupVault != nil {
+		backupVaultUUID = backup.BackupVault.UUID
+	}
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeDeleteBackup),
 		State:         string(models.JobsStateNEW),
@@ -665,6 +677,12 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID:         backup.UUID,
+			PreviousState:        originalState,
+			PreviousStateDetails: originalStateDetails,
+			PayloadAttributes:    map[string]interface{}{"backup_vault_uuid": backupVaultUUID, "account_name": account.Name},
+		},
 	}
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {

@@ -1692,6 +1692,8 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
+	previousState := volume.State
+	previousStateDetails := volume.StateDetails
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeDeleteVolume),
 		State:         string(models.JobsStateNEW),
@@ -1700,7 +1702,9 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
-			ResourceUUID: volume.UUID,
+			ResourceUUID:         volume.UUID,
+			PreviousState:        previousState,
+			PreviousStateDetails: previousStateDetails,
 		},
 	}
 
@@ -1966,12 +1970,18 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
+	previousState := dbVolume.State
+	previousStateDetails := dbVolume.StateDetails
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeUpdateVolume),
-		State:         string(models.JobsStateNEW),
-		ResourceName:  dbVolume.Name,
-		AccountID:     sql.NullInt64{Int64: dbVolume.AccountID, Valid: true},
-		JobAttributes: &datamodel.JobAttributes{ResourceUUID: dbVolume.UUID},
+		Type:         string(models.JobTypeUpdateVolume),
+		State:        string(models.JobsStateNEW),
+		ResourceName: dbVolume.Name,
+		AccountID:    sql.NullInt64{Int64: dbVolume.AccountID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID:         dbVolume.UUID,
+			PreviousState:        previousState,
+			PreviousStateDetails: previousStateDetails,
+		},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}

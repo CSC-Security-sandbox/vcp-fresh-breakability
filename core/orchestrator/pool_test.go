@@ -7637,3 +7637,50 @@ func TestEnrichPoolsWithExpertModeCapacity(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 }
+
+func TestDeletePool_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
+	t.Run("DeletePool_WhenAllConditionsMet_JobAttributesContainsPreviousStateAndDetails", func(tt *testing.T) {
+		ctx, store, _, temporal := setup(tt)
+		pools, account := createDBPools(t, store)
+		pool := pools[0]
+
+		previousState := models.LifeCycleStateAvailable
+		previousStateDetails := models.LifeCycleStateAvailableDetails
+		pool.State = previousState
+		pool.StateDetails = previousStateDetails
+		err := store.DB().Save(pool).Error
+		assert.NoError(tt, err)
+
+		params := &common.DeletePoolParams{
+			AccountName: account.Name,
+			PoolID:      pool.UUID,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.EXPECT().GetPool(ctx, params.PoolID, account.ID).Return(&datamodel.PoolView{
+			Pool: *pool,
+		}, nil)
+		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.JobAttributes != nil &&
+				job.JobAttributes.PreviousState == previousState &&
+				job.JobAttributes.PreviousStateDetails == previousStateDetails &&
+				job.JobAttributes.ResourceUUID == pool.UUID
+		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
+		mockStorage.EXPECT().DeletingPool(ctx, mock.Anything).Return(nil)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		result, jobID, err := _deletePool(ctx, temporal, mockStorage, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, pool.Name, result.Name)
+		assert.NotEmpty(tt, jobID)
+		mockStorage.AssertExpectations(tt)
+	})
+}

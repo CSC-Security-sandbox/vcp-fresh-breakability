@@ -314,9 +314,11 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 		}
 	}()
 
+	var kmsConfigOriginalStateDetails string
 	kmsConfig, err = se.GetKmsConfig(ctx, params.KmsConfigID)
 	if err == nil {
 		kmsConfigOriginalState = kmsConfig.State
+		kmsConfigOriginalStateDetails = kmsConfig.StateDetails
 		// If KMS config is already in DELETING state, check for existing delete job
 		if kmsConfig.State == models.LifeCycleStateDeleting {
 			existingJob, jobErr := se.GetJobByResourceUUID(ctx, params.KmsConfigID, string(models.JobTypeDeleteKmsConfig))
@@ -347,14 +349,20 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 				SdeKmsConfigUUID: params.KmsConfigID,
 			},
 		}
+		kmsConfigOriginalState = models.LifeCycleStateUnknown
+		kmsConfigOriginalStateDetails = ""
 	}
 
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeDeleteKmsConfig),
-		State:         string(models.JobsStateNEW),
-		ResourceName:  kmsConfig.ResourceID,
-		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
-		JobAttributes: &datamodel.JobAttributes{ResourceUUID: params.KmsConfigID},
+		Type:         string(models.JobTypeDeleteKmsConfig),
+		State:        string(models.JobsStateNEW),
+		ResourceName: kmsConfig.ResourceID,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID:         params.KmsConfigID,
+			PreviousState:        kmsConfigOriginalState,
+			PreviousStateDetails: kmsConfigOriginalStateDetails,
+		},
 		CorrelationID: params.XCorrelationID,
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}

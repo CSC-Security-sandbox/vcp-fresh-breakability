@@ -5913,3 +5913,54 @@ func Test_validateCreateBackupParams_RegularVolumeGetVolumeError(t *testing.T) {
 		store.AssertExpectations(t)
 	})
 }
+
+func TestDeleteBackup_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
+	t.Run("WhenDeleteBackup_JobAttributesContainsPreviousStateAndDetails", func(t *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		temporal := new(workflow_engine_mock.MockTemporalTestClient)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acc"}
+		params := &common.DeleteBackupParams{
+			BackupUUID:      "testBackupUUID",
+			AccountName:     "acc",
+			BackupVaultUUID: "testVaultID",
+		}
+
+		previousState := models.LifeCycleStateAvailable
+		previousStateDetails := models.LifeCycleStateAvailableDetails
+		backup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: params.BackupUUID},
+			State:        previousState,
+			StateDetails: previousStateDetails,
+			BackupVault:  &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: params.BackupVaultUUID}},
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		validateBackupDeleteParams = func(ctx context.Context, se database.Storage, params *common.DeleteBackupParams) error {
+			return nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateBackupDeleteParams = _validateBackupDeleteParams
+		}()
+
+		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(backup, nil)
+		conditions := [][]interface{}{{"volume_attributes->>'restored_backup_id' = ?", backup.UUID}, {"state = ?", "RESTORING"}}
+		store.On("ListVolumes", ctx, conditions).Return(nil, nil)
+		store.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.JobAttributes != nil &&
+				job.JobAttributes.PreviousState == previousState &&
+				job.JobAttributes.PreviousStateDetails == previousStateDetails &&
+				job.JobAttributes.ResourceUUID == backup.UUID
+		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
+		store.On("UpdateBackupState", ctx, mock.Anything).Return(backup, nil)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		_, jobUUID, err := deleteBackup(ctx, store, temporal, params)
+		assert.NoError(t, err)
+		assert.Equal(t, "job-uuid", jobUUID)
+		store.AssertExpectations(t)
+	})
+}

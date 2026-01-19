@@ -619,6 +619,8 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return ConvertDatastoreSnapshotToModel(snapshot), jobs[0].UUID, nil
 	}
 
+	previousState := snapshot.State
+	previousStateDetails := snapshot.StateDetails
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeDeleteSnapshot),
 		State:         string(models.JobsStateNEW),
@@ -627,8 +629,11 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
-			ResourceUUID: snapshot.UUID, // Storing the snapshot UUID
-			VolumeUUID:   volume.UUID,   // Storing the volume UUID for idempotency check
+			ResourceUUID:         snapshot.UUID, // Storing the snapshot UUID
+			VolumeUUID:           volume.UUID,   // Storing the volume UUID for idempotency check
+			PreviousState:        previousState,
+			PreviousStateDetails: previousStateDetails,
+			PayloadAttributes:    map[string]interface{}{"account_id": snapshot.Account.ID, "volume_id": volume.ID},
 		},
 	}
 

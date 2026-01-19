@@ -4608,4 +4608,107 @@ func TestCreateSnapshotSync_AdditionalPaths(t *testing.T) {
 	})
 }
 
+func TestDeleteSnapshot_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
+	t.Run("WhenDeleteSnapshot_JobAttributesContainsPreviousStateAndDetails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		previousState := models.LifeCycleStateREADY
+		previousStateDetails := models.LifeCycleStateAvailableDetails
+		snapshot := &datamodel.Snapshot{
+			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:         "test_snapshot",
+			AccountID:    account.ID,
+			VolumeID:     volume.ID,
+			Volume:       volume,
+			Account:      account,
+			State:        previousState,
+			StateDetails: previousStateDetails,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				SizeInBytes: 1024,
+			},
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		mockStorage := database.NewMockStorage(t)
+
+		params := &common.DeleteSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				AccountName: account.Name,
+				VolumeID:    volume.UUID,
+			},
+			SnapshotID: snapshot.UUID,
+		}
+
+		mockStorage.EXPECT().VerifyVolumeOwnership(ctx, params.VolumeID, params.AccountName).Return(volume, nil)
+		mockStorage.EXPECT().GetSnapshotByUUID(ctx, params.SnapshotID, account.ID, volume.ID).Return(snapshot, nil)
+		mockStorage.EXPECT().GetJobsWithCondition(ctx, mock.Anything).Return([]*datamodel.Job{}, nil)
+		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.JobAttributes != nil &&
+				job.JobAttributes.PreviousState == previousState &&
+				job.JobAttributes.PreviousStateDetails == previousStateDetails &&
+				job.JobAttributes.ResourceUUID == snapshot.UUID
+		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
+		mockStorage.EXPECT().DeletingSnapshot(ctx, mock.Anything).Return(nil)
+
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+		_, jobUUID, err := _deleteSnapshot(ctx, mockStorage, temporal, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "job-uuid", jobUUID)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
 // Tests for PollOntapJobDirectly_DefaultCase have been moved to core/ontap-rest/job_utils_test.go

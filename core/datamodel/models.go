@@ -593,6 +593,8 @@ type JobAttributes struct {
 	VolumeUUID           string                 `json:"volume_uuid,omitempty"`
 	CurrentRetryCount    int                    `json:"current_retry_count"`
 	Location             string                 `json:"location"`
+	PreviousState        string                 `json:"previous_state,omitempty"`        // For UPDATE/DELETE operations
+	PreviousStateDetails string                 `json:"previous_state_details,omitempty"` // For UPDATE/DELETE operations
 	SupervisorAttributes *SupervisorAttributes  `json:"supervisor_attributes,omitempty"`
 	PayloadAttributes    map[string]interface{} `json:"payload_attributes,omitempty"`
 }

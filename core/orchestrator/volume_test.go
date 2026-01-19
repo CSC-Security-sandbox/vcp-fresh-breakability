@@ -8122,6 +8122,98 @@ func TestDeleteVolume(t *testing.T) {
 	})
 }
 
+func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
+	t.Run("WhenDeleteVolume_JobAttributesContainsPreviousStateAndDetails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		previousState := models.LifeCycleStateAvailable
+		previousStateDetails := models.LifeCycleStateAvailableDetails
+		volume := &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:         "test_volume",
+			AccountID:    account.ID,
+			Account:      account,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			State:        previousState,
+			StateDetails: previousStateDetails,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection:  false,
+				Mounted:           false,
+				SnapReserve:       0,
+				SnapshotDirectory: false,
+			},
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		mockStorage := database.NewMockStorage(t)
+
+		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
+		mockStorage.EXPECT().IsBackupInCreatingorDeletingStateByVolume(ctx, volume.UUID).Return(false, nil)
+		mockStorage.EXPECT().GetVolumeReplicationCountByVolumeID(ctx, volume.ID).Return(int64(0), nil)
+		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.JobAttributes != nil &&
+				job.JobAttributes.PreviousState == previousState &&
+				job.JobAttributes.PreviousStateDetails == previousStateDetails &&
+				job.JobAttributes.ResourceUUID == volume.UUID
+		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
+		mockStorage.EXPECT().UpdateVolumeFields(ctx, volume.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+			return fields["state"] == models.LifeCycleStateDeleting &&
+				fields["state_details"] == models.LifeCycleStateDeletingDetails
+		})).Return(nil)
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{
+			Pool: *pool,
+		}, nil)
+
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+		_, _, err = _deleteVolume(ctx, mockStorage, temporal, "test-volume-uuid")
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
 func TestGetMultipleVolumes(t *testing.T) {
 	t.Run("WhenGetMultipleVolumesSuccess", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})

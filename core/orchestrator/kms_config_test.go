@@ -2627,3 +2627,53 @@ func TestGetSDEKmsConfiguration(t *testing.T) {
 		assert.Nil(tt, result)
 	})
 }
+
+func TestDeleteKmsConfig_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
+	t.Run("WhenDeleteKmsConfig_JobAttributesContainsPreviousStateAndDetails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflow_engine.NewMockTemporalTestClient(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+
+		previousState := models.LifeCycleStateREADY
+		previousStateDetails := "Kms config is ready for use"
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:    datamodel.BaseModel{UUID: "test-kms-config-uuid"},
+			ResourceID:   "test-kms-config",
+			State:        previousState,
+			StateDetails: previousStateDetails,
+			AccountID:    account.ID,
+		}
+
+		params := &common.DeleteKmsConfigParams{
+			KmsConfigID:   kmsConfig.UUID,
+			AccountName:   account.Name,
+			XCorrelationID: "test-correlation-id",
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		mockStorage.EXPECT().GetKmsConfig(ctx, params.KmsConfigID).Return(kmsConfig, nil)
+		mockStorage.EXPECT().IsKmsConfigInUse(ctx, kmsConfig.UUID).Return(false, nil)
+		mockStorage.EXPECT().ListOngoingPoolJobsWithKmsConfigId(ctx, kmsConfig.ID, kmsConfig.AccountID).Return([]*datamodel.Job{}, nil)
+		mockStorage.EXPECT().UpdateKmsConfigState(ctx, kmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(kmsConfig, nil)
+		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.JobAttributes != nil &&
+				job.JobAttributes.PreviousState == previousState &&
+				job.JobAttributes.PreviousStateDetails == previousStateDetails &&
+				job.JobAttributes.ResourceUUID == kmsConfig.UUID
+		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		_, jobUUID, err := _deleteKmsConfig(ctx, mockStorage, temporal, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "job-uuid", jobUUID)
+		mockStorage.AssertExpectations(tt)
+	})
+}

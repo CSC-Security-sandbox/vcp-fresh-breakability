@@ -329,6 +329,8 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 	}
 
 	poolCategory := models.GetPoolCategory(dbPool.LargeCapacity)
+	previousState := dbPool.State
+	previousStateDetails := dbPool.StateDetails
 	job := &datamodel.Job{
 		Type:          string(models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationUpdate, poolCategory)),
 		State:         string(models.JobsStateNEW),
@@ -336,6 +338,11 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID:         dbPool.UUID,
+			PreviousState:        previousState,
+			PreviousStateDetails: previousStateDetails,
+		},
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)
@@ -345,8 +352,6 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 	}
 
 	var poolMarkedAsUpdating bool
-	previousState := dbPool.State
-	previousStateDetails := dbPool.StateDetails
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
@@ -598,6 +603,9 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 	}
 
 	poolCategory := models.GetPoolCategory(pool.LargeCapacity)
+	dbpool := database.ConvertPoolViewToPool(pool)
+	previousState := dbpool.State
+	previousStateDetails := dbpool.StateDetails
 	job := &datamodel.Job{
 		Type:          string(models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationDelete, poolCategory)),
 		State:         string(models.JobsStateNEW),
@@ -606,7 +614,9 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 		CorrelationID: correlationID,
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
-			ResourceUUID: pool.UUID,
+			ResourceUUID:         pool.UUID,
+			PreviousState:        previousState,
+			PreviousStateDetails: previousStateDetails,
 		},
 	}
 
@@ -624,10 +634,6 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 			}
 		}
 	}()
-
-	dbpool := database.ConvertPoolViewToPool(pool)
-	previousState := dbpool.State
-	previousStateDetails := dbpool.StateDetails
 
 	if dbpool.State != models.LifeCycleStateCreating {
 		if err = se.DeletingPool(ctx, dbpool); err != nil {

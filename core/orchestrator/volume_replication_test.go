@@ -11490,3 +11490,88 @@ func Test_validateQuotaRulesForVolume(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 }
+
+func TestDeleteVolumeReplication_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
+	t.Run("WhenDeleteVolumeReplication_JobAttributesContainsPreviousStateAndDetails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+
+		previousState := models.LifeCycleStateAvailable
+		previousStateDetails := models.LifeCycleStateAvailableDetails
+		replicationModel := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-replication-uuid",
+			},
+			State:        previousState,
+			StateDetails: previousStateDetails,
+			Uri:          "test-replication-uri",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: "test-endpoint-type",
+			},
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+				Pool: &datamodel.Pool{
+					BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+				},
+			},
+		}
+
+		params := &commonparams.DeleteReplicationParams{
+			VolumeResourceId:      "test-volume-uuid",
+			ReplicationResourceId: "test-replication-uuid",
+			AccountName:           account.Name,
+			CorrelationId:         "test-correlation-id",
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		originalValidateReplicationParams := validateReplicationParams
+		validateReplicationParams = func(ctx context.Context, params *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanUp bool, jobType string) (*models.VolumeReplication, *string, error) {
+			// Set ReplicationModel on the event params (this is what the real function does)
+			params.ReplicationModel = replicationModel
+			return nil, nil, nil
+		}
+		defer func() {
+			validateReplicationParams = originalValidateReplicationParams
+		}()
+
+		originalVerifyReplicationDelete := VerifyReplicationDelete
+		VerifyReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+			// Convert datamodel to models for return
+			return &models.VolumeReplication{
+				BaseModel:    models.BaseModel{UUID: replicationModel.UUID},
+				State:        replicationModel.State,
+				StateDetails: replicationModel.StateDetails,
+				Uri:          replicationModel.Uri,
+			}, nil
+		}
+		defer func() {
+			VerifyReplicationDelete = originalVerifyReplicationDelete
+		}()
+
+		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.JobAttributes != nil &&
+				job.JobAttributes.PreviousState == previousState &&
+				job.JobAttributes.PreviousStateDetails == previousStateDetails &&
+				job.JobAttributes.ResourceUUID == replicationModel.UUID
+		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		_, jobUUID, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, "", false)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "job-uuid", jobUUID)
+		mockStorage.AssertExpectations(tt)
+	})
+}

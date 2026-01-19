@@ -181,6 +181,8 @@ func _updateVolumeReplicationInternal(ctx context.Context, se database.Storage, 
 		return nil, nil, err
 	}
 
+	previousState := replicationDb.State
+	previousStateDetails := replicationDb.StateDetails
 	replicationDb.State = models.LifeCycleStateUpdating
 	replicationDb.StateDetails = models.LifeCycleStateUpdatingDetails
 	err = se.UpdateVolumeReplicationStates(ctx, replicationDb)
@@ -196,8 +198,10 @@ func _updateVolumeReplicationInternal(ctx context.Context, se database.Storage, 
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
-			ResourceUUID: replicationDb.UUID,
-			PoolUUID:     replicationDb.Volume.Pool.UUID,
+			ResourceUUID:         replicationDb.UUID,
+			PoolUUID:             replicationDb.Volume.Pool.UUID,
+			PreviousState:        previousState,
+			PreviousStateDetails: previousStateDetails,
 		},
 	}
 
@@ -1876,6 +1880,8 @@ func _deleteReplicationInternal(ctx context.Context, se database.Storage, tempor
 		return nil, nil, errors.New("Error deleting volume Replication - Volume replication is already transitioning between states")
 	}
 
+	previousState := dbVolumeReplication.State
+	previousStateDetails := dbVolumeReplication.StateDetails
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeDeleteVolumeReplicationInternal),
 		State:         string(models.JobsStateNEW),
@@ -1884,8 +1890,10 @@ func _deleteReplicationInternal(ctx context.Context, se database.Storage, tempor
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
-			ResourceUUID: dbVolumeReplication.UUID,
-			PoolUUID:     dbVolumeReplication.Volume.Pool.UUID,
+			ResourceUUID:         dbVolumeReplication.UUID,
+			PoolUUID:             dbVolumeReplication.Volume.Pool.UUID,
+			PreviousState:        previousState,
+			PreviousStateDetails: previousStateDetails,
 		},
 	}
 	createdJob, err := se.CreateJob(ctx, job)
@@ -2014,6 +2022,20 @@ func _deleteReplication(ctx context.Context, se database.Storage, temporal clien
 		}
 	}
 
+	// Get previous state from database replication model
+	var previousState, previousStateDetails string
+	if event.ReplicationModel != nil {
+		previousState = event.ReplicationModel.State
+		previousStateDetails = event.ReplicationModel.StateDetails
+	} else {
+		// Fallback: try to get from database
+		dbReplication, dbErr := se.GetVolumeReplication(ctx, event.CommonReplicationEventParams.ReplicationResourceID)
+		if dbErr == nil && dbReplication != nil {
+			previousState = dbReplication.State
+			previousStateDetails = dbReplication.StateDetails
+		}
+	}
+
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeDeleteVolumeReplication),
 		State:         string(models.JobsStateNEW),
@@ -2022,8 +2044,10 @@ func _deleteReplication(ctx context.Context, se database.Storage, temporal clien
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
-			ResourceUUID: event.ReplicationModel.UUID,
-			PoolUUID:     event.ReplicationModel.Volume.Pool.UUID,
+			ResourceUUID:         event.ReplicationModel.UUID,
+			PoolUUID:             event.ReplicationModel.Volume.Pool.UUID,
+			PreviousState:        previousState,
+			PreviousStateDetails: previousStateDetails,
 		},
 	}
 
