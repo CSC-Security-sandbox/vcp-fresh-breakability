@@ -53,18 +53,17 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 	var sfrMetrics []entity.HydratedMetric
 	var hydratedMetrics []datamodel2.HydratedMetrics
 
-	// This list fetches backupVaults to filter volumes with cross-region backupVaults.
-	// TODO: CRB billing is temporary disabled for preview. Will enable cross-region backup billing metrics as per VSCP-3455.
+	// Pre-fetch backup vaults only when needed for billing filters (CRB or CMEK).
 	backupVaultMap := make(map[string]*datamodel.BackupVault)
-	if config.EnableBackupBillingMetrics && !config.EnableCrossRegionBackupBillingMetrics {
+	if config.EnableBackupBillingMetrics && (!config.EnableCrossRegionBackupBillingMetrics || !config.EnableCmekBackupBilling) {
 		backupVaults, err := vcpDB.GetMultipleBackupVaults(ctx, nil)
 		if err != nil {
-			logger.Error("Failed to fetch backup vaults", "error", err.Error())
+			logger.Error("Failed to fetch backup vaults for billing filters", "error", err.Error())
 		} else {
 			for _, bv := range backupVaults {
 				backupVaultMap[bv.UUID] = bv
 			}
-			logger.Info(fmt.Sprintf("Fetched %d backup vaults for cross-region filtering", len(backupVaults)))
+			logger.Info(fmt.Sprintf("Fetched %d backup vaults for billing filters", len(backupVaults)))
 		}
 	}
 
@@ -155,21 +154,35 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 
 					// Skip BMF billing metrics for volume with cross-region backupVaults
 					// TODO: CRB billing is temporary disabled for preview. Will enable cross-region backup billing metrics as per VSCP-3455.
-					shouldSkipCRBBillingMetrics := false
-					if !config.EnableCrossRegionBackupBillingMetrics {
-						if volume.DataProtection != nil && volume.DataProtection.BackupVaultID != "" {
-							bv, exists := backupVaultMap[volume.DataProtection.BackupVaultID]
-							if !exists {
-								logger.Error("Backup vault not found in map", "backupVaultID", volume.DataProtection.BackupVaultID, "for volumeUUID", volume.UUID)
-								shouldSkipCRBBillingMetrics = true
-							} else if bv.SourceRegionName != nil && bv.BackupRegionName != nil && *bv.SourceRegionName != *bv.BackupRegionName {
+					skipBilling := false
+					if !config.EnableCrossRegionBackupBillingMetrics && volume.DataProtection.BackupVaultID != "" {
+						if bv, exists := backupVaultMap[volume.DataProtection.BackupVaultID]; exists {
+							if bv.SourceRegionName != nil && bv.BackupRegionName != nil && *bv.SourceRegionName != *bv.BackupRegionName {
 								logger.Debug("Skipping BackupEnabledVolumeAllocatedSize billing metric for volume with cross-region backup vault", "volumeUUID", volume.UUID)
-								shouldSkipCRBBillingMetrics = true
+								skipBilling = true
 							}
+						} else {
+							logger.Error("Backup vault not found in map", "backupVaultID", volume.DataProtection.BackupVaultID, "for volumeUUID", volume.UUID)
+							skipBilling = true
 						}
 					}
 
-					if !shouldSkipCRBBillingMetrics {
+					// Additionally skip billing for CMEK backup vaults when CMEK backup billing is disabled.
+					if !skipBilling && !config.EnableCmekBackupBilling && volume.DataProtection.BackupVaultID != "" {
+						if bv, exists := backupVaultMap[volume.DataProtection.BackupVaultID]; exists {
+							if bv.CmekAttributes != nil && bv.CmekAttributes.KmsConfigResourcePath != nil && *bv.CmekAttributes.KmsConfigResourcePath != "" {
+								logger.Debug("Skipping BackupEnabledVolumeAllocatedSize billing metric for CMEK backup vault", "volumeUUID", volume.UUID, "backupVaultID", volume.DataProtection.BackupVaultID)
+								skipBilling = true
+							}
+						} else {
+							// Conservative: if we can't look up the vault while CMEK billing is disabled,
+							// treat it as non-billable to avoid incorrectly billing CMEK backups.
+							logger.Error("Backup vault not found in map for CMEK billing check", "backupVaultID", volume.DataProtection.BackupVaultID, "for volumeUUID", volume.UUID)
+							skipBilling = true
+						}
+					}
+
+					if !skipBilling {
 						if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, volumeMetadata, timestamp, float64(allocatedSize)); hydratedMetric != nil {
 							hydratedMetrics = append(hydratedMetrics, *hydratedMetric)
 						}

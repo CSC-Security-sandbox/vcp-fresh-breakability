@@ -93,11 +93,25 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 		metric := setupHydratedMetric(timestamp, backupMetadata, metadata.BackupLogicalSize, float64(backup.LatestLogicalBackupSize))
 		metrics = append(metrics, metric)
 
-		// skip billing for cross region backups if the feature flag is disabled
+		// Determine if we should skip billing for this backup.
+		skipBilling := false
+
+		// Skip billing for cross region backups if the feature flag is disabled.
 		if !config.EnableCrossRegionBackupBillingMetrics {
 			if backup.BackupVault != nil && backup.BackupVault.BackupVaultType == activities.CrossRegionBackupType {
 				logger.Debug("Skipping BackupLogicalSize billing metric for cross-region backup", "backupUUID", backup.UUID)
-				continue
+				skipBilling = true
+			}
+		}
+
+		// Skip billing for backups in CMEK backup vaults when CMEK backup billing is disabled.
+		if !skipBilling && !config.EnableCmekBackupBilling {
+			if backup.BackupVault != nil &&
+				backup.BackupVault.CmekAttributes != nil &&
+				backup.BackupVault.CmekAttributes.KmsConfigResourcePath != nil &&
+				*backup.BackupVault.CmekAttributes.KmsConfigResourcePath != "" {
+				logger.Debug("Skipping BackupLogicalSize billing metric for CMEK backup", "backupUUID", backup.UUID, "backupVaultID", backup.BackupVault.UUID)
+				skipBilling = true
 			}
 		}
 
@@ -106,9 +120,9 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 		if backup.Attributes != nil {
 			accountName = backup.Attributes.AccountIdentifier
 		}
-		// Execute only if SAN protocol or files backup billing enabled
+		// Execute only if SAN protocol or files backup billing enabled and billing is not skipped.
 		isSANProtocol := utils.IsSanProtocols(backup.Attributes.Protocols)
-		if config.EnableFilesBackupBilling || isSANProtocol {
+		if !skipBilling && (config.EnableFilesBackupBilling || isSANProtocol) {
 			if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, backupMetadata, timestamp, float64(backup.LatestLogicalBackupSize)); hydratedMetric != nil {
 				hydratedMetrics = append(hydratedMetrics, *hydratedMetric)
 			}

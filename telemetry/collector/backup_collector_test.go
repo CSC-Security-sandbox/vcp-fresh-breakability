@@ -1038,6 +1038,130 @@ func TestGetBackupMetrics_Skipping_Cross_Region_Backups_Billing_Metrics(t *testi
 	}
 }
 
+func TestGetBackupMetrics_CmekBackupBilling_SkipsAndIncludes(t *testing.T) {
+	tests := []struct {
+		name                          string
+		enableCmekBackupBilling       bool
+		backups                       []*datamodel.Backup
+		expectedHydratedMetricsCount  int
+		expectedDataModelMetricsCount int
+		description                   string
+	}{
+		{
+			name:                    "CMEK billing disabled - skip CMEK backup billing metrics",
+			enableCmekBackupBilling: false,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-cmek-1"},
+					Name:                    "CmekBackup1",
+					VolumeUUID:              "volume-uuid-cmek-1",
+					LatestLogicalBackupSize: 1024,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier: "AccountCmek1",
+						VolumeName:        "VolumeCmek1",
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel: datamodel.BaseModel{UUID: "vault-uuid-cmek-1"},
+						Name:      "BackupVaultCmek1",
+						CmekAttributes: &datamodel.CmekAttributes{
+							KmsConfigResourcePath: stringPtr("projects/p/locations/l/keyRings/r/cryptoKeys/k"),
+						},
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  1, // HydratedMetrics is always created
+			expectedDataModelMetricsCount: 0, // CMEK backups should be skipped when billing disabled
+			description:                   "CMEK backup should skip HydratedMetricsDataModel when CMEK billing is disabled",
+		},
+		{
+			name:                    "CMEK billing enabled - include CMEK backup billing metrics",
+			enableCmekBackupBilling: true,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-cmek-2"},
+					Name:                    "CmekBackup2",
+					VolumeUUID:              "volume-uuid-cmek-2",
+					LatestLogicalBackupSize: 2048,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier: "AccountCmek2",
+						VolumeName:        "VolumeCmek2",
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel: datamodel.BaseModel{UUID: "vault-uuid-cmek-2"},
+						Name:      "BackupVaultCmek2",
+						CmekAttributes: &datamodel.CmekAttributes{
+							KmsConfigResourcePath: stringPtr("projects/p2/locations/l2/keyRings/r2/cryptoKeys/k2"),
+						},
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  1,
+			expectedDataModelMetricsCount: 1, // Included when CMEK billing is enabled
+			description:                   "CMEK backup should create both metrics when CMEK billing is enabled",
+		},
+		{
+			name:                    "CMEK billing disabled - non-CMEK backups still billed",
+			enableCmekBackupBilling: false,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-non-cmek-1"},
+					Name:                    "NonCmekBackup1",
+					VolumeUUID:              "volume-uuid-non-cmek-1",
+					LatestLogicalBackupSize: 4096,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier: "AccountNonCmek1",
+						VolumeName:        "VolumeNonCmek1",
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel: datamodel.BaseModel{UUID: "vault-uuid-non-cmek-1"},
+						Name:      "BackupVaultNonCmek1",
+						// No CmekAttributes or empty path -> treated as non-CMEK
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  1,
+			expectedDataModelMetricsCount: 1, // Non-CMEK backups should still be billed
+			description:                   "Non-CMEK backup should create both metrics even when CMEK billing is disabled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := new(mockBackupStorage)
+			ctx := context.Background()
+			config := &common.TelemetryConfig{
+				RegionName:               "us-east-1",
+				EnableFilesBackupBilling: true, // Enable files backup billing to include in HydratedMetricsDataModel
+				EnableCmekBackupBilling:  tt.enableCmekBackupBilling,
+			}
+
+			// Mock the first call to return backups, subsequent calls return empty
+			m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+				return pagination.Offset == 0
+			})).Return(tt.backups, nil)
+			m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+				return pagination.Offset > 0
+			})).Return([]*datamodel.Backup{}, nil)
+
+			result, err := GetBackupMetrics(ctx, m, config, time.Now())
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+
+			// Verify counts
+			assert.Len(t, result.HydratedMetrics, tt.expectedHydratedMetricsCount,
+				"HydratedMetrics count mismatch: %s", tt.description)
+			assert.Len(t, result.HydratedMetricsDataModel, tt.expectedDataModelMetricsCount,
+				"HydratedMetricsDataModel count mismatch: %s", tt.description)
+
+			// HydratedMetrics should always be BackupLogicalSize when present
+			for i, metric := range result.HydratedMetrics {
+				assert.Equal(t, metadata.BackupLogicalSize, metric.MeasuredType,
+					"HydratedMetrics[%d] should have BackupLogicalSize type", i)
+			}
+		})
+	}
+}
+
 // Helper function to create string pointers
 func stringPtr(s string) *string {
 	return &s

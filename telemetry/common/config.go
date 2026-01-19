@@ -25,6 +25,7 @@ type TelemetryConfig struct {
 	EnableBackupMetrics                   bool
 	EnableBackupBillingMetrics            bool
 	EnableFilesBackupBilling              bool
+	EnableCmekBackupBilling               bool
 	EnableCrossRegionBackupBillingMetrics bool
 	EnableReplicationBillingMetrics       bool
 	EnableAutoTieringBillingMetrics       bool
@@ -73,6 +74,7 @@ func LoadConfig() *TelemetryConfig {
 	enableBackupMetrics := env.GetBool("ENABLE_BACKUP_METRICS", false)
 	enableBackupBillingMetrics := env.GetBool("ENABLE_BACKUP_BILLING_METRICS", false)
 	enableFilesBackupBilling := env.GetBool("ENABLE_FILES_BACKUP_BILLING", false)
+	enableCmekBackupBilling := env.GetBool("ENABLE_CMEK_BACKUP_BILLING", false)
 	enableReplicationBillingMetrics := env.GetBool("ENABLE_REPLICATION_BILLING_METRICS", false)
 	enableAutoTieringBillingMetrics := env.GetBool("ENABLE_AUTO_TIERING_BILLING_METRICS", false)
 	enableFilesAutoTieringBilling := env.GetBool("ENABLE_FILES_AUTO_TIERING_BILLING", false)
@@ -112,6 +114,7 @@ func LoadConfig() *TelemetryConfig {
 		EnableBackupMetrics:                   enableBackupMetrics,
 		EnableBackupBillingMetrics:            enableBackupBillingMetrics,
 		EnableFilesBackupBilling:              enableFilesBackupBilling,
+		EnableCmekBackupBilling:               enableCmekBackupBilling,
 		EnableCrossRegionBackupBillingMetrics: enableCrossRegionBackupBillingMetrics,
 		EnableReplicationBillingMetrics:       enableReplicationBillingMetrics,
 		EnableAutoTieringBillingMetrics:       enableAutoTieringBillingMetrics,

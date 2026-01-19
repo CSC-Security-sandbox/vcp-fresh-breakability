@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -15,6 +16,7 @@ import (
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 type mockVolumeStorage struct {
@@ -211,6 +213,156 @@ func Test_GetVolumeMetrics_EmptyVolumes(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.Empty(t, result.HydratedMetrics)
 	assert.Empty(t, result.HydratedMetricsDataModel)
+}
+
+func Test_GetVolumeMetrics_CmekBackupBillingDisabled_SkipsCmekVaults(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	backupChainBytes := int64(1024)
+	volumes := []*database.VolumeMetricsData{
+		{
+			UUID:        "volume-uuid-1",
+			Name:        "Volume1",
+			SizeInBytes: 2048,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account1",
+				DeploymentName: "test-deployment",
+				Protocols:      []string{"NFSv3"},
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:    "bv-1",
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+
+	backupVaults := []*datamodel.BackupVault{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "bv-1"},
+			CmekAttributes: &datamodel.CmekAttributes{
+				KmsConfigResourcePath: nillable.GetStringPtr("projects/test/locations/us/keyRings/kr/cryptoKeys/key/cryptoKeyVersions/1"),
+			},
+		},
+	}
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(backupVaults, nil)
+
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true
+	config.EnableCmekBackupBilling = false
+
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// CMEK billing disabled: no BackupEnabledVolumeAllocatedSize metrics for CMEK vaults
+	assert.Len(t, result.HydratedMetricsDataModel, 0)
+}
+
+func Test_GetVolumeMetrics_CmekBackupBillingEnabled_IncludesCmekVaults(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	backupChainBytes := int64(1024)
+	volumes := []*database.VolumeMetricsData{
+		{
+			UUID:        "volume-uuid-1",
+			Name:        "Volume1",
+			SizeInBytes: 2048,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account1",
+				DeploymentName: "test-deployment",
+				Protocols:      []string{"NFSv3"},
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:    "bv-1",
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+
+	backupVaults := []*datamodel.BackupVault{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "bv-1"},
+			CmekAttributes: &datamodel.CmekAttributes{
+				KmsConfigResourcePath: nillable.GetStringPtr("projects/test/locations/us/keyRings/kr/cryptoKeys/key/cryptoKeyVersions/1"),
+			},
+		},
+	}
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(backupVaults, nil)
+
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true
+	config.EnableCmekBackupBilling = true
+
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// CMEK billing enabled: BackupEnabledVolumeAllocatedSize metric should be present
+	require.Len(t, result.HydratedMetricsDataModel, 1)
+	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, result.HydratedMetricsDataModel[0].MeasuredType)
+	assert.Equal(t, float64(2048), result.HydratedMetricsDataModel[0].Quantity)
+}
+
+func Test_GetVolumeMetrics_CmekBackupBillingDisabled_VaultNotFound_SkipsBilling(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	backupChainBytes := int64(1024)
+	volumes := []*database.VolumeMetricsData{
+		{
+			UUID:        "volume-uuid-1",
+			Name:        "Volume1",
+			SizeInBytes: 2048,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account1",
+				DeploymentName: "test-deployment",
+				Protocols:      []string{"NFSv3"},
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:    "bv-1",
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+
+	// Simulate vault not returned from GetMultipleBackupVaults
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true
+	config.EnableCmekBackupBilling = false
+	// Make sure CRB gating does not interfere; this is a pure CMEK case.
+	config.EnableCrossRegionBackupBillingMetrics = true
+
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Vault not found while CMEK billing disabled: we conservatively skip billing.
+	assert.Len(t, result.HydratedMetricsDataModel, 0)
 }
 
 func Test_GetVolumeMetrics_ListVolumesWithAccountsError(t *testing.T) {

@@ -269,6 +269,7 @@ telemetryDeployer:
   enableSfrMetrics: false
   enableBackupBillingMetrics: false
   enableFilesBackupBilling: false
+  enableCmekBackupBilling: false
   enableCrossRegionBackupBillingMetrics: false
   enableReplicationBillingMetrics: false
   enableAutoTieringBillingMetrics: false
