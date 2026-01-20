@@ -1,6 +1,6 @@
 module main
 
-go 1.24.1
+go 1.24.11
 
 require (
 	github.com/andygrunwald/go-jira v1.16.0
