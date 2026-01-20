@@ -15,41 +15,42 @@ const (
 
 type TelemetryConfig struct {
 	// Server configuration
-	OperationBatchSize                    int64
-	PusherServiceName                     string
-	PusherServiceProject                  string
-	PerformanceRootUrl                    string
-	UsageRootUrl                          string
-	RegionName                            string
-	EnableVolumeMetrics                   bool
-	EnableBackupMetrics                   bool
-	EnableBackupBillingMetrics            bool
-	EnableFilesBackupBilling              bool
-	EnableCmekBackupBilling               bool
-	EnableCrossRegionBackupBillingMetrics bool
-	EnableReplicationBillingMetrics       bool
-	EnableAutoTieringBillingMetrics       bool
-	EnableFilesAutoTieringBilling         bool
-	EnableFilesReplicationBillingMetrics  bool
-	SFRMetricsEnabled                     bool
-	PushBatchSize                         int64
-	Environment                           string
-	MaxGoogleBillingPushRetry             int64
-	RetryIntervalSeconds                  int64
-	PageSize                              int32
-	NumWorkersPerformance                 int
-	NumWorkersUsage                       int
-	NumWorkersCollection                  int
-	NumWorkersBizOps                      int
-	NumWorkersBillingRetry                int
-	GoogleBillingLabelsMaxEntries         int
-	PoolVolumeLabelPageSize               int
-	EnableBatchUsageUpdates               bool // Feature flag for batch usage updates
-	ResultUpdateBatchSize                 int
-	TargetMinute                          int
-	IntervalBackfillLimitMinutes          int
-	CounterBackfillLimitMinutes           int
-	EnableLargeVolumesBilling             bool // When true, enables billing for Large Volumes pools (CRR/Backup/AutoTiering)
+	OperationBatchSize                           int64
+	PusherServiceName                            string
+	PusherServiceProject                         string
+	PerformanceRootUrl                           string
+	UsageRootUrl                                 string
+	RegionName                                   string
+	EnableVolumeMetrics                          bool
+	EnableBackupMetrics                          bool
+	EnableBackupBillingMetrics                   bool
+	EnableFilesBackupBilling                     bool
+	EnableCmekBackupBilling                      bool
+	EnableCrossRegionBackupBillingMetrics        bool
+	EnableReplicationBillingMetrics              bool
+	EnableBidirectionalReplicationBillingMetrics bool
+	EnableAutoTieringBillingMetrics              bool
+	EnableFilesAutoTieringBilling                bool
+	EnableFilesReplicationBillingMetrics         bool
+	SFRMetricsEnabled                            bool
+	PushBatchSize                                int64
+	Environment                                  string
+	MaxGoogleBillingPushRetry                    int64
+	RetryIntervalSeconds                         int64
+	PageSize                                     int32
+	NumWorkersPerformance                        int
+	NumWorkersUsage                              int
+	NumWorkersCollection                         int
+	NumWorkersBizOps                             int
+	NumWorkersBillingRetry                       int
+	GoogleBillingLabelsMaxEntries                int
+	PoolVolumeLabelPageSize                      int
+	EnableBatchUsageUpdates                      bool // Feature flag for batch usage updates
+	ResultUpdateBatchSize                        int
+	TargetMinute                                 int
+	IntervalBackfillLimitMinutes                 int
+	CounterBackfillLimitMinutes                  int
+	EnableLargeVolumesBilling                    bool // When true, enables billing for Large Volumes pools (CRR/Backup/AutoTiering)
 }
 
 type MetricItem struct {
@@ -77,6 +78,7 @@ func LoadConfig() *TelemetryConfig {
 	enableFilesBackupBilling := env.GetBool("ENABLE_FILES_BACKUP_BILLING", false)
 	enableCmekBackupBilling := env.GetBool("ENABLE_CMEK_BACKUP_BILLING", false)
 	enableReplicationBillingMetrics := env.GetBool("ENABLE_REPLICATION_BILLING_METRICS", false)
+	enableBidirectionalReplicationBillingMetrics := env.GetBool("ENABLE_BIDIRECTIONAL_REPLICATION_BILLING_METRICS", false)
 	enableAutoTieringBillingMetrics := env.GetBool("ENABLE_AUTO_TIERING_BILLING_METRICS", false)
 	enableFilesAutoTieringBilling := env.GetBool("ENABLE_FILES_AUTO_TIERING_BILLING", false)
 	enableFilesReplicationBillingMetrics := env.GetBool("ENABLE_FILES_REPLICATION_BILLING_METRICS", false)
@@ -102,41 +104,42 @@ func LoadConfig() *TelemetryConfig {
 	enableLargeVolumesBilling := env.GetBool("ENABLE_LARGE_VOLUMES_BILLING", false)
 
 	return &TelemetryConfig{
-		PerformanceRootUrl:                    performanceRootURL,
-		UsageRootUrl:                          usageRootURL,
-		PusherServiceName:                     pusherServiceName,
-		PusherServiceProject:                  pusherServiceProject,
-		OperationBatchSize:                    operationBatchSize,
-		RegionName:                            regionName,
-		EnableVolumeMetrics:                   enableVolumeMetrics,
-		PushBatchSize:                         pushBatchSize,
-		Environment:                           environment,
-		MaxGoogleBillingPushRetry:             maxGoogleBillingPushRetry,
-		PageSize:                              int32(pageSize),
-		EnableBackupMetrics:                   enableBackupMetrics,
-		EnableBackupBillingMetrics:            enableBackupBillingMetrics,
-		EnableFilesBackupBilling:              enableFilesBackupBilling,
-		EnableCmekBackupBilling:               enableCmekBackupBilling,
-		EnableCrossRegionBackupBillingMetrics: enableCrossRegionBackupBillingMetrics,
-		EnableReplicationBillingMetrics:       enableReplicationBillingMetrics,
-		EnableAutoTieringBillingMetrics:       enableAutoTieringBillingMetrics,
-		EnableFilesAutoTieringBilling:         enableFilesAutoTieringBilling,
-		EnableFilesReplicationBillingMetrics:  enableFilesReplicationBillingMetrics,
-		SFRMetricsEnabled:                     sfrMetricsEnabled,
-		NumWorkersPerformance:                 numWorkersPerformance,
-		NumWorkersUsage:                       numWorkersUsage,
-		NumWorkersCollection:                  numWorkersCollection,
-		NumWorkersBizOps:                      numWorkersBizOps,
-		NumWorkersBillingRetry:                numWorkersBillingRetry,
-		GoogleBillingLabelsMaxEntries:         googleBillingLabelsMaxEntries,
-		RetryIntervalSeconds:                  retryInterval,
-		PoolVolumeLabelPageSize:               poolVolumeLabelPageSize,
-		EnableBatchUsageUpdates:               enableBatchUsageUpdates,
-		ResultUpdateBatchSize:                 resultUpdateBatchSize,
-		TargetMinute:                          targetMinute,
-		IntervalBackfillLimitMinutes:          intervalBackfillLimitMinutes,
-		CounterBackfillLimitMinutes:           counterBackfillLimitMinutes,
-		EnableLargeVolumesBilling:             enableLargeVolumesBilling,
+		PerformanceRootUrl:                           performanceRootURL,
+		UsageRootUrl:                                 usageRootURL,
+		PusherServiceName:                            pusherServiceName,
+		PusherServiceProject:                         pusherServiceProject,
+		OperationBatchSize:                           operationBatchSize,
+		RegionName:                                   regionName,
+		EnableVolumeMetrics:                          enableVolumeMetrics,
+		PushBatchSize:                                pushBatchSize,
+		Environment:                                  environment,
+		MaxGoogleBillingPushRetry:                    maxGoogleBillingPushRetry,
+		PageSize:                                     int32(pageSize),
+		EnableBackupMetrics:                          enableBackupMetrics,
+		EnableBackupBillingMetrics:                   enableBackupBillingMetrics,
+		EnableFilesBackupBilling:                     enableFilesBackupBilling,
+		EnableCmekBackupBilling:                      enableCmekBackupBilling,
+		EnableCrossRegionBackupBillingMetrics:        enableCrossRegionBackupBillingMetrics,
+		EnableReplicationBillingMetrics:              enableReplicationBillingMetrics,
+		EnableBidirectionalReplicationBillingMetrics: enableBidirectionalReplicationBillingMetrics,
+		EnableAutoTieringBillingMetrics:              enableAutoTieringBillingMetrics,
+		EnableFilesAutoTieringBilling:                enableFilesAutoTieringBilling,
+		EnableFilesReplicationBillingMetrics:         enableFilesReplicationBillingMetrics,
+		SFRMetricsEnabled:                            sfrMetricsEnabled,
+		NumWorkersPerformance:                        numWorkersPerformance,
+		NumWorkersUsage:                              numWorkersUsage,
+		NumWorkersCollection:                         numWorkersCollection,
+		NumWorkersBizOps:                             numWorkersBizOps,
+		NumWorkersBillingRetry:                       numWorkersBillingRetry,
+		GoogleBillingLabelsMaxEntries:                googleBillingLabelsMaxEntries,
+		RetryIntervalSeconds:                         retryInterval,
+		PoolVolumeLabelPageSize:                      poolVolumeLabelPageSize,
+		EnableBatchUsageUpdates:                      enableBatchUsageUpdates,
+		ResultUpdateBatchSize:                        resultUpdateBatchSize,
+		TargetMinute:                                 targetMinute,
+		IntervalBackfillLimitMinutes:                 intervalBackfillLimitMinutes,
+		CounterBackfillLimitMinutes:                  counterBackfillLimitMinutes,
+		EnableLargeVolumesBilling:                    enableLargeVolumesBilling,
 	}
 }
 

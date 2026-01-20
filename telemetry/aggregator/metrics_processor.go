@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -647,6 +648,14 @@ func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggreg
 				}
 			}
 
+			// Check if we need to skip bidirectional replications
+			if !p.config.EnableBidirectionalReplicationBillingMetrics {
+				if volumeReplication.ReplicationAttributes != nil && (volumeReplication.ReplicationAttributes.ReplicationType == string(models.HybridReplicationParametersReplicationTypeMIGRATION) || volumeReplication.ReplicationAttributes.ReplicationType == string(models.HybridReplicationParametersReplicationTypeONPREM)) {
+					logger.Debugf("Skipping volume replication %s (%s) - bidirectional replication type", volumeReplication.Name, volumeReplication.UUID)
+					continue
+				}
+			}
+
 			var limitedLabels Labels
 			var volRepInfo *VolumeReplicationInfo
 			if volumeReplication.ReplicationAttributes != nil {
@@ -687,7 +696,7 @@ func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggreg
 				DeploymentName: volumeReplication.Volume.Pool.DeploymentName,
 				ConsumerID:     volumeReplication.Account.Name,
 			}
-			logger.Infof("Volume Replication name %s", volumeReplication.Name)
+			logger.Debugf("Volume Replication name %s", volumeReplication.Name)
 			resourceCollection.VolumeReplicationData[id] = volumeReplicationResourceData
 		}
 

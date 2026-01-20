@@ -11,6 +11,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/bizops"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
@@ -837,6 +838,13 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 			serviceLevel, err := getServiceLevel(metric)
 			return getFrequency(serviceLevel), err
 		case "/replication/source_continent":
+			repType, err := getReplicationType(metric)
+			if err != nil {
+				return "", err
+			}
+			if repType == string(models.HybridReplicationParametersReplicationTypeMIGRATION) || repType == string(models.HybridReplicationParametersReplicationTypeONPREM) {
+				return "", nil
+			}
 			sourceRegion, err := getSourceRegion(metric)
 			return getContinent(sourceRegion), err
 		case "/replication/destination_continent":

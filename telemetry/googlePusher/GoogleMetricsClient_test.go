@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
@@ -982,6 +983,56 @@ func Test_GetLabelValue(t *testing.T) {
 			assert.NoError(t, haErr)
 			assert.Equal(t, poolResult, haResult, "VolumePoolRegionalHA should return same value as VolumePool for key %s", key)
 		}
+	})
+
+	t.Run("VolumeReplicationRelationship with MIGRATION and ONPREM replication types", func(t *testing.T) {
+		// Test that MIGRATION and ONPREM replication types return empty string for source_continent
+		getReplicationType = func(m common.GoogleMetric) (string, error) {
+			return string(models.HybridReplicationParametersReplicationTypeMIGRATION), nil
+		}
+
+		rm := metadata.ResourceMetadata{
+			ResourceType: metadata.VolumeReplicationRelationship,
+		}
+		hydratedM := &entity.HydratedMetric{
+			Metadata: rm,
+		}
+		googleMetric := *common.NewGoogleMetric(hydratedM)
+
+		// Test MIGRATION replication type
+		result, err := GetLabelValue("/replication/source_continent", googleMetric, logger)
+		assert.NoError(t, err)
+		assert.Empty(t, result, "MIGRATION replication type should return empty string for source_continent")
+
+		// Test ONPREM replication type
+		getReplicationType = func(m common.GoogleMetric) (string, error) {
+			return string(models.HybridReplicationParametersReplicationTypeONPREM), nil
+		}
+
+		result, err = GetLabelValue("/replication/source_continent", googleMetric, logger)
+		assert.NoError(t, err)
+		assert.Empty(t, result, "ONPREM replication type should return empty string for source_continent")
+	})
+
+	t.Run("VolumeReplicationRelationship getReplicationType error", func(t *testing.T) {
+		// Test error handling when getReplicationType returns an error
+		expectedError := fmt.Errorf("failed to get replication type")
+		getReplicationType = func(m common.GoogleMetric) (string, error) {
+			return "", expectedError
+		}
+
+		rm := metadata.ResourceMetadata{
+			ResourceType: metadata.VolumeReplicationRelationship,
+		}
+		hydratedM := &entity.HydratedMetric{
+			Metadata: rm,
+		}
+		googleMetric := *common.NewGoogleMetric(hydratedM)
+
+		result, err := GetLabelValue("/replication/source_continent", googleMetric, logger)
+		assert.Error(t, err)
+		assert.Equal(t, expectedError, err, "Should return the error from getReplicationType")
+		assert.Empty(t, result, "Result should be empty when error occurs")
 	})
 }
 
