@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backups"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/volumes"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
@@ -9408,14 +9409,23 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			VendorID: "gcp-us-central1-a",
+			VendorID: "/projects/123456/locations/us-central1/pools/pool1",
 		}
 
 		// Backup vault not found in VCP
 		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "my-vault", "1").Return(nil, utilErrors.NewNotFoundErr("Backup vault", nil))
 
-		// Note: CVP fallback will also fail since we don't have a real CVP client in tests
-		// This test verifies error handling when both VCP and CVP lookups fail
+		// Mock CVP client to return an error when fetching backup vault
+		mockBackupVaultClient := backup_vault.NewMockClientService(t)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
+		originalCreateClient := activities.CvpCreateClient
+		defer func() { activities.CvpCreateClient = originalCreateClient }()
+		activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// CVP fallback fails with an error
+		mockBackupVaultClient.On("V1betaListBackupVaults", mock.Anything).Return(nil, fmt.Errorf("CVP connection error"))
 
 		// Act
 		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, region)
@@ -9423,8 +9433,9 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 		// Assert
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		// The error will be from CVP fallback attempt
+		assert.Contains(t, err.Error(), "CVP connection error")
 		mockStorage.AssertExpectations(t)
+		mockBackupVaultClient.AssertExpectations(t)
 	})
 
 	t.Run("Error_BackupNotFoundInVCP_CVPFallbackFails", func(t *testing.T) {
@@ -9442,7 +9453,7 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			VendorID: "gcp-us-central1-a",
+			VendorID: "/projects/123456/locations/us-central1/pools/pool1",
 		}
 
 		backupVault := &datamodel.BackupVault{
@@ -9454,13 +9465,27 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "my-vault", "1").Return(backupVault, nil)
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "my-backup", int64(1)).Return(nil, utilErrors.NewNotFoundErr("Backup", nil))
 
+		// Mock CVP client to return an error when fetching backup
+		mockBackupsClient := backups.NewMockClientService(t)
+		cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient}
+		originalCreateClient := activities.CvpCreateClient
+		defer func() { activities.CvpCreateClient = originalCreateClient }()
+		activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// CVP fallback fails with an error
+		mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(nil, fmt.Errorf("CVP backup fetch error"))
+
 		// Act
 		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, region)
 
 		// Assert
 		assert.Error(t, err)
 		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "CVP backup fetch error")
 		mockStorage.AssertExpectations(t)
+		mockBackupsClient.AssertExpectations(t)
 	})
 
 	t.Run("Success_BackupFoundInVCP_NeedsBucketDetailsFetch", func(t *testing.T) {
@@ -10402,24 +10427,33 @@ func TestFetchBackupVaultFromCVP(t *testing.T) {
 			AccountID: 1,
 			Account:   &datamodel.Account{Name: "123456"},
 		}
-		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
+		pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
 
 		// Return NotFoundErr to trigger CVP fetch
-		// Note: The function will fail when trying to call CVP (not mocked), so GetBackupByNameAndBackupVaultID
-		// will never be called since fetchBackupVaultOrFallbackToCVP fails before fetchBackupOrFallbackToCVP is reached
 		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(nil, utilErrors.NewNotFoundErr("Backup vault", nil)).Once()
+
+		// Mock CVP client to return an error (simulating CVP failure)
+		mockBackupVaultClient := backup_vault.NewMockClientService(t)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
+		originalCreateClient := activities.CvpCreateClient
+		defer func() { activities.CvpCreateClient = originalCreateClient }()
+		activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// CVP returns error to test error handling path
+		mockBackupVaultClient.On("V1betaListBackupVaults", mock.Anything).Return(nil, fmt.Errorf("CVP fetch error"))
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
 		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
 
-		// Will fail because CVP client is not mocked, but we've covered the code path
-		// The function will attempt to call getBackupVaultFromCVPByName which covers lines 1868-1870
-		// This test at least exercises the code path even if it fails due to missing CVP mock
-		_ = result
-		_ = err
-		// Note: Full test would require CVP client mocking
+		// Should get an error from CVP fallback
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "CVP fetch error")
 		mockStorage.AssertExpectations(t)
+		mockBackupVaultClient.AssertExpectations(t)
 	})
 }
 
@@ -10696,9 +10730,11 @@ func TestGetBackupVaultFromCVPByName_Success(t *testing.T) {
 	// Setup mock CVP client
 	mockBackupVaultClient := backup_vault.NewMockClientService(t)
 	mockBackupsClient := backups.NewMockClientService(t)
+	mockVolumesClient := volumes.NewMockClientService(t)
 	cvpClient := &cvpapi.Cvp{
 		BackupVault: mockBackupVaultClient,
 		Backups:     mockBackupsClient,
+		Volumes:     mockVolumesClient,
 	}
 
 	originalCreateClient := activities.CvpCreateClient
@@ -10739,6 +10775,19 @@ func TestGetBackupVaultFromCVPByName_Success(t *testing.T) {
 	backupID := "backup-uuid-123"
 	bucketName := "test-bucket"
 	volumeID := "volume-uuid-123"
+
+	// Mock V1betaListVolumes call for protocol fetching (will be called during FetchBackupFromCVP)
+	// Return a volume with protocols
+	mockVolumesClient.On("V1betaListVolumes", mock.Anything).Return(&volumes.V1betaListVolumesOK{
+		Payload: &volumes.V1betaListVolumesOKBody{
+			Volumes: []*cvpModels.VolumeV1beta{
+				{
+					VolumeID:  volumeID,
+					Protocols: []cvpModels.ProtocolsV1beta{cvpModels.ProtocolsV1betaNFSV3},
+				},
+			},
+		},
+	}, nil)
 	mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(&backups.V1betaListBackupsOK{
 		Payload: &backups.V1betaListBackupsOKBody{
 			Backups: []*cvpModels.BackupV1beta{
@@ -10908,7 +10957,8 @@ func TestFetchBackupFromCVP_Success(t *testing.T) {
 
 	// Setup mock CVP client
 	mockBackupsClient := backups.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient}
+	mockVolumesClient := volumes.NewMockClientService(t)
+	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient, Volumes: mockVolumesClient}
 
 	originalCreateClient := activities.CvpCreateClient
 	defer func() { activities.CvpCreateClient = originalCreateClient }()
@@ -10930,6 +10980,18 @@ func TestFetchBackupFromCVP_Success(t *testing.T) {
 					State:            "READY",
 					BackupType:       "MANUAL",
 					VolumeUsageBytes: &volumeUsageBytes,
+				},
+			},
+		},
+	}, nil)
+
+	// Mock V1betaListVolumes call for protocol fetching - return a volume with protocols
+	mockVolumesClient.On("V1betaListVolumes", mock.Anything).Return(&volumes.V1betaListVolumesOK{
+		Payload: &volumes.V1betaListVolumesOKBody{
+			Volumes: []*cvpModels.VolumeV1beta{
+				{
+					VolumeID:  "volume-uuid",
+					Protocols: []cvpModels.ProtocolsV1beta{cvpModels.ProtocolsV1betaNFSV3},
 				},
 			},
 		},
@@ -11029,7 +11091,8 @@ func TestFetchBackupFromCVP_MultipleBackups(t *testing.T) {
 	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
 
 	mockBackupsClient := backups.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient}
+	mockVolumesClient := volumes.NewMockClientService(t)
+	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient, Volumes: mockVolumesClient}
 
 	originalCreateClient := activities.CvpCreateClient
 	defer func() { activities.CvpCreateClient = originalCreateClient }()
@@ -11054,6 +11117,18 @@ func TestFetchBackupFromCVP_MultipleBackups(t *testing.T) {
 					SourceVolume: "source-volume-2",
 					VolumeID:     "volume-uuid-2",
 					State:        "READY",
+				},
+			},
+		},
+	}, nil)
+
+	// Mock V1betaListVolumes call for protocol fetching - return a volume with protocols
+	mockVolumesClient.On("V1betaListVolumes", mock.Anything).Return(&volumes.V1betaListVolumesOK{
+		Payload: &volumes.V1betaListVolumesOKBody{
+			Volumes: []*cvpModels.VolumeV1beta{
+				{
+					VolumeID:  "volume-uuid-1",
+					Protocols: []cvpModels.ProtocolsV1beta{cvpModels.ProtocolsV1betaNFSV3},
 				},
 			},
 		},
@@ -11164,7 +11239,8 @@ func TestFetchBackupFromCVP_BackupChainBytesFallback(t *testing.T) {
 	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
 
 	mockBackupsClient := backups.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient}
+	mockVolumesClient := volumes.NewMockClientService(t)
+	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient, Volumes: mockVolumesClient}
 
 	originalCreateClient := activities.CvpCreateClient
 	defer func() { activities.CvpCreateClient = originalCreateClient }()
@@ -11184,6 +11260,18 @@ func TestFetchBackupFromCVP_BackupChainBytesFallback(t *testing.T) {
 					State:            "READY",
 					VolumeUsageBytes: nil, // nil - should fallback
 					BackupChainBytes: &backupChainBytes,
+				},
+			},
+		},
+	}, nil)
+
+	// Mock V1betaListVolumes call for protocol fetching - return a volume with protocols
+	mockVolumesClient.On("V1betaListVolumes", mock.Anything).Return(&volumes.V1betaListVolumesOK{
+		Payload: &volumes.V1betaListVolumesOKBody{
+			Volumes: []*cvpModels.VolumeV1beta{
+				{
+					VolumeID:  "volume-uuid",
+					Protocols: []cvpModels.ProtocolsV1beta{cvpModels.ProtocolsV1betaNFSV3},
 				},
 			},
 		},
@@ -11329,7 +11417,13 @@ func TestFetchBackupVaultOrFallbackToCVP_CrossRegion(t *testing.T) {
 
 	// Setup mock CVP client
 	mockBackupVaultClient := backup_vault.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
+	mockBackupsClient := backups.NewMockClientService(t)
+	mockVolumesClient := volumes.NewMockClientService(t)
+	cvpClient := &cvpapi.Cvp{
+		BackupVault: mockBackupVaultClient,
+		Backups:     mockBackupsClient,
+		Volumes:     mockVolumesClient,
+	}
 
 	originalCreateClient := activities.CvpCreateClient
 	defer func() { activities.CvpCreateClient = originalCreateClient }()
@@ -11339,12 +11433,19 @@ func TestFetchBackupVaultOrFallbackToCVP_CrossRegion(t *testing.T) {
 
 	vaultName := "test-vault"
 	vaultUUID := "12345678-1234-1234-1234-123456789012"
+	// For cross-region restore: backup path has source vault name (us-central1)
+	// but pool is in destination region (us-west1)
+	// CVP is queried in pool's region and returns vaults with SourceBackupVault pointing to source
+	sourceBackupVaultPath := "projects/123456/locations/us-central1/backupVaults/test-vault"
+	destBackupVaultPath := "projects/123456/locations/us-west1/backupVaults/test-vault-destination-1234"
 	mockBackupVaultClient.On("V1betaListBackupVaults", mock.Anything).Return(&backup_vault.V1betaListBackupVaultsOK{
 		Payload: &backup_vault.V1betaListBackupVaultsOKBody{
 			BackupVaults: []*cvpModels.BackupVaultV1beta{
 				{
-					ResourceID:    nillable.ToPointer(vaultName),
-					BackupVaultID: vaultUUID,
+					ResourceID:             nillable.ToPointer("test-vault-destination-1234"),
+					BackupVaultID:          vaultUUID,
+					SourceBackupVault:      nillable.ToPointer(sourceBackupVaultPath),
+					DestinationBackupVault: nillable.ToPointer(destBackupVaultPath),
 				},
 			},
 		},
@@ -11357,7 +11458,7 @@ func TestFetchBackupVaultOrFallbackToCVP_CrossRegion(t *testing.T) {
 		Account:   &datamodel.Account{Name: "123456"},
 	}
 	// Cross-region: pool is in us-west1, but backup path is in us-central1
-	pool := &datamodel.Pool{VendorID: "gcp-us-west1-a"}
+	pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-west1/pools/pool1"}
 
 	// Backup vault not found in VCP, fallback to CVP
 	// For cross-region, the code calls GetBackupVaultByCrossRegionBackupVaultName
@@ -11368,6 +11469,33 @@ func TestFetchBackupVaultOrFallbackToCVP_CrossRegion(t *testing.T) {
 	backupName := "test-backup"
 	mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, backupName, int64(0)).Return(nil, utilErrors.NewNotFoundErr("Backup", &backupName))
 
+	// Mock the Backups client to return a backup
+	mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(&backups.V1betaListBackupsOK{
+		Payload: &backups.V1betaListBackupsOKBody{
+			Backups: []*cvpModels.BackupV1beta{
+				{
+					BackupID:     "backup-uuid-123",
+					BucketName:   "test-bucket",
+					SourceVolume: "source-volume",
+					VolumeID:     "volume-uuid-123",
+					State:        "READY",
+				},
+			},
+		},
+	}, nil)
+
+	// Mock V1betaListVolumes call for protocol fetching - return a volume with protocols
+	mockVolumesClient.On("V1betaListVolumes", mock.Anything).Return(&volumes.V1betaListVolumesOK{
+		Payload: &volumes.V1betaListVolumesOKBody{
+			Volumes: []*cvpModels.VolumeV1beta{
+				{
+					VolumeID:  "volume-uuid-123",
+					Protocols: []cvpModels.ProtocolsV1beta{cvpModels.ProtocolsV1betaNFSV3},
+				},
+			},
+		},
+	}, nil)
+
 	// Cross-region backup path
 	backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
@@ -11375,8 +11503,9 @@ func TestFetchBackupVaultOrFallbackToCVP_CrossRegion(t *testing.T) {
 
 	// This validates lines 1864, 1868-1870, 1873-1874, 1876
 	// The vault is fetched from CVP using the path's region (us-central1)
-	assert.Error(t, err) // Will fail at backup fetch stage, but CVP vault call was made
+	assert.Error(t, err) // Will fail at ensureBucketDetailsExist stage, but CVP vault and backup calls were made
 	mockBackupVaultClient.AssertExpectations(t)
+	mockBackupsClient.AssertExpectations(t)
 }
 
 // TestEnsureBucketDetailsExist_BucketAlreadyExists tests when bucket already exists in vault
@@ -11408,7 +11537,8 @@ func TestFetchBackupFromCVP_SuccessWithFkexvol(t *testing.T) {
 
 	// Setup mock CVP client
 	mockBackupsClient := backups.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient}
+	mockVolumesClient := volumes.NewMockClientService(t)
+	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient, Volumes: mockVolumesClient}
 
 	originalCreateClient := activities.CvpCreateClient
 	defer func() { activities.CvpCreateClient = originalCreateClient }()
@@ -11430,6 +11560,18 @@ func TestFetchBackupFromCVP_SuccessWithFkexvol(t *testing.T) {
 					State:            "READY",
 					BackupType:       "MANUAL",
 					VolumeUsageBytes: &volumeUsageBytes,
+				},
+			},
+		},
+	}, nil)
+
+	// Mock V1betaListVolumes call for protocol fetching - return a volume with protocols
+	mockVolumesClient.On("V1betaListVolumes", mock.Anything).Return(&volumes.V1betaListVolumesOK{
+		Payload: &volumes.V1betaListVolumesOKBody{
+			Volumes: []*cvpModels.VolumeV1beta{
+				{
+					VolumeID:  "volume-uuid",
+					Protocols: []cvpModels.ProtocolsV1beta{cvpModels.ProtocolsV1betaNFSV3},
 				},
 			},
 		},
@@ -11460,7 +11602,8 @@ func TestFetchBackupFromCVP_SuccessWithFlexgroup(t *testing.T) {
 
 	// Setup mock CVP client
 	mockBackupsClient := backups.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient}
+	mockVolumesClient := volumes.NewMockClientService(t)
+	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient, Volumes: mockVolumesClient}
 
 	originalCreateClient := activities.CvpCreateClient
 	defer func() { activities.CvpCreateClient = originalCreateClient }()
@@ -11485,6 +11628,18 @@ func TestFetchBackupFromCVP_SuccessWithFlexgroup(t *testing.T) {
 					OntapStyle:                     "flexgroup",
 					ConstituentVolumesPerAggregate: 4,
 					NumberOfAggregates:             2,
+				},
+			},
+		},
+	}, nil)
+
+	// Mock V1betaListVolumes call for protocol fetching - return a volume with protocols
+	mockVolumesClient.On("V1betaListVolumes", mock.Anything).Return(&volumes.V1betaListVolumesOK{
+		Payload: &volumes.V1betaListVolumesOKBody{
+			Volumes: []*cvpModels.VolumeV1beta{
+				{
+					VolumeID:  "volume-uuid",
+					Protocols: []cvpModels.ProtocolsV1beta{cvpModels.ProtocolsV1betaNFSV3},
 				},
 			},
 		},

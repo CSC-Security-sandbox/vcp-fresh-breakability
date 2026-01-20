@@ -808,6 +808,13 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			return nil, ConvertToVSAError(err)
 		}
 
+		// Verify backup restore protocol compatibility
+		log.Infof("Verifying backup restore protocol compatibility")
+		err = verifyBackupRestoreCompatibilityForVolumes(backup, createVolumeParams)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
 		// Verify backup restore compatibility for large volumes
 		if dbVolume.LargeVolumeAttributes != nil && dbVolume.LargeVolumeAttributes.LargeCapacity {
 			log.Infof("Verifying backup restore compatibility for large volume")
@@ -1141,6 +1148,94 @@ func syncBucketDetailsWithGCP(ctx workflow.Context, bucketDetails *common.Bucket
 		bucketDetails.SatisfiesPzs = updatedBucketDetails.SatisfiesPzs
 	}
 	return nil // Always return nil to not fail the workflow
+}
+
+// protocolInfo holds protocol classification information for validation
+type protocolInfo struct {
+	isSAN  bool
+	hasSMB bool
+	hasNFS bool
+}
+
+// analyzeProtocols analyzes a list of protocols and returns classification information
+func analyzeProtocols(protocols []string) protocolInfo {
+	return protocolInfo{
+		isSAN:  utils.IsSanProtocols(protocols),
+		hasSMB: utils.IsSMBProtocols(protocols),
+		hasNFS: utils.IsNFSProtocols(protocols),
+	}
+}
+
+// verifyBackupRestoreCompatibilityForVolumes verifies that backup protocols are compatible with volume protocols
+// for SDE backup restore to VCP volumes. This function implements protocol compatibility rules:
+// - SDE supports: NFS, NFSv3, NFSv4, SMB (NAS protocols only)
+// - VCP supports: NFS, NFSv3, NFSv4, SMB, iSCSI (NAS + SAN)
+// - Only SDE → VCP backup restore is supported (not VCP → SDE)
+// Protocol compatibility rules:
+// - iSCSI: Not applicable for SDE backups (SDE doesn't support iSCSI)
+// - SMB: backup can only be restored to SMB volume (exact match required)
+// - NFS protocols (NFSv3 and NFSv4) are compatible with each other (NFSv3 ↔ NFSv4 cross-restore allowed)
+// - Mixed protocols must be compatible (e.g., NFS+SMB backup requires NFS+SMB volume)
+func verifyBackupRestoreCompatibilityForVolumes(backup *datamodel.Backup, params *common.CreateVolumeParams) error {
+	if backup == nil || backup.Attributes == nil {
+		return customerrors.NewUserInputValidationErr("Backup or backup attributes are nil")
+	}
+
+	backupProtocols := backup.Attributes.Protocols
+	volumeProtocols := params.Protocols
+
+	// If backup has no protocols, skip validation (legacy backup)
+	if len(backupProtocols) == 0 {
+		return nil
+	}
+
+	// If volume has no protocols, that's an error
+	if len(volumeProtocols) == 0 {
+		return customerrors.NewUserInputValidationErr("Volume protocols must be specified for backup restore")
+	}
+
+	// Analyze backup and volume protocols
+	backupInfo := analyzeProtocols(backupProtocols)
+	volumeInfo := analyzeProtocols(volumeProtocols)
+
+	// Check SAN protocol compatibility (iSCSI)
+	if backupInfo.isSAN && !volumeInfo.isSAN {
+		return customerrors.NewUserInputValidationErr("Cannot restore a SAN (iSCSI) backup to a NAS volume. The restore volume must use iSCSI protocol")
+	}
+
+	if !backupInfo.isSAN && volumeInfo.isSAN {
+		return customerrors.NewUserInputValidationErr("Cannot restore a NAS backup to a SAN (iSCSI) volume. The restore volume must use NAS protocols")
+	}
+
+	// For SAN protocols, exact match is required (iSCSI to iSCSI)
+	// If both backup and volume are SAN, they are compatible (IsSanProtocols ensures all protocols are SAN, and currently only iSCSI is SAN)
+	if backupInfo.isSAN && volumeInfo.isSAN {
+		return nil
+	}
+
+	// SMB protocol must match exactly (backup with SMB requires volume with SMB)
+	if backupInfo.hasSMB && !volumeInfo.hasSMB {
+		return customerrors.NewUserInputValidationErr("Cannot restore a SMB backup to a volume without SMB protocol. The restore volume must include SMB protocol")
+	}
+
+	// NFS protocols are compatible with each other (NFSv3 ↔ NFSv4 cross-restore allowed, matching cloud-volumes-service behavior)
+	// If backup has NFS but volume doesn't, that's an error
+	if backupInfo.hasNFS && !volumeInfo.hasNFS {
+		return customerrors.NewUserInputValidationErr("Cannot restore a NFS backup to a volume without NFS protocol. The restore volume must include NFS protocol (NFSv3 or NFSv4)")
+	}
+
+	// If volume has SMB but backup doesn't (and backup has NFS), that's an error
+	if !backupInfo.hasSMB && volumeInfo.hasSMB && backupInfo.hasNFS {
+		return customerrors.NewUserInputValidationErr("Cannot restore a NFS-only backup to a volume with SMB protocol. The restore volume must match the backup protocols")
+	}
+
+	// If volume has NFS but backup doesn't (and backup has SMB), that's an error
+	if !backupInfo.hasNFS && volumeInfo.hasNFS && backupInfo.hasSMB {
+		return customerrors.NewUserInputValidationErr("Cannot restore a SMB-only backup to a volume with NFS protocol. The restore volume must match the backup protocols")
+	}
+
+	// All protocol checks passed
+	return nil
 }
 
 // for Large Volume creation, we store CV count for auto-provision volumes and customer given CV count. from volume we fetch the CV and store

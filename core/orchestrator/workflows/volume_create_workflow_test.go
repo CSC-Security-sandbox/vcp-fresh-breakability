@@ -7026,3 +7026,142 @@ func TestVerifyBackupRestoreCompatibilityForLargeVolumes(t *testing.T) {
 		assert.Equal(t, params, result)
 	})
 }
+
+func TestVerifyBackupRestoreCompatibilityForVolumes(t *testing.T) {
+	tests := []struct {
+		name            string
+		backupProtocols []string
+		volumeProtocols []string
+		expectError     bool
+		errorContains   string
+	}{
+		// NFS cross-compatibility tests
+		{
+			name:            "NFSv3 backup to NFSv3 volume - should pass",
+			backupProtocols: []string{utils.ProtocolNFSv3},
+			volumeProtocols: []string{utils.ProtocolNFSv3},
+			expectError:     false,
+		},
+		{
+			name:            "NFSv3 backup to NFSv4 volume - should pass",
+			backupProtocols: []string{utils.ProtocolNFSv3},
+			volumeProtocols: []string{utils.ProtocolNFSv4},
+			expectError:     false,
+		},
+		{
+			name:            "NFSv4 backup to NFSv3 volume - should pass",
+			backupProtocols: []string{utils.ProtocolNFSv4},
+			volumeProtocols: []string{utils.ProtocolNFSv3},
+			expectError:     false,
+		},
+		// SMB exact match tests
+		{
+			name:            "SMB backup to SMB volume - should pass",
+			backupProtocols: []string{utils.ProtocolSMB},
+			volumeProtocols: []string{utils.ProtocolSMB},
+			expectError:     false,
+		},
+		{
+			name:            "SMB backup to NFSv3 volume - should fail",
+			backupProtocols: []string{utils.ProtocolSMB},
+			volumeProtocols: []string{utils.ProtocolNFSv3},
+			expectError:     true,
+			errorContains:   "SMB backup to a volume without SMB protocol",
+		},
+		{
+			name:            "NFSv3 backup to SMB volume - should fail",
+			backupProtocols: []string{utils.ProtocolNFSv3},
+			volumeProtocols: []string{utils.ProtocolSMB},
+			expectError:     true,
+			errorContains:   "NFS backup to a volume without NFS protocol",
+		},
+		// iSCSI protection tests
+		{
+			name:            "NFSv3 backup to iSCSI volume - should fail",
+			backupProtocols: []string{utils.ProtocolNFSv3},
+			volumeProtocols: []string{utils.ProtocolISCSI},
+			expectError:     true,
+			errorContains:   "Cannot restore a NAS backup to a SAN",
+		},
+		{
+			name:            "SMB backup to iSCSI volume - should fail",
+			backupProtocols: []string{utils.ProtocolSMB},
+			volumeProtocols: []string{utils.ProtocolISCSI},
+			expectError:     true,
+			errorContains:   "Cannot restore a NAS backup to a SAN",
+		},
+		// Mixed protocol tests
+		{
+			name:            "NFS+SMB backup to NFS+SMB volume - should pass",
+			backupProtocols: []string{utils.ProtocolNFSv3, utils.ProtocolSMB},
+			volumeProtocols: []string{utils.ProtocolNFSv4, utils.ProtocolSMB},
+			expectError:     false,
+		},
+		{
+			name:            "NFS+SMB backup to NFSv3 only volume - should fail",
+			backupProtocols: []string{utils.ProtocolNFSv3, utils.ProtocolSMB},
+			volumeProtocols: []string{utils.ProtocolNFSv3},
+			expectError:     true,
+			errorContains:   "SMB backup to a volume without SMB protocol",
+		},
+		{
+			name:            "NFS+SMB backup to SMB only volume - should fail",
+			backupProtocols: []string{utils.ProtocolNFSv3, utils.ProtocolSMB},
+			volumeProtocols: []string{utils.ProtocolSMB},
+			expectError:     true,
+			errorContains:   "NFS backup to a volume without NFS protocol",
+		},
+		{
+			name:            "NFSv3 backup to NFS+SMB volume - should fail",
+			backupProtocols: []string{utils.ProtocolNFSv3},
+			volumeProtocols: []string{utils.ProtocolNFSv3, utils.ProtocolSMB},
+			expectError:     true,
+			errorContains:   "NFS-only backup to a volume with SMB protocol",
+		},
+		{
+			name:            "SMB backup to NFS+SMB volume - should fail",
+			backupProtocols: []string{utils.ProtocolSMB},
+			volumeProtocols: []string{utils.ProtocolNFSv3, utils.ProtocolSMB},
+			expectError:     true,
+			errorContains:   "SMB-only backup to a volume with NFS protocol",
+		},
+		// Edge cases
+		{
+			name:            "Empty backup protocols (legacy) - should pass",
+			backupProtocols: []string{},
+			volumeProtocols: []string{utils.ProtocolNFSv3},
+			expectError:     false,
+		},
+		{
+			name:            "Empty volume protocols - should fail",
+			backupProtocols: []string{utils.ProtocolNFSv3},
+			volumeProtocols: []string{},
+			expectError:     true,
+			errorContains:   "Volume protocols must be specified",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backup := &datamodel.Backup{
+				Attributes: &datamodel.BackupAttributes{
+					Protocols: tt.backupProtocols,
+				},
+			}
+			params := &common.CreateVolumeParams{
+				Protocols: tt.volumeProtocols,
+			}
+
+			err := verifyBackupRestoreCompatibilityForVolumes(backup, params)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
