@@ -1,6 +1,9 @@
 package replicationWorkflows
 
 import (
+	"errors"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
@@ -8,7 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -17,6 +20,10 @@ import (
 
 var (
 	ReverseReplicationJobsRetryMaxAttempts = env.GetInt("REPLICATION_JOBS_RETRY_MAX_ATTEMPTS", 10)
+)
+
+const (
+	reverseResumeQuotaRuleError = "Operation was successful but quota rule sync between source and destination failed"
 )
 
 type ReverseReplicationWorkflow struct {
@@ -41,6 +48,17 @@ func ReverseAndResumeVolumeReplicationWorkflow(ctx workflow.Context, params *com
 	}
 	_, customErr := repWf.Run(ctx, event, params)
 	if customErr != nil {
+		logger := util.GetLogger(ctx)
+		logger.Info("Reverse Resume Volume Replication workflow run executed with error", "error", customErr)
+		// Check if this is a quota rule failure (partial success case) and quotaRuleSync is enabled
+		if quotaRuleSync && isReverseResumeQuotaRuleFailure(customErr) {
+			// Quota rule sync failed but reverse resume succeeded - treat as partial success
+			logger.Warnf("Reverse resume succeeded but quota rule operations failed")
+			repWf.Status = workflows.WorkflowStatusCompleted
+			err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE),
+				temporal.NewApplicationError(reverseResumeQuotaRuleError, "QuotaRuleFailure"))
+			return nil, err
+		}
 		repWf.Status = workflows.WorkflowStatusFailed
 		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		return nil, err
@@ -48,6 +66,14 @@ func ReverseAndResumeVolumeReplicationWorkflow(ctx workflow.Context, params *com
 	repWf.Status = workflows.WorkflowStatusCompleted
 	err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	return nil, err
+}
+
+// isReverseResumeQuotaRuleFailure checks if the error is a reverse resume quota rule failure error
+func isReverseResumeQuotaRuleFailure(err *vsaerrors.CustomError) bool {
+	if err == nil {
+		return false
+	}
+	return err.TrackingID == vsaerrors.ErrReverseResumeReplicationQuotaRuleFailure
 }
 
 func (wf *ReverseReplicationWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -170,6 +196,86 @@ func (wf *ReverseReplicationWorkflow) Run(ctx workflow.Context, args ...interfac
 	err = workflow.ExecuteActivity(ctx, replicationActivity.MountReplicationAfterReverse, &reverseResult).Get(ctx, &reverseResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	// Quota rules synchronization after mount
+	if quotaRuleSync && reverseResult.DbVolReplication.HybridReplicationAttributes == nil {
+		logger := util.GetLogger(ctx)
+
+		// List new source quota rules (current destination)
+		var newSourceQuotaRules []*datamodel.QuotaRule
+		err = workflow.ExecuteActivity(ctx, replicationActivity.ListQuotaRulesOnNewSourceReverse, &reverseResult).Get(ctx, &newSourceQuotaRules)
+		if err != nil {
+			logger.Warnf("Reverse resume succeeded but listing new source quota rules failed: %v", err)
+			return nil, vsaerrors.NewVCPError(
+				vsaerrors.ErrReverseResumeReplicationQuotaRuleFailure,
+				errors.New(reverseResumeQuotaRuleError),
+			)
+		}
+		reverseResult.SourceQuotaRules = newSourceQuotaRules
+
+		// List new destination quota rules (current source)
+		var newDestinationQuotaRules []*datamodel.QuotaRule
+		err = workflow.ExecuteActivity(ctx, replicationActivity.ListQuotaRulesOnNewDestinationReverse, &reverseResult).Get(ctx, &newDestinationQuotaRules)
+		if err != nil {
+			logger.Warnf("Reverse resume succeeded but listing new destination quota rules failed: %v", err)
+			return nil, vsaerrors.NewVCPError(
+				vsaerrors.ErrReverseResumeReplicationQuotaRuleFailure,
+				errors.New(reverseResumeQuotaRuleError),
+			)
+		}
+		reverseResult.DestinationQuotaRules = newDestinationQuotaRules
+
+		// Dehydrate quota rules if hydration enabled
+		var dehydratedQuotaRules []*datamodel.QuotaRule
+		if hydrationEnabled && reverseResult.DestinationQuotaRules != nil && len(reverseResult.DestinationQuotaRules) > 0 {
+			err = workflow.ExecuteActivity(ctx, replicationActivity.DehydrateQuotaRulesReverse,
+				reverseResult.DestinationQuotaRules,
+				reverseResult.NewDstVolume.ResourceId,
+				reverseResult.Event.ReplicationModel.ReplicationAttributes.SourceLocation,
+				*reverseResult.SrcProjectNumber,
+			).Get(ctx, &dehydratedQuotaRules)
+			if err != nil {
+				logger.Warnf("Reverse resume succeeded but dehydrating quota rules failed: %v", err)
+				return nil, vsaerrors.NewVCPError(
+					vsaerrors.ErrReverseResumeReplicationQuotaRuleFailure,
+					errors.New(reverseResumeQuotaRuleError),
+				)
+			}
+
+			// Check if this is a partial failure (some quota rules were dehydrated)
+			if len(dehydratedQuotaRules) > 0 {
+				reverseResult.SourceQuotaRules = nil
+				reverseResult.DestinationQuotaRules = dehydratedQuotaRules
+			}
+		}
+
+		// Sync quota rules to new destination
+		err = workflow.ExecuteActivity(ctx, replicationActivity.AddNewSrcQuotaRulesToNewDstDBReverse, &reverseResult).Get(ctx, &reverseResult)
+		if err != nil {
+			logger.Warnf("Reverse resume succeeded but syncing quota rules failed: %v", err)
+			return nil, vsaerrors.NewVCPError(
+				vsaerrors.ErrReverseResumeReplicationQuotaRuleFailure,
+				errors.New(reverseResumeQuotaRuleError),
+			)
+		}
+
+		// Hydrate quota rules to CCFE if enabled
+		if hydrationEnabled && reverseResult.DestinationQuotaRules != nil && len(reverseResult.DestinationQuotaRules) > 0 {
+			err = workflow.ExecuteActivity(ctx, replicationActivity.HydrateQuotaRulesReverse,
+				reverseResult.DestinationQuotaRules,
+				reverseResult.NewDstVolume.ResourceId,
+				reverseResult.Event.ReplicationModel.ReplicationAttributes.SourceLocation,
+				*reverseResult.SrcProjectNumber,
+			).Get(ctx, nil)
+			if err != nil {
+				logger.Warnf("Reverse resume succeeded but hydrating quota rules failed: %v", err)
+				return nil, vsaerrors.NewVCPError(
+					vsaerrors.ErrReverseResumeReplicationQuotaRuleFailure,
+					errors.New(reverseResumeQuotaRuleError),
+				)
+			}
+		}
 	}
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.CleanupOldReplication, &reverseResult).Get(ctx, &reverseResult)

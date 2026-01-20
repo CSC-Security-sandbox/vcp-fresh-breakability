@@ -2,10 +2,6 @@ package ontap_rest
 
 import (
 	"context"
-	"go.temporal.io/sdk/activity"
-	"go.temporal.io/sdk/client"
-	t "go.temporal.io/sdk/temporal"
-	"go.temporal.io/sdk/workflow"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
@@ -16,6 +12,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
+	"go.temporal.io/sdk/client"
+	t "go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/workflow"
 )
 
 var (

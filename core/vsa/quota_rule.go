@@ -244,22 +244,20 @@ func (rc *OntapRestProvider) UpdateQuotaRule(ctx context.Context, params *Update
 		return nil, err
 	}
 
-	// Poll the job until it completes
-	jobUUID := resp.Payload.Job.UUID.String()
-	if err = client.Poll(jobUUID); err != nil {
+	// TODO: Replace manual polling with PollOntapJob activity in future iterations
+	// Need to add partial failure handling and message parsing in PollOntapJobActivity
+	var jobResp *ontaprestcluster.JobGetOK
+	jobResp, err = fetchDetailsFromJob(client, resp.Payload.Job.UUID.String())
+	if err != nil {
 		return nil, err
 	}
 
-	// Fetch job details to get final status
-	jobParams := &ontaprest.JobGetParams{
-		BaseParams: ontaprest.BaseParams{
-			Fields: []string{"message", "state", "code"},
-		},
-		UUID: jobUUID,
-	}
-	jobResp, err := client.Cluster().JobGet(ctx, jobParams)
-	if err != nil {
-		return nil, err
+	retryErr := retryJob(client, 1*(time.Second), resp.Payload.Job.UUID.String(), func(c ontaprest.RESTClient, s string) (res *ontaprestcluster.JobGetOK, err error) {
+		jobResp, err = fetchDetailsFromJob(c, s)
+		return jobResp, err
+	})
+	if retryErr != nil {
+		return nil, retryErr
 	}
 
 	jobStatus := &JobStatus{
@@ -461,21 +459,20 @@ func (rc *OntapRestProvider) quotaReinitialization(ctx context.Context, volumeUU
 		return jobStatus, nil
 	}
 
-	// Poll the job until it completes
-	if err = client.Poll(ontapJob.JobUUID); err != nil {
+	// TODO: Replace manual polling with PollOntapJob activity in future iterations
+	// Need to add partial failure handling and message parsing in PollOntapJobActivity
+	var jobResp *ontaprestcluster.JobGetOK
+	jobResp, err = fetchDetailsFromJob(client, ontapJob.JobUUID)
+	if err != nil {
 		return nil, err
 	}
 
-	// Fetch job details to get final status
-	jobParams := &ontaprest.JobGetParams{
-		BaseParams: ontaprest.BaseParams{
-			Fields: []string{"message", "state", "code"},
-		},
-		UUID: ontapJob.JobUUID,
-	}
-	jobResp, err := client.Cluster().JobGet(ctx, jobParams)
-	if err != nil {
-		return nil, err
+	retryErr := retryJob(client, 1*(time.Second), ontapJob.JobUUID, func(c ontaprest.RESTClient, s string) (res *ontaprestcluster.JobGetOK, err error) {
+		jobResp, err = fetchDetailsFromJob(c, s)
+		return jobResp, err
+	})
+	if retryErr != nil {
+		return nil, retryErr
 	}
 
 	jobStatus := &JobStatus{
@@ -501,23 +498,20 @@ func (rc *OntapRestProvider) DeleteQuotaRule(ctx context.Context, quotaUUID stri
 		return nil, err
 	}
 
-	jobUUID := resp.Payload.Job.UUID.String()
-
-	// Poll the job until it completes
-	if err = client.Poll(jobUUID); err != nil {
-		return nil, err
-	}
-
-	// Fetch job details to get final status
-	jobParams := &ontaprest.JobGetParams{
-		BaseParams: ontaprest.BaseParams{
-			Fields: []string{"message", "state", "code"},
-		},
-		UUID: jobUUID,
-	}
-	jobResp, err := client.Cluster().JobGet(ctx, jobParams)
+	// TODO: Replace manual polling with PollOntapJob activity in future iterations
+	// Need to add partial failure handling and message parsing in PollOntapJobActivity
+	var jobResp *ontaprestcluster.JobGetOK
+	jobResp, err = fetchDetailsFromJob(client, resp.Payload.Job.UUID.String())
 	if err != nil {
 		return nil, err
+	}
+
+	retryErr := retryJob(client, 1*(time.Second), resp.Payload.Job.UUID.String(), func(c ontaprest.RESTClient, s string) (res *ontaprestcluster.JobGetOK, err error) {
+		jobResp, err = fetchDetailsFromJob(c, s)
+		return jobResp, err
+	})
+	if retryErr != nil {
+		return nil, retryErr
 	}
 
 	jobStatus := &JobStatus{

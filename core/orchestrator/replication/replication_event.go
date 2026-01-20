@@ -226,8 +226,10 @@ type ReverseReplicationResult struct {
 	DBUpdateJobId    *string
 	DbVolReplication *datamodel.VolumeReplication
 	// ReplicationDetails stores the fetched replication details from destination
-	ReplicationDetails *vsa.VolumeReplication
-	NodeProvider       *models.Node
+	ReplicationDetails    *vsa.VolumeReplication
+	NodeProvider          *models.Node
+	SourceQuotaRules      []*datamodel.QuotaRule
+	DestinationQuotaRules []*datamodel.QuotaRule
 }
 
 type ReverseHybridReplicationResult struct {

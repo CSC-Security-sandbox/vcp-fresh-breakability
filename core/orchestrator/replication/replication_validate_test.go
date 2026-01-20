@@ -6437,6 +6437,745 @@ func Test_verifyDstReplicationReverse(t *testing.T) {
 	})
 }
 
+func Test_verifyNewSourceQuotaRulesReverse(t *testing.T) {
+	event := &ReverseReplicationEvent{
+		CommonReplicationEventParams: CommonReplicationEventParams{
+			ReplicationModel: &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:   "us-east1",
+					DestinationVolumeUUID: "dest-volume-uuid",
+				},
+			},
+			DestinationProjectNumber: "123456789",
+			DstBasePath:              "https://test-base-path",
+			DstToken:                 "test-token",
+		},
+	}
+
+	t.Run("AllQuotaRulesReady", func(tt *testing.T) {
+		ctx := context.Background()
+
+		// Mock the Google Proxy client
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		quotaRules := []googleproxyclient.QuotaRulesV1beta{
+			{
+				ResourceId: "quota-rule-1",
+				State:      googleproxyclient.NewOptQuotaRulesV1betaState(googleproxyclient.QuotaRulesV1betaStateREADY),
+			},
+			{
+				ResourceId: "quota-rule-2",
+				State:      googleproxyclient.NewOptQuotaRulesV1betaState(googleproxyclient.QuotaRulesV1betaStateREADY),
+			},
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(&googleproxyclient.V1betaListAllQuotaRulesOK{QuotaRules: quotaRules}, nil)
+
+		err := _verifyNewSourceQuotaRulesReverse(ctx, event)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("QuotaRuleNotReady", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		quotaRules := []googleproxyclient.QuotaRulesV1beta{
+			{
+				ResourceId:   "quota-rule-1",
+				State:        googleproxyclient.NewOptQuotaRulesV1betaState(googleproxyclient.QuotaRulesV1betaStateERROR),
+				StateDetails: googleproxyclient.NewOptString("Error details"),
+			},
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(&googleproxyclient.V1betaListAllQuotaRulesOK{QuotaRules: quotaRules}, nil)
+
+		err := _verifyNewSourceQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Cannot reverse resume replication: new source volume has quota rules not in READY state")
+	})
+
+	t.Run("QuotaRuleNoState", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		quotaRules := []googleproxyclient.QuotaRulesV1beta{
+			{
+				ResourceId:   "quota-rule-1",
+				State:        googleproxyclient.OptQuotaRulesV1betaState{}, // No state set
+				StateDetails: googleproxyclient.NewOptString("No state"),
+			},
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(&googleproxyclient.V1betaListAllQuotaRulesOK{QuotaRules: quotaRules}, nil)
+
+		err := _verifyNewSourceQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "State: (not set)")
+	})
+
+	t.Run("NoQuotaRules", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(&googleproxyclient.V1betaListAllQuotaRulesOK{QuotaRules: []googleproxyclient.QuotaRulesV1beta{}}, nil)
+
+		err := _verifyNewSourceQuotaRulesReverse(ctx, event)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("APIBadRequest", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(&googleproxyclient.V1betaListAllQuotaRulesBadRequest{Message: "Bad request"}, nil)
+
+		err := _verifyNewSourceQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+		assert.Equal(tt, vsaErrors.ErrQuotaRuleBadRequest, customErr.TrackingID)
+	})
+
+	t.Run("APIUnauthorized", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(&googleproxyclient.V1betaListAllQuotaRulesUnauthorized{Message: "Unauthorized"}, nil)
+
+		err := _verifyNewSourceQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+		assert.Equal(tt, vsaErrors.ErrQuotaRuleUnauthorized, customErr.TrackingID)
+	})
+
+	t.Run("APIForbidden", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(&googleproxyclient.V1betaListAllQuotaRulesForbidden{Message: "Forbidden"}, nil)
+
+		err := _verifyNewSourceQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+		assert.Equal(tt, vsaErrors.ErrQuotaRuleForbidden, customErr.TrackingID)
+	})
+
+	t.Run("APINotFound", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(&googleproxyclient.V1betaListAllQuotaRulesNotFound{Message: "Not found"}, nil)
+
+		err := _verifyNewSourceQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+		assert.Equal(tt, vsaErrors.ErrQuotaRuleNotFound, customErr.TrackingID)
+	})
+
+	t.Run("APIInternalServerError", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(&googleproxyclient.V1betaListAllQuotaRulesInternalServerError{Message: "Internal error"}, nil)
+
+		err := _verifyNewSourceQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+		assert.Equal(tt, vsaErrors.ErrQuotaRuleInternalServerError, customErr.TrackingID)
+	})
+
+	t.Run("APIConflict", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(&googleproxyclient.V1betaListAllQuotaRulesConflict{Message: "Conflict"}, nil)
+
+		err := _verifyNewSourceQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+		assert.Equal(tt, vsaErrors.ErrQuotaRuleConflict, customErr.TrackingID)
+	})
+
+	t.Run("APIUnprocessableEntity", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(&googleproxyclient.V1betaListAllQuotaRulesUnprocessableEntity{Message: "Unprocessable"}, nil)
+
+		err := _verifyNewSourceQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+		assert.Equal(tt, vsaErrors.ErrQuotaRuleBadRequest, customErr.TrackingID)
+	})
+
+	t.Run("APITooManyRequests", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(&googleproxyclient.V1betaListAllQuotaRulesTooManyRequests{Message: "Too many requests"}, nil)
+
+		err := _verifyNewSourceQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+		assert.Equal(tt, vsaErrors.ErrQuotaRuleTooManyRequests, customErr.TrackingID)
+	})
+
+	t.Run("APIError", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(nil, vsaErrors.New("API error"))
+
+		err := _verifyNewSourceQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to list quota rules on new source volume")
+	})
+}
+
+func Test_verifyNewDestinationQuotaRulesReverse(t *testing.T) {
+	event := &ReverseReplicationEvent{
+		CommonReplicationEventParams: CommonReplicationEventParams{
+			ReplicationModel: &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:   "us-west1",
+					SourceVolumeUUID: "src-volume-uuid",
+				},
+			},
+			SourceProjectNumber: "987654321",
+			SrcBasePath:         "https://test-base-path-src",
+			SrcToken:            "test-token-src",
+		},
+	}
+
+	t.Run("NoTransitioningQuotaRules", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		quotaRules := []googleproxyclient.QuotaRulesV1beta{
+			{
+				ResourceId: "quota-rule-1",
+				State:      googleproxyclient.NewOptQuotaRulesV1betaState(googleproxyclient.QuotaRulesV1betaStateREADY),
+			},
+			{
+				ResourceId: "quota-rule-2",
+				State:      googleproxyclient.NewOptQuotaRulesV1betaState(googleproxyclient.QuotaRulesV1betaStateERROR),
+			},
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(&googleproxyclient.V1betaListAllQuotaRulesOK{QuotaRules: quotaRules}, nil)
+
+		err := _verifyNewDestinationQuotaRulesReverse(ctx, event)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("QuotaRuleCreating", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		quotaRules := []googleproxyclient.QuotaRulesV1beta{
+			{
+				ResourceId:   "quota-rule-1",
+				State:        googleproxyclient.NewOptQuotaRulesV1betaState(googleproxyclient.QuotaRulesV1betaStateCREATING),
+				StateDetails: googleproxyclient.NewOptString("Creating"),
+			},
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(&googleproxyclient.V1betaListAllQuotaRulesOK{QuotaRules: quotaRules}, nil)
+
+		err := _verifyNewDestinationQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Cannot reverse resume replication: new destination volume has quota rules in transitioning state")
+	})
+
+	t.Run("QuotaRuleUpdating", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		quotaRules := []googleproxyclient.QuotaRulesV1beta{
+			{
+				ResourceId:   "quota-rule-1",
+				State:        googleproxyclient.NewOptQuotaRulesV1betaState(googleproxyclient.QuotaRulesV1betaStateUPDATING),
+				StateDetails: googleproxyclient.NewOptString("Updating"),
+			},
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(&googleproxyclient.V1betaListAllQuotaRulesOK{QuotaRules: quotaRules}, nil)
+
+		err := _verifyNewDestinationQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Cannot reverse resume replication: new destination volume has quota rules in transitioning state")
+	})
+
+	t.Run("QuotaRuleDeleting", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		quotaRules := []googleproxyclient.QuotaRulesV1beta{
+			{
+				ResourceId:   "quota-rule-1",
+				State:        googleproxyclient.NewOptQuotaRulesV1betaState(googleproxyclient.QuotaRulesV1betaStateDELETING),
+				StateDetails: googleproxyclient.NewOptString("Deleting"),
+			},
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(&googleproxyclient.V1betaListAllQuotaRulesOK{QuotaRules: quotaRules}, nil)
+
+		err := _verifyNewDestinationQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Cannot reverse resume replication: new destination volume has quota rules in transitioning state")
+	})
+
+	t.Run("QuotaRuleNoState", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		quotaRules := []googleproxyclient.QuotaRulesV1beta{
+			{
+				ResourceId:   "quota-rule-1",
+				State:        googleproxyclient.OptQuotaRulesV1betaState{}, // No state set
+				StateDetails: googleproxyclient.NewOptString("No state"),
+			},
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(&googleproxyclient.V1betaListAllQuotaRulesOK{QuotaRules: quotaRules}, nil)
+
+		err := _verifyNewDestinationQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "State: (not set)")
+	})
+
+	t.Run("NoQuotaRules", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(&googleproxyclient.V1betaListAllQuotaRulesOK{QuotaRules: []googleproxyclient.QuotaRulesV1beta{}}, nil)
+
+		err := _verifyNewDestinationQuotaRulesReverse(ctx, event)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("APIBadRequest", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(&googleproxyclient.V1betaListAllQuotaRulesBadRequest{Message: "Bad request"}, nil)
+
+		err := _verifyNewDestinationQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+		assert.Equal(tt, vsaErrors.ErrQuotaRuleBadRequest, customErr.TrackingID)
+	})
+
+	t.Run("APIInternalServerError", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(&googleproxyclient.V1betaListAllQuotaRulesInternalServerError{Message: "Internal error"}, nil)
+
+		err := _verifyNewDestinationQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+		assert.Equal(tt, vsaErrors.ErrQuotaRuleInternalServerError, customErr.TrackingID)
+	})
+
+	t.Run("APIUnauthorized", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(&googleproxyclient.V1betaListAllQuotaRulesUnauthorized{Message: "Unauthorized"}, nil)
+
+		err := _verifyNewDestinationQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+		assert.Equal(tt, vsaErrors.ErrQuotaRuleUnauthorized, customErr.TrackingID)
+	})
+
+	t.Run("APIForbidden", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(&googleproxyclient.V1betaListAllQuotaRulesForbidden{Message: "Forbidden"}, nil)
+
+		err := _verifyNewDestinationQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+		assert.Equal(tt, vsaErrors.ErrQuotaRuleForbidden, customErr.TrackingID)
+	})
+
+	t.Run("APINotFound", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(&googleproxyclient.V1betaListAllQuotaRulesNotFound{Message: "Not found"}, nil)
+
+		err := _verifyNewDestinationQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+		assert.Equal(tt, vsaErrors.ErrQuotaRuleNotFound, customErr.TrackingID)
+	})
+
+	t.Run("APIConflict", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(&googleproxyclient.V1betaListAllQuotaRulesConflict{Message: "Conflict"}, nil)
+
+		err := _verifyNewDestinationQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+		assert.Equal(tt, vsaErrors.ErrQuotaRuleConflict, customErr.TrackingID)
+	})
+
+	t.Run("APIUnprocessableEntity", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(&googleproxyclient.V1betaListAllQuotaRulesUnprocessableEntity{Message: "Unprocessable"}, nil)
+
+		err := _verifyNewDestinationQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+		assert.Equal(tt, vsaErrors.ErrQuotaRuleBadRequest, customErr.TrackingID)
+	})
+
+	t.Run("APITooManyRequests", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(&googleproxyclient.V1betaListAllQuotaRulesTooManyRequests{Message: "Too many requests"}, nil)
+
+		err := _verifyNewDestinationQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr))
+		assert.Equal(tt, vsaErrors.ErrQuotaRuleTooManyRequests, customErr.TrackingID)
+	})
+
+	t.Run("APIError", func(tt *testing.T) {
+		ctx := context.Background()
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		mockInvoker.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).
+			Return(nil, vsaErrors.New("API error"))
+
+		err := _verifyNewDestinationQuotaRulesReverse(ctx, event)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to list quota rules on new destination volume")
+	})
+}
+
 // TestVolumeIDValidation tests the volume ID validation regex pattern
 func TestVolumeIDValidation(t *testing.T) {
 	// Compile the regex pattern used in the validation

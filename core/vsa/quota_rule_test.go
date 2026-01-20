@@ -199,7 +199,7 @@ func TestUpdateQuotaRule(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		mockClient.On("Cluster").Return(mockCluster)
 		mockStorage.On("QuotaRuleModify", mock.Anything, mock.Anything).Return(mockQuotaRuleModifyResponse, nil)
-		mockClient.On("Poll", jobUUID).Return(nil)
+		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(mockJobResponse, nil).Once()
 		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(mockJobResponse, nil)
 
 		result, err := rc.UpdateQuotaRule(context.Background(), params)
@@ -258,43 +258,7 @@ func TestUpdateQuotaRule(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("WhenPollJobFails", func(tt *testing.T) {
-		mockClient := new(ontaprest.MockRESTClient)
-		mockStorage := new(ontaprest.MockStorageClient)
-
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
-			return mockClient, nil
-		}
-
-		rc := &OntapRestProvider{}
-		params := &UpdateQuotaRuleParams{
-			ExternalQuotaRuleUUID: "quota-rule-uuid",
-			DiskLimitInKibs:       102400,
-		}
-
-		jobUUID := "job-uuid-123"
-		mockQuotaRuleModifyResponse := &storage.QuotaRuleModifyAccepted{
-			Payload: &ontaprestmodels.QuotaRuleJobLinkResponse{
-				Job: &ontaprestmodels.JobLink{
-					UUID: func() *strfmt.UUID { u := strfmt.UUID(jobUUID); return &u }(),
-				},
-			},
-		}
-
-		mockClient.On("Storage").Return(mockStorage)
-		mockStorage.On("QuotaRuleModify", mock.Anything, mock.Anything).Return(mockQuotaRuleModifyResponse, nil)
-		mockClient.On("Poll", jobUUID).Return(errors.New("poll job failed"))
-
-		result, err := rc.UpdateQuotaRule(context.Background(), params)
-
-		assert.Error(tt, err)
-		assert.Nil(tt, result)
-		assert.Contains(tt, err.Error(), "poll job failed")
-		mockClient.AssertExpectations(tt)
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("WhenJobGetFails", func(tt *testing.T) {
+	t.Run("WhenFetchDetailsFromJobFails", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockCluster := new(ontaprest.MockClusterClient)
@@ -321,7 +285,53 @@ func TestUpdateQuotaRule(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		mockClient.On("Cluster").Return(mockCluster)
 		mockStorage.On("QuotaRuleModify", mock.Anything, mock.Anything).Return(mockQuotaRuleModifyResponse, nil)
-		mockClient.On("Poll", jobUUID).Return(nil)
+		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(nil, errors.New("job get failed"))
+
+		result, err := rc.UpdateQuotaRule(context.Background(), params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "job get failed")
+		mockClient.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+		mockCluster.AssertExpectations(tt)
+	})
+
+	t.Run("WhenRetryJobFails", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockCluster := new(ontaprest.MockClusterClient)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+		params := &UpdateQuotaRuleParams{
+			ExternalQuotaRuleUUID: "quota-rule-uuid",
+			DiskLimitInKibs:       102400,
+		}
+
+		jobUUID := "job-uuid-123"
+		mockQuotaRuleModifyResponse := &storage.QuotaRuleModifyAccepted{
+			Payload: &ontaprestmodels.QuotaRuleJobLinkResponse{
+				Job: &ontaprestmodels.JobLink{
+					UUID: func() *strfmt.UUID { u := strfmt.UUID(jobUUID); return &u }(),
+				},
+			},
+		}
+
+		// First call succeeds, second call fails during retry
+		mockJobResponse := &ontaprestcluster.JobGetOK{
+			Payload: &ontaprestmodels.Job{
+				State: nillable.ToPointer("running"),
+			},
+		}
+
+		mockClient.On("Storage").Return(mockStorage)
+		mockClient.On("Cluster").Return(mockCluster)
+		mockStorage.On("QuotaRuleModify", mock.Anything, mock.Anything).Return(mockQuotaRuleModifyResponse, nil)
+		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(mockJobResponse, nil).Once()
 		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(nil, errors.New("job get failed"))
 
 		result, err := rc.UpdateQuotaRule(context.Background(), params)
@@ -362,6 +372,13 @@ func TestUpdateQuotaRule(t *testing.T) {
 			},
 		}
 
+		// First call returns job in progress, second call returns failure
+		jobInProgress := &ontaprestcluster.JobGetOK{
+			Payload: &ontaprestmodels.Job{
+				State: nillable.ToPointer("running"),
+			},
+		}
+
 		mockJobResponse := &ontaprestcluster.JobGetOK{
 			Payload: &ontaprestmodels.Job{
 				State:   &expectedJobState,
@@ -373,7 +390,7 @@ func TestUpdateQuotaRule(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		mockClient.On("Cluster").Return(mockCluster)
 		mockStorage.On("QuotaRuleModify", mock.Anything, mock.Anything).Return(mockQuotaRuleModifyResponse, nil)
-		mockClient.On("Poll", jobUUID).Return(nil)
+		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(jobInProgress, nil).Once()
 		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(mockJobResponse, nil)
 
 		result, err := rc.UpdateQuotaRule(context.Background(), params)
@@ -1221,7 +1238,7 @@ func TestQuotaEnableDisable(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		mockClient.On("Cluster").Return(mockCluster)
 		mockStorage.On("VolumeModify", mock.Anything).Return(false, mockJobAccepted, nil)
-		mockClient.On("Poll", jobUUID).Return(nil)
+		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(mockJobResponse, nil).Once()
 		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(mockJobResponse, nil)
 
 		result, err := rc.QuotaEnableDisable(context.Background(), volumeUUID, svmName, true)
@@ -1269,7 +1286,7 @@ func TestQuotaEnableDisable(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		mockClient.On("Cluster").Return(mockCluster)
 		mockStorage.On("VolumeModify", mock.Anything).Return(false, mockJobAccepted, nil)
-		mockClient.On("Poll", jobUUID).Return(nil)
+		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(mockJobResponse, nil).Once()
 		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(mockJobResponse, nil)
 
 		result, err := rc.QuotaEnableDisable(context.Background(), volumeUUID, svmName, false)
@@ -1347,37 +1364,7 @@ func TestQuotaEnableDisable(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("WhenPollJobFails", func(tt *testing.T) {
-		mockClient := new(ontaprest.MockRESTClient)
-		mockStorage := new(ontaprest.MockStorageClient)
-
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
-			return mockClient, nil
-		}
-
-		rc := &OntapRestProvider{}
-		volumeUUID := "volume-uuid"
-		svmName := "svm-name"
-
-		jobUUID := "job-uuid-123"
-		mockJobAccepted := &ontaprest.JobAccepted{
-			JobUUID: jobUUID,
-		}
-
-		mockClient.On("Storage").Return(mockStorage)
-		mockStorage.On("VolumeModify", mock.Anything).Return(false, mockJobAccepted, nil)
-		mockClient.On("Poll", jobUUID).Return(errors.New("poll job failed"))
-
-		result, err := rc.QuotaEnableDisable(context.Background(), volumeUUID, svmName, true)
-
-		assert.Error(tt, err)
-		assert.Nil(tt, result)
-		assert.Contains(tt, err.Error(), "poll job failed")
-		mockClient.AssertExpectations(tt)
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("WhenJobGetFails", func(tt *testing.T) {
+	t.Run("WhenFetchDetailsFromJobFails", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockCluster := new(ontaprest.MockClusterClient)
@@ -1398,7 +1385,47 @@ func TestQuotaEnableDisable(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		mockClient.On("Cluster").Return(mockCluster)
 		mockStorage.On("VolumeModify", mock.Anything).Return(false, mockJobAccepted, nil)
-		mockClient.On("Poll", jobUUID).Return(nil)
+		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(nil, errors.New("job get failed"))
+
+		result, err := rc.QuotaEnableDisable(context.Background(), volumeUUID, svmName, true)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "job get failed")
+		mockClient.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+		mockCluster.AssertExpectations(tt)
+	})
+
+	t.Run("WhenRetryJobFails", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockCluster := new(ontaprest.MockClusterClient)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+		volumeUUID := "volume-uuid"
+		svmName := "svm-name"
+
+		jobUUID := "job-uuid-123"
+		mockJobAccepted := &ontaprest.JobAccepted{
+			JobUUID: jobUUID,
+		}
+
+		// First call succeeds, second call fails during retry
+		mockJobResponse := &ontaprestcluster.JobGetOK{
+			Payload: &ontaprestmodels.Job{
+				State: nillable.ToPointer("running"),
+			},
+		}
+
+		mockClient.On("Storage").Return(mockStorage)
+		mockClient.On("Cluster").Return(mockCluster)
+		mockStorage.On("VolumeModify", mock.Anything).Return(false, mockJobAccepted, nil)
+		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(mockJobResponse, nil).Once()
 		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(nil, errors.New("job get failed"))
 
 		result, err := rc.QuotaEnableDisable(context.Background(), volumeUUID, svmName, true)
@@ -1433,6 +1460,13 @@ func TestQuotaEnableDisable(t *testing.T) {
 			JobUUID: jobUUID,
 		}
 
+		// First call returns job in progress, second call returns failure
+		jobInProgress := &ontaprestcluster.JobGetOK{
+			Payload: &ontaprestmodels.Job{
+				State: nillable.ToPointer("running"),
+			},
+		}
+
 		mockJobResponse := &ontaprestcluster.JobGetOK{
 			Payload: &ontaprestmodels.Job{
 				State:   &expectedJobState,
@@ -1444,7 +1478,7 @@ func TestQuotaEnableDisable(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		mockClient.On("Cluster").Return(mockCluster)
 		mockStorage.On("VolumeModify", mock.Anything).Return(false, mockJobAccepted, nil)
-		mockClient.On("Poll", jobUUID).Return(nil)
+		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(jobInProgress, nil).Once()
 		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(mockJobResponse, nil)
 
 		result, err := rc.QuotaEnableDisable(context.Background(), volumeUUID, svmName, true)
@@ -1500,7 +1534,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		mockClient.On("Cluster").Return(mockCluster)
 		mockStorage.On("QuotaRuleDelete", mock.Anything, mock.Anything).Return(mockQuotaRuleDeleteResponse, nil)
-		mockClient.On("Poll", jobUUID).Return(nil)
+		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(mockJobResponse, nil).Once()
 		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(mockJobResponse, nil)
 
 		result, err := rc.DeleteQuotaRule(context.Background(), quotaUUID)
@@ -1553,40 +1587,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("WhenPollJobFails", func(tt *testing.T) {
-		mockClient := new(ontaprest.MockRESTClient)
-		mockStorage := new(ontaprest.MockStorageClient)
-
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
-			return mockClient, nil
-		}
-
-		rc := &OntapRestProvider{}
-		quotaUUID := "quota-rule-uuid"
-
-		jobUUID := "job-uuid-123"
-		mockQuotaRuleDeleteResponse := &storage.QuotaRuleDeleteAccepted{
-			Payload: &ontaprestmodels.QuotaRuleJobLinkResponse{
-				Job: &ontaprestmodels.JobLink{
-					UUID: func() *strfmt.UUID { u := strfmt.UUID(jobUUID); return &u }(),
-				},
-			},
-		}
-
-		mockClient.On("Storage").Return(mockStorage)
-		mockStorage.On("QuotaRuleDelete", mock.Anything, mock.Anything).Return(mockQuotaRuleDeleteResponse, nil)
-		mockClient.On("Poll", jobUUID).Return(errors.New("poll job failed"))
-
-		result, err := rc.DeleteQuotaRule(context.Background(), quotaUUID)
-
-		assert.Error(tt, err)
-		assert.Nil(tt, result)
-		assert.Contains(tt, err.Error(), "poll job failed")
-		mockClient.AssertExpectations(tt)
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("WhenJobGetFails", func(tt *testing.T) {
+	t.Run("WhenFetchDetailsFromJobFails", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockCluster := new(ontaprest.MockClusterClient)
@@ -1610,7 +1611,50 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		mockClient.On("Cluster").Return(mockCluster)
 		mockStorage.On("QuotaRuleDelete", mock.Anything, mock.Anything).Return(mockQuotaRuleDeleteResponse, nil)
-		mockClient.On("Poll", jobUUID).Return(nil)
+		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(nil, errors.New("job get failed"))
+
+		result, err := rc.DeleteQuotaRule(context.Background(), quotaUUID)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "job get failed")
+		mockClient.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+		mockCluster.AssertExpectations(tt)
+	})
+
+	t.Run("WhenRetryJobFails", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockCluster := new(ontaprest.MockClusterClient)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		rc := &OntapRestProvider{}
+		quotaUUID := "quota-rule-uuid"
+
+		jobUUID := "job-uuid-123"
+		mockQuotaRuleDeleteResponse := &storage.QuotaRuleDeleteAccepted{
+			Payload: &ontaprestmodels.QuotaRuleJobLinkResponse{
+				Job: &ontaprestmodels.JobLink{
+					UUID: func() *strfmt.UUID { u := strfmt.UUID(jobUUID); return &u }(),
+				},
+			},
+		}
+
+		// First call succeeds, second call fails during retry
+		mockJobResponse := &ontaprestcluster.JobGetOK{
+			Payload: &ontaprestmodels.Job{
+				State: nillable.ToPointer("running"),
+			},
+		}
+
+		mockClient.On("Storage").Return(mockStorage)
+		mockClient.On("Cluster").Return(mockCluster)
+		mockStorage.On("QuotaRuleDelete", mock.Anything, mock.Anything).Return(mockQuotaRuleDeleteResponse, nil)
+		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(mockJobResponse, nil).Once()
 		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(nil, errors.New("job get failed"))
 
 		result, err := rc.DeleteQuotaRule(context.Background(), quotaUUID)
@@ -1648,6 +1692,13 @@ func TestDeleteQuotaRule(t *testing.T) {
 			},
 		}
 
+		// First call returns job in progress, second call returns failure
+		jobInProgress := &ontaprestcluster.JobGetOK{
+			Payload: &ontaprestmodels.Job{
+				State: nillable.ToPointer("running"),
+			},
+		}
+
 		mockJobResponse := &ontaprestcluster.JobGetOK{
 			Payload: &ontaprestmodels.Job{
 				State:   &expectedJobState,
@@ -1659,7 +1710,7 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		mockClient.On("Cluster").Return(mockCluster)
 		mockStorage.On("QuotaRuleDelete", mock.Anything, mock.Anything).Return(mockQuotaRuleDeleteResponse, nil)
-		mockClient.On("Poll", jobUUID).Return(nil)
+		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(jobInProgress, nil).Once()
 		mockCluster.On("JobGet", mock.Anything, mock.Anything).Return(mockJobResponse, nil)
 
 		result, err := rc.DeleteQuotaRule(context.Background(), quotaUUID)

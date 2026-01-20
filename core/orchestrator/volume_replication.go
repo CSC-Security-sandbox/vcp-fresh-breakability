@@ -50,18 +50,20 @@ var (
 	updateReplication           = _updateReplication
 	getActiveReplicationJobs    = _getActiveReplicationJobs
 
-	validateCreateReplicationParams = replication.ValidateCreateReplicationParams
-	validateReplicationParams       = replication.ValidateReplicationParams
-	verifyDstReplicationResume      = replication.VerifyDstReplicationResume
-	verifySourceQuotaRules          = replication.VerifySourceQuotaRules
-	verifyDestinationQuotaRules     = replication.VerifyDestinationQuotaRules
-	verifyDstReplicationStop        = replication.VerifyDstReplicationStop
-	VerifyReplicationDelete         = replication.VerifyReplication
-	verifyDstReplicationSync        = replication.VerifyDstReplicationSync
-	validateReplicationUpdate       = replication.ValidateReplicationUpdate
-	verifyDstReplicationReverse     = replication.VerifyDstReplicationReverse
-	verifyEstablishPeering          = replication.VerifyEstablishPeering
-	hybridReplicationJobsInProcess  = replication.HybridReplicationJobsInProcess
+	validateCreateReplicationParams       = replication.ValidateCreateReplicationParams
+	validateReplicationParams             = replication.ValidateReplicationParams
+	verifyDstReplicationResume            = replication.VerifyDstReplicationResume
+	verifySourceQuotaRules                = replication.VerifySourceQuotaRules
+	verifyDestinationQuotaRules           = replication.VerifyDestinationQuotaRules
+	verifyNewSourceQuotaRulesReverse      = replication.VerifyNewSourceQuotaRulesReverse
+	verifyNewDestinationQuotaRulesReverse = replication.VerifyNewDestinationQuotaRulesReverse
+	verifyDstReplicationStop              = replication.VerifyDstReplicationStop
+	VerifyReplicationDelete               = replication.VerifyReplication
+	verifyDstReplicationSync              = replication.VerifyDstReplicationSync
+	validateReplicationUpdate             = replication.ValidateReplicationUpdate
+	verifyDstReplicationReverse           = replication.VerifyDstReplicationReverse
+	verifyEstablishPeering                = replication.VerifyEstablishPeering
+	hybridReplicationJobsInProcess        = replication.HybridReplicationJobsInProcess
 
 	convertCreateReplicationParamsToEventParam = _convertCreateReplicationParamsToEventParam
 	getReplicationObjects                      = _getReplicationObjects
@@ -2326,6 +2328,22 @@ func _reverseAndResumeReplication(ctx context.Context, se database.Storage, temp
 	replicationDb, err := verifyDstReplicationReverse(ctx, &event)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	// Verify source and destination quota rules only for file volumes
+	// Quota rules are only applicable to file volumes (volumes with FileProperties)
+	if event.ReplicationModel != nil && event.ReplicationModel.Volume != nil && event.ReplicationModel.Volume.VolumeAttributes != nil && event.ReplicationModel.Volume.VolumeAttributes.FileProperties != nil {
+		// Verify new source (current destination) quota rules are ready before reversing replication
+		err = verifyNewSourceQuotaRulesReverse(ctx, &event)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Verify new destination (current source) quota rules are not in transitioning state
+		err = verifyNewDestinationQuotaRulesReverse(ctx, &event)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	job := &datamodel.Job{

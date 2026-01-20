@@ -1930,5 +1930,11 @@
     "message": "Break operation is successful and destination volume has become RW, but post break quota rule creation operation failed",
     "retriable": false,
     "http_code": 500
+  },
+  "12016": {
+    "description": "Reverse resume replication quota rule failure",
+    "message": "Operation was successful but quota rule sync between source and destination failed during reverse resume",
+    "retriable": false,
+    "http_code": 200
   }
 }

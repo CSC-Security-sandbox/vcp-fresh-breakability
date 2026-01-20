@@ -302,33 +302,33 @@ const (
 	ErrKMSKeyUnreachable         = 8010
 
 	// Certificate and Password Rotation Error Codes (8500-8599 range)
-	ErrCertificateRotationFailed                    = 8501
-	ErrPasswordRotationFailed                       = 8502
-	ErrCertificateGenerationFailed                  = 8503
-	ErrCertificateInstallationFailed                = 8504
-	ErrCertificateConnectivityTestFailed            = 8505
-	ErrCertificateRevocationFailed                  = 8506
-	ErrPasswordConnectivityTestFailed               = 8507
-	ErrPasswordUpdateFailed                         = 8508
-	ErrPasswordRevertFailed                         = 8509
-	ErrCertificateExpired                           = 8510
-	ErrPoolHasNoNodes                               = 8511
-	ErrPoolCredentialsMissing                       = 8512
-	ErrCertificateCacheUpdateFailed                 = 8513
-	ErrPasswordCacheUpdateFailed                    = 8514
-	ErrRotationRollbackFailed                       = 8515
-	ErrCertificateNeedsRotationCheckFailed          = 8516
-	ErrPasswordSecretCreationFailed                 = 8517
-	ErrPasswordSecretDeletionFailed                 = 8518
-	ErrCertificateIDSwapFailed                      = 8519
-	ErrPasswordSecretIDSwapFailed                   = 8520
-	ErrVSAClusterPasswordUpdateFailed               = 8521
-	ErrVSAClusterCertificateInstallationFailed      = 8522
-	ErrPoolConnectivityNoStagedCredential           = 8523
-	ErrRotationResourceCleanupFailed                = 8524
-	ErrPasswordHistoryPolicyViolation               = 8525
-	ErrCertificateStagingFailed                     = 8526
-	ErrPasswordAuthorizationFailed                  = 8527
+	ErrCertificateRotationFailed               = 8501
+	ErrPasswordRotationFailed                  = 8502
+	ErrCertificateGenerationFailed             = 8503
+	ErrCertificateInstallationFailed           = 8504
+	ErrCertificateConnectivityTestFailed       = 8505
+	ErrCertificateRevocationFailed             = 8506
+	ErrPasswordConnectivityTestFailed          = 8507
+	ErrPasswordUpdateFailed                    = 8508
+	ErrPasswordRevertFailed                    = 8509
+	ErrCertificateExpired                      = 8510
+	ErrPoolHasNoNodes                          = 8511
+	ErrPoolCredentialsMissing                  = 8512
+	ErrCertificateCacheUpdateFailed            = 8513
+	ErrPasswordCacheUpdateFailed               = 8514
+	ErrRotationRollbackFailed                  = 8515
+	ErrCertificateNeedsRotationCheckFailed     = 8516
+	ErrPasswordSecretCreationFailed            = 8517
+	ErrPasswordSecretDeletionFailed            = 8518
+	ErrCertificateIDSwapFailed                 = 8519
+	ErrPasswordSecretIDSwapFailed              = 8520
+	ErrVSAClusterPasswordUpdateFailed          = 8521
+	ErrVSAClusterCertificateInstallationFailed = 8522
+	ErrPoolConnectivityNoStagedCredential      = 8523
+	ErrRotationResourceCleanupFailed           = 8524
+	ErrPasswordHistoryPolicyViolation          = 8525
+	ErrCertificateStagingFailed                = 8526
+	ErrPasswordAuthorizationFailed             = 8527
 
 	// FlexCache specific errors (10000-10999 range)
 	ErrCreatingFlexCacheVolume   = 10001
@@ -359,16 +359,17 @@ const (
 	ErrSFRFilesMissing                             = 12004
 	ErrNoSFRFilesFound                             = 12005
 
-	ErrMatchingQuotaRuleNotFoundOnDestination = 12006
-	ErrQuotaRuleNotFound                      = 12007
-	ErrQuotaRuleBadRequest                    = 12008
-	ErrQuotaRuleUnauthorized                  = 12009
-	ErrQuotaRuleForbidden                     = 12010
-	ErrQuotaRuleConflict                      = 12011
-	ErrQuotaRuleTooManyRequests               = 12012
-	ErrQuotaRuleInternalServerError           = 12013
-	ErrResumeReplicationQuotaRuleFailure      = 12014
-	ErrBreakReplicationQuotaRuleFailure       = 12015
+	ErrMatchingQuotaRuleNotFoundOnDestination   = 12006
+	ErrQuotaRuleNotFound                        = 12007
+	ErrQuotaRuleBadRequest                      = 12008
+	ErrQuotaRuleUnauthorized                    = 12009
+	ErrQuotaRuleForbidden                       = 12010
+	ErrQuotaRuleConflict                        = 12011
+	ErrQuotaRuleTooManyRequests                 = 12012
+	ErrQuotaRuleInternalServerError             = 12013
+	ErrResumeReplicationQuotaRuleFailure        = 12014
+	ErrBreakReplicationQuotaRuleFailure         = 12015
+	ErrReverseResumeReplicationQuotaRuleFailure = 12016
 )
 
 // ErrorMessage struct represents the structure of each error message in the JSON file.
