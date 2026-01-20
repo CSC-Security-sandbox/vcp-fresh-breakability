@@ -280,7 +280,7 @@ func Test_createBackup_VolumeFetching(t *testing.T) {
 			Type:         params.BackupType,
 		}
 
-		store.On("GetExpertModeVolumeByVolumeUUID", ctx, params.VolumeUUID).Return(expertModeVol, nil)
+		store.On("GetExpertModeVolumeByExternalUUID", ctx, params.VolumeUUID).Return(expertModeVol, nil)
 		store.On("GetBackupVault", ctx, params.BackupVaultID).Return(backupVault, nil)
 		store.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		store.On("CreateBackup", ctx, mock.Anything).Return(backup, nil)
@@ -347,7 +347,7 @@ func Test_createBackup_VolumeFetching(t *testing.T) {
 			Type:         params.BackupType,
 		}
 
-		store.On("GetExpertModeVolumeByVolumeUUID", ctx, params.VolumeUUID).Return(expertModeVol, nil)
+		store.On("GetExpertModeVolumeByExternalUUID", ctx, params.VolumeUUID).Return(expertModeVol, nil)
 		store.On("GetBackupVault", ctx, params.BackupVaultID).Return(backupVault, nil)
 		store.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		store.On("CreateBackup", ctx, mock.Anything).Return(backup, nil)
@@ -371,7 +371,7 @@ func Test_createBackup_VolumeFetching(t *testing.T) {
 		}
 
 		expectedErr := vsaerror.NewNotFoundErr("Expert mode volume", &params.VolumeUUID)
-		store.On("GetExpertModeVolumeByVolumeUUID", ctx, params.VolumeUUID).Return(nil, expectedErr)
+		store.On("GetExpertModeVolumeByExternalUUID", ctx, params.VolumeUUID).Return(nil, expectedErr)
 
 		_, _, err := _createBackup(ctx, store, temporal, params)
 		assert.Error(t, err)
@@ -5868,7 +5868,7 @@ func Test_createBackup_ExpertModeVolumeErrors(t *testing.T) {
 			Type:         params.BackupType,
 		}
 
-		store.On("GetExpertModeVolumeByVolumeUUID", ctx, params.VolumeUUID).Return(expertModeVol, nil)
+		store.On("GetExpertModeVolumeByExternalUUID", ctx, params.VolumeUUID).Return(expertModeVol, nil)
 		store.On("GetBackupVault", ctx, params.BackupVaultID).Return(backupVault, nil)
 		store.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		store.On("CreateBackup", ctx, mock.Anything).Return(backup, nil)

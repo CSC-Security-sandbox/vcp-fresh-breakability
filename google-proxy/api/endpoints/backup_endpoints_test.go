@@ -4862,7 +4862,7 @@ func TestV1betaCreateBackup_PoolAndExpertModeVolumeHandling(t *testing.T) {
 			},
 		}
 		mockOrch.EXPECT().
-			GetExpertModeVolumeByUUID(ctx, volumeId).
+			GetExpertModeVolumeByExternalUUID(ctx, volumeId).
 			Return(expertModeVol, nil)
 
 		result, err := handler.V1betaCreateBackup(ctx, req, params)
@@ -4914,7 +4914,7 @@ func TestV1betaCreateBackup_PoolAndExpertModeVolumeHandling(t *testing.T) {
 			},
 		}
 		mockOrch.EXPECT().
-			GetExpertModeVolumeByUUID(ctx, volumeId).
+			GetExpertModeVolumeByExternalUUID(ctx, volumeId).
 			Return(expertModeVol, nil)
 
 		// Mock GetBackupVaultByUUID to return error (checkAndFetchBackupVault will fail)
@@ -4972,7 +4972,7 @@ func TestV1betaCreateBackup_PoolAndExpertModeVolumeHandling(t *testing.T) {
 			},
 		}
 		mockOrch.EXPECT().
-			GetExpertModeVolumeByUUID(ctx, volumeId).
+			GetExpertModeVolumeByExternalUUID(ctx, volumeId).
 			Return(expertModeVol, nil)
 
 		// Mock GetBackupVaultByUUID to return NotFound, then GetBackupVaultFromCVP will fail

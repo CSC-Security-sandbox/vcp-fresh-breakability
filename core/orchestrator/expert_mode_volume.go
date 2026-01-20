@@ -276,7 +276,7 @@ func _deleteExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 	return nil
 }
 
-// GetExpertModeVolumeByUUID retrieves an expert mode volume by its UUID
-func (o *Orchestrator) GetExpertModeVolumeByUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error) {
-	return o.storage.GetExpertModeVolumeByUUID(ctx, volumeUUID)
+// GetExpertModeVolumeByExternalUUID retrieves an expert mode volume by its UUID
+func (o *Orchestrator) GetExpertModeVolumeByExternalUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error) {
+	return o.storage.GetExpertModeVolumeByExternalUUID(ctx, volumeUUID)
 }

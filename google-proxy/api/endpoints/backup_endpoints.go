@@ -187,7 +187,7 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 	var expertModeVol *datamodel.ExpertModeVolumes
 	// If pool is ONTAP mode, fetch from ExpertModeVolumes table
 	if isExpertMode {
-		expertModeVol, err = h.Orchestrator.GetExpertModeVolumeByUUID(ctx, req.VolumeId)
+		expertModeVol, err = h.Orchestrator.GetExpertModeVolumeByExternalUUID(ctx, req.VolumeId)
 		if err != nil {
 			if errors.IsNotFoundErr(err) {
 				logger.Error("Expert mode volume not found", "volumeID", req.VolumeId)

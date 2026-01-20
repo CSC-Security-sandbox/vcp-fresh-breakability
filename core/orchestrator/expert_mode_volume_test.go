@@ -975,3 +975,158 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 		temporal.AssertExpectations(tt)
 	})
 }
+
+func TestGetExpertModeVolumeByExternalUUID(t *testing.T) {
+	setupStoreForGet := func(tt *testing.T) (*log.MockLogger, database.Storage, *datamodel.Account, *datamodel.Pool, *datamodel.Svm, *datamodel.ExpertModeVolumes) {
+		mockLogger := log.NewMockLogger(tt)
+		mockLogger.EXPECT().InfoContext(mock.Anything, "Running AutoMigrate for model changes")
+
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			SizeInBytes:    2199023255552, // 2TB
+			LargeCapacity:  false,
+			PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test-svm",
+			PoolID:    pool.ID,
+			AccountID: account.ID,
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "660e8400-e29b-41d4-a716-446655440001",
+				IPSpace:      "Default",
+			},
+			State: models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		expertModeVolume := &datamodel.ExpertModeVolumes{
+			Name:         "test-expert-volume",
+			SizeInBytes:  1099511627776, // 1TB
+			PoolID:       pool.ID,
+			AccountID:    account.ID,
+			SvmID:        svm.ID,
+			Style:        "flexvol",
+			State:        models.LifeCycleStateREADY,
+			ExternalUUID: "770e8400-e29b-41d4-a716-446655440002",
+		}
+		err = store.DB().Create(expertModeVolume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create expert mode volume: %v", err)
+		}
+
+		return mockLogger, store, account, pool, svm, expertModeVolume
+	}
+
+	t.Run("Success_VolumeExists", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger, store, _, _, _, volume := setupStoreForGet(tt)
+
+		orch := &Orchestrator{storage: store}
+		result, err := orch.GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, volume.ExternalUUID, result.ExternalUUID)
+		assert.Equal(tt, volume.Name, result.Name)
+		assert.Equal(tt, volume.SizeInBytes, result.SizeInBytes)
+		assert.Equal(tt, volume.Style, result.Style)
+		assert.Equal(tt, volume.State, result.State)
+
+		mockLogger.AssertExpectations(tt)
+	})
+
+	t.Run("Error_VolumeNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewMockLogger(tt)
+		mockLogger.EXPECT().InfoContext(mock.Anything, "Running AutoMigrate for model changes")
+
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		orch := &Orchestrator{storage: store}
+		result, err := orch.GetExpertModeVolumeByExternalUUID(ctx, "non-existent-uuid")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+
+		mockLogger.AssertExpectations(tt)
+	})
+
+	t.Run("Error_EmptyUUID", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewMockLogger(tt)
+		mockLogger.EXPECT().InfoContext(mock.Anything, "Running AutoMigrate for model changes")
+
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		orch := &Orchestrator{storage: store}
+		result, err := orch.GetExpertModeVolumeByExternalUUID(ctx, "")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+
+		mockLogger.AssertExpectations(tt)
+	})
+
+	t.Run("Error_StorageError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		expectedErr := errors.New("database connection error")
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, "test-uuid").Return(nil, expectedErr).Once()
+
+		orch := &Orchestrator{storage: mockStorage}
+		result, err := orch.GetExpertModeVolumeByExternalUUID(ctx, "test-uuid")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, expectedErr, err)
+
+		mockStorage.AssertExpectations(tt)
+	})
+}

@@ -150,7 +150,7 @@ type OrchestratorFactory interface {
 	GetSDEActiveDirectory(ctx context.Context, getADParams *commonparams.GetADParams) (*cvpmodels.ActiveDirectoryV1beta, error)
 	DeleteActiveDirectory(ctx context.Context, params *commonparams.DeleteActiveDirectoryParams) (string, error)
 
-	GetExpertModeVolumeByUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error)
+	GetExpertModeVolumeByExternalUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error)
 	CreateExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error
 	DeleteExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error
 	UpdateRbacForPools(ctx context.Context) (string, error)

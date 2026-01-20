@@ -148,7 +148,7 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 
 	if isExpertModeVolume {
 		// Fetch from ExpertModeVolumes table
-		expertModeVol, err = se.GetExpertModeVolumeByVolumeUUID(ctx, params.VolumeUUID)
+		expertModeVol, err = se.GetExpertModeVolumeByExternalUUID(ctx, params.VolumeUUID)
 		if err != nil {
 			return nil, "", err
 		}

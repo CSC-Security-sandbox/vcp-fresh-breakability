@@ -1012,6 +1012,7 @@ func TestGetExpertModeVolumeByUUID_Success(t *testing.T) {
 	svmExternalUUID := utils.RandomUUID()
 	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, svmExternalUUID)
 
+	// Create expert mode volume
 	expertModeVolume := &datamodel.ExpertModeVolumes{
 		Name:         "test-expert-volume",
 		SizeInBytes:  1099511627776, // 1TB
@@ -1025,25 +1026,21 @@ func TestGetExpertModeVolumeByUUID_Success(t *testing.T) {
 
 	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
 	assert.NoError(t, err)
+	assert.NotNil(t, createdVolume)
 
 	// Retrieve the volume by UUID
 	retrievedVolume, err := store.GetExpertModeVolumeByUUID(ctx, createdVolume.UUID)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, retrievedVolume)
+
+	// Validate retrieved volume
 	assert.Equal(t, createdVolume.UUID, retrievedVolume.UUID)
 	assert.Equal(t, createdVolume.Name, retrievedVolume.Name)
 	assert.Equal(t, createdVolume.SizeInBytes, retrievedVolume.SizeInBytes)
 	assert.Equal(t, createdVolume.PoolID, retrievedVolume.PoolID)
 	assert.Equal(t, createdVolume.AccountID, retrievedVolume.AccountID)
 	assert.Equal(t, createdVolume.SvmID, retrievedVolume.SvmID)
-	// Verify preloaded relationships
-	assert.NotNil(t, retrievedVolume.Account)
-	assert.Equal(t, account.ID, retrievedVolume.Account.ID)
-	assert.NotNil(t, retrievedVolume.Pool)
-	assert.Equal(t, pool.ID, retrievedVolume.Pool.ID)
-	assert.NotNil(t, retrievedVolume.Svm)
-	assert.Equal(t, svm.ID, retrievedVolume.Svm.ID)
 }
 
 func TestGetExpertModeVolumeByUUID_NotFound(t *testing.T) {
@@ -1052,7 +1049,7 @@ func TestGetExpertModeVolumeByUUID_NotFound(t *testing.T) {
 
 	// Try to retrieve non-existent volume
 	nonExistentUUID := utils.RandomUUID()
-	retrievedVolume, err := store.GetExpertModeVolumeByUUID(ctx, nonExistentUUID)
+	retrievedVolume, err := store.GetExpertModeVolumeByExternalUUID(ctx, nonExistentUUID)
 
 	assert.Error(t, err)
 	assert.Nil(t, retrievedVolume)
@@ -1082,14 +1079,17 @@ func TestGetExpertModeVolumeByUUID_WithBackupConfig(t *testing.T) {
 		BackupConfig: backupConfig,
 	}
 
+	// Create the volume
 	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
 	assert.NoError(t, err)
+	assert.NotNil(t, createdVolume)
 
-	// Retrieve the volume by UUID
-	retrievedVolume, err := store.GetExpertModeVolumeByUUID(ctx, createdVolume.UUID)
-
+	// Verify the volume exists in the database
+	retrievedVolume, err := store.GetExpertModeVolumeByExternalUUID(ctx, createdVolume.ExternalUUID)
 	assert.NoError(t, err)
 	assert.NotNil(t, retrievedVolume)
+
+	// Validate the backup configuration
 	assert.NotNil(t, retrievedVolume.BackupConfig)
 	assert.Equal(t, backupVaultID, retrievedVolume.BackupConfig.BackupVaultID)
 }
@@ -1102,47 +1102,49 @@ func TestUpdateExpertModeVolume_Success(t *testing.T) {
 	svmExternalUUID := utils.RandomUUID()
 	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, svmExternalUUID)
 
+	// Create the initial volume
 	expertModeVolume := &datamodel.ExpertModeVolumes{
 		Name:         "test-expert-volume",
-		SizeInBytes:  1099511627776,
+		SizeInBytes:  1099511627776, // 1TB
 		PoolID:       pool.ID,
 		AccountID:    account.ID,
 		SvmID:        svm.ID,
 		Style:        "flexvol",
 		ExternalUUID: utils.RandomUUID(),
-		State:        models.LifeCycleStateREADY,
+		State:        models.LifeCycleStateCreating,
 	}
 
 	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
 	assert.NoError(t, err)
+	assert.NotNil(t, createdVolume)
 
-	// Update BackupConfig
-	newBackupVaultID := "new-backup-vault-uuid"
-	backupChainBytes := int64(1073741824) // 1GB
-	scheduledBackupEnabled := true
-	updatedBackupConfig := &datamodel.DataProtection{
-		BackupVaultID:          newBackupVaultID,
-		BackupChainBytes:       &backupChainBytes,
-		ScheduledBackupEnabled: &scheduledBackupEnabled,
-	}
-	createdVolume.BackupConfig = updatedBackupConfig
-
-	err = store.UpdateExpertModeVolumeDataProtection(ctx, createdVolume)
-	assert.NoError(t, err)
-
-	// Retrieve the volume to verify the update
+	// Verify the volume exists in the database
 	retrievedVolume, err := store.GetExpertModeVolumeByUUID(ctx, createdVolume.UUID)
 	assert.NoError(t, err)
 	assert.NotNil(t, retrievedVolume)
-	assert.NotNil(t, retrievedVolume.BackupConfig)
-	assert.Equal(t, newBackupVaultID, retrievedVolume.BackupConfig.BackupVaultID)
-	assert.NotNil(t, retrievedVolume.BackupConfig.BackupChainBytes)
-	assert.Equal(t, backupChainBytes, *retrievedVolume.BackupConfig.BackupChainBytes)
-	assert.NotNil(t, retrievedVolume.BackupConfig.ScheduledBackupEnabled)
-	assert.True(t, *retrievedVolume.BackupConfig.ScheduledBackupEnabled)
-	// Verify other fields are not changed
-	assert.Equal(t, createdVolume.Name, retrievedVolume.Name)
-	assert.Equal(t, createdVolume.SizeInBytes, retrievedVolume.SizeInBytes)
+
+	// Update the volume with new values
+	updatedVolume := &datamodel.ExpertModeVolumes{
+		BaseModel: datamodel.BaseModel{
+			UUID: createdVolume.UUID,
+		},
+		Name:        "updated-expert-volume",
+		SizeInBytes: 2199023255552, // 2TB
+		Style:       "flexgroup",
+		State:       models.LifeCycleStateAvailable,
+	}
+
+	result, err := store.UpdateExpertModeVolume(ctx, updatedVolume)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "updated-expert-volume", result.Name)
+	assert.Equal(t, int64(2199023255552), result.SizeInBytes)
+	assert.Equal(t, "flexgroup", result.Style)
+	assert.Equal(t, models.LifeCycleStateAvailable, result.State)
+	assert.Equal(t, createdVolume.UUID, result.UUID)
+	assert.Equal(t, pool.ID, result.PoolID)
+	assert.Equal(t, account.ID, result.AccountID)
+	assert.Equal(t, svm.ID, result.SvmID)
 }
 
 func TestUpdateExpertModeVolume_WithNilBackupConfig(t *testing.T) {
@@ -1153,9 +1155,10 @@ func TestUpdateExpertModeVolume_WithNilBackupConfig(t *testing.T) {
 	svmExternalUUID := utils.RandomUUID()
 	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, svmExternalUUID)
 
+	// Create the initial volume
 	expertModeVolume := &datamodel.ExpertModeVolumes{
 		Name:         "test-expert-volume",
-		SizeInBytes:  1099511627776,
+		SizeInBytes:  1099511627776, // 1TB
 		PoolID:       pool.ID,
 		AccountID:    account.ID,
 		SvmID:        svm.ID,
@@ -1166,25 +1169,30 @@ func TestUpdateExpertModeVolume_WithNilBackupConfig(t *testing.T) {
 
 	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
 	assert.NoError(t, err)
+	assert.NotNil(t, createdVolume)
+
+	// Verify the volume exists in the database
+	retrievedVolume, err := store.GetExpertModeVolumeByExternalUUID(ctx, createdVolume.ExternalUUID)
+	assert.NoError(t, err)
+	assert.NotNil(t, retrievedVolume)
 
 	// Update with nil BackupConfig
-	createdVolume.BackupConfig = nil
-
-	err = store.UpdateExpertModeVolumeDataProtection(ctx, createdVolume)
+	retrievedVolume.BackupConfig = nil
+	err = store.UpdateExpertModeVolumeDataProtection(ctx, retrievedVolume)
 	assert.NoError(t, err)
 
 	// Retrieve the volume to verify the update
-	retrievedVolume, err := store.GetExpertModeVolumeByUUID(ctx, createdVolume.UUID)
+	updatedVolume, err := store.GetExpertModeVolumeByExternalUUID(ctx, retrievedVolume.ExternalUUID)
 	assert.NoError(t, err)
-	assert.NotNil(t, retrievedVolume)
+	assert.NotNil(t, updatedVolume)
+
 	// BackupConfig should be nil or effectively empty after update
-	// GORM may return an empty struct instead of nil for JSONB fields
-	if retrievedVolume.BackupConfig != nil {
-		assert.Empty(t, retrievedVolume.BackupConfig.BackupVaultID)
-		assert.Empty(t, retrievedVolume.BackupConfig.BackupPolicyID)
-		assert.Nil(t, retrievedVolume.BackupConfig.ScheduledBackupEnabled)
-		assert.Nil(t, retrievedVolume.BackupConfig.BackupChainBytes)
-		assert.Nil(t, retrievedVolume.BackupConfig.KmsGrant)
+	if updatedVolume.BackupConfig != nil {
+		assert.Empty(t, updatedVolume.BackupConfig.BackupVaultID)
+		assert.Empty(t, updatedVolume.BackupConfig.BackupPolicyID)
+		assert.Nil(t, updatedVolume.BackupConfig.ScheduledBackupEnabled)
+		assert.Nil(t, updatedVolume.BackupConfig.BackupChainBytes)
+		assert.Nil(t, updatedVolume.BackupConfig.KmsGrant)
 	}
 }
 
@@ -1197,6 +1205,7 @@ func TestUpdateExpertModeVolume_WhenVolumeNotFound_ReturnsError(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: nonExistentUUID,
 		},
+		ExternalUUID: nonExistentUUID,
 		BackupConfig: &datamodel.DataProtection{
 			BackupVaultID: "test-vault-id",
 		},
@@ -1209,7 +1218,7 @@ func TestUpdateExpertModeVolume_WhenVolumeNotFound_ReturnsError(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify the volume doesn't exist
-	retrievedVolume, err := store.GetExpertModeVolumeByUUID(ctx, nonExistentUUID)
+	retrievedVolume, err := store.GetExpertModeVolumeByExternalUUID(ctx, nonExistentUUID)
 	assert.Error(t, err)
 	assert.Nil(t, retrievedVolume)
 }

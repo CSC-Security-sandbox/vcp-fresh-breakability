@@ -7074,65 +7074,6 @@ func (_c *MockStorage_GetExpertModeVolumeByUUID_Call) RunAndReturn(run func(cont
 	return _c
 }
 
-// GetExpertModeVolumeByVolumeUUID provides a mock function with given fields: ctx, volumeUUID
-func (_m *MockStorage) GetExpertModeVolumeByVolumeUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error) {
-	ret := _m.Called(ctx, volumeUUID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetExpertModeVolumeByVolumeUUID")
-	}
-
-	var r0 *datamodel.ExpertModeVolumes
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.ExpertModeVolumes, error)); ok {
-		return rf(ctx, volumeUUID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.ExpertModeVolumes); ok {
-		r0 = rf(ctx, volumeUUID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.ExpertModeVolumes)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, volumeUUID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockStorage_GetExpertModeVolumeByVolumeUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetExpertModeVolumeByVolumeUUID'
-type MockStorage_GetExpertModeVolumeByVolumeUUID_Call struct {
-	*mock.Call
-}
-
-// GetExpertModeVolumeByVolumeUUID is a helper method to define mock.On call
-//   - ctx context.Context
-//   - volumeUUID string
-func (_e *MockStorage_Expecter) GetExpertModeVolumeByVolumeUUID(ctx interface{}, volumeUUID interface{}) *MockStorage_GetExpertModeVolumeByVolumeUUID_Call {
-	return &MockStorage_GetExpertModeVolumeByVolumeUUID_Call{Call: _e.mock.On("GetExpertModeVolumeByVolumeUUID", ctx, volumeUUID)}
-}
-
-func (_c *MockStorage_GetExpertModeVolumeByVolumeUUID_Call) Run(run func(ctx context.Context, volumeUUID string)) *MockStorage_GetExpertModeVolumeByVolumeUUID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
-	})
-	return _c
-}
-
-func (_c *MockStorage_GetExpertModeVolumeByVolumeUUID_Call) Return(_a0 *datamodel.ExpertModeVolumes, _a1 error) *MockStorage_GetExpertModeVolumeByVolumeUUID_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockStorage_GetExpertModeVolumeByVolumeUUID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.ExpertModeVolumes, error)) *MockStorage_GetExpertModeVolumeByVolumeUUID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetFlexCacheVolumeCountByClusterPeerID provides a mock function with given fields: ctx, clusterPeerID
 func (_m *MockStorage) GetFlexCacheVolumeCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error) {
 	ret := _m.Called(ctx, clusterPeerID)

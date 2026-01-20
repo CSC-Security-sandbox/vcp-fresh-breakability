@@ -116,25 +116,6 @@ func (d *DataStoreRepository) UpdateExpertModeVolume(ctx context.Context, expert
 	return dbVolume, nil
 }
 
-// GetExpertModeVolumeByUUID retrieves an expert mode volume by its UUID
-func (d *DataStoreRepository) GetExpertModeVolumeByVolumeUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error) {
-	var volume datamodel.ExpertModeVolumes
-
-	// Query the database for the volume with the given UUID
-	err := d.db.GORM().WithContext(ctx).
-		Where("uuid = ?", volumeUUID).
-		Preload("Account").
-		Preload("Pool").
-		Preload("Svm").
-		First(&volume).Error
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &volume, nil
-}
-
 // DeleteExpertModeVolume soft deletes an expert mode volume by setting DeletedAt and State
 func (d *DataStoreRepository) DeleteExpertModeVolume(ctx context.Context, volumeUUID string) error {
 	db := d.db.GORM().WithContext(ctx)

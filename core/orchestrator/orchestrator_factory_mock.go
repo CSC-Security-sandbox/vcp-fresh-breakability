@@ -3835,12 +3835,12 @@ func (_c *MockOrchestratorFactory_GetExpertModePoolCreds_Call) RunAndReturn(run 
 	return _c
 }
 
-// GetExpertModeVolumeByUUID provides a mock function with given fields: ctx, volumeUUID
-func (_m *MockOrchestratorFactory) GetExpertModeVolumeByUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error) {
+// GetExpertModeVolumeByExternalUUID provides a mock function with given fields: ctx, volumeUUID
+func (_m *MockOrchestratorFactory) GetExpertModeVolumeByExternalUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error) {
 	ret := _m.Called(ctx, volumeUUID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetExpertModeVolumeByUUID")
+		panic("no return value specified for GetExpertModeVolumeByExternalUUID")
 	}
 
 	var r0 *datamodel.ExpertModeVolumes
@@ -3865,31 +3865,31 @@ func (_m *MockOrchestratorFactory) GetExpertModeVolumeByUUID(ctx context.Context
 	return r0, r1
 }
 
-// MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetExpertModeVolumeByUUID'
-type MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call struct {
+// MockOrchestratorFactory_GetExpertModeVolumeByExternalUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetExpertModeVolumeByExternalUUID'
+type MockOrchestratorFactory_GetExpertModeVolumeByExternalUUID_Call struct {
 	*mock.Call
 }
 
-// GetExpertModeVolumeByUUID is a helper method to define mock.On call
+// GetExpertModeVolumeByExternalUUID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - volumeUUID string
-func (_e *MockOrchestratorFactory_Expecter) GetExpertModeVolumeByUUID(ctx interface{}, volumeUUID interface{}) *MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call {
-	return &MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call{Call: _e.mock.On("GetExpertModeVolumeByUUID", ctx, volumeUUID)}
+func (_e *MockOrchestratorFactory_Expecter) GetExpertModeVolumeByExternalUUID(ctx interface{}, volumeUUID interface{}) *MockOrchestratorFactory_GetExpertModeVolumeByExternalUUID_Call {
+	return &MockOrchestratorFactory_GetExpertModeVolumeByExternalUUID_Call{Call: _e.mock.On("GetExpertModeVolumeByExternalUUID", ctx, volumeUUID)}
 }
 
-func (_c *MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call) Run(run func(ctx context.Context, volumeUUID string)) *MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call {
+func (_c *MockOrchestratorFactory_GetExpertModeVolumeByExternalUUID_Call) Run(run func(ctx context.Context, volumeUUID string)) *MockOrchestratorFactory_GetExpertModeVolumeByExternalUUID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call) Return(_a0 *datamodel.ExpertModeVolumes, _a1 error) *MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call {
+func (_c *MockOrchestratorFactory_GetExpertModeVolumeByExternalUUID_Call) Return(_a0 *datamodel.ExpertModeVolumes, _a1 error) *MockOrchestratorFactory_GetExpertModeVolumeByExternalUUID_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.ExpertModeVolumes, error)) *MockOrchestratorFactory_GetExpertModeVolumeByUUID_Call {
+func (_c *MockOrchestratorFactory_GetExpertModeVolumeByExternalUUID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.ExpertModeVolumes, error)) *MockOrchestratorFactory_GetExpertModeVolumeByExternalUUID_Call {
 	_c.Call.Return(run)
 	return _c
 }
