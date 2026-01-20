@@ -89,6 +89,9 @@ func setupHTTPServer(handler http.Handler) *http.Server {
 
 	// ONTAP API routes
 	mux.Route("/v1beta/projects/{projectId}/locations/{locationId}/pools/{poolId}/ontap", func(r chi.Router) {
+		// Apply query transform to all ONTAP API routes (ogen-handled and passthrough)
+		r.Use(middleware.QueryTransformMiddleware())
+
 		// Ogen-handled routes (no chi middleware - ogen handler calls auth functions directly)
 		// Snaplock file delete - delegated to ogen server which handles auth internally
 		r.Delete("/api/storage/snaplock/file/{volumeUuid}/*", handler.ServeHTTP)
