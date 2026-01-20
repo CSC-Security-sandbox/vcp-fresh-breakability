@@ -84,6 +84,7 @@ jobs:
       send_slack_notification: false
       pr_base_branch: ${{ github.event.pull_request.base.ref }}
       images_to_build: ${{ needs.security_scan_pre.outputs.CHANGED_FILES }}
+      additional_images_toscan: ""
       push_charts: false
       trivy_scan_format: table
     needs: security_scan_pre

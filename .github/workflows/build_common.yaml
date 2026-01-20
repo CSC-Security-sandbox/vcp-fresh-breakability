@@ -40,7 +40,7 @@ on:
         description: "A list of additional images to scan. If not provided, no additional images will be scanned"
         required: false
         type: string
-        default: ""
+        default: "cloud-backup-adc"
       create_release:
         description: "A flag to indicate if a GitHub release should be created"
         default: true
