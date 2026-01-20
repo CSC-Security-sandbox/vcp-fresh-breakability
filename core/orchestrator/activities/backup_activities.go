@@ -677,7 +677,9 @@ func (a BackupActivity) GetSnapmirrorTransferStatus(ctx context.Context, node *m
 		return SmStatusFailed, err
 	}
 	if rsp == nil {
-		return SmStatusSuccess, nil
+		// return SmStatusSuccess, nil
+		logger.Errorf("snapmirror transfer response is nil for uuid: %s and snapshot: %s", snapmirrorUUID, snapshotName)
+		return "", errors.New("snapmirror transfer response is nil")
 	}
 	if rsp.State != nil {
 		if *rsp.State == SmStatusFailed {

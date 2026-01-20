@@ -4316,22 +4316,22 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_Success_MultipleSnapshots(t *tes
 			BaseModel: datamodel.BaseModel{ID: 3, UUID: "snapshot-uuid-3"},
 			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-3"},
-			Volume: volume,
-			Account: volume.Account,
+			Volume:             volume,
+			Account:            volume.Account,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
 			Name:      "backup-adhoc-older1", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
-			Volume: volume,
-			Account: volume.Account,
+			Volume:             volume,
+			Account:            volume.Account,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
 			Name:      "backup-adhoc-older2", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-1"},
-			Volume: volume,
-			Account: volume.Account,
+			Volume:             volume,
+			Account:            volume.Account,
 		},
 	}
 
@@ -4525,15 +4525,15 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_SnapshotAttributesNil(t *testing
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
 			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
-			Volume: volume,
-			Account: volume.Account,
+			Volume:             volume,
+			Account:            volume.Account,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
 			Name:      "backup-adhoc-older", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: nil, // Nil attributes
-			Volume: volume,
-			Account: volume.Account,
+			Volume:             volume,
+			Account:            volume.Account,
 		},
 	}
 
@@ -4594,15 +4594,15 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_EmptyExternalUUID(t *testing.T) 
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
 			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
-			Volume: volume,
-			Account: volume.Account,
+			Volume:             volume,
+			Account:            volume.Account,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
 			Name:      "backup-adhoc-older", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: ""}, // Empty external UUID
-			Volume: volume,
-			Account: volume.Account,
+			Volume:             volume,
+			Account:            volume.Account,
 		},
 	}
 
@@ -4718,37 +4718,37 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_Integration_FullWorkflow(t *test
 			BaseModel: datamodel.BaseModel{ID: 5, UUID: "snapshot-uuid-5"},
 			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-5"},
-			Volume: volume,
-			Account: volume.Account,
+			Volume:             volume,
+			Account:            volume.Account,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 4, UUID: "snapshot-uuid-4"},
 			Name:      "backup-adhoc-older1", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-4"},
-			Volume: volume,
-			Account: volume.Account,
+			Volume:             volume,
+			Account:            volume.Account,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 3, UUID: "snapshot-uuid-3"},
 			Name:      "backup-adhoc-older2", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-3"},
-			Volume: volume,
-			Account: volume.Account,
+			Volume:             volume,
+			Account:            volume.Account,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
 			Name:      "backup-adhoc-older3", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
-			Volume: volume,
-			Account: volume.Account,
+			Volume:             volume,
+			Account:            volume.Account,
 		},
 		// Snapshot with nil attributes
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
 			Name:      "backup-adhoc-older4", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: nil,
-			Volume: volume,
-			Account: volume.Account,
+			Volume:             volume,
+			Account:            volume.Account,
 		},
 	}
 
@@ -4969,15 +4969,15 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_HydrationSuccess(t *testing.T) {
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
 			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
-			Volume: volume,
-			Account: volume.Account,
+			Volume:             volume,
+			Account:            volume.Account,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
 			Name:      "backup-adhoc-older", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-1"},
-			Volume: volume,
-			Account: volume.Account,
+			Volume:             volume,
+			Account:            volume.Account,
 		},
 	}
 
@@ -5059,15 +5059,15 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_HydrationFailure_ContinueProcess
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
 			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
-			Volume: volume,
-			Account: volume.Account,
+			Volume:             volume,
+			Account:            volume.Account,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
 			Name:      "backup-adhoc-older", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-1"},
-			Volume: volume,
-			Account: volume.Account,
+			Volume:             volume,
+			Account:            volume.Account,
 		},
 	}
 
@@ -5140,15 +5140,15 @@ func TestCleanupOldAdhocBackupSnapshotsActivity_TokenGenerationFailure_ContinueP
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "snapshot-uuid-2"},
 			Name:      "backup-adhoc-latest", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-2"},
-			Volume: volume,
-			Account: volume.Account,
+			Volume:             volume,
+			Account:            volume.Account,
 		},
 		{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "snapshot-uuid-1"},
 			Name:      "backup-adhoc-older", Type: "backup", VolumeID: 1, State: models.LifeCycleStateREADY,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "snap-uuid-1"},
-			Volume: volume,
-			Account: volume.Account,
+			Volume:             volume,
+			Account:            volume.Account,
 		},
 	}
 
@@ -7065,28 +7065,17 @@ func TestPollTransferStatusWithHistoryCheckActivity_NilResponse(t *testing.T) {
 		NextWaitTime:            nextWaitTime,
 	}
 
-	// Return nil response (which should be treated as success according to the original function)
+	// Return nil response (which should now return an error instead of being treated as success)
 	mockProvider.On("SnapmirrorRelationshipTransferGet", "sm-uuid", "test-snapshot").Return(nil, nil)
 
 	currentTime := time.Now()
 
 	// Act
-	encodedValue, err := env.ExecuteActivity(activity.PollTransferStatusWithHistoryCheckActivity, input, currentTime)
+	_, err := env.ExecuteActivity(activity.PollTransferStatusWithHistoryCheckActivity, input, currentTime)
 
-	// Assert
-	assert.NoError(t, err)
-	var result *PollTransferStatusOutput
-	err = encodedValue.Get(&result)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Equal(t, backupActivitiesContext.Node, result.BackupActivitiesContext.Node)
-	assert.Equal(t, backupActivitiesContext.BackupWorkflowInit.Backup.Name, result.BackupActivitiesContext.BackupWorkflowInit.Backup.Name)
-	assert.True(t, result.TransferComplete)
-	assert.False(t, result.ShouldContinueAsNew)
-	assert.Equal(t, "", result.ContinueAsNewReason)
-	assert.Equal(t, nextWaitTime, result.NextWaitTime)
-	assert.Equal(t, SmStatusSuccess, result.BackupActivitiesContext.TransferStatus)
-	assert.NotEmpty(t, result.BackupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotCreationTime)
+	// Assert - should receive an error for nil response
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "snapmirror transfer response is nil")
 	mockProvider.AssertExpectations(t)
 }
 
