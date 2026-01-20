@@ -123,18 +123,37 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		mm := newMonkeyMockAndPatch(tt)
 		peerExpiryTime := time.Now().Add(1 * time.Hour)
 
+		writebackEnabled := true
+		atimeScrubEnabled := true
+		atimeScrubDays := int16(30)
+		cifsChangeNotifyEnabled := false
+		enableGlobalFileLock := true
+
 		params := &common.CreateVolumeParams{
-			AccountName:     "test_account",
-			Region:          "test_region",
-			Name:            "test_volume",
-			VendorID:        "test_vendor",
-			QuotaInBytes:    minQuotaInBytesPool,
-			Protocols:       []string{"NFS"},
-			Description:     "Some description",
-			DisplayName:     "Some display name",
-			PoolID:          "test-pool-uuid",
-			CreationToken:   "test-creation-token",
-			CacheParameters: &models.CacheParameters{PeerExpiryTime: &peerExpiryTime},
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			VendorID:      "test_vendor",
+			QuotaInBytes:  minQuotaInBytesPool,
+			Protocols:     []string{"NFS"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+			CacheParameters: &models.CacheParameters{
+				PeerExpiryTime:       &peerExpiryTime,
+				PeerClusterName:      "peer-cluster",
+				PeerSvmName:          "peer-svm",
+				PeerVolumeName:       "peer-volume",
+				PeerIPAddresses:      []string{"10.0.0.1"},
+				EnableGlobalFileLock: &enableGlobalFileLock,
+				CacheConfig: &models.CacheConfig{
+					WritebackEnabled:        &writebackEnabled,
+					AtimeScrubEnabled:       &atimeScrubEnabled,
+					AtimeScrubDays:          &atimeScrubDays,
+					CifsChangeNotifyEnabled: &cifsChangeNotifyEnabled,
+				},
+			},
 		}
 
 		dbAccount := &datamodel.Account{
@@ -178,6 +197,165 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		assert.Equal(tt, volume.ProtocolTypes, []string{"NFS"})
 		assert.Equal(tt, volume.QuotaInBytes, minQuotaInBytesPool)
 		assert.Equal(tt, volume.LifeCycleState, "PREPARING")
+
+		dbVolume, dbErr := store.GetVolumeByName(ctx, params.Name)
+		assert.NoError(tt, dbErr)
+		assert.NotNil(tt, dbVolume.CacheParameters)
+		assert.NotNil(tt, dbVolume.CacheParameters.EnableGlobalFileLock)
+		assert.True(tt, *dbVolume.CacheParameters.EnableGlobalFileLock)
+		assert.NotNil(tt, dbVolume.CacheParameters.CacheConfig)
+		cc := dbVolume.CacheParameters.CacheConfig
+		assert.NotNil(tt, cc.WritebackEnabled)
+		assert.True(tt, *cc.WritebackEnabled)
+		assert.NotNil(tt, cc.AtimeScrubEnabled)
+		assert.True(tt, *cc.AtimeScrubEnabled)
+		assert.NotNil(tt, cc.AtimeScrubDays)
+		assert.Equal(tt, int16(30), *cc.AtimeScrubDays)
+		assert.NotNil(tt, cc.CifsChangeNotifyEnabled)
+		assert.False(tt, *cc.CifsChangeNotifyEnabled)
+	})
+
+	t.Run("Success_WithPartialCacheConfig", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger, store := setupStore(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		mm := newMonkeyMockAndPatch(tt)
+		peerExpiryTime := time.Now().Add(1 * time.Hour)
+
+		writebackEnabled := true
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume_partial_cache",
+			VendorID:      "test_vendor",
+			QuotaInBytes:  minQuotaInBytesPool,
+			Protocols:     []string{"NFS"},
+			Description:   "Volume with partial CacheConfig",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token-partial",
+			CacheParameters: &models.CacheParameters{
+				PeerExpiryTime:  &peerExpiryTime,
+				PeerClusterName: "peer-cluster",
+				PeerSvmName:     "peer-svm",
+				PeerVolumeName:  "peer-volume",
+				CacheConfig: &models.CacheConfig{
+					WritebackEnabled: &writebackEnabled,
+					// Other fields are nil
+				},
+			},
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+			Name:      "test_account",
+		}
+
+		event := &flexcache.CreateFlexCacheEvent{
+			LocationID:    location,
+			ProjectNumber: params.AccountName,
+			RequestUri:    requestURI,
+			CorrelationID: &correlationID,
+		}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
+		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
+		mm.EXPECT().utilsGetLocationFromVendorID(vendorID).Return(location, nil)
+		mm.EXPECT().verifyCommandExpiryTime(&peerExpiryTime).Return(nil)
+		mm.EXPECT().utilsGetRequestIDFromContext(ctx).Return(requestURI)
+		mm.EXPECT().utilsGetCorrelationIDFromContext(ctx).Return(correlationID)
+		mm.EXPECT().workflowsExecuteWorkflowSequentially(
+			temporal, ctx,
+			mock.AnythingOfType("StartWorkflowOptions"),
+			mock.AnythingOfType("func(internal.Context, *common.CreateVolumeParams, *datamodel.Volume, *flexcache.CreateFlexCacheEvent) error"),
+			mock.AnythingOfType("ChildWorkflowOptions"),
+			params, mock.MatchedBy(func(vol *datamodel.Volume) bool {
+				if vol.CacheParameters == nil || vol.CacheParameters.CacheConfig == nil {
+					return false
+				}
+				cc := vol.CacheParameters.CacheConfig
+				// WritebackEnabled should be set
+				if cc.WritebackEnabled == nil || *cc.WritebackEnabled != true {
+					return false
+				}
+				// Other fields should be nil
+				if cc.AtimeScrubEnabled != nil || cc.AtimeScrubDays != nil || cc.CifsChangeNotifyEnabled != nil {
+					return false
+				}
+				return true
+			}), event).Return(nil)
+
+		volume, jobID, err := _createFlexCacheVolume(ctx, store, temporal, params)
+		assert.NotNil(tt, volume)
+		assert.NotEmpty(tt, jobID)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Success_NoCacheConfig_BackwardsCompatibility", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger, store := setupStore(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		mm := newMonkeyMockAndPatch(tt)
+		peerExpiryTime := time.Now().Add(1 * time.Hour)
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume_no_cache_config",
+			VendorID:      "test_vendor",
+			QuotaInBytes:  minQuotaInBytesPool,
+			Protocols:     []string{"NFS"},
+			Description:   "Volume without CacheConfig",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token-no-cache",
+			CacheParameters: &models.CacheParameters{
+				PeerExpiryTime:  &peerExpiryTime,
+				PeerClusterName: "peer-cluster",
+				PeerSvmName:     "peer-svm",
+				PeerVolumeName:  "peer-volume",
+			},
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+			Name:      "test_account",
+		}
+
+		event := &flexcache.CreateFlexCacheEvent{
+			LocationID:    location,
+			ProjectNumber: params.AccountName,
+			RequestUri:    requestURI,
+			CorrelationID: &correlationID,
+		}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
+		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
+		mm.EXPECT().utilsGetLocationFromVendorID(vendorID).Return(location, nil)
+		mm.EXPECT().verifyCommandExpiryTime(&peerExpiryTime).Return(nil)
+		mm.EXPECT().utilsGetRequestIDFromContext(ctx).Return(requestURI)
+		mm.EXPECT().utilsGetCorrelationIDFromContext(ctx).Return(correlationID)
+		mm.EXPECT().workflowsExecuteWorkflowSequentially(
+			temporal, ctx,
+			mock.AnythingOfType("StartWorkflowOptions"),
+			mock.AnythingOfType("func(internal.Context, *common.CreateVolumeParams, *datamodel.Volume, *flexcache.CreateFlexCacheEvent) error"),
+			mock.AnythingOfType("ChildWorkflowOptions"),
+			params, mock.MatchedBy(func(vol *datamodel.Volume) bool {
+				// CacheParameters should exist but CacheConfig should be nil
+				if vol.CacheParameters == nil {
+					return false
+				}
+				// CacheConfig should be nil for backwards compatibility
+				return vol.CacheParameters.CacheConfig == nil
+			}), event).Return(nil)
+
+		volume, jobID, err := _createFlexCacheVolume(ctx, store, temporal, params)
+		assert.NotNil(tt, volume)
+		assert.NotEmpty(tt, jobID)
+		assert.NoError(tt, err)
 	})
 
 	t.Run("GetOrCreateAccount_Error", func(tt *testing.T) {

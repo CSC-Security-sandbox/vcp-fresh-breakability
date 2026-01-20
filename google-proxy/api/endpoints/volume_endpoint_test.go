@@ -13316,7 +13316,7 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:        "Valid - update request with completely empty FlexCache (no required fields, no cacheConfig)",
+			name: "Valid - update request with completely empty FlexCache (no required fields, no cacheConfig)",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
 				// All fields are missing - this should pass validation for updates
 			},
@@ -13891,4 +13891,256 @@ func TestPrepareUpdateVolumeParams_DualProtocolVolumeWithExportPolicyRules_Succe
 	assert.NotNil(t, result.FileProperties)
 	assert.NotNil(t, result.FileProperties.ExportPolicy)
 	assert.Len(t, result.FileProperties.ExportPolicy.ExportRules, 1)
+}
+
+func Test_prepareCreateVolumeParams_CacheConfig(t *testing.T) {
+	// Save and restore original flags
+	origFlexCacheEnabled := flexCacheEnabled
+	defer func() {
+		flexCacheEnabled = origFlexCacheEnabled
+	}()
+	flexCacheEnabled = true
+
+	t.Run("Success_WithFullCacheConfig", func(tt *testing.T) {
+		writebackEnabled := true
+		atimeScrubEnabled := true
+		atimeScrubDays := int16(30)
+		cifsChangeNotifyEnabled := false
+		enableGlobalFileLock := true
+		peerExpiryTime := time.Now().Add(1 * time.Hour)
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test_volume",
+				CreationToken: gcpgenserver.NewOptString("test_token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool-id"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1099511627776),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3},
+				CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+					PeerVolumeName:           gcpgenserver.NewOptString("peer_volume"),
+					PeerClusterName:          gcpgenserver.NewOptString("peer_cluster"),
+					PeerSvmName:              gcpgenserver.NewOptString("peer_svm"),
+					PeerIpAddresses:          []string{"10.0.0.1", "10.0.0.2"},
+					PeeringCommandExpiryTime: gcpgenserver.NewOptNilDateTime(peerExpiryTime),
+					EnableGlobalFileLock:     gcpgenserver.NewOptNilBool(enableGlobalFileLock),
+					CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+						WritebackEnabled:        gcpgenserver.NewOptNilBool(writebackEnabled),
+						AtimeScrubEnabled:       gcpgenserver.NewOptNilBool(atimeScrubEnabled),
+						AtimeScrubDays:          gcpgenserver.NewOptNilInt16(atimeScrubDays),
+						CifsChangeNotifyEnabled: gcpgenserver.NewOptNilBool(cifsChangeNotifyEnabled),
+					}),
+				}),
+			},
+		}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-east4-a",
+		}
+
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{UUID: "test-pool-id"},
+		}
+
+		result, err := _prepareCreateVolumeParams(req, params, "us-east4", "us-east4-a", pool)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.CacheParameters)
+
+		// Verify EnableGlobalFileLock
+		assert.NotNil(tt, result.CacheParameters.EnableGlobalFileLock)
+		assert.True(tt, *result.CacheParameters.EnableGlobalFileLock)
+
+		// Verify CacheConfig
+		assert.NotNil(tt, result.CacheParameters.CacheConfig)
+		cc := result.CacheParameters.CacheConfig
+		assert.NotNil(tt, cc.WritebackEnabled)
+		assert.True(tt, *cc.WritebackEnabled)
+		assert.NotNil(tt, cc.AtimeScrubEnabled)
+		assert.True(tt, *cc.AtimeScrubEnabled)
+		assert.NotNil(tt, cc.AtimeScrubDays)
+		assert.Equal(tt, int16(30), *cc.AtimeScrubDays)
+		assert.NotNil(tt, cc.CifsChangeNotifyEnabled)
+		assert.False(tt, *cc.CifsChangeNotifyEnabled)
+
+		// Verify other CacheParameters fields
+		assert.Equal(tt, "peer_volume", result.CacheParameters.PeerVolumeName)
+		assert.Equal(tt, "peer_cluster", result.CacheParameters.PeerClusterName)
+		assert.Equal(tt, "peer_svm", result.CacheParameters.PeerSvmName)
+		assert.Equal(tt, []string{"10.0.0.1", "10.0.0.2"}, result.CacheParameters.PeerIPAddresses)
+	})
+
+	t.Run("Success_WithPartialCacheConfig_OnlyWriteback", func(tt *testing.T) {
+		writebackEnabled := true
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test_volume_partial",
+				CreationToken: gcpgenserver.NewOptString("test_token_partial"),
+				PoolId:        gcpgenserver.NewNilString("test-pool-id"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1099511627776),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3},
+				CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+					PeerVolumeName:  gcpgenserver.NewOptString("peer_volume"),
+					PeerClusterName: gcpgenserver.NewOptString("peer_cluster"),
+					PeerSvmName:     gcpgenserver.NewOptString("peer_svm"),
+					PeerIpAddresses: []string{"10.0.0.1", "10.0.0.2"},
+					CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+						WritebackEnabled: gcpgenserver.NewOptNilBool(writebackEnabled),
+						// Other fields not set
+					}),
+				}),
+			},
+		}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-east4-a",
+		}
+
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{UUID: "test-pool-id"},
+		}
+
+		result, err := _prepareCreateVolumeParams(req, params, "us-east4", "us-east4-a", pool)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.CacheParameters)
+		assert.NotNil(tt, result.CacheParameters.CacheConfig)
+
+		cc := result.CacheParameters.CacheConfig
+		assert.NotNil(tt, cc.WritebackEnabled)
+		assert.True(tt, *cc.WritebackEnabled)
+		// Other fields should be nil
+		assert.Nil(tt, cc.AtimeScrubEnabled)
+		assert.Nil(tt, cc.AtimeScrubDays)
+		assert.Nil(tt, cc.CifsChangeNotifyEnabled)
+	})
+
+	t.Run("Success_WithEnableGlobalFileLockOnly", func(tt *testing.T) {
+		enableGlobalFileLock := true
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test_volume_gfl",
+				CreationToken: gcpgenserver.NewOptString("test_token_gfl"),
+				PoolId:        gcpgenserver.NewNilString("test-pool-id"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1099511627776),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3},
+				CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+					PeerVolumeName:       gcpgenserver.NewOptString("peer_volume"),
+					PeerClusterName:      gcpgenserver.NewOptString("peer_cluster"),
+					PeerSvmName:          gcpgenserver.NewOptString("peer_svm"),
+					PeerIpAddresses:      []string{"10.0.0.1", "10.0.0.2"},
+					EnableGlobalFileLock: gcpgenserver.NewOptNilBool(enableGlobalFileLock),
+					// No CacheConfig
+				}),
+			},
+		}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-east4-a",
+		}
+
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{UUID: "test-pool-id"},
+		}
+
+		result, err := _prepareCreateVolumeParams(req, params, "us-east4", "us-east4-a", pool)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.CacheParameters)
+		assert.NotNil(tt, result.CacheParameters.EnableGlobalFileLock)
+		assert.True(tt, *result.CacheParameters.EnableGlobalFileLock)
+		// CacheConfig should be nil
+		assert.Nil(tt, result.CacheParameters.CacheConfig)
+	})
+
+	t.Run("Success_NoCacheConfig_BackwardsCompatibility", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test_volume_no_config",
+				CreationToken: gcpgenserver.NewOptString("test_token_no_config"),
+				PoolId:        gcpgenserver.NewNilString("test-pool-id"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1099511627776),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3},
+				CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+					PeerVolumeName:  gcpgenserver.NewOptString("peer_volume"),
+					PeerClusterName: gcpgenserver.NewOptString("peer_cluster"),
+					PeerSvmName:     gcpgenserver.NewOptString("peer_svm"),
+					PeerIpAddresses: []string{"10.0.0.1", "10.0.0.2"},
+					// No EnableGlobalFileLock, no CacheConfig
+				}),
+			},
+		}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-east4-a",
+		}
+
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{UUID: "test-pool-id"},
+		}
+
+		result, err := _prepareCreateVolumeParams(req, params, "us-east4", "us-east4-a", pool)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.CacheParameters)
+		// EnableGlobalFileLock and CacheConfig should be nil for backwards compatibility
+		assert.Nil(tt, result.CacheParameters.EnableGlobalFileLock)
+		assert.Nil(tt, result.CacheParameters.CacheConfig)
+	})
+
+	t.Run("Success_WithAtimeScrubConfig", func(tt *testing.T) {
+		atimeScrubEnabled := true
+		atimeScrubDays := int16(45)
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test_volume_atime",
+				CreationToken: gcpgenserver.NewOptString("test_token_atime"),
+				PoolId:        gcpgenserver.NewNilString("test-pool-id"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1099511627776),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3},
+				CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+					PeerVolumeName:  gcpgenserver.NewOptString("peer_volume"),
+					PeerClusterName: gcpgenserver.NewOptString("peer_cluster"),
+					PeerSvmName:     gcpgenserver.NewOptString("peer_svm"),
+					PeerIpAddresses: []string{"10.0.0.1", "10.0.0.2"},
+					CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+						AtimeScrubEnabled: gcpgenserver.NewOptNilBool(atimeScrubEnabled),
+						AtimeScrubDays:    gcpgenserver.NewOptNilInt16(atimeScrubDays),
+					}),
+				}),
+			},
+		}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-east4-a",
+		}
+
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{UUID: "test-pool-id"},
+		}
+
+		result, err := _prepareCreateVolumeParams(req, params, "us-east4", "us-east4-a", pool)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.CacheParameters)
+		assert.NotNil(tt, result.CacheParameters.CacheConfig)
+
+		cc := result.CacheParameters.CacheConfig
+		assert.NotNil(tt, cc.AtimeScrubEnabled)
+		assert.True(tt, *cc.AtimeScrubEnabled)
+		assert.NotNil(tt, cc.AtimeScrubDays)
+		assert.Equal(tt, int16(45), *cc.AtimeScrubDays)
+	})
 }

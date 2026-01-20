@@ -64,11 +64,12 @@ func (a *FlexCacheVolumeCreateActivity) CreateFlexCacheVolumeInOntapActivity(ctx
 	}
 
 	params := vsa.CreateFlexCacheVolumeParams{
-		Name:             volume.Name,
-		SvmName:          volume.Svm.Name,
-		AggregateName:    activities.AggregateName,
-		OriginSVMName:    cacheParams.PeerSvmName,
-		OriginVolumeName: cacheParams.PeerVolumeName,
+		Name:                     volume.Name,
+		SvmName:                  volume.Svm.Name,
+		AggregateName:            activities.AggregateName,
+		OriginSVMName:            cacheParams.PeerSvmName,
+		OriginVolumeName:         cacheParams.PeerVolumeName,
+		GlobalFileLockingEnabled: cacheParams.EnableGlobalFileLock,
 	}
 
 	if volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil {
@@ -76,6 +77,14 @@ func (a *FlexCacheVolumeCreateActivity) CreateFlexCacheVolumeInOntapActivity(ctx
 		if volume.VolumeAttributes.FileProperties.ExportPolicy != nil {
 			params.ExportPolicy = &volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName
 		}
+	}
+
+	if cacheParams.CacheConfig != nil {
+		config := cacheParams.CacheConfig
+		params.WritebackEnabled = config.WritebackEnabled
+		params.AtimeScrubEnabled = config.AtimeScrubEnabled
+		params.AtimeScrubDays = config.AtimeScrubDays
+		params.CifsChangeNotifyEnabled = config.CifsChangeNotifyEnabled
 	}
 
 	res, err := provider.CreateFlexCacheVolume(params)

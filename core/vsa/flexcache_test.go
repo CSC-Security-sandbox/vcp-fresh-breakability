@@ -209,6 +209,334 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)
 	})
+
+	// Add these test cases to the existing TestCreateFlexCacheVolume function
+
+	t.Run("Success_WithCacheConfig", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		writebackEnabled := true
+		atimeScrubEnabled := true
+		atimeScrubDays := int16(30)
+		cifsChangeNotifyEnabled := false
+
+		params := CreateFlexCacheVolumeParams{
+			Name:                    volumeName,
+			SvmName:                 "testSVM",
+			AggregateName:           "testAggregate",
+			OriginSVMName:           "originSVM",
+			OriginVolumeName:        "originVolume",
+			WritebackEnabled:        &writebackEnabled,
+			AtimeScrubEnabled:       &atimeScrubEnabled,
+			AtimeScrubDays:          &atimeScrubDays,
+			CifsChangeNotifyEnabled: &cifsChangeNotifyEnabled,
+		}
+
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+		mockVolume := &ontaprest.Flexcache{
+			Flexcache: models.Flexcache{
+				UUID: nillable.ToPointer("testUUID"),
+				Name: &volumeName,
+			},
+		}
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().FlexCacheVolumeCreate(mock.MatchedBy(func(p *ontaprest.FlexCacheVolumeCreateParams) bool {
+			return p.WritebackEnabled != nil && *p.WritebackEnabled == true &&
+				p.AtimeScrubEnabled != nil && *p.AtimeScrubEnabled == true &&
+				p.AtimeScrubPeriod != nil && *p.AtimeScrubPeriod == int16(30) &&
+				p.CifsChangeNotifyEnabled != nil && *p.CifsChangeNotifyEnabled == false
+		})).Return(mockVolume, mockJob, nil)
+		mockClient.EXPECT().Poll(mockJob.JobUUID).Return(nil)
+
+		resp, err := rc.CreateFlexCacheVolume(params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, volumeName, resp.Name)
+		assert.Equal(tt, "testUUID", resp.ExternalUUID)
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Success_WithGlobalFileLockingEnabled", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		globalFileLocking := true
+
+		params := CreateFlexCacheVolumeParams{
+			Name:                     volumeName,
+			SvmName:                  "testSVM",
+			AggregateName:            "testAggregate",
+			OriginSVMName:            "originSVM",
+			OriginVolumeName:         "originVolume",
+			GlobalFileLockingEnabled: &globalFileLocking,
+		}
+
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+		mockVolume := &ontaprest.Flexcache{
+			Flexcache: models.Flexcache{
+				UUID: nillable.ToPointer("testUUID"),
+				Name: &volumeName,
+			},
+		}
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().FlexCacheVolumeCreate(mock.MatchedBy(func(p *ontaprest.FlexCacheVolumeCreateParams) bool {
+			return p.GlobalFileLockingEnabled != nil && *p.GlobalFileLockingEnabled == true
+		})).Return(mockVolume, mockJob, nil)
+		mockClient.EXPECT().Poll(mockJob.JobUUID).Return(nil)
+
+		resp, err := rc.CreateFlexCacheVolume(params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, volumeName, resp.Name)
+		assert.Equal(tt, "testUUID", resp.ExternalUUID)
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Success_WithAllCacheConfigAndGlobalFileLocking", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		junctionPath := "/vol/flexcache"
+		exportPolicy := "testPolicy"
+		writebackEnabled := true
+		atimeScrubEnabled := true
+		atimeScrubDays := int16(60)
+		cifsChangeNotifyEnabled := true
+		globalFileLocking := true
+
+		params := CreateFlexCacheVolumeParams{
+			Name:                     volumeName,
+			SvmName:                  "testSVM",
+			AggregateName:            "testAggregate",
+			OriginSVMName:            "originSVM",
+			OriginVolumeName:         "originVolume",
+			JunctionPath:             &junctionPath,
+			ExportPolicy:             &exportPolicy,
+			WritebackEnabled:         &writebackEnabled,
+			AtimeScrubEnabled:        &atimeScrubEnabled,
+			AtimeScrubDays:           &atimeScrubDays,
+			CifsChangeNotifyEnabled:  &cifsChangeNotifyEnabled,
+			GlobalFileLockingEnabled: &globalFileLocking,
+		}
+
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+		mockVolume := &ontaprest.Flexcache{
+			Flexcache: models.Flexcache{
+				UUID: nillable.ToPointer("testUUID"),
+				Name: &volumeName,
+			},
+		}
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().FlexCacheVolumeCreate(mock.MatchedBy(func(p *ontaprest.FlexCacheVolumeCreateParams) bool {
+			return p.Name == volumeName &&
+				p.SvmName == "testSVM" &&
+				p.OriginSvmName == "originSVM" &&
+				p.OriginVolumeName == "originVolume" &&
+				p.Path != nil && *p.Path == junctionPath &&
+				p.WritebackEnabled != nil && *p.WritebackEnabled == true &&
+				p.AtimeScrubEnabled != nil && *p.AtimeScrubEnabled == true &&
+				p.AtimeScrubPeriod != nil && *p.AtimeScrubPeriod == int16(60) &&
+				p.CifsChangeNotifyEnabled != nil && *p.CifsChangeNotifyEnabled == true &&
+				p.GlobalFileLockingEnabled != nil && *p.GlobalFileLockingEnabled == true
+		})).Return(mockVolume, mockJob, nil)
+		mockClient.EXPECT().Poll(mockJob.JobUUID).Return(nil)
+		mockStorage.EXPECT().VolumeModify(mock.Anything).Return(false, &ontaprest.JobAccepted{JobUUID: "uuid"}, nil)
+		mockClient.EXPECT().Poll("uuid").Return(nil)
+
+		resp, err := rc.CreateFlexCacheVolume(params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, volumeName, resp.Name)
+		assert.Equal(tt, "testUUID", resp.ExternalUUID)
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Success_WithPartialCacheConfig_OnlyWriteback", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		writebackEnabled := true
+
+		params := CreateFlexCacheVolumeParams{
+			Name:             volumeName,
+			SvmName:          "testSVM",
+			AggregateName:    "testAggregate",
+			OriginSVMName:    "originSVM",
+			OriginVolumeName: "originVolume",
+			WritebackEnabled: &writebackEnabled,
+			// Other CacheConfig fields are nil
+		}
+
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+		mockVolume := &ontaprest.Flexcache{
+			Flexcache: models.Flexcache{
+				UUID: nillable.ToPointer("testUUID"),
+				Name: &volumeName,
+			},
+		}
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().FlexCacheVolumeCreate(mock.MatchedBy(func(p *ontaprest.FlexCacheVolumeCreateParams) bool {
+			return p.WritebackEnabled != nil && *p.WritebackEnabled == true &&
+				p.AtimeScrubEnabled == nil &&
+				p.AtimeScrubPeriod == nil &&
+				p.CifsChangeNotifyEnabled == nil &&
+				p.GlobalFileLockingEnabled == nil
+		})).Return(mockVolume, mockJob, nil)
+		mockClient.EXPECT().Poll(mockJob.JobUUID).Return(nil)
+
+		resp, err := rc.CreateFlexCacheVolume(params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, volumeName, resp.Name)
+		assert.Equal(tt, "testUUID", resp.ExternalUUID)
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Success_NoCacheConfig_BackwardsCompatibility", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		params := CreateFlexCacheVolumeParams{
+			Name:             volumeName,
+			SvmName:          "testSVM",
+			AggregateName:    "testAggregate",
+			OriginSVMName:    "originSVM",
+			OriginVolumeName: "originVolume",
+			// No CacheConfig fields - all nil
+		}
+
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+		mockVolume := &ontaprest.Flexcache{
+			Flexcache: models.Flexcache{
+				UUID: nillable.ToPointer("testUUID"),
+				Name: &volumeName,
+			},
+		}
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().FlexCacheVolumeCreate(mock.MatchedBy(func(p *ontaprest.FlexCacheVolumeCreateParams) bool {
+			// All CacheConfig fields should be nil for backwards compatibility
+			return p.Name == volumeName &&
+				p.WritebackEnabled == nil &&
+				p.AtimeScrubEnabled == nil &&
+				p.AtimeScrubPeriod == nil &&
+				p.CifsChangeNotifyEnabled == nil &&
+				p.GlobalFileLockingEnabled == nil
+		})).Return(mockVolume, mockJob, nil)
+		mockClient.EXPECT().Poll(mockJob.JobUUID).Return(nil)
+
+		resp, err := rc.CreateFlexCacheVolume(params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, volumeName, resp.Name)
+		assert.Equal(tt, "testUUID", resp.ExternalUUID)
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("Success_WithAtimeScrubConfig", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		atimeScrubEnabled := true
+		atimeScrubDays := int16(45)
+
+		params := CreateFlexCacheVolumeParams{
+			Name:              volumeName,
+			SvmName:           "testSVM",
+			AggregateName:     "testAggregate",
+			OriginSVMName:     "originSVM",
+			OriginVolumeName:  "originVolume",
+			AtimeScrubEnabled: &atimeScrubEnabled,
+			AtimeScrubDays:    &atimeScrubDays,
+		}
+
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+		mockVolume := &ontaprest.Flexcache{
+			Flexcache: models.Flexcache{
+				UUID: nillable.ToPointer("testUUID"),
+				Name: &volumeName,
+			},
+		}
+
+		mm.EXPECT().getOntapClientFunc(mock.Anything).Return(mockClient, nil)
+		mockClient.EXPECT().Storage().Return(mockStorage)
+		mockStorage.EXPECT().FlexCacheVolumeCreate(mock.MatchedBy(func(p *ontaprest.FlexCacheVolumeCreateParams) bool {
+			return p.AtimeScrubEnabled != nil && *p.AtimeScrubEnabled == true &&
+				p.AtimeScrubPeriod != nil && *p.AtimeScrubPeriod == int16(45)
+		})).Return(mockVolume, mockJob, nil)
+		mockClient.EXPECT().Poll(mockJob.JobUUID).Return(nil)
+
+		resp, err := rc.CreateFlexCacheVolume(params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, volumeName, resp.Name)
+		assert.Equal(tt, "testUUID", resp.ExternalUUID)
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
 }
 
 func TestDeleteFlexCacheVolume(t *testing.T) {

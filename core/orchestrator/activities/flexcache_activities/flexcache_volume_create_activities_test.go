@@ -129,6 +129,255 @@ func TestFlexCacheVolumeCreateActivity_CreateFlexCacheVolumeInOntap(t *testing.T
 		_, err := activity.CreateFlexCacheVolumeInOntapActivity(ctx, flexcacheResult)
 		assert.Error(tt, err)
 	})
+
+	t.Run("SuccessWithCacheConfig", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		writebackEnabled := true
+		atimeScrubEnabled := true
+		atimeScrubDays := int16(30)
+		cifsChangeNotifyEnabled := false
+
+		dbVolumeWithCacheConfig := &datamodel.Volume{
+			Svm:     &datamodel.Svm{Name: "svm-name"},
+			Account: &datamodel.Account{Name: "account-name"},
+			CacheParameters: &datamodel.CacheParameters{
+				PeerSvmName:     "peer-svm",
+				PeerVolumeName:  "peer-volume",
+				PeerClusterName: "peer-cluster",
+				CacheConfig: &datamodel.CacheConfig{
+					WritebackEnabled:        &writebackEnabled,
+					AtimeScrubEnabled:       &atimeScrubEnabled,
+					AtimeScrubDays:          &atimeScrubDays,
+					CifsChangeNotifyEnabled: &cifsChangeNotifyEnabled,
+				},
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{
+					ExportPolicy: &datamodel.ExportPolicy{
+						ExportPolicyName: "policyName",
+					},
+				},
+			},
+		}
+		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: dbVolumeWithCacheConfig}
+
+		volumeResp := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{Name: "volume-name", ExternalUUID: "external-uuid"}}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+		mockProvider.EXPECT().CreateFlexCacheVolume(mock.MatchedBy(func(params vsa.CreateFlexCacheVolumeParams) bool {
+			return params.WritebackEnabled != nil && *params.WritebackEnabled == true &&
+				params.AtimeScrubEnabled != nil && *params.AtimeScrubEnabled == true &&
+				params.AtimeScrubDays != nil && *params.AtimeScrubDays == int16(30) &&
+				params.CifsChangeNotifyEnabled != nil && *params.CifsChangeNotifyEnabled == false
+		})).Return(volumeResp, nil)
+		logger.EXPECT().Debug("flexcache volume created successfully")
+
+		newResult, err := activity.CreateFlexCacheVolumeInOntapActivity(ctx, flexcacheResult)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "volume-name", newResult.VolumeResponse.Name)
+	})
+
+	t.Run("SuccessWithPartialCacheConfig", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		writebackEnabled := true
+
+		dbVolumeWithPartialCacheConfig := &datamodel.Volume{
+			Svm:     &datamodel.Svm{Name: "svm-name"},
+			Account: &datamodel.Account{Name: "account-name"},
+			CacheParameters: &datamodel.CacheParameters{
+				PeerSvmName:     "peer-svm",
+				PeerVolumeName:  "peer-volume",
+				PeerClusterName: "peer-cluster",
+				CacheConfig: &datamodel.CacheConfig{
+					WritebackEnabled: &writebackEnabled,
+					// Other fields are nil
+				},
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{
+					ExportPolicy: &datamodel.ExportPolicy{
+						ExportPolicyName: "policyName",
+					},
+				},
+			},
+		}
+		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: dbVolumeWithPartialCacheConfig}
+
+		volumeResp := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{Name: "volume-name", ExternalUUID: "external-uuid"}}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+		mockProvider.EXPECT().CreateFlexCacheVolume(mock.MatchedBy(func(params vsa.CreateFlexCacheVolumeParams) bool {
+			return params.WritebackEnabled != nil && *params.WritebackEnabled == true &&
+				params.AtimeScrubEnabled == nil &&
+				params.AtimeScrubDays == nil &&
+				params.CifsChangeNotifyEnabled == nil
+		})).Return(volumeResp, nil)
+		logger.EXPECT().Debug("flexcache volume created successfully")
+
+		newResult, err := activity.CreateFlexCacheVolumeInOntapActivity(ctx, flexcacheResult)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "volume-name", newResult.VolumeResponse.Name)
+	})
+
+	t.Run("SuccessWithNilCacheConfig", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		dbVolumeWithNilCacheConfig := &datamodel.Volume{
+			Svm:     &datamodel.Svm{Name: "svm-name"},
+			Account: &datamodel.Account{Name: "account-name"},
+			CacheParameters: &datamodel.CacheParameters{
+				PeerSvmName:     "peer-svm",
+				PeerVolumeName:  "peer-volume",
+				PeerClusterName: "peer-cluster",
+				CacheConfig:     nil, // Explicitly nil
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{
+					ExportPolicy: &datamodel.ExportPolicy{
+						ExportPolicyName: "policyName",
+					},
+				},
+			},
+		}
+		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: dbVolumeWithNilCacheConfig}
+
+		volumeResp := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{Name: "volume-name", ExternalUUID: "external-uuid"}}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+		mockProvider.EXPECT().CreateFlexCacheVolume(mock.MatchedBy(func(params vsa.CreateFlexCacheVolumeParams) bool {
+			// When CacheConfig is nil, all config fields should be nil
+			return params.WritebackEnabled == nil &&
+				params.AtimeScrubEnabled == nil &&
+				params.AtimeScrubDays == nil &&
+				params.CifsChangeNotifyEnabled == nil
+		})).Return(volumeResp, nil)
+		logger.EXPECT().Debug("flexcache volume created successfully")
+
+		newResult, err := activity.CreateFlexCacheVolumeInOntapActivity(ctx, flexcacheResult)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "volume-name", newResult.VolumeResponse.Name)
+	})
+
+	t.Run("SuccessWithGlobalFileLockEnabled", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		globalFileLock := true
+
+		dbVolumeWithGlobalFileLock := &datamodel.Volume{
+			Svm:     &datamodel.Svm{Name: "svm-name"},
+			Account: &datamodel.Account{Name: "account-name"},
+			CacheParameters: &datamodel.CacheParameters{
+				PeerSvmName:          "peer-svm",
+				PeerVolumeName:       "peer-volume",
+				PeerClusterName:      "peer-cluster",
+				EnableGlobalFileLock: &globalFileLock,
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{
+					ExportPolicy: &datamodel.ExportPolicy{
+						ExportPolicyName: "policyName",
+					},
+				},
+			},
+		}
+		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: dbVolumeWithGlobalFileLock}
+
+		volumeResp := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{Name: "volume-name", ExternalUUID: "external-uuid"}}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+		mockProvider.EXPECT().CreateFlexCacheVolume(mock.MatchedBy(func(params vsa.CreateFlexCacheVolumeParams) bool {
+			return params.GlobalFileLockingEnabled != nil && *params.GlobalFileLockingEnabled == true
+		})).Return(volumeResp, nil)
+		logger.EXPECT().Debug("flexcache volume created successfully")
+
+		newResult, err := activity.CreateFlexCacheVolumeInOntapActivity(ctx, flexcacheResult)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "volume-name", newResult.VolumeResponse.Name)
+	})
+
+	t.Run("SuccessWithAllCacheConfigAndGlobalFileLock", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+
+		writebackEnabled := true
+		atimeScrubEnabled := true
+		atimeScrubDays := int16(60)
+		cifsChangeNotifyEnabled := true
+		globalFileLock := true
+
+		dbVolumeWithAllConfig := &datamodel.Volume{
+			Svm:     &datamodel.Svm{Name: "svm-name"},
+			Account: &datamodel.Account{Name: "account-name"},
+			CacheParameters: &datamodel.CacheParameters{
+				PeerSvmName:          "peer-svm",
+				PeerVolumeName:       "peer-volume",
+				PeerClusterName:      "peer-cluster",
+				EnableGlobalFileLock: &globalFileLock,
+				CacheConfig: &datamodel.CacheConfig{
+					WritebackEnabled:        &writebackEnabled,
+					AtimeScrubEnabled:       &atimeScrubEnabled,
+					AtimeScrubDays:          &atimeScrubDays,
+					CifsChangeNotifyEnabled: &cifsChangeNotifyEnabled,
+				},
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{
+					JunctionPath: "/vol/test",
+					ExportPolicy: &datamodel.ExportPolicy{
+						ExportPolicyName: "policyName",
+					},
+				},
+			},
+		}
+		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: dbVolumeWithAllConfig}
+
+		volumeResp := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{Name: "volume-name", ExternalUUID: "external-uuid"}}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+		mockProvider.EXPECT().CreateFlexCacheVolume(mock.MatchedBy(func(params vsa.CreateFlexCacheVolumeParams) bool {
+			return params.Name == dbVolumeWithAllConfig.Name &&
+				params.OriginSVMName == "peer-svm" &&
+				params.OriginVolumeName == "peer-volume" &&
+				params.GlobalFileLockingEnabled != nil && *params.GlobalFileLockingEnabled == true &&
+				params.WritebackEnabled != nil && *params.WritebackEnabled == true &&
+				params.AtimeScrubEnabled != nil && *params.AtimeScrubEnabled == true &&
+				params.AtimeScrubDays != nil && *params.AtimeScrubDays == int16(60) &&
+				params.CifsChangeNotifyEnabled != nil && *params.CifsChangeNotifyEnabled == true &&
+				params.JunctionPath != nil && *params.JunctionPath == "/vol/test" &&
+				params.ExportPolicy != nil && *params.ExportPolicy == "policyName"
+		})).Return(volumeResp, nil)
+		logger.EXPECT().Debug("flexcache volume created successfully")
+
+		newResult, err := activity.CreateFlexCacheVolumeInOntapActivity(ctx, flexcacheResult)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "volume-name", newResult.VolumeResponse.Name)
+	})
 }
 
 func TestFlexCacheVolumeCreateActivity_VerifyVolumeEncryptionActivity(t *testing.T) {

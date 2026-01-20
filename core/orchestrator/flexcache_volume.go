@@ -113,6 +113,17 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 			CacheStateDetailsCode: params.CacheParameters.CacheStateDetailsCode,
 			CacheStateDetails:     params.CacheParameters.CacheStateDetails,
 			CommandExpiryTime:     params.CacheParameters.PeerExpiryTime,
+			EnableGlobalFileLock:  params.CacheParameters.EnableGlobalFileLock,
+		}
+
+		// Pass CacheConfig if provided
+		if params.CacheParameters.CacheConfig != nil {
+			volumeObj.CacheParameters.CacheConfig = &datamodel.CacheConfig{
+				WritebackEnabled:        params.CacheParameters.CacheConfig.WritebackEnabled,
+				AtimeScrubEnabled:       params.CacheParameters.CacheConfig.AtimeScrubEnabled,
+				AtimeScrubDays:          params.CacheParameters.CacheConfig.AtimeScrubDays,
+				CifsChangeNotifyEnabled: params.CacheParameters.CacheConfig.CifsChangeNotifyEnabled,
+			}
 		}
 	}
 

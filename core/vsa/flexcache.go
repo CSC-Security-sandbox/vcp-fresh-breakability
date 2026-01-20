@@ -15,12 +15,17 @@ func (rc *OntapRestProvider) CreateFlexCacheVolume(params CreateFlexCacheVolumeP
 	}
 
 	flexCacheVolumeCreateParams := &ontapRest.FlexCacheVolumeCreateParams{
-		Name:             params.Name,
-		OriginSvmName:    params.OriginSVMName,
-		OriginVolumeName: params.OriginVolumeName,
-		Aggregates:       []string{params.AggregateName},
-		SvmName:          params.SvmName,
-		Path:             params.JunctionPath,
+		Name:                     params.Name,
+		OriginSvmName:            params.OriginSVMName,
+		OriginVolumeName:         params.OriginVolumeName,
+		Aggregates:               []string{params.AggregateName},
+		SvmName:                  params.SvmName,
+		Path:                     params.JunctionPath,
+		WritebackEnabled:         params.WritebackEnabled,
+		AtimeScrubEnabled:        params.AtimeScrubEnabled,
+		AtimeScrubPeriod:         params.AtimeScrubDays,
+		CifsChangeNotifyEnabled:  params.CifsChangeNotifyEnabled,
+		GlobalFileLockingEnabled: params.GlobalFileLockingEnabled,
 	}
 
 	vol, job, err := client.Storage().FlexCacheVolumeCreate(flexCacheVolumeCreateParams)

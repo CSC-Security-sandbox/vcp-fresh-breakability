@@ -344,13 +344,18 @@ type CreateVolumeParams struct {
 }
 
 type CreateFlexCacheVolumeParams struct {
-	Name             string
-	OriginSVMName    string
-	OriginVolumeName string
-	AggregateName    string
-	SvmName          string
-	JunctionPath     *string
-	ExportPolicy     *string
+	Name                     string
+	OriginSVMName            string
+	OriginVolumeName         string
+	AggregateName            string
+	SvmName                  string
+	JunctionPath             *string
+	ExportPolicy             *string
+	WritebackEnabled         *bool
+	AtimeScrubEnabled        *bool
+	AtimeScrubDays           *int16
+	CifsChangeNotifyEnabled  *bool
+	GlobalFileLockingEnabled *bool
 }
 
 type ExportPolicy struct {

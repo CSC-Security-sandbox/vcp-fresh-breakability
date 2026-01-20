@@ -385,6 +385,28 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		if reqCacheProperties.PeeringCommandExpiryTime.IsSet() {
 			param.CacheParameters.PeerExpiryTime = &reqCacheProperties.PeeringCommandExpiryTime.Value
 		}
+
+		if reqCacheProperties.EnableGlobalFileLock.IsSet() {
+			param.CacheParameters.EnableGlobalFileLock = &reqCacheProperties.EnableGlobalFileLock.Value
+		}
+
+		if reqCacheProperties.CacheConfig.IsSet() {
+			reqCacheConfig, _ := reqCacheProperties.CacheConfig.Get()
+			param.CacheParameters.CacheConfig = &models.CacheConfig{}
+
+			if reqCacheConfig.WritebackEnabled.IsSet() {
+				param.CacheParameters.CacheConfig.WritebackEnabled = &reqCacheConfig.WritebackEnabled.Value
+			}
+			if reqCacheConfig.AtimeScrubEnabled.IsSet() {
+				param.CacheParameters.CacheConfig.AtimeScrubEnabled = &reqCacheConfig.AtimeScrubEnabled.Value
+			}
+			if reqCacheConfig.AtimeScrubDays.IsSet() {
+				param.CacheParameters.CacheConfig.AtimeScrubDays = &reqCacheConfig.AtimeScrubDays.Value
+			}
+			if reqCacheConfig.CifsChangeNotifyEnabled.IsSet() {
+				param.CacheParameters.CacheConfig.CifsChangeNotifyEnabled = &reqCacheConfig.CifsChangeNotifyEnabled.Value
+			}
+		}
 	}
 
 	if req.Volume.SnapshotDirectory.IsSet() {
