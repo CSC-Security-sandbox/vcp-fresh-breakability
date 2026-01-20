@@ -2710,7 +2710,7 @@ func TestFetchBackupData_Success(t *testing.T) {
 
 	key := ResourceKey{
 		ResourceType:   metadata.Backup,
-		ResourceName:   "volume-uuid-1",
+		ResourceName:   "Volume1",
 		DeploymentName: "Vault1",
 		ConsumerID:     "Account1",
 	}
@@ -3257,7 +3257,7 @@ func TestFetchBackupData_MultipleBatches(t *testing.T) {
 	// Verify first backup
 	key1 := ResourceKey{
 		ResourceType:   metadata.Backup,
-		ResourceName:   "volume-uuid-1",
+		ResourceName:   "Volume1",
 		DeploymentName: "Vault1",
 		ConsumerID:     "Account1",
 	}
@@ -3270,7 +3270,7 @@ func TestFetchBackupData_MultipleBatches(t *testing.T) {
 	// Verify second backup
 	key2 := ResourceKey{
 		ResourceType:   metadata.Backup,
-		ResourceName:   "volume-uuid-2",
+		ResourceName:   "Volume2",
 		DeploymentName: "Vault2",
 		ConsumerID:     "Account2",
 	}

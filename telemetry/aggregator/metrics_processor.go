@@ -569,7 +569,7 @@ func (p *BillingProvider) fetchBackupData(ctx context.Context, aggregationStartT
 			}
 			id := ResourceKey{
 				ResourceType:   metadata.Backup,
-				ResourceName:   backup.VolumeUUID,
+				ResourceName:   backup.Attributes.VolumeName,
 				DeploymentName: backup.BackupVault.Name,
 				ConsumerID:     backup.Attributes.AccountIdentifier,
 			}
