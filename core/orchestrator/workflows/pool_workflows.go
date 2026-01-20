@@ -289,7 +289,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	setupNwCtx = workflow.WithChildOptions(setupNwCtx, workflow.ChildWorkflowOptions{
 		ParentClosePolicy: enums.PARENT_CLOSE_POLICY_REQUEST_CANCEL,
 	})
-	err = workflow.ExecuteChildWorkflow(setupNwCtx, ConfigureNetworkWorkflow, tenancyDetails).Get(ctx, nil)
+	err = workflow.ExecuteChildWorkflow(setupNwCtx, ConfigureNetworkWorkflow, tenancyDetails, params.Mode).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -2123,7 +2123,7 @@ func ConfigurePSCEndpointWorkflow(ctx workflow.Context, projectName string, regi
 	return nil
 }
 
-func ConfigureNetworkWorkflow(ctx workflow.Context, tenancyDetails *common.TenancyInfo) (interface{}, error) {
+func ConfigureNetworkWorkflow(ctx workflow.Context, tenancyDetails *common.TenancyInfo, poolMode string) (interface{}, error) {
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -2175,7 +2175,7 @@ func ConfigureNetworkWorkflow(ctx workflow.Context, tenancyDetails *common.Tenan
 	}
 
 	firewallOperations := make([]common.Operations, 0)
-	err = workflow.ExecuteActivity(setupNwCtx, poolActivity.CreateFirewalls, tenantProjectNumber, tenancyDetails.SnHostProject, tenancyDetails.Network).Get(setupNwCtx, &firewallOperations)
+	err = workflow.ExecuteActivity(setupNwCtx, poolActivity.CreateFirewalls, tenantProjectNumber, tenancyDetails.SnHostProject, tenancyDetails.Network, poolMode).Get(setupNwCtx, &firewallOperations)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}

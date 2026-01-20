@@ -68,6 +68,7 @@ var (
 	SetupNetworkFirewallsForNFS              = setupNetworkFirewallsForNFS
 	SetupNetworkFirewallsForIntercluster     = setupNetworkFirewallsForIntercluster
 	SetupNetworkFirewallsForSMB              = setupNetworkFirewallsForSMB
+	SetupNetworkFirewallsForNVMe             = setupNetworkFirewallsForNVMe
 	SetupNetworkFirewallsForIlbHealthCheck   = setupNetworkFirewallsForIlbHealthCheck
 	CreateGCPBucket                          = _createGCPBucket
 	CheckReusableSubnet                      = _checkReusableSubnet
@@ -191,6 +192,7 @@ const (
 	iscsiDataFirewallName    = "ingress-data-iscsi"
 	nfsDataFirewallName      = "ingress-data-nfs"
 	interclusterFirewallName = "ingress-intercluster"
+	nvmeDataFirewallName     = "ingress-data-nvme"
 
 	AllowAllPorts = "all"
 )
@@ -230,6 +232,7 @@ var (
 	IscsiFirewallPortRules                       = env.GetString("ISCSI_FIREWALL_PORT_RULES", "tcp,3260")
 	NFSFirewallPortRules                         = env.GetString("NFS_FIREWALL_PORT_RULES", "tcp,111,635,2049,4045,63001-65000,udp,111,4046")
 	SmbFirewallAllowedPortRulesConfig            = env.GetString("SMB_FIREWALL_ALLOWED_PORT_RULES", "tcp,88,135,139,389,445,464,636,udp,53,88,389,464")
+	NvmeFirewallPortRules                        = env.GetString("NVME_FIREWALL_PORT_RULES", "tcp,4420")
 	IlbHealthCheckFirewallSourceRangesConfig     = env.GetString("ILB_HEALTH_CHECK_FIREWALL_SOURCE_RANGES", "130.211.0.0/22,35.191.0.0/16")
 	IlbHealthCheckFirewallAllowedPortRulesConfig = env.GetString("ILB_HEALTH_CHECK_FIREWALL_ALLOWED_PORT_RULES", "tcp")
 	RegionNumber                                 = getRegionNumber()
@@ -701,7 +704,7 @@ func (j *PoolActivity) CreateSubnets(ctx context.Context, project string) (*[]co
 	return &operations, nil
 }
 
-func (j *PoolActivity) CreateFirewalls(ctx context.Context, project, snHostProject, network string) (*[]commonparams.Operations, error) {
+func (j *PoolActivity) CreateFirewalls(ctx context.Context, project, snHostProject, network, poolMode string) (*[]commonparams.Operations, error) {
 	serviceStruct, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -758,6 +761,25 @@ func (j *PoolActivity) CreateFirewalls(ctx context.Context, project, snHostProje
 			IsRegionalResource: false,
 			Project:            snHostProject,
 		})
+	}
+
+	// Setup NVMe firewall for expert mode (ONTAP mode) pools
+	if poolMode == commonparams.ONTAPMode {
+		// Record heartbeat to indicate progress to temporal server
+		activity.RecordHeartbeat(ctx, "Setting up network firewalls for NVMe")
+		op, err = SetupNetworkFirewallsForNVMe(service, snHostProject, network)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		if op != "" {
+			operations = append(operations, commonparams.Operations{
+				OperationName:      op,
+				OperationType:      "firewall",
+				IsDone:             false,
+				IsRegionalResource: false,
+				Project:            snHostProject,
+			})
+		}
 	}
 
 	nasFirewallOps, err := j.SetupNasFirewalls(ctx, snHostProject, network)
@@ -1128,6 +1150,12 @@ func setupNetworkFirewallsForNFS(service hyperscaler2.GoogleServices, snHostProj
 // setupNetworkFirewallsForSMB sets up a firewall for SMB traffic in GCP
 func setupNetworkFirewallsForSMB(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
 	return InsertFirewall(service, snHostProject, SmbFirewallName, network, FirewallPriority, IngressTrafficDirection, strings.Split(DataFirewallSourceRanges, ","), strings.Split(SmbFirewallAllowedPortRulesConfig, ","))
+}
+
+// setupNetworkFirewallsForNVMe sets up a firewall for NVMe traffic in GCP
+// This is used for expert mode (ONTAP mode) pools to allow NVMe over TCP on port 4420
+func setupNetworkFirewallsForNVMe(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+	return InsertFirewall(service, snHostProject, nvmeDataFirewallName, network, FirewallPriority, IngressTrafficDirection, strings.Split(DataFirewallSourceRanges, ","), strings.Split(NvmeFirewallPortRules, ","))
 }
 
 // setupNetworkFirewallsForIlbHealthCheck sets up a firewall for ILB health check traffic in GCP

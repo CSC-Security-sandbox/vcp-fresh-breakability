@@ -148,7 +148,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
@@ -248,7 +248,7 @@ func TestCreatePoolWorkflow_ValidateImageDigestFailure(t *testing.T) {
 		SubnetworkNames:       []string{"test-subnet"},
 		SnHostProject:         "test-host-project",
 	}, nil).Maybe()
-	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	origSARetryStartToCloseTimeout := SARetryStartToCloseTimeout
 	origSARetryInitialInterval := SARetryInitialInterval
@@ -441,7 +441,7 @@ func TestCreatePoolWorkflowWithExpertMode(t *testing.T) {
 	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -640,7 +640,7 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1157,7 +1157,7 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil).Maybe()
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
@@ -1334,7 +1334,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(&subnetFirewallOperations, nil)
 		subnetFirewallOperations = append(subnetFirewallOperations, firewallOperations...)
-		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&subnetFirewallOperations, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&subnetFirewallOperations, nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1527,7 +1527,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(&subnetFirewallOperations, nil)
 		subnetFirewallOperations = append(subnetFirewallOperations, firewallOperations...)
-		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&subnetFirewallOperations, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&subnetFirewallOperations, nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
@@ -1867,7 +1867,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		mockStorage.EXPECT().SavePoolWithVsaDetails(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create firewalls"))
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create firewalls"))
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -1932,7 +1932,7 @@ func TestConfigureNetworkWorkflow_Success(t *testing.T) {
 	firewallOperations := []common.Operations{
 		{OperationName: "firewall-op-1", IsDone: true},
 	}
-	env.OnActivity(poolActivity.CreateFirewalls, mock.Anything, "tenant-project", "host-project", "network").Return(&firewallOperations, nil)
+	env.OnActivity(poolActivity.CreateFirewalls, mock.Anything, "tenant-project", "host-project", "network", mock.Anything).Return(&firewallOperations, nil)
 
 	// Mock wait operations
 	env.OnWorkflow(WaitForGCPNetworkOperationStatus, mock.Anything, mock.Anything, "tenant-project", &vpcOperations, mock.Anything).Return(nil)
@@ -1946,7 +1946,7 @@ func TestConfigureNetworkWorkflow_Success(t *testing.T) {
 		Network:               "network",
 	}
 
-	env.ExecuteWorkflow(ConfigureNetworkWorkflow, tenancyDetails)
+	env.ExecuteWorkflow(ConfigureNetworkWorkflow, tenancyDetails, "")
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
@@ -2004,7 +2004,7 @@ func TestConfigureNetworkWorkflow_TimeoutConfiguration(t *testing.T) {
 		firewallOperations := []common.Operations{
 			{OperationName: "firewall-op-1", IsDone: true},
 		}
-		env.OnActivity(poolActivity.CreateFirewalls, mock.Anything, "tenant-project", "host-project", "network").Return(&firewallOperations, nil)
+		env.OnActivity(poolActivity.CreateFirewalls, mock.Anything, "tenant-project", "host-project", "network", mock.Anything).Return(&firewallOperations, nil)
 
 		env.OnWorkflow(WaitForGCPNetworkOperationStatus, mock.Anything, mock.Anything, "tenant-project", &vpcOperations, mock.Anything).Return(nil)
 
@@ -2017,7 +2017,7 @@ func TestConfigureNetworkWorkflow_TimeoutConfiguration(t *testing.T) {
 			Network:               "network",
 		}
 
-		env.ExecuteWorkflow(ConfigureNetworkWorkflow, tenancyDetails)
+		env.ExecuteWorkflow(ConfigureNetworkWorkflow, tenancyDetails, "")
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
@@ -2071,7 +2071,7 @@ func TestConfigureNetworkWorkflow_TimeoutConfiguration(t *testing.T) {
 		firewallOperations := []common.Operations{
 			{OperationName: "firewall-op-1", IsDone: true},
 		}
-		env.OnActivity(poolActivity.CreateFirewalls, mock.Anything, "tenant-project", "host-project", "network").Return(&firewallOperations, nil)
+		env.OnActivity(poolActivity.CreateFirewalls, mock.Anything, "tenant-project", "host-project", "network", mock.Anything).Return(&firewallOperations, nil)
 
 		env.OnWorkflow(WaitForGCPNetworkOperationStatus, mock.Anything, mock.Anything, "tenant-project", &vpcOperations, mock.Anything).Return(nil)
 
@@ -2084,7 +2084,7 @@ func TestConfigureNetworkWorkflow_TimeoutConfiguration(t *testing.T) {
 			Network:               "network",
 		}
 
-		env.ExecuteWorkflow(ConfigureNetworkWorkflow, tenancyDetails)
+		env.ExecuteWorkflow(ConfigureNetworkWorkflow, tenancyDetails, "")
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
@@ -2136,7 +2136,7 @@ func TestConfigureNetworkWorkflow_TimeoutConfiguration(t *testing.T) {
 		firewallOperations := []common.Operations{
 			{OperationName: "firewall-op-1", IsDone: true},
 		}
-		env.OnActivity(poolActivity.CreateFirewalls, mock.Anything, "tenant-project", "host-project", "network").Return(&firewallOperations, nil)
+		env.OnActivity(poolActivity.CreateFirewalls, mock.Anything, "tenant-project", "host-project", "network", mock.Anything).Return(&firewallOperations, nil)
 
 		env.OnWorkflow(WaitForGCPNetworkOperationStatus, mock.Anything, mock.Anything, "tenant-project", &vpcOperations, mock.Anything).Return(nil)
 
@@ -2149,7 +2149,7 @@ func TestConfigureNetworkWorkflow_TimeoutConfiguration(t *testing.T) {
 			Network:               "network",
 		}
 
-		env.ExecuteWorkflow(ConfigureNetworkWorkflow, tenancyDetails)
+		env.ExecuteWorkflow(ConfigureNetworkWorkflow, tenancyDetails, "")
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
@@ -4127,8 +4127,8 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 		// Pool with BuildInfo.OntapVersion that extracts to empty string (e.g., invalid format)
 		// and has DeploymentName set to trigger the VSA cleanup path
 		poolWithEmptyExtraction := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: 123},
-			Name:      "test-pool",
+			BaseModel:      datamodel.BaseModel{ID: 123},
+			Name:           "test-pool",
 			DeploymentName: "test-deployment", // Required to trigger VSA cleanup
 			AutoTieringConfig: &datamodel.AutoTieringConfig{
 				BucketName: "test-bucket",
@@ -4259,7 +4259,7 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	mockStorage.EXPECT().SavePoolWithVsaDetails(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("Bucket Creation Failed"))
 
@@ -4368,7 +4368,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -4658,7 +4658,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -4820,7 +4820,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil).Maybe()
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
-		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
@@ -5209,7 +5209,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -5367,7 +5367,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -5524,7 +5524,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -6084,7 +6084,7 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -6257,7 +6257,7 @@ func TestCreatePoolWorkflow_CreatePSCEndpoint(t *testing.T) {
 	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
@@ -6426,7 +6426,7 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress(t *testing.T) {
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
@@ -6578,7 +6578,7 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI(t *testing.T) {
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
@@ -6727,7 +6727,7 @@ func TestCreatePoolWorkflow_Fail_CreateAddressForPSCEndpoint(t *testing.T) {
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
@@ -6886,7 +6886,7 @@ func TestCreatePoolWorkflow_Fail_GetAddressURI_EmptyResponse(t *testing.T) {
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
@@ -7046,7 +7046,7 @@ func TestCreatePoolWorkflow_Fail_CreateForwardingRuleForPSCEndpoint(t *testing.T
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
@@ -7210,7 +7210,7 @@ func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress_EmptyResponse(t *tes
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
@@ -9848,7 +9848,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 	}, nil)
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
 	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -10023,7 +10023,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationMaxRetriesExceeded(t *testing.
 	}, nil)
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Mock SavePoolWithClusterDetails to return a pool with an ID
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
@@ -10151,7 +10151,7 @@ func TestCreatePoolWorkflow_ServiceAccountRetryPolicyConfigError(t *testing.T) {
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
 	}, nil)
-	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	// Mock SavePoolWithClusterDetails to return a pool with an ID
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
@@ -10337,7 +10337,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflowError(t *testing.T) {
 		SubnetworkNames:       []string{"test-subnet"},
 	}, nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("network error"))
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("network error"))
 	// Mock rollback workflows
 	env.OnWorkflow(DataSubnetSequentialPoller, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	env.OnWorkflow(ReleasePSCEndpointWorkflow, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -12904,7 +12904,7 @@ func setupPoolBuildInfoTestMocks(env *testsuite.TestWorkflowEnvironment, mockVSA
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
 	}, nil)
-	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnWorkflow(ConfigurePSCEndpointWorkflow, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnWorkflow(SyncPoolComplianceForPoolWorkflow, mock.Anything, mock.Anything).Return(nil)
 
@@ -13695,7 +13695,7 @@ func TestCreatePoolWorkflow_CancellationAtValidateImageDigest(t *testing.T) {
 		SnHostProject:         "test-host-project",
 	}, nil).Maybe()
 	// Mock ConfigureNetworkWorkflow to prevent it from executing real activities
-	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 
@@ -13775,7 +13775,7 @@ func TestCreatePoolWorkflow_CancellationHandlerIsCancelled(t *testing.T) {
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.ServiceAccount{}, nil).Maybe()
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	// Mock ConfigureNetworkWorkflow to prevent it from executing real activities
-	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 
@@ -13850,7 +13850,7 @@ func TestCreatePoolWorkflow_CancellationAtFindTenancyProject(t *testing.T) {
 		SnHostProject:         "test-host-project",
 	}, nil).Maybe()
 	// Mock ConfigureNetworkWorkflow to prevent it from executing real activities
-	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 
@@ -13929,7 +13929,7 @@ func TestCreatePoolWorkflow_CancellationAtSubnetWorkflow(t *testing.T) {
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
 	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 	// Mock ConfigureNetworkWorkflow to prevent it from executing real activities
-	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 
@@ -14009,7 +14009,7 @@ func TestCreatePoolWorkflow_CancellationAtSavePoolWithClusterDetails(t *testing.
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
 	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 	// Mock ConfigureNetworkWorkflow to prevent it from executing real activities
-	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 
@@ -14082,7 +14082,7 @@ func TestCreatePoolWorkflow_CancellationAtNetworkConfiguration(t *testing.T) {
 	}, nil).Maybe()
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Send cancellation signal when ConfigureNetworkWorkflow completes to trigger cancellation at line 305
-	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		// Send cancellation signal right after ConfigureNetworkWorkflow completes
 		// This will be caught by the checkCancellation() call at line 305
 		env.SignalWorkflow(CancelSignalName, "cancel data")
@@ -15018,7 +15018,7 @@ func TestCreatePoolWorkflow_CancellationAtCreateAutoTierBucket(t *testing.T) {
 		SnHostProject:         "test-host-project",
 	}, nil).Maybe()
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.ServiceAccount{}, nil)
 	// Send cancellation signal when CreateAutoTierBucket completes to trigger cancellation at line 336
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
@@ -15111,7 +15111,7 @@ func TestCreatePoolWorkflow_CancellationAtCreateOnTapCredentials(t *testing.T) {
 		SnHostProject:         "test-host-project",
 	}, nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.ServiceAccount{}, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Send cancellation signal when CreateOnTapCredentials completes to trigger cancellation
@@ -15900,7 +15900,7 @@ func TestCreatePoolWorkflow_CancellationAtSavePoolWithClusterDetailsAfterSubnet(
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
 	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
-	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 
@@ -16428,7 +16428,7 @@ func TestCreatePoolWorkflow_CancellationAtIdentifyVMs(t *testing.T) {
 		RegionalTenantProject: "test-project",
 		SnHostProject:         "test-host-project",
 	}, nil)
-	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.ServiceAccount{Email: "test@example.com"}, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -16516,7 +16516,7 @@ func TestCreatePoolWorkflow_CancellationAfterFirstSavePoolWithClusterDetails(t *
 	}).Return(nil)
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Pool{}, nil)
 	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
-	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 

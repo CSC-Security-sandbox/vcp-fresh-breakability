@@ -223,6 +223,7 @@ data:
   IC_FIREWALL_PORT_RULES: {{$.Values.workerConfig.icFirewallPortRules | quote }}
   ISCSI_FIREWALL_PORT_RULES: {{$.Values.workerConfig.iscsiFirewallPortRules | quote }}
   NFS_FIREWALL_PORT_RULES: {{$.Values.workerConfig.nfsFirewallPortRules | quote }}
+  NVME_FIREWALL_PORT_RULES: {{$.Values.workerConfig.nvmeFirewallPortRules | quote }}
   INTERCLUSTER_FIREWALL_PORT_RULES: {{$.Values.workerConfig.interclusterFirewallPortRules | quote }}
   SMB_FIREWALL_ALLOWED_PORT_RULES: {{$.Values.workerConfig.smbFirewallAllowedPortRules | quote }}
   ILB_HEALTH_CHECK_FIREWALL_SOURCE_RANGES: {{$.Values.workerConfig.ilbHealthCheckFirewallSourceRanges | quote }}

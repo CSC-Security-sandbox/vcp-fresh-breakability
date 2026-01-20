@@ -3150,6 +3150,46 @@ func Test_setupNetworkFirewallsForIlbHealthCheck(t *testing.T) {
 	})
 }
 
+func Test_setupNetworkFirewallsForNVMe(t *testing.T) {
+	mockService := new(hyperscaler2.MockGoogleServices)
+	snHostProject := "test-sn-host-project"
+	mockNetwork := "test-network"
+	firewallPriority := int64(1000)
+	ingressTrafficDirection := "INGRESS"
+	ctx := context.TODO()
+	logger := util.GetLogger(ctx)
+	activities.NvmeFirewallPortRules = "tcp,4420"
+	activities.DataFirewallSourceRanges = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+	defer func() {
+		activities.DataFirewallSourceRanges = "" // Reset the environment variable after the test
+		activities.NvmeFirewallPortRules = ""    // Reset the environment variable after the test
+	}()
+	t.Run("WhenSetupNetworkFirewallsForNVMESucceeds", func(tt *testing.T) {
+		mockService.On("GetLogger").Return(logger)
+		activities.InsertFirewall = func(service hyperscaler2.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, allowedPorts []string) (string, error) {
+			assert.Equal(t, snHostProject, project)
+			assert.Equal(t, "ingress-data-nvme", name)
+			assert.Equal(t, mockNetwork, network)
+			assert.Equal(t, firewallPriority, priority)
+			assert.Equal(t, ingressTrafficDirection, direction)
+			assert.ElementsMatch(t, []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}, sourceRanges)
+			assert.ElementsMatch(t, []string{"tcp", "4420"}, allowedPorts)
+			return "op-nvme", nil
+		}
+		op, err := activities.SetupNetworkFirewallsForNVMe(mockService, snHostProject, mockNetwork)
+		assert.NoError(t, err)
+		assert.Equal(t, op, "op-nvme")
+	})
+	t.Run("WhenSetupNetworkFirewallsForNVMeFails", func(tt *testing.T) {
+		activities.InsertFirewall = func(service hyperscaler2.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, allowedPorts []string) (string, error) {
+			return "", errors.New("nvme firewall error")
+		}
+		_, err := activities.SetupNetworkFirewallsForNVMe(mockService, snHostProject, mockNetwork)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "nvme firewall error")
+	})
+}
+
 func TestPoolActivity_SetupNasFirewalls(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	poolActivity := activities.PoolActivity{SE: mockStorage}
@@ -8784,6 +8824,7 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 	originalSetupNetworkFirewallsForNFS := activities.SetupNetworkFirewallsForNFS
 	originalSetupNetworkFirewallsForIntercluster := activities.SetupNetworkFirewallsForIntercluster
 	originalSetupNetworkFirewallsForSMB := activities.SetupNetworkFirewallsForSMB
+	originalSetupNetworkFirewallsForNVMe := activities.SetupNetworkFirewallsForNVMe
 	originalSetupNetworkFirewallsForIlbHealthCheck := activities.SetupNetworkFirewallsForIlbHealthCheck
 	defer func() {
 		hyperscaler2.GetGCPService = originalGetGCPService
@@ -8792,6 +8833,7 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		activities.SetupNetworkFirewallsForNFS = originalSetupNetworkFirewallsForNFS
 		activities.SetupNetworkFirewallsForIntercluster = originalSetupNetworkFirewallsForIntercluster
 		activities.SetupNetworkFirewallsForSMB = originalSetupNetworkFirewallsForSMB
+		activities.SetupNetworkFirewallsForNVMe = originalSetupNetworkFirewallsForNVMe
 		activities.SetupNetworkFirewallsForIlbHealthCheck = originalSetupNetworkFirewallsForIlbHealthCheck
 	}()
 
@@ -8845,7 +8887,12 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 			return "operation-ilb-health-check-firewall", nil
 		}
 
-		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+		// Mock SetupNetworkFirewallsForNVMe to return operation name (not called in this test since poolMode is not ONTAP)
+		activities.SetupNetworkFirewallsForNVMe = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-nvme-firewall", nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network, "")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -8926,7 +8973,12 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 			return "", nil
 		}
 
-		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+		// Mock SetupNetworkFirewallsForNVMe (not called in this test since poolMode is not ONTAP)
+		activities.SetupNetworkFirewallsForNVMe = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network, "")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -8957,7 +9009,7 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 			return nil, errors.New("failed to get GCP service")
 		}
 
-		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network, "")
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to get GCP service")
@@ -8980,7 +9032,7 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 			return "", errors.New("failed to create firewall")
 		}
 
-		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network, "")
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to create firewall")
@@ -9014,7 +9066,12 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 			return "operation-nfs-firewall", nil
 		}
 
-		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+		// Mock SetupNetworkFirewallsForNVMe (not called in this test since poolMode is not ONTAP)
+		activities.SetupNetworkFirewallsForNVMe = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network, "")
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to setup iSCSI firewalls")
@@ -9054,7 +9111,12 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 			return "", errors.New("failed to setup NFS firewalls")
 		}
 
-		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+		// Mock SetupNetworkFirewallsForNVMe (not called in this test since poolMode is not ONTAP)
+		activities.SetupNetworkFirewallsForNVMe = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network, "")
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to setup NFS firewalls")
@@ -9092,10 +9154,214 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 			return "", errors.New("failed to setup Intercluster firewalls")
 		}
 
-		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+		// Mock SetupNetworkFirewallsForNVMe (not called in this test since poolMode is not ONTAP)
+		activities.SetupNetworkFirewallsForNVMe = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network, "")
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to setup Intercluster firewalls")
+		_ = result // result unused in error case
+	})
+
+	t.Run("Success_ONTAPMode_CreatesNVMeFirewall", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.PoolActivity{SE: mockSE}
+		env.RegisterActivity(activity)
+
+		// Enable file protocol support for this test to ensure NFS firewall is created
+		utils.SetFileProtocolSupportedForTesting(true)
+		defer func() {
+			utils.SetFileProtocolSupportedForTesting(false)
+		}()
+
+		mockGCPService := &google.GcpServices{}
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		// Mock InsertFirewall to return operation names for all VPC firewalls
+		callCount := 0
+		activities.InsertFirewall = func(service hyperscaler2.GoogleServices, project, firewallName, vpcName string, priority int64, direction string, sourceRanges, portRules []string) (string, error) {
+			callCount++
+			return fmt.Sprintf("operation-firewall-%d", callCount), nil
+		}
+
+		// Mock SetupNetworkFirewallsForIscsi to return operation name
+		activities.SetupNetworkFirewallsForIscsi = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-iscsi-firewall", nil
+		}
+
+		// Mock SetupNetworkFirewallsForNFS to return operation name
+		activities.SetupNetworkFirewallsForNFS = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-nfs-firewall", nil
+		}
+
+		// Mock SetupNetworkFirewallsForIntercluster to return operation names for intercluster firewalls
+		activities.SetupNetworkFirewallsForIntercluster = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-intercluster-firewall", nil
+		}
+
+		// Mock SetupNetworkFirewallsForSMB to return operation name
+		activities.SetupNetworkFirewallsForSMB = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-smb-firewall", nil
+		}
+
+		// Mock SetupNetworkFirewallsForIlbHealthCheck to return operation name
+		activities.SetupNetworkFirewallsForIlbHealthCheck = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-ilb-health-check-firewall", nil
+		}
+
+		// Mock SetupNetworkFirewallsForNVMe to return operation name (should be called for ONTAP mode)
+		activities.SetupNetworkFirewallsForNVMe = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-nvme-firewall", nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network, "ONTAP")
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		var operations *[]commonparams.Operations
+		err = result.Get(&operations)
+		assert.NoError(t, err)
+		assert.NotNil(t, operations)
+		// Should have 10 operations: 4 VPC firewalls + iSCSI + NFS + intercluster + SMB + ILB + NVMe
+		assert.Len(t, *operations, 10)
+
+		// Check NVMe firewall operation is present
+		operationNames := make([]string, len(*operations))
+		for i, op := range *operations {
+			operationNames[i] = op.OperationName
+		}
+		assert.Contains(t, operationNames, "operation-nvme-firewall")
+	})
+
+	t.Run("Success_NonONTAPMode_NoNVMeFirewall", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.PoolActivity{SE: mockSE}
+		env.RegisterActivity(activity)
+
+		// Enable file protocol support for this test to ensure NFS firewall is created
+		utils.SetFileProtocolSupportedForTesting(true)
+		defer func() {
+			utils.SetFileProtocolSupportedForTesting(false)
+		}()
+
+		mockGCPService := &google.GcpServices{}
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		// Mock InsertFirewall to return operation names for all VPC firewalls
+		callCount := 0
+		activities.InsertFirewall = func(service hyperscaler2.GoogleServices, project, firewallName, vpcName string, priority int64, direction string, sourceRanges, portRules []string) (string, error) {
+			callCount++
+			return fmt.Sprintf("operation-firewall-%d", callCount), nil
+		}
+
+		// Mock SetupNetworkFirewallsForIscsi to return operation name
+		activities.SetupNetworkFirewallsForIscsi = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-iscsi-firewall", nil
+		}
+
+		// Mock SetupNetworkFirewallsForNFS to return operation name
+		activities.SetupNetworkFirewallsForNFS = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-nfs-firewall", nil
+		}
+
+		// Mock SetupNetworkFirewallsForIntercluster to return operation names for intercluster firewalls
+		activities.SetupNetworkFirewallsForIntercluster = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-intercluster-firewall", nil
+		}
+
+		// Mock SetupNetworkFirewallsForSMB to return operation name
+		activities.SetupNetworkFirewallsForSMB = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-smb-firewall", nil
+		}
+
+		// Mock SetupNetworkFirewallsForIlbHealthCheck to return operation name
+		activities.SetupNetworkFirewallsForIlbHealthCheck = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-ilb-health-check-firewall", nil
+		}
+
+		// Mock SetupNetworkFirewallsForNVMe - should NOT be called for non-ONTAP mode
+		nvmeCalled := false
+		activities.SetupNetworkFirewallsForNVMe = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			nvmeCalled = true
+			return "operation-nvme-firewall", nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network, "VSA")
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, nvmeCalled, "NVMe firewall should not be called for non-ONTAP mode")
+
+		var operations *[]commonparams.Operations
+		err = result.Get(&operations)
+		assert.NoError(t, err)
+		assert.NotNil(t, operations)
+		// Should have 9 operations: 4 VPC firewalls + iSCSI + NFS + intercluster + SMB + ILB (no NVMe)
+		assert.Len(t, *operations, 9)
+
+		// Check NVMe firewall operation is NOT present
+		operationNames := make([]string, len(*operations))
+		for i, op := range *operations {
+			operationNames[i] = op.OperationName
+		}
+		assert.NotContains(t, operationNames, "operation-nvme-firewall")
+	})
+
+	t.Run("SetupNetworkFirewallsForNVMe_Fails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.PoolActivity{SE: mockSE}
+		env.RegisterActivity(activity)
+
+		// Enable file protocol support for this test to ensure NFS firewall is called
+		utils.SetFileProtocolSupportedForTesting(true)
+		defer func() {
+			utils.SetFileProtocolSupportedForTesting(false)
+		}()
+
+		mockGCPService := &google.GcpServices{}
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		// Mock InsertFirewall to succeed for all VPC firewalls
+		activities.InsertFirewall = func(service hyperscaler2.GoogleServices, project, firewallName, vpcName string, priority int64, direction string, sourceRanges, portRules []string) (string, error) {
+			return "", nil
+		}
+
+		// Mock all other firewalls to succeed
+		activities.SetupNetworkFirewallsForIscsi = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", nil
+		}
+		activities.SetupNetworkFirewallsForNFS = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", nil
+		}
+		activities.SetupNetworkFirewallsForIntercluster = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", nil
+		}
+
+		// Mock SetupNetworkFirewallsForNVMe to fail
+		activities.SetupNetworkFirewallsForNVMe = func(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
+			return "", errors.New("failed to setup NVMe firewalls")
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network, "ONTAP")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to setup NVMe firewalls")
 		_ = result // result unused in error case
 	})
 
@@ -9129,7 +9395,7 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 			return "operation-intercluster-firewall", nil
 		}
 
-		result, err := env.ExecuteActivity(activity.CreateFirewalls, "", snHostProject, network)
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, "", snHostProject, network, "")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -9174,7 +9440,7 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 			return "", nil
 		}
 
-		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network, "")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -9208,7 +9474,7 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 			return fmt.Sprintf("operation-firewall-%d", callCount), nil
 		}
 
-		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network, "")
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "first firewall creation failed")
@@ -9242,7 +9508,7 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 			return "operation-iscsi-firewall", nil
 		}
 
-		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network, "")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
