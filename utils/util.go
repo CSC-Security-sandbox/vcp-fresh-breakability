@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/go-openapi/strfmt"
+	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	ontapmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -1433,4 +1434,46 @@ func GenerateRbacFilePath(template, configurablePart string) string {
 func IsRuleKerberosSupported(nFSv4, kerberos5ReadWrite, kerberos5ReadOnly, kerberos5pReadWrite,
 	kerberos5pReadOnly, kerberos5iReadOnly, kerberos5iReadWrite bool) bool {
 	return enableKerberos && nFSv4 && (kerberos5ReadWrite || kerberos5ReadOnly || kerberos5pReadWrite || kerberos5pReadOnly || kerberos5iReadOnly || kerberos5iReadWrite)
+}
+
+// GetONTAPSnapshotNameFromCBSDisplaySnapshotName removes the extra random string added to make the backup Name unique across volumes
+func GetONTAPSnapshotNameFromCBSDisplaySnapshotName(cbsSnapshotName string) string {
+	postFixPos := strings.LastIndex(cbsSnapshotName, "-")
+	if postFixPos == -1 {
+		return cbsSnapshotName
+	}
+	cbsSnapshotName = cbsSnapshotName[0:postFixPos]
+
+	scheduledTimes := [7]string{"daily.", "weekly.", "monthly.", "snapmirror.", "daily-", "weekly-", "monthly-"}
+	for _, schedTime := range scheduledTimes {
+		if strings.Contains(cbsSnapshotName, schedTime) {
+			// Removing the prefix like policy name, pool name
+			lastIndex := strings.LastIndex(cbsSnapshotName, schedTime)
+			if lastIndex != -1 {
+				cbsSnapshotName = cbsSnapshotName[lastIndex:]
+			}
+		}
+	}
+	return cbsSnapshotName
+}
+
+// ExtractSnapshotNameFromCVPBackup extracts the snapshot name from a CVP backup object.
+func ExtractSnapshotNameFromCVPBackup(backup *cvpModels.BackupV1beta, backupName string) string {
+	if backup.SourceSnapshot != nil && *backup.SourceSnapshot != "" {
+		parts := strings.Split(*backup.SourceSnapshot, "/")
+		if len(parts) > 0 {
+			return parts[len(parts)-1]
+		}
+	}
+
+	if backup.BackupType == BackupTypeMANUAL {
+		return backupName
+	}
+
+	if backup.BackupType == BackupTypeSCHEDULED {
+		return GetONTAPSnapshotNameFromCBSDisplaySnapshotName(backupName)
+	}
+
+	// Default: return empty string if none of the conditions match
+	return ""
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	ontapmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -4043,4 +4044,235 @@ func TestIsOntapVersionGreaterOrEqual(t *testing.T) {
 	// Test when version is less
 	result = IsOntapVersionGreaterOrEqual("9.17.1", "9.18.1")
 	assert.False(t, result, "Should return false when version is less")
+}
+
+// TestGetONTAPSnapshotNameFromCBSDisplaySnapshotName tests GetONTAPSnapshotNameFromCBSDisplaySnapshotName function
+func TestGetONTAPSnapshotNameFromCBSDisplaySnapshotName(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          string
+		expectedOutput string
+		description    string
+	}{
+		{
+			name:           "No dash in name",
+			input:          "snapshot123",
+			expectedOutput: "snapshot123",
+			description:    "Should return input as-is when no dash is present",
+		},
+		{
+			name:           "Name with dash but no scheduled prefix",
+			input:          "my-snapshot-abc123",
+			expectedOutput: "my-snapshot",
+			description:    "Should remove suffix after last dash when no scheduled prefix exists",
+		},
+		{
+			name:           "Daily prefix with dot",
+			input:          "policy-pool-daily.snapshot-abc123",
+			expectedOutput: "daily.snapshot",
+			description:    "Should extract daily. prefix and remove suffix",
+		},
+		{
+			name:           "Weekly prefix with dot",
+			input:          "policy-pool-weekly.snapshot-abc123",
+			expectedOutput: "weekly.snapshot",
+			description:    "Should extract weekly. prefix and remove suffix",
+		},
+		{
+			name:           "Monthly prefix with dot",
+			input:          "policy-pool-monthly.snapshot-abc123",
+			expectedOutput: "monthly.snapshot",
+			description:    "Should extract monthly. prefix and remove suffix",
+		},
+		{
+			name:           "Snapmirror prefix with dot",
+			input:          "policy-pool-snapmirror.snapshot-abc123",
+			expectedOutput: "snapmirror.snapshot",
+			description:    "Should extract snapmirror. prefix and remove suffix",
+		},
+		{
+			name:           "Daily prefix with dash",
+			input:          "policy-pool-daily-snapshot-abc123",
+			expectedOutput: "daily-snapshot",
+			description:    "Should extract daily- prefix and remove suffix",
+		},
+		{
+			name:           "Weekly prefix with dash",
+			input:          "policy-pool-weekly-snapshot-abc123",
+			expectedOutput: "weekly-snapshot",
+			description:    "Should extract weekly- prefix and remove suffix",
+		},
+		{
+			name:           "Monthly prefix with dash",
+			input:          "policy-pool-monthly-snapshot-abc123",
+			expectedOutput: "monthly-snapshot",
+			description:    "Should extract monthly- prefix and remove suffix",
+		},
+		{
+			name:           "Multiple dashes before scheduled prefix",
+			input:          "very-long-policy-name-pool-name-daily.snapshot-abc123",
+			expectedOutput: "daily.snapshot",
+			description:    "Should handle multiple dashes and extract scheduled prefix",
+		},
+		{
+			name:           "Scheduled prefix at start",
+			input:          "daily.snapshot-abc123",
+			expectedOutput: "daily.snapshot",
+			description:    "Should work when scheduled prefix is at the start",
+		},
+		{
+			name:           "Empty string",
+			input:          "",
+			expectedOutput: "",
+			description:    "Should handle empty string",
+		},
+		{
+			name:           "Only dash",
+			input:          "-",
+			expectedOutput: "",
+			description:    "Should handle string with only dash",
+		},
+		{
+			name:           "Dash at end",
+			input:          "snapshot-",
+			expectedOutput: "snapshot",
+			description:    "Should handle dash at the end",
+		},
+		{
+			name:           "Multiple scheduled prefixes (last match)",
+			input:          "daily.backup-weekly.snapshot-abc123",
+			expectedOutput: "weekly.snapshot",
+			description:    "Should match last scheduled prefix found in the string",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetONTAPSnapshotNameFromCBSDisplaySnapshotName(tt.input)
+			assert.Equal(t, tt.expectedOutput, result, tt.description)
+		})
+	}
+}
+
+// TestExtractSnapshotNameFromCVPBackup tests ExtractSnapshotNameFromCVPBackup function
+func TestExtractSnapshotNameFromCVPBackup(t *testing.T) {
+	snapshotPath := "/vol/volume1/snapshot1"
+	snapshotName := "snapshot1"
+	backupName := "backup-name-123"
+
+	tests := []struct {
+		name           string
+		backup         *cvpModels.BackupV1beta
+		backupName     string
+		expectedOutput string
+		description    string
+	}{
+		{
+			name: "SourceSnapshot is set",
+			backup: &cvpModels.BackupV1beta{
+				SourceSnapshot: &snapshotPath,
+				BackupType:     BackupTypeMANUAL,
+			},
+			backupName:     backupName,
+			expectedOutput: snapshotName,
+			description:    "Should extract snapshot name from SourceSnapshot path when set",
+		},
+		{
+			name: "SourceSnapshot with multiple slashes",
+			backup: &cvpModels.BackupV1beta{
+				SourceSnapshot: stringPtr("/vol/volume1/subdir/snapshot1"),
+				BackupType:     BackupTypeMANUAL,
+			},
+			backupName:     backupName,
+			expectedOutput: "snapshot1",
+			description:    "Should extract last part from SourceSnapshot path with multiple slashes",
+		},
+		{
+			name: "SourceSnapshot with trailing slash",
+			backup: &cvpModels.BackupV1beta{
+				SourceSnapshot: stringPtr("/vol/volume1/snapshot1/"),
+				BackupType:     BackupTypeMANUAL,
+			},
+			backupName:     backupName,
+			expectedOutput: "",
+			description:    "Should handle trailing slash in SourceSnapshot path",
+		},
+		{
+			name: "SourceSnapshot is empty string",
+			backup: &cvpModels.BackupV1beta{
+				SourceSnapshot: stringPtr(""),
+				BackupType:     BackupTypeMANUAL,
+			},
+			backupName:     backupName,
+			expectedOutput: backupName,
+			description:    "Should fall back to backupName when SourceSnapshot is empty string",
+		},
+		{
+			name: "SourceSnapshot is nil and BackupType is MANUAL",
+			backup: &cvpModels.BackupV1beta{
+				SourceSnapshot: nil,
+				BackupType:     BackupTypeMANUAL,
+			},
+			backupName:     backupName,
+			expectedOutput: backupName,
+			description:    "Should return backupName when SourceSnapshot is nil and BackupType is MANUAL",
+		},
+		{
+			name: "SourceSnapshot is nil and BackupType is SCHEDULED",
+			backup: &cvpModels.BackupV1beta{
+				SourceSnapshot: nil,
+				BackupType:     BackupTypeSCHEDULED,
+			},
+			backupName:     "policy-pool-daily.snapshot-abc123",
+			expectedOutput: "daily.snapshot",
+			description:    "Should process backupName through GetONTAPSnapshotNameFromCBSDisplaySnapshotName when BackupType is SCHEDULED",
+		},
+		{
+			name: "SourceSnapshot is nil and BackupType is empty",
+			backup: &cvpModels.BackupV1beta{
+				SourceSnapshot: nil,
+				BackupType:     "",
+			},
+			backupName:     backupName,
+			expectedOutput: "",
+			description:    "Should return empty string when none of the conditions match",
+		},
+		{
+			name: "SourceSnapshot is nil and BackupType is unknown",
+			backup: &cvpModels.BackupV1beta{
+				SourceSnapshot: nil,
+				BackupType:     "UNKNOWN",
+			},
+			backupName:     backupName,
+			expectedOutput: "",
+			description:    "Should return empty string for unknown BackupType",
+		},
+		{
+			name: "SourceSnapshot with single segment",
+			backup: &cvpModels.BackupV1beta{
+				SourceSnapshot: stringPtr("snapshot1"),
+				BackupType:     BackupTypeMANUAL,
+			},
+			backupName:     backupName,
+			expectedOutput: "snapshot1",
+			description:    "Should return snapshot name when SourceSnapshot has no slashes",
+		},
+		{
+			name: "SCHEDULED backup with complex name",
+			backup: &cvpModels.BackupV1beta{
+				SourceSnapshot: nil,
+				BackupType:     BackupTypeSCHEDULED,
+			},
+			backupName:     "very-long-policy-name-pool-name-weekly-backup-xyz789",
+			expectedOutput: "weekly-backup",
+			description:    "Should process complex scheduled backup name correctly",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ExtractSnapshotNameFromCVPBackup(tt.backup, tt.backupName)
+			assert.Equal(t, tt.expectedOutput, result, tt.description)
+		})
+	}
 }

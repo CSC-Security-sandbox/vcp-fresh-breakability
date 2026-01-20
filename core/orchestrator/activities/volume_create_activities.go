@@ -1649,7 +1649,7 @@ func FetchBackupFromCVP(ctx context.Context, backupName string, backupVault *dat
 		SizeInBytes:   backupSize,
 		Attributes: &datamodel.BackupAttributes{
 			VolumeName:               b.SourceVolume,
-			SnapshotName:             nillable.GetString(b.SourceSnapshot, ""),
+			SnapshotName:             utils.ExtractSnapshotNameFromCVPBackup(b, backupName),
 			SnapshotID:               nillable.GetString(b.SnapshotUUID, ""),
 			AccountIdentifier:        account.Name,
 			BucketName:               bucketName,
