@@ -173,6 +173,12 @@ func UpdateSinglePoolRbacChildWorkflow(ctx workflow.Context, poolDetails expertm
 		FileHashSHA256: poolDetails.LatestRbacHash,
 	}
 
+	err = workflow.ExecuteActivity(ctx, poolActivity.ValidateRbacHash, ontapVersion, bucketFileDetails).Get(ctx, nil)
+	if err != nil {
+		logger.Errorf("Failed to validate rbac hash for version: %s, :%v", ontapVersion, err)
+		return err
+	}
+
 	// Get ONTAP credentials
 	var ontapCredentials *vlm.OntapCredentials
 	err = workflow.ExecuteActivity(ctx, poolActivity.GetOnTapCredentials, pool).Get(ctx, &ontapCredentials)
