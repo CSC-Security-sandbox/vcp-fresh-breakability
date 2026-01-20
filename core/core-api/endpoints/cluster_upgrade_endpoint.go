@@ -38,9 +38,15 @@ func (h *Handler) V1UpgradeCluster(ctx context.Context, req *oasgenserver.Cluste
 				Code:    404,
 			}, nil
 		}
-		if strings.Contains(err.Error(), "bad request") || strings.Contains(err.Error(), "invalid request") {
+		if errors.IsBadRequestErr(err) && strings.Contains(err.Error(), "Cluster must be in READY or DISABLED state for upgrade") {
+			return &oasgenserver.V1UpgradeClusterConflict{
+				Message: err.Error(),
+				Code:    409,
+			}, nil
+		}
+		if errors.IsBadRequestErr(err) || strings.Contains(err.Error(), "bad request") || strings.Contains(err.Error(), "invalid request") {
 			return &oasgenserver.V1UpgradeClusterBadRequest{
-				Message: fmt.Sprintf("Invalid request: %v", err),
+				Message: err.Error(),
 				Code:    400,
 			}, nil
 		}

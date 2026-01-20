@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -347,6 +348,92 @@ func TestV1CreateSnapshot(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, http.StatusInternalServerError, int(internalErrorResponse.Code))
 		assert.Contains(t, internalErrorResponse.Message, "database connection failed")
+	})
+
+	t.Run("WhenONTAPRWVolumeErrorReturned_ThenReturn400", func(t *testing.T) {
+		// Setup
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		// Mock parseAndValidateRegionAndZone to return success
+		originalParseAndValidate := parseAndValidateRegionAndZone
+		defer func() {
+			parseAndValidateRegionAndZone = originalParseAndValidate
+		}()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east1", "", nil
+		}
+
+		req := &oasgenserver.VolumeSnapshotCreateV1{
+			ResourceId: "my-snapshot",
+		}
+		params := oasgenserver.V1CreateSnapshotParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			VolumeId:      "volume-uuid",
+		}
+
+		// ONTAP error when trying to create snapshot on non-RW volume - use BadRequestErr
+		rwVolumeError := errors.NewBadRequestErr("snapshot creation operation not allowed for this volume")
+
+		// Set up expectations
+		mockOrch.EXPECT().CreateSnapshot(mock.Anything, mock.Anything).Return(nil, "", rwVolumeError)
+
+		// Execute
+		ctx := context.Background()
+		result, err := handler.V1CreateSnapshot(ctx, req, params)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequestResponse, ok := result.(*oasgenserver.V1CreateSnapshotBadRequest)
+		assert.True(t, ok)
+		assert.Equal(t, http.StatusBadRequest, int(badRequestResponse.Code))
+		assert.Contains(t, badRequestResponse.Message, "snapshot creation operation not allowed for this volume")
+	})
+
+	t.Run("WhenVCPErrorWithSnapshotNotAllowedReturned_ThenReturn400", func(t *testing.T) {
+		// Setup
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		// Mock parseAndValidateRegionAndZone to return success
+		originalParseAndValidate := parseAndValidateRegionAndZone
+		defer func() {
+			parseAndValidateRegionAndZone = originalParseAndValidate
+		}()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east1", "", nil
+		}
+
+		req := &oasgenserver.VolumeSnapshotCreateV1{
+			ResourceId: "my-snapshot",
+		}
+		params := oasgenserver.V1CreateSnapshotParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			VolumeId:      "volume-uuid",
+		}
+
+		// VCPError with ErrSnapshotNotAllowedForVolume tracking ID (HTTP 400)
+		rwVolumeError := vsaerrors.NewVCPError(vsaerrors.ErrSnapshotNotAllowedForVolume, stderrors.New("snapshot creation operation not allowed for this volume"))
+
+		// Set up expectations
+		mockOrch.EXPECT().CreateSnapshot(mock.Anything, mock.Anything).Return(nil, "", rwVolumeError)
+
+		// Execute
+		ctx := context.Background()
+		result, err := handler.V1CreateSnapshot(ctx, req, params)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequestResponse, ok := result.(*oasgenserver.V1CreateSnapshotBadRequest)
+		assert.True(t, ok)
+		assert.Equal(t, http.StatusBadRequest, int(badRequestResponse.Code))
+		assert.Contains(t, badRequestResponse.Message, "snapshot creation operation not allowed for this volume")
 	})
 
 	t.Run("WhenDescriptionNotSet", func(t *testing.T) {

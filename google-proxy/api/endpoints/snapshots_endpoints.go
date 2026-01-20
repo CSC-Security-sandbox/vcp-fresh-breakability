@@ -184,7 +184,7 @@ func (h Handler) V1betaCreateSnapshot(ctx context.Context, req *gcpgenserver.Vol
 	snapshot, jobUUID, err := h.Orchestrator.CreateSnapshot(ctx, param)
 
 	if err != nil {
-		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) || errors.IsBadRequestErr(err) {
 			return &gcpgenserver.V1betaCreateSnapshotBadRequest{
 				Code:    400,
 				Message: err.Error(),

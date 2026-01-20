@@ -183,7 +183,7 @@ func TestV1UpgradeCluster_BadRequestError(t *testing.T) {
 	badRequestResponse, ok := result.(*oasgenserver.V1UpgradeClusterBadRequest)
 	assert.True(t, ok)
 	assert.Equal(t, float64(400), badRequestResponse.Code)
-	assert.Contains(t, badRequestResponse.Message, "Invalid request")
+	assert.Contains(t, badRequestResponse.Message, "bad request")
 
 	// Verify mock was called correctly
 	mockOrchestrator.AssertExpectations(t)
@@ -237,6 +237,59 @@ func TestV1UpgradeCluster_ConflictError(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, float64(409), conflictResponse.Code)
 	assert.Equal(t, "conflict", conflictResponse.Message)
+
+	// Verify mock was called correctly
+	mockOrchestrator.AssertExpectations(t)
+}
+
+func TestV1UpgradeCluster_ClusterStateConflictError(t *testing.T) {
+	// Create mock orchestrator
+	mockOrchestrator := &orchestratorMocks.MockOrchestratorFactory{}
+
+	// Create handler
+	handler := Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	// Create test request
+	req := &oasgenserver.ClusterUpgradeRequestV1{
+		VsaBuildImage:      oasgenserver.NewOptString("vsa-image:latest"),
+		MediatorBuildImage: oasgenserver.NewOptString("mediator-image:latest"),
+		ForceUpgrade:       oasgenserver.NewOptBool(true),
+		Metadata:           oasgenserver.NewOptClusterUpgradeRequestV1Metadata(map[string]string{"key": "value"}),
+	}
+
+	// Create test parameters
+	params := oasgenserver.V1UpgradeClusterParams{
+		ClusterId: "test-cluster-id",
+	}
+
+	// Create expected orchestrator parameters
+	expectedParams := &commonparams.UpgradeClusterParams{
+		ClusterID:          "test-cluster-id",
+		VSABuildImage:      "vsa-image:latest",
+		MediatorBuildImage: "mediator-image:latest",
+		ForceUpgrade:       true,
+		Metadata:           map[string]string{"key": "value"},
+	}
+
+	// Set up mock to return cluster state error as BadRequestErr (should return 409)
+	mockError := utilsErrors.NewBadRequestErr("Cluster must be in READY or DISABLED state for upgrade. Current state: UPDATING")
+	mockOrchestrator.On("UpgradeCluster", mock.Anything, expectedParams).Return(nil, "", mockError)
+
+	// Call the handler
+	ctx := context.Background()
+	result, err := handler.V1UpgradeCluster(ctx, req, params)
+
+	// Assert success with conflict error response (409)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Cast to conflict response
+	conflictResponse, ok := result.(*oasgenserver.V1UpgradeClusterConflict)
+	assert.True(t, ok)
+	assert.Equal(t, float64(409), conflictResponse.Code)
+	assert.Contains(t, conflictResponse.Message, "Cluster must be in READY or DISABLED state for upgrade")
 
 	// Verify mock was called correctly
 	mockOrchestrator.AssertExpectations(t)

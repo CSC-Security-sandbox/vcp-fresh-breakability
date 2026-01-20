@@ -53,6 +53,10 @@ func (rc *OntapRestProvider) CreateSnapshot(params CreateSnapshotParams) (*Snaps
 		if errors.IsConflictErr(err) {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrCreateSnapshotConflict, err)
 		}
+		if errors.IsBadRequestErr(err) || strings.Contains(err.Error(), "Snapshots can only be created on read/write") ||
+			strings.Contains(err.Error(), "snapshot creation operation not allowed") {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrSnapshotNotAllowedForVolume, errors.New("snapshot creation operation not allowed for this volume"))
+		}
 		if !errors.IsNotFoundErr(err) {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 		}
@@ -66,6 +70,10 @@ func (rc *OntapRestProvider) CreateSnapshot(params CreateSnapshotParams) (*Snaps
 		// Poll the job if it exists
 		if job != nil {
 			if err = client.Poll(job.JobUUID); err != nil {
+				if strings.Contains(err.Error(), "Snapshots can only be created on read/write") ||
+					strings.Contains(err.Error(), "snapshot creation operation not allowed") {
+					return nil, vsaerrors.NewVCPError(vsaerrors.ErrSnapshotNotAllowedForVolume, errors.New("snapshot creation operation not allowed for this volume"))
+				}
 				return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 			}
 			uuid = job.ResourceUUID

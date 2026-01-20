@@ -767,6 +767,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "7012": {
+    "description": "Snapshot creation not allowed for this volume type",
+    "message": "snapshot creation operation not allowed for this volume",
+    "retriable": false,
+    "http_code": 400
+  },
   "6100": {
     "description": "Replication Schedule Unspecified",
     "message": "Replication schedule must be specified",
@@ -1497,7 +1503,7 @@
     "description": "Validate Source Storage Pool State Error",
     "message": "Source pool is in unhealthy state, Please try after some time",
     "retriable": false,
-    "http_code": 400
+    "http_code": 409
   },
   "6223": {
     "description": "Validate Source Storage Pool State Degraded Error",

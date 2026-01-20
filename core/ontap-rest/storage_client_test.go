@@ -1186,6 +1186,16 @@ func TestSnapshotCreate(t *testing.T) {
 		assert.Nil(tt, response)
 		assert.Nil(tt, job)
 	})
+
+	t.Run("WhenONTAPRWVolumeErrorReturned_ThenReturnBadRequestError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("Snapshots can only be created on read/write (RW) volumes")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		response, job, err := client.SnapshotCreate(&SnapshotCreateParams{})
+		assert.EqualError(tt, err, "snapshot creation operation not allowed for this volume")
+		assert.Nil(tt, response)
+		assert.Nil(tt, job)
+	})
 }
 
 func TestSnapshotGet(t *testing.T) {

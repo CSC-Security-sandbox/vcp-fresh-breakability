@@ -493,6 +493,48 @@ func TestReturnsOperationForJobStateErrorWithRestoreVolumeValidation(t *testing.
 	assert.Equal(t, "Custom restore volume validation error message", operationResult.Error.Value.Message.Value)
 }
 
+func TestReturnsOperationForJobStateErrorWithSnapshotNotAllowedForVolume(t *testing.T) {
+	ctx := context.Background()
+	logger := &log.MockLogger{}
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+
+	originalCreateClient := createClient
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		createClient = originalCreateClient
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-east4", "us-east4", nil
+	}
+	mockAsync := &async.MockClientService{}
+	job := &models.Job{
+		State:        models.JobsStateERROR,
+		TrackingID:   vsaerrors.ErrSnapshotNotAllowedForVolume,
+		ErrorDetails: []byte("snapshot creation operation not allowed for this volume"),
+	}
+	mockOrch.On("GetJob", ctx, mock.Anything).Return(job, nil)
+	mockAsync.EXPECT().V1betaDescribeOperation(mock.Anything).Return(nil, nil)
+	mockCVP := &cvpapi.Cvp{Async: mockAsync}
+	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp { return *mockCVP }
+	handler := Handler{Orchestrator: mockOrch}
+	params := gcpgenserver.V1betaDescribeOperationParams{
+		ProjectNumber: "proj",
+		LocationId:    "valid-location",
+		OperationId:   "b3b8c7e2-8c2a-4e2a-9b1a-2e4b6c8d9f0a",
+	}
+	result, err := handler.V1betaDescribeOperation(ctx, params)
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+
+	// Verify the response contains the custom error message from ErrorDetails
+	operationResult := result.(*gcpgenserver.OperationV1beta)
+	assert.True(t, operationResult.Done.Value)
+	assert.Equal(t, float64(400), operationResult.Error.Value.Code.Value)
+	assert.Equal(t, "snapshot creation operation not allowed for this volume", operationResult.Error.Value.Message.Value)
+}
+
 // Tests for V1betaDescribeInternalOperation
 
 func TestV1betaInternalDescribeOperation_BadRequest(t *testing.T) {
@@ -819,6 +861,59 @@ func TestV1betaInternalDescribeOperation_RestoreVolumeValidationError(t *testing
 	assert.True(t, operation.Done.Value)
 	assert.Equal(t, vsaerrors.ErrRestoreVolumeValidation, operation.TrackingId.Value)
 	assert.True(t, operation.Error.Set)
+	assert.Equal(t, customErrorDetails, operation.Error.Value.Message.Value)
+}
+
+func TestV1betaInternalDescribeOperation_SnapshotNotAllowedForVolumeError(t *testing.T) {
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := &Handler{
+		Orchestrator: mockOrchestrator,
+	}
+
+	ctx := context.Background()
+	logger := &log.MockLogger{}
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+
+	operationId := uuid.New().String()
+	customErrorDetails := "snapshot creation operation not allowed for this volume"
+	job := &models.Job{
+		BaseModel: models.BaseModel{
+			UUID: operationId,
+		},
+		CorrelationID: "test-correlation-id",
+		TrackingID:    vsaerrors.ErrSnapshotNotAllowedForVolume,
+		State:         models.JobsStateERROR,
+		WorkflowID:    "CreateSnapshotWorkflow_test",
+		ErrorDetails:  []byte(customErrorDetails),
+	}
+
+	mockOrchestrator.On("GetJob", ctx, operationId).Return(job, nil)
+
+	params := gcpgenserver.V1betaInternalDescribeOperationParams{
+		ProjectNumber:  "123456789",
+		LocationId:     "us-central1",
+		OperationId:    operationId,
+		XCorrelationID: gcpgenserver.NewOptString("test-correlation"),
+	}
+
+	result, err := handler.V1betaInternalDescribeOperation(ctx, params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.InternalOperationV1beta{}, result)
+
+	operation := result.(*gcpgenserver.InternalOperationV1beta)
+	assert.True(t, operation.Done.Value)
+	assert.Equal(t, vsaerrors.ErrSnapshotNotAllowedForVolume, operation.TrackingId.Value)
+	assert.True(t, operation.Error.Set)
+	assert.Equal(t, float64(400), operation.Error.Value.Code.Value)
 	assert.Equal(t, customErrorDetails, operation.Error.Value.Message.Value)
 }
 

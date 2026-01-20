@@ -8,6 +8,7 @@ import (
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -68,7 +69,7 @@ func (h Handler) V1CreateSnapshot(ctx context.Context, req *oasgenserver.VolumeS
 
 	snapshot, jobUUID, err := h.Orchestrator.CreateSnapshot(ctx, param)
 	if err != nil {
-		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) || errors.IsBadRequestErr(err) {
 			return &oasgenserver.V1CreateSnapshotBadRequest{
 				Code:    400,
 				Message: err.Error(),
@@ -78,6 +79,16 @@ func (h Handler) V1CreateSnapshot(ctx context.Context, req *oasgenserver.VolumeS
 				Code:    409,
 				Message: err.Error(),
 			}, nil
+		}
+
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			if hasCode, httpCode := customErr.GetHttpCode(); hasCode && httpCode == 400 {
+				return &oasgenserver.V1CreateSnapshotBadRequest{
+					Code:    400,
+					Message: customErr.OriginalErr.Error(),
+				}, nil
+			}
 		}
 
 		logger.Errorf("Failed to create snapshot: %v", err)

@@ -175,6 +175,82 @@ func TestCreateSnapshot(t *testing.T) {
 		mockClient.AssertExpectations(t)
 	})
 
+	t.Run("CreateSnapshotRWVolumeError", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		params := CreateSnapshotParams{
+			VolumeUUID: "testVolumeUUID",
+			Name:       "testSnapshot",
+			Comment:    "testComment",
+		}
+
+		// Return ONTAP RW volume error
+		rwVolumeErr := errors.NewBadRequestErr("Snapshots can only be created on read/write (RW) volumes")
+		mockStorage.On("SnapshotCreate", mock.Anything).Return(nil, nil, rwVolumeErr)
+
+		resp, err := rc.CreateSnapshot(params)
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+
+		// Verify it's a VCPError with ErrSnapshotNotAllowedForVolume tracking ID
+		var customErr *vsaerrors.CustomError
+		assert.ErrorAs(t, err, &customErr)
+		assert.Equal(t, vsaerrors.ErrSnapshotNotAllowedForVolume, customErr.TrackingID)
+		assert.Contains(t, customErr.OriginalErr.Error(), "snapshot creation operation not allowed for this volume")
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("CreateSnapshotRWVolumeErrorOnPoll", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		params := CreateSnapshotParams{
+			VolumeUUID: "testVolumeUUID",
+			Name:       "testSnapshot",
+			Comment:    "testComment",
+		}
+
+		mockSnapshot := &ontaprest.Snapshot{}
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+
+		mockStorage.On("SnapshotCreate", mock.Anything).Return(mockSnapshot, mockJob, nil)
+		// Return ONTAP RW volume error during polling
+		mockClient.On("Poll", mockJob.JobUUID).Return(errors.New("Snapshots can only be created on read/write (RW) volumes"))
+
+		resp, err := rc.CreateSnapshot(params)
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+
+		// Verify it's a VCPError with ErrSnapshotNotAllowedForVolume tracking ID
+		var customErr *vsaerrors.CustomError
+		assert.ErrorAs(t, err, &customErr)
+		assert.Equal(t, vsaerrors.ErrSnapshotNotAllowedForVolume, customErr.TrackingID)
+		assert.Contains(t, customErr.OriginalErr.Error(), "snapshot creation operation not allowed for this volume")
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
 	t.Run("CreateSnapshotInvalidResponse", func(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockStorage := new(ontaprest.MockStorageClient)

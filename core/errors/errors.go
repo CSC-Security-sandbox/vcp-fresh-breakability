@@ -136,6 +136,7 @@ const (
 	ErrRevertVolumeWhenSnapshotInUse      = 7009
 	ErrCreateSnapshotConflict             = 7010
 	ErrNestedCloneLimitExceeded           = 7011
+	ErrSnapshotNotAllowedForVolume        = 7012
 
 	// CMEK Error Codes
 	ErrDescribingSDEJob                            = 6057
@@ -223,7 +224,7 @@ const (
 	ErrorCvpReplicationJobAlreadyInProcess                                                   = 6156
 	ErrMountingVolumeReplication                                                             = 6157
 	ErrDeHydrateSnapshots                                                                    = 6158
-	ErrValidateDestinationPoolMode                                                            = 6159
+	ErrValidateDestinationPoolMode                                                           = 6159
 	ErrDeHydrateVolume                                                                       = 6160
 	ErrDeHydrateVolumeReplication                                                            = 6161
 	ErrorEmptyUpdateReplicationPayload                                                       = 6163

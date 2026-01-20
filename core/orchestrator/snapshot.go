@@ -422,6 +422,9 @@ func createSnapshotSyncWithDirectPolling(ctx context.Context, provider vsa.Provi
 		if customerrors.IsConflictErr(err) {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrCreateSnapshotConflict, err)
 		}
+		if customerrors.IsBadRequestErr(err) || strings.Contains(err.Error(), "Snapshots can only be created on read/write") {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrSnapshotNotAllowedForVolume, fmt.Errorf("snapshot creation operation not allowed for this volume"))
+		}
 		if !customerrors.IsNotFoundErr(err) {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 		}
@@ -436,6 +439,9 @@ func createSnapshotSyncWithDirectPolling(ctx context.Context, provider vsa.Provi
 			pollIntervalMilliseconds := env.GetInt("SYNC_SNAPSHOT_ONTAP_JOB_POLL_INTERVAL_MILLISECONDS", 2000)
 			err = ontapRest.PollOntapJobDirectly(ctx, client, job.JobUUID, time.Duration(pollTimeoutMilliseconds)*time.Millisecond, time.Duration(pollIntervalMilliseconds)*time.Millisecond, logger)
 			if err != nil {
+				if strings.Contains(err.Error(), "Snapshots can only be created on read/write") {
+					return nil, vsaerrors.NewVCPError(vsaerrors.ErrSnapshotNotAllowedForVolume, fmt.Errorf("snapshot creation operation not allowed for this volume"))
+				}
 				return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 			}
 			// After polling completes, get snapshot details using the resource UUID from job

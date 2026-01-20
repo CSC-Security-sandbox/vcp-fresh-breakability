@@ -604,6 +604,10 @@ func (sc *storageClient) SnapshotCreate(params *SnapshotCreateParams) (*Snapshot
 		if strings.Contains(err.Error(), "snapshot with that name already exists") {
 			return nil, nil, errors.NewConflictErr("snapshot with that name already exists")
 		}
+		// Return BadRequest for ONTAP error when trying to create snapshot on non-RW volume
+		if strings.Contains(err.Error(), "Snapshots can only be created on read/write") {
+			return nil, nil, errors.NewBadRequestErr("snapshot creation operation not allowed for this volume")
+		}
 		return nil, nil, err
 	}
 
