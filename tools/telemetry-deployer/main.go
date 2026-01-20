@@ -478,6 +478,7 @@ func getDefaultEnvVars() map[string]string {
 		"ENABLE_VOLUME_METRICS":           getEnvOrDefault("ENABLE_VOLUME_METRICS", "false"),
 		"ENABLE_BACKUP_METRICS":           getEnvOrDefault("ENABLE_BACKUP_METRICS", "false"),
 		"ENABLE_BACKUP_BILLING_METRICS":   getEnvOrDefault("ENABLE_BACKUP_BILLING_METRICS", "false"),
+		"ENABLE_SFR_METRICS":              getEnvOrDefault("ENABLE_SFR_METRICS", "false"),
 		"ENABLE_FILES_BACKUP_BILLING":     getEnvOrDefault("ENABLE_FILES_BACKUP_BILLING", "false"),
 		"ENABLE_CMEK_BACKUP_BILLING":      getEnvOrDefault("ENABLE_CMEK_BACKUP_BILLING", "false"),
 		"ENABLE_CROSS_REGION_BACKUP_BILLING_METRICS": getEnvOrDefault("ENABLE_CROSS_REGION_BACKUP_BILLING_METRICS", "false"),
