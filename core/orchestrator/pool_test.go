@@ -6340,6 +6340,124 @@ func TestCreatePoolIntegration_ActiveDirectoryConfigId(t *testing.T) {
 	})
 }
 
+func TestCreatePoolInDB_PoolCredentials(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+	store, err := database.SetupStorageForTest(mockLogger)
+	assert.NoError(t, err)
+	err = database.ClearInMemoryDB(store.DB())
+	assert.NoError(t, err)
+
+	// Create account
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	assert.NoError(t, err)
+
+	// Mock the validation functions
+	originalValidateCreatePoolParams := ValidateCreatePoolParams
+	defer func() { ValidateCreatePoolParams = originalValidateCreatePoolParams }()
+	ValidateCreatePoolParams = func(params *common.CreatePoolParams, logger log.Logger) error {
+		return nil
+	}
+
+	originalValidatePoolParams := ValidatePoolParams
+	defer func() { ValidatePoolParams = originalValidatePoolParams }()
+	ValidatePoolParams = func(perf *validators.CustomPerformance, serviceLevel string) error {
+		return nil
+	}
+
+	t.Run("WhenAuthTypeIsUSERNAME_PWD_SEC_MGR_ShouldSetCorrectPoolCredentials", func(tt *testing.T) {
+		// Save original values
+		originalAuthType := env.AuthType
+		originalNodePassword := env.NodePassword
+		defer func() {
+			env.AuthType = originalAuthType
+			env.NodePassword = originalNodePassword
+		}()
+
+		// Set AuthType to USERNAME_PWD_SEC_MGR
+		env.AuthType = env.USERNAME_PWD_SEC_MGR
+
+		iopsValue := int64(1024)
+		params := &common.CreatePoolParams{
+			AccountName:    "test_account",
+			Region:         "us-central1",
+			Name:           "test-pool-sec-mgr",
+			Description:    "Test pool with secret manager",
+			VendorID:       "/projects/test/locations/us-central1/pools/test-pool-sec-mgr",
+			ServiceLevel:   "FLEX",
+			SizeInBytes:    1073741824,
+			PrimaryZone:    "us-central1-a",
+			VendorSubNetID: "projects/test/networks/test",
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				Enabled:         true,
+				ThroughputMibps: 64,
+				Iops:            &iopsValue,
+			},
+		}
+
+		pool, err := CreatePoolInDB(ctx, store, params, account, mockLogger, nil)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, pool)
+		assert.NotNil(tt, pool.PoolCredentials)
+
+		// Verify PoolCredentials for USERNAME_PWD_SEC_MGR case
+		assert.Equal(tt, env.USERNAME_PWD_SEC_MGR, pool.PoolCredentials.AuthType)
+		assert.Equal(tt, fmt.Sprintf("%s-secret", pool.DeploymentName), pool.PoolCredentials.SecretID)
+		assert.Equal(tt, "", pool.PoolCredentials.CertificateID)
+		assert.Equal(tt, "", pool.PoolCredentials.Password)
+		assert.Equal(tt, AdminUserName, pool.PoolCredentials.Username)
+	})
+
+	t.Run("WhenAuthTypeIsDefault_ShouldSetCorrectPoolCredentials", func(tt *testing.T) {
+		// Save original values
+		originalAuthType := env.AuthType
+		originalNodePassword := env.NodePassword
+		defer func() {
+			env.AuthType = originalAuthType
+			env.NodePassword = originalNodePassword
+		}()
+
+		// Set AuthType to USERNAME_PWD (default case)
+		env.AuthType = env.USERNAME_PWD
+		env.NodePassword = "test-node-password"
+
+		iopsValue := int64(1024)
+		params := &common.CreatePoolParams{
+			AccountName:    "test_account",
+			Region:         "us-central1",
+			Name:           "test-pool-default",
+			Description:    "Test pool with default auth",
+			VendorID:       "/projects/test/locations/us-central1/pools/test-pool-default",
+			ServiceLevel:   "FLEX",
+			SizeInBytes:    1073741824,
+			PrimaryZone:    "us-central1-a",
+			VendorSubNetID: "projects/test/networks/test",
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				Enabled:         true,
+				ThroughputMibps: 64,
+				Iops:            &iopsValue,
+			},
+		}
+
+		pool, err := CreatePoolInDB(ctx, store, params, account, mockLogger, nil)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, pool)
+		assert.NotNil(tt, pool.PoolCredentials)
+
+		// Verify PoolCredentials for default case
+		assert.Equal(tt, env.USERNAME_PWD, pool.PoolCredentials.AuthType)
+		assert.Equal(tt, "", pool.PoolCredentials.SecretID)
+		assert.Equal(tt, "", pool.PoolCredentials.CertificateID)
+		assert.Equal(tt, env.NodePassword, pool.PoolCredentials.Password)
+		assert.Equal(tt, AdminUserName, pool.PoolCredentials.Username)
+	})
+}
+
 // TestMergeUpdateParamsIntoPoolModel tests the mergeUpdateParamsIntoPoolModel function
 // Only pool size and auto tiering parameters are updated from params if provided.
 // All other fields remain from poolModel.

@@ -211,7 +211,7 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 			CertificateID: "",
 			Password:      "",
 			AuthType:      env.USERNAME_PWD_SEC_MGR,
-			Username:      fmt.Sprintf("%s%s", userName, VCP_ADMIN_CERT_UN_SUFFIX),
+			Username:      AdminUserName,
 		}
 	default:
 		poolObj.PoolCredentials = &datamodel.PoolCredentials{
@@ -219,7 +219,7 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 			CertificateID: "",
 			Password:      env.NodePassword,
 			AuthType:      env.USERNAME_PWD,
-			Username:      fmt.Sprintf("%s%s", userName, VCP_ADMIN_CERT_UN_SUFFIX),
+			Username:      AdminUserName,
 		}
 	}
 
