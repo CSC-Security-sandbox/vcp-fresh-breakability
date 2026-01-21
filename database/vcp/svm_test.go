@@ -1057,3 +1057,174 @@ func TestDataStoreRepository_GetSvmByExternalUUID(t *testing.T) {
 		assert.NotEqual(tt, result1.UUID, result2.UUID)
 	})
 }
+
+func TestUpdateSvmCurrentKmsKeyID(t *testing.T) {
+	t.Run("WhenSvmExistsWithSvmDetails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1234},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+			State:     models.LifeCycleStateREADY,
+		}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID:    "external-uuid",
+				IPSpace:         "Default",
+				CurrentKmsKeyID: "old-key-id",
+			},
+		}
+		assert.NoError(tt, store.db.Create(svm).Error())
+
+		newKeyID := "new-key-id"
+		err = store.UpdateSvmCurrentKmsKeyID(context.Background(), svm.UUID, newKeyID)
+		assert.NoError(tt, err)
+
+		// Verify the update
+		updatedSvm := &datamodel.Svm{}
+		err = store.db.GORM().First(updatedSvm, "uuid = ?", svm.UUID).Error
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedSvm.SvmDetails)
+		assert.Equal(tt, newKeyID, updatedSvm.SvmDetails.CurrentKmsKeyID)
+		assert.WithinDuration(tt, time.Now(), updatedSvm.UpdatedAt, 2*time.Second)
+	})
+
+	t.Run("WhenSvmExistsWithoutSvmDetails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1234},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+			State:     models.LifeCycleStateREADY,
+		}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		svm := &datamodel.Svm{
+			BaseModel:  datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:       "test_svm",
+			AccountID:  account.ID,
+			PoolID:     pool.ID,
+			SvmDetails: nil,
+		}
+		assert.NoError(tt, store.db.Create(svm).Error())
+
+		newKeyID := "new-key-id"
+		err = store.UpdateSvmCurrentKmsKeyID(context.Background(), svm.UUID, newKeyID)
+		assert.NoError(tt, err)
+
+		// Verify the update - SvmDetails should be initialized
+		updatedSvm := &datamodel.Svm{}
+		err = store.db.GORM().First(updatedSvm, "uuid = ?", svm.UUID).Error
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedSvm.SvmDetails)
+		assert.Equal(tt, newKeyID, updatedSvm.SvmDetails.CurrentKmsKeyID)
+		assert.WithinDuration(tt, time.Now(), updatedSvm.UpdatedAt, 2*time.Second)
+	})
+
+	t.Run("WhenSvmNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		err = store.UpdateSvmCurrentKmsKeyID(context.Background(), "non-existent-uuid", "key-id")
+		assert.Error(tt, err)
+		var vcpErr *vsaerrors.CustomError
+		assert.True(tt, errors.As(err, &vcpErr))
+		assert.Equal(tt, vsaerrors.ErrDatabaseDataReadError, vcpErr.TrackingID)
+	})
+
+	t.Run("WhenTransactionStartFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		// Close the database connection to simulate transaction start failure
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		assert.NoError(tt, sqlDB.Close())
+
+		err = store.UpdateSvmCurrentKmsKeyID(context.Background(), "test-uuid", "key-id")
+		assert.Error(tt, err)
+	})
+
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1234},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+			State:     models.LifeCycleStateREADY,
+		}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "external-uuid",
+			},
+		}
+		assert.NoError(tt, store.db.Create(svm).Error())
+
+		// Drop the table to simulate database error
+		// This causes First() to fail with ErrDatabaseDataReadError
+		// (Save() would fail with ErrDatabaseDataUpdateError, but First() fails first)
+		err = store.db.GORM().Exec("DROP TABLE svms").Error
+		assert.NoError(tt, err)
+
+		err = store.UpdateSvmCurrentKmsKeyID(context.Background(), svm.UUID, "key-id")
+		assert.Error(tt, err)
+		var vcpErr *vsaerrors.CustomError
+		assert.True(tt, errors.As(err, &vcpErr))
+		// When table is dropped, First() fails first, so we get ErrDatabaseDataReadError
+		assert.Equal(tt, vsaerrors.ErrDatabaseDataReadError, vcpErr.TrackingID)
+	})
+}

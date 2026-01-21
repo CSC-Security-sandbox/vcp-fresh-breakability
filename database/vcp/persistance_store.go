@@ -367,12 +367,12 @@ func (s *PersistenceStore) GetPoolByUUID(ctx context.Context, poolUUID string) (
 	return s.dataStore.GetPoolByUUID(ctx, poolUUID)
 }
 
-func (s *PersistenceStore) GetPoolStateByUUID(ctx context.Context, poolUUID string) (string, error) {
-	return s.dataStore.GetPoolStateByUUID(ctx, poolUUID)
-}
-
 func (s *PersistenceStore) GetPoolByID(ctx context.Context, poolID int64) (*datamodel.Pool, error) {
 	return s.dataStore.GetPoolByID(ctx, poolID)
+}
+
+func (s *PersistenceStore) GetPoolStateByUUID(ctx context.Context, poolUUID string) (string, error) {
+	return s.dataStore.GetPoolStateByUUID(ctx, poolUUID)
 }
 
 func (s *PersistenceStore) UpdatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
@@ -1559,6 +1559,10 @@ func (s *PersistenceStore) DeleteQuotaRule(ctx context.Context, id string) (*dat
 	return s.dataStore.DeleteQuotaRule(ctx, id)
 }
 
+func (s *PersistenceStore) ReplaceDstQuotaRulesWithSrc(ctx context.Context, volumeID int64, accountID int64, dstQuotaRuleUUIDs []string, srcQuotaRules []*datamodel.QuotaRule) ([]*datamodel.QuotaRule, error) {
+	return s.dataStore.ReplaceDstQuotaRulesWithSrc(ctx, volumeID, accountID, dstQuotaRuleUUIDs, srcQuotaRules)
+}
+
 func (s *PersistenceStore) UpdateExpertModeVolumeDataProtection(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) error {
 	return s.dataStore.UpdateExpertModeVolumeDataProtection(ctx, expertModeVolume)
 }
@@ -1571,6 +1575,26 @@ func (s *PersistenceStore) GetVolumeByJunctionPath(ctx context.Context, junction
 	return s.dataStore.GetVolumeByJunctionPath(ctx, junctionPath, accountID, poolId)
 }
 
-func (s *PersistenceStore) ReplaceDstQuotaRulesWithSrc(ctx context.Context, volumeID int64, accountID int64, dstQuotaRuleUUIDs []string, srcQuotaRules []*datamodel.QuotaRule) ([]*datamodel.QuotaRule, error) {
-	return s.dataStore.ReplaceDstQuotaRulesWithSrc(ctx, volumeID, accountID, dstQuotaRuleUUIDs, srcQuotaRules)
+func (s *PersistenceStore) AddKeyToServiceAccount(ctx context.Context, serviceAccountUUID string, key datamodel.ServiceAccountKey) error {
+	return s.dataStore.AddKeyToServiceAccount(ctx, serviceAccountUUID, key)
+}
+
+func (s *PersistenceStore) RemoveKeyFromServiceAccount(ctx context.Context, serviceAccountUUID string, keyID string) error {
+	return s.dataStore.RemoveKeyFromServiceAccount(ctx, serviceAccountUUID, keyID)
+}
+
+func (s *PersistenceStore) MarkKeyForDeletion(ctx context.Context, serviceAccountUUID string, keyID string) error {
+	return s.dataStore.MarkKeyForDeletion(ctx, serviceAccountUUID, keyID)
+}
+
+func (s *PersistenceStore) SetPrimaryKeyForServiceAccount(ctx context.Context, serviceAccountUUID string, keyID string) error {
+	return s.dataStore.SetPrimaryKeyForServiceAccount(ctx, serviceAccountUUID, keyID)
+}
+
+func (s *PersistenceStore) GetServiceAccountWithKeys(ctx context.Context, serviceAccountUUID string) (*datamodel.ServiceAccount, error) {
+	return s.dataStore.GetServiceAccountWithKeys(ctx, serviceAccountUUID)
+}
+
+func (s *PersistenceStore) UpdateSvmCurrentKmsKeyID(ctx context.Context, svmUUID string, keyID string) error {
+	return s.dataStore.UpdateSvmCurrentKmsKeyID(ctx, svmUUID, keyID)
 }

@@ -28,6 +28,54 @@ func (_m *MockStorage) EXPECT() *MockStorage_Expecter {
 	return &MockStorage_Expecter{mock: &_m.Mock}
 }
 
+// AddKeyToServiceAccount provides a mock function with given fields: ctx, serviceAccountUUID, key
+func (_m *MockStorage) AddKeyToServiceAccount(ctx context.Context, serviceAccountUUID string, key datamodel.ServiceAccountKey) error {
+	ret := _m.Called(ctx, serviceAccountUUID, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddKeyToServiceAccount")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, datamodel.ServiceAccountKey) error); ok {
+		r0 = rf(ctx, serviceAccountUUID, key)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_AddKeyToServiceAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddKeyToServiceAccount'
+type MockStorage_AddKeyToServiceAccount_Call struct {
+	*mock.Call
+}
+
+// AddKeyToServiceAccount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - serviceAccountUUID string
+//   - key datamodel.ServiceAccountKey
+func (_e *MockStorage_Expecter) AddKeyToServiceAccount(ctx interface{}, serviceAccountUUID interface{}, key interface{}) *MockStorage_AddKeyToServiceAccount_Call {
+	return &MockStorage_AddKeyToServiceAccount_Call{Call: _e.mock.On("AddKeyToServiceAccount", ctx, serviceAccountUUID, key)}
+}
+
+func (_c *MockStorage_AddKeyToServiceAccount_Call) Run(run func(ctx context.Context, serviceAccountUUID string, key datamodel.ServiceAccountKey)) *MockStorage_AddKeyToServiceAccount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(datamodel.ServiceAccountKey))
+	})
+	return _c
+}
+
+func (_c *MockStorage_AddKeyToServiceAccount_Call) Return(_a0 error) *MockStorage_AddKeyToServiceAccount_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_AddKeyToServiceAccount_Call) RunAndReturn(run func(context.Context, string, datamodel.ServiceAccountKey) error) *MockStorage_AddKeyToServiceAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AreBackupsInProgressForVolume provides a mock function with given fields: ctx, volumeUUID, excludeBackupUUIDs
 func (_m *MockStorage) AreBackupsInProgressForVolume(ctx context.Context, volumeUUID string, excludeBackupUUIDs []string) (bool, error) {
 	ret := _m.Called(ctx, volumeUUID, excludeBackupUUIDs)
@@ -9604,6 +9652,65 @@ func (_c *MockStorage_GetServiceAccountFromEmail_Call) RunAndReturn(run func(con
 	return _c
 }
 
+// GetServiceAccountWithKeys provides a mock function with given fields: ctx, serviceAccountUUID
+func (_m *MockStorage) GetServiceAccountWithKeys(ctx context.Context, serviceAccountUUID string) (*datamodel.ServiceAccount, error) {
+	ret := _m.Called(ctx, serviceAccountUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetServiceAccountWithKeys")
+	}
+
+	var r0 *datamodel.ServiceAccount
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.ServiceAccount, error)); ok {
+		return rf(ctx, serviceAccountUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.ServiceAccount); ok {
+		r0 = rf(ctx, serviceAccountUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.ServiceAccount)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, serviceAccountUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetServiceAccountWithKeys_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetServiceAccountWithKeys'
+type MockStorage_GetServiceAccountWithKeys_Call struct {
+	*mock.Call
+}
+
+// GetServiceAccountWithKeys is a helper method to define mock.On call
+//   - ctx context.Context
+//   - serviceAccountUUID string
+func (_e *MockStorage_Expecter) GetServiceAccountWithKeys(ctx interface{}, serviceAccountUUID interface{}) *MockStorage_GetServiceAccountWithKeys_Call {
+	return &MockStorage_GetServiceAccountWithKeys_Call{Call: _e.mock.On("GetServiceAccountWithKeys", ctx, serviceAccountUUID)}
+}
+
+func (_c *MockStorage_GetServiceAccountWithKeys_Call) Run(run func(ctx context.Context, serviceAccountUUID string)) *MockStorage_GetServiceAccountWithKeys_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetServiceAccountWithKeys_Call) Return(_a0 *datamodel.ServiceAccount, _a1 error) *MockStorage_GetServiceAccountWithKeys_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetServiceAccountWithKeys_Call) RunAndReturn(run func(context.Context, string) (*datamodel.ServiceAccount, error)) *MockStorage_GetServiceAccountWithKeys_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSfrMetricsByTimeRange provides a mock function with given fields: ctx, startTime, endTime
 func (_m *MockStorage) GetSfrMetricsByTimeRange(ctx context.Context, startTime time.Time, endTime time.Time) (map[string]datamodel.SfrMetricsAggregate, error) {
 	ret := _m.Called(ctx, startTime, endTime)
@@ -14116,6 +14223,102 @@ func (_c *MockStorage_Migrate_Call) RunAndReturn(run func(context.Context) error
 	return _c
 }
 
+// RemoveKeyFromServiceAccount provides a mock function with given fields: ctx, serviceAccountUUID, keyID
+func (_m *MockStorage) RemoveKeyFromServiceAccount(ctx context.Context, serviceAccountUUID string, keyID string) error {
+	ret := _m.Called(ctx, serviceAccountUUID, keyID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RemoveKeyFromServiceAccount")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, serviceAccountUUID, keyID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_RemoveKeyFromServiceAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveKeyFromServiceAccount'
+type MockStorage_RemoveKeyFromServiceAccount_Call struct {
+	*mock.Call
+}
+
+// RemoveKeyFromServiceAccount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - serviceAccountUUID string
+//   - keyID string
+func (_e *MockStorage_Expecter) RemoveKeyFromServiceAccount(ctx interface{}, serviceAccountUUID interface{}, keyID interface{}) *MockStorage_RemoveKeyFromServiceAccount_Call {
+	return &MockStorage_RemoveKeyFromServiceAccount_Call{Call: _e.mock.On("RemoveKeyFromServiceAccount", ctx, serviceAccountUUID, keyID)}
+}
+
+func (_c *MockStorage_RemoveKeyFromServiceAccount_Call) Run(run func(ctx context.Context, serviceAccountUUID string, keyID string)) *MockStorage_RemoveKeyFromServiceAccount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_RemoveKeyFromServiceAccount_Call) Return(_a0 error) *MockStorage_RemoveKeyFromServiceAccount_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_RemoveKeyFromServiceAccount_Call) RunAndReturn(run func(context.Context, string, string) error) *MockStorage_RemoveKeyFromServiceAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MarkKeyForDeletion provides a mock function with given fields: ctx, serviceAccountUUID, keyID
+func (_m *MockStorage) MarkKeyForDeletion(ctx context.Context, serviceAccountUUID string, keyID string) error {
+	ret := _m.Called(ctx, serviceAccountUUID, keyID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkKeyForDeletion")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, serviceAccountUUID, keyID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_MarkKeyForDeletion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkKeyForDeletion'
+type MockStorage_MarkKeyForDeletion_Call struct {
+	*mock.Call
+}
+
+// MarkKeyForDeletion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - serviceAccountUUID string
+//   - keyID string
+func (_e *MockStorage_Expecter) MarkKeyForDeletion(ctx interface{}, serviceAccountUUID interface{}, keyID interface{}) *MockStorage_MarkKeyForDeletion_Call {
+	return &MockStorage_MarkKeyForDeletion_Call{Call: _e.mock.On("MarkKeyForDeletion", ctx, serviceAccountUUID, keyID)}
+}
+
+func (_c *MockStorage_MarkKeyForDeletion_Call) Run(run func(ctx context.Context, serviceAccountUUID string, keyID string)) *MockStorage_MarkKeyForDeletion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_MarkKeyForDeletion_Call) Return(_a0 error) *MockStorage_MarkKeyForDeletion_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_MarkKeyForDeletion_Call) RunAndReturn(run func(context.Context, string, string) error) *MockStorage_MarkKeyForDeletion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ReplaceDstQuotaRulesWithSrc provides a mock function with given fields: ctx, volumeID, accountID, dstQuotaRuleUUIDs, srcQuotaRules
 func (_m *MockStorage) ReplaceDstQuotaRulesWithSrc(ctx context.Context, volumeID int64, accountID int64, dstQuotaRuleUUIDs []string, srcQuotaRules []*datamodel.QuotaRule) ([]*datamodel.QuotaRule, error) {
 	ret := _m.Called(ctx, volumeID, accountID, dstQuotaRuleUUIDs, srcQuotaRules)
@@ -14375,6 +14578,54 @@ func (_c *MockStorage_SavePoolWithVsaDetails_Call) Return(_a0 error) *MockStorag
 }
 
 func (_c *MockStorage_SavePoolWithVsaDetails_Call) RunAndReturn(run func(context.Context, *datamodel.Pool, *datamodel.ClusterDetails) error) *MockStorage_SavePoolWithVsaDetails_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetPrimaryKeyForServiceAccount provides a mock function with given fields: ctx, serviceAccountUUID, keyID
+func (_m *MockStorage) SetPrimaryKeyForServiceAccount(ctx context.Context, serviceAccountUUID string, keyID string) error {
+	ret := _m.Called(ctx, serviceAccountUUID, keyID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetPrimaryKeyForServiceAccount")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, serviceAccountUUID, keyID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_SetPrimaryKeyForServiceAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetPrimaryKeyForServiceAccount'
+type MockStorage_SetPrimaryKeyForServiceAccount_Call struct {
+	*mock.Call
+}
+
+// SetPrimaryKeyForServiceAccount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - serviceAccountUUID string
+//   - keyID string
+func (_e *MockStorage_Expecter) SetPrimaryKeyForServiceAccount(ctx interface{}, serviceAccountUUID interface{}, keyID interface{}) *MockStorage_SetPrimaryKeyForServiceAccount_Call {
+	return &MockStorage_SetPrimaryKeyForServiceAccount_Call{Call: _e.mock.On("SetPrimaryKeyForServiceAccount", ctx, serviceAccountUUID, keyID)}
+}
+
+func (_c *MockStorage_SetPrimaryKeyForServiceAccount_Call) Run(run func(ctx context.Context, serviceAccountUUID string, keyID string)) *MockStorage_SetPrimaryKeyForServiceAccount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_SetPrimaryKeyForServiceAccount_Call) Return(_a0 error) *MockStorage_SetPrimaryKeyForServiceAccount_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_SetPrimaryKeyForServiceAccount_Call) RunAndReturn(run func(context.Context, string, string) error) *MockStorage_SetPrimaryKeyForServiceAccount_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -17051,6 +17302,54 @@ func (_c *MockStorage_UpdateSvmActiveDirectoryID_Call) Return(_a0 *datamodel.Svm
 }
 
 func (_c *MockStorage_UpdateSvmActiveDirectoryID_Call) RunAndReturn(run func(context.Context, *datamodel.Svm, int64) (*datamodel.Svm, error)) *MockStorage_UpdateSvmActiveDirectoryID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateSvmCurrentKmsKeyID provides a mock function with given fields: ctx, svmUUID, keyID
+func (_m *MockStorage) UpdateSvmCurrentKmsKeyID(ctx context.Context, svmUUID string, keyID string) error {
+	ret := _m.Called(ctx, svmUUID, keyID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateSvmCurrentKmsKeyID")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, svmUUID, keyID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_UpdateSvmCurrentKmsKeyID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateSvmCurrentKmsKeyID'
+type MockStorage_UpdateSvmCurrentKmsKeyID_Call struct {
+	*mock.Call
+}
+
+// UpdateSvmCurrentKmsKeyID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - svmUUID string
+//   - keyID string
+func (_e *MockStorage_Expecter) UpdateSvmCurrentKmsKeyID(ctx interface{}, svmUUID interface{}, keyID interface{}) *MockStorage_UpdateSvmCurrentKmsKeyID_Call {
+	return &MockStorage_UpdateSvmCurrentKmsKeyID_Call{Call: _e.mock.On("UpdateSvmCurrentKmsKeyID", ctx, svmUUID, keyID)}
+}
+
+func (_c *MockStorage_UpdateSvmCurrentKmsKeyID_Call) Run(run func(ctx context.Context, svmUUID string, keyID string)) *MockStorage_UpdateSvmCurrentKmsKeyID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdateSvmCurrentKmsKeyID_Call) Return(_a0 error) *MockStorage_UpdateSvmCurrentKmsKeyID_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_UpdateSvmCurrentKmsKeyID_Call) RunAndReturn(run func(context.Context, string, string) error) *MockStorage_UpdateSvmCurrentKmsKeyID_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -48,8 +48,8 @@ type (
 		DescribePool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)
 		GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)
 		GetPoolByUUID(ctx context.Context, poolUUID string) (*datamodel.Pool, error)
-		GetPoolStateByUUID(ctx context.Context, poolUUID string) (string, error)
 		GetPoolByID(ctx context.Context, poolID int64) (*datamodel.Pool, error)
+		GetPoolStateByUUID(ctx context.Context, poolUUID string) (string, error)
 		ListPools(ctx context.Context, filter *dbutils.Filter) ([]*datamodel.PoolView, error)
 		// ListPoolsWithPagination includes deleted pools as well, it's using unscoped for fetching all pools.
 		ListPoolsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.PoolView, error)
@@ -156,6 +156,7 @@ type (
 		UpdateSvmWithKmsConfigIDs(ctx context.Context, svm *datamodel.Svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID string) (*datamodel.Svm, error)
 		UpdateSvmActiveDirectoryID(ctx context.Context, svm *datamodel.Svm, activeDirectoryID int64) (*datamodel.Svm, error)
 		UnsetSvmActiveDirectoryID(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error)
+		UpdateSvmCurrentKmsKeyID(ctx context.Context, svmUUID string, keyID string) error
 		ListSvmsWithAccountId(ctx context.Context, accountId int64) ([]*datamodel.Svm, error)
 		GetSvmByNameAndPoolID(ctx context.Context, name string, poolID int64) (*datamodel.Svm, error)
 		GetSvmByExternalUUID(ctx context.Context, externalUUID string, poolID int64) (*datamodel.Svm, error)
@@ -238,6 +239,13 @@ type (
 		GetServiceAccountFromEmail(ctx context.Context, email string) (*datamodel.ServiceAccount, error)
 		ListKmsServiceAccounts(ctx context.Context, filter *dbutils.Filter) ([]*datamodel.ServiceAccount, error)
 		DeleteServiceAccount(ctx context.Context, serviceAccount *datamodel.ServiceAccount) error
+
+		// Multi-key management functions
+		AddKeyToServiceAccount(ctx context.Context, serviceAccountUUID string, key datamodel.ServiceAccountKey) error
+		RemoveKeyFromServiceAccount(ctx context.Context, serviceAccountUUID string, keyID string) error
+		MarkKeyForDeletion(ctx context.Context, serviceAccountUUID string, keyID string) error
+		SetPrimaryKeyForServiceAccount(ctx context.Context, serviceAccountUUID string, keyID string) error
+		GetServiceAccountWithKeys(ctx context.Context, serviceAccountUUID string) (*datamodel.ServiceAccount, error)
 
 		GetBackupVaultByNameAndOwnerID(ctx context.Context, backupVaultName, ownerID string) (*datamodel.BackupVault, error)
 		GetBackupVaultByCrossRegionBackupVaultName(ctx context.Context, crossRegionBackupVaultName string, accountID int64) (*datamodel.BackupVault, error)

@@ -12,15 +12,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
-	hyperscalerModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	hyperscaler "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -91,869 +92,8 @@ func TestRotateKmsSAKeyActivity_ListKmsConfigs(t *testing.T) {
 	})
 }
 
-func TestRotateKmsSAKeyActivity_RotateServiceAccountKey(t *testing.T) {
-	ctx := context.Background()
-
-	t.Run("RotateServiceAccountKeySuccessfulWithMultiplePools", func(tt *testing.T) {
-		mockSE := database.NewMockStorage(t)
-		activity := &RotateKmsSAKeyActivity{SE: mockSE}
-
-		serviceAccount := &datamodel.ServiceAccount{
-			BaseModel:                      datamodel.BaseModel{UUID: "sa-uuid", ID: 1},
-			ServiceAccountEmail:            "test@project.iam.gserviceaccount.com",
-			ServiceName:                    serviceNameCmek,
-			ServiceAccountPasswordLocation: "old-encrypted-service-account-key",
-		}
-
-		kmsConfig := &datamodel.KmsConfig{
-			BaseModel:    datamodel.BaseModel{UUID: "kms-uuid", ID: 123},
-			KeyProjectID: "test-project",
-		}
-
-		// Multiple pools to test the loop (not in CREATING state)
-		pools := []*datamodel.Pool{
-			{
-				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				State:     string(gcpserver.PoolV1betaStoragePoolStateREADY),
-			},
-			{
-				BaseModel: datamodel.BaseModel{ID: 2, UUID: "pool-2"},
-				State:     string(gcpserver.PoolV1betaStoragePoolStateREADY),
-			},
-		}
-
-		// Use valid base64 encoded private key data
-		validPrivateKeyData := base64.StdEncoding.EncodeToString([]byte("test-private-key-content"))
-		newServiceAccountKey := &hyperscalerModels.ServiceAccountKey{
-			Name:           "projects/test-project/serviceAccounts/test@project.iam.gserviceaccount.com/keys/new-key-id",
-			PrivateKeyData: validPrivateKeyData,
-		}
-
-		// Mock dependencies
-		originalGetGcpService := getGcpService
-		originalGcpServiceCreateServiceAccountKey := gcpServiceCreateServiceAccountKey
-		originalDeleteServiceAccountKeysExcludingKey := deleteServiceAccountKeysExcludingKey
-		originalUtilsEncryptPassword := utils.EncryptPassword
-		originalListPoolsByKmsConfigId := listPoolsByKmsConfigId
-		originalSyncKeyWithOntap := syncKeyWithOntap
-		originalExtractKeyID := extractKeyID
-		defer func() {
-			getGcpService = originalGetGcpService
-			gcpServiceCreateServiceAccountKey = originalGcpServiceCreateServiceAccountKey
-			deleteServiceAccountKeysExcludingKey = originalDeleteServiceAccountKeysExcludingKey
-			utils.EncryptPassword = originalUtilsEncryptPassword
-			listPoolsByKmsConfigId = originalListPoolsByKmsConfigId
-			syncKeyWithOntap = originalSyncKeyWithOntap
-			extractKeyID = originalExtractKeyID
-		}()
-
-		mockGcpService := &google.GcpServices{}
-		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
-			return mockGcpService, nil
-		}
-		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*hyperscalerModels.ServiceAccountKey, error) {
-			assert.Equal(tt, serviceAccount.ServiceAccountEmail, email)
-			return newServiceAccountKey, nil
-		}
-		deleteServiceAccountKeysExcludingKey = func(ctx context.Context, gcpService *google.GcpServices, email, keyToExclude string) error {
-			assert.Equal(tt, serviceAccount.ServiceAccountEmail, email)
-			assert.Equal(tt, newServiceAccountKey.Name, keyToExclude)
-			return nil
-		}
-		encryptedPassword := "encrypted-password"
-		utils.EncryptPassword = func(secret log.Secret) (*string, error) {
-			// Verify the password being encrypted is the private key data
-			assert.Equal(tt, log.Secret(validPrivateKeyData), secret)
-			return &encryptedPassword, nil
-		}
-		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
-			assert.Equal(tt, kmsConfig.ID, kmsConfigId)
-			return pools, nil
-		}
-		syncKeyWithOntap = func(ctx context.Context, se database.Storage, newServiceAccountKey string, oldServiceAccountKey string, pool *datamodel.Pool) error {
-			assert.Equal(tt, validPrivateKeyData, newServiceAccountKey)
-			assert.Equal(tt, serviceAccount.ServiceAccountPasswordLocation, oldServiceAccountKey)
-			assert.Contains(tt, []int64{1, 2}, pool.ID)
-			return nil
-		}
-		extractKeyID = func(serviceAccountKey string) (string, error) {
-			return "old-key-id", nil
-		}
-
-		// Mock database calls
-		updatedServiceAccount := &datamodel.ServiceAccount{
-			BaseModel:                      serviceAccount.BaseModel,
-			ServiceAccountEmail:            serviceAccount.ServiceAccountEmail,
-			ServiceAccountPasswordLocation: validPrivateKeyData,
-		}
-
-		// Mock the UpdateServiceAccountState calls for state tracking
-		// Note: UPDATING state is now set after getGcpService, before creating service account key
-		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "UPDATING", "Key rotation in progress").Return(updatedServiceAccount, nil)
-		// Defer always sets state to ENABLED and deletes keys
-		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "ENABLED", "Available for use").Return(updatedServiceAccount, nil)
-
-		mockSE.On("UpdateServiceAccountEmailAndKey", ctx, serviceAccount.UUID, serviceAccount.ServiceAccountEmail, validPrivateKeyData).Return(updatedServiceAccount, nil)
-
-		// Mock AccessCryptoKey
-		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
-		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
-			assert.Equal(tt, encryptedPassword, secretPassword)
-			assert.Equal(tt, "kms-uuid", kmsConfig.UUID)
-			return nil
-		}
-
-		err := activity.RotateServiceAccountKey(ctx, serviceAccount, kmsConfig)
-
-		assert.NoError(tt, err)
-		mockSE.AssertExpectations(tt)
-	})
-
-	t.Run("RotateServiceAccountKeySuccessfulWithNoPools", func(tt *testing.T) {
-		mockSE := database.NewMockStorage(t)
-		activity := &RotateKmsSAKeyActivity{SE: mockSE}
-
-		serviceAccount := &datamodel.ServiceAccount{
-			BaseModel:                      datamodel.BaseModel{UUID: "sa-uuid", ID: 1},
-			ServiceAccountEmail:            "test@project.iam.gserviceaccount.com",
-			ServiceName:                    serviceNameCmek,
-			ServiceAccountPasswordLocation: "old-encrypted-service-account-key",
-		}
-
-		kmsConfig := &datamodel.KmsConfig{
-			BaseModel:    datamodel.BaseModel{UUID: "kms-uuid", ID: 123},
-			KeyProjectID: "test-project",
-		}
-
-		// Use valid base64 encoded private key data
-		validPrivateKeyData := base64.StdEncoding.EncodeToString([]byte("test-private-key-content"))
-		newServiceAccountKey := &hyperscalerModels.ServiceAccountKey{
-			Name:           "projects/test-project/serviceAccounts/test@project.iam.gserviceaccount.com/keys/new-key-id",
-			PrivateKeyData: validPrivateKeyData,
-		}
-
-		// Mock dependencies
-		originalGetGcpService := getGcpService
-		originalGcpServiceCreateServiceAccountKey := gcpServiceCreateServiceAccountKey
-		originalDeleteServiceAccountKeysExcludingKey := deleteServiceAccountKeysExcludingKey
-		originalUtilsEncryptPassword := utils.EncryptPassword
-		originalListPoolsByKmsConfigId := listPoolsByKmsConfigId
-		originalExtractKeyID := extractKeyID
-		defer func() {
-			getGcpService = originalGetGcpService
-			gcpServiceCreateServiceAccountKey = originalGcpServiceCreateServiceAccountKey
-			deleteServiceAccountKeysExcludingKey = originalDeleteServiceAccountKeysExcludingKey
-			utils.EncryptPassword = originalUtilsEncryptPassword
-			listPoolsByKmsConfigId = originalListPoolsByKmsConfigId
-			extractKeyID = originalExtractKeyID
-		}()
-
-		mockGcpService := &google.GcpServices{}
-		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
-			return mockGcpService, nil
-		}
-		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*hyperscalerModels.ServiceAccountKey, error) {
-			return newServiceAccountKey, nil
-		}
-		// On success, defer uses new key, so we delete old keys
-		deleteServiceAccountKeysExcludingKey = func(ctx context.Context, gcpService *google.GcpServices, email, keyToExclude string) error {
-			assert.Equal(tt, newServiceAccountKey.Name, keyToExclude) // Should be new key on success
-			return nil
-		}
-		encryptedPassword := "encrypted-password"
-		utils.EncryptPassword = func(secret log.Secret) (*string, error) {
-			return &encryptedPassword, nil
-		}
-		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
-			// Return empty pool list
-			return []*datamodel.Pool{}, nil
-		}
-		extractKeyID = func(serviceAccountKey string) (string, error) {
-			return "old-key-id", nil
-		}
-
-		// Mock database calls
-		updatedServiceAccount := &datamodel.ServiceAccount{}
-
-		// Mock the UpdateServiceAccountState calls for state tracking
-		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "UPDATING", "Key rotation in progress").Return(updatedServiceAccount, nil)
-		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "ENABLED", "Available for use").Return(updatedServiceAccount, nil)
-
-		mockSE.On("UpdateServiceAccountEmailAndKey", ctx, serviceAccount.UUID, serviceAccount.ServiceAccountEmail, validPrivateKeyData).Return(updatedServiceAccount, nil)
-
-		// Mock AccessCryptoKey
-		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
-		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
-			return nil
-		}
-
-		err := activity.RotateServiceAccountKey(ctx, serviceAccount, kmsConfig)
-
-		assert.NoError(tt, err)
-		mockSE.AssertExpectations(tt)
-	})
-
-	t.Run("RotateServiceAccountKeyFailsWhenGetGcpServiceFails", func(tt *testing.T) {
-		mockSE := database.NewMockStorage(t)
-		activity := &RotateKmsSAKeyActivity{SE: mockSE}
-
-		serviceAccount := &datamodel.ServiceAccount{
-			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
-			ServiceAccountEmail: "test@project.iam.gserviceaccount.com",
-		}
-
-		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
-		}
-
-		originalGetGcpService := getGcpService
-		originalExtractKeyID := extractKeyID
-		originalListPoolsByKmsConfigId := listPoolsByKmsConfigId
-		defer func() {
-			getGcpService = originalGetGcpService
-			extractKeyID = originalExtractKeyID
-			listPoolsByKmsConfigId = originalListPoolsByKmsConfigId
-		}()
-
-		// Mock listPoolsByKmsConfigId to return empty list (no pools in CREATING state)
-		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
-			return []*datamodel.Pool{}, nil
-		}
-
-		// Mock extractKeyID to succeed so we can test the getGcpService failure
-		extractKeyID = func(serviceAccountKey string) (string, error) {
-			return "existing-key-id", nil
-		}
-
-		// Note: UpdateServiceAccountState should NOT be called if getGcpService fails
-		// The state update happens right after getGcpService succeeds
-
-		gcpError := errors.New("failed to get GCP service")
-		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
-			return nil, gcpError
-		}
-
-		err := activity.RotateServiceAccountKey(ctx, serviceAccount, kmsConfig)
-
-		assert.Error(tt, err)
-		assert.Equal(tt, gcpError, err)
-	})
-
-	t.Run("RotateServiceAccountKeySkipsWhenPoolInCreatingState", func(tt *testing.T) {
-		mockSE := database.NewMockStorage(t)
-		activity := &RotateKmsSAKeyActivity{SE: mockSE}
-
-		serviceAccount := &datamodel.ServiceAccount{
-			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid", ID: 1},
-			ServiceAccountEmail: "test@project.iam.gserviceaccount.com",
-		}
-
-		kmsConfig := &datamodel.KmsConfig{
-			BaseModel:    datamodel.BaseModel{UUID: "kms-uuid", ID: 123},
-			KeyProjectID: "test-project",
-		}
-
-		// Create a pool in CREATING state
-		pools := []*datamodel.Pool{
-			{
-				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-1"},
-				Name:      "test-pool",
-				State:     string(gcpserver.PoolV1betaStoragePoolStateCREATING),
-			},
-		}
-
-		originalListPoolsByKmsConfigId := listPoolsByKmsConfigId
-		defer func() { listPoolsByKmsConfigId = originalListPoolsByKmsConfigId }()
-
-		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
-			assert.Equal(tt, kmsConfig.ID, kmsConfigId)
-			return pools, nil
-		}
-
-		err := activity.RotateServiceAccountKey(ctx, serviceAccount, kmsConfig)
-
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "Storage pool present which is in creating state: test-pool")
-		// Verify that UpdateServiceAccountState is NOT called when pool is in CREATING state
-		// (no mocks set up, so AssertExpectations will pass if no calls were made)
-		mockSE.AssertExpectations(tt)
-	})
-
-	t.Run("RotateServiceAccountKeyFailsWhenCreateServiceAccountKeyFails", func(tt *testing.T) {
-		mockSE := database.NewMockStorage(t)
-		activity := &RotateKmsSAKeyActivity{SE: mockSE}
-
-		serviceAccount := &datamodel.ServiceAccount{
-			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
-			ServiceAccountEmail: "test@project.iam.gserviceaccount.com",
-		}
-
-		kmsConfig := &datamodel.KmsConfig{
-			BaseModel:    datamodel.BaseModel{UUID: "kms-uuid"},
-			KeyProjectID: "test-project",
-		}
-
-		originalGetGcpService := getGcpService
-		originalGcpServiceCreateServiceAccountKey := gcpServiceCreateServiceAccountKey
-		originalDeleteServiceAccountKeysExcludingKey := deleteServiceAccountKeysExcludingKey
-		originalExtractKeyID := extractKeyID
-		originalListPoolsByKmsConfigId := listPoolsByKmsConfigId
-		defer func() {
-			getGcpService = originalGetGcpService
-			gcpServiceCreateServiceAccountKey = originalGcpServiceCreateServiceAccountKey
-			deleteServiceAccountKeysExcludingKey = originalDeleteServiceAccountKeysExcludingKey
-			extractKeyID = originalExtractKeyID
-			listPoolsByKmsConfigId = originalListPoolsByKmsConfigId
-		}()
-
-		// Mock listPoolsByKmsConfigId to return empty list (no pools in CREATING state)
-		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
-			return []*datamodel.Pool{}, nil
-		}
-
-		// Mock extractKeyID to succeed so we can test the createServiceAccountKey failure
-		extractKeyID = func(serviceAccountKey string) (string, error) {
-			return "existing-key-id", nil
-		}
-
-		mockGcpService := &google.GcpServices{}
-		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
-			return mockGcpService, nil
-		}
-
-		// Note: State update happens after getGcpService (which succeeds), but before createServiceAccountKey
-		// If createServiceAccountKey fails, we return before the defer is set up, so defer won't run
-		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "UPDATING", "Key rotation in progress").Return(&datamodel.ServiceAccount{}, nil)
-
-		createKeyError := errors.New("failed to create service account key")
-		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*hyperscalerModels.ServiceAccountKey, error) {
-			return nil, createKeyError
-		}
-
-		err := activity.RotateServiceAccountKey(ctx, serviceAccount, kmsConfig)
-
-		assert.Error(tt, err)
-		assert.Equal(tt, createKeyError, err)
-	})
-
-	t.Run("RotateServiceAccountKeyFailsWhenSyncKeyWithOntapFails", func(tt *testing.T) {
-		mockSE := database.NewMockStorage(t)
-		activity := &RotateKmsSAKeyActivity{SE: mockSE}
-
-		serviceAccount := &datamodel.ServiceAccount{
-			BaseModel:                      datamodel.BaseModel{UUID: "sa-uuid", ID: 1},
-			ServiceAccountEmail:            "test@project.iam.gserviceaccount.com",
-			ServiceAccountPasswordLocation: "old-encrypted-service-account-key",
-		}
-
-		kmsConfig := &datamodel.KmsConfig{
-			BaseModel:    datamodel.BaseModel{UUID: "kms-uuid", ID: 123},
-			KeyProjectID: "test-project",
-		}
-
-		// Use valid base64 encoded private key data
-		validPrivateKeyData := base64.StdEncoding.EncodeToString([]byte("test-private-key-content"))
-		newServiceAccountKey := &hyperscalerModels.ServiceAccountKey{
-			Name:           "projects/test-project/serviceAccounts/test@project.iam.gserviceaccount.com/keys/new-key-id",
-			PrivateKeyData: validPrivateKeyData,
-		}
-
-		originalGetGcpService := getGcpService
-		originalGcpServiceCreateServiceAccountKey := gcpServiceCreateServiceAccountKey
-		originalListPoolsByKmsConfigId := listPoolsByKmsConfigId
-		originalSyncKeyWithOntap := syncKeyWithOntap
-		originalUtilsEncryptPassword := utils.EncryptPassword
-		originalDeleteServiceAccountKeysExcludingKey := deleteServiceAccountKeysExcludingKey
-		originalExtractKeyID := extractKeyID
-		defer func() {
-			getGcpService = originalGetGcpService
-			gcpServiceCreateServiceAccountKey = originalGcpServiceCreateServiceAccountKey
-			listPoolsByKmsConfigId = originalListPoolsByKmsConfigId
-			syncKeyWithOntap = originalSyncKeyWithOntap
-			utils.EncryptPassword = originalUtilsEncryptPassword
-			deleteServiceAccountKeysExcludingKey = originalDeleteServiceAccountKeysExcludingKey
-			extractKeyID = originalExtractKeyID
-		}()
-
-		// Mock extractKeyID to succeed so we can test the sync failure
-		extractKeyID = func(serviceAccountKey string) (string, error) {
-			return "existing-key-id", nil
-		}
-
-		mockGcpService := &google.GcpServices{}
-		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
-			return mockGcpService, nil
-		}
-		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*hyperscalerModels.ServiceAccountKey, error) {
-			return newServiceAccountKey, nil
-		}
-		// On error, defer sets keyToExclude = existingKey, so we delete the new key
-		existingKeyPath := "projects/test-project/serviceAccounts/test@project.iam.gserviceaccount.com/keys/existing-key-id"
-		deleteServiceAccountKeysExcludingKey = func(ctx context.Context, gcpService *google.GcpServices, email, keyToExclude string) error {
-			assert.Equal(tt, existingKeyPath, keyToExclude) // Should be existingKey on error
-			return nil
-		}
-
-		// Mock EncryptPassword to avoid calling the real function
-		encryptedPassword := "encrypted-password"
-		utils.EncryptPassword = func(secret log.Secret) (*string, error) {
-			return &encryptedPassword, nil
-		}
-
-		// Mock AccessCryptoKey to avoid calling the real function
-		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
-		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
-			return nil
-		}
-
-		// Mock listPoolsByKmsConfigId to return a pool
-		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
-			return []*datamodel.Pool{{BaseModel: datamodel.BaseModel{ID: 1}}}, nil
-		}
-
-		// Mock both UpdateServiceAccountState calls - state update happens after getGcpService, defer always runs
-		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "UPDATING", "Key rotation in progress").Return(&datamodel.ServiceAccount{}, nil)
-		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "ENABLED", "Available for use").Return(&datamodel.ServiceAccount{}, nil)
-
-		// Mock syncKeyWithOntap to fail
-		syncError := errors.New("sync failed")
-		syncKeyCalled := false
-		syncKeyWithOntap = func(ctx context.Context, se database.Storage, newServiceAccountKey string, oldServiceAccountKey string, pool *datamodel.Pool) error {
-			syncKeyCalled = true
-			assert.Equal(tt, validPrivateKeyData, newServiceAccountKey)
-			assert.Equal(tt, serviceAccount.ServiceAccountPasswordLocation, oldServiceAccountKey)
-			return syncError
-		}
-
-		err := activity.RotateServiceAccountKey(ctx, serviceAccount, kmsConfig)
-
-		// Verify that syncKeyWithOntap was called and the error was returned
-		assert.True(tt, syncKeyCalled, "syncKeyWithOntap should have been called")
-		assert.Error(tt, err)
-		assert.Equal(tt, syncError, err)
-	})
-
-	t.Run("RotateServiceAccountKeyFailsWhenUpdateServiceAccountEmailAndKeyFails", func(tt *testing.T) {
-		mockSE := database.NewMockStorage(t)
-		activity := &RotateKmsSAKeyActivity{SE: mockSE}
-
-		serviceAccount := &datamodel.ServiceAccount{
-			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid", ID: 1},
-			ServiceAccountEmail: "test@project.iam.gserviceaccount.com",
-		}
-
-		kmsConfig := &datamodel.KmsConfig{
-			BaseModel:    datamodel.BaseModel{UUID: "kms-uuid"},
-			KeyProjectID: "test-project",
-		}
-
-		// Use valid base64 encoded private key data
-		validPrivateKeyData := base64.StdEncoding.EncodeToString([]byte("test-private-key-content"))
-		newServiceAccountKey := &hyperscalerModels.ServiceAccountKey{
-			Name:           "projects/test-project/serviceAccounts/test@project.iam.gserviceaccount.com/keys/new-key-id",
-			PrivateKeyData: validPrivateKeyData,
-		}
-
-		originalGetGcpService := getGcpService
-		originalGcpServiceCreateServiceAccountKey := gcpServiceCreateServiceAccountKey
-		originalUtilsEncryptPassword := utils.EncryptPassword
-		originalExtractKeyID := extractKeyID
-		originalDeleteServiceAccountKeysExcludingKey := deleteServiceAccountKeysExcludingKey
-		originalListPoolsByKmsConfigId := listPoolsByKmsConfigId
-		defer func() {
-			getGcpService = originalGetGcpService
-			gcpServiceCreateServiceAccountKey = originalGcpServiceCreateServiceAccountKey
-			utils.EncryptPassword = originalUtilsEncryptPassword
-			listPoolsByKmsConfigId = originalListPoolsByKmsConfigId
-			extractKeyID = originalExtractKeyID
-			deleteServiceAccountKeysExcludingKey = originalDeleteServiceAccountKeysExcludingKey
-		}()
-
-		extractKeyID = func(encryptedCreds string) (string, error) {
-			return "existing-key-id", nil
-		}
-
-		mockGcpService := &google.GcpServices{}
-		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
-			return mockGcpService, nil
-		}
-		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*hyperscalerModels.ServiceAccountKey, error) {
-			return newServiceAccountKey, nil
-		}
-		// On error, defer sets keyToExclude = existingKey, so we delete the new key
-		existingKeyPath := "projects/test-project/serviceAccounts/test@project.iam.gserviceaccount.com/keys/existing-key-id"
-		deleteServiceAccountKeysExcludingKey = func(ctx context.Context, gcpService *google.GcpServices, email, keyToExclude string) error {
-			assert.Equal(tt, existingKeyPath, keyToExclude) // Should be existingKey on error
-			return nil
-		}
-		encryptedPassword := "encrypted-password"
-		utils.EncryptPassword = func(secret log.Secret) (*string, error) {
-			return &encryptedPassword, nil
-		}
-
-		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
-			// Return empty pool list so we skip sync and go to update
-			return []*datamodel.Pool{}, nil
-		}
-		// Mock AccessCryptoKey to succeed, but UpdateServiceAccountEmailAndKey to fail
-		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
-		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
-			return nil
-		}
-
-		// Mock both UpdateServiceAccountState calls - state update happens after getGcpService, defer always runs
-		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "UPDATING", "Key rotation in progress").Return(&datamodel.ServiceAccount{}, nil)
-		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "ENABLED", "Available for use").Return(&datamodel.ServiceAccount{}, nil)
-
-		updateError := errors.New("failed to update service account")
-		updateCalled := false
-		mockSE.On("UpdateServiceAccountEmailAndKey", ctx, serviceAccount.UUID, serviceAccount.ServiceAccountEmail, validPrivateKeyData).
-			Run(func(args mock.Arguments) { updateCalled = true }).
-			Return(nil, updateError)
-
-		err := activity.RotateServiceAccountKey(ctx, serviceAccount, kmsConfig)
-
-		// Verify that UpdateServiceAccountEmailAndKey was called and the error was returned
-		assert.True(tt, updateCalled, "UpdateServiceAccountEmailAndKey should have been called")
-		assert.Error(tt, err)
-		assert.Equal(tt, updateError, err)
-		mockSE.AssertExpectations(tt)
-	})
-
-	t.Run("RotateServiceAccountKeyFailsWhenAccessCryptoKeyFails", func(tt *testing.T) {
-		mockSE := database.NewMockStorage(t)
-		activity := &RotateKmsSAKeyActivity{SE: mockSE}
-
-		serviceAccount := &datamodel.ServiceAccount{
-			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid", ID: 1},
-			ServiceAccountEmail: "test@project.iam.gserviceaccount.com",
-		}
-
-		kmsConfig := &datamodel.KmsConfig{
-			BaseModel:    datamodel.BaseModel{UUID: "kms-uuid"},
-			KeyProjectID: "test-project",
-		}
-
-		// Use valid base64 encoded private key data
-		validPrivateKeyData := base64.StdEncoding.EncodeToString([]byte("test-private-key-content"))
-		newServiceAccountKey := &hyperscalerModels.ServiceAccountKey{
-			Name:           "projects/test-project/serviceAccounts/test@project.iam.gserviceaccount.com/keys/new-key-id",
-			PrivateKeyData: validPrivateKeyData,
-		}
-
-		originalGetGcpService := getGcpService
-		originalGcpServiceCreateServiceAccountKey := gcpServiceCreateServiceAccountKey
-		originalDeleteServiceAccountKeysExcludingKey := deleteServiceAccountKeysExcludingKey
-		originalUtilsEncryptPassword := utils.EncryptPassword
-		originalExtractKeyID := extractKeyID
-		originalListPoolsByKmsConfigId := listPoolsByKmsConfigId
-		defer func() {
-			getGcpService = originalGetGcpService
-			gcpServiceCreateServiceAccountKey = originalGcpServiceCreateServiceAccountKey
-			deleteServiceAccountKeysExcludingKey = originalDeleteServiceAccountKeysExcludingKey
-			utils.EncryptPassword = originalUtilsEncryptPassword
-			extractKeyID = originalExtractKeyID
-			listPoolsByKmsConfigId = originalListPoolsByKmsConfigId
-		}()
-
-		// Mock listPoolsByKmsConfigId to return empty list (no pools in CREATING state)
-		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
-			return []*datamodel.Pool{}, nil
-		}
-
-		// Mock extractKeyID to succeed so we can test the AccessCryptoKey failure
-		extractKeyID = func(serviceAccountKey string) (string, error) {
-			return "existing-key-id", nil
-		}
-
-		mockGcpService := &google.GcpServices{}
-		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
-			return mockGcpService, nil
-		}
-		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*hyperscalerModels.ServiceAccountKey, error) {
-			return newServiceAccountKey, nil
-		}
-		// Note: State update happens after getGcpService (which succeeds), but AccessCryptoKey fails
-		// If AccessCryptoKey fails, we return before the defer is set up, so defer won't run
-		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "UPDATING", "Key rotation in progress").Return(&datamodel.ServiceAccount{}, nil)
-
-		encryptedPassword := "encrypted-password"
-		utils.EncryptPassword = func(secret log.Secret) (*string, error) {
-			return &encryptedPassword, nil
-		}
-
-		accessKeyError := errors.New("failed to access crypto key")
-		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
-		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
-			return accessKeyError
-		}
-
-		err := activity.RotateServiceAccountKey(ctx, serviceAccount, kmsConfig)
-
-		assert.Error(tt, err)
-		assert.Equal(tt, accessKeyError, err)
-	})
-
-	t.Run("RotateServiceAccountKeyFailsWhenEncryptPasswordFails", func(tt *testing.T) {
-		mockSE := database.NewMockStorage(t)
-		activity := &RotateKmsSAKeyActivity{SE: mockSE}
-
-		serviceAccount := &datamodel.ServiceAccount{
-			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid", ID: 1},
-			ServiceAccountEmail: "test@project.iam.gserviceaccount.com",
-		}
-
-		kmsConfig := &datamodel.KmsConfig{
-			BaseModel:    datamodel.BaseModel{UUID: "kms-uuid"},
-			KeyProjectID: "test-project",
-		}
-
-		// Use valid base64 encoded private key data
-		validPrivateKeyData := base64.StdEncoding.EncodeToString([]byte("test-private-key-content"))
-		newServiceAccountKey := &hyperscalerModels.ServiceAccountKey{
-			Name:           "projects/test-project/serviceAccounts/test@project.iam.gserviceaccount.com/keys/new-key-id",
-			PrivateKeyData: validPrivateKeyData,
-		}
-
-		originalGetGcpService := getGcpService
-		originalGcpServiceCreateServiceAccountKey := gcpServiceCreateServiceAccountKey
-		originalDeleteServiceAccountKeysExcludingKey := deleteServiceAccountKeysExcludingKey
-		originalUtilsEncryptPassword := utils.EncryptPassword
-		originalExtractKeyID := extractKeyID
-		originalListPoolsByKmsConfigId := listPoolsByKmsConfigId
-		defer func() {
-			getGcpService = originalGetGcpService
-			gcpServiceCreateServiceAccountKey = originalGcpServiceCreateServiceAccountKey
-			deleteServiceAccountKeysExcludingKey = originalDeleteServiceAccountKeysExcludingKey
-			utils.EncryptPassword = originalUtilsEncryptPassword
-			extractKeyID = originalExtractKeyID
-			listPoolsByKmsConfigId = originalListPoolsByKmsConfigId
-		}()
-
-		// Mock listPoolsByKmsConfigId to return empty list (no pools in CREATING state)
-		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
-			return []*datamodel.Pool{}, nil
-		}
-
-		// Mock extractKeyID to succeed so we can test the EncryptPassword failure
-		extractKeyID = func(serviceAccountKey string) (string, error) {
-			return "existing-key-id", nil
-		}
-
-		mockGcpService := &google.GcpServices{}
-		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
-			return mockGcpService, nil
-		}
-		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*hyperscalerModels.ServiceAccountKey, error) {
-			return newServiceAccountKey, nil
-		}
-		// Note: State update happens after getGcpService (which succeeds), but EncryptPassword fails
-		// If EncryptPassword fails, we return before the defer is set up, so defer won't run
-		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "UPDATING", "Key rotation in progress").Return(&datamodel.ServiceAccount{}, nil)
-
-		encryptError := errors.New("failed to encrypt password")
-		utils.EncryptPassword = func(secret log.Secret) (*string, error) {
-			return nil, encryptError
-		}
-
-		err := activity.RotateServiceAccountKey(ctx, serviceAccount, kmsConfig)
-
-		assert.Error(tt, err)
-		assert.Equal(tt, encryptError, err)
-	})
-
-	t.Run("RotateServiceAccountKeyFailsWhenDeleteServiceAccountKeysExcludingKeyFails", func(tt *testing.T) {
-		mockSE := database.NewMockStorage(t)
-		activity := &RotateKmsSAKeyActivity{SE: mockSE}
-
-		serviceAccount := &datamodel.ServiceAccount{
-			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid", ID: 1},
-			ServiceAccountEmail: "test@project.iam.gserviceaccount.com",
-		}
-
-		kmsConfig := &datamodel.KmsConfig{
-			BaseModel:    datamodel.BaseModel{UUID: "kms-uuid"},
-			KeyProjectID: "test-project",
-		}
-
-		// Use valid base64 encoded private key data
-		validPrivateKeyData := base64.StdEncoding.EncodeToString([]byte("test-private-key-content"))
-		newServiceAccountKey := &hyperscalerModels.ServiceAccountKey{
-			Name:           "projects/test-project/serviceAccounts/test@project.iam.gserviceaccount.com/keys/new-key-id",
-			PrivateKeyData: validPrivateKeyData,
-		}
-
-		originalGetGcpService := getGcpService
-		originalGcpServiceCreateServiceAccountKey := gcpServiceCreateServiceAccountKey
-		originalDeleteServiceAccountKeysExcludingKey := deleteServiceAccountKeysExcludingKey
-		originalUtilsEncryptPassword := utils.EncryptPassword
-		originalExtractKeyID := extractKeyID
-		originalListPoolsByKmsConfigId := listPoolsByKmsConfigId
-		defer func() {
-			getGcpService = originalGetGcpService
-			gcpServiceCreateServiceAccountKey = originalGcpServiceCreateServiceAccountKey
-			deleteServiceAccountKeysExcludingKey = originalDeleteServiceAccountKeysExcludingKey
-			utils.EncryptPassword = originalUtilsEncryptPassword
-			listPoolsByKmsConfigId = originalListPoolsByKmsConfigId
-			extractKeyID = originalExtractKeyID
-		}()
-
-		extractKeyID = func(encryptedCreds string) (string, error) {
-			return "existing-key-id", nil
-		}
-
-		mockGcpService := &google.GcpServices{}
-		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
-			return mockGcpService, nil
-		}
-		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*hyperscalerModels.ServiceAccountKey, error) {
-			return newServiceAccountKey, nil
-		}
-		encryptedPassword := "encrypted-password"
-		utils.EncryptPassword = func(secret log.Secret) (*string, error) {
-			return &encryptedPassword, nil
-		}
-
-		// On success, defer uses new key, so we delete old keys
-		deleteKeysError := errors.New("failed to delete old service account keys")
-		deleteServiceAccountKeysExcludingKey = func(ctx context.Context, gcpService *google.GcpServices, email, keyToExclude string) error {
-			assert.Equal(tt, newServiceAccountKey.Name, keyToExclude) // Should be new key on success
-			return deleteKeysError
-		}
-		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
-			// Return empty pool list so we skip sync and go to update
-			return []*datamodel.Pool{}, nil
-		}
-
-		// Mock both UpdateServiceAccountState calls - state update happens after getGcpService, defer always runs
-		// Even if deleteServiceAccountKeysExcludingKey fails, state is still set to ENABLED
-		updatedServiceAccount := &datamodel.ServiceAccount{}
-		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "UPDATING", "Key rotation in progress").Return(updatedServiceAccount, nil)
-		mockSE.On("UpdateServiceAccountState", ctx, serviceAccount.UUID, "ENABLED", "Available for use").Return(updatedServiceAccount, nil)
-
-		mockSE.On("UpdateServiceAccountEmailAndKey", ctx, serviceAccount.UUID, serviceAccount.ServiceAccountEmail, validPrivateKeyData).Return(updatedServiceAccount, nil)
-
-		// Mock AccessCryptoKey
-		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
-		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
-			return nil
-		}
-
-		err := activity.RotateServiceAccountKey(ctx, serviceAccount, kmsConfig)
-
-		// Since deleteServiceAccountKeysExcludingKey is called in a defer block,
-		// errors from it are not returned by the main function
-		assert.NoError(tt, err)
-		mockSE.AssertExpectations(tt)
-	})
-}
-
-func TestRotateKmsSAKeyActivity_Integration(t *testing.T) {
-	ctx := context.Background()
-
-	t.Run("FullRotationWorkflowIntegrationTest", func(tt *testing.T) {
-		mockSE := database.NewMockStorage(t)
-		activity := &RotateKmsSAKeyActivity{SE: mockSE}
-
-		// Setup service accounts for listing
-		serviceAccounts := []*datamodel.ServiceAccount{
-			{
-				BaseModel:           datamodel.BaseModel{UUID: "sa-uuid-1", ID: 1},
-				ServiceAccountEmail: "sa1@project.iam.gserviceaccount.com",
-				ServiceName:         serviceNameCmek,
-			},
-		}
-
-		kmsConfig := &datamodel.KmsConfig{
-			BaseModel:      datamodel.BaseModel{UUID: "kms-uuid"},
-			ServiceAccount: serviceAccounts[0],
-			KeyProjectID:   "test-project",
-		}
-
-		// Use valid base64 encoded private key data
-		validPrivateKeyData := base64.StdEncoding.EncodeToString([]byte("test-private-key-content"))
-		newServiceAccountKey := &hyperscalerModels.ServiceAccountKey{
-			Name:           "projects/test-project/serviceAccounts/sa1@project.iam.gserviceaccount.com/keys/new-key-id",
-			PrivateKeyData: validPrivateKeyData,
-		}
-
-		// Mock all dependencies for the complete workflow
-		originalGetGcpService := getGcpService
-		originalGcpServiceCreateServiceAccountKey := gcpServiceCreateServiceAccountKey
-		originalDeleteServiceAccountKeysExcludingKey := deleteServiceAccountKeysExcludingKey
-		originalUtilsEncryptPassword := utils.EncryptPassword
-		originalListPoolsByKmsConfigId := listPoolsByKmsConfigId
-		originalExtractKeyID := extractKeyID
-		defer func() {
-			getGcpService = originalGetGcpService
-			gcpServiceCreateServiceAccountKey = originalGcpServiceCreateServiceAccountKey
-			deleteServiceAccountKeysExcludingKey = originalDeleteServiceAccountKeysExcludingKey
-			utils.EncryptPassword = originalUtilsEncryptPassword
-			listPoolsByKmsConfigId = originalListPoolsByKmsConfigId
-			extractKeyID = originalExtractKeyID
-		}()
-
-		mockGcpService := &google.GcpServices{}
-		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
-			return mockGcpService, nil
-		}
-		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*hyperscalerModels.ServiceAccountKey, error) {
-			return newServiceAccountKey, nil
-		}
-		// On success, defer uses new key, so we delete old keys
-		deleteServiceAccountKeysExcludingKey = func(ctx context.Context, gcpService *google.GcpServices, email, keyToExclude string) error {
-			assert.Equal(tt, newServiceAccountKey.Name, keyToExclude) // Should be new key on success
-			return nil
-		}
-		listPoolsByKmsConfigId = func(ctx context.Context, kmsConfigId int64, se database.Storage) ([]*datamodel.Pool, error) {
-			// Return empty pool list
-			return []*datamodel.Pool{}, nil
-		}
-		extractKeyID = func(serviceAccountKey string) (string, error) {
-			return "existing-key-id", nil
-		}
-		encryptedPassword := "encrypted-password"
-		utils.EncryptPassword = func(secret log.Secret) (*string, error) {
-			return &encryptedPassword, nil
-		}
-
-		// Mock AccessCryptoKey
-		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
-		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
-		kms_activities.AccessCryptoKeyAndEncryptData = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string, timeout, timeoutInterval time.Duration) error {
-			return nil
-		}
-
-		// Setup database expectations
-		mockSE.On("GetMultipleKmsConfigs", ctx, mock.Anything).Return([]*datamodel.KmsConfig{kmsConfig}, nil)
-		// State update happens after getGcpService, before creating service account key
-		mockSE.On("UpdateServiceAccountState", ctx, serviceAccounts[0].UUID, models.LifeCycleStateUpdating, "Key rotation in progress").Return(&datamodel.ServiceAccount{}, nil)
-		mockSE.On("UpdateServiceAccountEmailAndKey", ctx, serviceAccounts[0].UUID, serviceAccounts[0].ServiceAccountEmail, validPrivateKeyData).Return(&datamodel.ServiceAccount{}, nil)
-		// Defer always sets state to ENABLED and deletes keys
-		mockSE.On("UpdateServiceAccountState", ctx, serviceAccounts[0].UUID, models.AccountStateEnabled, models.LifeCycleStateAvailableDetails).Return(&datamodel.ServiceAccount{}, nil)
-
-		// Test the complete workflow
-		// 1. List KMS configs
-		listResult, err := activity.ListKmsConfigs(ctx)
-		assert.NoError(tt, err)
-		assert.Len(tt, listResult, 1)
-
-		// 2. Rotate key for each service account
-		for _, kmsConfig := range listResult {
-			err = activity.RotateServiceAccountKey(ctx, kmsConfig.ServiceAccount, kmsConfig)
-			assert.NoError(tt, err)
-		}
-
-		mockSE.AssertExpectations(tt)
-	})
-}
-
+// Removed TestRotateKmsSAKeyActivity_RotateServiceAccountKey - function RotateServiceAccountKey was removed
+// All test cases that called RotateServiceAccountKey have been removed
 func Test_syncKeyWithOntap(t *testing.T) {
 	ctx := context.Background()
 
@@ -1144,7 +284,7 @@ func Test_syncKeyWithOntap(t *testing.T) {
 func TestListPoolsByKmsConfigId(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("ListPoolsByKmsConfigIdReturnsPoolsOnSuccess", func(tt *testing.T) {
+	t.Run("ListPoolsByKmsConfigIdReturnsPoolViewsOnSuccess", func(tt *testing.T) {
 		mockSE := database.NewMockStorage(t)
 
 		kmsConfigId := int64(123)
@@ -1163,28 +303,21 @@ func TestListPoolsByKmsConfigId(t *testing.T) {
 
 		// Setup expected filter conditions
 		mockSE.On("ListPools", ctx, mock.MatchedBy(func(filter *utils2.Filter) bool {
-			// Verify the filter has the correct conditions (3 conditions total)
-			// Note: CREATING state is checked later in RotateServiceAccountKey, not in the filter
-			return len(filter.Conditions) == 3 &&
+			// Verify the filter has the correct condition (kms_config_id = X)
+			return len(filter.Conditions) == 1 &&
 				filter.Conditions[0].Field == "kms_config_id" &&
 				filter.Conditions[0].Op == "=" &&
-				filter.Conditions[0].Value == kmsConfigId &&
-				filter.Conditions[1].Field == "state" &&
-				filter.Conditions[1].Op == "!=" &&
-				filter.Conditions[1].Value == gcpserver.PoolV1betaStoragePoolStateERROR &&
-				filter.Conditions[2].Field == "state" &&
-				filter.Conditions[2].Op == "!=" &&
-				filter.Conditions[2].Value == gcpserver.PoolV1betaStoragePoolStateDELETING
+				filter.Conditions[0].Value == kmsConfigId
 		})).Return(expectedPoolViews, nil)
 
 		result, err := ListPoolsByKmsConfigId(ctx, kmsConfigId, mockSE)
 
 		assert.NoError(tt, err)
 		assert.Len(tt, result, 2)
-		// Verify pools are properly converted from PoolView
-		for i, pool := range result {
-			assert.Equal(tt, expectedPoolViews[i].UUID, pool.UUID)
-			assert.Equal(tt, expectedPoolViews[i].ID, pool.ID)
+		// Verify PoolViews are returned directly
+		for i, poolView := range result {
+			assert.Equal(tt, expectedPoolViews[i].UUID, poolView.UUID)
+			assert.Equal(tt, expectedPoolViews[i].ID, poolView.ID)
 		}
 		mockSE.AssertExpectations(tt)
 	})
@@ -1257,7 +390,7 @@ func TestListPoolsByKmsConfigId(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.Len(tt, result, 100)
-		// Verify first and last pool to ensure proper conversion
+		// Verify first and last pool view are returned correctly
 		assert.Equal(tt, "pool-uuid-0", result[0].UUID)
 		assert.Equal(tt, "pool-uuid-99", result[99].UUID)
 		mockSE.AssertExpectations(tt)
@@ -1270,7 +403,7 @@ func TestListPoolsByKmsConfigId(t *testing.T) {
 
 		for _, kmsConfigId := range testCases {
 			mockSE.On("ListPools", ctx, mock.MatchedBy(func(filter *utils2.Filter) bool {
-				return len(filter.Conditions) == 3 && filter.Conditions[0].Value == kmsConfigId
+				return len(filter.Conditions) == 1 && filter.Conditions[0].Value == kmsConfigId
 			})).Return([]*datamodel.PoolView{}, nil).Once()
 
 			result, err := ListPoolsByKmsConfigId(ctx, kmsConfigId, mockSE)
@@ -1682,5 +815,1821 @@ func Test_extractKeyID(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Empty(tt, result)
 		assert.Contains(tt, err.Error(), "key not found or not a string")
+	})
+}
+
+// Tests for _extractKeyIDFromRawBase64 function
+func Test_extractKeyIDFromRawBase64(t *testing.T) {
+	t.Run("extractKeyIDFromRawBase64_Success", func(tt *testing.T) {
+		// Create a valid service account key JSON
+		keyData := map[string]interface{}{
+			"type":           "service_account",
+			"project_id":     "test-project",
+			"private_key_id": "test-key-id-456",
+			"private_key":    "-----BEGIN PRIVATE KEY-----\ntest-key\n-----END PRIVATE KEY-----\n",
+			"client_email":   "test@test-project.iam.gserviceaccount.com",
+		}
+
+		// Convert to JSON and base64 encode
+		keyBytes, err := json.Marshal(keyData)
+		assert.NoError(tt, err)
+		encodedKey := base64.StdEncoding.EncodeToString(keyBytes)
+
+		// Execute
+		result, err := _extractKeyIDFromRawBase64(encodedKey)
+
+		// Assert
+		assert.NoError(tt, err)
+		assert.Equal(tt, "test-key-id-456", result)
+	})
+
+	t.Run("extractKeyIDFromRawBase64_InvalidBase64", func(tt *testing.T) {
+		invalidBase64 := "invalid-base64-data!!!"
+
+		// Execute
+		result, err := _extractKeyIDFromRawBase64(invalidBase64)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.Contains(tt, err.Error(), "failed to decode base64 data")
+	})
+
+	t.Run("extractKeyIDFromRawBase64_InvalidJSON", func(tt *testing.T) {
+		invalidJSON := base64.StdEncoding.EncodeToString([]byte("invalid-json"))
+
+		// Execute
+		result, err := _extractKeyIDFromRawBase64(invalidJSON)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.Contains(tt, err.Error(), "failed to unmarshal credentials")
+	})
+
+	t.Run("extractKeyIDFromRawBase64_MissingPrivateKeyID", func(tt *testing.T) {
+		keyData := map[string]interface{}{
+			"type":         "service_account",
+			"project_id":   "test-project",
+			"client_email": "test@test-project.iam.gserviceaccount.com",
+		}
+
+		keyBytes, err := json.Marshal(keyData)
+		assert.NoError(tt, err)
+		encodedKey := base64.StdEncoding.EncodeToString(keyBytes)
+
+		// Execute
+		result, err := _extractKeyIDFromRawBase64(encodedKey)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.Contains(tt, err.Error(), "private_key_id not found or not a string")
+	})
+
+	t.Run("extractKeyIDFromRawBase64_PrivateKeyIDNotString", func(tt *testing.T) {
+		keyData := map[string]interface{}{
+			"type":           "service_account",
+			"project_id":     "test-project",
+			"private_key_id": 12345, // Not a string
+			"client_email":   "test@test-project.iam.gserviceaccount.com",
+		}
+
+		keyBytes, err := json.Marshal(keyData)
+		assert.NoError(tt, err)
+		encodedKey := base64.StdEncoding.EncodeToString(keyBytes)
+
+		// Execute
+		result, err := _extractKeyIDFromRawBase64(encodedKey)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.Contains(tt, err.Error(), "private_key_id not found or not a string")
+	})
+}
+
+// Tests for ValidateKeyRotationRequiredActivity
+func TestRotateKmsSAKeyActivity_ValidateKeyRotationRequiredActivity(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("ValidateKeyRotationRequiredActivity_ServiceAccountNotFound", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(nil, errors.New("not found"))
+
+		result, err := activity.ValidateKeyRotationRequiredActivity(ctx, "sa-uuid", "kms-config-uuid")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("ValidateKeyRotationRequiredActivity_KmsConfigNotFound", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel: datamodel.BaseModel{UUID: "sa-uuid"},
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		mockSE.On("GetKmsConfigByUUID", ctx, "kms-config-uuid").Return(nil, errors.New("not found"))
+
+		result, err := activity.ValidateKeyRotationRequiredActivity(ctx, "sa-uuid", "kms-config-uuid")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("ValidateKeyRotationRequiredActivity_InvalidKmsConfigState", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel: datamodel.BaseModel{UUID: "sa-uuid"},
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			State:     string(gcpserver.KmsConfigV1betaKmsStateKEYCHECKPENDING),
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		mockSE.On("GetKmsConfigByUUID", ctx, "kms-config-uuid").Return(kmsConfig, nil)
+
+		result, err := activity.ValidateKeyRotationRequiredActivity(ctx, "sa-uuid", "kms-config-uuid")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.False(tt, result.RotationRequired)
+		assert.Contains(tt, result.Reason, "not in valid state")
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("ValidateKeyRotationRequiredActivity_KmsConfigInMigratingState", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel: datamodel.BaseModel{UUID: "sa-uuid"},
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			State:     models.LifeCycleStateMigrating,
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		mockSE.On("GetKmsConfigByUUID", ctx, "kms-config-uuid").Return(kmsConfig, nil)
+
+		result, err := activity.ValidateKeyRotationRequiredActivity(ctx, "sa-uuid", "kms-config-uuid")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.False(tt, result.RotationRequired)
+		assert.Contains(tt, result.Reason, "KMS config is not in valid state for rotation (current state: MIGRATING)")
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("ValidateKeyRotationRequiredActivity_KmsConfigInErrorState_RotationNotAllowed", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		keyData := map[string]interface{}{
+			"private_key_id": "current-key-id",
+		}
+		keyBytes, _ := json.Marshal(keyData)
+		encodedKey := base64.StdEncoding.EncodeToString(keyBytes)
+
+		// Mock decrypt password
+		originalDecryptPassword := utils.DecryptPassword
+		defer func() { utils.DecryptPassword = originalDecryptPassword }()
+		utils.DecryptPassword = func(log.Secret) (*string, error) {
+			return &encodedKey, nil
+		}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:                      datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountPasswordLocation: "encrypted-key",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			State:     string(gcpserver.KmsConfigV1betaKmsStateERROR),
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		mockSE.On("GetKmsConfigByUUID", ctx, "kms-config-uuid").Return(kmsConfig, nil)
+
+		result, err := activity.ValidateKeyRotationRequiredActivity(ctx, "sa-uuid", "kms-config-uuid")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.False(tt, result.RotationRequired)
+		assert.Equal(tt, "", result.CurrentKeyID)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("ValidateKeyRotationRequiredActivity_FailedToExtractKeyID", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:                      datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountPasswordLocation: "invalid-key-data",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			State:     string(gcpserver.KmsConfigV1betaKmsStateINUSE),
+		}
+
+		// Mock extractKeyID to fail
+		originalExtractKeyID := extractKeyID
+		defer func() { extractKeyID = originalExtractKeyID }()
+		extractKeyID = func(string) (string, error) {
+			return "", errors.New("failed to extract key ID")
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		mockSE.On("GetKmsConfigByUUID", ctx, "kms-config-uuid").Return(kmsConfig, nil)
+
+		result, err := activity.ValidateKeyRotationRequiredActivity(ctx, "sa-uuid", "kms-config-uuid")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("ValidateKeyRotationRequiredActivity_MultipleActiveKeys", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		keyData := map[string]interface{}{
+			"private_key_id": "current-key-id",
+		}
+		keyBytes, _ := json.Marshal(keyData)
+		encodedKey := base64.StdEncoding.EncodeToString(keyBytes)
+
+		// Mock decrypt password
+		originalDecryptPassword := utils.DecryptPassword
+		defer func() { utils.DecryptPassword = originalDecryptPassword }()
+		utils.DecryptPassword = func(log.Secret) (*string, error) {
+			return &encodedKey, nil
+		}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:                      datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountPasswordLocation: "encrypted-key",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "key-1", IsActive: true},
+					{KeyID: "key-2", IsActive: true},
+				},
+			},
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			State:     string(gcpserver.KmsConfigV1betaKmsStateINUSE),
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		mockSE.On("GetKmsConfigByUUID", ctx, "kms-config-uuid").Return(kmsConfig, nil)
+
+		result, err := activity.ValidateKeyRotationRequiredActivity(ctx, "sa-uuid", "kms-config-uuid")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.True(tt, result.RotationRequired)
+		assert.Contains(tt, result.Reason, "multiple active keys")
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("ValidateKeyRotationRequiredActivity_NonPrimaryKeyExists", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		keyData := map[string]interface{}{
+			"private_key_id": "current-key-id",
+		}
+		keyBytes, _ := json.Marshal(keyData)
+		encodedKey := base64.StdEncoding.EncodeToString(keyBytes)
+
+		// Mock decrypt password
+		originalDecryptPassword := utils.DecryptPassword
+		defer func() { utils.DecryptPassword = originalDecryptPassword }()
+		utils.DecryptPassword = func(log.Secret) (*string, error) {
+			return &encodedKey, nil
+		}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:                      datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountPasswordLocation: "encrypted-key",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "key-1", IsPrimary: true, IsActive: true},
+					{KeyID: "key-2", IsPrimary: false, IsActive: true},
+				},
+			},
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			State:     string(gcpserver.KmsConfigV1betaKmsStateINUSE),
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		mockSE.On("GetKmsConfigByUUID", ctx, "kms-config-uuid").Return(kmsConfig, nil)
+
+		result, err := activity.ValidateKeyRotationRequiredActivity(ctx, "sa-uuid", "kms-config-uuid")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.True(tt, result.RotationRequired)
+		// With 2 active keys, it hits the "multiple active keys" check first
+		assert.Contains(tt, result.Reason, "multiple active keys")
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("ValidateKeyRotationRequiredActivity_SingleNonPrimaryKeyExists", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		keyData := map[string]interface{}{
+			"private_key_id": "current-key-id",
+		}
+		keyBytes, _ := json.Marshal(keyData)
+		encodedKey := base64.StdEncoding.EncodeToString(keyBytes)
+
+		// Mock decrypt password
+		originalDecryptPassword := utils.DecryptPassword
+		defer func() { utils.DecryptPassword = originalDecryptPassword }()
+		utils.DecryptPassword = func(log.Secret) (*string, error) {
+			return &encodedKey, nil
+		}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:                      datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountPasswordLocation: "encrypted-key",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "key-1", IsPrimary: true, IsActive: false}, // Primary but inactive
+					{KeyID: "key-2", IsPrimary: false, IsActive: true}, // Non-primary but active
+				},
+			},
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			State:     string(gcpserver.KmsConfigV1betaKmsStateINUSE),
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		mockSE.On("GetKmsConfigByUUID", ctx, "kms-config-uuid").Return(kmsConfig, nil)
+
+		result, err := activity.ValidateKeyRotationRequiredActivity(ctx, "sa-uuid", "kms-config-uuid")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.True(tt, result.RotationRequired)
+		// With only 1 active key (non-primary), it should hit the "not yet primary" check
+		assert.Contains(tt, result.Reason, "not yet primary")
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("ValidateKeyRotationRequiredActivity_RotationRequired", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		keyData := map[string]interface{}{
+			"private_key_id": "current-key-id",
+		}
+		keyBytes, _ := json.Marshal(keyData)
+		encodedKey := base64.StdEncoding.EncodeToString(keyBytes)
+
+		// Mock decrypt password
+		originalDecryptPassword := utils.DecryptPassword
+		defer func() { utils.DecryptPassword = originalDecryptPassword }()
+		utils.DecryptPassword = func(log.Secret) (*string, error) {
+			return &encodedKey, nil
+		}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:                      datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountPasswordLocation: "encrypted-key",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			State:     string(gcpserver.KmsConfigV1betaKmsStateINUSE),
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		mockSE.On("GetKmsConfigByUUID", ctx, "kms-config-uuid").Return(kmsConfig, nil)
+
+		result, err := activity.ValidateKeyRotationRequiredActivity(ctx, "sa-uuid", "kms-config-uuid")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.True(tt, result.RotationRequired)
+		assert.Equal(tt, "current-key-id", result.CurrentKeyID)
+		mockSE.AssertExpectations(tt)
+	})
+}
+
+// Tests for CreateServiceAccountKeyActivity
+func TestRotateKmsSAKeyActivity_CreateServiceAccountKeyActivity(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("CreateServiceAccountKeyActivity_ServiceAccountNotFound", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "kms-uuid"}}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(nil, errors.New("not found"))
+
+		result, err := activity.CreateServiceAccountKeyActivity(ctx, "sa-uuid", kmsConfig, "current-key-id")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("CreateServiceAccountKeyActivity_NewKeyAlreadyExists", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "kms-uuid"}}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel: datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "current-key-id", IsPrimary: true, IsActive: true},
+					{KeyID: "new-key-id", IsPrimary: false, IsActive: true},
+				},
+			},
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+
+		result, err := activity.CreateServiceAccountKeyActivity(ctx, "sa-uuid", kmsConfig, "current-key-id")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.True(tt, result.KeyExists)
+		assert.Equal(tt, "new-key-id", result.NewKeyID)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("CreateServiceAccountKeyActivity_FailedToGetGcpService", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "kms-uuid"}}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "test@test.iam.gserviceaccount.com",
+		}
+
+		// Mock getGcpService to fail
+		originalGetGcpService := getGcpService
+		defer func() { getGcpService = originalGetGcpService }()
+		getGcpService = func(context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("failed to get GCP service")
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+
+		result, err := activity.CreateServiceAccountKeyActivity(ctx, "sa-uuid", kmsConfig, "current-key-id")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("CreateServiceAccountKeyActivity_FailedToCreateKey", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "kms-uuid"}}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "test@test.iam.gserviceaccount.com",
+		}
+
+		mockGcpService := &google.GcpServices{}
+
+		// Mock getGcpService
+		originalGetGcpService := getGcpService
+		defer func() { getGcpService = originalGetGcpService }()
+		getGcpService = func(context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+
+		// Mock gcpServiceCreateServiceAccountKey to fail
+		originalCreateKey := gcpServiceCreateServiceAccountKey
+		defer func() { gcpServiceCreateServiceAccountKey = originalCreateKey }()
+		gcpServiceCreateServiceAccountKey = func(hyperscaler2.GoogleServices, context.Context, string) (*hyperscaler.ServiceAccountKey, error) {
+			return nil, errors.New("failed to create key")
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+
+		result, err := activity.CreateServiceAccountKeyActivity(ctx, "sa-uuid", kmsConfig, "current-key-id")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("CreateServiceAccountKeyActivity_FailedToExtractKeyID", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "kms-uuid"}}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "test@test.iam.gserviceaccount.com",
+		}
+
+		mockGcpService := &google.GcpServices{}
+
+		// Mock getGcpService
+		originalGetGcpService := getGcpService
+		defer func() { getGcpService = originalGetGcpService }()
+		getGcpService = func(context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+
+		// Mock gcpServiceCreateServiceAccountKey
+		originalCreateKey := gcpServiceCreateServiceAccountKey
+		defer func() { gcpServiceCreateServiceAccountKey = originalCreateKey }()
+		gcpServiceCreateServiceAccountKey = func(hyperscaler2.GoogleServices, context.Context, string) (*hyperscaler.ServiceAccountKey, error) {
+			return &hyperscaler.ServiceAccountKey{
+				Name:           "projects/test/serviceAccounts/test@test.iam.gserviceaccount.com/keys/key-id",
+				PrivateKeyData: "invalid-base64",
+			}, nil
+		}
+
+		// Mock extractKeyIDFromRawBase64 to fail
+		originalExtractKeyIDFromRawBase64 := extractKeyIDFromRawBase64
+		defer func() { extractKeyIDFromRawBase64 = originalExtractKeyIDFromRawBase64 }()
+		extractKeyIDFromRawBase64 = func(string) (string, error) {
+			return "", errors.New("failed to extract key ID")
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+
+		result, err := activity.CreateServiceAccountKeyActivity(ctx, "sa-uuid", kmsConfig, "current-key-id")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("CreateServiceAccountKeyActivity_FailedToEncrypt", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "kms-uuid"}}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "test@test.iam.gserviceaccount.com",
+		}
+
+		keyData := map[string]interface{}{
+			"private_key_id": "new-key-id",
+		}
+		keyBytes, _ := json.Marshal(keyData)
+		encodedKey := base64.StdEncoding.EncodeToString(keyBytes)
+
+		mockGcpService := &google.GcpServices{}
+
+		// Mock getGcpService
+		originalGetGcpService := getGcpService
+		defer func() { getGcpService = originalGetGcpService }()
+		getGcpService = func(context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+
+		// Mock gcpServiceCreateServiceAccountKey
+		originalCreateKey := gcpServiceCreateServiceAccountKey
+		defer func() { gcpServiceCreateServiceAccountKey = originalCreateKey }()
+		gcpServiceCreateServiceAccountKey = func(hyperscaler2.GoogleServices, context.Context, string) (*hyperscaler.ServiceAccountKey, error) {
+			return &hyperscaler.ServiceAccountKey{
+				Name:           "projects/test/serviceAccounts/test@test.iam.gserviceaccount.com/keys/key-id",
+				PrivateKeyData: encodedKey,
+			}, nil
+		}
+
+		// Mock extractKeyIDFromRawBase64
+		originalExtractKeyIDFromRawBase64 := extractKeyIDFromRawBase64
+		defer func() { extractKeyIDFromRawBase64 = originalExtractKeyIDFromRawBase64 }()
+		extractKeyIDFromRawBase64 = func(string) (string, error) {
+			return "new-key-id", nil
+		}
+
+		// Mock EncryptPassword to fail
+		originalEncryptPassword := utils.EncryptPassword
+		defer func() { utils.EncryptPassword = originalEncryptPassword }()
+		utils.EncryptPassword = func(log.Secret) (*string, error) {
+			return nil, errors.New("encryption failed")
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+
+		result, err := activity.CreateServiceAccountKeyActivity(ctx, "sa-uuid", kmsConfig, "current-key-id")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("CreateServiceAccountKeyActivity_Success", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "kms-uuid"}}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "test@test.iam.gserviceaccount.com",
+		}
+
+		keyData := map[string]interface{}{
+			"private_key_id": "new-key-id",
+		}
+		keyBytes, _ := json.Marshal(keyData)
+		encodedKey := base64.StdEncoding.EncodeToString(keyBytes)
+
+		mockGcpService := &google.GcpServices{}
+
+		// Mock getGcpService
+		originalGetGcpService := getGcpService
+		defer func() { getGcpService = originalGetGcpService }()
+		getGcpService = func(context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+
+		// Mock gcpServiceCreateServiceAccountKey
+		originalCreateKey := gcpServiceCreateServiceAccountKey
+		defer func() { gcpServiceCreateServiceAccountKey = originalCreateKey }()
+		gcpServiceCreateServiceAccountKey = func(hyperscaler2.GoogleServices, context.Context, string) (*hyperscaler.ServiceAccountKey, error) {
+			return &hyperscaler.ServiceAccountKey{
+				Name:           "projects/test/serviceAccounts/test@test.iam.gserviceaccount.com/keys/key-id",
+				PrivateKeyData: encodedKey,
+			}, nil
+		}
+
+		// Mock extractKeyIDFromRawBase64
+		originalExtractKeyIDFromRawBase64 := extractKeyIDFromRawBase64
+		defer func() { extractKeyIDFromRawBase64 = originalExtractKeyIDFromRawBase64 }()
+		extractKeyIDFromRawBase64 = func(string) (string, error) {
+			return "new-key-id", nil
+		}
+
+		// Mock EncryptPassword
+		originalEncryptPassword := utils.EncryptPassword
+		defer func() { utils.EncryptPassword = originalEncryptPassword }()
+		utils.EncryptPassword = func(log.Secret) (*string, error) {
+			encrypted := "encrypted-key-data"
+			return &encrypted, nil
+		}
+
+		// Mock AccessCryptoKeyAndEncryptData
+		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
+		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
+		kms_activities.AccessCryptoKeyAndEncryptData = func(context.Context, *datamodel.KmsConfig, string, time.Duration, time.Duration) error {
+			return nil
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+
+		result, err := activity.CreateServiceAccountKeyActivity(ctx, "sa-uuid", kmsConfig, "current-key-id")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.False(tt, result.KeyExists)
+		assert.Equal(tt, "new-key-id", result.NewKeyID)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("CreateServiceAccountKeyActivity_TooManyKeysPendingDeletion", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "kms-uuid"}}
+
+		// Create a service account with 5 keys marked for deletion (IsPrimary=false, IsActive=false)
+		// This simulates DeleteOldSAKeyFromGCPActivity failing repeatedly
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "test@test.iam.gserviceaccount.com",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "primary-key", IsPrimary: true, IsActive: true},
+					{KeyID: "delete-key-1", IsPrimary: false, IsActive: false}, // marked for deletion
+					{KeyID: "delete-key-2", IsPrimary: false, IsActive: false}, // marked for deletion
+					{KeyID: "delete-key-3", IsPrimary: false, IsActive: false}, // marked for deletion
+					{KeyID: "delete-key-4", IsPrimary: false, IsActive: false}, // marked for deletion
+					{KeyID: "delete-key-5", IsPrimary: false, IsActive: false}, // marked for deletion (5th)
+				},
+			},
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+
+		result, err := activity.CreateServiceAccountKeyActivity(ctx, "sa-uuid", kmsConfig, "primary-key")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		// Check that error is of type CustomError with correct tracking ID
+		customErr, ok := err.(*vsaerrors.CustomError)
+		assert.True(tt, ok, "error should be of type *CustomError")
+		assert.True(tt, customErr.IsError(vsaerrors.ErrResourceStateConflictError))
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("CreateServiceAccountKeyActivity_TooManyTotalKeys", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "kms-uuid"}}
+
+		// Create a service account with 8 total keys (approaching GCP's 10-key limit)
+		// All keys except primary are marked for deletion to avoid triggering idempotency check
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "test@test.iam.gserviceaccount.com",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "primary-key", IsPrimary: true, IsActive: true},
+					{KeyID: "delete-key-1", IsPrimary: false, IsActive: false},  // marked for deletion
+					{KeyID: "delete-key-2", IsPrimary: false, IsActive: false},  // marked for deletion
+					{KeyID: "delete-key-3", IsPrimary: false, IsActive: false},  // marked for deletion
+					{KeyID: "delete-key-4", IsPrimary: false, IsActive: false},  // marked for deletion - this is 5th
+					{KeyID: "old-primary-1", IsPrimary: false, IsActive: false}, // old primary marked for deletion
+					{KeyID: "old-primary-2", IsPrimary: false, IsActive: false}, // old primary marked for deletion
+					{KeyID: "old-primary-3", IsPrimary: false, IsActive: false}, // 8th key total
+				},
+			},
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+
+		result, err := activity.CreateServiceAccountKeyActivity(ctx, "sa-uuid", kmsConfig, "primary-key")
+
+		// With 8 total keys and 7 pending deletion (>= 5), this should fail
+		// The pending deletion check comes first (7 >= 5)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		// Check that error is of type CustomError with correct tracking ID
+		customErr, ok := err.(*vsaerrors.CustomError)
+		assert.True(tt, ok, "error should be of type *CustomError")
+		assert.True(tt, customErr.IsError(vsaerrors.ErrResourceStateConflictError))
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("CreateServiceAccountKeyActivity_KeyLimitCheckPassesWithFewKeys", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "kms-uuid"}}
+
+		// Create a service account with acceptable number of keys (4 pending deletion, 5 total)
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "test@test.iam.gserviceaccount.com",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "primary-key", IsPrimary: true, IsActive: true},
+					{KeyID: "delete-key-1", IsPrimary: false, IsActive: false},
+					{KeyID: "delete-key-2", IsPrimary: false, IsActive: false},
+					{KeyID: "delete-key-3", IsPrimary: false, IsActive: false},
+					{KeyID: "delete-key-4", IsPrimary: false, IsActive: false}, // 4 pending deletion, below limit of 5
+				},
+			},
+		}
+
+		keyData := map[string]interface{}{
+			"private_key_id": "new-key-id",
+		}
+		keyBytes, _ := json.Marshal(keyData)
+		encodedKey := base64.StdEncoding.EncodeToString(keyBytes)
+
+		mockGcpService := &google.GcpServices{}
+
+		// Mock getGcpService
+		originalGetGcpService := getGcpService
+		defer func() { getGcpService = originalGetGcpService }()
+		getGcpService = func(context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+
+		// Mock gcpServiceCreateServiceAccountKey
+		originalCreateKey := gcpServiceCreateServiceAccountKey
+		defer func() { gcpServiceCreateServiceAccountKey = originalCreateKey }()
+		gcpServiceCreateServiceAccountKey = func(hyperscaler2.GoogleServices, context.Context, string) (*hyperscaler.ServiceAccountKey, error) {
+			return &hyperscaler.ServiceAccountKey{
+				Name:           "projects/test/serviceAccounts/test@test.iam.gserviceaccount.com/keys/key-id",
+				PrivateKeyData: encodedKey,
+			}, nil
+		}
+
+		// Mock extractKeyIDFromRawBase64
+		originalExtractKeyIDFromRawBase64 := extractKeyIDFromRawBase64
+		defer func() { extractKeyIDFromRawBase64 = originalExtractKeyIDFromRawBase64 }()
+		extractKeyIDFromRawBase64 = func(string) (string, error) {
+			return "new-key-id", nil
+		}
+
+		// Mock EncryptPassword
+		originalEncryptPassword := utils.EncryptPassword
+		defer func() { utils.EncryptPassword = originalEncryptPassword }()
+		utils.EncryptPassword = func(log.Secret) (*string, error) {
+			encrypted := "encrypted-key-data"
+			return &encrypted, nil
+		}
+
+		// Mock AccessCryptoKeyAndEncryptData
+		originalAccessCryptoKey := kms_activities.AccessCryptoKeyAndEncryptData
+		defer func() { kms_activities.AccessCryptoKeyAndEncryptData = originalAccessCryptoKey }()
+		kms_activities.AccessCryptoKeyAndEncryptData = func(context.Context, *datamodel.KmsConfig, string, time.Duration, time.Duration) error {
+			return nil
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+
+		result, err := activity.CreateServiceAccountKeyActivity(ctx, "sa-uuid", kmsConfig, "primary-key")
+
+		// Should succeed - key limit check passes
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.False(tt, result.KeyExists)
+		assert.Equal(tt, "new-key-id", result.NewKeyID)
+		mockSE.AssertExpectations(tt)
+	})
+}
+
+// Tests for StoreNewKeyInDBActivity
+func TestRotateKmsSAKeyActivity_StoreNewKeyInDBActivity(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("StoreNewKeyInDBActivity_ServiceAccountNotFound", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(nil, errors.New("not found"))
+
+		err := activity.StoreNewKeyInDBActivity(ctx, "sa-uuid", "new-key-id", "new-key-data", "current-key-id")
+
+		assert.Error(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("StoreNewKeyInDBActivity_KeyAlreadyExists", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel: datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "new-key-id", KeyData: "new-key-data"},
+				},
+			},
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+
+		err := activity.StoreNewKeyInDBActivity(ctx, "sa-uuid", "new-key-id", "new-key-data", "current-key-id")
+
+		assert.NoError(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("StoreNewKeyInDBActivity_AddOldKeyFails", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:                      datamodel.BaseModel{UUID: "sa-uuid", CreatedAt: time.Now()},
+			ServiceAccountPasswordLocation: "old-key-data",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{},
+			},
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		mockSE.On("AddKeyToServiceAccount", ctx, "sa-uuid", mock.Anything).Return(errors.New("failed to add key"))
+
+		err := activity.StoreNewKeyInDBActivity(ctx, "sa-uuid", "new-key-id", "new-key-data", "current-key-id")
+
+		assert.Error(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("StoreNewKeyInDBActivity_AddNewKeyFails", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:                      datamodel.BaseModel{UUID: "sa-uuid", CreatedAt: time.Now()},
+			ServiceAccountPasswordLocation: "old-key-data",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "current-key-id", IsPrimary: true},
+				},
+			},
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		mockSE.On("AddKeyToServiceAccount", ctx, "sa-uuid", mock.Anything).Return(errors.New("failed to add key"))
+
+		err := activity.StoreNewKeyInDBActivity(ctx, "sa-uuid", "new-key-id", "new-key-data", "current-key-id")
+
+		assert.Error(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("StoreNewKeyInDBActivity_Success", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:                      datamodel.BaseModel{UUID: "sa-uuid", CreatedAt: time.Now()},
+			ServiceAccountPasswordLocation: "old-key-data",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "current-key-id", IsPrimary: true},
+				},
+			},
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		mockSE.On("AddKeyToServiceAccount", ctx, "sa-uuid", mock.Anything).Return(nil)
+
+		err := activity.StoreNewKeyInDBActivity(ctx, "sa-uuid", "new-key-id", "new-key-data", "current-key-id")
+
+		assert.NoError(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("StoreNewKeyInDBActivity_InitializesNilAttributes", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:                      datamodel.BaseModel{UUID: "sa-uuid", CreatedAt: time.Now()},
+			ServiceAccountPasswordLocation: "old-key-data",
+			ServiceAccountAttributes:       nil,
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		mockSE.On("AddKeyToServiceAccount", ctx, "sa-uuid", mock.Anything).Return(nil).Times(2)
+
+		err := activity.StoreNewKeyInDBActivity(ctx, "sa-uuid", "new-key-id", "new-key-data", "current-key-id")
+
+		assert.NoError(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+}
+
+// Tests for BatchPoolsForKeyRotationActivity
+func TestRotateKmsSAKeyActivity_BatchPoolsForKeyRotationActivity(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("BatchPoolsForKeyRotationActivity_Success", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		poolViews := []*datamodel.PoolView{
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"}, Name: "pool-1", State: models.LifeCycleStateREADY}},
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-2"}, Name: "pool-2", State: models.LifeCycleStateInUse}},
+		}
+
+		// Mock listPoolsByKmsConfigId
+		originalListPools := listPoolsByKmsConfigId
+		defer func() { listPoolsByKmsConfigId = originalListPools }()
+		listPoolsByKmsConfigId = func(context.Context, int64, database.Storage) ([]*datamodel.PoolView, error) {
+			return poolViews, nil
+		}
+
+		result, err := activity.BatchPoolsForKeyRotationActivity(ctx, 123)
+
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 2)
+		assert.Equal(tt, "pool-uuid-1", result[0].UUID)
+		assert.Equal(tt, "pool-uuid-2", result[1].UUID)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("BatchPoolsForKeyRotationActivity_FiltersDeletingPools", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		poolViews := []*datamodel.PoolView{
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"}, Name: "pool-1", State: models.LifeCycleStateREADY}},
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-2"}, Name: "pool-2", State: models.LifeCycleStateDeleting}}, // Should be filtered out
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-3"}, Name: "pool-3", State: models.LifeCycleStateInUse}},
+		}
+
+		originalListPools := listPoolsByKmsConfigId
+		defer func() { listPoolsByKmsConfigId = originalListPools }()
+		listPoolsByKmsConfigId = func(context.Context, int64, database.Storage) ([]*datamodel.PoolView, error) {
+			return poolViews, nil
+		}
+
+		result, err := activity.BatchPoolsForKeyRotationActivity(ctx, 123)
+
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 2)
+		assert.Equal(tt, "pool-uuid-1", result[0].UUID)
+		assert.Equal(tt, "pool-uuid-3", result[1].UUID)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("BatchPoolsForKeyRotationActivity_FiltersErrorPoolsWithNoVolumes", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		poolViews := []*datamodel.PoolView{
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"}, Name: "pool-1", State: models.LifeCycleStateREADY}},
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-2"}, Name: "pool-2", State: models.LifeCycleStateError}, VolumeCount: 0}, // Should be filtered out (no volumes)
+			{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-3"}, Name: "pool-3", State: models.LifeCycleStateError}, VolumeCount: 5}, // Should be included (has volumes)
+		}
+
+		originalListPools := listPoolsByKmsConfigId
+		defer func() { listPoolsByKmsConfigId = originalListPools }()
+		listPoolsByKmsConfigId = func(context.Context, int64, database.Storage) ([]*datamodel.PoolView, error) {
+			return poolViews, nil
+		}
+
+		result, err := activity.BatchPoolsForKeyRotationActivity(ctx, 123)
+
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 2)
+		assert.Equal(tt, "pool-uuid-1", result[0].UUID)
+		assert.Equal(tt, "pool-uuid-3", result[1].UUID)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("BatchPoolsForKeyRotationActivity_FailedToListPools", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		// Mock listPoolsByKmsConfigId to fail
+		originalListPools := listPoolsByKmsConfigId
+		defer func() { listPoolsByKmsConfigId = originalListPools }()
+		listPoolsByKmsConfigId = func(context.Context, int64, database.Storage) ([]*datamodel.PoolView, error) {
+			return nil, errors.New("failed to list pools")
+		}
+
+		result, err := activity.BatchPoolsForKeyRotationActivity(ctx, 123)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		mockSE.AssertExpectations(tt)
+	})
+}
+
+// Tests for MigratePoolToNewKeyActivity
+func TestRotateKmsSAKeyActivity_MigratePoolToNewKeyActivity(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("MigratePoolToNewKeyActivity_PoolNotFound", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		mockSE.On("GetPoolByUUID", ctx, "pool-uuid").Return(nil, errors.New("not found"))
+
+		result, err := activity.MigratePoolToNewKeyActivity(ctx, "pool-uuid", "new-key-data", "old-key-data", "new-key-id")
+
+		assert.NoError(tt, err) // Returns error in result, not as error
+		assert.NotNil(tt, result)
+		assert.False(tt, result.Success)
+		assert.Contains(tt, result.Error, "Failed to get pool")
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("MigratePoolToNewKeyActivity_SvmNotFound", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		}
+
+		mockSE.On("GetPoolByUUID", ctx, "pool-uuid").Return(pool, nil)
+		mockSE.On("GetSvmForPoolID", ctx, pool.ID).Return(nil, errors.New("not found"))
+
+		result, err := activity.MigratePoolToNewKeyActivity(ctx, "pool-uuid", "new-key-data", "old-key-data", "new-key-id")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.False(tt, result.Success)
+		assert.Contains(tt, result.Error, "Failed to get SVM")
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("MigratePoolToNewKeyActivity_AlreadyUsingNewKey", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		}
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
+			SvmDetails: &datamodel.SvmDetails{
+				CurrentKmsKeyID: "new-key-id",
+			},
+		}
+
+		mockSE.On("GetPoolByUUID", ctx, "pool-uuid").Return(pool, nil)
+		mockSE.On("GetSvmForPoolID", ctx, pool.ID).Return(svm, nil)
+
+		result, err := activity.MigratePoolToNewKeyActivity(ctx, "pool-uuid", "new-key-data", "old-key-data", "new-key-id")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.True(tt, result.Success)
+		assert.Equal(tt, "svm-uuid", result.SvmUUID)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("MigratePoolToNewKeyActivity_InitializesNilSvmDetails", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		}
+		svm := &datamodel.Svm{
+			BaseModel:  datamodel.BaseModel{UUID: "svm-uuid"},
+			SvmDetails: nil,
+		}
+
+		mockSE.On("GetPoolByUUID", ctx, "pool-uuid").Return(pool, nil)
+		mockSE.On("GetSvmForPoolID", ctx, pool.ID).Return(svm, nil)
+
+		// Mock DecryptPassword to return the test value (treating encrypted value as if it decrypts to same value)
+		originalDecryptPassword := utils.DecryptPassword
+		defer func() { utils.DecryptPassword = originalDecryptPassword }()
+		utils.DecryptPassword = func(encryptedPassword log.Secret) (*string, error) {
+			decrypted := string(encryptedPassword)
+			return &decrypted, nil
+		}
+
+		// Mock syncKeyWithOntap
+		originalSyncKey := syncKeyWithOntap
+		defer func() { syncKeyWithOntap = originalSyncKey }()
+		syncKeyWithOntap = func(context.Context, database.Storage, string, string, *datamodel.Pool) error {
+			return nil
+		}
+
+		mockSE.On("UpdateSvmCurrentKmsKeyID", ctx, "svm-uuid", "new-key-id").Return(nil)
+
+		result, err := activity.MigratePoolToNewKeyActivity(ctx, "pool-uuid", "new-key-data", "old-key-data", "new-key-id")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.True(tt, result.Success)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("MigratePoolToNewKeyActivity_SyncKeyFails", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+			Name:      "test-pool",
+		}
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
+			SvmDetails: &datamodel.SvmDetails{
+				CurrentKmsKeyID: "old-key-id",
+			},
+		}
+
+		// Mock DecryptPassword to return the test value (treating encrypted value as if it decrypts to same value)
+		originalDecryptPassword := utils.DecryptPassword
+		defer func() { utils.DecryptPassword = originalDecryptPassword }()
+		utils.DecryptPassword = func(encryptedPassword log.Secret) (*string, error) {
+			decrypted := string(encryptedPassword)
+			return &decrypted, nil
+		}
+
+		// Mock syncKeyWithOntap to fail
+		originalSyncKey := syncKeyWithOntap
+		defer func() { syncKeyWithOntap = originalSyncKey }()
+		syncKeyWithOntap = func(context.Context, database.Storage, string, string, *datamodel.Pool) error {
+			return errors.New("sync failed")
+		}
+
+		mockSE.On("GetPoolByUUID", ctx, "pool-uuid").Return(pool, nil)
+		mockSE.On("GetSvmForPoolID", ctx, pool.ID).Return(svm, nil)
+
+		result, err := activity.MigratePoolToNewKeyActivity(ctx, "pool-uuid", "new-key-data", "old-key-data", "new-key-id")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.False(tt, result.Success)
+		assert.Contains(tt, result.Error, "sync failed")
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("MigratePoolToNewKeyActivity_UpdateSvmKeyIDFails", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+			Name:      "test-pool",
+		}
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
+			SvmDetails: &datamodel.SvmDetails{
+				CurrentKmsKeyID: "old-key-id",
+			},
+		}
+
+		// Mock DecryptPassword to return the test value (treating encrypted value as if it decrypts to same value)
+		originalDecryptPassword := utils.DecryptPassword
+		defer func() { utils.DecryptPassword = originalDecryptPassword }()
+		utils.DecryptPassword = func(encryptedPassword log.Secret) (*string, error) {
+			decrypted := string(encryptedPassword)
+			return &decrypted, nil
+		}
+
+		// Mock syncKeyWithOntap to succeed
+		originalSyncKey := syncKeyWithOntap
+		defer func() { syncKeyWithOntap = originalSyncKey }()
+		syncKeyWithOntap = func(context.Context, database.Storage, string, string, *datamodel.Pool) error {
+			return nil
+		}
+
+		mockSE.On("GetPoolByUUID", ctx, "pool-uuid").Return(pool, nil)
+		mockSE.On("GetSvmForPoolID", ctx, pool.ID).Return(svm, nil)
+		mockSE.On("UpdateSvmCurrentKmsKeyID", ctx, "svm-uuid", "new-key-id").Return(errors.New("update failed"))
+
+		result, err := activity.MigratePoolToNewKeyActivity(ctx, "pool-uuid", "new-key-data", "old-key-data", "new-key-id")
+
+		assert.NoError(tt, err) // Non-fatal error
+		assert.NotNil(tt, result)
+		assert.True(tt, result.Success) // Migration succeeded, tracking failed
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("MigratePoolToNewKeyActivity_Success", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+			Name:      "test-pool",
+		}
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
+			SvmDetails: &datamodel.SvmDetails{
+				CurrentKmsKeyID: "old-key-id",
+			},
+		}
+
+		// Mock DecryptPassword to return the test value (treating encrypted value as if it decrypts to same value)
+		originalDecryptPassword := utils.DecryptPassword
+		defer func() { utils.DecryptPassword = originalDecryptPassword }()
+		utils.DecryptPassword = func(encryptedPassword log.Secret) (*string, error) {
+			decrypted := string(encryptedPassword)
+			return &decrypted, nil
+		}
+
+		// Mock syncKeyWithOntap to succeed
+		originalSyncKey := syncKeyWithOntap
+		defer func() { syncKeyWithOntap = originalSyncKey }()
+		syncKeyWithOntap = func(context.Context, database.Storage, string, string, *datamodel.Pool) error {
+			return nil
+		}
+
+		mockSE.On("GetPoolByUUID", ctx, "pool-uuid").Return(pool, nil)
+		mockSE.On("GetSvmForPoolID", ctx, pool.ID).Return(svm, nil)
+		mockSE.On("UpdateSvmCurrentKmsKeyID", ctx, "svm-uuid", "new-key-id").Return(nil)
+
+		result, err := activity.MigratePoolToNewKeyActivity(ctx, "pool-uuid", "new-key-data", "old-key-data", "new-key-id")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.True(tt, result.Success)
+		assert.Equal(tt, "svm-uuid", result.SvmUUID)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("MigratePoolToNewKeyActivity_PoolInErrorState", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}, State: models.LifeCycleStateError,
+		}
+
+		mockSE.On("GetPoolByUUID", ctx, "pool-uuid").Return(pool, nil)
+
+		result, err := activity.MigratePoolToNewKeyActivity(ctx, "pool-uuid", "new-key-data", "old-key-data", "new-key-id")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.True(tt, result.Success)
+		mockSE.AssertExpectations(tt)
+	})
+}
+
+// Tests for CompleteKeyRotationActivity
+func TestRotateKmsSAKeyActivity_CompleteKeyRotationActivity(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("CompleteKeyRotationActivity_ServiceAccountNotFound", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(nil, errors.New("not found"))
+
+		err := activity.CompleteKeyRotationActivity(ctx, "sa-uuid", "kms-config-uuid", "new-key-id", "old-key-id")
+
+		assert.Error(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("CompleteKeyRotationActivity_NewKeyNotFound", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel: datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{},
+			},
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+
+		err := activity.CompleteKeyRotationActivity(ctx, "sa-uuid", "kms-config-uuid", "new-key-id", "old-key-id")
+
+		assert.Error(tt, err)
+		// Check the unwrapped error message
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Contains(tt, customErr.OriginalErr.Error(), "not found in keys array")
+		} else {
+			assert.Contains(tt, err.Error(), "not found in keys array")
+		}
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("CompleteKeyRotationActivity_AlreadyPrimary", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel: datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "new-key-id", IsPrimary: true},
+				},
+			},
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+
+		err := activity.CompleteKeyRotationActivity(ctx, "sa-uuid", "kms-config-uuid", "new-key-id", "old-key-id")
+
+		assert.NoError(tt, err) // Already completed - idempotent
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("CompleteKeyRotationActivity_MarkKeyForDeletionFails", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel: datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "new-key-id", IsPrimary: false},
+					{KeyID: "old-key-id", IsPrimary: true},
+				},
+			},
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		mockSE.On("SetPrimaryKeyForServiceAccount", ctx, "sa-uuid", "new-key-id").Return(nil)
+		mockSE.On("MarkKeyForDeletion", ctx, "sa-uuid", "old-key-id").Return(errors.New("key not found"))
+
+		// Should continue even if mark for deletion fails (non-fatal)
+		err := activity.CompleteKeyRotationActivity(ctx, "sa-uuid", "kms-config-uuid", "new-key-id", "old-key-id")
+
+		assert.NoError(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("CompleteKeyRotationActivity_SetPrimaryKeyFails", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel: datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "new-key-id", IsPrimary: false},
+				},
+			},
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		mockSE.On("SetPrimaryKeyForServiceAccount", ctx, "sa-uuid", "new-key-id").Return(errors.New("failed to set primary"))
+
+		err := activity.CompleteKeyRotationActivity(ctx, "sa-uuid", "kms-config-uuid", "new-key-id", "old-key-id")
+
+		assert.Error(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("CompleteKeyRotationActivity_Success", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel: datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "new-key-id", IsPrimary: false},
+					{KeyID: "old-key-id", IsPrimary: true},
+				},
+			},
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		mockSE.On("SetPrimaryKeyForServiceAccount", ctx, "sa-uuid", "new-key-id").Return(nil)
+		mockSE.On("MarkKeyForDeletion", ctx, "sa-uuid", "old-key-id").Return(nil)
+
+		err := activity.CompleteKeyRotationActivity(ctx, "sa-uuid", "kms-config-uuid", "new-key-id", "old-key-id")
+
+		assert.NoError(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+}
+
+// Tests for DeleteOldSAKeyFromGCPActivity
+func TestRotateKmsSAKeyActivity_DeleteOldSAKeyFromGCPActivity(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("DeleteOldSAKeyFromGCPActivity_ServiceAccountNotFound", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(nil, errors.New("not found"))
+
+		err := activity.DeleteOldSAKeyFromGCPActivity(ctx, "sa-uuid", "kms-config-uuid", "old-key-id")
+
+		assert.Error(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("DeleteOldSAKeyFromGCPActivity_NoKeysMarkedForDeletion", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		// Service account has no keys marked for deletion
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "test@test.iam.gserviceaccount.com",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "active-key-id", IsPrimary: true, IsActive: true},
+				},
+			},
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+
+		err := activity.DeleteOldSAKeyFromGCPActivity(ctx, "sa-uuid", "kms-config-uuid", "old-key-id")
+
+		assert.NoError(tt, err) // No keys to delete = success
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("DeleteOldSAKeyFromGCPActivity_InvalidEmailFormat", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		// Service account with invalid email format (no valid global project ID can be extracted)
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "invalid-email-format",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "old-key-id", IsPrimary: false, IsActive: false}, // Marked for deletion
+				},
+			},
+		}
+
+		// Mock getGcpService - it will be called before extractGlobalProjectIDFromEmail
+		mockGcpService := &google.GcpServices{}
+		originalGetGcpService := getGcpService
+		defer func() { getGcpService = originalGetGcpService }()
+		getGcpService = func(context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+
+		err := activity.DeleteOldSAKeyFromGCPActivity(ctx, "sa-uuid", "kms-config-uuid", "old-key-id")
+
+		assert.Error(tt, err)
+		// Check the unwrapped error message
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Contains(tt, customErr.OriginalErr.Error(), "could not extract global project ID")
+		} else {
+			assert.Contains(tt, err.Error(), "could not extract global project ID")
+		}
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("DeleteOldSAKeyFromGCPActivity_FailedToGetGcpService", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		// Service account with key marked for deletion (IsPrimary=false, IsActive=false)
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "test@test-project.iam.gserviceaccount.com",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "old-key-id", IsPrimary: false, IsActive: false}, // Marked for deletion
+				},
+			},
+		}
+
+		// Mock getGcpService to fail
+		originalGetGcpService := getGcpService
+		defer func() { getGcpService = originalGetGcpService }()
+		getGcpService = func(context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("failed to get GCP service")
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+
+		err := activity.DeleteOldSAKeyFromGCPActivity(ctx, "sa-uuid", "kms-config-uuid", "old-key-id")
+
+		assert.Error(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("DeleteOldSAKeyFromGCPActivity_KeyAlreadyDeletedFromGCP", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		// Service account with key marked for deletion
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "test@test-project.iam.gserviceaccount.com",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "old-key-id", IsPrimary: false, IsActive: false}, // Marked for deletion
+				},
+			},
+		}
+
+		mockGcpService := &google.GcpServices{}
+
+		// Mock getGcpService
+		originalGetGcpService := getGcpService
+		defer func() { getGcpService = originalGetGcpService }()
+		getGcpService = func(context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+
+		// Mock deleteServiceAccountKeyWithRetry to return 404 (key already deleted from GCP)
+		originalDeleteKey := deleteServiceAccountKeyWithRetry
+		defer func() { deleteServiceAccountKeyWithRetry = originalDeleteKey }()
+		deleteServiceAccountKeyWithRetry = func(ctx context.Context, c *google.GcpServices, keyName string) error {
+			return errors.New("404 not found")
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		// Even if GCP returns 404, we should still remove from JSON
+		mockSE.On("RemoveKeyFromServiceAccount", ctx, "sa-uuid", "old-key-id").Return(nil)
+
+		err := activity.DeleteOldSAKeyFromGCPActivity(ctx, "sa-uuid", "kms-config-uuid", "old-key-id")
+
+		assert.NoError(tt, err) // 404 is treated as success (idempotent)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("DeleteOldSAKeyFromGCPActivity_GCPDeleteFails", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		// Service account with key marked for deletion
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "test@test-project.iam.gserviceaccount.com",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "old-key-id", IsPrimary: false, IsActive: false}, // Marked for deletion
+				},
+			},
+		}
+
+		mockGcpService := &google.GcpServices{}
+
+		// Mock getGcpService
+		originalGetGcpService := getGcpService
+		defer func() { getGcpService = originalGetGcpService }()
+		getGcpService = func(context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+
+		// Mock deleteServiceAccountKeyWithRetry to return non-404 error
+		originalDeleteKey := deleteServiceAccountKeyWithRetry
+		defer func() { deleteServiceAccountKeyWithRetry = originalDeleteKey }()
+		deleteServiceAccountKeyWithRetry = func(ctx context.Context, c *google.GcpServices, keyName string) error {
+			return errors.New("403 permission denied")
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		// RemoveKeyFromServiceAccount should NOT be called if GCP delete fails
+
+		err := activity.DeleteOldSAKeyFromGCPActivity(ctx, "sa-uuid", "kms-config-uuid", "old-key-id")
+
+		assert.Error(tt, err) // GCP delete failed, key remains marked for deletion for retry
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("DeleteOldSAKeyFromGCPActivity_Success", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		// Service account with key marked for deletion
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "test@test-project.iam.gserviceaccount.com",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "old-key-id", IsPrimary: false, IsActive: false}, // Marked for deletion
+				},
+			},
+		}
+
+		mockGcpService := &google.GcpServices{}
+
+		// Mock getGcpService
+		originalGetGcpService := getGcpService
+		defer func() { getGcpService = originalGetGcpService }()
+		getGcpService = func(context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+
+		// Mock deleteServiceAccountKeyWithRetry to succeed
+		originalDeleteKey := deleteServiceAccountKeyWithRetry
+		defer func() { deleteServiceAccountKeyWithRetry = originalDeleteKey }()
+		deleteServiceAccountKeyWithRetry = func(ctx context.Context, c *google.GcpServices, keyName string) error {
+			return nil
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		// After successful GCP deletion, key should be removed from JSON
+		mockSE.On("RemoveKeyFromServiceAccount", ctx, "sa-uuid", "old-key-id").Return(nil)
+
+		err := activity.DeleteOldSAKeyFromGCPActivity(ctx, "sa-uuid", "kms-config-uuid", "old-key-id")
+
+		assert.NoError(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("DeleteOldSAKeyFromGCPActivity_MultipleKeysMarkedForDeletion", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+		// Service account with multiple keys marked for deletion
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "test@test-project.iam.gserviceaccount.com",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "primary-key-id", IsPrimary: true, IsActive: true}, // Active key - should NOT be deleted
+					{KeyID: "old-key-1", IsPrimary: false, IsActive: false},    // Marked for deletion
+					{KeyID: "old-key-2", IsPrimary: false, IsActive: false},    // Marked for deletion
+				},
+			},
+		}
+
+		mockGcpService := &google.GcpServices{}
+
+		// Mock getGcpService
+		originalGetGcpService := getGcpService
+		defer func() { getGcpService = originalGetGcpService }()
+		getGcpService = func(context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+
+		// Mock deleteServiceAccountKeyWithRetry to succeed for all keys
+		originalDeleteKey := deleteServiceAccountKeyWithRetry
+		defer func() { deleteServiceAccountKeyWithRetry = originalDeleteKey }()
+		deleteServiceAccountKeyWithRetry = func(ctx context.Context, c *google.GcpServices, keyName string) error {
+			return nil
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+		// Both marked keys should be removed after GCP deletion
+		mockSE.On("RemoveKeyFromServiceAccount", ctx, "sa-uuid", "old-key-1").Return(nil)
+		mockSE.On("RemoveKeyFromServiceAccount", ctx, "sa-uuid", "old-key-2").Return(nil)
+
+		err := activity.DeleteOldSAKeyFromGCPActivity(ctx, "sa-uuid", "kms-config-uuid", "old-key-id")
+
+		assert.NoError(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+}
+
+// Tests for isProjectNumber helper function
+func TestIsProjectNumber(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "all digits",
+			input:    "123456789012",
+			expected: true,
+		},
+		{
+			name:     "single digit",
+			input:    "1",
+			expected: true,
+		},
+		{
+			name:     "alphanumeric",
+			input:    "my-project-123",
+			expected: false,
+		},
+		{
+			name:     "letters only",
+			input:    "myproject",
+			expected: false,
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: false,
+		},
+		{
+			name:     "digits with dash",
+			input:    "123-456",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isProjectNumber(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// Tests for extractGlobalProjectIDFromEmail helper function
+func TestExtractGlobalProjectIDFromEmail(t *testing.T) {
+	// Create a mock GCP service (not used for non-numeric project IDs)
+	mockGcpService := &google.GcpServices{}
+
+	t.Run("valid service account email with project name", func(t *testing.T) {
+		result, err := extractGlobalProjectIDFromEmail("my-service-account@my-project-id.iam.gserviceaccount.com", mockGcpService)
+		assert.NoError(t, err)
+		assert.Equal(t, "my-project-id", result)
+	})
+
+	t.Run("valid email with dashes and numbers in project name", func(t *testing.T) {
+		result, err := extractGlobalProjectIDFromEmail("sa-123@test-project-456.iam.gserviceaccount.com", mockGcpService)
+		assert.NoError(t, err)
+		assert.Equal(t, "test-project-456", result)
+	})
+
+	t.Run("email without @ symbol", func(t *testing.T) {
+		_, err := extractGlobalProjectIDFromEmail("invalid-email.iam.gserviceaccount.com", mockGcpService)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "missing @ symbol")
+	})
+
+	t.Run("email without correct suffix", func(t *testing.T) {
+		_, err := extractGlobalProjectIDFromEmail("test@myproject.example.com", mockGcpService)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "missing .iam.gserviceaccount.com suffix")
+	})
+
+	t.Run("empty email", func(t *testing.T) {
+		_, err := extractGlobalProjectIDFromEmail("", mockGcpService)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "missing @ symbol")
+	})
+
+	t.Run("email with only @ and suffix", func(t *testing.T) {
+		_, err := extractGlobalProjectIDFromEmail("@.iam.gserviceaccount.com", mockGcpService)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "empty project ID")
 	})
 }

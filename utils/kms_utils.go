@@ -23,6 +23,7 @@ const (
 	ExpectedResourceParts         = 8
 	ExpectedServiceAccountParts   = 4
 	enabledKeyState               = "ENABLED"
+	StoragePoolCreatingStateError = "Storage pool present which is in creating state"
 )
 
 var (

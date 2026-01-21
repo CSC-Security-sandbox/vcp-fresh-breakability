@@ -15,10 +15,6 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-const (
-	storagePoolCreatingStateError = "Storage pool present which is in creating state"
-)
-
 var (
 	kmsRotationEnabled = env.GetBool("GCP_KMS_KEY_ROTATION_ENABLED", false)
 )
@@ -64,7 +60,15 @@ func RotateKmsSAKeyWorkflow(ctx workflow.Context) error {
 
 	futures := make([]workflow.Future, 0, len(kmsConfigs))
 	for _, kmsConfig := range kmsConfigs {
-		future := workflow.ExecuteActivity(ctx, rotateKmsSAKeyActivity.RotateServiceAccountKey, kmsConfig.ServiceAccount, kmsConfig)
+		// Execute child workflow for key rotation
+		// The child workflow orchestrates all phases: validate, create key, store key, migrate pools, complete and deletes key
+		childWorkflowOptions := workflow.ChildWorkflowOptions{
+			WorkflowID:          workflow.GetInfo(ctx).WorkflowExecution.ID + "-child-" + kmsConfig.UUID,
+			WorkflowRunTimeout:  retryPolicy.StartToCloseTimeout * 10, // Give child workflow more time
+			WorkflowTaskTimeout: retryPolicy.StartToCloseTimeout,
+		}
+		childCtx := workflow.WithChildOptions(ctx, childWorkflowOptions)
+		future := workflow.ExecuteChildWorkflow(childCtx, RotateKmsKeyChildWorkflow, kmsConfig.ServiceAccount, kmsConfig)
 		futures = append(futures, future)
 	}
 
@@ -73,7 +77,7 @@ func RotateKmsSAKeyWorkflow(ctx workflow.Context) error {
 	for index, future := range futures {
 		err := future.Get(ctx, nil)
 		if err != nil {
-			if strings.Contains(err.Error(), storagePoolCreatingStateError) {
+			if strings.Contains(err.Error(), utils.StoragePoolCreatingStateError) {
 				skippedKmsConfigs++
 				logger.Warn(fmt.Sprintf(
 					"Skipping KMS config %s (service account: %s) due to pools in Creating state: %v",

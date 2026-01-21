@@ -216,13 +216,13 @@ func (re *retryEngine) GetPoolByUUID(ctx context.Context, poolUUID string) (*dat
 	return var0, err
 }
 
-func (re *retryEngine) GetPoolStateByUUID(ctx context.Context, poolUUID string) (string, error) {
-	var var0 string
+func (re *retryEngine) GetPoolByID(ctx context.Context, poolID int64) (*datamodel.Pool, error) {
+	var var0 *datamodel.Pool
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.GetPoolStateByUUID(ctx, poolUUID)
+		var0, err = re.dataStore.GetPoolByID(ctx, poolID)
 		if err != nil {
-			re.logError("GetPoolStateByUUID", err)
+			re.logError("GetPoolByID", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
@@ -232,13 +232,13 @@ func (re *retryEngine) GetPoolStateByUUID(ctx context.Context, poolUUID string) 
 	return var0, err
 }
 
-func (re *retryEngine) GetPoolByID(ctx context.Context, poolID int64) (*datamodel.Pool, error) {
-	var var0 *datamodel.Pool
+func (re *retryEngine) GetPoolStateByUUID(ctx context.Context, poolUUID string) (string, error) {
+	var var0 string
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.GetPoolByID(ctx, poolID)
+		var0, err = re.dataStore.GetPoolStateByUUID(ctx, poolUUID)
 		if err != nil {
-			re.logError("GetPoolByID", err)
+			re.logError("GetPoolStateByUUID", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
@@ -1703,6 +1703,21 @@ func (re *retryEngine) UnsetSvmActiveDirectoryID(ctx context.Context, svm *datam
 	return var0, err
 }
 
+func (re *retryEngine) UpdateSvmCurrentKmsKeyID(ctx context.Context, svmUUID string, keyID string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateSvmCurrentKmsKeyID(ctx, svmUUID, keyID)
+		if err != nil {
+			re.logError("UpdateSvmCurrentKmsKeyID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
 func (re *retryEngine) ListSvmsWithAccountId(ctx context.Context, accountId int64) ([]*datamodel.Svm, error) {
 	var var0 []*datamodel.Svm
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -2901,6 +2916,82 @@ func (re *retryEngine) DeleteServiceAccount(ctx context.Context, serviceAccount 
 		return true, err
 	})
 	return err
+}
+
+func (re *retryEngine) AddKeyToServiceAccount(ctx context.Context, serviceAccountUUID string, key datamodel.ServiceAccountKey) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.AddKeyToServiceAccount(ctx, serviceAccountUUID, key)
+		if err != nil {
+			re.logError("AddKeyToServiceAccount", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
+func (re *retryEngine) RemoveKeyFromServiceAccount(ctx context.Context, serviceAccountUUID string, keyID string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.RemoveKeyFromServiceAccount(ctx, serviceAccountUUID, keyID)
+		if err != nil {
+			re.logError("RemoveKeyFromServiceAccount", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
+func (re *retryEngine) MarkKeyForDeletion(ctx context.Context, serviceAccountUUID string, keyID string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.MarkKeyForDeletion(ctx, serviceAccountUUID, keyID)
+		if err != nil {
+			re.logError("MarkKeyForDeletion", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
+func (re *retryEngine) SetPrimaryKeyForServiceAccount(ctx context.Context, serviceAccountUUID string, keyID string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.SetPrimaryKeyForServiceAccount(ctx, serviceAccountUUID, keyID)
+		if err != nil {
+			re.logError("SetPrimaryKeyForServiceAccount", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
+func (re *retryEngine) GetServiceAccountWithKeys(ctx context.Context, serviceAccountUUID string) (*datamodel.ServiceAccount, error) {
+	var var0 *datamodel.ServiceAccount
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetServiceAccountWithKeys(ctx, serviceAccountUUID)
+		if err != nil {
+			re.logError("GetServiceAccountWithKeys", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
 }
 
 func (re *retryEngine) GetBackupVaultByNameAndOwnerID(ctx context.Context, backupVaultName, ownerID string) (*datamodel.BackupVault, error) {

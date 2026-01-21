@@ -479,6 +479,12 @@ func _getProjectIDFromNumber(gcpService *GcpServices, projectNumber string) (str
 	return project.Name, nil
 }
 
+// ResolveProjectNumberToName resolves a GCP project number to its project name/ID
+// This is useful when dealing with service account emails that may contain project numbers instead of names
+func (gcpService *GcpServices) ResolveProjectNumberToName(projectNumber string) (string, error) {
+	return getProjectIDFromNumber(gcpService, projectNumber)
+}
+
 // ListAddressesWithFilter retrieves a list of addresses with optional filtering
 // Parameters:
 //   - projectName: GCP project name

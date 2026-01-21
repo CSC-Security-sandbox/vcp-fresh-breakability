@@ -663,6 +663,7 @@ type SvmDetails struct {
 	IPSpace               string `json:"ip_space"`
 	NFSv364BitIdentifiers string `json:"nf_sv364_bit_identifiers"`
 	ExternalKmsConfigUUID string `json:"external_kms_config_uuid"`
+	CurrentKmsKeyID       string `json:"current_kms_key_id,omitempty"` // Tracks which service account key this SVM is currently using during rotation
 }
 
 func (sd *SvmDetails) Scan(value interface{}) error {

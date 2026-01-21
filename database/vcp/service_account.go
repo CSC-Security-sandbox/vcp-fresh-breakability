@@ -90,3 +90,111 @@ func _deleteServiceAccount(db *gorm.DB, serviceAccount *datamodel.ServiceAccount
 
 	return db.Save(serviceAccount).Error
 }
+
+// AddKeyToServiceAccount adds a new key to the service account's keys array
+func (d *DataStoreRepository) AddKeyToServiceAccount(ctx context.Context, serviceAccountUUID string, key datamodel.ServiceAccountKey) error {
+	db := d.db.GORM().WithContext(ctx)
+	serviceAccount := &datamodel.ServiceAccount{}
+	err := db.Where("uuid = ?", serviceAccountUUID).First(serviceAccount).Error
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	// Initialize attributes if nil
+	if serviceAccount.ServiceAccountAttributes == nil {
+		serviceAccount.ServiceAccountAttributes = &datamodel.ServiceAccountAttributes{
+			Keys: []datamodel.ServiceAccountKey{},
+		}
+	}
+
+	// Add the new key
+	serviceAccount.AddKey(key)
+	serviceAccount.UpdatedAt = utils.GetTimeNow()
+
+	return db.Save(serviceAccount).Error
+}
+
+// RemoveKeyFromServiceAccount removes a key from the service account's keys array
+func (d *DataStoreRepository) RemoveKeyFromServiceAccount(ctx context.Context, serviceAccountUUID string, keyID string) error {
+	db := d.db.GORM().WithContext(ctx)
+	serviceAccount := &datamodel.ServiceAccount{}
+	err := db.Where("uuid = ?", serviceAccountUUID).First(serviceAccount).Error
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	if !serviceAccount.RemoveKey(keyID) {
+		return vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.New("key not found"))
+	}
+
+	serviceAccount.UpdatedAt = utils.GetTimeNow()
+	return db.Save(serviceAccount).Error
+}
+
+// MarkKeyForDeletion marks a key for deletion by setting IsPrimary=false and IsActive=false
+// This soft-deletes the key so that DeleteOldSAKeyFromGCPActivity can find and delete it from GCP
+func (d *DataStoreRepository) MarkKeyForDeletion(ctx context.Context, serviceAccountUUID string, keyID string) error {
+	db := d.db.GORM().WithContext(ctx)
+	serviceAccount := &datamodel.ServiceAccount{}
+	err := db.Where("uuid = ?", serviceAccountUUID).First(serviceAccount).Error
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	if serviceAccount.ServiceAccountAttributes == nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.New("key not found"))
+	}
+
+	// Find and mark the key for deletion
+	found := false
+	for i := range serviceAccount.ServiceAccountAttributes.Keys {
+		if serviceAccount.ServiceAccountAttributes.Keys[i].KeyID == keyID {
+			serviceAccount.ServiceAccountAttributes.Keys[i].IsPrimary = false
+			serviceAccount.ServiceAccountAttributes.Keys[i].IsActive = false
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.New("key not found"))
+	}
+
+	serviceAccount.UpdatedAt = utils.GetTimeNow()
+	return db.Save(serviceAccount).Error
+}
+
+// SetPrimaryKeyForServiceAccount sets a key as primary and updates ServiceAccountPasswordLocation
+func (d *DataStoreRepository) SetPrimaryKeyForServiceAccount(ctx context.Context, serviceAccountUUID string, keyID string) error {
+	db := d.db.GORM().WithContext(ctx)
+	serviceAccount := &datamodel.ServiceAccount{}
+	err := db.Where("uuid = ?", serviceAccountUUID).First(serviceAccount).Error
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	key := serviceAccount.GetKeyByID(keyID)
+	if key == nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.New("key not found"))
+	}
+
+	// Set as primary in the keys array
+	serviceAccount.SetPrimaryKey(keyID)
+
+	// Update ServiceAccountPasswordLocation to point to the new primary key
+	serviceAccount.ServiceAccountPasswordLocation = key.KeyData
+	serviceAccount.UpdatedAt = utils.GetTimeNow()
+
+	return db.Save(serviceAccount).Error
+}
+
+// GetServiceAccountWithKeys retrieves service account with all keys loaded
+func (d *DataStoreRepository) GetServiceAccountWithKeys(ctx context.Context, serviceAccountUUID string) (*datamodel.ServiceAccount, error) {
+	db := d.db.GORM().WithContext(ctx)
+	serviceAccount := &datamodel.ServiceAccount{}
+	err := db.Where("uuid = ?", serviceAccountUUID).First(serviceAccount).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return serviceAccount, nil
+}

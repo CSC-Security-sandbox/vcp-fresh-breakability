@@ -227,6 +227,40 @@ func (d *DataStoreRepository) UnsetSvmActiveDirectoryID(ctx context.Context, svm
 	return svm, nil
 }
 
+// UpdateSvmCurrentKmsKeyID updates the current KMS key ID in SvmDetails
+// This tracks which service account key the SVM is currently using during rotation
+func (d *DataStoreRepository) UpdateSvmCurrentKmsKeyID(ctx context.Context, svmUUID string, keyID string) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	svm := &datamodel.Svm{}
+	err = tx.Where("uuid = ?", svmUUID).First(svm).Error
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	// Initialize SvmDetails if nil
+	if svm.SvmDetails == nil {
+		svm.SvmDetails = &datamodel.SvmDetails{}
+	}
+
+	svm.SvmDetails.CurrentKmsKeyID = keyID
+	svm.UpdatedAt = time.Now()
+
+	err = tx.Save(svm).Error
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+
+	return nil
+}
+
 func (d *DataStoreRepository) ListSvmsWithAccountId(ctx context.Context, accountId int64) ([]*datamodel.Svm, error) {
 	return listSvmsWithAccountId(d.db.GORM().WithContext(ctx), accountId)
 }

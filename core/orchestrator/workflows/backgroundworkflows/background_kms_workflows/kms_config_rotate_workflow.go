@@ -107,10 +107,18 @@ func (rotateKmsConfigWf *rotateKmsConfigWorkflow) Run(ctx workflow.Context, args
 		return nil, errorcore.NewVCPError(errorcore.ErrServiceAccountNotFound, errors.New("service account not found for KMS config"))
 	}
 
-	// Rotate the service account key with both serviceAccount and kmsConfig
-	err = workflow.ExecuteActivity(ctx, rotateKmsSAKeyActivity.RotateServiceAccountKey, kmsConfig.ServiceAccount, kmsConfig).Get(ctx, nil)
+	// Execute child workflow for key rotation
+	// The child workflow orchestrates all phases: validate, create key, store key, migrate pools, complete
+	childWorkflowOptions := workflow.ChildWorkflowOptions{
+		WorkflowID:          workflow.GetInfo(ctx).WorkflowExecution.ID + "-child",
+		WorkflowRunTimeout:  retryPolicy.StartToCloseTimeout * 10, // Give child workflow more time
+		WorkflowTaskTimeout: retryPolicy.StartToCloseTimeout,
+	}
+	childCtx := workflow.WithChildOptions(ctx, childWorkflowOptions)
+
+	err = workflow.ExecuteChildWorkflow(childCtx, RotateKmsKeyChildWorkflow, kmsConfig.ServiceAccount, kmsConfig).Get(ctx, nil)
 	if err != nil {
-		logger.Error("RotateServiceAccountKey activity failed",
+		logger.Error("RotateKmsKeyChildWorkflow failed",
 			log.Fields{
 				"error":               err,
 				"serviceAccountEmail": kmsConfig.ServiceAccount.ServiceAccountEmail,

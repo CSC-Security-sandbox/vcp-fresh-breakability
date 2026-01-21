@@ -406,6 +406,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(backgroundworkflows.OrphanJobSchedulerWorkflow)
 	worker.RegisterWorkflow(workflows.VolumeRefreshWorkflow)
 	worker.RegisterWorkflow(background_kms_workflows.RotateKmsSAKeyWorkflow)
+	worker.RegisterWorkflow(background_kms_workflows.RotateKmsKeyChildWorkflow)
 	worker.RegisterWorkflow(workflows.RestoreBackupWorkflow)
 	worker.RegisterWorkflow(workflows.PreBlockVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.PostBlockVolumeWorkflow)

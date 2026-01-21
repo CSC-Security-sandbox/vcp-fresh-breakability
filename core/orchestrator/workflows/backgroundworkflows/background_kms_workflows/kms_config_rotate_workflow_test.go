@@ -37,6 +37,8 @@ func TestRotateKmsConfigWorkflow_Success(t *testing.T) {
 	// Register activities
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
+	// Register child workflow
+	env.RegisterWorkflow(RotateKmsKeyChildWorkflow)
 
 	// Test data
 	params := &common.RotateKmsConfigParams{
@@ -63,7 +65,7 @@ func TestRotateKmsConfigWorkflow_Success(t *testing.T) {
 	// Set up activity mocks
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("GetKmsConfig", mock.Anything, "test-kms-config-uuid").Return(kmsConfig, nil)
-	env.OnActivity("RotateServiceAccountKey", mock.Anything, serviceAccount, kmsConfig).Return(nil)
+	env.OnWorkflow("RotateKmsKeyChildWorkflow", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(RotateKmsConfigWorkflow, params)
@@ -95,6 +97,8 @@ func TestRotateKmsConfigWorkflow_ServiceAccountNotFound(t *testing.T) {
 	// Register activities
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
+	// Register child workflow (even though it won't be called in this test)
+	env.RegisterWorkflow(RotateKmsKeyChildWorkflow)
 
 	// Test data
 	params := &common.RotateKmsConfigParams{
@@ -180,6 +184,8 @@ func TestRotateKmsConfigWorkflow_RotateKeyActivityFails(t *testing.T) {
 	// Register activities
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
+	// Register child workflow
+	env.RegisterWorkflow(RotateKmsKeyChildWorkflow)
 
 	// Test data
 	params := &common.RotateKmsConfigParams{
@@ -205,7 +211,7 @@ func TestRotateKmsConfigWorkflow_RotateKeyActivityFails(t *testing.T) {
 	// Set up activity mocks
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("GetKmsConfig", mock.Anything, "test-kms-config-uuid").Return(kmsConfig, nil)
-	env.OnActivity("RotateServiceAccountKey", mock.Anything, serviceAccount, kmsConfig).Return(errors.New("key rotation failed"))
+	env.OnWorkflow("RotateKmsKeyChildWorkflow", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("key rotation failed"))
 
 	// Execute workflow
 	env.ExecuteWorkflow(RotateKmsConfigWorkflow, params)
@@ -235,6 +241,8 @@ func TestRotateKmsConfigWorkflow_StatusQueryHandler(t *testing.T) {
 	// Register activities
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
+	// Register child workflow
+	env.RegisterWorkflow(RotateKmsKeyChildWorkflow)
 
 	// Test data
 	params := &common.RotateKmsConfigParams{
@@ -256,7 +264,7 @@ func TestRotateKmsConfigWorkflow_StatusQueryHandler(t *testing.T) {
 	// Set up activity mocks
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("GetKmsConfig", mock.Anything, "test-kms-config-uuid").Return(kmsConfig, nil)
-	env.OnActivity("RotateServiceAccountKey", mock.Anything, serviceAccount, kmsConfig).Return(nil)
+	env.OnWorkflow("RotateKmsKeyChildWorkflow", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow in background
 	env.ExecuteWorkflow(RotateKmsConfigWorkflow, params)
@@ -332,6 +340,8 @@ func TestRotateKmsConfigWorkflow_HeartbeatTimeoutIsConfigured(t *testing.T) {
 
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
+	// Register child workflow
+	env.RegisterWorkflow(RotateKmsKeyChildWorkflow)
 
 	params := &common.RotateKmsConfigParams{
 		KmsConfigID:    "test-kms-config-uuid",
@@ -355,7 +365,7 @@ func TestRotateKmsConfigWorkflow_HeartbeatTimeoutIsConfigured(t *testing.T) {
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("GetKmsConfig", mock.Anything, "test-kms-config-uuid").Return(kmsConfig, nil)
-	env.OnActivity("RotateServiceAccountKey", mock.Anything, serviceAccount, kmsConfig).Return(nil)
+	env.OnWorkflow("RotateKmsKeyChildWorkflow", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	env.ExecuteWorkflow(RotateKmsConfigWorkflow, params)
 

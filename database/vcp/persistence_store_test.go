@@ -3529,6 +3529,219 @@ func TestPersistenceStore_WrapperMethods(t *testing.T) {
 		err = store.UpdateClusterUpgradeJob(ctx, created)
 		assert.NoError(t, err)
 	})
+
+	t.Run("AddKeyToServiceAccount", func(t *testing.T) {
+		// Test AddKeyToServiceAccount wrapper method (line 1567)
+		// This covers the wrapper method that delegates to dataStore
+
+		// Create an account first
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-sa-wrapper"},
+			Name:      "test_account_add_key",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		require.NoError(t, err)
+
+		// Create a service account
+		sa := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "test-sa-uuid-wrapper"},
+			ServiceAccountEmail: "test@email.com",
+			AccountID:           createdAccount.ID,
+			State:               models.AccountStateEnabled,
+		}
+		created, err := store.CreateKmsServiceAccount(ctx, sa)
+		require.NoError(t, err)
+
+		// Test the wrapper method
+		newKey := datamodel.ServiceAccountKey{
+			KeyID:     "new-key-id-wrapper",
+			KeyData:   "encrypted-key-data",
+			IsPrimary: false,
+			IsActive:  true,
+		}
+		err = store.AddKeyToServiceAccount(ctx, created.UUID, newKey)
+		assert.NoError(t, err)
+
+		// Verify the key was added
+		updated, err := store.GetServiceAccountWithKeys(ctx, created.UUID)
+		assert.NoError(t, err)
+		assert.NotNil(t, updated)
+		assert.NotNil(t, updated.ServiceAccountAttributes)
+		assert.Len(t, updated.ServiceAccountAttributes.Keys, 1)
+		assert.Equal(t, "new-key-id-wrapper", updated.ServiceAccountAttributes.Keys[0].KeyID)
+	})
+
+	t.Run("RemoveKeyFromServiceAccount", func(t *testing.T) {
+		// Test RemoveKeyFromServiceAccount wrapper method (line 1571)
+		// This covers the wrapper method that delegates to dataStore
+
+		// Create an account first
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-sa-remove"},
+			Name:      "test_account_remove",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		require.NoError(t, err)
+
+		// Create a service account with a key
+		sa := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "test-sa-uuid-remove"},
+			ServiceAccountEmail: "test-remove@email.com",
+			AccountID:           createdAccount.ID,
+			State:               models.AccountStateEnabled,
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "key-to-remove", KeyData: "data", IsPrimary: false, IsActive: true},
+					{KeyID: "key-to-keep", KeyData: "data", IsPrimary: true, IsActive: true},
+				},
+			},
+		}
+		created, err := store.CreateKmsServiceAccount(ctx, sa)
+		require.NoError(t, err)
+
+		// Test the wrapper method
+		err = store.RemoveKeyFromServiceAccount(ctx, created.UUID, "key-to-remove")
+		assert.NoError(t, err)
+
+		// Verify the key was removed
+		updated, err := store.GetServiceAccountWithKeys(ctx, created.UUID)
+		assert.NoError(t, err)
+		assert.NotNil(t, updated)
+		assert.NotNil(t, updated.ServiceAccountAttributes)
+		assert.Len(t, updated.ServiceAccountAttributes.Keys, 1)
+		assert.Equal(t, "key-to-keep", updated.ServiceAccountAttributes.Keys[0].KeyID)
+	})
+
+	t.Run("SetPrimaryKeyForServiceAccount", func(t *testing.T) {
+		// Test SetPrimaryKeyForServiceAccount wrapper method (line 1575)
+		// This covers the wrapper method that delegates to dataStore
+
+		// Create an account first
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-sa-primary"},
+			Name:      "test_account_primary",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		require.NoError(t, err)
+
+		// Create a service account with multiple keys
+		sa := &datamodel.ServiceAccount{
+			BaseModel:                      datamodel.BaseModel{UUID: "test-sa-uuid-primary"},
+			ServiceAccountEmail:            "test-primary@email.com",
+			AccountID:                      createdAccount.ID,
+			State:                          models.AccountStateEnabled,
+			ServiceAccountPasswordLocation: "old-primary-key-data",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "key-1", KeyData: "old-primary-key-data", IsPrimary: true, IsActive: true},
+					{KeyID: "key-2", KeyData: "new-primary-key-data", IsPrimary: false, IsActive: true},
+				},
+			},
+		}
+		created, err := store.CreateKmsServiceAccount(ctx, sa)
+		require.NoError(t, err)
+
+		// Test the wrapper method
+		err = store.SetPrimaryKeyForServiceAccount(ctx, created.UUID, "key-2")
+		assert.NoError(t, err)
+
+		// Verify the primary key was updated
+		updated, err := store.GetServiceAccountWithKeys(ctx, created.UUID)
+		assert.NoError(t, err)
+		assert.NotNil(t, updated)
+		assert.Equal(t, "new-primary-key-data", updated.ServiceAccountPasswordLocation)
+		assert.False(t, updated.ServiceAccountAttributes.Keys[0].IsPrimary)
+		assert.True(t, updated.ServiceAccountAttributes.Keys[1].IsPrimary)
+	})
+
+	t.Run("GetServiceAccountWithKeys", func(t *testing.T) {
+		// Test GetServiceAccountWithKeys wrapper method (line 1579)
+		// This covers the wrapper method that delegates to dataStore
+
+		// Create an account first
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-sa-get"},
+			Name:      "test_account_get",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		require.NoError(t, err)
+
+		// Create a service account with keys
+		sa := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "test-sa-uuid-get"},
+			ServiceAccountEmail: "test-get@email.com",
+			AccountID:           createdAccount.ID,
+			State:               models.AccountStateEnabled,
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "key-1", KeyData: "data-1", IsPrimary: true, IsActive: true},
+					{KeyID: "key-2", KeyData: "data-2", IsPrimary: false, IsActive: true},
+				},
+			},
+		}
+		created, err := store.CreateKmsServiceAccount(ctx, sa)
+		require.NoError(t, err)
+
+		// Test the wrapper method
+		result, err := store.GetServiceAccountWithKeys(ctx, created.UUID)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, created.UUID, result.UUID)
+		assert.NotNil(t, result.ServiceAccountAttributes)
+		assert.Len(t, result.ServiceAccountAttributes.Keys, 2)
+		assert.Equal(t, "key-1", result.ServiceAccountAttributes.Keys[0].KeyID)
+		assert.Equal(t, "key-2", result.ServiceAccountAttributes.Keys[1].KeyID)
+	})
+
+	t.Run("UpdateSvmCurrentKmsKeyID", func(t *testing.T) {
+		// Test UpdateSvmCurrentKmsKeyID wrapper method (line 1583)
+		// This covers the wrapper method that delegates to dataStore
+
+		// Create an account and pool first
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid-wrapper"},
+			Name:      "test_account_svm_key",
+		}
+		createdAccount, err := store.CreateAccount(ctx, account)
+		require.NoError(t, err)
+
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-wrapper"},
+			Name:           "test_pool",
+			AccountID:      createdAccount.ID,
+			Account:        createdAccount,
+			DeploymentName: "test-deployment",
+		}
+		createdPool, err := store.CreatingPool(ctx, pool)
+		require.NoError(t, err)
+
+		// Create an SVM
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid-wrapper"},
+			Name:      "test_svm",
+			AccountID: createdAccount.ID,
+			PoolID:    createdPool.ID,
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID:    "external-uuid",
+				IPSpace:         "Default",
+				CurrentKmsKeyID: "old-key-id",
+			},
+		}
+		createdSvm, err := store.CreateSVM(ctx, svm)
+		require.NoError(t, err)
+
+		// Test the wrapper method
+		newKeyID := "new-key-id-wrapper"
+		err = store.UpdateSvmCurrentKmsKeyID(ctx, createdSvm.UUID, newKeyID)
+		assert.NoError(t, err)
+
+		// Verify the update
+		updatedSvm, err := store.GetSvmForPoolID(ctx, createdPool.ID)
+		assert.NoError(t, err)
+		assert.NotNil(t, updatedSvm)
+		assert.NotNil(t, updatedSvm.SvmDetails)
+		assert.Equal(t, newKeyID, updatedSvm.SvmDetails.CurrentKmsKeyID)
+	})
 }
 
 func TestPersistenceStore_CreateBackupMetadata(t *testing.T) {
