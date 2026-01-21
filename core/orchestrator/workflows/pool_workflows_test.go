@@ -2689,6 +2689,263 @@ func TestUpdatePoolWorkflowNoVLM(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
+// TestUpdatePoolWorkflow_ExpertModeEnableAutoTiering tests that VLM is called when enabling
+// auto-tiering on an expert mode pool, even when size/throughput/IOPS are unchanged.
+// This ensures the bucket attachment request is sent to VLM.
+func TestUpdatePoolWorkflow_ExpertModeEnableAutoTiering(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	// Setup context propagation and header values
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	poolSize := uint64(2 * 1024 * 1024 * 1024 * 1024) // 2 TB
+	bucketName := "us-central1-test-pool-uuid"
+
+	// Setup test input data - enabling auto-tiering with same size as pool
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "test-pool-id",
+		SizeInBytes:          poolSize,
+		HotTierSizeInBytes:   poolSize, // Same as pool size - would normally skip VLM
+		AllowAutoTiering:     true,     // Enabling auto-tiering
+		TotalThroughputMibps: 128,
+		TotalIops:            nillable.ToPointer(int64(2048)),
+		QosType:              "Manual",
+		Description:          "Updated pool description",
+	}
+
+	// Pool is expert mode (ONTAP) and auto-tiering is currently disabled
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-uuid",
+		},
+		APIAccessMode:    common.ONTAPMode, // Expert mode
+		AllowAutoTiering: false,            // Currently disabled
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
+		},
+		SizeInBytes: int64(poolSize), // Same as update size
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:     "test-primary-zone",
+			SecondaryZone:   "test-secondary-zone",
+			Iops:            2048, // Same as update
+			ThroughputMibps: 128,  // Same as update
+		},
+		KmsConfig: &datamodel.KmsConfig{
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountEmail: "test-sa-email",
+			},
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			BucketName: bucketName, // Bucket was pre-created
+		},
+		VLMConfig: "{\"deployment\": {\"vsa_instance_type\": \"n1-standard-8\"}}",
+	}
+
+	// Register activity mocks
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	// Mock ParseVlmConfig - returns current VLM config from pool
+	env.OnActivity("ParseVlmConfig", mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			NumHAPair:       1,
+			VSAInstanceType: "n1-standard-8",
+		},
+	}, nil)
+
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			NumHAPair:       1,
+			VSAInstanceType: "n1-standard-8", // Same instance type
+			SPConfig: vlm.SPConfig{
+				IOps:       2048,
+				Throughput: 128,
+				Size:       "2TiB",
+			},
+		},
+	}, nil)
+
+	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return(&vlm.OntapCredentials{
+		AdminPassword: "test-password",
+	}, nil)
+
+	// Mock GetNode for QoS policy operations
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-node-1",
+		},
+	}, nil)
+
+	// Mock DetermineVMScalingDirection - no scaling since instance type is same
+	env.OnActivity("DetermineVMScalingDirection", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+
+	// Mock ModifyQoSPolicyAndApplyToSVM for scaling down path
+	env.OnActivity("ModifyQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Mock UpdatePoolFields
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Mock CalculateBatchPlanForUpdate
+	env.OnActivity("CalculateBatchPlanForUpdate", mock.Anything, mock.Anything).Return(&activities.CalculateBatchPlanActivityOutput{
+		NumHAPairs:       1,
+		BatchSize:        1,
+		NumWorkflowCalls: 1,
+		BatchIndices:     [][]int{{1}},
+	}, nil)
+
+	// KEY ASSERTION: VLM UpdateVSAClusterDeployment should be called with bucket name
+	// Use a custom matcher to verify bucket name and log the request for debugging
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		// Verify bucket name is passed for attachment
+		t.Logf("UpdateVSAClusterDeployment called with BucketName: %s", req.BucketName)
+		return req.BucketName == bucketName
+	}), mock.Anything).Return(&vlm.UpdateVSAClusterDeploymentResponse{
+		VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				NumHAPair:       1,
+				VSAInstanceType: "n1-standard-8",
+			},
+		},
+	}, nil).Once()
+
+	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+
+	// Execute the workflow
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	// Assert the workflow has completed successfully
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	// Verify VLM was called (this would fail if the early-return path was taken)
+	mockVSAClientWorkflowManager.AssertExpectations(t)
+	env.AssertExpectations(t)
+}
+
+// TestUpdatePoolWorkflowNoVLM_ExpertModeWithoutAutoTiering tests that VLM is NOT called
+// when updating an expert mode pool that is not enabling auto-tiering (normal no-change scenario)
+func TestUpdatePoolWorkflowNoVLM_ExpertModeWithoutAutoTiering(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	// Setup context propagation and header values
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	poolSize := uint64(2 * 1024 * 1024 * 1024 * 1024) // 2 TB
+
+	// Setup test input data - no auto-tiering, same size
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "test-pool-id",
+		SizeInBytes:          poolSize,
+		AllowAutoTiering:     false, // Not enabling auto-tiering
+		TotalThroughputMibps: 128,
+		TotalIops:            nillable.ToPointer(int64(2048)),
+		QosType:              "Manual",
+		Description:          "Updated pool description",
+	}
+
+	// Pool is expert mode but auto-tiering is not being enabled
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-uuid",
+		},
+		APIAccessMode:    common.ONTAPMode, // Expert mode
+		AllowAutoTiering: false,            // Already disabled
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		SizeInBytes: int64(poolSize),
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:     "test-primary-zone",
+			SecondaryZone:   "test-secondary-zone",
+			Iops:            2048,
+			ThroughputMibps: 128,
+		},
+		KmsConfig: &datamodel.KmsConfig{
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountEmail: "test-sa-email",
+			},
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			BucketName: "test-bucket",
+		},
+	}
+
+	// Register activity mocks - only DB update should be called, not VLM
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Execute the workflow
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	// Assert the workflow has completed successfully
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
 func TestUpdatePoolWorkflow_QoSPolicyModificationFailure(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
@@ -12115,7 +12372,7 @@ func TestExecutePoolBatchUpdates_Success(t *testing.T) {
 	testWorkflow := func(ctx workflow.Context) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
 		logger := util.GetLogger(ctx)
 		vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
-		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger)
+		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger, "")
 	}
 
 	env.ExecuteWorkflow(testWorkflow)
@@ -12216,7 +12473,7 @@ func TestExecutePoolBatchUpdates_SingleBatch(t *testing.T) {
 	testWorkflow := func(ctx workflow.Context) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
 		logger := util.GetLogger(ctx)
 		vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
-		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger)
+		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger, "")
 	}
 
 	env.ExecuteWorkflow(testWorkflow)
@@ -12311,7 +12568,7 @@ func TestExecutePoolBatchUpdates_PartialFailure(t *testing.T) {
 	testWorkflow := func(ctx workflow.Context) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
 		logger := util.GetLogger(ctx)
 		vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
-		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger)
+		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger, "")
 	}
 
 	env.ExecuteWorkflow(testWorkflow)
@@ -12414,7 +12671,7 @@ func TestExecutePoolBatchUpdates_ConfigUpdateBetweenBatches(t *testing.T) {
 	testWorkflow := func(ctx workflow.Context) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
 		logger := util.GetLogger(ctx)
 		vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
-		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger)
+		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger, "")
 	}
 
 	env.ExecuteWorkflow(testWorkflow)
@@ -12494,7 +12751,7 @@ func TestExecutePoolBatchUpdates_FirstBatchFails(t *testing.T) {
 	testWorkflow := func(ctx workflow.Context) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
 		logger := util.GetLogger(ctx)
 		vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
-		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger)
+		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger, "")
 	}
 
 	env.ExecuteWorkflow(testWorkflow)
@@ -12593,7 +12850,7 @@ func TestExecutePoolBatchUpdates_LastBatchFails(t *testing.T) {
 	testWorkflow := func(ctx workflow.Context) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
 		logger := util.GetLogger(ctx)
 		vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
-		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger)
+		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger, "")
 	}
 
 	env.ExecuteWorkflow(testWorkflow)
@@ -12666,7 +12923,7 @@ func TestExecutePoolBatchUpdates_SingleBatchFails(t *testing.T) {
 	testWorkflow := func(ctx workflow.Context) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
 		logger := util.GetLogger(ctx)
 		vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
-		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger)
+		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger, "")
 	}
 
 	env.ExecuteWorkflow(testWorkflow)
@@ -12674,6 +12931,91 @@ func TestExecutePoolBatchUpdates_SingleBatchFails(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
 	assert.Contains(t, env.GetWorkflowError().Error(), "single batch failed")
+
+	mockVSAClientWorkflowManager.AssertExpectations(t)
+}
+
+// TestExecutePoolBatchUpdates_WithBucketName tests batch processing with bucket name for expert mode auto-tiering
+func TestExecutePoolBatchUpdates_WithBucketName(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+
+	// Set up test data with single batch
+	batchPlan := &activities.CalculateBatchPlanActivityOutput{
+		NumHAPairs:       1,
+		BatchSize:        1,
+		NumWorkflowCalls: 1,
+		BatchIndices:     [][]int{{1}},
+	}
+
+	currentVlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DeploymentID:    "test-deployment",
+			VSAInstanceType: "n1-standard-4",
+			NumHAPair:       1,
+		},
+	}
+
+	newVlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DeploymentID:    "test-deployment",
+			VSAInstanceType: "n1-standard-4",
+			NumHAPair:       1,
+		},
+	}
+
+	credentials := &vlm.OntapCredentials{
+		AdminPassword: "test-password",
+	}
+
+	ontapVersion := "9.17.1"
+	bucketName := "us-central1-test-pool-uuid"
+
+	// Mock response - verify bucket name is passed in the request
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		return req.BucketName == bucketName && len(req.HAPairIndices) == 1 && req.HAPairIndices[0] == 1
+	}), ontapVersion).Return(&vlm.UpdateVSAClusterDeploymentResponse{
+		VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID:    "test-deployment",
+				VSAInstanceType: "n1-standard-4",
+			},
+		},
+	}, nil).Once()
+
+	testWorkflow := func(ctx workflow.Context) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
+		logger := util.GetLogger(ctx)
+		vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
+		return executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, logger, bucketName)
+	}
+
+	env.ExecuteWorkflow(testWorkflow)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	var result *vlm.UpdateVSAClusterDeploymentResponse
+	err := env.GetWorkflowResult(&result)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 
 	mockVSAClientWorkflowManager.AssertExpectations(t)
 }

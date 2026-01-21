@@ -386,6 +386,11 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	if pool.AutoTieringConfig != nil {
 		bucketName = pool.AutoTieringConfig.BucketName
 	}
+	// For expert mode pools without auto-tiering, pass empty bucket name to VLM
+	// to skip bucket attachment. The bucket is still created but not attached.
+	if params.Mode == common.ONTAPMode && !params.AllowAutoTiering {
+		bucketName = ""
+	}
 
 	// Calculate VLM worker queue once to use for both creation and rollback
 	log := util.GetLogger(ctx)
@@ -876,10 +881,15 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		currentProvisionedSize = dbPool.AutoTieringConfig.HotTierSizeInBytes
 	}
 
+	// Check if expert mode pool is enabling auto-tiering (needs VLM call for bucket attachment)
+	needsBucketAttachment := pool.APIAccessMode == common.ONTAPMode && updatePoolParams.AllowAutoTiering && !pool.AllowAutoTiering
+
 	// if there is no need of vlm workflow, just perform update pool in db
+	// Note: For expert mode pools enabling auto-tiering, we must call VLM to attach the bucket
 	if currentProvisionedSize == int64(toProvisionPoolSizeInBytes) &&
 		dbPool.PoolAttributes.ThroughputMibps == int64(updatePoolParams.TotalThroughputMibps) &&
-		dbPool.PoolAttributes.Iops == *updatePoolParams.TotalIops && autoScalingParams == nil {
+		dbPool.PoolAttributes.Iops == *updatePoolParams.TotalIops && autoScalingParams == nil &&
+		!needsBucketAttachment {
 		if dbPool.Description != updatePoolParams.Description {
 			dbPool.Description = updatePoolParams.Description
 		}
@@ -901,6 +911,13 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	bucketName := ""
 	if pool.AutoTieringConfig != nil {
 		bucketName = pool.AutoTieringConfig.BucketName
+	}
+
+	// Set bucket name for VLM update if we need to attach bucket for expert mode pool enabling auto-tiering
+	bucketNameForVLMUpdate := ""
+	if needsBucketAttachment {
+		bucketNameForVLMUpdate = bucketName
+		wf.Logger.Info("Expert mode pool enabling auto-tiering - will attach bucket to ONTAP", "bucketName", bucketNameForVLMUpdate)
 	}
 
 	saEmail := utils.ConstructServiceAccountEmail(pool.ServiceAccountId, pool.ClusterDetails.RegionalTenantProject)
@@ -1042,7 +1059,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	// Execute batch updates using reusable function
-	updateVSAClusterDeploymentResponse, err := executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, wf.Logger)
+	updateVSAClusterDeploymentResponse, err := executePoolBatchUpdates(ctx, batchPlan, currentVlmConfig, newVlmConfig, credentials, ontapVersion, vsaClientWorkflowManager, wf.Logger, bucketNameForVLMUpdate)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -1890,7 +1907,7 @@ func prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest *vlm.De
 	deleteVSAClusterDeploymentRequest.CloudProvider = cloudProvider
 }
 
-func prepareUpdateVSAClusterDeploymentRequest(updateVSAClusterDeploymentRequest *vlm.UpdateVSAClusterDeploymentRequest, currentVlmConfig vlm.VLMConfig, newVLMConfig vlm.VLMConfig, credentials vlm.OntapCredentials) {
+func prepareUpdateVSAClusterDeploymentRequest(updateVSAClusterDeploymentRequest *vlm.UpdateVSAClusterDeploymentRequest, currentVlmConfig vlm.VLMConfig, newVLMConfig vlm.VLMConfig, credentials vlm.OntapCredentials, bucketName string) {
 	updateVSAClusterDeploymentRequest.VLMConfig = currentVlmConfig
 	updateVSAClusterDeploymentRequest.NumHAPair = newVLMConfig.Deployment.NumHAPair
 	updateVSAClusterDeploymentRequest.SPConfig = newVLMConfig.Deployment.SPConfig
@@ -1899,11 +1916,13 @@ func prepareUpdateVSAClusterDeploymentRequest(updateVSAClusterDeploymentRequest 
 		// If we set this all the time, VLM will trigger a VM rotation even if we use the same instance type.
 		updateVSAClusterDeploymentRequest.NewInstanceType = newVLMConfig.Deployment.VSAInstanceType
 	}
+	// Set bucket name for auto-tiering attachment (used when enabling auto-tiering on expert mode pools)
+	updateVSAClusterDeploymentRequest.BucketName = bucketName
 	// Note: HAPairIndices should be set by the caller based on the update sequence
 }
 
 // executePoolBatchUpdates processes HA pair updates in batches sequentially
-func executePoolBatchUpdates(ctx workflow.Context, batchPlan *activities.CalculateBatchPlanActivityOutput, currentVlmConfig *vlm.VLMConfig, newVlmConfig *vlm.VLMConfig, credentials *vlm.OntapCredentials, ontapVersion string, vsaClientWorkflowManager vlm.VlmWorkflowClient, logger log.Logger) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
+func executePoolBatchUpdates(ctx workflow.Context, batchPlan *activities.CalculateBatchPlanActivityOutput, currentVlmConfig *vlm.VLMConfig, newVlmConfig *vlm.VLMConfig, credentials *vlm.OntapCredentials, ontapVersion string, vsaClientWorkflowManager vlm.VlmWorkflowClient, logger log.Logger, bucketName string) (*vlm.UpdateVSAClusterDeploymentResponse, error) {
 	currentConfig := currentVlmConfig
 	var updateVSAClusterDeploymentResponse *vlm.UpdateVSAClusterDeploymentResponse
 
@@ -1916,7 +1935,7 @@ func executePoolBatchUpdates(ctx workflow.Context, batchPlan *activities.Calcula
 
 		// Prepare update request
 		updateRequest := &vlm.UpdateVSAClusterDeploymentRequest{}
-		prepareUpdateVSAClusterDeploymentRequest(updateRequest, *currentConfig, *newVlmConfig, *credentials)
+		prepareUpdateVSAClusterDeploymentRequest(updateRequest, *currentConfig, *newVlmConfig, *credentials, bucketName)
 		updateRequest.HAPairIndices = batchIndices
 
 		logger.Info("Starting update batch", "batchNumber", batchNum+1, "totalBatches", batchPlan.NumWorkflowCalls, "indices", batchIndices, "totalHAPairs", batchPlan.NumHAPairs, "batchSize", batchPlan.BatchSize)
