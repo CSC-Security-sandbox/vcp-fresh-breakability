@@ -289,6 +289,152 @@ func TestGetVolume(t *testing.T) {
 		assert.Equal(tt, volume.Name, result.DisplayName)
 		assert.Equal(tt, account.Name, result.AccountName)
 	})
+
+	t.Run("WhenVolumeExistsWithVPG_ShouldSetThroughputMibpsAndIops", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		// Create VPG
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:       datamodel.BaseModel{UUID: "vpg-uuid"},
+			Name:            "test-vpg",
+			PoolID:          pool.ID,
+			ThroughputMibps: 200,
+			Iops:            1000,
+			IsShared:        true,
+			IsAutoGen:       true,
+		}
+		err = store.DB().Create(vpg).Error
+		if err != nil {
+			tt.Fatalf("Failed to create VPG: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:                datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:                     "test_volume",
+			AccountID:                account.ID,
+			Pool:                     pool,
+			PoolID:                   pool.ID,
+			VolumePerformanceGroupID: sql.NullInt64{Int64: vpg.ID, Valid: true},
+			VolumePerformanceGroup:   vpg,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		result, err := orch.GetVolume(ctx, "test-volume-uuid", false)
+		assert.NoError(tt, err, "Failed to get volume")
+		assert.Equal(tt, volume.Name, result.DisplayName)
+		assert.Equal(tt, account.Name, result.AccountName)
+
+		// Verify ThroughputMibps and Iops are set from VPG
+		assert.NotNil(tt, result.ThroughputMibps, "ThroughputMibps should be set from VPG")
+		assert.Equal(tt, int64(200), *result.ThroughputMibps, "ThroughputMibps should match VPG value")
+		assert.NotNil(tt, result.Iops, "Iops should be set from VPG")
+		assert.Equal(tt, int64(1000), *result.Iops, "Iops should match VPG value")
+	})
+
+	t.Run("WhenVolumeExistsWithoutVPG_ShouldNotSetThroughputMibpsAndIops", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:                datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:                     "test_volume",
+			AccountID:                account.ID,
+			Pool:                     pool,
+			PoolID:                   pool.ID,
+			VolumePerformanceGroupID: sql.NullInt64{Valid: false},
+			VolumePerformanceGroup:   nil,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		result, err := orch.GetVolume(ctx, "test-volume-uuid", false)
+		assert.NoError(tt, err, "Failed to get volume")
+		assert.Equal(tt, volume.Name, result.DisplayName)
+
+		// Verify ThroughputMibps and Iops are not set
+		assert.Nil(tt, result.ThroughputMibps, "ThroughputMibps should be nil when no VPG")
+		assert.Nil(tt, result.Iops, "Iops should be nil when no VPG")
+	})
 }
 
 func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {

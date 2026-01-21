@@ -9346,11 +9346,19 @@ components:
           example: 4000000000000
         throughputMibps:
           title: throughputMibps
-          type: number
-          format: double
+          type: integer
+          format: int64
           readOnly: false
           description: Throughput of the volume in Mibps.
-          example: 100.0
+          example: 100
+          nullable: true
+        iops:
+          title: iops
+          type: integer
+          format: int64
+          readOnly: false
+          description: IOPS limit for the volume, retrieved from the associated Volume Performance Group.
+          example: 1000
           nullable: true
         coldTierSizeGib:
           title: coldTierSizeGib

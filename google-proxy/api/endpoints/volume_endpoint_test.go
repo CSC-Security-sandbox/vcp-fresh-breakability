@@ -3113,6 +3113,40 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.Equal(tt, true, res.BackupConfig.Value.ScheduledBackupEnabled.Value)
 	})
 
+	t.Run("ConvertVolumeV1betaCVPToModelWithThroughputMibps", func(tt *testing.T) {
+		throughputMibps := float64(200)
+		input := &cvpmodels.VolumeV1beta{
+			ResourceID:      nillable.GetStringPtr("resource-id"),
+			VolumeID:        "vol-123",
+			VolumeState:     "active",
+			ThroughputMibps: &throughputMibps,
+		}
+
+		res := _convertVolumeV1betaCVPToModel(input)
+
+		assert.Equal(tt, "resource-id", res.ResourceId)
+		assert.Equal(tt, "vol-123", res.VolumeId.Value)
+		assert.True(tt, res.ThroughputMibps.IsSet())
+		throughput, ok := res.ThroughputMibps.Get()
+		assert.True(tt, ok)
+		assert.Equal(tt, int64(200), throughput)
+	})
+
+	t.Run("ConvertVolumeV1betaCVPToModelWithoutThroughputMibps", func(tt *testing.T) {
+		input := &cvpmodels.VolumeV1beta{
+			ResourceID:      nillable.GetStringPtr("resource-id"),
+			VolumeID:        "vol-123",
+			VolumeState:     "active",
+			ThroughputMibps: nil,
+		}
+
+		res := _convertVolumeV1betaCVPToModel(input)
+
+		assert.Equal(tt, "resource-id", res.ResourceId)
+		assert.Equal(tt, "vol-123", res.VolumeId.Value)
+		assert.False(tt, res.ThroughputMibps.IsSet())
+	})
+
 	t.Run("ConvertVolumeV1betaCVPToModelWithHotTierSizeGib", func(tt *testing.T) {
 		input := &cvpmodels.VolumeV1beta{
 			ResourceID:     nillable.GetStringPtr("resource-id"),
@@ -3207,7 +3241,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 					Nfsv3:              nillable.GetBoolPtr(true),
 					Nfsv4:              nillable.GetBoolPtr(false),
 					AllSquash:          nillable.GetBoolPtr(true),
-					AnonUid:            nillable.GetInt64Ptr(int64(1001)),
+					AnonUID:            nillable.GetInt64Ptr(int64(1001)),
 				},
 				{
 					AccessType:         nillable.GetStringPtr("ReadOnly"),
@@ -3218,7 +3252,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 					Nfsv3:              nillable.GetBoolPtr(false),
 					Nfsv4:              nillable.GetBoolPtr(true),
 					AllSquash:          nillable.GetBoolPtr(false),
-					AnonUid:            nillable.GetInt64Ptr(int64(0)),
+					AnonUID:            nillable.GetInt64Ptr(int64(0)),
 				},
 			},
 		}
@@ -6977,6 +7011,47 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.True(t, cloneParentInfo.ParentSnapshotId.IsSet(), "ParentSnapshotId should be set")
 		assert.Equal(t, parentSnapshotId, cloneParentInfo.ParentSnapshotId.Value)
 	})
+
+	t.Run("WithThroughputMibpsAndIops", func(t *testing.T) {
+		throughputMibps := int64(200)
+		iops := int64(1000)
+		vol := &models.Volume{
+			CreationToken:   "token",
+			PoolID:          "pool",
+			QuotaInBytes:    1234,
+			ProtocolTypes:   []string{"NFSV3"},
+			LifeCycleState:  "READY",
+			ThroughputMibps: &throughputMibps,
+			Iops:            &iops,
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+		assert.True(t, out.ThroughputMibps.IsSet())
+		throughput, ok := out.ThroughputMibps.Get()
+		assert.True(t, ok)
+		assert.Equal(t, int64(200), throughput)
+
+		assert.True(t, out.Iops.IsSet())
+		iopsVal, ok := out.Iops.Get()
+		assert.True(t, ok)
+		assert.Equal(t, int64(1000), iopsVal)
+	})
+
+	t.Run("WithoutThroughputMibpsAndIops", func(t *testing.T) {
+		vol := &models.Volume{
+			CreationToken:   "token",
+			PoolID:          "pool",
+			QuotaInBytes:    1234,
+			ProtocolTypes:   []string{"NFSV3"},
+			LifeCycleState:  "READY",
+			ThroughputMibps: nil,
+			Iops:            nil,
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+		assert.False(t, out.ThroughputMibps.IsSet())
+		assert.False(t, out.Iops.IsSet())
+	})
 }
 
 func TestConvertModelToVCPVolume_BackupConfig(t *testing.T) {
@@ -8272,6 +8347,72 @@ func TestV1betaDescribeVolume(t *testing.T) {
 		jsonString := string(jsonData)
 		assert.NotContains(tt, jsonString, "allSquash", "JSON should not contain 'allSquash' field")
 		assert.NotContains(tt, jsonString, "anonUid", "JSON should not contain 'anonUid' field")
+	})
+
+	t.Run("VolumeWithQos_ShouldIncludeThroughputMibpsAndIops", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaDescribeVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		throughputMibps := int64(200)
+		iops := int64(1000)
+		volume := &models.Volume{
+			BaseModel:       models.BaseModel{UUID: "vol-1"},
+			LifeCycleState:  "READY",
+			DisplayName:     "testvolume",
+			QuotaInBytes:    1024 * 1024 * 1024, // 1GB
+			ThroughputMibps: &throughputMibps,
+			Iops:            &iops,
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", true).Return(volume, nil)
+
+		result, err := handler.V1betaDescribeVolume(context.Background(), params)
+		assert.NoError(tt, err)
+		volumeResponse := result.(*gcpgenserver.VolumeV1beta)
+		assert.Equal(tt, "testvolume", volumeResponse.ResourceId)
+		assert.Equal(tt, "vol-1", volumeResponse.VolumeId.Value)
+
+		// Verify ThroughputMibps and Iops are set
+		assert.True(tt, volumeResponse.ThroughputMibps.IsSet())
+		throughput, ok := volumeResponse.ThroughputMibps.Get()
+		assert.True(tt, ok)
+		assert.Equal(tt, int64(200), throughput)
+
+		assert.True(tt, volumeResponse.Iops.IsSet())
+		iopsVal, ok := volumeResponse.Iops.Get()
+		assert.True(tt, ok)
+		assert.Equal(tt, int64(1000), iopsVal)
+	})
+
+	t.Run("VolumeWithoutQos_ShouldNotIncludeThroughputMibpsAndIops", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaDescribeVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		volume := &models.Volume{
+			BaseModel:       models.BaseModel{UUID: "vol-1"},
+			LifeCycleState:  "READY",
+			DisplayName:     "testvolume",
+			QuotaInBytes:    1024 * 1024 * 1024, // 1GB
+			ThroughputMibps: nil,
+			Iops:            nil,
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", true).Return(volume, nil)
+
+		result, err := handler.V1betaDescribeVolume(context.Background(), params)
+		assert.NoError(tt, err)
+		volumeResponse := result.(*gcpgenserver.VolumeV1beta)
+		assert.Equal(tt, "testvolume", volumeResponse.ResourceId)
+
+		// Verify ThroughputMibps and Iops are not set
+		assert.False(tt, volumeResponse.ThroughputMibps.IsSet())
+		assert.False(tt, volumeResponse.Iops.IsSet())
 	})
 }
 

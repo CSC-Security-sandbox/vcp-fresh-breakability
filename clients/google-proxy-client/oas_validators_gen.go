@@ -20526,24 +20526,6 @@ func (s *VolumeV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.ThroughputMibps.Get(); ok {
-			if err := func() error {
-				if err := (validate.Float{}).Validate(float64(value)); err != nil {
-					return errors.Wrap(err, "float")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "throughputMibps",
-			Error: err,
-		})
-	}
-	if err := func() error {
 		if value, ok := s.ColdTierSizeGib.Get(); ok {
 			if err := func() error {
 				if err := (validate.Float{}).Validate(float64(value)); err != nil {

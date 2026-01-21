@@ -1456,6 +1456,11 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 	res.CreationToken = attributes.CreationToken
 	res.ProtocolTypes = attributes.Protocols
 
+	if volume.VolumePerformanceGroup != nil {
+		res.ThroughputMibps = &volume.VolumePerformanceGroup.ThroughputMibps
+		res.Iops = &volume.VolumePerformanceGroup.Iops
+	}
+
 	if volume.Svm != nil {
 		res.SvmName = volume.Svm.Name
 	}

@@ -26,7 +26,7 @@ type SimpleExportPolicyRuleV1beta struct {
 	// Enum: [ACCESS_TYPE_UNSPECIFIED READ_NONE READ_ONLY READ_WRITE]
 	AccessType *string `json:"accessType"`
 
-	// If enabled (true), all UIDs are mapped to the anonymous UID specified by anonUid. When true, accessType must be READ_NONE and hasRootAccess must be false.
+	// If enabled (true), all UIDs are mapped to the anonymous UID specified by anonUid. When true, hasRootAccess must be false.
 	AllSquash *bool `json:"allSquash,omitempty"`
 
 	// Defines the client ingress specification (allowed clients) as a comma separated string with IPv4 CIDRs and IPv4 host addresses.
@@ -38,7 +38,7 @@ type SimpleExportPolicyRuleV1beta struct {
 	// The anonymous UID to which all UIDs are mapped when allSquash is true. Must be a integer representing a valid UID (0 to 4294967295). Required when allSquash is true.
 	// Maximum: 4.294967295e+09
 	// Minimum: 0
-	AnonUid *int64 `json:"anonUid,omitempty"`
+	AnonUID *int64 `json:"anonUid,omitempty"`
 
 	// If enabled (true or on) the rule defines that no_root_squash is set, else if it is disabled (false or off) root_squash is set and user ID mapped to anonymous user 65534. The response will always be true or false and never on/off. If the value is set to null the response will always be set to the default of true.
 	// Enum: [true false on off]
@@ -81,7 +81,7 @@ func (m *SimpleExportPolicyRuleV1beta) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
-	if err := m.validateAnonUid(formats); err != nil {
+	if err := m.validateAnonUID(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -161,17 +161,17 @@ func (m *SimpleExportPolicyRuleV1beta) validateAllowedClients(formats strfmt.Reg
 	return nil
 }
 
-func (m *SimpleExportPolicyRuleV1beta) validateAnonUid(formats strfmt.Registry) error {
+func (m *SimpleExportPolicyRuleV1beta) validateAnonUID(formats strfmt.Registry) error {
 
-	if swag.IsZero(m.AnonUid) { // not required
+	if swag.IsZero(m.AnonUID) { // not required
 		return nil
 	}
 
-	if err := validate.MinimumInt("anonUid", "body", int64(*m.AnonUid), 0, false); err != nil {
+	if err := validate.MinimumInt("anonUid", "body", int64(*m.AnonUID), 0, false); err != nil {
 		return err
 	}
 
-	if err := validate.MaximumInt("anonUid", "body", int64(*m.AnonUid), 4.294967295e+09, false); err != nil {
+	if err := validate.MaximumInt("anonUid", "body", int64(*m.AnonUID), 4.294967295e+09, false); err != nil {
 		return err
 	}
 

@@ -15653,6 +15653,11 @@ func (s *VolumeV1beta) SetFake() {
 	}
 	{
 		{
+			s.Iops.SetFake()
+		}
+	}
+	{
+		{
 			s.ColdTierSizeGib.SetFake()
 		}
 	}

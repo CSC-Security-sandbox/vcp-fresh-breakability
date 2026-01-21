@@ -45,6 +45,8 @@ type Volume struct {
 	HotTierSizeGib              uint64
 	ColdTierSizeGib             uint64
 	CloneParentInfo             *CloneParentInfo
+	ThroughputMibps             *int64
+	Iops                        *int64
 }
 
 // AutoTieringPolicy describes the auto tiering policy for a volume

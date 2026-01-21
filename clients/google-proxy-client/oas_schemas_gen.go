@@ -26904,7 +26904,9 @@ type VolumeV1beta struct {
 	// Maximum storage quota allowed for a volume in bytes. This is a soft quota used for alerting only.
 	QuotaInBytes OptFloat64 `json:"quotaInBytes"`
 	// Throughput of the volume in Mibps.
-	ThroughputMibps OptNilFloat64 `json:"throughputMibps"`
+	ThroughputMibps OptNilInt64 `json:"throughputMibps"`
+	// IOPS limit for the volume, retrieved from the associated Volume Performance Group.
+	Iops OptNilInt64 `json:"iops"`
 	// Volume footprint in cold storage.
 	ColdTierSizeGib OptNilFloat64 `json:"coldTierSizeGib"`
 	// Percentage of volume storage reserved for snapshot storage. Default is 0 percent.
@@ -27055,8 +27057,13 @@ func (s *VolumeV1beta) GetQuotaInBytes() OptFloat64 {
 }
 
 // GetThroughputMibps returns the value of ThroughputMibps.
-func (s *VolumeV1beta) GetThroughputMibps() OptNilFloat64 {
+func (s *VolumeV1beta) GetThroughputMibps() OptNilInt64 {
 	return s.ThroughputMibps
+}
+
+// GetIops returns the value of Iops.
+func (s *VolumeV1beta) GetIops() OptNilInt64 {
+	return s.Iops
 }
 
 // GetColdTierSizeGib returns the value of ColdTierSizeGib.
@@ -27310,8 +27317,13 @@ func (s *VolumeV1beta) SetQuotaInBytes(val OptFloat64) {
 }
 
 // SetThroughputMibps sets the value of ThroughputMibps.
-func (s *VolumeV1beta) SetThroughputMibps(val OptNilFloat64) {
+func (s *VolumeV1beta) SetThroughputMibps(val OptNilInt64) {
 	s.ThroughputMibps = val
+}
+
+// SetIops sets the value of Iops.
+func (s *VolumeV1beta) SetIops(val OptNilInt64) {
+	s.Iops = val
 }
 
 // SetColdTierSizeGib sets the value of ColdTierSizeGib.

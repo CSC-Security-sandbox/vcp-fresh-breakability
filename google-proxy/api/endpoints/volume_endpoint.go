@@ -1455,6 +1455,13 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		UsedBytes:          gcpgenserver.NewOptNilFloat64(float64(volume.UsedBytes)), // default value for now
 		LargeCapacity:      gcpgenserver.NewOptNilBool(volume.LargeCapacity),
 	}
+	// Include throughput and iops if they were set from VPG (nullable int64)
+	if volume.ThroughputMibps != nil {
+		res.ThroughputMibps = utils.SafeInt64(volume.ThroughputMibps)
+	}
+	if volume.Iops != nil {
+		res.Iops = utils.SafeInt64(volume.Iops)
+	}
 	res.KerberosEnabled = gcpgenserver.NewOptNilBool(volume.KerberosEnabled)
 	res.LdapEnabled = gcpgenserver.NewOptNilBool(volume.LdapEnabled)
 	if volume.ActiveDirectoryConfigId != "" {
@@ -2044,7 +2051,6 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 		MultipleEndpoints:       utils.SafeBool(in.MultipleEndpoints),
 		LargeCapacity:           utils.SafeBool(in.LargeCapacity),
 		QuotaInBytes:            utils.SafeOptFloat64(in.QuotaInBytes),
-		ThroughputMibps:         utils.SafeOptNilFloat64(in.ThroughputMibps),
 		SnapReserve:             utils.SafeOptFloat64(in.SnapReserve),
 		PoolResourceId:          utils.SafeString(in.PoolResourceID),
 		ActiveDirectoryConfigId: utils.SafeString(in.ActiveDirectoryConfigID),
@@ -2060,6 +2066,11 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 
 	if in.Network != "" {
 		volume.Network = gcpgenserver.NewOptString(in.Network)
+	}
+
+	if in.ThroughputMibps != nil {
+		throughputMibps := int64(*in.ThroughputMibps)
+		volume.ThroughputMibps = gcpgenserver.NewOptNilInt64(throughputMibps)
 	}
 
 	if in.SecurityStyle != "" {
@@ -2097,8 +2108,8 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 				if rule.AllSquash != nil {
 					exportRule.AllSquash = gcpgenserver.NewOptNilBool(*rule.AllSquash)
 				}
-				if rule.AnonUid != nil {
-					exportRule.AnonUid = gcpgenserver.NewOptNilInt64(*rule.AnonUid)
+				if rule.AnonUID != nil {
+					exportRule.AnonUid = gcpgenserver.NewOptNilInt64(*rule.AnonUID)
 				}
 				if rule.AccessType != nil {
 					exportRule.AccessType = gcpgenserver.SimpleExportPolicyRuleV1betaAccessType(*rule.AccessType)

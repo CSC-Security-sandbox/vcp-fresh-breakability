@@ -772,6 +772,52 @@ func (_c *MockSecurityClient_SecurityAuditUpdate_Call) RunAndReturn(run func(*Se
 	return _c
 }
 
+// SecurityCertificateDeleteCollection provides a mock function with given fields: params
+func (_m *MockSecurityClient) SecurityCertificateDeleteCollection(params *SecurityCertificateDeleteCollectionParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SecurityCertificateDeleteCollection")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*SecurityCertificateDeleteCollectionParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockSecurityClient_SecurityCertificateDeleteCollection_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SecurityCertificateDeleteCollection'
+type MockSecurityClient_SecurityCertificateDeleteCollection_Call struct {
+	*mock.Call
+}
+
+// SecurityCertificateDeleteCollection is a helper method to define mock.On call
+//   - params *SecurityCertificateDeleteCollectionParams
+func (_e *MockSecurityClient_Expecter) SecurityCertificateDeleteCollection(params interface{}) *MockSecurityClient_SecurityCertificateDeleteCollection_Call {
+	return &MockSecurityClient_SecurityCertificateDeleteCollection_Call{Call: _e.mock.On("SecurityCertificateDeleteCollection", params)}
+}
+
+func (_c *MockSecurityClient_SecurityCertificateDeleteCollection_Call) Run(run func(params *SecurityCertificateDeleteCollectionParams)) *MockSecurityClient_SecurityCertificateDeleteCollection_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*SecurityCertificateDeleteCollectionParams))
+	})
+	return _c
+}
+
+func (_c *MockSecurityClient_SecurityCertificateDeleteCollection_Call) Return(_a0 error) *MockSecurityClient_SecurityCertificateDeleteCollection_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockSecurityClient_SecurityCertificateDeleteCollection_Call) RunAndReturn(run func(*SecurityCertificateDeleteCollectionParams) error) *MockSecurityClient_SecurityCertificateDeleteCollection_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SecurityLogForwardingCreate provides a mock function with given fields: params
 func (_m *MockSecurityClient) SecurityLogForwardingCreate(params *SecurityLogForwardingCreateParams) ([]*SecurityAuditLogForward, error) {
 	ret := _m.Called(params)
@@ -988,52 +1034,6 @@ func (_c *MockSecurityClient_ServerRootCACertificateDelete_Call) Return(_a0 erro
 }
 
 func (_c *MockSecurityClient_ServerRootCACertificateDelete_Call) RunAndReturn(run func(*ServerRootCADeleteParams) error) *MockSecurityClient_ServerRootCACertificateDelete_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// SecurityCertificateDeleteCollection provides a mock function with given fields: params
-func (_m *MockSecurityClient) SecurityCertificateDeleteCollection(params *SecurityCertificateDeleteCollectionParams) error {
-	ret := _m.Called(params)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SecurityCertificateDeleteCollection")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(*SecurityCertificateDeleteCollectionParams) error); ok {
-		r0 = rf(params)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// MockSecurityClient_SecurityCertificateDeleteCollection_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SecurityCertificateDeleteCollection'
-type MockSecurityClient_SecurityCertificateDeleteCollection_Call struct {
-	*mock.Call
-}
-
-// SecurityCertificateDeleteCollection is a helper method to define mock.On call
-//   - params *SecurityCertificateDeleteCollectionParams
-func (_e *MockSecurityClient_Expecter) SecurityCertificateDeleteCollection(params interface{}) *MockSecurityClient_SecurityCertificateDeleteCollection_Call {
-	return &MockSecurityClient_SecurityCertificateDeleteCollection_Call{Call: _e.mock.On("SecurityCertificateDeleteCollection", params)}
-}
-
-func (_c *MockSecurityClient_SecurityCertificateDeleteCollection_Call) Run(run func(params *SecurityCertificateDeleteCollectionParams)) *MockSecurityClient_SecurityCertificateDeleteCollection_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*SecurityCertificateDeleteCollectionParams))
-	})
-	return _c
-}
-
-func (_c *MockSecurityClient_SecurityCertificateDeleteCollection_Call) Return(_a0 error) *MockSecurityClient_SecurityCertificateDeleteCollection_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *MockSecurityClient_SecurityCertificateDeleteCollection_Call) RunAndReturn(run func(*SecurityCertificateDeleteCollectionParams) error) *MockSecurityClient_SecurityCertificateDeleteCollection_Call {
 	_c.Call.Return(run)
 	return _c
 }

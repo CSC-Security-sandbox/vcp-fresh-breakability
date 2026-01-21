@@ -469,6 +469,7 @@ func _listVolumesWithDetails(db *gorm.DB) ([]*datamodel.Volume, error) {
 		Preload("Pool.ActiveDirectory").
 		Preload("Svm").
 		Preload("Pool.KmsConfig").
+		Preload("VolumePerformanceGroup").
 		Find(&volumes).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
@@ -502,6 +503,7 @@ func getVolumeWithDetails(db *gorm.DB, query *datamodel.Volume) (*datamodel.Volu
 		Preload("Pool.ActiveDirectory").
 		Preload("Svm").
 		Preload("Pool.KmsConfig").
+		Preload("VolumePerformanceGroup").
 		First(&volume, query).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrVolumeNotFound,
