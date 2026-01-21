@@ -12,7 +12,27 @@ metadata:
     app: core-service
 data:
   # TODO: Remove these fields after application code fix
-  TASK_QUEUE_VERSION: "{{ .Chart.Version | lower | replace "." "-" }}"
   {{- include "core.generateConfigMapData" . | nindent 2 }}
+  {{- if .Values.global.cloudSqlIamAuthEnabled }}
+  {{- $projectId := .Values.global.coreConfig.gcp.projectId | default .Values.telemetryDeployer.projectID }}
+  # IAM authentication values - these MUST come after generateConfigMapData to override any dbHost/dbUser values
+  DB_HOST: "127.0.0.1"
+  DB_USER: {{ printf "%s@%s.iam" .Values.serviceAccountName $projectId | quote }}
+  METRICS_DB_HOST: "127.0.0.1"
+  METRICS_DB_USER: {{ printf "%s@%s.iam" .Values.serviceAccountName $projectId | quote }}
+  {{- end }}
+  # CLOUD_SQL_IAM_AUTH_ENABLED controls authentication method for database connections
+  # true = Use IAM authentication via Cloud SQL Proxy sidecar (connects to 127.0.0.1)
+  # false = Use password authentication via shared proxy service (connects to cloud-sql-proxy.sde.svc.cluster.local)
+  CLOUD_SQL_IAM_AUTH_ENABLED: {{ .Values.global.cloudSqlIamAuthEnabled | default false | quote }}
   config.yaml: |
     {{- include "core.generateConfigMapData" . | nindent 4 }}
+    {{- if .Values.global.cloudSqlIamAuthEnabled }}
+    {{- $projectId := .Values.global.coreConfig.gcp.projectId | default .Values.telemetryDeployer.projectID }}
+    # IAM authentication values - these MUST come after generateConfigMapData to override any dbHost/dbUser values
+    DB_HOST: "127.0.0.1"
+    DB_USER: {{ printf "%s@%s.iam" .Values.serviceAccountName $projectId | quote }}
+    METRICS_DB_HOST: "127.0.0.1"
+    METRICS_DB_USER: {{ printf "%s@%s.iam" .Values.serviceAccountName $projectId | quote }}
+    {{- end }}
+    CLOUD_SQL_IAM_AUTH_ENABLED: {{ .Values.global.cloudSqlIamAuthEnabled | default false | quote }}

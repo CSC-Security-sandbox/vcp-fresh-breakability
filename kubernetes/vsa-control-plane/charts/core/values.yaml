@@ -15,6 +15,13 @@ global:
   environment: gcp
   hyperscaler: gcp
   workloadIdentityEnabled: false
+  # Cloud SQL IAM Authentication via Workload Identity
+  # When enabled: Uses IAM authentication with Cloud SQL Proxy sidecar
+  # When disabled: Uses traditional username/password authentication
+  cloudSqlIamAuthEnabled: false
+  # Central Cloud SQL Proxy image used across charts when IAM DB auth is enabled
+  cloudSqlProxy:
+    image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1"
   coreConfig:
     gcp: {}
     gcpServiceUrl: "https://cloudvolumesgcp-api.netapp.com"
@@ -208,9 +215,17 @@ service:
   type: ClusterIP
   appPort: 8081
 
+# Cloud SQL configuration for IAM authentication
+# Required when global.workloadIdentityEnabled is true
+cloudSql:
+  # Format: PROJECT_ID:REGION:INSTANCE_NAME
+  # Example: "netapp-au-se1-autopush-sde-tst:australia-southeast1:netapp-au-se1-autopush-sde-tst-db-postgres"
+  instanceConnectionName: "netapp-au-se1-autopush-sde-tst:australia-southeast1:netapp-au-se1-autopush-sde-tst-db-postgres"
+
 database:
   host: postgres-service
   hostIP: ""
+  # Password-mode default DB user. When global.cloudSqlIamAuthEnabled=true, charts override DB_USER to <serviceAccount>@<project>.iam automatically.
   user: vcp-db-user
   password: vcp-db-pass
   metricsUser: vcp-db-user

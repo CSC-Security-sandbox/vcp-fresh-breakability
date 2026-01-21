@@ -35,8 +35,12 @@ data:
             connectAddr: "{{ include "temporal.persistence.sql.host" (list $ "default") }}:{{ include "temporal.persistence.sql.port" (list $ "default") }}"
             connectProtocol: "tcp"
             user: {{ include "temporal.persistence.sql.user" (list $ "default") }}
+            {{- if not (include "temporal.cloudSqlIamAuthEnabled" (list $) | toString | eq "true") }}
             password: {{ `{{ .Env.TEMPORAL_STORE_PASSWORD | quote }}` }}
-            {{- with (omit $server.config.persistence.default.sql "driver" "driverName" "host" "port" "connectAddr" "connectProtocol" "database" "databaseName" "user" "password" "existingSecret") }}
+            {{- end }}
+            {{- $sqlConfig := $server.config.persistence.default.sql }}
+            {{- $sqlConfig = omit $sqlConfig "driver" "driverName" "host" "port" "connectAddr" "connectProtocol" "database" "databaseName" "user" "password" "existingSecret" }}
+            {{- with $sqlConfig }}
               {{- toYaml . | nindent 12 }}
             {{- end }}
           {{- end }}
@@ -71,8 +75,12 @@ data:
             connectAddr: "{{ include "temporal.persistence.sql.host" (list $ "visibility") }}:{{ include "temporal.persistence.sql.port" (list $ "visibility") }}"
             connectProtocol: "tcp"
             user: "{{ include "temporal.persistence.sql.user" (list $ "visibility") }}"
+            {{- if not (include "temporal.cloudSqlIamAuthEnabled" (list $) | toString | eq "true") }}
             password: {{ `{{ .Env.TEMPORAL_VISIBILITY_STORE_PASSWORD  | quote }}` }}
-            {{- with (omit $server.config.persistence.visibility.sql "driver" "driverName" "host" "port" "connectAddr" "connectProtocol" "database" "databaseName" "user" "password" "existingSecret") }}
+            {{- end }}
+            {{- $sqlConfig := $server.config.persistence.visibility.sql }}
+            {{- $sqlConfig = omit $sqlConfig "driver" "driverName" "host" "port" "connectAddr" "connectProtocol" "database" "databaseName" "user" "password" "existingSecret" }}
+            {{- with $sqlConfig }}
               {{- toYaml . | nindent 12 }}
             {{- end }}
         {{- end }}

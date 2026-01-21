@@ -60,3 +60,43 @@ Helper function to generate the configMap name by appending "-config" to the app
 {{- $snake := regexReplaceAll "([a-z])([A-Z])" $camel "${1}_${2}" -}}
 {{- upper $snake -}}
 {{- end -}}
+
+{{/*
+Helper function to conditionally include Cloud SQL Proxy sidecar container
+Only included when global.cloudSqlIamAuthEnabled is true
+*/}}
+{{- define "worker.databaseProxyContainer" -}}
+{{- if .Values.global.cloudSqlIamAuthEnabled }}
+{{- $instanceConnectionName := "" }}
+{{- if .Values.global.coreConfig }}
+{{- if .Values.global.coreConfig.gcp }}
+{{- if .Values.global.coreConfig.gcp.instanceConnectionName }}
+{{- $instanceConnectionName = .Values.global.coreConfig.gcp.instanceConnectionName }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if eq $instanceConnectionName "" }}
+{{- $project := .Values.workerConfig.smcProjectId }}
+{{- $region := .Values.workerConfig.localRegion }}
+{{- $instance := printf "%s-db-postgres" $project }}
+{{- $instanceConnectionName = printf "%s:%s:%s" $project $region $instance }}
+{{- end }}
+- name: cloud-sql-proxy
+  image: {{ .Values.global.cloudSqlProxy.image | default "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1" | quote }}
+  args:
+    - "--private-ip"
+    - "--auto-iam-authn"
+    - "--structured-logs"
+    - "--port=5432"
+    - "{{ $instanceConnectionName }}"
+  securityContext:
+    runAsNonRoot: true
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+{{- end }}
+{{- end -}}

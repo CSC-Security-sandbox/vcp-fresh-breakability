@@ -258,7 +258,9 @@ Source: https://stackoverflow.com/a/52024583/3027614
 {{- $global := index . 0 -}}
 {{- $store := index . 1 -}}
 {{- $storeConfig := index $global.Values.server.config.persistence $store -}}
-{{- if $storeConfig.sql.host -}}
+{{- if include "temporal.cloudSqlIamAuthEnabled" (list $global) | toString | eq "true" -}}
+{{- "127.0.0.1" -}}
+{{- else if $storeConfig.sql.host -}}
 {{- $storeConfig.sql.host -}}
 {{- else if and $global.Values.mysql.enabled (and (eq (include "temporal.persistence.driver" (list $global $store)) "sql") (eq (include "temporal.persistence.sql.driver" (list $global $store)) "mysql8")) -}}
 {{- include "mysql.host" $global -}}
@@ -288,7 +290,24 @@ Source: https://stackoverflow.com/a/52024583/3027614
 {{- $global := index . 0 -}}
 {{- $store := index . 1 -}}
 {{- $storeConfig := index $global.Values.server.config.persistence $store -}}
-{{- if $storeConfig.sql.user -}}
+{{- if include "temporal.cloudSqlIamAuthEnabled" (list $global) | toString | eq "true" -}}
+{{- $serviceAccountName := "temporal-ksa" -}}
+{{- $projectId := "" -}}
+{{- if hasKey $global.Values "global" -}}
+{{- if hasKey $global.Values.global "gcpProjectId" -}}
+{{- $projectId = $global.Values.global.gcpProjectId -}}
+{{- end -}}
+{{- end -}}
+{{- if eq $projectId "" -}}
+{{- if hasKey $global.Values "gcpProjectId" -}}
+{{- $projectId = $global.Values.gcpProjectId -}}
+{{- end -}}
+{{- end -}}
+{{- if eq $projectId "" -}}
+{{- required "gcpProjectId must be set when cloudSqlIamAuthEnabled is true. Set it in .Values.gcpProjectId or .Values.global.gcpProjectId" $projectId -}}
+{{- end -}}
+{{- printf "%s@%s.iam" $serviceAccountName $projectId -}}
+{{- else if $storeConfig.sql.user -}}
 {{- $storeConfig.sql.user -}}
 {{- else if and $global.Values.mysql.enabled (and (eq (include "temporal.persistence.driver" (list $global $store)) "sql") (eq (include "temporal.persistence.sql.driver" (list $global $store)) "mysql8")) -}}
 {{- $global.Values.mysql.mysqlUser -}}
@@ -449,5 +468,88 @@ To modify camelCase to hyphenated internal-frontend service name
         {{- print "internal-frontend" }}
     {{- else }}
         {{- print $service }}
+    {{- end }}
+{{- end -}}
+
+{{/*
+Helper function to check if IAM authentication is enabled
+Checks .Values.global.cloudSqlIamAuthEnabled first (for umbrella charts), then .Values.cloudSqlIamAuthEnabled
+*/}}
+{{- define "temporal.cloudSqlIamAuthEnabled" -}}
+{{- $global := index . 0 -}}
+{{- $iamAuthEnabled := false -}}
+{{- if hasKey $global.Values "global" -}}
+{{- if hasKey $global.Values.global "cloudSqlIamAuthEnabled" -}}
+{{- $iamAuthEnabled = $global.Values.global.cloudSqlIamAuthEnabled -}}
+{{- end -}}
+{{- end -}}
+{{- if not $iamAuthEnabled -}}
+{{- if hasKey $global.Values "cloudSqlIamAuthEnabled" -}}
+{{- $iamAuthEnabled = $global.Values.cloudSqlIamAuthEnabled -}}
+{{- end -}}
+{{- end -}}
+{{- $iamAuthEnabled -}}
+{{- end -}}
+
+{{/*
+Helper function to conditionally include Cloud SQL Proxy sidecar container
+Only included when cloudSqlIamAuthEnabled is true
+Checks .Values.global.cloudSqlIamAuthEnabled first (for umbrella charts), then .Values.cloudSqlIamAuthEnabled
+*/}}
+{{- define "temporal.databaseProxyContainer" -}}
+{{- if include "temporal.cloudSqlIamAuthEnabled" (list .) | toString | eq "true" }}
+{{- $instanceConnectionName := .Values.cloudSqlInstanceConnectionName }}
+{{- if eq $instanceConnectionName "" }}
+{{- $project := "" }}
+{{- if hasKey .Values "global" -}}
+{{- if hasKey .Values.global "gcpProjectId" -}}
+{{- $project = .Values.global.gcpProjectId -}}
+{{- end -}}
+{{- end -}}
+{{- if eq $project "" -}}
+{{- if hasKey .Values "gcpProjectId" -}}
+{{- $project = .Values.gcpProjectId -}}
+{{- end -}}
+{{- end -}}
+{{- if eq $project "" -}}
+{{- required "gcpProjectId must be set when cloudSqlIamAuthEnabled is true. Set it in .Values.gcpProjectId or .Values.global.gcpProjectId" $project -}}
+{{- end -}}
+{{- $region := "australia-southeast1" }}
+{{- $instance := printf "%s-db-postgres" $project }}
+{{- $instanceConnectionName = printf "%s:%s:%s" $project $region $instance }}
+{{- end }}
+- name: cloud-sql-proxy
+  image: {{- $img := "" -}}
+    {{- if hasKey .Values "global" -}}
+    {{- if hasKey .Values.global "cloudSqlProxy" -}}
+    {{- $img = .Values.global.cloudSqlProxy.image -}}
+    {{- end -}}
+    {{- end -}}
+    {{- if eq $img "" -}}
+    {{- if hasKey .Values "cloudSqlProxy" -}}
+    {{- $img = .Values.cloudSqlProxy.image -}}
+    {{- end -}}
+    {{- end -}}
+    {{- if eq $img "" -}}
+    {{- $img = "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1" -}}
+    {{- end -}}
+    {{ $img | quote }}
+  args:
+    - "--private-ip"
+    - "--auto-iam-authn"
+    - "--structured-logs"
+    - "--quitquitquit"
+    - "--admin-port=9091"
+    - "--port=5432"
+    - "{{ $instanceConnectionName }}"
+  securityContext:
+    runAsNonRoot: true
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
     {{- end }}
 {{- end -}}

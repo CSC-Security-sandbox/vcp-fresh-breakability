@@ -24,6 +24,23 @@ externalSecrets:
   visibilityStore:
     temporalDBPassword: ""
 
+# Cloud SQL IAM Authentication via Workload Identity
+# When enabled: Uses IAM authentication with Cloud SQL Proxy sidecar
+# When disabled: Uses traditional username/password authentication
+# Default: false - override in deployment-specific values files to enable
+cloudSqlIamAuthEnabled: false
+# GCP project ID for IAM user format (required when cloudSqlIamAuthEnabled is true)
+# Can be set in .Values.gcpProjectId or .Values.global.gcpProjectId
+gcpProjectId: ""
+# Cloud SQL instance connection name (required when cloudSqlIamAuthEnabled is true)
+# Format: PROJECT:REGION:INSTANCE
+# If not provided, will be auto-generated from gcpProjectId
+cloudSqlInstanceConnectionName: ""
+
+cloudSqlProxy:
+  # Central Cloud SQL Proxy image used when cloudSqlIamAuthEnabled is true
+  image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1"
+
 server:
   enabled: true
   image:

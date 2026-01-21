@@ -14,7 +14,6 @@ metadata:
     "helm.sh/hook-weight": "-4"
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
     {{- end }}
-    {{- include "vcp-dbmigrate.kubernetes.annotations" . | nindent 4 }}
     {{- include "vcp-dbmigrate.helmchart.annotations" . | nindent 4 }}
   labels:
     {{- include "vcp-dbmigrate.kubernetes.labels" . | nindent 4 }}
@@ -25,13 +24,27 @@ spec:
   template:
     metadata:
       annotations:
-        {{- include "vcp-dbmigrate.kubernetes.annotations" . | nindent 8 }}
         {{- include "vcp-dbmigrate.helmchart.annotations" . | nindent 8 }}
+        {{- if .Values.global.cloudSqlIamAuthEnabled }}
+        # Kubernetes 1.28+ sidecar containers feature
+        # Mark cloud-sql-proxy as a sidecar so Job completes when main container finishes
+        # This is handled via container lifecycle type (see container definition)
+        {{- end }}
       labels:
         {{- include "vcp-dbmigrate.kubernetes.labels" . | nindent 8 }}
         {{- include "vcp-dbmigrate.helmchart.labels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.serviceAccountName }}
+      {{- if .Values.global.cloudSqlIamAuthEnabled }}
+      nodeSelector:
+        {{- if .Values.global.nodeSelector }}
+        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+        {{- end }}
+        iam.gke.io/gke-metadata-server-enabled: "true"
+      {{- else if .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+      {{- end }}
       {{- if .Release.IsInstall }}
       initContainers:
         - name: vcp-dbmigrate-create
@@ -74,13 +87,19 @@ spec:
                 secretKeyRef:
                   name: core-service-env-secret
                   key: DB_USER
+            {{- if not .Values.global.cloudSqlIamAuthEnabled }}
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: core-service-env-secret
                   key: DB_PASSWORD
+            {{- end }}
             - name: DB_HOST
+              {{- if .Values.global.cloudSqlIamAuthEnabled }}
+              value: "127.0.0.1"
+              {{- else }}
               value: {{ .Values.database.host | default "localhost" | quote }}
+              {{- end }}
             - name: DB_PORT
               value: {{ .Values.database.port | default "5432" | quote }}
             - name: DB_NAME
@@ -93,19 +112,28 @@ spec:
               value: {{ .Values.global.coreConfig.localRegion | default "" | quote }}
             - name: REGION_NUMBER_MAP
               value: {{ .Values.global.coreConfig.regionNumberMap | toJson | quote }}
+            # Cloud SQL IAM authentication flag (used by migration tool to shutdown proxy sidecar)
+            - name: CLOUD_SQL_IAM_AUTH_ENABLED
+              value: {{ .Values.global.cloudSqlIamAuthEnabled | default false | quote }}
             {{- if .Values.metricsEnabled }}
             - name: METRICS_DB_USER
               valueFrom:
                 secretKeyRef:
                   name: core-service-env-secret
                   key: METRICS_DB_USER
+            {{- if not .Values.global.cloudSqlIamAuthEnabled }}
             - name: METRICS_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: core-service-env-secret
                   key: METRICS_DB_PASSWORD
+            {{- end }}
             - name: METRICS_DB_HOST
+              {{- if .Values.global.cloudSqlIamAuthEnabled }}
+              value: "127.0.0.1"
+              {{- else }}
               value: {{ .Values.database.metricsHost | default "localhost" | quote }}
+              {{- end }}
             - name: METRICS_DB_PORT
               value: {{ .Values.database.metricsPort | default "5432" | quote }}
             - name: METRICS_DB_NAME
@@ -122,6 +150,7 @@ spec:
               memory: {{ .Values.resources.requests.memory }}
       {{- end }}
       containers:
+        {{- include "core.databaseProxyContainerForJob" . | nindent 8 }}
         - name: vcp-dbmigrate-migrate
           command: ["/vcp-db-migrate"]
           args:
@@ -170,13 +199,19 @@ spec:
                 secretKeyRef:
                   name: core-service-env-secret
                   key: DB_USER
+            {{- if not .Values.global.cloudSqlIamAuthEnabled }}
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: core-service-env-secret
                   key: DB_PASSWORD
+            {{- end }}
             - name: DB_HOST
+              {{- if .Values.global.cloudSqlIamAuthEnabled }}
+              value: "127.0.0.1"
+              {{- else }}
               value: {{ .Values.database.host | default "localhost" | quote }}
+              {{- end }}
             - name: DB_PORT
               value: {{ .Values.database.port | default "5432" | quote }}
             - name: DB_NAME
@@ -191,13 +226,19 @@ spec:
                 secretKeyRef:
                   name: core-service-env-secret
                   key: METRICS_DB_USER
+            {{- if not .Values.global.cloudSqlIamAuthEnabled }}
             - name: METRICS_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: core-service-env-secret
                   key: METRICS_DB_PASSWORD
+            {{- end }}
             - name: METRICS_DB_HOST
+              {{- if .Values.global.cloudSqlIamAuthEnabled }}
+              value: "127.0.0.1"
+              {{- else }}
               value: {{ .Values.database.metricsHost | default "localhost" | quote }}
+              {{- end }}
             - name: METRICS_DB_PORT
               value: {{ .Values.database.metricsPort | default "5432" | quote }}
             - name: METRICS_DB_NAME
@@ -211,6 +252,9 @@ spec:
               value: {{ .Values.global.coreConfig.regionNumberMap | toJson | quote }}
             - name: METRICS_ENABLED
               value: {{ .Values.metricsEnabled | quote }}
+            # Cloud SQL IAM authentication flag (used by migration tool to shutdown proxy sidecar)
+            - name: CLOUD_SQL_IAM_AUTH_ENABLED
+              value: {{ .Values.global.cloudSqlIamAuthEnabled | default false | quote }}
             # Database rollback step configuration
             - name: VCP_DB_PRE_ROLLBACK_STEPS
               value: {{ .Values.global.coreConfig.vcpDbPreRollbackSteps | default "0" | quote }}

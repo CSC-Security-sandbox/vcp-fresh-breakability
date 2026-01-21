@@ -85,6 +85,7 @@ spec:
                   fieldPath: status.podIP
             - name: SERVICES
               value: {{ $service }}
+            {{- if not (include "temporal.cloudSqlIamAuthEnabled" (list $) | toString | eq "true") }}
             - name: TEMPORAL_STORE_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -95,6 +96,7 @@ spec:
                 secretKeyRef:
                   name: {{ include "temporal.persistence.secretName" (list $ "visibility") }}
                   key: {{ include "temporal.persistence.secretKey" (list $ "visibility") }}
+            {{- end }}
           {{- if and (hasKey $.Values.server "internalFrontend") $.Values.server.internalFrontend.enabled }}
             - name: USE_INTERNAL_FRONTEND
               value: "1"
@@ -163,6 +165,7 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+        {{- include "temporal.databaseProxyContainer" $ | nindent 8 }}
       {{- with $.Values.imagePullSecrets }}
       imagePullSecrets:
       {{- toYaml . | nindent 8 }}
@@ -180,9 +183,17 @@ spec:
         {{- if $.Values.server.additionalVolumes }}
         {{- toYaml $.Values.server.additionalVolumes | nindent 8}}
         {{- end }}
-      {{- with (default $.Values.server.nodeSelector $serviceValues.nodeSelector) }}
+      {{- $baseNodeSelector := default $.Values.server.nodeSelector $serviceValues.nodeSelector }}
+      {{- if include "temporal.cloudSqlIamAuthEnabled" (list $) | toString | eq "true" }}
+      {{- $iamNodeSelector := dict "iam.gke.io/gke-metadata-server-enabled" "true" }}
+      {{- $mergedNodeSelector := merge $iamNodeSelector $baseNodeSelector }}
+      nodeSelector:
+        {{- toYaml $mergedNodeSelector | nindent 8 }}
+      {{- else }}
+      {{- with $baseNodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- end }}
     {{- with (default $.Values.server.affinity $serviceValues.affinity) }}
       affinity:

@@ -15,6 +15,15 @@ global:
   hyperscaler: gcp
   workloadIdentityEnabled: false
   enableJSwapVersionCheck: true
+  # Cloud SQL IAM Authentication via Workload Identity
+  # When enabled: Uses IAM authentication with Cloud SQL Proxy sidecar
+  # When disabled: Uses traditional username/password authentication
+  # Default: false - override in deployment-specific values files to enable
+  cloudSqlIamAuthEnabled: false
+  # Central Cloud SQL Proxy image used across charts when IAM DB auth is enabled
+  # Override in deployment-specific values to pin/upgrade proxy versions consistently.
+  cloudSqlProxy:
+    image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1"
   enableBackgroundTask: true
   requiredTakeoverReasons:
     - "reason1"

@@ -84,7 +84,7 @@ Helper function to check if a key should be excluded from processing
 */}}
 {{- define "core.shouldExcludeKey" -}}
 {{- $key := . -}}
-{{- $excludedKeys := list "images" "service" "database" "resources" "telemetryDeployer" "serviceAccountAnnotations" "externalSecrets" "podAffinity" "global" "overrideCoreConfig" -}}
+{{- $excludedKeys := list "images" "service" "database" "resources" "telemetryDeployer" "serviceAccountAnnotations" "externalSecrets" "podAffinity" "global" "overrideCoreConfig" "cloudSqlIamAuthEnabled" -}}
 {{- if has $key $excludedKeys }}
 {{- true -}}
 {{- else }}
@@ -96,10 +96,14 @@ Helper function to check if a key should be excluded from processing
 {{- $globalConfig := .Values.global.coreConfig | default dict -}}
 {{- $overrideConfig := .Values.overrideCoreConfig | default dict -}}
 {{- $hyperscaler := .Values.global.hyperscaler | default "gcp" | lower -}}
+{{- $cloudSqlIamAuthEnabled := .Values.global.cloudSqlIamAuthEnabled | default false }}
 
 {{/* Process global.coreConfig values */}}
 {{- if hasKey $globalConfig $hyperscaler }}
 {{- range $key, $value := index $globalConfig $hyperscaler }}
+{{- $skipKey := and $cloudSqlIamAuthEnabled (or (eq $key "dbHost") (eq $key "metricsHost") (eq $key "dbUser") (eq $key "metricsDbUser")) }}
+{{- $hasValue := and (not (kindIs "invalid" $value)) (ne (toString $value) "") }}
+{{- if and (not $skipKey) $hasValue }}
 {{- if or (not (hasKey $overrideConfig $hyperscaler)) (not (hasKey (index $overrideConfig $hyperscaler) $key)) (eq (index (index $overrideConfig $hyperscaler) $key) "") }}
 {{- if eq $key "regionNumberMap" }}
 {{ include "toCapitalUnderscore" $key }}: {{ $value | toJson | quote }}
@@ -115,9 +119,13 @@ Helper function to check if a key should be excluded from processing
 {{- end }}
 {{- end }}
 {{- end }}
+{{- end }}
 
 {{- range $key, $value := $globalConfig }}
 {{- if not (eq $key $hyperscaler) }}
+{{- $skipKey := and $cloudSqlIamAuthEnabled (or (eq $key "dbHost") (eq $key "metricsHost") (eq $key "dbUser") (eq $key "metricsDbUser")) }}
+{{- $hasValue := and (not (kindIs "invalid" $value)) (ne (toString $value) "") }}
+{{- if and (not $skipKey) $hasValue }}
 {{- if or (not (hasKey $overrideConfig $key)) (eq (index $overrideConfig $key) "") }}
 {{- if eq $key "regionNumberMap" }}
 {{ include "toCapitalUnderscore" $key }}: {{ $value | toJson | quote }}
@@ -129,6 +137,7 @@ Helper function to check if a key should be excluded from processing
 {{ include "toCapitalUnderscore" $key }}: {{ index $overrideConfig $key | toJson | quote }}
 {{- else }}
 {{ include "toCapitalUnderscore" $key }}: {{ index $overrideConfig $key | quote }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
@@ -152,7 +161,8 @@ Helper function to check if a key should be excluded from processing
 {{- range $key, $value := .Values.global }}
 {{- if and (not (eq $key "coreConfig")) (not (eq $key "hyperscaler")) }}
 {{- $shouldExclude := include "core.shouldExcludeKey" $key }}
-{{- if not (eq $shouldExclude "true") }}
+{{- $skipIamKeys := and $cloudSqlIamAuthEnabled (or (eq $key "dbHost") (eq $key "dbUser") (eq $key "metricsHost") (eq $key "metricsDbUser")) }}
+{{- if and (not (eq $shouldExclude "true")) (not $skipIamKeys) }}
 {{- if not (kindIs "invalid" $value) }}
 {{- if not (has $key $processedKeys) }}
 {{- include "core.processValue" (dict "key" $key "value" $value) }}
@@ -168,7 +178,8 @@ Helper function to check if a key should be excluded from processing
 {{- if hasKey .Values "core" }}
 {{- range $key, $value := .Values.core }}
 {{- $shouldExclude := include "core.shouldExcludeKey" $key }}
-{{- if not (eq $shouldExclude "true") }}
+{{- $skipIamKeys := and $cloudSqlIamAuthEnabled (or (eq $key "dbHost") (eq $key "dbUser") (eq $key "metricsHost") (eq $key "metricsDbUser")) }}
+{{- if and (not (eq $shouldExclude "true")) (not $skipIamKeys) }}
 {{- if not (kindIs "invalid" $value) }}
 {{- if not (has $key $processedKeys) }}
 {{- include "core.processValue" (dict "key" $key "value" $value) }}
@@ -182,7 +193,8 @@ Helper function to check if a key should be excluded from processing
 {{/* Process all other values from values.yaml, but skip already processed keys */}}
 {{- range $key, $value := .Values }}
 {{- $shouldExclude := include "core.shouldExcludeKey" $key }}
-{{- if not (eq $shouldExclude "true") }}
+{{- $skipIamKeys := and $cloudSqlIamAuthEnabled (or (eq $key "dbHost") (eq $key "dbUser") (eq $key "metricsHost") (eq $key "metricsDbUser")) }}
+{{- if and (not (eq $shouldExclude "true")) (not $skipIamKeys) }}
 {{- if not (kindIs "invalid" $value) }}
 {{- if not (has $key $processedKeys) }}
 {{- include "core.processValue" (dict "key" $key "value" $value) }}
@@ -219,4 +231,60 @@ Helper function to get the final URL of the image to be used in the deployment.
 {{- else -}}
 {{- printf "%s/%s@%s" $registry $imageName $imageDigest -}}
 {{- end -}}
+{{- end -}}
+
+{{/*
+Helper function to conditionally include Cloud SQL Proxy sidecar container
+Only included when global.cloudSqlIamAuthEnabled is true
+Used for long-running deployments (does not include graceful shutdown flags)
+*/}}
+{{- define "core.databaseProxyContainer" -}}
+{{- if .Values.global.cloudSqlIamAuthEnabled }}
+- name: cloud-sql-proxy
+  image: {{ .Values.global.cloudSqlProxy.image | default "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1" | quote }}
+  args:
+    - "--private-ip"
+    - "--auto-iam-authn"
+    - "--structured-logs"
+    - "--port=5432"
+    - "{{ .Values.global.coreConfig.gcp.instanceConnectionName | default .Values.telemetryDeployer.cloudSqlConnector }}"
+  securityContext:
+    runAsNonRoot: true
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+{{- end }}
+{{- end -}}
+
+{{/*
+Helper function to conditionally include Cloud SQL Proxy sidecar container for Jobs
+Only included when global.cloudSqlIamAuthEnabled is true
+Includes graceful shutdown flags (--quitquitquit and --admin-port=9091) for Jobs
+*/}}
+{{- define "core.databaseProxyContainerForJob" -}}
+{{- if .Values.global.cloudSqlIamAuthEnabled }}
+- name: cloud-sql-proxy
+  image: {{ .Values.global.cloudSqlProxy.image | default "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1" | quote }}
+  args:
+    - "--private-ip"
+    - "--auto-iam-authn"
+    - "--structured-logs"
+    - "--quitquitquit"
+    - "--admin-port=9091"
+    - "--port=5432"
+    - "{{ .Values.global.coreConfig.gcp.instanceConnectionName | default .Values.telemetryDeployer.cloudSqlConnector }}"
+  securityContext:
+    runAsNonRoot: true
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+{{- end }}
 {{- end -}}

@@ -4,7 +4,9 @@ import (
 	"context"
 	"flag"
 	"log"
+	"net"
 	"os"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/drivers/postgres"
@@ -19,7 +21,56 @@ var (
 	metricsEnabled = env.GetBool("METRICS_ENABLED", false)
 )
 
+// shutdownCloudSQLProxy gracefully shuts down the Cloud SQL Proxy sidecar
+// by sending a POST request to the admin endpoint (--quitquitquit).
+// This uses raw TCP to avoid requiring curl or shell utilities (distroless-friendly).
+func shutdownCloudSQLProxy() {
+	// Only attempt shutdown if IAM auth is enabled (indicates sidecar is present)
+	iamAuthEnabled := env.GetBool("CLOUD_SQL_IAM_AUTH_ENABLED", false)
+	if !iamAuthEnabled {
+		return
+	}
+
+	// Cloud SQL Proxy admin endpoint (default port 9091)
+	adminPort := env.GetString("CLOUD_SQL_PROXY_ADMIN_PORT", "9091")
+	address := net.JoinHostPort("127.0.0.1", adminPort)
+
+	// Connect with timeout
+	conn, err := net.DialTimeout("tcp", address, 2*time.Second)
+	if err != nil {
+		log.Printf("Failed to connect to Cloud SQL Proxy admin endpoint (%s): %v", address, err)
+		return
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("Failed to close connection to Cloud SQL Proxy admin endpoint: %v", err)
+		}
+	}()
+
+	// Send minimal HTTP POST request to /quitquitquit
+	// This triggers graceful shutdown of the proxy sidecar
+	request := "POST /quitquitquit HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
+	if _, err := conn.Write([]byte(request)); err != nil {
+		log.Printf("Failed to send shutdown request to Cloud SQL Proxy: %v", err)
+		return
+	}
+
+	// Read response (optional, but good practice)
+	if err := conn.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		log.Printf("Failed to set read deadline: %v", err)
+		return
+	}
+	buffer := make([]byte, 1024)
+	_, _ = conn.Read(buffer) // Ignore response, just ensure connection is closed
+
+	log.Println("Cloud SQL Proxy shutdown request sent successfully")
+}
+
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
 	rollback := flag.Bool("rollback", false, "Rollback the last migration")
 	migrate := flag.Bool("migrate", false, "Run database migrations")
 	setupDB := flag.Bool("setup", false, "Setup database infrastructure (requires admin credentials)")
@@ -29,6 +80,10 @@ func main() {
 
 	logger := slogger.NewLogger()
 	cfg := common.LoadConfig()
+
+	// Ensure Cloud SQL Proxy sidecar is shut down on all exit paths (best-effort).
+	// NOTE: this must live in a function that returns normally; os.Exit would skip defers.
+	defer shutdownCloudSQLProxy()
 
 	dbConfig := dbutils.DbConfig{
 		Type:            cfg.DBType,
@@ -68,24 +123,28 @@ func main() {
 	case *setupDB:
 		if err := setupDatabase(ctx, dbConfig, metricsDbConfig, logger); err != nil {
 			logger.Error("Database setup failed", "error", err.Error())
-			os.Exit(1)
+			return 1
 		}
 		log.Println("Database infrastructure setup completed successfully")
+		return 0
 	case *rollback:
 		if err := performRollback(ctx, dbConfig, metricsDbConfig, logger); err != nil {
 			logger.Error("Rollback failed", "error", err.Error())
-			os.Exit(1)
+			return 1
 		}
 		log.Println("Rollback completed successfully")
+		return 0
 	case *migrate:
 		if err := performMigration(ctx, dbConfig, metricsDbConfig, logger); err != nil {
 			logger.Error("Migrations failed", "error", err.Error())
-			os.Exit(1)
+			return 1
 		}
 		log.Println("Migrations completed successfully")
+		return 0
 	default:
 		flag.Usage()
-		log.Fatal("No operation specified")
+		logger.Error("No operation specified")
+		return 2
 	}
 }
 

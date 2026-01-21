@@ -91,6 +91,14 @@ func main() {
 	// Add default environment variables from the gcloud command
 	if len(envVars) == 0 {
 		envVars = getDefaultEnvVars()
+	} else {
+		// Merge with defaults to ensure CLOUD_SQL_IAM_AUTH_ENABLED is always available
+		defaults := getDefaultEnvVars()
+		for key, value := range defaults {
+			if _, exists := envVars[key]; !exists {
+				envVars[key] = value
+			}
+		}
 	}
 
 	// Set scheduler region to service region if not specified (backward compatibility)
@@ -191,10 +199,18 @@ func deployCloudRunService(ctx context.Context, config *DeploymentConfig) error 
 	// Convert environment variables to Cloud Run format
 	envVars := make([]*cloudrun.GoogleCloudRunV2EnvVar, 0, len(config.EnvVars)+2) // +2 for the secrets
 
+	// Check if IAM authentication is enabled
+	iamAuthEnabled := false
+	if iamAuthEnabledValue, ok := config.EnvVars["CLOUD_SQL_IAM_AUTH_ENABLED"]; ok {
+		iamAuthEnabled = strings.EqualFold(strings.TrimSpace(iamAuthEnabledValue), "true")
+	}
+
 	// Define secrets that should be fetched from Secret Manager
-	secretKeys := map[string]string{
-		"DB_PASSWORD":         "vcp-autopush-tst-au-se1-db-password-key",
-		"METRICS_DB_PASSWORD": "vcp-autopush-tst-au-se1-metrics-db-password-key",
+	// Skip password secrets when IAM authentication is enabled
+	secretKeys := map[string]string{}
+	if !iamAuthEnabled {
+		secretKeys["DB_PASSWORD"] = "vcp-autopush-tst-au-se1-db-password-key"
+		secretKeys["METRICS_DB_PASSWORD"] = "vcp-autopush-tst-au-se1-metrics-db-password-key"
 	}
 
 	for key, value := range config.EnvVars {
@@ -203,8 +219,18 @@ func deployCloudRunService(ctx context.Context, config *DeploymentConfig) error 
 			continue
 		}
 
+		// Skip password secrets when IAM authentication is enabled
+		if iamAuthEnabled && (key == "DB_PASSWORD" || key == "METRICS_DB_PASSWORD") {
+			continue
+		}
+
 		// Skip if this variable should be configured as a secret
-		if _, isExists := secretKeys[key]; isExists {
+		if secretName, isExists := secretKeys[key]; isExists {
+			// Only add secret reference if value is not empty
+			if value == "" {
+				// Use the default secret name from secretKeys map
+				value = secretName
+			}
 			// Add as secret reference instead of plain value
 			envVars = append(envVars, &cloudrun.GoogleCloudRunV2EnvVar{
 				Name: key,
@@ -249,15 +275,21 @@ func deployCloudRunService(ctx context.Context, config *DeploymentConfig) error 
 
 	cloudSqlInstance := config.CloudSQLInstances[0]
 	// SQL Proxy Container Configuration to connect to Cloud SQL instances
+	sqlProxyArgs := []string{
+		"--private-ip",
+		"--structured-logs",
+		"--port=5432",
+	}
+	// Add IAM authentication flag if IAM is enabled
+	if iamAuthEnabled {
+		sqlProxyArgs = append(sqlProxyArgs, "--auto-iam-authn")
+	}
+	sqlProxyArgs = append(sqlProxyArgs, cloudSqlInstance)
+
 	sqlProxyContainer := &cloudrun.GoogleCloudRunV2Container{
 		Name:  "vsa-cloud-sql-proxy",
 		Image: config.CloudSQLImage,
-		Args: []string{
-			"--private-ip",
-			"--structured-logs",
-			"--port=5432",
-			cloudSqlInstance,
-		},
+		Args:  sqlProxyArgs,
 		Resources: &cloudrun.GoogleCloudRunV2ResourceRequirements{
 			// Set cpuIdle to false for instance-based billing
 			CpuIdle: false,
@@ -507,6 +539,8 @@ func getDefaultEnvVars() map[string]string {
 		"USAGE_ROOT_URL":                                   getEnvOrDefault("USAGE_ROOT_URL", "https://servicecontrol.googleapis.com"),
 		"RETRY_INTERVAL_SECONDS":                           getEnvOrDefault("RETRY_INTERVAL_SECONDS", "300"),
 		"NUM_WORKERS_BILLING_RETRY":                        getEnvOrDefault("NUM_WORKERS_BILLING_RETRY", "5"),
+		// Always include the flag so callers can reliably read it even if --env-vars omits it.
+		"CLOUD_SQL_IAM_AUTH_ENABLED": getEnvOrDefault("CLOUD_SQL_IAM_AUTH_ENABLED", "false"),
 	}
 }
 

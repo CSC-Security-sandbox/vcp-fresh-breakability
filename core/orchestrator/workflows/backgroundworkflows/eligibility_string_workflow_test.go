@@ -36,7 +36,7 @@ func TestEligibilityStringWorkflow_ActivityFails(t *testing.T) {
 
 	// Mock the activity to fail
 	eligibilityStringActivity := &backgroundactivities.EligibilityStringActivity{}
-	env.OnActivity(eligibilityStringActivity.GetEligibilityString, mock.Anything).Return(assert.AnError).Once()
+	env.OnActivity(eligibilityStringActivity.GetEligibilityString, mock.Anything).Return([]*datamodel.Volume{}, assert.AnError).Once()
 
 	// Execute the workflow
 	env.ExecuteWorkflow(EligibilityStringWorkflow)

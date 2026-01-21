@@ -13,7 +13,18 @@ global:
   chartPrimaryImageRegistry: ""
   chartSecondaryImageRegistry: ""
   environment: gcp
+  # Cloud SQL IAM Authentication via Workload Identity
+  # When enabled: Uses IAM authentication with Cloud SQL Proxy sidecar
+  # When disabled: Uses traditional username/password authentication
+  cloudSqlIamAuthEnabled: false
+  # Central Cloud SQL Proxy image used across charts when IAM DB auth is enabled
+  cloudSqlProxy:
+    image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1"
 
+cloudSql:
+  # Format: PROJECT_ID:REGION:INSTANCE_NAME
+  # Example: "netapp-au-se1-autopush-sde-tst:australia-southeast1:netapp-au-se1-autopush-sde-tst-db-postgres"
+  instanceConnectionName: "netapp-au-se1-autopush-sde-tst:australia-southeast1:netapp-au-se1-autopush-sde-tst-db-postgres"
 
 # This will be overridden automatically in deployment repo with build versions.
 versionsSupported:
@@ -200,7 +211,6 @@ workerConfig:
   harvestHost: "vsa-harvest-farm-service.vcp.svc.cluster.local"
   enableMetrics: "false"
   harvestSecretManagerAuthEnabled: "false"
-  enableMultiHaPairRegistration: "false"
   harvestRestProtocol: "http"
   harvestPortStart: 13001
   harvestPortEnd: 13500
@@ -363,6 +373,8 @@ workerConfig:
     runMigrationOnStart: "true"
     host: cloud-sql-proxy.sde.svc.cluster.local
     port: 5432
+    # NOTE: When global.cloudSqlIamAuthEnabled=true, the chart overrides DB_USER to <ksa>@<project>.iam automatically.
+    # Keep password-mode defaults here.
     user: postgres
     password: testpass
     adminUser: adminUser

@@ -43,12 +43,14 @@
 - name: SQL_DATABASE
   value: {{ include "temporal.persistence.sql.database" (list $global $store) }}
 - name: SQL_USER
-  value: {{ $driverConfig.user }}
+  value: {{ include "temporal.persistence.sql.user" (list $global $store) }}
+{{- if not (include "temporal.cloudSqlIamAuthEnabled" (list $global) | toString | eq "true") }}
 - name: SQL_PASSWORD
   valueFrom:
     secretKeyRef:
       name: {{ include "temporal.persistence.secretName" (list $global $store) }}
       key: {{ include "temporal.persistence.secretKey" (list $global $store) }}
+{{- end }}
   {{- with $driverConfig.connectAttributes }}
 - name: SQL_CONNECT_ATTRIBUTES
   value: {{ include "temporal.persistence.sql.connectAttributes" (list $global $store) | quote }}

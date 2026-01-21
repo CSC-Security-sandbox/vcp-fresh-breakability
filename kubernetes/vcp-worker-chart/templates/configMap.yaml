@@ -24,9 +24,7 @@ data:
   TEMPORAL_ADDRESS: {{$.Values.workerConfig.temporalAddress | quote }}
   GCP_PROXY_PORT: {{$.Values.workerConfig.gcpProxyPort | quote }}
   DB_TYPE: {{$.Values.workerConfig.database.type | quote }}
-  DB_HOST: {{$.Values.workerConfig.database.host | quote }}
   DB_PORT: {{$.Values.workerConfig.database.port | quote }}
-  DB_USER: {{$.Values.workerConfig.database.user | quote }}
   DB_NAME: {{$.Values.workerConfig.database.dbname | quote }}
   DB_ADMIN_USER: {{$.Values.workerConfig.database.adminUser | quote }}
   DB_SSL_MODE: {{$.Values.workerConfig.database.sslMode | quote }}
@@ -35,9 +33,7 @@ data:
   DB_MAX_IDLE_CONNS: {{$.Values.workerConfig.database.maxIdleConns | quote }}
   DB_CONN_MAX_LIFETIME: {{$.Values.workerConfig.database.maxConnLifetime | quote }}
   METRICS_DB_TYPE: {{$.Values.workerConfig.database.metricsDbType | quote }}
-  METRICS_DB_HOST: {{$.Values.workerConfig.database.metricsDbHost | quote }}
   METRICS_DB_PORT: {{$.Values.workerConfig.database.metricsDbPort | quote }}
-  METRICS_DB_USER: {{$.Values.workerConfig.database.metricsDbUser | quote }}
   METRICS_DB_NAME: {{$.Values.workerConfig.database.metricsDbName | quote }}
   METRICS_DB_SSL_MODE: {{$.Values.workerConfig.database.metricsDbSslMode | quote }}
   METRICS_DB_TIMEZONE: {{$.Values.workerConfig.database.metricsDbTimezone | quote }}
@@ -45,6 +41,12 @@ data:
   METRICS_DB_MAX_IDLE_CONNS: {{$.Values.workerConfig.database.metricsDbMaxIdleConns | quote }}
   METRICS_DB_CONN_MAX_LIFETIME: {{$.Values.workerConfig.database.metricsDbMaxConnLifetime | quote }}
   METRICS_DB_CLEANUP_ENABLED: {{$.Values.workerConfig.database.metricsDbCleanupEnabled | quote }}
+  {{- if not $.Values.global.cloudSqlIamAuthEnabled }}
+  DB_HOST: {{$.Values.workerConfig.database.host | quote }}
+  DB_USER: {{$.Values.workerConfig.database.user | quote }}
+  METRICS_DB_HOST: {{$.Values.workerConfig.database.metricsDbHost | quote }}
+  METRICS_DB_USER: {{$.Values.workerConfig.database.metricsDbUser | quote }}
+  {{- end }}
   FLEXCACHE_PREPOPULATE_MAX_JOBS_PER_RUN: {{ $.Values.workerConfig.flexcachePrepopulateMaxJobsPerRun | default "20" | quote }}
   VLMWORKFLOW_RETRY_MAX_ATTEMPTS: {{$.Values.workerConfig.vlmWorkflowRetryMaxAttempts | quote }}
   RUN_MIGRATION_ON_START: {{$.Values.workerConfig.database.runMigrationOnStart | quote }}
@@ -319,9 +321,28 @@ data:
   SCHEDULE_BACKUP_WORKFLOW_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.scheduleBackupWorkflowHeartbeatTimeoutSec | quote }}
   SFR_WORKFLOW_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.sfrWorkflowHeartbeatTimeoutSec | quote }}
 
+  {{- if $.Values.global.cloudSqlIamAuthEnabled }}
+  {{- $projectId := $.Values.workerConfig.smcProjectId }}
+  {{- if $.Values.global.coreConfig }}
+  {{- if $.Values.global.coreConfig.gcp }}
+  {{- if $.Values.global.coreConfig.gcp.projectId }}
+  {{- $projectId = $.Values.global.coreConfig.gcp.projectId }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  # IAM authentication values - only set when cloudSqlIamAuthEnabled=true
+  DB_HOST: "127.0.0.1"
+  DB_USER: {{ printf "%s@%s.iam" $.Values.serviceAccount.name $projectId | quote }}
+  METRICS_DB_HOST: "127.0.0.1"
+  METRICS_DB_USER: {{ printf "%s@%s.iam" $.Values.serviceAccount.name $projectId | quote }}
+  {{- else }}
+  # When IAM is disabled, DB_HOST/DB_USER are set from values.yaml above
+  {{- end }}
 
-
-
+  # CLOUD_SQL_IAM_AUTH_ENABLED controls authentication method for database connections
+  # true = Use IAM authentication via Cloud SQL Proxy sidecar (connects to 127.0.0.1)
+  # false = Use password authentication via shared proxy service (connects to cloud-sql-proxy.sde.svc.cluster.local)
+  CLOUD_SQL_IAM_AUTH_ENABLED: {{ $.Values.global.cloudSqlIamAuthEnabled | default false | quote }}
 ---
   {{- end }}
 {{- end }}
