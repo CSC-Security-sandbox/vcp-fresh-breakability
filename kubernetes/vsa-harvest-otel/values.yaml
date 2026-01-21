@@ -25,8 +25,8 @@ horizontalPodAutoscaling:
 images:
   pm2:
     name: vcp-container-images-us/harvest-multi
-    tag: 25.12.03-1
-    digest: "sha256:c1a7cd0f0f9cf1f748109de4b3868354bb217717e2a02af806ca1a912679e472"
+    tag: 26.01.20-1
+    digest: "sha256:f50704ef8be9155b02b11a6e0fdf09d26f8ea64df620ae78554a4a4aa4164acd"
     secondary: false
     primary: true
     pullPolicy: IfNotPresent
