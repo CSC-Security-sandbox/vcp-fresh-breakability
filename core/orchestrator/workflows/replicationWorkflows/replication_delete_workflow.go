@@ -211,24 +211,34 @@ func (wf *replicationDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteReplicationOnDestination, &replicationResult).Get(ctx, &replicationResult)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
+	// Skip deletion on destination if hybrid replication is in PENDING_CLUSTER_PEER or PENDING_SVM_PEER
+	isHybridReplicationPendingPeering := replicationResult.IsHybridReplicationVolume &&
+		replicationResult.Event != nil &&
+		replicationResult.Event.ReplicationModel != nil &&
+		replicationResult.Event.ReplicationModel.HybridReplicationAttributes != nil &&
+		(replicationResult.Event.ReplicationModel.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingClusterPeer ||
+			replicationResult.Event.ReplicationModel.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingSVMPeer)
 
-	err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeRemoteJobForDelete, &replicationResult).Get(ctx, nil)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
+	if !isHybridReplicationPendingPeering {
+		err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteReplicationOnDestination, &replicationResult).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteSnapmirrorSnapshotsOnDestination, &replicationResult).Get(ctx, &replicationResult)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
+		err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeRemoteJobForDelete, &replicationResult).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 
-	err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeRemoteJobForDelete, &replicationResult).Get(ctx, nil)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
+		err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteSnapmirrorSnapshotsOnDestination, &replicationResult).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeRemoteJobForDelete, &replicationResult).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
 
 	if !replicationResult.IsHybridReplicationVolume {
@@ -268,7 +278,7 @@ func (wf *replicationDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	if replicationResult.DstReplication.MirrorState.IsSet() && replicationResult.DstReplication.MirrorState.Value == googleproxyclient.VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED {
+	if isHybridReplicationPendingPeering || (replicationResult.DstReplication.MirrorState.IsSet() && replicationResult.DstReplication.MirrorState.Value == googleproxyclient.VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED) {
 		err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteVolumeOnDestination, &replicationResult).Get(ctx, &replicationResult)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)

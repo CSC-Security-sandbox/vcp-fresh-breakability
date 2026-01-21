@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -689,9 +690,9 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 				ReplicationModel: &datamodel.VolumeReplication{
 					Name: "test-replication",
 					ReplicationAttributes: &datamodel.ReplicationDetails{
-						SourceLocation:      "us-central1",
-						DestinationLocation: "us-east1",
-						SourceVolumeName:    "source-volume",
+						SourceLocation:        "us-central1",
+						DestinationLocation:   "us-east1",
+						SourceVolumeName:      "source-volume",
 						DestinationVolumeName: "destination-volume",
 					},
 				},
@@ -732,6 +733,409 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 		env.OnActivity("DescribeSourceJobForDelete", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeHydrateDestinationVolumeReplication", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("UpdateReplicationRecordOnSource", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		env.OnActivity("UpdateReplicationOnDestinationToErrorState", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("UpdateReplicationOnSourceToErrorState", mock.Anything, mock.Anything).Return(replicationResult, nil)
+
+		env.ExecuteWorkflow(ReplicationDeleteWorkflow, params, event)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
+
+	t.Run("TestReplicationDeleteWorkflow_SuccessWhenHybridReplicationPendingClusterPeering", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		deleteReplicationActivity := replicationActivities.DeleteVolumeReplicationActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(deleteReplicationActivity.SetHybridReplicationVariablesDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetSrcBasePathDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetDstBasePathDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetSignedSrcTokenDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetSignedDstTokenDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetReplicationOnDestinationForDelete)
+		env.RegisterActivity(deleteReplicationActivity.UpdateReplicationRecordOnDestination)
+		env.RegisterActivity(deleteReplicationActivity.DescribeRemoteJobForDelete)
+		env.RegisterActivity(deleteReplicationActivity.DeleteVolumeOnDestination)
+		env.RegisterActivity(deleteReplicationActivity.DeHydrateDestinationVolume)
+		env.RegisterActivity(deleteReplicationActivity.UpdateReplicationOnDestinationToErrorState)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		params := &commonparams.DeleteReplicationParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			CorrelationId:         "test-correlation-id",
+			VolumeResourceId:      "test-volume-id",
+			ReplicationResourceId: "test-replication-id",
+			Zone:                  "us-central1-a",
+		}
+
+		event := &replication.DeleteReplicationEvent{
+			CommonReplicationEventParams: replication.CommonReplicationEventParams{
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation: "us-central1",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						Status: models.HybridReplicationStatusPendingClusterPeer,
+					},
+				},
+				SourceProjectNumber:      "123456789",
+				DestinationProjectNumber: "987654321",
+				VolumeResourceID:         "test-volume-id",
+				ReplicationResourceID:    "test-replication-id",
+				Location:                 "us-central1",
+				Zone:                     "us-central1-a",
+				AccountName:              "test-account",
+			},
+		}
+
+		replicationResult := &replication.DeleteReplicationResult{
+			SrcProjectNumber: &event.SourceProjectNumber,
+			DstProjectNumber: &event.DestinationProjectNumber,
+			Event:            event,
+			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				Name:             googleproxyclient.NewOptString("repl-123"),
+				LastTransferSize: googleproxyclient.NewOptInt64(100),
+				MirrorState:      googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateUNINITIALIZED),
+			},
+			IsHybridReplicationVolume: true,
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SetHybridReplicationVariablesDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSrcBasePathDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetDstBasePathDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSignedSrcTokenDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSignedDstTokenDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetReplicationOnDestinationForDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("UpdateReplicationRecordOnDestination", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DescribeRemoteJobForDelete", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteVolumeOnDestination", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DescribeRemoteJobForDelete", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeHydrateDestinationVolume", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.ExecuteWorkflow(ReplicationDeleteWorkflow, params, event)
+
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		assert.Nil(tt, err)
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
+
+	t.Run("TestReplicationDeleteWorkflow_ErrorDeleteReplicationOnDestination", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		deleteReplicationActivity := replicationActivities.DeleteVolumeReplicationActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(deleteReplicationActivity.SetHybridReplicationVariablesDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetSrcBasePathDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetDstBasePathDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetSignedSrcTokenDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetSignedDstTokenDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetReplicationOnDestinationForDelete)
+		env.RegisterActivity(deleteReplicationActivity.DeleteReplicationOnDestination)
+		env.RegisterActivity(deleteReplicationActivity.UpdateReplicationOnDestinationToErrorState)
+		env.RegisterActivity(deleteReplicationActivity.UpdateReplicationOnSourceToErrorState)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		params := &commonparams.DeleteReplicationParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			CorrelationId:         "test-correlation-id",
+			VolumeResourceId:      "test-volume-id",
+			ReplicationResourceId: "test-replication-id",
+			Zone:                  "us-central1-a",
+		}
+
+		event := &replication.DeleteReplicationEvent{
+			CommonReplicationEventParams: replication.CommonReplicationEventParams{
+				ReplicationModel:         &datamodel.VolumeReplication{},
+				SourceProjectNumber:      "123456789",
+				DestinationProjectNumber: "987654321",
+				VolumeResourceID:         "test-volume-id",
+				ReplicationResourceID:    "test-replication-id",
+				Location:                 "us-central1",
+				Zone:                     "us-central1-a",
+				AccountName:              "test-account",
+			},
+		}
+
+		replicationResult := &replication.DeleteReplicationResult{
+			SrcProjectNumber: &event.SourceProjectNumber,
+			DstProjectNumber: &event.DestinationProjectNumber,
+			Event:            event,
+			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				Name:             googleproxyclient.NewOptString("repl-123"),
+				LastTransferSize: googleproxyclient.NewOptInt64(100),
+				MirrorState:      googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateSTOPPED),
+			},
+			IsHybridReplicationVolume: false,
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SetHybridReplicationVariablesDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSrcBasePathDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetDstBasePathDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSignedSrcTokenDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSignedDstTokenDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetReplicationOnDestinationForDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DeleteReplicationOnDestination", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		env.OnActivity("UpdateReplicationOnDestinationToErrorState", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("UpdateReplicationOnSourceToErrorState", mock.Anything, mock.Anything).Return(replicationResult, nil)
+
+		env.ExecuteWorkflow(ReplicationDeleteWorkflow, params, event)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
+
+	t.Run("TestReplicationDeleteWorkflow_ErrorDescribeRemoteJobForDeleteAfterDeleteReplication", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		deleteReplicationActivity := replicationActivities.DeleteVolumeReplicationActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(deleteReplicationActivity.SetHybridReplicationVariablesDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetSrcBasePathDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetDstBasePathDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetSignedSrcTokenDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetSignedDstTokenDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetReplicationOnDestinationForDelete)
+		env.RegisterActivity(deleteReplicationActivity.DeleteReplicationOnDestination)
+		env.RegisterActivity(deleteReplicationActivity.DescribeRemoteJobForDelete)
+		env.RegisterActivity(deleteReplicationActivity.UpdateReplicationOnDestinationToErrorState)
+		env.RegisterActivity(deleteReplicationActivity.UpdateReplicationOnSourceToErrorState)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		params := &commonparams.DeleteReplicationParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			CorrelationId:         "test-correlation-id",
+			VolumeResourceId:      "test-volume-id",
+			ReplicationResourceId: "test-replication-id",
+			Zone:                  "us-central1-a",
+		}
+
+		event := &replication.DeleteReplicationEvent{
+			CommonReplicationEventParams: replication.CommonReplicationEventParams{
+				ReplicationModel:         &datamodel.VolumeReplication{},
+				SourceProjectNumber:      "123456789",
+				DestinationProjectNumber: "987654321",
+				VolumeResourceID:         "test-volume-id",
+				ReplicationResourceID:    "test-replication-id",
+				Location:                 "us-central1",
+				Zone:                     "us-central1-a",
+				AccountName:              "test-account",
+			},
+		}
+
+		replicationResult := &replication.DeleteReplicationResult{
+			SrcProjectNumber: &event.SourceProjectNumber,
+			DstProjectNumber: &event.DestinationProjectNumber,
+			Event:            event,
+			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				Name:             googleproxyclient.NewOptString("repl-123"),
+				LastTransferSize: googleproxyclient.NewOptInt64(100),
+				MirrorState:      googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateSTOPPED),
+			},
+			IsHybridReplicationVolume: false,
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SetHybridReplicationVariablesDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSrcBasePathDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetDstBasePathDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSignedSrcTokenDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSignedDstTokenDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetReplicationOnDestinationForDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DeleteReplicationOnDestination", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DescribeRemoteJobForDelete", mock.Anything, mock.Anything).Return(assert.AnError)
+		env.OnActivity("UpdateReplicationOnDestinationToErrorState", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("UpdateReplicationOnSourceToErrorState", mock.Anything, mock.Anything).Return(replicationResult, nil)
+
+		env.ExecuteWorkflow(ReplicationDeleteWorkflow, params, event)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
+
+	t.Run("TestReplicationDeleteWorkflow_ErrorDeleteSnapmirrorSnapshotsOnDestination", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		deleteReplicationActivity := replicationActivities.DeleteVolumeReplicationActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(deleteReplicationActivity.SetHybridReplicationVariablesDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetSrcBasePathDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetDstBasePathDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetSignedSrcTokenDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetSignedDstTokenDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetReplicationOnDestinationForDelete)
+		env.RegisterActivity(deleteReplicationActivity.DeleteReplicationOnDestination)
+		env.RegisterActivity(deleteReplicationActivity.DescribeRemoteJobForDelete)
+		env.RegisterActivity(deleteReplicationActivity.DeleteSnapmirrorSnapshotsOnDestination)
+		env.RegisterActivity(deleteReplicationActivity.UpdateReplicationOnDestinationToErrorState)
+		env.RegisterActivity(deleteReplicationActivity.UpdateReplicationOnSourceToErrorState)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		params := &commonparams.DeleteReplicationParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			CorrelationId:         "test-correlation-id",
+			VolumeResourceId:      "test-volume-id",
+			ReplicationResourceId: "test-replication-id",
+			Zone:                  "us-central1-a",
+		}
+
+		event := &replication.DeleteReplicationEvent{
+			CommonReplicationEventParams: replication.CommonReplicationEventParams{
+				ReplicationModel:         &datamodel.VolumeReplication{},
+				SourceProjectNumber:      "123456789",
+				DestinationProjectNumber: "987654321",
+				VolumeResourceID:         "test-volume-id",
+				ReplicationResourceID:    "test-replication-id",
+				Location:                 "us-central1",
+				Zone:                     "us-central1-a",
+				AccountName:              "test-account",
+			},
+		}
+
+		replicationResult := &replication.DeleteReplicationResult{
+			SrcProjectNumber: &event.SourceProjectNumber,
+			DstProjectNumber: &event.DestinationProjectNumber,
+			Event:            event,
+			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				Name:             googleproxyclient.NewOptString("repl-123"),
+				LastTransferSize: googleproxyclient.NewOptInt64(100),
+				MirrorState:      googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateSTOPPED),
+			},
+			IsHybridReplicationVolume: false,
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SetHybridReplicationVariablesDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSrcBasePathDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetDstBasePathDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSignedSrcTokenDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSignedDstTokenDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetReplicationOnDestinationForDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DeleteReplicationOnDestination", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DescribeRemoteJobForDelete", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteSnapmirrorSnapshotsOnDestination", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		env.OnActivity("UpdateReplicationOnDestinationToErrorState", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("UpdateReplicationOnSourceToErrorState", mock.Anything, mock.Anything).Return(replicationResult, nil)
+
+		env.ExecuteWorkflow(ReplicationDeleteWorkflow, params, event)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
+
+	t.Run("TestReplicationDeleteWorkflow_ErrorDescribeRemoteJobForDeleteAfterDeleteSnapshots", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		deleteReplicationActivity := replicationActivities.DeleteVolumeReplicationActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(deleteReplicationActivity.SetHybridReplicationVariablesDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetSrcBasePathDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetDstBasePathDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetSignedSrcTokenDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetSignedDstTokenDelete)
+		env.RegisterActivity(deleteReplicationActivity.GetReplicationOnDestinationForDelete)
+		env.RegisterActivity(deleteReplicationActivity.DeleteReplicationOnDestination)
+		env.RegisterActivity(deleteReplicationActivity.DescribeRemoteJobForDelete)
+		env.RegisterActivity(deleteReplicationActivity.DeleteSnapmirrorSnapshotsOnDestination)
+		env.RegisterActivity(deleteReplicationActivity.UpdateReplicationOnDestinationToErrorState)
+		env.RegisterActivity(deleteReplicationActivity.UpdateReplicationOnSourceToErrorState)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		params := &commonparams.DeleteReplicationParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			CorrelationId:         "test-correlation-id",
+			VolumeResourceId:      "test-volume-id",
+			ReplicationResourceId: "test-replication-id",
+			Zone:                  "us-central1-a",
+		}
+
+		event := &replication.DeleteReplicationEvent{
+			CommonReplicationEventParams: replication.CommonReplicationEventParams{
+				ReplicationModel:         &datamodel.VolumeReplication{},
+				SourceProjectNumber:      "123456789",
+				DestinationProjectNumber: "987654321",
+				VolumeResourceID:         "test-volume-id",
+				ReplicationResourceID:    "test-replication-id",
+				Location:                 "us-central1",
+				Zone:                     "us-central1-a",
+				AccountName:              "test-account",
+			},
+		}
+
+		replicationResult := &replication.DeleteReplicationResult{
+			SrcProjectNumber: &event.SourceProjectNumber,
+			DstProjectNumber: &event.DestinationProjectNumber,
+			Event:            event,
+			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				Name:             googleproxyclient.NewOptString("repl-123"),
+				LastTransferSize: googleproxyclient.NewOptInt64(100),
+				MirrorState:      googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateSTOPPED),
+			},
+			IsHybridReplicationVolume: false,
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SetHybridReplicationVariablesDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSrcBasePathDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetDstBasePathDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSignedSrcTokenDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSignedDstTokenDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetReplicationOnDestinationForDelete", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DeleteReplicationOnDestination", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DescribeRemoteJobForDelete", mock.Anything, mock.Anything).Return(nil).Once()
+		env.OnActivity("DeleteSnapmirrorSnapshotsOnDestination", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DescribeRemoteJobForDelete", mock.Anything, mock.Anything).Return(assert.AnError).Once()
 		env.OnActivity("UpdateReplicationOnDestinationToErrorState", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("UpdateReplicationOnSourceToErrorState", mock.Anything, mock.Anything).Return(replicationResult, nil)
 

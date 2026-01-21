@@ -1764,6 +1764,13 @@ func _verifyReplication(ctx context.Context, event *DeleteReplicationEvent) (*co
 		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Replication relationship status should be %s", models.VolumeReplicationCVPV1betaRelationshipStatusIdle))
 	}
 
+	if event.ReplicationModel.HybridReplicationAttributes != nil {
+		if event.ReplicationModel.State == coreModels.LifeCycleStateCreating && event.ReplicationModel.HybridReplicationAttributes.Status == coreModels.HybridReplicationStatusPendingSVMPeer {
+			logger.Error("Hybrid Replication in pending SVM peering state")
+			return nil, utilErrors.NewUserInputValidationErr("Hybrid Replication in pending SVM peering state")
+		}
+	}
+
 	return dstReplication, nil
 }
 

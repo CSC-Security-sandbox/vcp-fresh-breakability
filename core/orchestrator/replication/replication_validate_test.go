@@ -5654,6 +5654,42 @@ func TestVerifyDstReplicationDelete(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
 	})
+	t.Run("WhenHybridReplicationInPendingSVMPeeringState", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		mirrorState := "STOPPED"
+		relationshipStatus := "IDLE"
+		dstReplication := &coreModels.VolumeReplication{
+			MirrorState:        &mirrorState,
+			RelationshipStatus: &relationshipStatus,
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+		eventWithHybridReplication := &DeleteReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				DstBasePath:              "dstPath",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					State: coreModels.LifeCycleStateCreating,
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation:        "dstLocation",
+						DestinationReplicationUUID: "dstUUID",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						Status: coreModels.HybridReplicationStatusPendingSVMPeer,
+					},
+				},
+			},
+		}
+		expectedError := errors.NewUserInputValidationErr("Hybrid Replication in pending SVM peering state")
+		_, err := _verifyReplication(ctx, eventWithHybridReplication)
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		ctx := context.Background()
 		defer func() {
