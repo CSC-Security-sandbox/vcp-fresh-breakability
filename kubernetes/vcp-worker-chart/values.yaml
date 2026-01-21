@@ -76,7 +76,7 @@ workerConfig:
   bidiReplicationEnabled: "false"
   gcpHydrateBatchSize: "10"
   thinCloneGASupport: false
-  enableCloneInfoRefresh: false
+  enableCloneInfoRefresh: true
   snapshotSyncMaxConcurrency: 20
   ontapSnapshotFetchConcurrencyLimit: 5
   snapshotSyncParentWorkflowBatchSize: 100
