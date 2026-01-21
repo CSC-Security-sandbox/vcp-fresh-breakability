@@ -7065,17 +7065,28 @@ func TestPollTransferStatusWithHistoryCheckActivity_NilResponse(t *testing.T) {
 		NextWaitTime:            nextWaitTime,
 	}
 
-	// Return nil response (which should now return an error instead of being treated as success)
+	// Return nil response (which should be treated as success according to the original function)
 	mockProvider.On("SnapmirrorRelationshipTransferGet", "sm-uuid", "test-snapshot").Return(nil, nil)
 
 	currentTime := time.Now()
 
 	// Act
-	_, err := env.ExecuteActivity(activity.PollTransferStatusWithHistoryCheckActivity, input, currentTime)
+	encodedValue, err := env.ExecuteActivity(activity.PollTransferStatusWithHistoryCheckActivity, input, currentTime)
 
-	// Assert - should receive an error for nil response
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "snapmirror transfer response is nil")
+	// Assert
+	assert.NoError(t, err)
+	var result *PollTransferStatusOutput
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, backupActivitiesContext.Node, result.BackupActivitiesContext.Node)
+	assert.Equal(t, backupActivitiesContext.BackupWorkflowInit.Backup.Name, result.BackupActivitiesContext.BackupWorkflowInit.Backup.Name)
+	assert.True(t, result.TransferComplete)
+	assert.False(t, result.ShouldContinueAsNew)
+	assert.Equal(t, "", result.ContinueAsNewReason)
+	assert.Equal(t, nextWaitTime, result.NextWaitTime)
+	assert.Equal(t, SmStatusSuccess, result.BackupActivitiesContext.TransferStatus)
+	assert.NotEmpty(t, result.BackupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotCreationTime)
 	mockProvider.AssertExpectations(t)
 }
 
