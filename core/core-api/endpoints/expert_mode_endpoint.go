@@ -10,14 +10,14 @@ import (
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
-// V1CreateExpertModeVolume implements the expert mode volume creation endpoint
-func (h Handler) V1CreateExpertModeVolume(ctx context.Context, req *oasgenserver.ExpertModeVolumeV1, params oasgenserver.V1CreateExpertModeVolumeParams) (oasgenserver.V1CreateExpertModeVolumeRes, error) {
+// V1ExpertModeVolume implements the expert mode volume creation endpoint
+func (h Handler) V1ExpertModeVolume(ctx context.Context, req *oasgenserver.ExpertModeVolumeV1, params oasgenserver.V1ExpertModeVolumeParams) (oasgenserver.V1ExpertModeVolumeRes, error) {
 	// Create orchestrator parameters
-	createParams := &commonparams.ExpertModeVolumeParams{
+	orchestratorParams := &commonparams.ExpertModeVolumeParams{
 		PoolUUID:    req.PoolUUID,
 		Action:      string(req.Action),
 		VolumeName:  req.VolumeName,
-		VolumeUUID:  req.VolumeUuid.Or(""),
+		VolumeUUID:  req.VolumeUUID.Or(""),
 		SizeInBytes: int64(req.SizeInBytes),
 		Style:       string(req.Style),
 		SvmUuid:     req.SvmUuid.Or(""),
@@ -26,29 +26,32 @@ func (h Handler) V1CreateExpertModeVolume(ctx context.Context, req *oasgenserver
 	}
 
 	var err error
-	// Check if action is delete
-	if req.Action == oasgenserver.ExpertModeVolumeV1ActionDelete {
+	switch req.Action {
+	case oasgenserver.ExpertModeVolumeV1ActionDelete:
 		// Execute the expert mode volume deletion
-		err = h.Orchestrator.DeleteExpertModeVolume(ctx, createParams)
-	} else {
+		err = h.Orchestrator.DeleteExpertModeVolume(ctx, orchestratorParams)
+	case oasgenserver.ExpertModeVolumeV1ActionCreate:
 		// Execute the expert mode volume creation
-		err = h.Orchestrator.CreateExpertModeVolume(ctx, createParams)
+		err = h.Orchestrator.CreateExpertModeVolume(ctx, orchestratorParams)
+	case oasgenserver.ExpertModeVolumeV1ActionUpdate:
+		// Execute the expert mode volume update
+		err = h.Orchestrator.UpdateExpertModeVolume(ctx, orchestratorParams)
 	}
 
 	if err != nil {
 		if customerrors.IsBadRequestErr(err) {
-			return &oasgenserver.V1CreateExpertModeVolumeBadRequest{
+			return &oasgenserver.V1ExpertModeVolumeBadRequest{
 				Message: err.Error(),
 				Code:    http.StatusBadRequest,
 			}, nil
 		}
-		return &oasgenserver.V1CreateExpertModeVolumeInternalServerError{
+		return &oasgenserver.V1ExpertModeVolumeInternalServerError{
 			Message: err.Error(),
 			Code:    http.StatusInternalServerError,
 		}, nil
 	}
 
-	return &oasgenserver.V1CreateExpertModeVolumeOK{}, nil
+	return &oasgenserver.V1ExpertModeVolumeOK{}, nil
 }
 
 // V1RefreshRbacForExpertModePools implements the RBAC refresh endpoint

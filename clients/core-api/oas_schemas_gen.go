@@ -539,6 +539,8 @@ type ExpertModeVolumeV1 struct {
 	Action ExpertModeVolumeV1Action `json:"action"`
 	// Volume name.
 	VolumeName string `json:"volumeName"`
+	// Volume UUID (for update/delete actions).
+	VolumeUUID OptString `json:"volumeUUID"`
 	// Volume size in bytes.
 	SizeInBytes float64 `json:"sizeInBytes"`
 	// Volume style.
@@ -547,8 +549,6 @@ type ExpertModeVolumeV1 struct {
 	SvmUuid OptString `json:"svmUuid"`
 	// SVM name (alternative to svmUuid).
 	SvmName OptString `json:"svmName"`
-	// Volume UUID (for update/delete actions).
-	VolumeUuid OptString `json:"volumeUuid"`
 }
 
 // GetProjectNumber returns the value of ProjectNumber.
@@ -571,6 +571,11 @@ func (s *ExpertModeVolumeV1) GetVolumeName() string {
 	return s.VolumeName
 }
 
+// GetVolumeUUID returns the value of VolumeUUID.
+func (s *ExpertModeVolumeV1) GetVolumeUUID() OptString {
+	return s.VolumeUUID
+}
+
 // GetSizeInBytes returns the value of SizeInBytes.
 func (s *ExpertModeVolumeV1) GetSizeInBytes() float64 {
 	return s.SizeInBytes
@@ -589,11 +594,6 @@ func (s *ExpertModeVolumeV1) GetSvmUuid() OptString {
 // GetSvmName returns the value of SvmName.
 func (s *ExpertModeVolumeV1) GetSvmName() OptString {
 	return s.SvmName
-}
-
-// GetVolumeUuid returns the value of VolumeUuid.
-func (s *ExpertModeVolumeV1) GetVolumeUuid() OptString {
-	return s.VolumeUuid
 }
 
 // SetProjectNumber sets the value of ProjectNumber.
@@ -616,6 +616,11 @@ func (s *ExpertModeVolumeV1) SetVolumeName(val string) {
 	s.VolumeName = val
 }
 
+// SetVolumeUUID sets the value of VolumeUUID.
+func (s *ExpertModeVolumeV1) SetVolumeUUID(val OptString) {
+	s.VolumeUUID = val
+}
+
 // SetSizeInBytes sets the value of SizeInBytes.
 func (s *ExpertModeVolumeV1) SetSizeInBytes(val float64) {
 	s.SizeInBytes = val
@@ -634,11 +639,6 @@ func (s *ExpertModeVolumeV1) SetSvmUuid(val OptString) {
 // SetSvmName sets the value of SvmName.
 func (s *ExpertModeVolumeV1) SetSvmName(val OptString) {
 	s.SvmName = val
-}
-
-// SetVolumeUuid sets the value of VolumeUuid.
-func (s *ExpertModeVolumeV1) SetVolumeUuid(val OptString) {
-	s.VolumeUuid = val
 }
 
 // The action to be performed on the resource.
@@ -4436,43 +4436,6 @@ func (s *UpgradeProgressV1Status) UnmarshalText(data []byte) error {
 	}
 }
 
-type V1CreateExpertModeVolumeBadRequest Error
-
-func (*V1CreateExpertModeVolumeBadRequest) v1CreateExpertModeVolumeRes() {}
-
-type V1CreateExpertModeVolumeConflict Error
-
-func (*V1CreateExpertModeVolumeConflict) v1CreateExpertModeVolumeRes() {}
-
-type V1CreateExpertModeVolumeForbidden Error
-
-func (*V1CreateExpertModeVolumeForbidden) v1CreateExpertModeVolumeRes() {}
-
-type V1CreateExpertModeVolumeInternalServerError Error
-
-func (*V1CreateExpertModeVolumeInternalServerError) v1CreateExpertModeVolumeRes() {}
-
-type V1CreateExpertModeVolumeNotFound Error
-
-func (*V1CreateExpertModeVolumeNotFound) v1CreateExpertModeVolumeRes() {}
-
-// V1CreateExpertModeVolumeOK is response for V1CreateExpertModeVolume operation.
-type V1CreateExpertModeVolumeOK struct{}
-
-func (*V1CreateExpertModeVolumeOK) v1CreateExpertModeVolumeRes() {}
-
-type V1CreateExpertModeVolumeTooManyRequests Error
-
-func (*V1CreateExpertModeVolumeTooManyRequests) v1CreateExpertModeVolumeRes() {}
-
-type V1CreateExpertModeVolumeUnauthorized Error
-
-func (*V1CreateExpertModeVolumeUnauthorized) v1CreateExpertModeVolumeRes() {}
-
-type V1CreateExpertModeVolumeUnprocessableEntity Error
-
-func (*V1CreateExpertModeVolumeUnprocessableEntity) v1CreateExpertModeVolumeRes() {}
-
 type V1CreateImageVersionBadRequest Error
 
 func (*V1CreateImageVersionBadRequest) v1CreateImageVersionRes() {}
@@ -4626,6 +4589,43 @@ func (*V1DeletePoolUnauthorized) v1DeletePoolRes() {}
 type V1DeletePoolUnprocessableEntity Error
 
 func (*V1DeletePoolUnprocessableEntity) v1DeletePoolRes() {}
+
+type V1ExpertModeVolumeBadRequest Error
+
+func (*V1ExpertModeVolumeBadRequest) v1ExpertModeVolumeRes() {}
+
+type V1ExpertModeVolumeConflict Error
+
+func (*V1ExpertModeVolumeConflict) v1ExpertModeVolumeRes() {}
+
+type V1ExpertModeVolumeForbidden Error
+
+func (*V1ExpertModeVolumeForbidden) v1ExpertModeVolumeRes() {}
+
+type V1ExpertModeVolumeInternalServerError Error
+
+func (*V1ExpertModeVolumeInternalServerError) v1ExpertModeVolumeRes() {}
+
+type V1ExpertModeVolumeNotFound Error
+
+func (*V1ExpertModeVolumeNotFound) v1ExpertModeVolumeRes() {}
+
+// V1ExpertModeVolumeOK is response for V1ExpertModeVolume operation.
+type V1ExpertModeVolumeOK struct{}
+
+func (*V1ExpertModeVolumeOK) v1ExpertModeVolumeRes() {}
+
+type V1ExpertModeVolumeTooManyRequests Error
+
+func (*V1ExpertModeVolumeTooManyRequests) v1ExpertModeVolumeRes() {}
+
+type V1ExpertModeVolumeUnauthorized Error
+
+func (*V1ExpertModeVolumeUnauthorized) v1ExpertModeVolumeRes() {}
+
+type V1ExpertModeVolumeUnprocessableEntity Error
+
+func (*V1ExpertModeVolumeUnprocessableEntity) v1ExpertModeVolumeRes() {}
 
 type V1GetClusterUpgradeStatusBadRequest Error
 

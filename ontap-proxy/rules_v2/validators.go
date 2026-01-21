@@ -103,7 +103,7 @@ func _validateVolumeModification(r *http.Request) (bool, string) {
 	}
 
 	fields := parseVolumeRequestFields(requestBody)
-	volumeUuid := extractVolumeUUIDFromRequest(r)
+	volumeUUID := extractVolumeUUIDFromRequest(r)
 
 	// Size is optional for PATCH; only trigger reconcile if size is being modified
 	if sizeValue, sizeExists := requestBody["size"]; sizeExists {
@@ -123,7 +123,7 @@ func _validateVolumeModification(r *http.Request) (bool, string) {
 		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
 		SvmUuid:       fields.SvmUuid,
 		SvmName:       fields.SvmName,
-		VolumeUuid:    volumeUuid,
+		VolumeUUID:    volumeUUID,
 	}
 
 	if err := submitExpertModeVolumeOperation(r.Context(), expertVolumeRequest, "", logger); err != nil {
@@ -145,14 +145,14 @@ func _validateVolumeDeletion(r *http.Request) (bool, string) {
 		return false, fmt.Sprintf("auth data not found in cache for key: %s", cacheKey)
 	}
 
-	volumeUuid := extractVolumeUUIDFromRequest(r)
+	volumeUUID := extractVolumeUUIDFromRequest(r)
 
 	expertVolumeRequest := &coreapi.ExpertModeVolumeV1{
 		ProjectNumber: authData.AccountName,
 		PoolUUID:      authData.PoolID,
 		Action:        coreapi.ExpertModeVolumeV1ActionDelete,
 		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
-		VolumeUuid:    volumeUuid,
+		VolumeUUID:    volumeUUID,
 	}
 
 	if err := submitExpertModeVolumeOperation(r.Context(), expertVolumeRequest, "", logger); err != nil {

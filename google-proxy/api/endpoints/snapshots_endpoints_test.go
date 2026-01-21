@@ -1525,7 +1525,7 @@ func (m *mockInvoker) GetHealth(ctx context.Context) (coreapi.GetHealthRes, erro
 	return nil, nil
 }
 
-func (m *mockInvoker) V1CreateExpertModeVolume(ctx context.Context, request *coreapi.ExpertModeVolumeV1, params coreapi.V1CreateExpertModeVolumeParams) (coreapi.V1CreateExpertModeVolumeRes, error) {
+func (m *mockInvoker) V1ExpertModeVolume(ctx context.Context, request *coreapi.ExpertModeVolumeV1, params coreapi.V1ExpertModeVolumeParams) (coreapi.V1ExpertModeVolumeRes, error) {
 	return nil, nil
 }
 

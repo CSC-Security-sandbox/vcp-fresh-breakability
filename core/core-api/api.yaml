@@ -1019,9 +1019,9 @@ paths:
     post:
       tags:
         - expertMode
-      summary: Create volume in expert mode
-      description: Create an expert volume using expert mode with direct pool and SVM specification
-      operationId: v1_createExpertModeVolume
+      summary: Create/Update/Delete volume in expert mode
+      description: Create/Update/Delete  an expert volume using expert mode with direct pool and SVM specification in the request body. Change action type to specify create, update or delete operation.
+      operationId: v1_expertModeVolume
       parameters:
         - $ref: '#/components/parameters/xCorrelationIdHeader'
       requestBody:
@@ -2413,6 +2413,12 @@ components:
           type: string
           description: Volume name
           example: "my-volume"
+        volumeUUID:
+          title: volumeUUID
+          type: string
+          description: Volume UUID (for update/delete actions)
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          example: "f5d0bf36-5282-45c2-a837-ed7d8181c860"
         sizeInBytes:
           title: sizeInBytes
           type: number
@@ -2439,11 +2445,6 @@ components:
           type: string
           description: SVM name (alternative to svmUuid)
           example: "my-svm"
-        volumeUuid:
-          title: volumeUuid
-          type: string
-          description: Volume UUID (for update/delete actions)
-          example: "9760acf5-4638-11e7-9bdb-020073ca8888"
     SnapshotCreate_v1:
       title: SnapshotCreate
       type: object

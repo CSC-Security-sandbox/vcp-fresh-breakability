@@ -217,6 +217,11 @@ func (s *ExpertModeVolumeV1) SetFake() {
 	}
 	{
 		{
+			s.VolumeUUID.SetFake()
+		}
+	}
+	{
+		{
 			s.SizeInBytes = float64(0)
 		}
 	}
@@ -233,11 +238,6 @@ func (s *ExpertModeVolumeV1) SetFake() {
 	{
 		{
 			s.SvmName.SetFake()
-		}
-	}
-	{
-		{
-			s.VolumeUuid.SetFake()
 		}
 	}
 }
@@ -1298,78 +1298,6 @@ func (s *UpgradeProgressV1Status) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *V1CreateExpertModeVolumeBadRequest) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1CreateExpertModeVolumeBadRequest(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1CreateExpertModeVolumeConflict) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1CreateExpertModeVolumeConflict(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1CreateExpertModeVolumeForbidden) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1CreateExpertModeVolumeForbidden(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1CreateExpertModeVolumeInternalServerError) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1CreateExpertModeVolumeInternalServerError(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1CreateExpertModeVolumeNotFound) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1CreateExpertModeVolumeNotFound(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1CreateExpertModeVolumeTooManyRequests) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1CreateExpertModeVolumeTooManyRequests(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1CreateExpertModeVolumeUnauthorized) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1CreateExpertModeVolumeUnauthorized(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1CreateExpertModeVolumeUnprocessableEntity) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1CreateExpertModeVolumeUnprocessableEntity(unwrapped)
-}
-
-// SetFake set fake values.
 func (s *V1CreateImageVersionBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -1691,6 +1619,78 @@ func (s *V1DeletePoolUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1DeletePoolUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

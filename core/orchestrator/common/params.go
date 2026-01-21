@@ -213,6 +213,7 @@ type CreateSnapshotParams struct {
 	IsAppConsistent bool
 }
 
+// ExpertModeVolumeParams describes parameters supplied to CreateExpertModeVolume
 type ExpertModeVolumeParams struct {
 	PoolUUID    string
 	Action      string

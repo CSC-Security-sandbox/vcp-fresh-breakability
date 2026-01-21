@@ -1891,6 +1891,53 @@ func (_c *MockOrchestratorFactory_DeleteBackupVaultInternal_Call) RunAndReturn(r
 	return _c
 }
 
+// UpdateExpertModeVolume provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) UpdateExpertModeVolume(ctx context.Context, params *common.ExpertModeVolumeParams) error {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateExpertModeVolume")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.ExpertModeVolumeParams) error); ok {
+		r0 = rf(ctx, params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockOrchestratorFactory_UpdateExpertModeVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateExpertModeVolume'
+type MockOrchestratorFactory_UpdateExpertModeVolume_Call struct {
+	*mock.Call
+}
+
+// UpdateExpertModeVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.ExpertModeVolumeParams
+func (_e *MockOrchestratorFactory_Expecter) UpdateExpertModeVolume(ctx interface{}, params interface{}) *MockOrchestratorFactory_UpdateExpertModeVolume_Call {
+	return &MockOrchestratorFactory_UpdateExpertModeVolume_Call{Call: _e.mock.On("UpdateExpertModeVolume", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateExpertModeVolume_Call) Run(run func(ctx context.Context, params *common.ExpertModeVolumeParams)) *MockOrchestratorFactory_UpdateExpertModeVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.ExpertModeVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateExpertModeVolume_Call) Return(_a0 error) *MockOrchestratorFactory_UpdateExpertModeVolume_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateExpertModeVolume_Call) RunAndReturn(run func(context.Context, *common.ExpertModeVolumeParams) error) *MockOrchestratorFactory_UpdateExpertModeVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteExpertModeVolume provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) DeleteExpertModeVolume(ctx context.Context, params *common.ExpertModeVolumeParams) error {
 	ret := _m.Called(ctx, params)

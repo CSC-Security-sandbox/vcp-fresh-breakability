@@ -309,7 +309,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							// Leaf node.
 							switch r.Method {
 							case "POST":
-								s.handleV1CreateExpertModeVolumeRequest([0]string{}, elemIsEscaped, w, r)
+								s.handleV1ExpertModeVolumeRequest([0]string{}, elemIsEscaped, w, r)
 							default:
 								s.notAllowed(w, r, "POST")
 							}
@@ -922,9 +922,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							// Leaf node.
 							switch method {
 							case "POST":
-								r.name = V1CreateExpertModeVolumeOperation
-								r.summary = "Create volume in expert mode"
-								r.operationID = "v1_createExpertModeVolume"
+								r.name = V1ExpertModeVolumeOperation
+								r.summary = "Create/Update/Delete volume in expert mode"
+								r.operationID = "v1_expertModeVolume"
 								r.pathPattern = "/v1/expertMode/volumes"
 								r.args = args
 								r.count = 0

@@ -38,9 +38,9 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 				SizeInBytes:   1073741824,
 			}
 
-			mockInvoker.On("V1CreateExpertModeVolume", mock.Anything, request, mock.MatchedBy(func(params coreapi.V1CreateExpertModeVolumeParams) bool {
+			mockInvoker.On("V1ExpertModeVolume", mock.Anything, request, mock.MatchedBy(func(params coreapi.V1ExpertModeVolumeParams) bool {
 				return params.XCorrelationID.IsSet() && params.XCorrelationID.Value == "corr-id-123"
-			})).Return(&coreapi.V1CreateExpertModeVolumeOK{}, nil)
+			})).Return(&coreapi.V1ExpertModeVolumeOK{}, nil)
 
 			ctx := context.WithValue(context.Background(), middleware.CorrelationContextKey, "corr-id-123")
 			err := SubmitExpertModeVolumeOperation(ctx, request, "test-jwt-token", mockLogger)
@@ -65,16 +65,16 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 			request := &coreapi.ExpertModeVolumeV1{
 				ProjectNumber: "12345",
 				PoolUUID:      "pool-uuid-123",
-				VolumeUuid:    coreapi.NewOptString("volume-uuid-456"),
+				VolumeUUID:    coreapi.NewOptString("volume-uuid-456"),
 				VolumeName:    "test-volume",
 				Action:        coreapi.ExpertModeVolumeV1ActionUpdate,
 				Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
 				SizeInBytes:   2147483648,
 			}
 
-			mockInvoker.On("V1CreateExpertModeVolume", mock.Anything, request, mock.MatchedBy(func(params coreapi.V1CreateExpertModeVolumeParams) bool {
+			mockInvoker.On("V1ExpertModeVolume", mock.Anything, request, mock.MatchedBy(func(params coreapi.V1ExpertModeVolumeParams) bool {
 				return params.XCorrelationID.IsSet() && params.XCorrelationID.Value == "corr-id-456"
-			})).Return(&coreapi.V1CreateExpertModeVolumeOK{}, nil)
+			})).Return(&coreapi.V1ExpertModeVolumeOK{}, nil)
 
 			ctx := context.WithValue(context.Background(), middleware.CorrelationContextKey, "corr-id-456")
 			err := SubmitExpertModeVolumeOperation(ctx, request, "test-jwt-token", mockLogger)
@@ -99,11 +99,11 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 			request := &coreapi.ExpertModeVolumeV1{
 				ProjectNumber: "12345",
 				PoolUUID:      "pool-uuid-123",
-				VolumeUuid:    coreapi.NewOptString("volume-uuid-789"),
+				VolumeUUID:    coreapi.NewOptString("volume-uuid-789"),
 				Action:        coreapi.ExpertModeVolumeV1ActionDelete,
 			}
 
-			mockInvoker.On("V1CreateExpertModeVolume", mock.Anything, request, mock.Anything).Return(&coreapi.V1CreateExpertModeVolumeOK{}, nil)
+			mockInvoker.On("V1ExpertModeVolume", mock.Anything, request, mock.Anything).Return(&coreapi.V1ExpertModeVolumeOK{}, nil)
 
 			ctx := context.Background()
 			err := SubmitExpertModeVolumeOperation(ctx, request, "test-jwt-token", mockLogger)
@@ -134,9 +134,9 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 				SizeInBytes:   1073741824,
 			}
 
-			mockInvoker.On("V1CreateExpertModeVolume", mock.Anything, request, mock.MatchedBy(func(params coreapi.V1CreateExpertModeVolumeParams) bool {
+			mockInvoker.On("V1ExpertModeVolume", mock.Anything, request, mock.MatchedBy(func(params coreapi.V1ExpertModeVolumeParams) bool {
 				return !params.XCorrelationID.IsSet() || params.XCorrelationID.Value == ""
-			})).Return(&coreapi.V1CreateExpertModeVolumeOK{}, nil)
+			})).Return(&coreapi.V1ExpertModeVolumeOK{}, nil)
 
 			ctx := context.Background()
 			err := SubmitExpertModeVolumeOperation(ctx, request, "test-jwt-token", mockLogger)
@@ -167,7 +167,7 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 				Action:        coreapi.ExpertModeVolumeV1ActionCreate,
 			}
 
-			mockInvoker.On("V1CreateExpertModeVolume", mock.Anything, request, mock.Anything).Return(&coreapi.V1CreateExpertModeVolumeBadRequest{
+			mockInvoker.On("V1ExpertModeVolume", mock.Anything, request, mock.Anything).Return(&coreapi.V1ExpertModeVolumeBadRequest{
 				Code:    400,
 				Message: "Volume name is required",
 			}, nil)
@@ -200,7 +200,7 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 				Action:        coreapi.ExpertModeVolumeV1ActionCreate,
 			}
 
-			mockInvoker.On("V1CreateExpertModeVolume", mock.Anything, request, mock.Anything).Return(&coreapi.V1CreateExpertModeVolumeConflict{
+			mockInvoker.On("V1ExpertModeVolume", mock.Anything, request, mock.Anything).Return(&coreapi.V1ExpertModeVolumeConflict{
 				Code:    409,
 				Message: "Volume already exists",
 			}, nil)

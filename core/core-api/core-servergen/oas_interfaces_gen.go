@@ -5,10 +5,6 @@ type GetHealthRes interface {
 	getHealthRes()
 }
 
-type V1CreateExpertModeVolumeRes interface {
-	v1CreateExpertModeVolumeRes()
-}
-
 type V1CreateImageVersionRes interface {
 	v1CreateImageVersionRes()
 }
@@ -27,6 +23,10 @@ type V1DeleteImageVersionRes interface {
 
 type V1DeletePoolRes interface {
 	v1DeletePoolRes()
+}
+
+type V1ExpertModeVolumeRes interface {
+	v1ExpertModeVolumeRes()
 }
 
 type V1GetClusterUpgradeStatusRes interface {

@@ -27,12 +27,6 @@ type Invoker interface {
 	//
 	// GET /health
 	GetHealth(ctx context.Context) (GetHealthRes, error)
-	// V1CreateExpertModeVolume invokes v1_createExpertModeVolume operation.
-	//
-	// Create an expert volume using expert mode with direct pool and SVM specification.
-	//
-	// POST /v1/expertMode/volumes
-	V1CreateExpertModeVolume(ctx context.Context, request *ExpertModeVolumeV1, params V1CreateExpertModeVolumeParams) (V1CreateExpertModeVolumeRes, error)
 	// V1CreateImageVersion invokes v1_createImageVersion operation.
 	//
 	// Creates a new image version entry in the database. This is useful when an image version was missed
@@ -66,6 +60,13 @@ type Invoker interface {
 	//
 	// DELETE /v1/pools/{poolId}
 	V1DeletePool(ctx context.Context, params V1DeletePoolParams) (V1DeletePoolRes, error)
+	// V1ExpertModeVolume invokes v1_expertModeVolume operation.
+	//
+	// Create/Update/Delete  an expert volume using expert mode with direct pool and SVM specification in
+	// the request body. Change action type to specify create, update or delete operation.
+	//
+	// POST /v1/expertMode/volumes
+	V1ExpertModeVolume(ctx context.Context, request *ExpertModeVolumeV1, params V1ExpertModeVolumeParams) (V1ExpertModeVolumeRes, error)
 	// V1GetClusterUpgradeStatus invokes v1_getClusterUpgradeStatus operation.
 	//
 	// Retrieves the status and progress of a cluster upgrade operation.
@@ -198,70 +199,6 @@ func (c *Client) sendGetHealth(ctx context.Context) (res GetHealthRes, err error
 	defer resp.Body.Close()
 
 	result, err := decodeGetHealthResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// V1CreateExpertModeVolume invokes v1_createExpertModeVolume operation.
-//
-// Create an expert volume using expert mode with direct pool and SVM specification.
-//
-// POST /v1/expertMode/volumes
-func (c *Client) V1CreateExpertModeVolume(ctx context.Context, request *ExpertModeVolumeV1, params V1CreateExpertModeVolumeParams) (V1CreateExpertModeVolumeRes, error) {
-	res, err := c.sendV1CreateExpertModeVolume(ctx, request, params)
-	return res, err
-}
-
-func (c *Client) sendV1CreateExpertModeVolume(ctx context.Context, request *ExpertModeVolumeV1, params V1CreateExpertModeVolumeParams) (res V1CreateExpertModeVolumeRes, err error) {
-	// Validate request before sending.
-	if err := func() error {
-		if err := request.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return res, errors.Wrap(err, "validate")
-	}
-
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/v1/expertMode/volumes"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	r, err := ht.NewRequest(ctx, "POST", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-	if err := encodeV1CreateExpertModeVolumeRequest(request, r); err != nil {
-		return res, errors.Wrap(err, "encode request")
-	}
-
-	h := uri.NewHeaderEncoder(r.Header)
-	{
-		cfg := uri.HeaderParameterEncodingConfig{
-			Name:    "x-correlation-id",
-			Explode: false,
-		}
-		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.XCorrelationID.Get(); ok {
-				return e.EncodeValue(conv.StringToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode header")
-		}
-	}
-
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	defer resp.Body.Close()
-
-	result, err := decodeV1CreateExpertModeVolumeResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -645,6 +582,71 @@ func (c *Client) sendV1DeletePool(ctx context.Context, params V1DeletePoolParams
 	defer resp.Body.Close()
 
 	result, err := decodeV1DeletePoolResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1ExpertModeVolume invokes v1_expertModeVolume operation.
+//
+// Create/Update/Delete  an expert volume using expert mode with direct pool and SVM specification in
+// the request body. Change action type to specify create, update or delete operation.
+//
+// POST /v1/expertMode/volumes
+func (c *Client) V1ExpertModeVolume(ctx context.Context, request *ExpertModeVolumeV1, params V1ExpertModeVolumeParams) (V1ExpertModeVolumeRes, error) {
+	res, err := c.sendV1ExpertModeVolume(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1ExpertModeVolume(ctx context.Context, request *ExpertModeVolumeV1, params V1ExpertModeVolumeParams) (res V1ExpertModeVolumeRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v1/expertMode/volumes"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1ExpertModeVolumeRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1ExpertModeVolumeResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

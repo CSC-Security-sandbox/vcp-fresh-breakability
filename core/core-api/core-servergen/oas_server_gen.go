@@ -14,12 +14,6 @@ type Handler interface {
 	//
 	// GET /health
 	GetHealth(ctx context.Context) (GetHealthRes, error)
-	// V1CreateExpertModeVolume implements v1_createExpertModeVolume operation.
-	//
-	// Create an expert volume using expert mode with direct pool and SVM specification.
-	//
-	// POST /v1/expertMode/volumes
-	V1CreateExpertModeVolume(ctx context.Context, req *ExpertModeVolumeV1, params V1CreateExpertModeVolumeParams) (V1CreateExpertModeVolumeRes, error)
 	// V1CreateImageVersion implements v1_createImageVersion operation.
 	//
 	// Creates a new image version entry in the database. This is useful when an image version was missed
@@ -53,6 +47,13 @@ type Handler interface {
 	//
 	// DELETE /v1/pools/{poolId}
 	V1DeletePool(ctx context.Context, params V1DeletePoolParams) (V1DeletePoolRes, error)
+	// V1ExpertModeVolume implements v1_expertModeVolume operation.
+	//
+	// Create/Update/Delete  an expert volume using expert mode with direct pool and SVM specification in
+	// the request body. Change action type to specify create, update or delete operation.
+	//
+	// POST /v1/expertMode/volumes
+	V1ExpertModeVolume(ctx context.Context, req *ExpertModeVolumeV1, params V1ExpertModeVolumeParams) (V1ExpertModeVolumeRes, error)
 	// V1GetClusterUpgradeStatus implements v1_getClusterUpgradeStatus operation.
 	//
 	// Retrieves the status and progress of a cluster upgrade operation.

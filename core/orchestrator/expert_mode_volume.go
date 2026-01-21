@@ -45,39 +45,24 @@ func _createExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 		return err
 	}
 
-	existingVolume, err := se.GetExpertModeVolumeByNameAndPoolID(ctx, params.VolumeName, dbPoolView.ID)
+	volumeName := params.VolumeName
+	existingVolume, err := se.GetExpertModeVolumeByNameAndPoolID(ctx, volumeName, dbPoolView.ID)
 	if err != nil {
-		// If error is NOT "record not found", it's a real database error
+		// If the error is NOT "record not found", it's a real database error
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Error("Failed to check for existing volume", "volumeName", params.VolumeName, "poolID", dbPoolView.ID, "error", err)
+			logger.Error("Failed to check for existing volume", "volumeName", volumeName, "poolID", dbPoolView.ID, "error", err)
 			return err
 		}
 	} else if existingVolume != nil {
 		logger.Error("Volume with same name already exists in pool",
-			"volumeName", params.VolumeName,
+			"volumeName", volumeName,
 			"poolID", dbPoolView.ID)
-		return customerrors.NewBadRequestErr(fmt.Sprintf("volume with name '%s' already exists in pool", params.VolumeName))
+		return customerrors.NewBadRequestErr(fmt.Sprintf("volume with name '%s' already exists in pool", volumeName))
 	}
 
-	// Validate that flexgroup volumes require a large capacity pool
-	if params.Style == ExpertModeVolumeStyleFlexgroup && !dbPoolView.LargeCapacity {
-		logger.Error("Flexgroup volume requires large capacity pool", "poolUUID", params.PoolUUID, "largeCapacity", dbPoolView.LargeCapacity)
-		return customerrors.NewBadRequestErr("Pool is not type of largeCapacity")
-	}
-
-	// Calculate total existing size to validate pool capacity
-	capacity, err := se.GetExpertModePoolUsedCapacityAndVolumeCount(ctx, dbPoolView.ID)
+	err = canFitInPool(ctx, se, dbPoolView.ID, dbPoolView.SizeInBytes, params.SizeInBytes)
 	if err != nil {
-		logger.Error("Failed to calculate total existing size", "poolID", dbPoolView.ID, "error", err)
 		return err
-	}
-	totalUsedSize := capacity.TotalSize
-
-	// Check if new volume can fit in the pool
-	if totalUsedSize+params.SizeInBytes > int64(dbPoolView.SizeInBytes) {
-		logger.Error("Insufficient pool capacity", "poolID", dbPoolView.ID, "requestedSize", params.SizeInBytes, "availableSize", int64(dbPoolView.SizeInBytes)-totalUsedSize)
-		return customerrors.NewBadRequestErr(fmt.Sprintf("insufficient pool capacity: requested %d bytes, available %d bytes",
-			params.SizeInBytes, int64(dbPoolView.SizeInBytes)-totalUsedSize))
 	}
 
 	// Create expert mode volume record
@@ -175,6 +160,31 @@ func _createExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 		return err
 	}
 
+	return nil
+}
+
+// returns error if the new volume cannot fit in the pool
+func canFitInPool(ctx context.Context, se database.Storage, poolID, poolSizeInBytes, newVolumeSizeToAdd int64) error {
+	logger := util.GetLogger(ctx)
+	if newVolumeSizeToAdd <= 0 {
+		logger.Error("Volume size must be greater than 0")
+		return customerrors.NewBadRequestErr("volume size must be greater than 0")
+	}
+
+	// Calculate the total existing size to validate pool capacity
+	capacity, err := se.GetExpertModePoolUsedCapacityAndVolumeCount(ctx, poolID)
+	if err != nil {
+		logger.Error("Failed to calculate total existing size", "poolID", poolID, "error", err)
+		return err
+	}
+
+	consumedSizeOfPool := capacity.TotalSize
+	// Check if the new volume can fit in the pool
+	if consumedSizeOfPool+newVolumeSizeToAdd > int64(poolSizeInBytes) {
+		logger.Error("Insufficient pool capacity", "poolID", poolID, "requestedSize", newVolumeSizeToAdd, "availableSize", int64(poolSizeInBytes)-consumedSizeOfPool)
+		return customerrors.NewBadRequestErr(fmt.Sprintf("insufficient pool capacity: requested %d bytes, available %d bytes",
+			newVolumeSizeToAdd, int64(poolSizeInBytes)-consumedSizeOfPool))
+	}
 	return nil
 }
 
@@ -279,4 +289,140 @@ func _deleteExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 // GetExpertModeVolumeByExternalUUID retrieves an expert mode volume by its UUID
 func (o *Orchestrator) GetExpertModeVolumeByExternalUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error) {
 	return o.storage.GetExpertModeVolumeByExternalUUID(ctx, volumeUUID)
+}
+
+// UpdateExpertModeVolume updates an existing expert mode volume
+func (o *Orchestrator) UpdateExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error {
+	return _updateExpertModeVolume(ctx, o.storage, params)
+}
+
+func validateUpdateParams(ctx context.Context, se database.Storage, params *commonparams.ExpertModeVolumeParams, volume *datamodel.ExpertModeVolumes) error {
+	logger := util.GetLogger(ctx)
+
+	if params.VolumeUUID == "" {
+		logger.Error("VolumeUUID is required for update operation", "volumeUUID", params.VolumeUUID)
+		return customerrors.NewBadRequestErr("VolumeUUID is required for update operation")
+	}
+	if params.SizeInBytes < 0 {
+		logger.Error("Volume size must be greater than or equal to 0", "volumeSize", params.SizeInBytes)
+		return customerrors.NewBadRequestErr("Volume size must be greater than or equal to 0")
+	}
+
+	if volume.State == models.LifeCycleStateDeleted || volume.State == models.LifeCycleStateError {
+		logger.Error("Volume is deleted, cannot update", "volumeUUID", params.VolumeUUID)
+		return customerrors.NewBadRequestErr(fmt.Sprintf("volume with UUID '%s' is deleted", params.VolumeUUID))
+	}
+
+	if volume.State == models.LifeCycleStateCreating || volume.State == models.LifeCycleStateDeleting || volume.State == models.LifeCycleStateUpdating {
+		logger.Error("Volume is in a transitional state and cannot be updated", "volumeUUID", params.VolumeUUID, "state", volume.State)
+		return customerrors.NewBadRequestErr(fmt.Sprintf("volume with UUID '%s' is in a transitional state and cannot be updated", params.VolumeUUID))
+	}
+
+	if params.VolumeName != "" {
+		poolID := volume.PoolID
+		// Check if another volume with the same name exists in the same pool
+		existingVolume, err := se.GetExpertModeVolumeByNameAndPoolID(ctx, params.VolumeName, poolID)
+		if err != nil {
+			// If the error is NOT "record not found", it's a real database error
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				logger.Error("Failed to check for existing volume", "volumeName", params.VolumeName, "poolID", poolID, "error", err)
+				return err
+			}
+		} else if existingVolume != nil {
+			// If a volume with the same name exists and it's not the same volume being updated, return an error
+			// params.VolumeUUID is the ExternalUUID, so compare with existingVolume.ExternalUUID
+			if existingVolume.ExternalUUID != params.VolumeUUID {
+				logger.Error("Volume with same name already exists in pool",
+					"volumeName", params.VolumeName,
+					"poolID", poolID,
+					"existingVolumeExternalUUID", existingVolume.ExternalUUID)
+				return customerrors.NewBadRequestErr(fmt.Sprintf("volume with name '%s' already exists in pool", params.VolumeName))
+			}
+		}
+	}
+	return nil
+}
+
+// _updateExpertModeVolume updates an expert mode volume and updates it in the DB
+func _updateExpertModeVolume(ctx context.Context, se database.Storage, params *commonparams.ExpertModeVolumeParams) error {
+	logger := util.GetLogger(ctx)
+
+	if params.VolumeUUID == "" {
+		logger.Error("VolumeUUID is required for update operation", "volumeUUID", params.VolumeUUID, "poolUUID", params.PoolUUID)
+		return customerrors.NewBadRequestErr("VolumeUUID is required for update operation")
+	}
+
+	// Fetch volume by the ONTAP's external UUID
+	volume, err := se.GetExpertModeVolumeByExternalUUID(ctx, params.VolumeUUID)
+	if err != nil {
+		logger.Error("Failed to find volume by UUID", "volumeUUID", params.VolumeUUID, "error", err)
+		if customerrors.IsNotFoundErr(err) || errors.Is(err, gorm.ErrRecordNotFound) {
+			return customerrors.NewBadRequestErr(fmt.Sprintf("volume with UUID '%s' not found", params.VolumeUUID))
+		}
+		return err
+	}
+
+	err = validateUpdateParams(ctx, se, params, volume)
+	if err != nil {
+		return err
+	}
+
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		return err
+	}
+
+	// Validate account matches - use AccountID directly as it's always set
+	if volume.AccountID != account.ID {
+		logger.Error("Volume does not belong to the specified account", "volumeUUID", params.VolumeUUID, "volumeAccountID", volume.AccountID, "accountID", account.ID)
+		return customerrors.NewBadRequestErr("volume does not belong to the specified account")
+	}
+
+	var previousSize int64 = volume.SizeInBytes
+	// Validate size if provided
+	if params.SizeInBytes > 0 {
+		// Calculate size increase
+		sizeIncrease := params.SizeInBytes - volume.SizeInBytes
+		if sizeIncrease > 0 {
+			// Check pool capacity if size is being increased
+			err = canFitInPool(ctx, se, volume.Pool.ID, volume.Pool.SizeInBytes, sizeIncrease)
+			if err != nil {
+				return err
+			}
+		}
+		// Update size only if provided and > 0
+		volume.SizeInBytes = params.SizeInBytes
+	}
+
+	if params.VolumeName != "" {
+		volume.Name = params.VolumeName
+	}
+
+	previousState := volume.State
+	volume.State = models.LifeCycleStateUpdating
+
+	volumeMarkedAsUpdating := true
+
+	// to revert the volume state if the update fails while reconciliation
+	defer func() {
+		if err != nil {
+			// Revert volume state only if it was successfully marked as updating
+			if volumeMarkedAsUpdating {
+				volume.State = previousState
+				volume.SizeInBytes = previousSize
+				if _, revertErr := se.UpdateExpertModeVolume(ctx, volume); revertErr != nil {
+					logger.Error("Failed to revert volume state", "volumeUUID", volume.UUID, "previousState", previousState, "error", revertErr)
+				}
+			}
+		}
+	}()
+
+	// Update volume in DB
+	_, err = se.UpdateExpertModeVolume(ctx, volume)
+	if err != nil {
+		logger.Error("Failed to update volume state to UPDATING and size", "volumeUUID", volume.UUID, "error", err)
+		return err
+	}
+
+	return nil
 }

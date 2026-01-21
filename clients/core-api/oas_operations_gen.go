@@ -7,12 +7,12 @@ type OperationName = string
 
 const (
 	GetHealthOperation                               OperationName = "GetHealth"
-	V1CreateExpertModeVolumeOperation                OperationName = "V1CreateExpertModeVolume"
 	V1CreateImageVersionOperation                    OperationName = "V1CreateImageVersion"
 	V1CreatePoolOperation                            OperationName = "V1CreatePool"
 	V1CreateSnapshotOperation                        OperationName = "V1CreateSnapshot"
 	V1DeleteImageVersionOperation                    OperationName = "V1DeleteImageVersion"
 	V1DeletePoolOperation                            OperationName = "V1DeletePool"
+	V1ExpertModeVolumeOperation                      OperationName = "V1ExpertModeVolume"
 	V1GetClusterUpgradeStatusOperation               OperationName = "V1GetClusterUpgradeStatus"
 	V1GetMultipleReplicationsByExternalUUIDOperation OperationName = "V1GetMultipleReplicationsByExternalUUID"
 	V1GetOntapCredentialsOperation                   OperationName = "V1GetOntapCredentials"

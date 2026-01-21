@@ -152,6 +152,7 @@ type OrchestratorFactory interface {
 
 	GetExpertModeVolumeByExternalUUID(ctx context.Context, volumeUUID string) (*datamodel.ExpertModeVolumes, error)
 	CreateExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error
+	UpdateExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error
 	DeleteExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error
 	UpdateRbacForPools(ctx context.Context) (string, error)
 

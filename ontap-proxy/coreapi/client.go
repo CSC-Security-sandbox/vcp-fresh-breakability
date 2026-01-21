@@ -101,11 +101,11 @@ func SubmitExpertModeVolumeOperation(ctx context.Context, request *coreapi.Exper
 
 	client := createCoreAPIClient(coreAPIHost, jwtToken, logger)
 	correlationID, _ := ctx.Value(middleware.CorrelationContextKey).(string)
-	params := coreapi.V1CreateExpertModeVolumeParams{
+	params := coreapi.V1ExpertModeVolumeParams{
 		XCorrelationID: coreapi.NewOptString(correlationID),
 	}
 
-	response, err := client.Invoker.V1CreateExpertModeVolume(ctx, request, params)
+	response, err := client.Invoker.V1ExpertModeVolume(ctx, request, params)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to submit expert mode volume operation",
 			"error", err,
@@ -117,21 +117,21 @@ func SubmitExpertModeVolumeOperation(ctx context.Context, request *coreapi.Exper
 
 	// Handle different response types
 	switch resp := response.(type) {
-	case *coreapi.V1CreateExpertModeVolumeOK:
+	case *coreapi.V1ExpertModeVolumeOK:
 		logger.InfoContext(ctx, "Successfully submitted expert mode volume operation",
 			"volumeName", request.VolumeName,
 			"poolUUID", request.PoolUUID,
 			"action", request.Action)
 		return nil
 
-	case *coreapi.V1CreateExpertModeVolumeBadRequest:
+	case *coreapi.V1ExpertModeVolumeBadRequest:
 		logger.ErrorContext(ctx, "Bad request when submitting expert mode volume operation",
 			"message", resp.Message,
 			"volumeName", request.VolumeName,
 			"action", request.Action)
 		return customerrors.NewBadRequestErr(fmt.Sprintf("bad request: %s", resp.Message))
 
-	case *coreapi.V1CreateExpertModeVolumeConflict:
+	case *coreapi.V1ExpertModeVolumeConflict:
 		logger.ErrorContext(ctx, "Conflict when submitting expert mode volume operation",
 			"message", resp.Message,
 			"volumeName", request.VolumeName,

@@ -1272,102 +1272,6 @@ func TestUpgradeProgressV1Status_Examples(t *testing.T) {
 		})
 	}
 }
-func TestV1CreateExpertModeVolumeBadRequest_EncodeDecode(t *testing.T) {
-	var typ V1CreateExpertModeVolumeBadRequest
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1CreateExpertModeVolumeBadRequest
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1CreateExpertModeVolumeConflict_EncodeDecode(t *testing.T) {
-	var typ V1CreateExpertModeVolumeConflict
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1CreateExpertModeVolumeConflict
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1CreateExpertModeVolumeForbidden_EncodeDecode(t *testing.T) {
-	var typ V1CreateExpertModeVolumeForbidden
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1CreateExpertModeVolumeForbidden
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1CreateExpertModeVolumeInternalServerError_EncodeDecode(t *testing.T) {
-	var typ V1CreateExpertModeVolumeInternalServerError
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1CreateExpertModeVolumeInternalServerError
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1CreateExpertModeVolumeNotFound_EncodeDecode(t *testing.T) {
-	var typ V1CreateExpertModeVolumeNotFound
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1CreateExpertModeVolumeNotFound
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1CreateExpertModeVolumeTooManyRequests_EncodeDecode(t *testing.T) {
-	var typ V1CreateExpertModeVolumeTooManyRequests
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1CreateExpertModeVolumeTooManyRequests
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1CreateExpertModeVolumeUnauthorized_EncodeDecode(t *testing.T) {
-	var typ V1CreateExpertModeVolumeUnauthorized
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1CreateExpertModeVolumeUnauthorized
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestV1CreateExpertModeVolumeUnprocessableEntity_EncodeDecode(t *testing.T) {
-	var typ V1CreateExpertModeVolumeUnprocessableEntity
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 V1CreateExpertModeVolumeUnprocessableEntity
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
 func TestV1CreateImageVersionBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1CreateImageVersionBadRequest
 	typ.SetFake()
@@ -1798,6 +1702,102 @@ func TestV1DeletePoolUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1DeletePoolUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeConflict_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeForbidden_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeNotFound_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1GetClusterUpgradeStatusBadRequest_EncodeDecode(t *testing.T) {

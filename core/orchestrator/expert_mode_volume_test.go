@@ -12,6 +12,7 @@ import (
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	expertModeWorkflows "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/expertMode"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflowenginemock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
@@ -214,31 +215,6 @@ func TestCreateExpertModeVolume(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "Pool not found")
-
-		mockLogger.AssertExpectations(tt)
-		temporal.AssertExpectations(tt)
-	})
-
-	t.Run("Flexgroup_RequiresLargeCapacityPool", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-		mockLogger, store, _, pool, _ := setupStore(tt)
-		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
-
-		params := &commonparams.ExpertModeVolumeParams{
-			PoolUUID:    pool.UUID,
-			Action:      "post",
-			VolumeName:  "my-flexgroup-volume",
-			SizeInBytes: 1099511627776,
-			Style:       "flexgroup",
-			SvmUuid:     "660e8400-e29b-41d4-a716-446655440001",
-			SvmName:     "",
-		}
-
-		orch := &Orchestrator{storage: store, temporal: temporal}
-		err := orch.CreateExpertModeVolume(ctx, params)
-
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "Pool is not type of largeCapacity")
 
 		mockLogger.AssertExpectations(tt)
 		temporal.AssertExpectations(tt)
@@ -575,6 +551,142 @@ func TestCreateExpertModeVolume(t *testing.T) {
 				temporal.AssertExpectations(ttt)
 			})
 		}
+	})
+
+	t.Run("Failure_GetExpertModeVolumeByNameAndPoolID_NonRecordNotFoundError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{ID: 1, UUID: "550e8400-e29b-41d4-a716-446655440000"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			SizeInBytes:   2199023255552,
+			LargeCapacity: false,
+		}
+
+		mockStorage := database.NewMockStorage(tt)
+
+		// Mock getAccountWithName
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		mockStorage.EXPECT().GetPool(ctx, "550e8400-e29b-41d4-a716-446655440000", account.ID).Return(&datamodel.PoolView{
+			Pool: *pool,
+		}, nil).Once()
+		// Simulate a database error (not ErrRecordNotFound)
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, "my-expert-volume", pool.ID).Return(nil, errors.New("database connection error")).Once()
+
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			PoolUUID:    pool.UUID,
+			Action:      "post",
+			VolumeName:  "my-expert-volume",
+			SizeInBytes: 1099511627776,
+			SvmUuid:     "",
+			SvmName:     "",
+			AccountName: account.Name,
+		}
+
+		orch := &Orchestrator{storage: mockStorage, temporal: temporal}
+		err := orch.CreateExpertModeVolume(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "database connection error")
+
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_CanFitInPool_SizeZero", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger, store, account, pool, _ := setupStore(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			PoolUUID:    pool.UUID,
+			Action:      "post",
+			VolumeName:  "my-expert-volume",
+			SizeInBytes: 0, // Zero size should fail
+			SvmUuid:     "660e8400-e29b-41d4-a716-446655440001",
+			SvmName:     "",
+			AccountName: account.Name,
+		}
+
+		orch := &Orchestrator{storage: store, temporal: temporal}
+		err := orch.CreateExpertModeVolume(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume size must be greater than 0")
+
+		mockLogger.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_CanFitInPool_GetCapacityError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{ID: 1, UUID: "550e8400-e29b-41d4-a716-446655440000"},
+			Name:          "test_pool",
+			AccountID:     account.ID,
+			SizeInBytes:   2199023255552,
+			LargeCapacity: false,
+		}
+
+		mockStorage := database.NewMockStorage(tt)
+
+		// Mock getAccountWithName
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{
+			Pool: *pool,
+		}, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, "my-expert-volume", pool.ID).Return(nil, gorm.ErrRecordNotFound).Once()
+		// Simulate error getting capacity
+		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID).Return(nil, errors.New("failed to get capacity")).Once()
+
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			PoolUUID:    pool.UUID,
+			Action:      "post",
+			VolumeName:  "my-expert-volume",
+			SizeInBytes: 1099511627776,
+			SvmUuid:     "",
+			SvmName:     "",
+			AccountName: account.Name,
+		}
+
+		orch := &Orchestrator{storage: mockStorage, temporal: temporal}
+		err := orch.CreateExpertModeVolume(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to get capacity")
+
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
 	})
 }
 
@@ -1127,6 +1239,923 @@ func TestGetExpertModeVolumeByExternalUUID(t *testing.T) {
 		assert.Nil(tt, result)
 		assert.Equal(tt, expectedErr, err)
 
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func Test_updateExpertModeVolume(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	setupTestData := func() (*datamodel.Account, *datamodel.Pool, *datamodel.ExpertModeVolumes) {
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "550e8400-e29b-41d4-a716-446655440000"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			SizeInBytes: 2199023255552, // 2TB
+		}
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
+			Name:         "test-volume",
+			SizeInBytes:  1099511627776, // 1TB
+			PoolID:       pool.ID,
+			AccountID:    account.ID,
+			State:        models.LifeCycleStateAvailable,
+			ExternalUUID: "770e8400-e29b-41d4-a716-446655440002",
+			Pool:         pool,
+			Account:      account,
+		}
+
+		return account, pool, volume
+	}
+
+	t.Run("Success_UpdateSizeOnly", func(tt *testing.T) {
+		account, pool, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		// Mock getAccountWithName
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		newSize := int64(2199023255552) // 2TB
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: newSize,
+			AccountName: account.Name,
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID).Return(&database.ExpertModePoolCapacity{TotalSize: 0, VolumeCount: 0}, nil).Once()
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_UpdateNameOnly", func(tt *testing.T) {
+		account, pool, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		// Mock getAccountWithName
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		newName := "updated-volume-name"
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			VolumeName:  newName,
+			SizeInBytes: 0, // No size update
+			AccountName: account.Name,
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, newName, pool.ID).Return(nil, gorm.ErrRecordNotFound).Once()
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_UpdateBothNameAndSize", func(tt *testing.T) {
+		account, pool, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		// Mock getAccountWithName
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		newName := "updated-volume-name"
+		newSize := int64(2199023255552) // 2TB
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			VolumeName:  newName,
+			SizeInBytes: newSize,
+			AccountName: account.Name,
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, newName, pool.ID).Return(nil, gorm.ErrRecordNotFound).Once()
+		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID).Return(&database.ExpertModePoolCapacity{TotalSize: 0, VolumeCount: 0}, nil).Once()
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeUUIDRequired", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  "", // Empty UUID
+			SizeInBytes: 2199023255552,
+			AccountName: "test_account",
+		}
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "VolumeUUID is required for update operation")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeNotFound", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  "non-existent-volume-uuid",
+			SizeInBytes: 2199023255552,
+			AccountName: "test_account",
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, params.VolumeUUID).Return(nil, gorm.ErrRecordNotFound).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume with UUID 'non-existent-volume-uuid' not found")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeNotFound_NotFoundError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  "non-existent-volume-uuid",
+			SizeInBytes: 2199023255552,
+			AccountName: "test_account",
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, params.VolumeUUID).Return(nil, customerrors.NewNotFoundErr("volume not found", nil)).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume with UUID 'non-existent-volume-uuid' not found")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeStateDeleted", func(tt *testing.T) {
+		_, _, volume := setupTestData()
+		volume.State = models.LifeCycleStateDeleted
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: 2199023255552,
+			AccountName: "test_account",
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "is deleted")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeStateError", func(tt *testing.T) {
+		_, _, volume := setupTestData()
+		volume.State = models.LifeCycleStateError
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: 2199023255552,
+			AccountName: "test_account",
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "is deleted")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeStateCreating", func(tt *testing.T) {
+		_, _, volume := setupTestData()
+		volume.State = models.LifeCycleStateCreating
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: 2199023255552,
+			AccountName: "test_account",
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "is in a transitional state")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeStateDeleting", func(tt *testing.T) {
+		_, _, volume := setupTestData()
+		volume.State = models.LifeCycleStateDeleting
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: 2199023255552,
+			AccountName: "test_account",
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "is in a transitional state")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeStateUpdating", func(tt *testing.T) {
+		_, _, volume := setupTestData()
+		volume.State = models.LifeCycleStateUpdating
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: 2199023255552,
+			AccountName: "test_account",
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "is in a transitional state")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_SizeNegative", func(tt *testing.T) {
+		_, _, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: -1, // Negative size
+			AccountName: "test_account",
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Volume size must be greater than or equal to 0")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_DuplicateVolumeName", func(tt *testing.T) {
+		account, pool, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		// Create another volume with the duplicate name
+		duplicateVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{ID: 2, UUID: "other-volume-uuid"},
+			Name:         "duplicate-name",
+			ExternalUUID: "other-external-uuid",
+		}
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			VolumeName:  "duplicate-name",
+			SizeInBytes: 0,
+			AccountName: account.Name,
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, "duplicate-name", pool.ID).Return(duplicateVolume, nil).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume with name 'duplicate-name' already exists in pool")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_SameVolumeName_NoDuplicate", func(tt *testing.T) {
+		account, pool, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		// Mock getAccountWithName
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		// Using the same name as the volume being updated (should not be considered duplicate)
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			VolumeName:  volume.Name, // Same name
+			SizeInBytes: 0,
+			AccountName: account.Name,
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, volume.Name, pool.ID).Return(volume, nil).Once() // Returns same volume
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_AccountNotFound", func(tt *testing.T) {
+		_, _, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		// Mock getAccountWithName to return error
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("Account not found")
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: 2199023255552,
+			AccountName: "non_existent_account",
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Account not found")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_AccountMismatch", func(tt *testing.T) {
+		_, _, volume := setupTestData()
+		otherAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: "other-account-uuid"},
+			Name:      "other_account",
+		}
+		mockStorage := database.NewMockStorage(tt)
+
+		// Mock getAccountWithName to return different account
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return otherAccount, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: 2199023255552,
+			AccountName: otherAccount.Name,
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume does not belong to the specified account")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_AccountMismatch_UsingAccountID", func(tt *testing.T) {
+		_, _, volume := setupTestData()
+		otherAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: "other-account-uuid"},
+			Name:      "other_account",
+		}
+		// Remove Account relationship to test AccountID path
+		volume.Account = nil
+		mockStorage := database.NewMockStorage(tt)
+
+		// Mock getAccountWithName to return different account
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return otherAccount, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: 2199023255552,
+			AccountName: otherAccount.Name,
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume does not belong to the specified account")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_InsufficientPoolCapacity", func(tt *testing.T) {
+		account, pool, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		// Mock getAccountWithName
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		// Try to increase size beyond pool capacity
+		// Pool size: 2TB, existing volume: 1TB, trying to add another 2TB = 3TB total (exceeds pool)
+		newSize := int64(3298534883328) // 3TB
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: newSize,
+			AccountName: account.Name,
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+		// Pool has 1TB used capacity (the existing volume), trying to add 2TB more (3TB - 1TB = 2TB increase)
+		// Pool size is 2TB, so 1TB + 2TB = 3TB > 2TB, should fail
+		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID).Return(&database.ExpertModePoolCapacity{TotalSize: volume.SizeInBytes, VolumeCount: 1}, nil).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "insufficient pool capacity")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_SizeDecrease_NoCapacityCheck", func(tt *testing.T) {
+		account, _, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		// Mock getAccountWithName
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		// Decrease size (should not check pool capacity)
+		newSize := int64(549755813888) // 512GB (half of original 1TB)
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: newSize,
+			AccountName: account.Name,
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+		// Should not call GetExpertModePoolUsedCapacityAndVolumeCount for size decrease
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_GetExpertModeVolumeByNameAndPoolID_NonRecordNotFoundError", func(tt *testing.T) {
+		account, pool, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			VolumeName:  "new-name",
+			SizeInBytes: 0,
+			AccountName: account.Name,
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+		// Simulate a database error (not ErrRecordNotFound)
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, "new-name", pool.ID).Return(nil, errors.New("database connection error")).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "database connection error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_GetExpertModePoolUsedCapacityAndVolumeCount_Error", func(tt *testing.T) {
+		account, pool, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		// Mock getAccountWithName
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		newSize := int64(2199023255552) // 2TB
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: newSize,
+			AccountName: account.Name,
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID).Return(nil, errors.New("failed to get capacity")).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to get capacity")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_UpdateExpertModeVolume_Fails_RevertsState", func(tt *testing.T) {
+		account, pool, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		// Mock getAccountWithName
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		newSize := int64(2199023255552) // 2TB
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: newSize,
+			AccountName: account.Name,
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID).Return(&database.ExpertModePoolCapacity{TotalSize: 0, VolumeCount: 0}, nil).Once()
+		// First update fails
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(nil, errors.New("failed to update volume")).Once()
+		// Defer function should revert the state
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(nil, nil).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to update volume")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_SizeZero_NoSizeUpdate", func(tt *testing.T) {
+		account, _, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		// Mock getAccountWithName
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: 0, // Zero means no size update
+			AccountName: account.Name,
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+		// Should not call GetExpertModePoolUsedCapacityAndVolumeCount for zero size
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_GetExpertModeVolumeByExternalUUID_DatabaseError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  "test-uuid",
+			SizeInBytes: 2199023255552,
+			AccountName: "test_account",
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, params.VolumeUUID).Return(nil, errors.New("database connection error")).Once()
+
+		err := _updateExpertModeVolume(ctx, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "database connection error")
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestValidateUpdateParams(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	setupTestData := func() (*datamodel.Pool, *datamodel.ExpertModeVolumes) {
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "550e8400-e29b-41d4-a716-446655440000"},
+			Name:        "test_pool",
+			SizeInBytes: 2199023255552, // 2TB
+		}
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
+			Name:         "test-volume",
+			SizeInBytes:  1099511627776, // 1TB
+			PoolID:       pool.ID,
+			State:        models.LifeCycleStateAvailable,
+			ExternalUUID: "770e8400-e29b-41d4-a716-446655440002",
+			Pool:         pool,
+		}
+
+		return pool, volume
+	}
+
+	t.Run("Success_ValidParams", func(tt *testing.T) {
+		_, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: 2199023255552,
+		}
+
+		err := validateUpdateParams(ctx, mockStorage, params, volume)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_ValidParams_WithVolumeName_NoConflict", func(tt *testing.T) {
+		pool, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			VolumeName:  "new-volume-name",
+			SizeInBytes: 2199023255552,
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, params.VolumeName, pool.ID).Return(nil, gorm.ErrRecordNotFound).Once()
+
+		err := validateUpdateParams(ctx, mockStorage, params, volume)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_ValidParams_WithVolumeName_SameVolume", func(tt *testing.T) {
+		pool, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			VolumeName:  volume.Name, // Same name as current volume
+			SizeInBytes: 2199023255552,
+		}
+
+		// When checking for existing volume, it returns the same volume (same ExternalUUID)
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, params.VolumeName, pool.ID).Return(volume, nil).Once()
+
+		err := validateUpdateParams(ctx, mockStorage, params, volume)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_EmptyVolumeUUID", func(tt *testing.T) {
+		_, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  "", // Empty UUID
+			SizeInBytes: 2199023255552,
+		}
+
+		err := validateUpdateParams(ctx, mockStorage, params, volume)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "VolumeUUID is required for update operation")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_NegativeSizeInBytes", func(tt *testing.T) {
+		_, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: -1, // Negative size
+		}
+
+		err := validateUpdateParams(ctx, mockStorage, params, volume)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Volume size must be greater than or equal to 0")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeStateDeleted", func(tt *testing.T) {
+		_, volume := setupTestData()
+		volume.State = models.LifeCycleStateDeleted
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: 2199023255552,
+		}
+
+		err := validateUpdateParams(ctx, mockStorage, params, volume)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "is deleted")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeStateError", func(tt *testing.T) {
+		_, volume := setupTestData()
+		volume.State = models.LifeCycleStateError
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: 2199023255552,
+		}
+
+		err := validateUpdateParams(ctx, mockStorage, params, volume)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "is deleted")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeStateCreating", func(tt *testing.T) {
+		_, volume := setupTestData()
+		volume.State = models.LifeCycleStateCreating
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: 2199023255552,
+		}
+
+		err := validateUpdateParams(ctx, mockStorage, params, volume)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "is in a transitional state")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeStateDeleting", func(tt *testing.T) {
+		_, volume := setupTestData()
+		volume.State = models.LifeCycleStateDeleting
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: 2199023255552,
+		}
+
+		err := validateUpdateParams(ctx, mockStorage, params, volume)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "is in a transitional state")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeStateUpdating", func(tt *testing.T) {
+		_, volume := setupTestData()
+		volume.State = models.LifeCycleStateUpdating
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: 2199023255552,
+		}
+
+		err := validateUpdateParams(ctx, mockStorage, params, volume)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "is in a transitional state")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeNameConflict_DifferentVolume", func(tt *testing.T) {
+		pool, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		duplicateVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{ID: 2, UUID: "different-volume-uuid"},
+			Name:         "duplicate-name",
+			ExternalUUID: "880e8400-e29b-41d4-a716-446655440003", // Different UUID
+			PoolID:       pool.ID,
+		}
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			VolumeName:  "duplicate-name",
+			SizeInBytes: 2199023255552,
+		}
+
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, params.VolumeName, pool.ID).Return(duplicateVolume, nil).Once()
+
+		err := validateUpdateParams(ctx, mockStorage, params, volume)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume with name 'duplicate-name' already exists in pool")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_GetExpertModeVolumeByNameAndPoolID_DatabaseError", func(tt *testing.T) {
+		pool, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			VolumeName:  "new-name",
+			SizeInBytes: 2199023255552,
+		}
+
+		dbError := errors.New("database connection error")
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, params.VolumeName, pool.ID).Return(nil, dbError).Once()
+
+		err := validateUpdateParams(ctx, mockStorage, params, volume)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, dbError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_ZeroSizeInBytes", func(tt *testing.T) {
+		_, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: 0, // Zero size is allowed
+		}
+
+		err := validateUpdateParams(ctx, mockStorage, params, volume)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_EmptyVolumeName", func(tt *testing.T) {
+		_, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			VolumeName:  "", // Empty name should not trigger name validation
+			SizeInBytes: 2199023255552,
+		}
+
+		err := validateUpdateParams(ctx, mockStorage, params, volume)
+
+		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
 }

@@ -2,12 +2,6 @@
 
 package coreapi
 
-// V1CreateExpertModeVolumeParams is parameters of v1_createExpertModeVolume operation.
-type V1CreateExpertModeVolumeParams struct {
-	// Correlation identifier.
-	XCorrelationID OptString
-}
-
 // V1CreateImageVersionParams is parameters of v1_createImageVersion operation.
 type V1CreateImageVersionParams struct {
 	// Correlation identifier.
@@ -52,6 +46,12 @@ type V1DeletePoolParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+// V1ExpertModeVolumeParams is parameters of v1_expertModeVolume operation.
+type V1ExpertModeVolumeParams struct {
 	// Correlation identifier.
 	XCorrelationID OptString
 }

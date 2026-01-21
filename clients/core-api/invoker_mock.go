@@ -79,28 +79,28 @@ func (_c *MockInvoker_GetHealth_Call) RunAndReturn(run func(context.Context) (Ge
 	return _c
 }
 
-// V1CreateExpertModeVolume provides a mock function with given fields: ctx, request, params
-func (_m *MockInvoker) V1CreateExpertModeVolume(ctx context.Context, request *ExpertModeVolumeV1, params V1CreateExpertModeVolumeParams) (V1CreateExpertModeVolumeRes, error) {
+// V1ExpertModeVolume provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1ExpertModeVolume(ctx context.Context, request *ExpertModeVolumeV1, params V1ExpertModeVolumeParams) (V1ExpertModeVolumeRes, error) {
 	ret := _m.Called(ctx, request, params)
 
 	if len(ret) == 0 {
-		panic("no return value specified for V1CreateExpertModeVolume")
+		panic("no return value specified for V1ExpertModeVolume")
 	}
 
-	var r0 V1CreateExpertModeVolumeRes
+	var r0 V1ExpertModeVolumeRes
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *ExpertModeVolumeV1, V1CreateExpertModeVolumeParams) (V1CreateExpertModeVolumeRes, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *ExpertModeVolumeV1, V1ExpertModeVolumeParams) (V1ExpertModeVolumeRes, error)); ok {
 		return rf(ctx, request, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *ExpertModeVolumeV1, V1CreateExpertModeVolumeParams) V1CreateExpertModeVolumeRes); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *ExpertModeVolumeV1, V1ExpertModeVolumeParams) V1ExpertModeVolumeRes); ok {
 		r0 = rf(ctx, request, params)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(V1CreateExpertModeVolumeRes)
+			r0 = ret.Get(0).(V1ExpertModeVolumeRes)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *ExpertModeVolumeV1, V1CreateExpertModeVolumeParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *ExpertModeVolumeV1, V1ExpertModeVolumeParams) error); ok {
 		r1 = rf(ctx, request, params)
 	} else {
 		r1 = ret.Error(1)
@@ -109,32 +109,32 @@ func (_m *MockInvoker) V1CreateExpertModeVolume(ctx context.Context, request *Ex
 	return r0, r1
 }
 
-// MockInvoker_V1CreateExpertModeVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1CreateExpertModeVolume'
-type MockInvoker_V1CreateExpertModeVolume_Call struct {
+// MockInvoker_V1ExpertModeVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1ExpertModeVolume'
+type MockInvoker_V1ExpertModeVolume_Call struct {
 	*mock.Call
 }
 
-// V1CreateExpertModeVolume is a helper method to define mock.On call
+// V1ExpertModeVolume is a helper method to define mock.On call
 //   - ctx context.Context
 //   - request *ExpertModeVolumeV1
-//   - params V1CreateExpertModeVolumeParams
-func (_e *MockInvoker_Expecter) V1CreateExpertModeVolume(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1CreateExpertModeVolume_Call {
-	return &MockInvoker_V1CreateExpertModeVolume_Call{Call: _e.mock.On("V1CreateExpertModeVolume", ctx, request, params)}
+//   - params V1ExpertModeVolumeParams
+func (_e *MockInvoker_Expecter) V1ExpertModeVolume(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1ExpertModeVolume_Call {
+	return &MockInvoker_V1ExpertModeVolume_Call{Call: _e.mock.On("V1ExpertModeVolume", ctx, request, params)}
 }
 
-func (_c *MockInvoker_V1CreateExpertModeVolume_Call) Run(run func(ctx context.Context, request *ExpertModeVolumeV1, params V1CreateExpertModeVolumeParams)) *MockInvoker_V1CreateExpertModeVolume_Call {
+func (_c *MockInvoker_V1ExpertModeVolume_Call) Run(run func(ctx context.Context, request *ExpertModeVolumeV1, params V1ExpertModeVolumeParams)) *MockInvoker_V1ExpertModeVolume_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*ExpertModeVolumeV1), args[2].(V1CreateExpertModeVolumeParams))
+		run(args[0].(context.Context), args[1].(*ExpertModeVolumeV1), args[2].(V1ExpertModeVolumeParams))
 	})
 	return _c
 }
 
-func (_c *MockInvoker_V1CreateExpertModeVolume_Call) Return(_a0 V1CreateExpertModeVolumeRes, _a1 error) *MockInvoker_V1CreateExpertModeVolume_Call {
+func (_c *MockInvoker_V1ExpertModeVolume_Call) Return(_a0 V1ExpertModeVolumeRes, _a1 error) *MockInvoker_V1ExpertModeVolume_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockInvoker_V1CreateExpertModeVolume_Call) RunAndReturn(run func(context.Context, *ExpertModeVolumeV1, V1CreateExpertModeVolumeParams) (V1CreateExpertModeVolumeRes, error)) *MockInvoker_V1CreateExpertModeVolume_Call {
+func (_c *MockInvoker_V1ExpertModeVolume_Call) RunAndReturn(run func(context.Context, *ExpertModeVolumeV1, V1ExpertModeVolumeParams) (V1ExpertModeVolumeRes, error)) *MockInvoker_V1ExpertModeVolume_Call {
 	_c.Call.Return(run)
 	return _c
 }

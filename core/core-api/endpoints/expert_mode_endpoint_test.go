@@ -15,7 +15,7 @@ import (
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
-func TestV1CreateExpertModeVolume(t *testing.T) {
+func TestV1ExpertModeVolume(t *testing.T) {
 	t.Run("SuccessWithSvmUUID", func(t *testing.T) {
 		// Setup
 		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
@@ -29,7 +29,7 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 		projectNumber := "123456789"
 
 		req := newExpertModeVolumeRequest(poolUUID, oasgenserver.ExpertModeVolumeV1ActionCreate, volumeName, sizeInBytes, oasgenserver.ExpertModeVolumeV1StyleFlexvol, &svmUUID, nil, projectNumber)
-		params := oasgenserver.V1CreateExpertModeVolumeParams{}
+		params := oasgenserver.V1ExpertModeVolumeParams{}
 
 		expectedParams := &commonparams.ExpertModeVolumeParams{
 			PoolUUID:    poolUUID,
@@ -47,12 +47,12 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 
 		// Execute
 		ctx := context.Background()
-		result, err := handler.V1CreateExpertModeVolume(ctx, req, params)
+		result, err := handler.V1ExpertModeVolume(ctx, req, params)
 
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		assert.IsType(t, &oasgenserver.V1CreateExpertModeVolumeOK{}, result)
+		assert.IsType(t, &oasgenserver.V1ExpertModeVolumeOK{}, result)
 
 		// Verify mock expectations
 		mockOrch.AssertExpectations(t)
@@ -71,7 +71,7 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 		projectNumber := "123456789"
 
 		req := newExpertModeVolumeRequest(poolUUID, oasgenserver.ExpertModeVolumeV1ActionCreate, volumeName, sizeInBytes, oasgenserver.ExpertModeVolumeV1StyleFlexgroup, nil, &svmName, projectNumber)
-		params := oasgenserver.V1CreateExpertModeVolumeParams{}
+		params := oasgenserver.V1ExpertModeVolumeParams{}
 
 		expectedParams := &commonparams.ExpertModeVolumeParams{
 			PoolUUID:    poolUUID,
@@ -89,12 +89,12 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 
 		// Execute
 		ctx := context.Background()
-		result, err := handler.V1CreateExpertModeVolume(ctx, req, params)
+		result, err := handler.V1ExpertModeVolume(ctx, req, params)
 
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		assert.IsType(t, &oasgenserver.V1CreateExpertModeVolumeOK{}, result)
+		assert.IsType(t, &oasgenserver.V1ExpertModeVolumeOK{}, result)
 
 		// Verify mock expectations
 		mockOrch.AssertExpectations(t)
@@ -114,7 +114,7 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 		projectNumber := "123456789"
 
 		req := newExpertModeVolumeRequest(poolUUID, oasgenserver.ExpertModeVolumeV1ActionCreate, volumeName, sizeInBytes, oasgenserver.ExpertModeVolumeV1StyleFlexvol, &svmUUID, nil, projectNumber)
-		params := oasgenserver.V1CreateExpertModeVolumeParams{}
+		params := oasgenserver.V1ExpertModeVolumeParams{}
 
 		expectedParams := &commonparams.ExpertModeVolumeParams{
 			PoolUUID:    poolUUID,
@@ -132,12 +132,12 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 
 		// Execute with correlation ID in context
 		ctx := context.WithValue(context.Background(), "X-Correlation-ID", correlationID)
-		result, err := handler.V1CreateExpertModeVolume(ctx, req, params)
+		result, err := handler.V1ExpertModeVolume(ctx, req, params)
 
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		assert.IsType(t, &oasgenserver.V1CreateExpertModeVolumeOK{}, result)
+		assert.IsType(t, &oasgenserver.V1ExpertModeVolumeOK{}, result)
 
 		// Verify mock expectations
 		mockOrch.AssertExpectations(t)
@@ -156,7 +156,7 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 		projectNumber := "123456789"
 
 		req := newExpertModeVolumeRequest(poolUUID, oasgenserver.ExpertModeVolumeV1ActionCreate, volumeName, sizeInBytes, oasgenserver.ExpertModeVolumeV1StyleFlexvol, &svmUUID, nil, projectNumber)
-		params := oasgenserver.V1CreateExpertModeVolumeParams{}
+		params := oasgenserver.V1ExpertModeVolumeParams{}
 
 		expectedParams := &commonparams.ExpertModeVolumeParams{
 			PoolUUID:    poolUUID,
@@ -175,13 +175,13 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 
 		// Execute
 		ctx := context.Background()
-		result, err := handler.V1CreateExpertModeVolume(ctx, req, params)
+		result, err := handler.V1ExpertModeVolume(ctx, req, params)
 
 		// Assert
 		assert.NoError(t, err) // Handler converts error to response
 		assert.NotNil(t, result)
 
-		badRequest, ok := result.(*oasgenserver.V1CreateExpertModeVolumeBadRequest)
+		badRequest, ok := result.(*oasgenserver.V1ExpertModeVolumeBadRequest)
 		assert.True(t, ok)
 		assert.Equal(t, float64(http.StatusBadRequest), badRequest.Code)
 		assert.Contains(t, badRequest.Message, "SVM with UUID")
@@ -204,7 +204,7 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 		projectNumber := "123456789"
 
 		req := newExpertModeVolumeRequest(poolUUID, oasgenserver.ExpertModeVolumeV1ActionCreate, volumeName, sizeInBytes, oasgenserver.ExpertModeVolumeV1StyleFlexvol, &svmUUID, nil, projectNumber)
-		params := oasgenserver.V1CreateExpertModeVolumeParams{}
+		params := oasgenserver.V1ExpertModeVolumeParams{}
 
 		expectedParams := &commonparams.ExpertModeVolumeParams{
 			PoolUUID:    poolUUID,
@@ -223,13 +223,13 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 
 		// Execute
 		ctx := context.Background()
-		result, err := handler.V1CreateExpertModeVolume(ctx, req, params)
+		result, err := handler.V1ExpertModeVolume(ctx, req, params)
 
 		// Assert
 		assert.NoError(t, err) // Handler converts error to response
 		assert.NotNil(t, result)
 
-		badRequest, ok := result.(*oasgenserver.V1CreateExpertModeVolumeBadRequest)
+		badRequest, ok := result.(*oasgenserver.V1ExpertModeVolumeBadRequest)
 		assert.True(t, ok)
 		assert.Equal(t, float64(http.StatusBadRequest), badRequest.Code)
 		assert.Contains(t, badRequest.Message, "insufficient pool capacity")
@@ -250,7 +250,7 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 		projectNumber := "123456789"
 
 		req := newExpertModeVolumeRequest(poolUUID, oasgenserver.ExpertModeVolumeV1ActionCreate, volumeName, sizeInBytes, oasgenserver.ExpertModeVolumeV1StyleFlexvol, nil, nil, projectNumber)
-		params := oasgenserver.V1CreateExpertModeVolumeParams{}
+		params := oasgenserver.V1ExpertModeVolumeParams{}
 
 		expectedParams := &commonparams.ExpertModeVolumeParams{
 			PoolUUID:    poolUUID,
@@ -269,13 +269,13 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 
 		// Execute
 		ctx := context.Background()
-		result, err := handler.V1CreateExpertModeVolume(ctx, req, params)
+		result, err := handler.V1ExpertModeVolume(ctx, req, params)
 
 		// Assert
 		assert.NoError(t, err) // Handler converts error to response
 		assert.NotNil(t, result)
 
-		badRequest, ok := result.(*oasgenserver.V1CreateExpertModeVolumeBadRequest)
+		badRequest, ok := result.(*oasgenserver.V1ExpertModeVolumeBadRequest)
 		assert.True(t, ok)
 		assert.Equal(t, float64(http.StatusBadRequest), badRequest.Code)
 		assert.Contains(t, badRequest.Message, "neither svmName nor svmUUID")
@@ -297,7 +297,7 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 		projectNumber := "123456789"
 
 		req := newExpertModeVolumeRequest(poolUUID, oasgenserver.ExpertModeVolumeV1ActionCreate, volumeName, sizeInBytes, oasgenserver.ExpertModeVolumeV1StyleFlexvol, &svmUUID, nil, projectNumber)
-		params := oasgenserver.V1CreateExpertModeVolumeParams{}
+		params := oasgenserver.V1ExpertModeVolumeParams{}
 
 		expectedParams := &commonparams.ExpertModeVolumeParams{
 			PoolUUID:    poolUUID,
@@ -316,13 +316,13 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 
 		// Execute
 		ctx := context.Background()
-		result, err := handler.V1CreateExpertModeVolume(ctx, req, params)
+		result, err := handler.V1ExpertModeVolume(ctx, req, params)
 
 		// Assert
 		assert.NoError(t, err) // Handler converts error to response
 		assert.NotNil(t, result)
 
-		internalError, ok := result.(*oasgenserver.V1CreateExpertModeVolumeInternalServerError)
+		internalError, ok := result.(*oasgenserver.V1ExpertModeVolumeInternalServerError)
 		assert.True(t, ok)
 		assert.Equal(t, float64(http.StatusInternalServerError), internalError.Code)
 		assert.Equal(t, "pool not found", internalError.Message)
@@ -344,7 +344,7 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 		projectNumber := "123456789"
 
 		req := newExpertModeVolumeRequest(poolUUID, oasgenserver.ExpertModeVolumeV1ActionCreate, volumeName, sizeInBytes, oasgenserver.ExpertModeVolumeV1StyleFlexvol, &svmUUID, nil, projectNumber)
-		params := oasgenserver.V1CreateExpertModeVolumeParams{}
+		params := oasgenserver.V1ExpertModeVolumeParams{}
 
 		expectedParams := &commonparams.ExpertModeVolumeParams{
 			PoolUUID:    poolUUID,
@@ -363,16 +363,110 @@ func TestV1CreateExpertModeVolume(t *testing.T) {
 
 		// Execute
 		ctx := context.Background()
-		result, err := handler.V1CreateExpertModeVolume(ctx, req, params)
+		result, err := handler.V1ExpertModeVolume(ctx, req, params)
 
 		// Assert
 		assert.NoError(t, err) // Handler converts error to response
 		assert.NotNil(t, result)
 
-		internalError, ok := result.(*oasgenserver.V1CreateExpertModeVolumeInternalServerError)
+		internalError, ok := result.(*oasgenserver.V1ExpertModeVolumeInternalServerError)
 		assert.True(t, ok)
 		assert.Equal(t, float64(http.StatusInternalServerError), internalError.Code)
 		assert.Equal(t, "database connection failed", internalError.Message)
+
+		// Verify mock expectations
+		mockOrch.AssertExpectations(t)
+	})
+
+	t.Run("Success_DeleteAction", func(t *testing.T) {
+		// Setup
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		// Test data
+		poolUUID := "550e8400-e29b-41d4-a716-446655440000"
+		volumeUUID := "770e8400-e29b-41d4-a716-446655440002"
+		projectNumber := "123456789"
+
+		req := &oasgenserver.ExpertModeVolumeV1{
+			PoolUUID:      poolUUID,
+			Action:        oasgenserver.ExpertModeVolumeV1ActionDelete,
+			VolumeUUID:    oasgenserver.NewOptString(volumeUUID),
+			SizeInBytes:   0,
+			Style:          oasgenserver.ExpertModeVolumeV1StyleFlexvol,
+			ProjectNumber: projectNumber,
+		}
+		params := oasgenserver.V1ExpertModeVolumeParams{}
+
+		expectedParams := &commonparams.ExpertModeVolumeParams{
+			PoolUUID:    poolUUID,
+			Action:      string(oasgenserver.ExpertModeVolumeV1ActionDelete),
+			VolumeUUID:  volumeUUID,
+			SizeInBytes: 0,
+			Style:       string(oasgenserver.ExpertModeVolumeV1StyleFlexvol),
+			AccountName: projectNumber,
+		}
+
+		// Set up expectations
+		mockOrch.EXPECT().DeleteExpertModeVolume(mock.Anything, expectedParams).Return(nil)
+
+		// Execute
+		ctx := context.Background()
+		result, err := handler.V1ExpertModeVolume(ctx, req, params)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &oasgenserver.V1ExpertModeVolumeOK{}, result)
+
+		// Verify mock expectations
+		mockOrch.AssertExpectations(t)
+	})
+
+	t.Run("Success_UpdateAction", func(t *testing.T) {
+		// Setup
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		// Test data
+		poolUUID := "550e8400-e29b-41d4-a716-446655440000"
+		volumeUUID := "770e8400-e29b-41d4-a716-446655440002"
+		volumeName := "my-expert-volume"
+		sizeInBytes := 2199023255552.0
+		projectNumber := "123456789"
+
+		req := &oasgenserver.ExpertModeVolumeV1{
+			PoolUUID:      poolUUID,
+			Action:        oasgenserver.ExpertModeVolumeV1ActionUpdate,
+			VolumeUUID:    oasgenserver.NewOptString(volumeUUID),
+			VolumeName:    volumeName,
+			SizeInBytes:   sizeInBytes,
+			Style:          oasgenserver.ExpertModeVolumeV1StyleFlexvol,
+			ProjectNumber: projectNumber,
+		}
+		params := oasgenserver.V1ExpertModeVolumeParams{}
+
+		expectedParams := &commonparams.ExpertModeVolumeParams{
+			PoolUUID:    poolUUID,
+			Action:      string(oasgenserver.ExpertModeVolumeV1ActionUpdate),
+			VolumeUUID:  volumeUUID,
+			VolumeName:  volumeName,
+			SizeInBytes: int64(sizeInBytes),
+			Style:       string(oasgenserver.ExpertModeVolumeV1StyleFlexvol),
+			AccountName: projectNumber,
+		}
+
+		// Set up expectations
+		mockOrch.EXPECT().UpdateExpertModeVolume(mock.Anything, expectedParams).Return(nil)
+
+		// Execute
+		ctx := context.Background()
+		result, err := handler.V1ExpertModeVolume(ctx, req, params)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &oasgenserver.V1ExpertModeVolumeOK{}, result)
 
 		// Verify mock expectations
 		mockOrch.AssertExpectations(t)
