@@ -488,13 +488,16 @@ func TestSnapmirrorRelationshipTransferCreate(t *testing.T) {
 func TestSnapmirrorRelationshipTransferGet(t *testing.T) {
 	mockClient := new(ontapRest.MockRESTClient)
 	mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+	mockLogger := new(mockLogger)
 	originalgetOntapClientFunc := getOntapClientFunc
 	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
 	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
 		return mockClient, nil
 	}
-	ontapProvider := &OntapRestProvider{}
+	ontapProvider := &OntapRestProvider{
+		Logger: mockLogger,
+	}
 	snapmirrorUUID := "test-uuid"
 	snapshotName := "test-snapshot"
 	expectedParams := &ontapRest.SnapmirrorRelationshipTransferGetParams{
