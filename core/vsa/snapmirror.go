@@ -112,7 +112,7 @@ func (rc *OntapRestProvider) SnapmirrorRelationshipTransferGet(snapmirrorUUID, s
 	if err != nil {
 		return nil, err
 	}
-	rc.Logger.Errorf("snapmirror get response: %+v with uuid : %s", snapmirrorTransfer, snapmirrorUUID)
+	rc.Logger.Infof("snapmirror get response: %+v with uuid : %s", snapmirrorTransfer, snapmirrorUUID)
 	return snapmirrorTransfer, nil
 }
 
