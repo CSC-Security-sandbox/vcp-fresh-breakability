@@ -183,8 +183,9 @@ func TestEmitEligibilityStringMetric(t *testing.T) {
 				for _, m := range mf.Metric {
 					expectedLabelValues := strings.Split(key, "_")
 					expected := map[string]string{
-						"name":  expectedLabelValues[0],
-						"state": expectedLabelValues[1],
+						"name":       expectedLabelValues[0],
+						"state":      expectedLabelValues[1],
+						"created_by": "vcp",
 					}
 					if metricHasLabels(m.Label, expected) {
 						found = true
@@ -355,7 +356,7 @@ func TestRegisterPasswordRotationFailureCounter(t *testing.T) {
 
 func TestEmitCertificateRotationFailure(t *testing.T) {
 	RegisterCertificateRotationFailureCounter()
-	
+
 	poolUUID := "test-pool-uuid-123"
 	poolName := "test-pool-name"
 	failureType := "certificate_rotation"
@@ -401,7 +402,7 @@ func TestEmitCertificateRotationFailure_TruncatesLongErrorType(t *testing.T) {
 	// Unregister first to ensure clean state
 	prometheus.Unregister(CertificateRotationFailureCounter)
 	RegisterCertificateRotationFailureCounter()
-	
+
 	poolUUID := "test-pool-uuid-456"
 	poolName := "test-pool-name-2"
 	failureType := "certificate_rotation"
@@ -437,7 +438,7 @@ func TestEmitCertificateRotationFailure_TruncatesLongErrorType(t *testing.T) {
 						if *label.Name == "error_type" {
 							errorTypeValue := *label.Value
 							if errorTypeValue != expectedErrorType {
-								t.Errorf("Expected error_type to be %q (length %d), got %q (length %d)", 
+								t.Errorf("Expected error_type to be %q (length %d), got %q (length %d)",
 									expectedErrorType, len(expectedErrorType), errorTypeValue, len(errorTypeValue))
 							}
 							if !strings.HasSuffix(errorTypeValue, "...") {
@@ -459,7 +460,7 @@ func TestEmitCertificateRotationFailure_TruncatesLongErrorType(t *testing.T) {
 
 func TestEmitPasswordRotationFailure(t *testing.T) {
 	RegisterPasswordRotationFailureCounter()
-	
+
 	poolUUID := "test-pool-uuid-789"
 	poolName := "test-pool-name-3"
 	failureType := "password_rotation"
@@ -541,7 +542,7 @@ func TestEmitPasswordRotationFailure_TruncatesLongErrorType(t *testing.T) {
 						if *label.Name == "error_type" {
 							errorTypeValue := *label.Value
 							if errorTypeValue != expectedErrorType {
-								t.Errorf("Expected error_type to be %q (length %d), got %q (length %d)", 
+								t.Errorf("Expected error_type to be %q (length %d), got %q (length %d)",
 									expectedErrorType, len(expectedErrorType), errorTypeValue, len(errorTypeValue))
 							}
 							if !strings.HasSuffix(errorTypeValue, "...") {

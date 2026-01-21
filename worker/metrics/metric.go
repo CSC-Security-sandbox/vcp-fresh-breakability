@@ -9,6 +9,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/helper"
 )
 
+const CreatedByLabelValue = "vcp"
+
 type VolumeDetails struct {
 	Name        string
 	State       string
@@ -90,7 +92,7 @@ var eligibilityStringGauge = prometheus.NewGaugeVec(
 		Name: "gcnv_volumes_eligibility",
 		Help: "Total number of volumes for eligibility string",
 	},
-	[]string{"name", "state"},
+	[]string{"name", "state", "created_by"},
 )
 
 // Gauge for backup size
@@ -378,14 +380,16 @@ func EmitCBSEnabledMetric(volumes []*datamodel.Volume) {
 func EmitEligibilityStringMetric(volumes []*datamodel.Volume) {
 	eligibilityStringGauge.Reset()
 	type eligibilityKey struct {
-		Name  string
-		State string
+		Name      string
+		State     string
+		CreatedBy string
 	}
 	counts := make(map[eligibilityKey]int)
 	for _, v := range volumes {
 		key := eligibilityKey{
-			Name:  v.Name,
-			State: v.State,
+			Name:      v.Name,
+			State:     v.State,
+			CreatedBy: CreatedByLabelValue,
 		}
 		counts[key]++
 	}
@@ -393,6 +397,7 @@ func EmitEligibilityStringMetric(volumes []*datamodel.Volume) {
 		eligibilityStringGauge.WithLabelValues(
 			key.Name,
 			key.State,
+			key.CreatedBy,
 		).Set(float64(count))
 	}
 }
