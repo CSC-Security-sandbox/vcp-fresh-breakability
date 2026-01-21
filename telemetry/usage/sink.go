@@ -340,7 +340,7 @@ func (s *GoogleUsageSink) processMetricsResultsBatch(ctx context.Context, gcpRes
 			billingRecord.ErrorCount = billingRecord.ErrorCount + 1
 			billingRecord.State = datamodel.Error
 		}
-		s.logger.Infof("Preparing batch update for billingRecord ID: %d, state: %s", billingRecord.ID, billingRecord.State)
+		s.logger.Debugf("Preparing batch update for billingRecord ID: %d, state: %s", billingRecord.ID, billingRecord.State)
 
 		// Create update map with only the fields that need to be updated
 		updates := map[string]interface{}{

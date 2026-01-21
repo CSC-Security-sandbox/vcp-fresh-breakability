@@ -933,8 +933,8 @@ func (p *BillingProvider) fetchMetricsForCounterAndIntegralAggregation(ctx conte
 	//	is used for integral aggregation where we need the latest record after the aggregation end time. Backward aggregation is used for counter aggregation
 	//	where we need the latest record before the aggregation start time.
 	filter := p.CreateComplexFilter(map[string]interface{}{
-		"startTime":    aggregationStartTime.Add(-(backfillLimit / 60) * time.Hour), // Look back 1 hour before aggregation start
-		"endTime":      aggregationEndTime.Add((backfillLimit / 60) * time.Hour),    // Look ahead 1 hour after aggregation end
+		"startTime":    aggregationStartTime.Add(-backfillLimit), // Look back 1 hour before aggregation start
+		"endTime":      aggregationEndTime.Add(backfillLimit),    // Look ahead 1 hour after aggregation end
 		"resourceType": resourceType,
 		"measuredType": measuredType,
 		"order":        "resource_name, deployment_name, consumer_id, metric_timestamp DESC", // Database sorts for us
