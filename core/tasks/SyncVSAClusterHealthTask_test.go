@@ -1800,7 +1800,7 @@ func TestUpdatePoolToDegradedState_ConditionalJSwap(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 
-	t.Run("JSWAP API NOT called when version is nil", func(t *testing.T) {
+	t.Run("JSWAP API IS called when version is nil (safer fallback)", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		ctx := context.Background()
 		correlationID := "test-correlation-id"
@@ -1838,14 +1838,18 @@ func TestUpdatePoolToDegradedState_ConditionalJSwap(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockRESTClient := ontapRest.NewMockRESTClient(t)
 
+		// Mock JSWAP call - it should be called when version is nil (safer fallback)
+		mockProvider.On("UpdateJSwapModeWithClient", "node-1", vsa.JSWAPBackingTypeEphemeralDisk, mockRESTClient).Return(true, nil).Once()
+
 		// Patch UpdatePoolToDegradedState to test conditional logic while avoiding context issues
 		originalUpdatePoolToDegradedState := UpdatePoolToDegradedState
 		defer func() { UpdatePoolToDegradedState = originalUpdatePoolToDegradedState }()
 
 		jswapCalled := false
 		UpdatePoolToDegradedState = func(ctx *inmemotasksprocessor.IMTPContext, clusterHealth *vsa.ClusterHealthStatusResponse, provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context, ontapClient ontapRest.RESTClient, ontapVersion *string) {
-			// Test the conditional logic
-			shouldCallJSwapAPI := false
+			// Test the conditional logic - when version is nil, default to calling JSWAP (safer fallback)
+			// For ONTAP >= 9.18.1 it's a no-op, but missing it for 9.17.1 could lead to data loss
+			shouldCallJSwapAPI := true // Default to true when version is nil
 			if ontapVersion != nil {
 				shouldCallJSwapAPI = IsJswapRequired(*ontapVersion, JSwapVersionThreshold)
 			}
@@ -1867,10 +1871,10 @@ func TestUpdatePoolToDegradedState_ConditionalJSwap(t *testing.T) {
 		}
 
 		imtpCtx := &inmemotasksprocessor.IMTPContext{}
-		// Version is nil, so JSWAP API should NOT be called
+		// Version is nil, so JSWAP API SHOULD be called (safer fallback to prevent data loss on older versions)
 		UpdatePoolToDegradedState(imtpCtx, clusterHealth, mockProvider, mockStorage, poolIdentifier, logger, correlationID, bgCtx, mockRESTClient, nil)
 
-		assert.False(t, jswapCalled, "JSWAP API should NOT be called when version is nil")
+		assert.True(t, jswapCalled, "JSWAP API should be called when version is nil (safer fallback)")
 		mockProvider.AssertExpectations(t)
 		mockStorage.AssertExpectations(t)
 	})
@@ -2111,7 +2115,7 @@ func TestUpdatePoolToReadyState_ConditionalJSwap(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 
-	t.Run("JSWAP API NOT called when version is nil", func(t *testing.T) {
+	t.Run("JSWAP API IS called when version is nil (safer fallback)", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		ctx := context.Background()
 		correlationID := "test-correlation-id"
@@ -2149,14 +2153,18 @@ func TestUpdatePoolToReadyState_ConditionalJSwap(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockRESTClient := ontapRest.NewMockRESTClient(t)
 
+		// Mock JSWAP call - it should be called when version is nil (safer fallback)
+		mockProvider.On("UpdateJSwapModeWithClient", "node-1", vsa.JSWAPBackingTypeEphemeralMemory, mockRESTClient).Return(true, nil).Once()
+
 		// Patch UpdatePoolToReadyStateFromHealth to test conditional logic while avoiding context issues
 		originalUpdatePoolToReadyStateFromHealth := UpdatePoolToReadyStateFromHealth
 		defer func() { UpdatePoolToReadyStateFromHealth = originalUpdatePoolToReadyStateFromHealth }()
 
 		jswapCalled := false
 		UpdatePoolToReadyStateFromHealth = func(ctx *inmemotasksprocessor.IMTPContext, clusterHealth *vsa.ClusterHealthStatusResponse, provider vsa.Provider, se database.Storage, poolIdentifier *database.PoolIdentifier, logger log.Logger, correlationID string, bgCtx context.Context, ontapClient ontapRest.RESTClient, ontapVersion *string) {
-			// Test the conditional logic
-			shouldCallJSwapAPI := false
+			// Test the conditional logic - when version is nil, default to calling JSWAP (safer fallback)
+			// For ONTAP >= 9.18.1 it's a no-op, but missing it for 9.17.1 could lead to data loss
+			shouldCallJSwapAPI := true // Default to true when version is nil
 			if ontapVersion != nil {
 				shouldCallJSwapAPI = IsJswapRequired(*ontapVersion, JSwapVersionThreshold)
 			}
@@ -2178,10 +2186,10 @@ func TestUpdatePoolToReadyState_ConditionalJSwap(t *testing.T) {
 		}
 
 		imtpCtx := &inmemotasksprocessor.IMTPContext{}
-		// Version is nil, so JSWAP API should NOT be called
+		// Version is nil, so JSWAP API SHOULD be called (safer fallback to prevent data loss on older versions)
 		UpdatePoolToReadyStateFromHealth(imtpCtx, clusterHealth, mockProvider, mockStorage, poolIdentifier, logger, correlationID, bgCtx, mockRESTClient, nil)
 
-		assert.False(t, jswapCalled, "JSWAP API should NOT be called when version is nil")
+		assert.True(t, jswapCalled, "JSWAP API should be called when version is nil (safer fallback)")
 		mockProvider.AssertExpectations(t)
 		mockStorage.AssertExpectations(t)
 	})

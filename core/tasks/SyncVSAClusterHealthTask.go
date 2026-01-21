@@ -44,7 +44,7 @@ const JSwapVersionThreshold = "9.18.1"
 // Feature flag to control JSWAP API behavior for ONTAP 9.18.1+
 // When enabled (true), JSWAP API is skipped for ONTAP versions >= 9.18.1
 // When disabled (false), JSWAP API is called for all versions (legacy behavior)
-var enableJSwapVersionCheck = env.GetBool("ENABLE_JSWAP_VERSION_CHECK", false)
+var enableJSwapVersionCheck = env.GetBool("ENABLE_JSWAP_VERSION_CHECK", true)
 
 // getRequiredTakeoverReasons returns the list of takeover reasons from environment variable or defaults
 func getRequiredTakeoverReasons() []string {
@@ -397,7 +397,10 @@ func updatePoolToDegradedState(ctx *inmemotasksprocessor.IMTPContext, clusterHea
 		if ontapVersion != nil {
 			shouldCallJSwapAPI = IsJswapRequired(*ontapVersion, JSwapVersionThreshold)
 		} else {
-			logger.Warnf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - ONTAP version not available, defaulting to state update only", correlationID, poolIdentifier.UUID)
+			// FALLBACK: Default to calling JSWAP API when version is unknown.
+			// For ONTAP >= 9.18.1 it's a no-op, but missing it for 9.17.1 could lead to data loss.
+			shouldCallJSwapAPI = true
+			logger.Warnf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - ONTAP version not available, defaulting to call JSWAP API (safer fallback)", correlationID, poolIdentifier.UUID)
 		}
 	} else {
 		// Feature flag disabled: Use legacy behavior (always call JSWAP)
@@ -444,7 +447,10 @@ func updatePoolToReadyState(ctx *inmemotasksprocessor.IMTPContext, clusterHealth
 		if ontapVersion != nil {
 			shouldCallJSwapAPI = IsJswapRequired(*ontapVersion, JSwapVersionThreshold)
 		} else {
-			logger.Warnf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - ONTAP version not available, defaulting to state update only", correlationID, poolIdentifier.UUID)
+			// FALLBACK: Default to calling JSWAP API when version is unknown.
+			// For ONTAP >= 9.18.1 it's a no-op, but missing it for 9.17.1 could lead to data loss.
+			shouldCallJSwapAPI = true
+			logger.Warnf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - ONTAP version not available, defaulting to call JSWAP API (safer fallback)", correlationID, poolIdentifier.UUID)
 		}
 	} else {
 		// Feature flag disabled: Use legacy behavior (always call JSWAP)
