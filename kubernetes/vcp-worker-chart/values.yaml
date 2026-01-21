@@ -223,13 +223,13 @@ workerConfig:
   vlmCreateVsaClusterDeploymentWfTimeoutMinutesLv: 45
   startToCloseWorkflowTimeoutLv: "60m"
   dataSubnetCidrBlockLv: 26
-  minLvPoolCoolTierCapacity: "13194139533312"
+  minLvPoolCoolTierCapacity: "6597069766656"
   maxLvPoolCapacity: "22517998136852476"
   maxLvHotTierPoolCapacity: "2814749767106560"
   minLvThroughput: 64
   maxLvThroughput: 60000
   minHotTierSize: "1099511627776"
-  minHotTierSizeLV: "13194139533312"
+  minHotTierSizeLV: "6597069766656"
   createCommonResourcesInVCP: true
   consecutiveUpdatePoolTimeGapAllowedMinutes: 240
   autoTierHotTierAutoResizeThresholdPercent: 100

@@ -3494,7 +3494,7 @@ func TestValidatePoolParams(t *testing.T) {
 
 	t.Run("LargeCapacityPool_InvalidSize_ReturnsError", func(tt *testing.T) {
 		perf := &validators.CustomPerformance{
-			SizeInBytes:        uint64(10 * utils.TiBInBytes), // Below large capacity minimum (12 TiB)
+			SizeInBytes:        uint64(5 * utils.TiBInBytes), // Below large capacity minimum (6 TiB)
 			ThroughputMibps:    1000,
 			Iops:               nillable.ToPointer(int64(16000)), // Minimum IOPS for 1000 MiBps in large capacity
 			AllowAutoTiering:   false,
@@ -3586,7 +3586,7 @@ func TestValidatePoolParams(t *testing.T) {
 	})
 	t.Run("AutoTieringEnabled_WithHotTierSize_LV_Error", func(tt *testing.T) {
 		perf := &validators.CustomPerformance{
-			SizeInBytes:        uint64(10 * utils.TiBInBytes),
+			SizeInBytes:        uint64(5 * utils.TiBInBytes),
 			ThroughputMibps:    128,
 			Iops:               nillable.ToPointer(int64(2048)),
 			AllowAutoTiering:   true,
@@ -3599,15 +3599,15 @@ func TestValidatePoolParams(t *testing.T) {
 			validators.AutoTieringEnabled = false
 		}()
 		err := _validatePoolParams(perf, ServiceLevelNameFLEX)
-		assert.EqualError(tt, err, "SizeInBytes must be at least 12TiB (13194139533312 bytes) for Large Capacity pools")
+		assert.EqualError(tt, err, "SizeInBytes must be at least 6TiB (6597069766656 bytes) for Large Capacity pools")
 	})
 	t.Run("AutoTieringEnabled_WithHotTierSize_LV_NoError", func(tt *testing.T) {
 		perf := &validators.CustomPerformance{
-			SizeInBytes:        uint64(12 * utils.TiBInBytes),
+			SizeInBytes:        uint64(6 * utils.TiBInBytes),
 			ThroughputMibps:    128,
 			Iops:               nillable.ToPointer(int64(2048)),
 			AllowAutoTiering:   true,
-			HotTierSizeInBytes: uint64(12 * utils.TiBInBytes), // Hot tier size set but auto-tiering disabled
+			HotTierSizeInBytes: uint64(6 * utils.TiBInBytes), // Hot tier size set with auto-tiering enabled
 			QosType:            QosTypeAuto,
 			LargeCapacity:      true,
 		}
@@ -3616,7 +3616,7 @@ func TestValidatePoolParams(t *testing.T) {
 			validators.AutoTieringEnabled = false
 		}()
 		err := _validatePoolParams(perf, ServiceLevelNameFLEX)
-		assert.NoError(tt, err, "SizeInBytes must be at least 12TiB (13194139533312 bytes) for Large Capacity pools")
+		assert.NoError(tt, err, "SizeInBytes must be at least 6TiB (6597069766656 bytes) for Large Capacity pools")
 	})
 }
 
@@ -3784,7 +3784,7 @@ func TestValidateCreatePoolParamsRefactored(t *testing.T) {
 
 	t.Run("InvalidSize_BelowMinimum_LargeCapacityPool_ReturnsError", func(tt *testing.T) {
 		params := &common.CreatePoolParams{
-			SizeInBytes:   uint64(10 * utils.TiBInBytes), // Below minimum for large capacity pool (12 TiB)
+			SizeInBytes:   uint64(5 * utils.TiBInBytes), // Below minimum for large capacity pool (6 TiB)
 			ServiceLevel:  ServiceLevelNameFLEX,
 			QosType:       QosTypeAuto,
 			LargeCapacity: true,

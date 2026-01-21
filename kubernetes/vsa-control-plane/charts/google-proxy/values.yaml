@@ -60,7 +60,7 @@ minQuotaInBytesPool: "1099511627776" # 1TiB in bytes
 maxQuotaInBytesPool: "467292441804800" # 425TiB in bytes
 minQuotaInBytesVolume: "1073741824" # 1GiB in bytes
 maxQuotaInBytesVolume: "140737488355328" # 128TiB in bytes
-minQuotaInBytesLargeVolume: "13194139533312" # 12TiB in bytes
+minQuotaInBytesLargeVolume: "5153960755200" # 4800GiB in bytes
 maxQuotaInBytesLargeVolume: "22517998136852480" # 20PiB in bytes
 maxConstituentsPerAggregate: "1000" # 1000 constituents per aggregate
 defaultConstituentsPerAggregate: "8" # Default CVs per aggregate for large volume creation

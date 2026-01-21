@@ -54,7 +54,7 @@ var (
 	MinCustomIops                   = env.GetUint64("MIN_CUSTOM_IOPS", 1024)                                // 1024 IOPS
 	MaxCustomIops                   = env.GetUint64("MAX_CUSTOM_IOPS", 160000)                              // 160000 IOPS
 	IopsPerMiBps                    = env.GetUint64("IOPS_PER_MIBPS", 16)                                   // 16 IOPS per MiBps (for auto-calculation)
-	MinLvCoolTierCapacity           = env.GetUint64("MIN_LV_POOL_COOL_TIER_CAPACITY", 12*TiBInBytes)        // 12TiB
+	MinLvCoolTierCapacity           = env.GetUint64("MIN_LV_POOL_COOL_TIER_CAPACITY", 6*TiBInBytes)         // 6TiB
 	MaxLvPoolCapacity               = env.GetUint64("MAX_LV_POOL_CAPACITY", 20*PiBInBytes)                  // 20PiB
 	MaxLvHotTierCapacity            = env.GetUint64("MAX_LV_HOT_TIER_POOL_CAPACITY", 2.5*PiBInBytes)        // 2.5 PiB
 	MinLvThroughput                 = env.GetUint64("MIN_LV_THROUGHPUT", 64)
@@ -62,7 +62,7 @@ var (
 	MinLvCustomIops                 = env.GetUint64("MIN_LV_CUSTOM_IOPS", IopsPerMiBps*MinLvThroughput)
 	MaxLvCustomIops                 = env.GetUint64("MAX_LV_CUSTOM_IOPS", IopsPerMiBps*MaxLvThroughput)
 	MinHotTierSize                  = env.GetUint64("MIN_HOT_TIER_SIZE", 1099511627776) // 1 TiB
-	MinHotTierSizeLargeVolumes      = env.GetUint64("MIN_HOT_TIER_SIZE_LARGE_VOLUMES", 12*TiBInBytes)
+	MinHotTierSizeLargeVolumes      = env.GetUint64("MIN_HOT_TIER_SIZE_LARGE_VOLUMES", 6*TiBInBytes)
 	CreateCommonResourcesInVCP      = env.GetBool("CREATE_COMMON_RESOURCES_IN_VCP", true)
 	EnableMultiAD                   = env.GetBool("ENABLE_MULTI_AD", false)
 	MaxNumberOfADPerAccount         = env.GetInt("MAX_NUMBER_OF_AD_PER_ACCOUNT", 5)

@@ -23,7 +23,7 @@ func TestLargeCapacityPoolValidator_ValidateSize(t *testing.T) {
 	}{
 		// Valid cases
 		{
-			name:          "Valid size at minimum boundary (12TiB)",
+			name:          "Valid size at minimum boundary (6TiB)",
 			sizeInBytes:   minLvCoolTierCapacity,
 			allowAutoTier: false,
 			expectedError: false,
@@ -55,25 +55,25 @@ func TestLargeCapacityPoolValidator_ValidateSize(t *testing.T) {
 
 		// Invalid cases - too small
 		{
-			name:           "Size below minimum (11TiB)",
-			sizeInBytes:    11 * utils.TiBInBytes,
+			name:           "Size below minimum (5TiB)",
+			sizeInBytes:    5 * utils.TiBInBytes,
 			allowAutoTier:  false,
 			expectedError:  true,
-			errorSubstring: "must be at least 12TiB",
+			errorSubstring: "must be at least 6TiB",
 		},
 		{
 			name:           "Size way below minimum (1TiB)",
 			sizeInBytes:    1 * utils.TiBInBytes,
 			allowAutoTier:  false,
 			expectedError:  true,
-			errorSubstring: "must be at least 12TiB",
+			errorSubstring: "must be at least 6TiB",
 		},
 		{
 			name:           "Size zero",
 			sizeInBytes:    0,
 			allowAutoTier:  false,
 			expectedError:  true,
-			errorSubstring: "must be at least 12TiB",
+			errorSubstring: "must be at least 6TiB",
 		},
 
 		// Invalid cases - too large without autoTier
@@ -114,7 +114,7 @@ func TestLargeCapacityPoolValidator_ValidateSize(t *testing.T) {
 			sizeInBytes:    minLvCoolTierCapacity - 1,
 			allowAutoTier:  false,
 			expectedError:  true,
-			errorSubstring: "must be at least 12TiB",
+			errorSubstring: "must be at least 6TiB",
 		},
 		{
 			name:           "Size one byte above maximum without autoTier",
@@ -332,7 +332,7 @@ func TestLargeCapacityPoolValidator_IntegrationTests(t *testing.T) {
 
 		assert.Error(t, sizeErr)
 		assert.Error(t, throughputErr)
-		assert.Contains(t, sizeErr.Error(), "must be at least 12TiB")
+		assert.Contains(t, sizeErr.Error(), "must be at least 6TiB")
 		assert.Contains(t, throughputErr.Error(), "must be between 64 and 60000 MiBps")
 	})
 
@@ -395,7 +395,7 @@ func TestLargeCapacityPoolValidator_ValidateSizeWithCustomPerformance(t *testing
 	}{
 		// Valid cases
 		{
-			name: "Valid size at minimum boundary (12TiB)",
+			name: "Valid size at minimum boundary (6TiB)",
 			perf: &CustomPerformance{
 				SizeInBytes:      minLvCoolTierCapacity,
 				AllowAutoTiering: false,
@@ -442,14 +442,14 @@ func TestLargeCapacityPoolValidator_ValidateSizeWithCustomPerformance(t *testing
 
 		// Invalid cases - too small
 		{
-			name: "Size below minimum (11TiB)",
+			name: "Size below minimum (5TiB)",
 			perf: &CustomPerformance{
-				SizeInBytes:      11 * utils.TiBInBytes,
+				SizeInBytes:      5 * utils.TiBInBytes,
 				AllowAutoTiering: false,
 				LargeCapacity:    true,
 			},
 			expectedError:  true,
-			errorSubstring: "must be at least 12TiB",
+			errorSubstring: "must be at least 6TiB",
 		},
 		{
 			name: "Size way below minimum (1TiB)",
@@ -459,7 +459,7 @@ func TestLargeCapacityPoolValidator_ValidateSizeWithCustomPerformance(t *testing
 				LargeCapacity:    true,
 			},
 			expectedError:  true,
-			errorSubstring: "must be at least 12TiB",
+			errorSubstring: "must be at least 6TiB",
 		},
 		{
 			name: "Size zero",
@@ -469,7 +469,7 @@ func TestLargeCapacityPoolValidator_ValidateSizeWithCustomPerformance(t *testing
 				LargeCapacity:    true,
 			},
 			expectedError:  true,
-			errorSubstring: "must be at least 12TiB",
+			errorSubstring: "must be at least 6TiB",
 		},
 
 		// Invalid cases - too large without autoTier
@@ -765,7 +765,7 @@ func TestLargeCapacityPoolValidator_IntegrationTestsWithCustomPerformance(t *tes
 		assert.Error(t, sizeErr)
 		assert.Error(t, throughputErr)
 		assert.Error(t, iopsErr)
-		assert.Contains(t, sizeErr.Error(), "must be at least 12TiB")
+		assert.Contains(t, sizeErr.Error(), "must be at least 6TiB")
 		assert.Contains(t, throughputErr.Error(), "must be between 64 and 60000 MiBps")
 	})
 
@@ -840,7 +840,7 @@ func TestLargeCapacityPoolValidator_ValidateHotTierSize(t *testing.T) {
 
 		// Valid cases - auto-tiering enabled with valid hot tier sizes
 		{
-			name: "Valid hot tier size at minimum boundary (12TiB)",
+			name: "Valid hot tier size at minimum boundary (6TiB)",
 			perf: &CustomPerformance{
 				AllowAutoTiering:   true,
 				HotTierSizeInBytes: minHotTierSizeLargeVolumes,
@@ -908,10 +908,10 @@ func TestLargeCapacityPoolValidator_ValidateHotTierSize(t *testing.T) {
 
 		// Invalid cases - hot tier size below minimum
 		{
-			name: "Hot tier size below minimum (11TiB)",
+			name: "Hot tier size below minimum (5TiB)",
 			perf: &CustomPerformance{
 				AllowAutoTiering:   true,
-				HotTierSizeInBytes: 11 * utils.TiBInBytes,
+				HotTierSizeInBytes: 5 * utils.TiBInBytes,
 				SizeInBytes:        50 * utils.TiBInBytes,
 				LargeCapacity:      true,
 			},
@@ -1084,10 +1084,10 @@ func TestLargeCapacityPoolValidator_ValidateHotTierSize_Integration(t *testing.T
 
 	t.Run("Invalid configuration with hot tier issues", func(t *testing.T) {
 		perf := &CustomPerformance{
-			SizeInBytes:        10 * utils.TiBInBytes, // Too small for large capacity
+			SizeInBytes:        5 * utils.TiBInBytes, // Too small for large capacity (min is 6 TiB)
 			AllowAutoTiering:   true,
-			HotTierSizeInBytes: 15 * utils.TiBInBytes, // Exceeds pool size
-			ThroughputMibps:    32,                    // Too low
+			HotTierSizeInBytes: 8 * utils.TiBInBytes, // Exceeds pool size
+			ThroughputMibps:    32,                   // Too low
 			Iops:               nillable.ToPointer(int64(100)),
 			LargeCapacity:      true,
 		}
