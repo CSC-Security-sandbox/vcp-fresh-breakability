@@ -4,7 +4,7 @@ go 1.24.11
 
 require (
 	github.com/andygrunwald/go-jira v1.16.0
-	github.com/google/go-github/v50 v50.2.0
+	github.com/google/go-github/v79 v79.0.0
 	github.com/joho/godotenv v1.5.1
 	github.com/spf13/cobra v1.9.1
 	golang.org/x/oauth2 v0.30.0
@@ -120,8 +120,6 @@ require (
 )
 
 require (
-	github.com/ProtonMail/go-crypto v0.0.0-20230217124315-7d5c6f04bbb8 // indirect
-	github.com/cloudflare/circl v1.1.0 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/goccy/go-yaml v1.18.0
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
