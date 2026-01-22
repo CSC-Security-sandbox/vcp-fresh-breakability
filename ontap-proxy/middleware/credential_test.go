@@ -198,7 +198,7 @@ func TestFetchAndCacheCredentials(t *testing.T) {
 		assert.True(t, exists)
 		assert.Equal(t, "test-pool", cachedData.PoolID)
 		assert.Equal(t, "test-account", cachedData.AccountName)
-		assert.Equal(t, "test-user", cachedData.UserName)
+		assert.Equal(t, "test-user", cachedData.Username)
 	})
 }
 

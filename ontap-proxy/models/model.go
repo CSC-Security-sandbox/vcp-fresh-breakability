@@ -29,7 +29,6 @@ type AuthData struct {
 	Username       string
 	PoolID         string
 	AccountName    string
-	UserName       string
 	Certificate    *Certificate
 	OntapEndpoints []OntapEndpoint
 	// Format: ca_pool_deployed_project_id/ca_pool_name/ca_name
