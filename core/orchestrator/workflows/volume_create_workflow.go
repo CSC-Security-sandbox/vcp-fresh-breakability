@@ -820,7 +820,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			log.Infof("Verifying backup restore compatibility for large volume")
 			createVolumeParams, err = _verifyBackupRestoreCompatibilityForLargeVolumes(backup, createVolumeParams)
 			if err != nil {
-				return nil, ConvertToVSAError(err)
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrLargeVolumeBackupRestoreValidation, err)
 			}
 		}
 	}

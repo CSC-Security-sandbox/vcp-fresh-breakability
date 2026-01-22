@@ -1942,5 +1942,11 @@
     "message": "Operation was successful but quota rule sync between source and destination failed during reverse resume",
     "retriable": false,
     "http_code": 200
+  },
+  "13001": {
+    "description": "Large Volume Backup Restore Validation failure",
+    "message": "Large Volume Restore Validation failure",
+    "retriable": false,
+    "http_code": 200
   }
 }

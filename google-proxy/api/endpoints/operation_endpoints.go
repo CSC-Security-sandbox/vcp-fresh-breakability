@@ -66,7 +66,7 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 		case models.JobsStateERROR:
 			errMsg := vsaerrors.GetErrorMessageByTrackingID(job.TrackingID)
 			detailedErrorMessage := errMsg.Message
-			if job.TrackingID == vsaerrors.ErrRestoreVolumeValidation || job.TrackingID == vsaerrors.ErrSFRFilesMissing ||
+			if job.TrackingID == vsaerrors.ErrLargeVolumeBackupRestoreValidation || job.TrackingID == vsaerrors.ErrRestoreVolumeValidation || job.TrackingID == vsaerrors.ErrSFRFilesMissing ||
 				job.TrackingID == vsaerrors.ErrSnapshotNotAllowedForVolume {
 				detailedErrorMessage = string(job.ErrorDetails)
 			}

@@ -371,6 +371,9 @@ const (
 	ErrResumeReplicationQuotaRuleFailure        = 12014
 	ErrBreakReplicationQuotaRuleFailure         = 12015
 	ErrReverseResumeReplicationQuotaRuleFailure = 12016
+
+	// Large volume backup specific error (13001-13999)
+	ErrLargeVolumeBackupRestoreValidation = 13001
 )
 
 // ErrorMessage struct represents the structure of each error message in the JSON file.
