@@ -555,6 +555,9 @@ func nfsModifyParamsToONTAP(params *NfsModifyParams) *nas.NfsModifyParams {
 	if params.FileSessionIoGroupingCount != nil {
 		info.FileSessionIoGroupingCount = params.FileSessionIoGroupingCount
 	}
+	if params.AuthSysExtendedGroupsEnabled != nil {
+		info.AuthSysExtendedGroupsEnabled = params.AuthSysExtendedGroupsEnabled
+	}
 
 	otParams.SetInfo(info)
 	otParams.SetSvmUUID(params.SvmUUID)

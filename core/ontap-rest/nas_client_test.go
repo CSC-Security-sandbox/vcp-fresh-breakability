@@ -530,20 +530,22 @@ func TestNfsModify(t *testing.T) {
 		v41Enabled := true
 		vstorageEnabled := true
 		fileSessionIoGroupingCount := int64(10)
+		authSysExtendedGroupsEnabled := true
 
 		params := &NfsModifyParams{
-			SvmUUID:                    "test-uuid",
-			V4IDDomain:                 &v4IDDomain,
-			ShowmountEnabled:           &showmountEnabled,
-			RquotaEnabled:              &rquotaEnabled,
-			AllowLocalNFSUsersWithLdap: &allowLocalNFSUsersWithLdap,
-			ExtendedGroupsLimit:        &extendedGroupsLimit,
-			Enabled:                    &enabled,
-			V3Enabled:                  &v3Enabled,
-			V40Enabled:                 &v40Enabled,
-			V41Enabled:                 &v41Enabled,
-			VstorageEnabled:            &vstorageEnabled,
-			FileSessionIoGroupingCount: &fileSessionIoGroupingCount,
+			SvmUUID:                      "test-uuid",
+			V4IDDomain:                   &v4IDDomain,
+			ShowmountEnabled:             &showmountEnabled,
+			RquotaEnabled:                &rquotaEnabled,
+			AllowLocalNFSUsersWithLdap:   &allowLocalNFSUsersWithLdap,
+			ExtendedGroupsLimit:          &extendedGroupsLimit,
+			Enabled:                      &enabled,
+			V3Enabled:                    &v3Enabled,
+			V40Enabled:                   &v40Enabled,
+			V41Enabled:                   &v41Enabled,
+			VstorageEnabled:              &vstorageEnabled,
+			FileSessionIoGroupingCount:   &fileSessionIoGroupingCount,
+			AuthSysExtendedGroupsEnabled: &authSysExtendedGroupsEnabled,
 		}
 		err := client.NfsModify(params)
 		assert.NoError(tt, err)
@@ -1827,14 +1829,14 @@ func TestKerberosInterfaceModify(t *testing.T) {
 		adminPassword := "password"
 		ou := "OU=test"
 		params := &KerberosInterfaceModifyParams{
-			SvmUUID:        svmUUID,
-			InterfaceUUID:  &interfaceUUID,
+			SvmUUID:           svmUUID,
+			InterfaceUUID:     &interfaceUUID,
 			IsKerberosEnabled: &enabled,
-			Spn:            &spn,
-			MachineAccount: &machineAccount,
-			AdminUsername:  &adminUsername,
-			AdminPassword:  &adminPassword,
-			OU:             &ou,
+			Spn:               &spn,
+			MachineAccount:    &machineAccount,
+			AdminUsername:     &adminUsername,
+			AdminPassword:     &adminPassword,
+			OU:                &ou,
 		}
 		err := client.KerberosInterfaceModify(params)
 		assert.EqualError(tt, err, "api error")
@@ -1852,14 +1854,14 @@ func TestKerberosInterfaceModify(t *testing.T) {
 		adminPassword := "password"
 		ou := "OU=test"
 		params := &KerberosInterfaceModifyParams{
-			SvmUUID:        svmUUID,
-			InterfaceUUID:  &interfaceUUID,
+			SvmUUID:           svmUUID,
+			InterfaceUUID:     &interfaceUUID,
 			IsKerberosEnabled: &enabled,
-			Spn:            &spn,
-			MachineAccount: &machineAccount,
-			AdminUsername:  &adminUsername,
-			AdminPassword:  &adminPassword,
-			OU:             &ou,
+			Spn:               &spn,
+			MachineAccount:    &machineAccount,
+			AdminUsername:     &adminUsername,
+			AdminPassword:     &adminPassword,
+			OU:                &ou,
 		}
 		err := client.KerberosInterfaceModify(params)
 		assert.NoError(tt, err)

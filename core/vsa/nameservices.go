@@ -238,6 +238,18 @@ func (rc *OntapRestProvider) CreateLdap(ad *datamodel.ActiveDirectory, volume *d
 			return err
 		}
 
+		if !ad.ActiveDirectoryAttributes.AllowLocalNFSUsersWithLdap {
+			enableLdapAuth := true
+			nfsModifyParams := &ontapRest.NfsModifyParams{
+				SvmUUID:                      svmUUID,
+				AuthSysExtendedGroupsEnabled: &enableLdapAuth,
+			}
+			err = client.NAS().NfsModify(nfsModifyParams)
+			if err != nil {
+				return err
+			}
+		}
+
 		var v4IdDomain *string
 		var allowLocalNFSUsersWithLdap *bool
 		// set v4IDDomain only for NFSv4 protocol

@@ -529,18 +529,19 @@ type Nfs struct {
 
 // NfsModifyParams is the input param struct for nasClient.NfsModify
 type NfsModifyParams struct {
-	SvmUUID                    string
-	V4IDDomain                 *string
-	ShowmountEnabled           *bool
-	RquotaEnabled              *bool
-	AllowLocalNFSUsersWithLdap *bool
-	ExtendedGroupsLimit        *int64
-	Enabled                    *bool
-	V3Enabled                  *bool
-	V40Enabled                 *bool
-	V41Enabled                 *bool
-	VstorageEnabled            *bool
-	FileSessionIoGroupingCount *int64
+	SvmUUID                      string
+	V4IDDomain                   *string
+	ShowmountEnabled             *bool
+	RquotaEnabled                *bool
+	AllowLocalNFSUsersWithLdap   *bool
+	ExtendedGroupsLimit          *int64
+	Enabled                      *bool
+	V3Enabled                    *bool
+	V40Enabled                   *bool
+	V41Enabled                   *bool
+	VstorageEnabled              *bool
+	FileSessionIoGroupingCount   *int64
+	AuthSysExtendedGroupsEnabled *bool
 }
 
 // NfsClientsGetParams is the input param struct for nasClient.NfsClientsGet

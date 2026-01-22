@@ -108,6 +108,7 @@ func TestOntapRestProvider_CreateLdap_Success(t *testing.T) {
 	mockClient.On("NameServices").Return(mockNameServices)
 	mockClient.On("SVM").Return(mockSvm)
 	mockClient.On("NAS").Return(mockNas)
+	mockNas.On("NfsModify", mock.Anything).Return(nil)
 	mockNameServices.On("LdapGet", &ontapRest.LdapGetParams{SvmUUID: volume.Svm.SvmDetails.ExternalUUID}).Return(nil, customerrors.NewNotFoundErr("Ldap", nil))
 	mockNameServices.On("LdapSchemaCreate", mock.Anything).Return(nil, nil)
 	mockNameServices.On("LdapSchemaModify", mock.Anything).Return(nil, nil)
@@ -123,6 +124,7 @@ func TestOntapRestProvider_CreateLdap_Success(t *testing.T) {
 			GroupDN:                       "group-example.com",
 			GroupMembershipFilter:         "membership-filter",
 			PreferredServersForLdapClient: "10.0.1.150",
+			AllowLocalNFSUsersWithLdap:    false,
 		},
 	}
 
@@ -178,6 +180,7 @@ func TestOntapRestProvider_CreateLdap_LdapSchemaExists(t *testing.T) {
 	mockClient.On("NameServices").Return(mockNameServices)
 	mockClient.On("SVM").Return(mockSvm)
 	mockClient.On("NAS").Return(mockNas)
+	mockNas.On("NfsModify", mock.Anything).Return(nil)
 	mockNameServices.On("LdapGet", &ontapRest.LdapGetParams{SvmUUID: volume.Svm.SvmDetails.ExternalUUID}).Return(nil, customerrors.NewNotFoundErr("Ldap", nil))
 	mockNameServices.On("LdapSchemaCreate", mock.Anything).Return(errors.New("duplicate entry"))
 	mockNameServices.On("LdapSchemaModify", mock.Anything).Return(nil, nil)
@@ -193,6 +196,7 @@ func TestOntapRestProvider_CreateLdap_LdapSchemaExists(t *testing.T) {
 			GroupDN:                       "group-example.com",
 			GroupMembershipFilter:         "membership-filter",
 			PreferredServersForLdapClient: "10.0.1.150",
+			AllowLocalNFSUsersWithLdap:    false,
 		},
 	}
 
