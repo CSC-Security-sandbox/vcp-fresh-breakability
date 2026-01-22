@@ -366,8 +366,8 @@ var (
 	SecretManagerProjectID       = GetString("SECRET_MANAGER_PROJECT_ID", "")
 	VsaDeployedDnsName           = GetString("VSA_DEPLOYED_DNS_NAME", "")
 	VsaManagedZone               = GetString("VSA_MANAGED_ZONE", "")
-	CertificateLifetime          = GetString("CERTIFICATE_LIFETIME", "94608000s")         // Default to 3 years
-	CertificateRotationThreshold = GetCertificateRotationThresholdPercentage()            // Default to 75% of lifetime
+	CertificateLifetime          = GetString("CERTIFICATE_LIFETIME", "94608000s")        // Default to 3 years
+	CertificateRotationThreshold = GetCertificateRotationThresholdPercentage()           // Default to 75% of lifetime
 	MinimumCertificateLifetime   = GetString("MINIMUM_CERTIFICATE_LIFETIME", "5184000s") // Default to 2 months
 	NodePassword                 = GetString("VSA_NODE_PASSWORD", "")
 	CloudDNSCacheTTL             = GetInt64("CLOUD_DNS_CACHE_TTL", 300) // Default to 300 seconds
@@ -396,7 +396,8 @@ var (
 	// ONTAP Image Version Match Configuration
 	SkipOntapImageVersionMatch = GetBool("SKIP_ONTAP_IMAGE_VERSION_MATCH", false)
 
-	ExpertModeUserSuffix = GetString("EXPERT_MODE_USER", "gadmin")
+	ExpertModeUserSuffix     = GetString("EXPERT_MODE_USER_SUFFIX", "gadmin")
+	PrivExpertModeUserSuffix = GetString("PRIV_EXPERT_MODE_USER_SUFFIX", "padmin")
 )
 
 // networkEnvVariables holds the environment variables related to firewall of network configuration for source ranges

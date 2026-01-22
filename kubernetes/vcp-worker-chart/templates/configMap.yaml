@@ -102,7 +102,8 @@ data:
   VSA_SECRET_CACHE_CLEANUP_INTERVAL_HOURS: {{$.Values.workerConfig.vsaSecretCacheCleanupIntervalHours | quote }}
   VSA_SECRET_AUTH_CACHE_EXPIRATION_HOURS: {{$.Values.workerConfig.vsaSecretAuthCacheExpirationHours | quote }}
   PRIVATE_KEY_BITS: {{$.Values.workerConfig.privateKeyBits | quote }}
-  EXPERT_MODE_USER: {{$.Values.workerConfig.expertModeUser | quote }}
+  EXPERT_MODE_USER_SUFFIX: {{$.Values.workerConfig.expertModeUserSuffix | quote }}
+  PRIV_EXPERT_MODE_USER_SUFFIX: {{$.Values.workerConfig.privExpertModeUserSuffix | quote }}
   TOTAL_IP_PER_HA_PAIR: {{$.Values.workerConfig.totalIpPerHaPair | quote }}
   DATA_SUBNET_CIDR_BLOCK: {{$.Values.workerConfig.dataSubnetCidrBlock | quote }}
   VSA_MANAGED_ZONE: {{$.Values.workerConfig.vsaManagedZone | quote }}

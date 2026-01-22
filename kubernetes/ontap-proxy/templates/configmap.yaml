@@ -43,3 +43,9 @@ data:
   ONTAP_CLEANUP_INTERVAL_SECONDS: {{ .Values.connectionPool.cleanupIntervalSeconds | default "60" | quote }}
   ONTAP_CLEANUP_THRESHOLD_SECONDS: {{ .Values.connectionPool.cleanupThresholdSeconds | default "300" | quote }}
   ONTAP_MAX_TOTAL_CONNECTIONS: {{ .Values.connectionPool.maxTotalConnections | default "1000" | quote }}
+
+  # IAM Role to RBAC User Mapping Configuration
+  IAM_ROLE_TO_USER_MAPPING_CONFIG: {{ .Values.iamRoleToUserMapping.config | quote }} # JSON format: {"ontap": "gcnvadmin", "privOntap": "admin"}
+  IAM_ROLE_TO_USER_VALIDATION_ENABLED: {{ .Values.iamRoleToUserMapping.enabled | default false | quote }}
+
+

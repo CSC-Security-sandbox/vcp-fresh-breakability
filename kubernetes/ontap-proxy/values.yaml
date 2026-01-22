@@ -99,3 +99,8 @@ connectionPool:
 
 serviceAccountAnnotations:
   "iam.gke.io/gcp-service-account": "" # FIXME: update with correct service account
+
+# IAM Role to RBAC User Mapping Configuration
+iamRoleToUserMapping:
+  config: "{}" # JSON format: {"netapp.googleapisom/ontapModeAdmin": "gadmin", "netapp.googleapisom/ontapModePrivAdmin": "padmin"}
+  enabled: false

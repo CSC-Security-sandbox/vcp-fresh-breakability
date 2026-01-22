@@ -22,8 +22,8 @@ const (
 	// handled by ogen handlers which call SetupCredentialsForHandler() directly.
 	CredentialTypeAdmin = "admin"
 
-	// CredentialTypeGcnvAdmin is used for passthrough operations via CredentialMiddleware.
-	CredentialTypeGcnvAdmin = "gcnvadmin"
+	// CredentialTypeExpertModeUser is used for passthrough operations via CredentialMiddleware.
+	CredentialTypeExpertModeUser = "expertModeUser"
 
 	// AdminUserName is the username used for admin credential type
 	AdminUserName = "admin"
@@ -42,25 +42,26 @@ func CredentialMiddleware() func(http.Handler) http.Handler {
 			// Passthrough routes always use gcnvadmin credentials.
 			// Admin operations (snaplock, EBR, litigation) are handled by ogen handlers
 			// which call SetupCredentialsForHandler() directly with CredentialTypeAdmin.
-			poolDetails, err := extractPoolDetailsFromRequest(r, CredentialTypeGcnvAdmin)
+			poolDetails, err := extractPoolDetailsFromRequest(r, CredentialTypeExpertModeUser)
 			if err != nil {
 				logger.ErrorContext(r.Context(), "Failed to extract pool details", "error", err, "path", r.URL.Path)
-				http.Error(w, "Invalid URI", http.StatusBadRequest)
+				// Check if this is an IAM role validation error vs URI validation error
+				if isIAMRoleValidationError(err) {
+					handleCredentialError(w, err)
+				} else {
+					// URI validation error
+					http.Error(w, "Invalid URI", http.StatusBadRequest)
+				}
 				return
 			}
-
-			cacheKey := generateCacheKey(poolDetails.ProjectNumber, poolDetails.PoolID, poolDetails.UserName)
-
 			jwtToken := extractJWTTokenFromRequest(r)
-			err = fetchAndCacheCredentials(r.Context(), poolDetails, cacheKey, jwtToken, logger)
+
+			ctx, err := SetupCredentialsCache(r.Context(), poolDetails, poolDetails.ProjectNumber, poolDetails.PoolID, poolDetails.UserName, jwtToken)
 			if err != nil {
 				logger.ErrorContext(r.Context(), "Failed to fetch and cache credentials", "error", err, "poolID", poolDetails.PoolID)
 				handleCredentialError(w, err)
 				return
 			}
-
-			logger.DebugContext(r.Context(), "Credentials processed successfully", "poolID", poolDetails.PoolID, "cacheKey", cacheKey)
-			ctx := context.WithValue(r.Context(), models.AuthDataKey, cacheKey)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -119,6 +120,9 @@ func handleCredentialError(w http.ResponseWriter, err error) {
 		http.Error(w, "Pool not found", http.StatusNotFound)
 	case contains(errorMsg, "invalid pool details"):
 		http.Error(w, "Invalid pool details", http.StatusBadRequest)
+	case contains(errorMsg, "unable to determine IAM role from context headers"):
+		// IAM role validation error - missing or invalid IAM role header
+		http.Error(w, "Unauthorized: Unable to determine IAM role from request headers", http.StatusUnauthorized)
 	case contains(errorMsg, "unauthorized access"):
 		http.Error(w, "Unauthorized access", http.StatusUnauthorized)
 	case contains(errorMsg, "forbidden access"):
@@ -130,6 +134,16 @@ func handleCredentialError(w http.ResponseWriter, err error) {
 	default:
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
+}
+
+// isIAMRoleValidationError checks if the error is related to IAM role validation
+// (missing IAM role header) rather than URI validation
+func isIAMRoleValidationError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errorMsg := err.Error()
+	return contains(errorMsg, "unable to determine IAM role from context headers")
 }
 
 func contains(s, substr string) bool {
@@ -158,6 +172,24 @@ func convertOntapEndpoints(apiEndpoints []coreapiclient.OntapEndpoint) []models.
 	return endpoints
 }
 
+// determineUserNameFromRBAC determines the username based on RBAC user role from the request
+func determineUserNameFromRBAC(ctx context.Context, req *http.Request) (string, error) {
+	roleUserName := GetRBACUserFromRequest(ctx, req)
+	switch roleUserName {
+	case "":
+		if iamRoleToUserValidationEnabled {
+			// Headers not available in context, but validation is enabled
+			return "", fmt.Errorf("unable to determine IAM role from context headers")
+		}
+		return env.ExpertModeUserSuffix, nil
+	case env.PrivExpertModeUserSuffix:
+		// Privileged Mode User map to Admin for now
+		return AdminUserName, nil
+	default:
+		return roleUserName, nil
+	}
+}
+
 func extractPoolDetailsFromRequest(req *http.Request, credentialType string) (*models.PoolDetails, error) {
 	uri := req.URL.Path
 
@@ -173,12 +205,14 @@ func extractPoolDetailsFromRequest(req *http.Request, credentialType string) (*m
 
 	accountName := projectNumber
 
-	// Select username based on credential type
 	var userName string
 	if credentialType == CredentialTypeAdmin {
 		userName = AdminUserName
 	} else {
-		userName = env.ExpertModeUserSuffix
+		userName, err = determineUserNameFromRBAC(req.Context(), req)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &models.PoolDetails{

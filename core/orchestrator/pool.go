@@ -45,7 +45,7 @@ const (
 	TieringFullnessThresholdOntapDefault = 50
 	VCP_ADMIN_CERT_UN_SUFFIX             = "_admin" // Suffix for VCP admin user certificate
 	AdminUserName                        = "admin"
-	gcnvadmin                            = "gcnvadmin"
+	gcnvadminRole                        = "gcnvadmin" // only for backward compatibility
 )
 
 // CreatePool creates the specified pool and adds it to the list of pools belonging to the specified owner
@@ -1012,7 +1012,7 @@ func (o *Orchestrator) GetExpertModePoolCreds(ctx context.Context, poolUUID stri
 
 // matchesCredential checks if credential matches the incoming userName
 func matchesCredential(role, credUsername string) bool {
-	if role == gcnvadmin {
+	if role == gcnvadminRole {
 		// If incoming role is "gcnvadmin", only match "gcnvadmin"
 		return credUsername == role
 	} else if role == env.ExpertModeUserSuffix {

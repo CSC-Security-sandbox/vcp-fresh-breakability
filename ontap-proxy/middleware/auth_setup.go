@@ -22,7 +22,7 @@ import (
 //   - ctx: Request context (must have headers set by auth.AuthMiddleware)
 //   - projectNumber: From path parameter (ogen params.ProjectNumber)
 //   - poolID: From path parameter (ogen params.PoolId)
-//   - credentialType: CredentialTypeAdmin or CredentialTypeGcnvAdmin
+//   - credentialType: CredentialTypeAdmin or CredentialTypeExpertModeUser
 //
 // Returns context with AuthDataKey set, ready for NewOntapClientFromContext().
 func SetupCredentialsForHandler(
@@ -32,18 +32,45 @@ func SetupCredentialsForHandler(
 	credentialType string,
 ) (context.Context, error) {
 	logger := util.GetLogger(ctx)
-
 	// Get JWT token from context (set by auth.AuthMiddleware)
 	jwtToken := getJWTFromContext(ctx)
 
-	// Determine username based on credential type
+	// Determine username based on IAM role mapping or credential type
+	// Note: For SetupCredentialsForHandler, we need to extract headers from context
+	// Since we don't have direct access to the request, we fall back to credential type
 	var userName string
 	if credentialType == CredentialTypeAdmin {
 		userName = AdminUserName
 	} else {
-		userName = env.ExpertModeUserSuffix
+		req := &http.Request{}
+		var err error
+		// Try to get IAM role from context headers if available
+		headers, ok := ctx.Value(utilsmiddleware.HeaderContextKey).(http.Header)
+		if ok && headers != nil {
+			// Create a temporary request to use determineUserNameFromRBAC
+			// This is a workaround since SetupCredentialsForHandler doesn't have direct request access
+			req.Header = headers
+			req = req.WithContext(ctx)
+			userName, err = determineUserNameFromRBAC(ctx, req)
+			if err != nil {
+				// Check if this is an IAM role validation error
+				if isIAMRoleValidationError(err) {
+					logger.ErrorContext(ctx, "IAM role validation failed", "error", err, "poolID", poolID, "projectNumber", projectNumber)
+				} else {
+					logger.ErrorContext(ctx, "Failed to determine user name from RBAC", "error", err, "poolID", poolID, "projectNumber", projectNumber)
+				}
+				return ctx, err
+			}
+		} else {
+			// Headers not available in context
+			if iamRoleToUserValidationEnabled {
+				// Headers not available in context, but validation is enabled
+				return ctx, fmt.Errorf("unable to determine IAM role from context headers")
+			}
+			// Headers not available and validation disabled - use default
+			userName = env.ExpertModeUserSuffix
+		}
 	}
-
 	poolDetails := &models.PoolDetails{
 		ProjectNumber: projectNumber,
 		PoolID:        poolID,
@@ -51,20 +78,7 @@ func SetupCredentialsForHandler(
 		UserName:      userName,
 	}
 
-	cacheKey := generateCacheKey(projectNumber, poolID, userName)
-
-	// Fetch and cache credentials (reuses existing logic)
-	if err := fetchAndCacheCredentials(ctx, poolDetails, cacheKey, jwtToken, logger); err != nil {
-		return ctx, fmt.Errorf("failed to setup credentials: %w", err)
-	}
-
-	logger.DebugContext(ctx, "Credentials setup for handler",
-		"poolID", poolID,
-		"projectNumber", projectNumber,
-		"credentialType", credentialType,
-		"cacheKey", cacheKey)
-
-	return context.WithValue(ctx, models.AuthDataKey, cacheKey), nil
+	return SetupCredentialsCache(ctx, poolDetails, projectNumber, poolID, userName, jwtToken)
 }
 
 // getJWTFromContext extracts the JWT token from context.
@@ -75,4 +89,17 @@ func getJWTFromContext(ctx context.Context) string {
 		return ""
 	}
 	return headers.Get("Authorization")
+}
+
+func SetupCredentialsCache(ctx context.Context, poolDetails *models.PoolDetails, projectNumber, poolID, userName, jwtToken string) (context.Context, error) {
+	logger := util.GetLogger(ctx)
+	cacheKey := generateCacheKey(projectNumber, poolID, userName)
+
+	// Fetch and cache credentials (reuses existing logic)
+	if err := fetchAndCacheCredentials(ctx, poolDetails, cacheKey, jwtToken, logger); err != nil {
+		return ctx, fmt.Errorf("failed to fetch and cache credentials pooluuid: %s, error: %v", poolDetails.PoolID, err)
+	}
+
+	logger.DebugContext(ctx, "Credentials setup for handler", "poolID", poolID, "projectNumber", projectNumber, "cacheKey", cacheKey)
+	return context.WithValue(ctx, models.AuthDataKey, cacheKey), nil
 }

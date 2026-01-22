@@ -138,7 +138,8 @@ workerConfig:
   vsaSecretCacheCleanupIntervalHours: 24
   vsaSecretAuthCacheExpirationHours: 24
   privateKeyBits: 4096
-  expertModeUser: "gadmin"
+  expertModeUserSuffix: "gadmin"
+  privExpertModeUserSuffix: "padmin"
   totalIpPerHaPair: 6
   dataSubnetCidrBlock: 28
   cloudDnsCacheTtl: 300
