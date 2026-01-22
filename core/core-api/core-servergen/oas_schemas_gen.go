@@ -1521,6 +1521,8 @@ type OntapCredentialsV1 struct {
 	// The certificate authority URI in format ca_pool_deployed_project_id/ca_pool_name/ca_name (only for
 	// USER_CERTIFICATE auth type).
 	CaURI OptString `json:"ca_uri"`
+	// The username for authentication.
+	Username OptString `json:"username"`
 }
 
 // GetSecretID returns the value of SecretID.
@@ -1553,6 +1555,11 @@ func (s *OntapCredentialsV1) GetCaURI() OptString {
 	return s.CaURI
 }
 
+// GetUsername returns the value of Username.
+func (s *OntapCredentialsV1) GetUsername() OptString {
+	return s.Username
+}
+
 // SetSecretID sets the value of SecretID.
 func (s *OntapCredentialsV1) SetSecretID(val OptString) {
 	s.SecretID = val
@@ -1581,6 +1588,11 @@ func (s *OntapCredentialsV1) SetOntapEndpoints(val []OntapEndpoint) {
 // SetCaURI sets the value of CaURI.
 func (s *OntapCredentialsV1) SetCaURI(val OptString) {
 	s.CaURI = val
+}
+
+// SetUsername sets the value of Username.
+func (s *OntapCredentialsV1) SetUsername(val OptString) {
+	s.Username = val
 }
 
 func (*OntapCredentialsV1) v1GetOntapCredentialsRes() {}

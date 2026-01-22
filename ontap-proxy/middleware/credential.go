@@ -92,10 +92,9 @@ func fetchAndCacheCredentials(ctx context.Context, poolDetails *models.PoolDetai
 		SecretID:       getStringValue(credentials.SecretID),
 		CertificateID:  getStringValue(credentials.CertificateID),
 		Password:       getStringValue(credentials.Password),
-		Username:       poolDetails.UserName,
 		PoolID:         poolDetails.PoolID,
 		AccountName:    poolDetails.AccountName,
-		UserName:       poolDetails.UserName,
+		UserName:       getStringValue(credentials.Username),
 		OntapEndpoints: convertOntapEndpoints(credentials.OntapEndpoints),
 		CaURI:          getStringValue(credentials.CaURI),
 	}
@@ -103,10 +102,10 @@ func fetchAndCacheCredentials(ctx context.Context, poolDetails *models.PoolDetai
 	cache.AddToAuthDataCache(cacheKey, authData)
 
 	logger.InfoContext(ctx, "Credentials fetched from Core API and stored as AuthData",
-		"poolID", poolDetails.PoolID,
-		"accountName", poolDetails.AccountName,
-		"userName", poolDetails.UserName,
-		"authType", credentials.AuthType.Value,
+		"poolID", authData.PoolID,
+		"accountName", authData.AccountName,
+		"userName", authData.UserName,
+		"authType", authData.AuthType,
 		"cacheKey", cacheKey)
 
 	return nil

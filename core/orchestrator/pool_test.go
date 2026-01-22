@@ -5216,6 +5216,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, credentials)
+		assert.Equal(t, "test-user_gadmin", credentials.Username)
 		assert.Equal(t, "test-secret-id", credentials.SecretID)
 		assert.Equal(t, "test-cert-id", credentials.CertificateID)
 		assert.Equal(t, "test-password", credentials.Password)
@@ -5510,6 +5511,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 				CertificateID: "pool-cert-id",
 				Password:      "pool-password",
 				AuthType:      1, // USER_PASSWORD
+				Username:      AdminUserName,
 			},
 			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
 				ExpertModeCredential: []*datamodel.ExpertModeCredential{
@@ -5542,6 +5544,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		// Assert - should return PoolCredentials, not ExpertModeCredentials
 		assert.NoError(t, err)
 		assert.NotNil(t, credentials)
+		assert.Equal(t, AdminUserName, credentials.Username)
 		assert.Equal(t, "pool-secret-id", credentials.SecretID)
 		assert.Equal(t, "pool-cert-id", credentials.CertificateID)
 		assert.Equal(t, "pool-password", credentials.Password)
@@ -5687,6 +5690,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		// Assert - should return ExpertModeCredentials, not PoolCredentials
 		assert.NoError(t, err)
 		assert.NotNil(t, credentials)
+		assert.Equal(t, "custom-user_gadmin", credentials.Username)
 		assert.Equal(t, "expert-secret-id", credentials.SecretID)
 		assert.Equal(t, "expert-cert-id", credentials.CertificateID)
 		assert.Equal(t, "expert-password", credentials.Password)
@@ -5746,6 +5750,7 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		// Assert - should return ExpertModeCredentials with old "gcnvadmin" username
 		assert.NoError(t, err)
 		assert.NotNil(t, credentials)
+		assert.Equal(t, "gcnvadmin", credentials.Username)
 		assert.Equal(t, "expert-secret-id", credentials.SecretID)
 		assert.Equal(t, "expert-cert-id", credentials.CertificateID)
 		assert.Equal(t, "expert-password", credentials.Password)

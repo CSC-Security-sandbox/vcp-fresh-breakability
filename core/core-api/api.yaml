@@ -2084,6 +2084,11 @@ components:
           type: string
           description: The certificate authority URI in format ca_pool_deployed_project_id/ca_pool_name/ca_name (only for USER_CERTIFICATE auth type)
           example: "163019662857/au-se1-vsa-pool-npd/vsa-intermediate-au-se1"
+        username:
+          title: username
+          type: string
+          description: The username for authentication
+          example: "admin"
     ontapEndpoint:
       title: ontapEndpoint
       type: object

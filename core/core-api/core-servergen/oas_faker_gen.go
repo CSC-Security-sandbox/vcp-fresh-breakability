@@ -568,6 +568,11 @@ func (s *OntapCredentialsV1) SetFake() {
 			s.CaURI.SetFake()
 		}
 	}
+	{
+		{
+			s.Username.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

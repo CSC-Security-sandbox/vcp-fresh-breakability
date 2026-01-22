@@ -54,6 +54,7 @@ func convertUserCredentialsToOntapCredentialsV1(expertModeCredentials *models.Us
 	certificateID := oasgenserver.NewOptString(expertModeCredentials.CertificateID)
 	password := oasgenserver.NewOptString(expertModeCredentials.Password)
 	authType := oasgenserver.NewOptInt(expertModeCredentials.AuthType)
+	username := oasgenserver.NewOptString(expertModeCredentials.Username)
 
 	var endpointMappings []oasgenserver.OntapEndpoint
 	if expertModeCredentials.OntapEndpoints != nil {
@@ -74,5 +75,6 @@ func convertUserCredentialsToOntapCredentialsV1(expertModeCredentials *models.Us
 		AuthType:       authType,
 		OntapEndpoints: endpointMappings,
 		CaURI:          caURI,
+		Username:       username,
 	}
 }

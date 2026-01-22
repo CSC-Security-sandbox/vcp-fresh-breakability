@@ -177,6 +177,7 @@ type OntapEndpoint struct {
 }
 
 type UserCredentials struct {
+	Username       string          `json:"username"`
 	SecretID       string          `json:"secret_id"`
 	CertificateID  string          `json:"certificate_id"`
 	Password       string          `json:"password"`

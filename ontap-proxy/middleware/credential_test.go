@@ -19,6 +19,7 @@ var mockFetchCredentials = func(ctx context.Context, poolDetails *models.PoolDet
 		AuthType: coreapiclient.NewOptInt(2),
 		SecretID: coreapiclient.NewOptString("test-secret"),
 		Password: coreapiclient.NewOptString("test-password"),
+		Username: coreapiclient.NewOptString("test-user"),
 		OntapEndpoints: []coreapiclient.OntapEndpoint{
 			{IP: "1.2.3.4", DNS: "test.example.com"},
 		},

@@ -982,6 +982,7 @@ func (o *Orchestrator) GetExpertModePoolCreds(ctx context.Context, poolUUID stri
 			AuthType:       pool.PoolCredentials.AuthType,
 			OntapEndpoints: endpointMappings,
 			CaURI:          pool.PoolCredentials.GetCaURIWithFallback(),
+			Username:       pool.PoolCredentials.Username,
 		}, nil
 	}
 
@@ -1001,6 +1002,7 @@ func (o *Orchestrator) GetExpertModePoolCreds(ctx context.Context, poolUUID stri
 				AuthType:       expertModeCredential.AuthType,
 				OntapEndpoints: endpointMappings,
 				CaURI:          pool.PoolCredentials.GetCaURIWithFallback(),
+				Username:       expertModeCredential.Username,
 			}, nil
 		}
 	}

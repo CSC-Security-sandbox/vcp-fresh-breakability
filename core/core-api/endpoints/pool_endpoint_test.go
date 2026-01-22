@@ -24,6 +24,7 @@ func TestV1GetOntapCredentials(t *testing.T) {
 		accountName := "test-account"
 		userName := "test-user"
 		poolCredentials := &models.UserCredentials{
+			Username:      "test-user",
 			SecretID:      "test-secret-id",
 			CertificateID: "test-cert-id",
 			Password:      "test-password",
@@ -56,6 +57,8 @@ func TestV1GetOntapCredentials(t *testing.T) {
 		assert.True(t, ok)
 
 		// Verify response fields
+		assert.True(t, response.Username.IsSet())
+		assert.Equal(t, "test-user", response.Username.Value)
 		assert.True(t, response.SecretID.IsSet())
 		assert.Equal(t, "test-secret-id", response.SecretID.Value)
 		assert.True(t, response.CertificateID.IsSet())
@@ -208,6 +211,7 @@ func TestV1GetOntapCredentials(t *testing.T) {
 		accountName := "test-account"
 		userName := "test-user"
 		poolCredentials := &models.UserCredentials{
+			Username:       "",
 			SecretID:       "",
 			CertificateID:  "",
 			Password:       "",
@@ -237,6 +241,8 @@ func TestV1GetOntapCredentials(t *testing.T) {
 		assert.True(t, ok)
 
 		// Verify response fields are set but empty
+		assert.True(t, response.Username.IsSet())
+		assert.Equal(t, "", response.Username.Value)
 		assert.True(t, response.SecretID.IsSet())
 		assert.Equal(t, "", response.SecretID.Value)
 		assert.True(t, response.CertificateID.IsSet())
