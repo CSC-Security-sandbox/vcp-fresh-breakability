@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
+	"strconv"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	coreerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -451,6 +453,12 @@ func _createQuotaRule(ctx context.Context, se database.Storage, temporal client.
 		return nil, "", err
 	}
 
+	// Validate quota target by protocol
+	if err := validateQuotaTargetByProtocol(ctx, params, volumeDataModel.VolumeAttributes.Protocols); err != nil {
+		logger.Errorf("Quota target protocol validation failed: %v", err)
+		return nil, "", err
+	}
+
 	// Determine if RQuota is required for this quota rule
 	// This checks if the volume uses NFS and if this is the first quota rule in the SVM
 	rquotaRequired, err := determineRQuota(ctx, se, volumeDataModel, false)
@@ -583,6 +591,12 @@ func _createQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 	// Validate name and (type,target) uniqueness using in-memory existing rules
 	if err := validateQuotaRuleUniqueness(ctx, existingQuotaRulesData, params); err != nil {
 		logger.Errorf("Quota rule uniqueness validation failed: %v", err)
+		return nil, nil, err
+	}
+
+	// Validate quota target by protocol
+	if err := validateQuotaTargetByProtocol(ctx, params, volumeDataModel.VolumeAttributes.Protocols); err != nil {
+		logger.Errorf("Quota target protocol validation failed: %v", err)
 		return nil, nil, err
 	}
 
@@ -1230,7 +1244,7 @@ func validateVolumeType(ctx context.Context, volumeDataModel *datamodel.Volume, 
 	// FlexCache Volume Check: FlexCache volumes don't support quotas
 	if volumeDataModel.CacheParameters != nil {
 		logger.Errorf("FlexCache volume check failed: quota rule creation is not supported for flexcache volumes")
-		return customerrors.NewNotSupportedErrWithMessage("quota rule creation is not supported for flexcache volume")
+		return customerrors.NewUserInputValidationErr("quota rule creation is not supported for flexcache volume")
 	}
 	// Validate volume size: quota rule size cannot exceed volume size
 	diskLimitInBytes := uint64(params.DiskLimitInMib) * mibToBytesMultiplier
@@ -1275,6 +1289,11 @@ func hasProtocol(protocol string, protocolTypes []string) bool {
 	return false
 }
 
+// hasCIFS checks if CIFS (SMB) protocol exists in the given protocol types array
+func hasCIFS(protocolTypes []string) bool {
+	return hasProtocol(utils.ProtocolSMB, protocolTypes)
+}
+
 // hasNFSv3 checks if NFSv3 protocol exists in the given protocol types array
 func hasNFSv3(protocolTypes []string) bool {
 	return hasProtocol(utils.ProtocolNFSv3, protocolTypes)
@@ -1283,6 +1302,66 @@ func hasNFSv3(protocolTypes []string) bool {
 // hasNFSv4 checks if NFSv4 protocol exists in the given protocol types array
 func hasNFSv4(protocolTypes []string) bool {
 	return hasProtocol(utils.ProtocolNFSv4, protocolTypes)
+}
+
+// hasDualProtocolForUserMapping checks if both SMB and NFS protocols exist (dual protocol)
+func hasDualProtocolForUserMapping(protocolTypes []string) bool {
+	return hasCIFS(protocolTypes) && (hasNFSv3(protocolTypes) || hasNFSv4(protocolTypes))
+}
+
+// validateQuotaTargetByProtocol performs protocol-specific quotaTarget validations.
+// It checks SMB, NFS (v3/v4) and Dual Protocol rules and returns a user-validation
+// error when the quotaTarget does not conform to the expected format for the
+// volume's protocols.
+func validateQuotaTargetByProtocol(ctx context.Context, params *common.CreateQuotaRulesParam, protocolTypes []string) error {
+	logger := util.GetLogger(ctx)
+
+	protocolTypesLength := len(protocolTypes)
+
+	if hasCIFS(protocolTypes) {
+		if params.QuotaType == IndividualGroupQuota || params.QuotaType == DefaultGroupQuota {
+			logger.Errorf("Protocol type validation failed: group quota not allowed for SMB volume")
+			return customerrors.NewUserInputValidationErr("Group Quota cannot be specified for a SMB and Dual Protocol volume. To create this quota rule the quotaType to DefaultUserQuota/IndividualUserQuota type")
+		}
+
+		if protocolTypesLength == 1 {
+			re := regexp.MustCompile(`^S-1-[0-59]-\d{2}-\d{8,10}-\d{8,10}-\d{8,10}-[1-9]\d{3}`)
+			if params.QuotaTarget != "" && !re.MatchString(params.QuotaTarget) {
+				logger.Errorf("SMB quota target validation failed: invalid SID format: %s", params.QuotaTarget)
+				return customerrors.NewUserInputValidationErr("quotaTarget is invalid. Please pass valid SID in quotaTarget for SMB volume")
+			}
+		}
+	}
+
+	if (hasNFSv3(protocolTypes) || hasNFSv4(protocolTypes)) && protocolTypesLength == 1 {
+		re := regexp.MustCompile(`^[0-9]*$`)
+		if !re.MatchString(params.QuotaTarget) {
+			logger.Errorf("NFS quota target validation failed: non-numeric value: %s", params.QuotaTarget)
+			return customerrors.NewUserInputValidationErr("quotaTarget is invalid. Please pass numeric value for quotaTarget in range [0, 4294967295] for NFS volumes")
+		} else if params.QuotaTarget != "" {
+			numericQuotaTarget, err := strconv.Atoi(params.QuotaTarget)
+			if err != nil {
+				logger.Errorf("NFS quota target validation failed: conversion error: %s", params.QuotaTarget)
+				return customerrors.NewUserInputValidationErr("quotaTarget is invalid. Please pass numeric value for quotaTarget in range [0, 4294967295] for NFS volumes")
+			}
+
+			if params.QuotaTarget != "" && re.MatchString(params.QuotaTarget) && (numericQuotaTarget < 0 || numericQuotaTarget > 4294967295) {
+				logger.Errorf("NFS quota target validation failed: out of range: %s", params.QuotaTarget)
+				return customerrors.NewUserInputValidationErr("quotaTarget is invalid. Please pass numeric value for quotaTarget in range [0, 4294967295] for NFS volumes")
+			}
+		}
+	}
+
+	if hasDualProtocolForUserMapping(protocolTypes) {
+		re := regexp.MustCompile(`^S-1-[0-59]-\d{2}-\d{8,10}-\d{8,10}-\d{8,10}-[1-9]\d{3}`)
+		re1 := regexp.MustCompile(`^[0-9]*$`)
+		if !(re.MatchString(params.QuotaTarget) || re1.MatchString(params.QuotaTarget)) {
+			logger.Errorf("Dual protocol quota target validation failed: invalid format: %s", params.QuotaTarget)
+			return customerrors.NewUserInputValidationErr("quotaTarget is invalid. Please pass numeric value in range [0, 4294967295] or SID for quotaTarget for dual protocol volumes")
+		}
+	}
+
+	return nil
 }
 
 // determineRQuota determines if recursive quota (RQuota) should be enabled for this quota rule.

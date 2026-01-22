@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -74,66 +72,6 @@ const (
 	QuotaRuleDisable      = "Disable"
 	QuotaRuleActionDelete = "delete"
 )
-
-// ValidateQuotaTargetByProtocol performs protocol-specific quotaTarget validations.
-// It checks SMB, NFS (v3/v4) and Dual Protocol rules and returns a user-validation
-// error when the quotaTarget does not conform to the expected format for the
-// volume's protocols.
-func (a *QuotaRuleCreateActivity) ValidateQuotaTargetByProtocol(ctx context.Context, quotaRule *datamodel.QuotaRule, protocolTypes []string) error {
-	logger := util.GetLogger(ctx)
-
-	protocolTypesLength := len(protocolTypes)
-
-	if HasCIFS(protocolTypes) {
-		if quotaRule.QuotaType == QuotaIndividualGroup || quotaRule.QuotaType == QuotaDefaultGroup {
-			logger.Errorf("Protocol type validation failed: group quota not allowed for SMB volume")
-			err := customerrors.NewUserInputValidationErr("Group Quota cannot be specified for a SMB and Dual Protocol volume. To create this quota rule the quotaType to DefaultUserQuota/IndividualUserQuota type")
-			return vsaerrors.WrapAsTemporalApplicationError(err)
-		}
-
-		if protocolTypesLength == 1 {
-			re := regexp.MustCompile(`^S-1-[0-59]-\d{2}-\d{8,10}-\d{8,10}-\d{8,10}-[1-9]\d{3}`)
-			if quotaRule.QuotaTarget != "" && !re.MatchString(quotaRule.QuotaTarget) {
-				logger.Errorf("SMB quota target validation failed: invalid SID format: %s", quotaRule.QuotaTarget)
-				err := customerrors.NewUserInputValidationErr("quotaTarget is invalid. Please pass valid SID in quotaTarget for SMB volume")
-				return vsaerrors.WrapAsTemporalApplicationError(err)
-			}
-		}
-	}
-
-	if (HasNFSv3(protocolTypes) || HasNFSv4(protocolTypes)) && protocolTypesLength == 1 {
-		re := regexp.MustCompile(`^[0-9]*$`)
-		if !re.MatchString(quotaRule.QuotaTarget) {
-			logger.Errorf("NFS quota target validation failed: non-numeric value: %s", quotaRule.QuotaTarget)
-			err := customerrors.NewUserInputValidationErr("quotaTarget is invalid. Please pass numeric value for quotaTarget in range [0, 4294967295] for NFS volumes")
-			return vsaerrors.WrapAsTemporalApplicationError(err)
-		} else if quotaRule.QuotaTarget != "" {
-			numericQuotaTarget, err := strconv.Atoi(quotaRule.QuotaTarget)
-			if err != nil {
-				logger.Errorf("NFS quota target validation failed: conversion error: %s", quotaRule.QuotaTarget)
-				return vsaerrors.WrapAsTemporalApplicationError(err)
-			}
-
-			if quotaRule.QuotaTarget != "" && re.MatchString(quotaRule.QuotaTarget) && (numericQuotaTarget < 0 || numericQuotaTarget > 4294967295) {
-				logger.Errorf("NFS quota target validation failed: out of range: %s", quotaRule.QuotaTarget)
-				err := customerrors.NewUserInputValidationErr("quotaTarget is invalid. Please pass numeric value for quotaTarget in range [0, 4294967295] for NFS volumes")
-				return vsaerrors.WrapAsTemporalApplicationError(err)
-			}
-		}
-	}
-
-	if HasDualProtocolForUserMapping(protocolTypes) {
-		re := regexp.MustCompile(`^S-1-[0-59]-\d{2}-\d{8,10}-\d{8,10}-\d{8,10}-[1-9]\d{3}`)
-		re1 := regexp.MustCompile(`^[0-9]*$`)
-		if !(re.MatchString(quotaRule.QuotaTarget) || re1.MatchString(quotaRule.QuotaTarget)) {
-			logger.Errorf("Dual protocol quota target validation failed: invalid format: %s", quotaRule.QuotaTarget)
-			err := customerrors.NewUserInputValidationErr("quotaTarget is invalid. Please pass numeric value in range [0, 4294967295] or SID for quotaTarget for dual protocol volumes")
-			return vsaerrors.WrapAsTemporalApplicationError(err)
-		}
-	}
-
-	return nil
-}
 
 // GetVolumeByID fetches authoritative volume details from the database by numeric ID.
 func (a *QuotaRuleCommonActivity) GetVolumeByID(ctx context.Context, volumeID int64, accountID int64) (*datamodel.Volume, error) {

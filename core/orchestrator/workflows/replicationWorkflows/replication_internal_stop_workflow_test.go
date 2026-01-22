@@ -7,7 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -1508,8 +1510,29 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 			},
 		}
 
-		// Mock UpdateJobStatus - first call for PROCESSING, second call for DONE (when error handler catches quota rule failure)
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Track UpdateJob calls to verify the exact parameters
+		var updateJobCalls []struct {
+			status       string
+			trackingID   int
+			errorDetails string
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Run(func(args mock.Arguments) {
+				status := args.Get(2).(string)
+				trackingID := args.Get(3).(int)
+				errorDetails := args.Get(4).(string)
+				updateJobCalls = append(updateJobCalls, struct {
+					status       string
+					trackingID   int
+					errorDetails string
+				}{
+					status:       status,
+					trackingID:   trackingID,
+					errorDetails: errorDetails,
+				})
+			}).
+			Return(nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("AbortVolumeReplication", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeReplication{}, nil)
 		env.OnActivity("BreakVolumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1527,6 +1550,20 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		assert.True(tt, env.IsWorkflowCompleted())
 		// Workflow should complete successfully (no error) because error handler catches quota rule failure
 		assert.NoError(tt, env.GetWorkflowError())
+
+		// Verify that UpdateJob was called with DONE status and correct TrackingID/ErrorDetails
+		foundDoneWithQuotaRuleError := false
+		for _, call := range updateJobCalls {
+			if call.status == string(coreModels.JobsStateDONE) {
+				// When vsaerrors.NewVCPError is used, trackingID should be the error code
+				assert.Equal(tt, vsaerrors.ErrBreakReplicationQuotaRuleFailure, call.trackingID, "TrackingID should be ErrBreakReplicationQuotaRuleFailure when using vsaerrors.NewVCPError")
+				// errorDetails should contain the exact quota rule error message
+				assert.Contains(tt, call.errorDetails, models.VolumeReplicationBreakRelationshipQuotaRuleFailure, "Error details should contain VolumeReplicationBreakRelationshipQuotaRuleFailure")
+				foundDoneWithQuotaRuleError = true
+				break
+			}
+		}
+		assert.True(tt, foundDoneWithQuotaRuleError, "UpdateJob should be called with DONE status and quota rule error message. This verifies isQuotaRuleFailure() correctly detected the error")
 		env.AssertExpectations(tt)
 	})
 

@@ -156,13 +156,6 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		return nil, nil
 	}
 
-	err = workflow.ExecuteActivity(ctx, quotaRuleActivity.ValidateQuotaTargetByProtocol, quotaRule, volumeDetails.VolumeAttributes.Protocols).Get(ctx, nil)
-	if err != nil {
-		logger.Errorf("Protocol validation failed: %v", err)
-		returnErr = ConvertToVSAError(err)
-		return
-	}
-
 	// For non-DP volumes, proceed with ONTAP operations
 	// Get nodes for the pool and create node structure for provider creation
 	var dbNodes []*datamodel.Node

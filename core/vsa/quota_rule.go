@@ -67,35 +67,6 @@ func GetQuotaTypeForOntap(quotaType string) string {
 	}
 }
 
-// GetDefaultQuotaRule retrieves an existing default quota rule from ONTAP for a given volume and quota type.
-// A default quota rule has no target (empty string), so we search for quota rules matching:
-//   - volume UUID
-//   - quota type (user/group)
-//   - empty target
-//
-// Parameters:
-//   - ctx: Context for logging and cancellation
-//   - volumeUUID: The ONTAP external UUID of the volume
-//   - svmName: The name of the SVM containing the volume
-//   - quotaType: The quota type ("user" or "group" in ONTAP format)
-//
-// Returns:
-//   - QuotaRuleInfo: Information about the found quota rule (UUID, Type, Target, DiskLimit)
-//   - NotFoundErr: If no default quota rule exists (this is acceptable - workflow will create one)
-//   - Error: For any other failure (API errors, parsing errors, etc.)
-//
-// TODO: Implement actual ONTAP REST API call to query quota rules
-// Current implementation: Returns NotFoundErr to allow workflow to proceed with creation
-func (rc *OntapRestProvider) GetDefaultQuotaRule(ctx context.Context, volumeUUID, svmName, quotaType string) (*QuotaRuleInfo, error) {
-	// TODO: Implement ONTAP REST API call:
-	// 1. GET /api/storage/quota/rules?volume.uuid={uuid}&type={type}
-	// 2. Filter for rules with empty target (default quota)
-	// 3. Return the matching rule or NotFoundErr
-
-	// For now, always return NotFoundErr to allow workflow to proceed with creation
-	return nil, customerrors.NewNotFoundErr("Default quota rule not found", nil)
-}
-
 // GetQuotaRuleCollection retrieves all quota rules configured on a specific volume.
 //
 // Parameters:

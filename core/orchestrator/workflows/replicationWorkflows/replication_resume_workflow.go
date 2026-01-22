@@ -63,8 +63,12 @@ func ResumeReplicationWorkflow(ctx workflow.Context, params *commonparams.Resume
 			// Quota rule sync failed but replication resume succeeded - treat as partial success
 			logger.Warnf("Resume replication succeeded but quota rule operations failed")
 			repWf.Status = workflows.WorkflowStatusCompleted
-			err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE),
-				temporal.NewApplicationError(replicationQuotaRuleError, "QuotaRuleFailure"))
+			// Use vsaerrors.NewVCPError so it's recognized as CustomError in UpdateJobStatus
+			quotaRuleErr := vsaerrors.NewVCPError(
+				vsaerrors.ErrResumeReplicationQuotaRuleFailure,
+				errors.New(replicationQuotaRuleError),
+			)
+			err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), quotaRuleErr)
 			return nil, err
 		}
 		repWf.Status = workflows.WorkflowStatusFailed

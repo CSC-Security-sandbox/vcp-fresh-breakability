@@ -396,7 +396,7 @@ func TestCreateQuotaRule(t *testing.T) {
 			VolumeUUID:     "volume-uuid-1",
 			QuotaType:      IndividualUserQuota,
 			DiskLimitInMib: 100,
-			QuotaTarget:    "user:alice",
+			QuotaTarget:    "1000",
 			LocationId:     "us-central1",
 		}
 
@@ -465,7 +465,7 @@ func TestCreateQuotaRule(t *testing.T) {
 			VolumeUUID:     "volume-uuid-1",
 			QuotaType:      IndividualUserQuota,
 			DiskLimitInMib: 100,
-			QuotaTarget:    "user:alice",
+			QuotaTarget:    "1000",
 			LocationId:     "us-central1",
 		}
 
@@ -538,7 +538,7 @@ func TestCreateQuotaRule(t *testing.T) {
 			VolumeUUID:     "volume-uuid-1",
 			QuotaType:      IndividualUserQuota,
 			DiskLimitInMib: 100,
-			QuotaTarget:    "user:alice",
+			QuotaTarget:    "1000",
 			LocationId:     "us-central1",
 			Description:    "Test quota rule",
 		}
@@ -825,7 +825,7 @@ func TestValidateVolumeType(t *testing.T) {
 
 		err := validateVolumeType(context.Background(), volume, params)
 		assert.Error(tt, err)
-		assert.True(tt, errors.IsNotSupportedErr(err))
+		assert.True(tt, errors.IsUserInputValidationErr(err))
 		assert.Contains(tt, err.Error(), "flexcache")
 	})
 
@@ -942,6 +942,180 @@ func TestValidateQuotaRuleUniqueness(t *testing.T) {
 
 		err := validateQuotaRuleUniqueness(context.Background(), existingRules, params)
 		assert.NoError(tt, err)
+	})
+}
+
+func TestValidateQuotaTargetByProtocol(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("SMBVolume_IndividualGroupQuota_ShouldFail", func(tt *testing.T) {
+		params := &common.CreateQuotaRulesParam{
+			QuotaType:   IndividualGroupQuota,
+			QuotaTarget: "S-1-5-21-123456789-123456789-123456789-1000",
+		}
+		protocolTypes := []string{utils.ProtocolSMB}
+
+		err := validateQuotaTargetByProtocol(ctx, params, protocolTypes)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "Group Quota cannot be specified for a SMB and Dual Protocol volume")
+	})
+
+	t.Run("SMBVolume_DefaultGroupQuota_ShouldFail", func(tt *testing.T) {
+		params := &common.CreateQuotaRulesParam{
+			QuotaType:   DefaultGroupQuota,
+			QuotaTarget: "",
+		}
+		protocolTypes := []string{utils.ProtocolSMB}
+
+		err := validateQuotaTargetByProtocol(ctx, params, protocolTypes)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "Group Quota cannot be specified for a SMB and Dual Protocol volume")
+	})
+
+	t.Run("SMBOnlyVolume_InvalidSIDFormat_ShouldFail", func(tt *testing.T) {
+		params := &common.CreateQuotaRulesParam{
+			QuotaType:   IndividualUserQuota,
+			QuotaTarget: "invalid-sid-format",
+		}
+		protocolTypes := []string{utils.ProtocolSMB}
+
+		err := validateQuotaTargetByProtocol(ctx, params, protocolTypes)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "quotaTarget is invalid. Please pass valid SID in quotaTarget for SMB volume")
+	})
+
+	t.Run("SMBOnlyVolume_ValidSID_ShouldPass", func(tt *testing.T) {
+		params := &common.CreateQuotaRulesParam{
+			QuotaType:   IndividualUserQuota,
+			QuotaTarget: "S-1-5-21-123456789-123456789-123456789-1000",
+		}
+		protocolTypes := []string{utils.ProtocolSMB}
+
+		err := validateQuotaTargetByProtocol(ctx, params, protocolTypes)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("SMBOnlyVolume_EmptyTargetForDefaultQuota_ShouldPass", func(tt *testing.T) {
+		params := &common.CreateQuotaRulesParam{
+			QuotaType:   DefaultUserQuota,
+			QuotaTarget: "",
+		}
+		protocolTypes := []string{utils.ProtocolSMB}
+
+		err := validateQuotaTargetByProtocol(ctx, params, protocolTypes)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("NFSOnlyVolume_NonNumericTarget_ShouldFail", func(tt *testing.T) {
+		params := &common.CreateQuotaRulesParam{
+			QuotaType:   IndividualUserQuota,
+			QuotaTarget: "invalid-numeric",
+		}
+		protocolTypes := []string{utils.ProtocolNFSv3}
+
+		err := validateQuotaTargetByProtocol(ctx, params, protocolTypes)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "quotaTarget is invalid. Please pass numeric value for quotaTarget in range [0, 4294967295] for NFS volumes")
+	})
+
+	t.Run("NFSOnlyVolume_OutOfRangeTarget_ShouldFail", func(tt *testing.T) {
+		params := &common.CreateQuotaRulesParam{
+			QuotaType:   IndividualUserQuota,
+			QuotaTarget: "4294967296", // > 4294967295
+		}
+		protocolTypes := []string{utils.ProtocolNFSv3}
+
+		err := validateQuotaTargetByProtocol(ctx, params, protocolTypes)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "quotaTarget is invalid. Please pass numeric value for quotaTarget in range [0, 4294967295] for NFS volumes")
+	})
+
+	t.Run("NFSOnlyVolume_NegativeTarget_ShouldFail", func(tt *testing.T) {
+		params := &common.CreateQuotaRulesParam{
+			QuotaType:   IndividualUserQuota,
+			QuotaTarget: "-1",
+		}
+		protocolTypes := []string{utils.ProtocolNFSv4}
+
+		err := validateQuotaTargetByProtocol(ctx, params, protocolTypes)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "quotaTarget is invalid. Please pass numeric value for quotaTarget in range [0, 4294967295] for NFS volumes")
+	})
+
+	t.Run("NFSOnlyVolume_ValidNumericTarget_ShouldPass", func(tt *testing.T) {
+		params := &common.CreateQuotaRulesParam{
+			QuotaType:   IndividualUserQuota,
+			QuotaTarget: "1000",
+		}
+		protocolTypes := []string{utils.ProtocolNFSv3}
+
+		err := validateQuotaTargetByProtocol(ctx, params, protocolTypes)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("NFSOnlyVolume_EmptyTargetForDefaultQuota_ShouldPass", func(tt *testing.T) {
+		params := &common.CreateQuotaRulesParam{
+			QuotaType:   DefaultUserQuota,
+			QuotaTarget: "",
+		}
+		protocolTypes := []string{utils.ProtocolNFSv4}
+
+		err := validateQuotaTargetByProtocol(ctx, params, protocolTypes)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("DualProtocolVolume_GroupQuota_ShouldFail", func(tt *testing.T) {
+		params := &common.CreateQuotaRulesParam{
+			QuotaType:   IndividualGroupQuota,
+			QuotaTarget: "S-1-5-21-123456789-123456789-123456789-1000",
+		}
+		protocolTypes := []string{utils.ProtocolSMB, utils.ProtocolNFSv3}
+
+		err := validateQuotaTargetByProtocol(ctx, params, protocolTypes)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "Group Quota cannot be specified for a SMB and Dual Protocol volume")
+	})
+
+	t.Run("DualProtocolVolume_UserQuotaWithValidSID_ShouldPass", func(tt *testing.T) {
+		params := &common.CreateQuotaRulesParam{
+			QuotaType:   IndividualUserQuota,
+			QuotaTarget: "S-1-5-21-123456789-123456789-123456789-1000",
+		}
+		protocolTypes := []string{utils.ProtocolSMB, utils.ProtocolNFSv3}
+
+		err := validateQuotaTargetByProtocol(ctx, params, protocolTypes)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("DualProtocolVolume_UserQuotaWithValidNumeric_ShouldPass", func(tt *testing.T) {
+		params := &common.CreateQuotaRulesParam{
+			QuotaType:   IndividualUserQuota,
+			QuotaTarget: "1000",
+		}
+		protocolTypes := []string{utils.ProtocolSMB, utils.ProtocolNFSv4}
+
+		err := validateQuotaTargetByProtocol(ctx, params, protocolTypes)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("DualProtocolVolume_InvalidFormat_ShouldFail", func(tt *testing.T) {
+		params := &common.CreateQuotaRulesParam{
+			QuotaType:   IndividualUserQuota,
+			QuotaTarget: "invalid-format",
+		}
+		protocolTypes := []string{utils.ProtocolSMB, utils.ProtocolNFSv3}
+
+		err := validateQuotaTargetByProtocol(ctx, params, protocolTypes)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "quotaTarget is invalid. Please pass numeric value in range [0, 4294967295] or SID for quotaTarget for dual protocol volumes")
 	})
 }
 
@@ -1921,7 +2095,7 @@ func TestCreateQuotaRuleErrorPaths(t *testing.T) {
 			VolumeUUID:     "volume-uuid-1",
 			QuotaType:      IndividualUserQuota,
 			DiskLimitInMib: 100,
-			QuotaTarget:    "user:alice",
+			QuotaTarget:    "1000",
 			LocationId:     "us-central1",
 		}
 
@@ -1992,7 +2166,7 @@ func TestCreateQuotaRuleErrorPaths(t *testing.T) {
 			VolumeUUID:     "volume-uuid-1",
 			QuotaType:      IndividualUserQuota,
 			DiskLimitInMib: 100,
-			QuotaTarget:    "user:alice",
+			QuotaTarget:    "1000",
 			LocationId:     "us-central1",
 		}
 
@@ -2309,7 +2483,7 @@ func TestCreateQuotaRuleInternal(t *testing.T) {
 			VolumeUUID:     "volume-uuid-1",
 			QuotaType:      IndividualUserQuota,
 			DiskLimitInMib: 100,
-			QuotaTarget:    "user:alice",
+			QuotaTarget:    "1000",
 		}
 
 		volume := &datamodel.Volume{
@@ -2353,7 +2527,7 @@ func TestCreateQuotaRuleInternal(t *testing.T) {
 			VolumeUUID:     "volume-uuid-1",
 			QuotaType:      IndividualUserQuota,
 			DiskLimitInMib: 100,
-			QuotaTarget:    "user:alice",
+			QuotaTarget:    "1000",
 		}
 
 		volume := &datamodel.Volume{
@@ -2399,7 +2573,7 @@ func TestCreateQuotaRuleInternal(t *testing.T) {
 			VolumeUUID:     "volume-uuid-1",
 			QuotaType:      IndividualUserQuota,
 			DiskLimitInMib: 100,
-			QuotaTarget:    "user:alice",
+			QuotaTarget:    "1000",
 		}
 
 		volume := &datamodel.Volume{
@@ -2452,7 +2626,7 @@ func TestCreateQuotaRuleInternal(t *testing.T) {
 			VolumeUUID:     "volume-uuid-1",
 			QuotaType:      IndividualUserQuota,
 			DiskLimitInMib: 100,
-			QuotaTarget:    "user:alice",
+			QuotaTarget:    "1000",
 		}
 
 		volume := &datamodel.Volume{
@@ -2514,7 +2688,7 @@ func TestCreateQuotaRuleInternal(t *testing.T) {
 			VolumeUUID:     "volume-uuid-1",
 			QuotaType:      IndividualUserQuota,
 			DiskLimitInMib: 100,
-			QuotaTarget:    "user:alice",
+			QuotaTarget:    "1000",
 			Description:    "Test quota rule",
 		}
 

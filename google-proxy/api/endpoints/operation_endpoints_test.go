@@ -1066,3 +1066,232 @@ func TestV1betaInternalDescribeOperation_JobStatesMapping(t *testing.T) {
 		})
 	}
 }
+
+func TestV1betaDescribeOperation_ResumeVolumeReplication_QuotaRuleFailure(t *testing.T) {
+	ctx := context.Background()
+	logger := &log.MockLogger{}
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+
+	originalCreateClient := createClient
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		createClient = originalCreateClient
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-east4", "us-east4", nil
+	}
+
+	errorDetails := "Operation was successful but quota rule sync between source and destination failed"
+	job := &models.Job{
+		State:        models.JobsStateDONE,
+		Type:         models.JobTypeResumeVolumeReplication,
+		ErrorDetails: []byte(errorDetails),
+		TrackingID:   0,
+	}
+	mockOrch.On("GetJob", ctx, mock.Anything).Return(job, nil)
+	mockCVP := &cvpapi.Cvp{Async: &async.MockClientService{}}
+	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp { return *mockCVP }
+	handler := Handler{Orchestrator: mockOrch}
+	params := gcpgenserver.V1betaDescribeOperationParams{
+		ProjectNumber: "proj",
+		LocationId:    "valid-location",
+		OperationId:   "b3b8c7e2-8c2a-4e2a-9b1a-2e4b6c8d9f0a",
+	}
+
+	result, err := handler.V1betaDescribeOperation(ctx, params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+	operationResult := result.(*gcpgenserver.OperationV1beta)
+	assert.True(t, operationResult.Done.Value)
+	assert.True(t, operationResult.Metadata.Set)
+	assert.Equal(t, "status_message", operationResult.Metadata.Value.Type)
+
+	var metadataValue string
+	err = json.Unmarshal(operationResult.Metadata.Value.AnyValue, &metadataValue)
+	assert.NoError(t, err)
+	assert.Contains(t, metadataValue, errorDetails)
+}
+
+func TestV1betaDescribeOperation_ReverseResumeVolumeReplication_QuotaRuleFailure(t *testing.T) {
+	ctx := context.Background()
+	logger := &log.MockLogger{}
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+
+	originalCreateClient := createClient
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		createClient = originalCreateClient
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-east4", "us-east4", nil
+	}
+
+	errorDetails := "Operation was successful but quota rule sync between source and destination failed"
+	job := &models.Job{
+		State:        models.JobsStateDONE,
+		Type:         models.JobTypeReverseResumeVolumeReplication,
+		ErrorDetails: []byte(errorDetails),
+		TrackingID:   0,
+	}
+	mockOrch.On("GetJob", ctx, mock.Anything).Return(job, nil)
+	mockCVP := &cvpapi.Cvp{Async: &async.MockClientService{}}
+	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp { return *mockCVP }
+	handler := Handler{Orchestrator: mockOrch}
+	params := gcpgenserver.V1betaDescribeOperationParams{
+		ProjectNumber: "proj",
+		LocationId:    "valid-location",
+		OperationId:   "b3b8c7e2-8c2a-4e2a-9b1a-2e4b6c8d9f0a",
+	}
+
+	result, err := handler.V1betaDescribeOperation(ctx, params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+	operationResult := result.(*gcpgenserver.OperationV1beta)
+	assert.True(t, operationResult.Done.Value)
+	assert.True(t, operationResult.Metadata.Set)
+	assert.Equal(t, "status_message", operationResult.Metadata.Value.Type)
+
+	var metadataValue string
+	err = json.Unmarshal(operationResult.Metadata.Value.AnyValue, &metadataValue)
+	assert.NoError(t, err)
+	assert.Contains(t, metadataValue, errorDetails)
+}
+
+func TestV1betaDescribeOperation_StopVolumeReplicationInternal_QuotaRuleFailure(t *testing.T) {
+	ctx := context.Background()
+	logger := &log.MockLogger{}
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+
+	originalCreateClient := createClient
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		createClient = originalCreateClient
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-east4", "us-east4", nil
+	}
+
+	errorDetails := "Break operation is successful and destination volume has become RW, but post break quota rule creation operation failed"
+	job := &models.Job{
+		State:        models.JobsStateDONE,
+		Type:         models.JobTypeStopVolumeReplicationInternal,
+		ErrorDetails: []byte(errorDetails),
+		TrackingID:   0,
+	}
+	mockOrch.On("GetJob", ctx, mock.Anything).Return(job, nil)
+	mockCVP := &cvpapi.Cvp{Async: &async.MockClientService{}}
+	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp { return *mockCVP }
+	handler := Handler{Orchestrator: mockOrch}
+	params := gcpgenserver.V1betaDescribeOperationParams{
+		ProjectNumber: "proj",
+		LocationId:    "valid-location",
+		OperationId:   "b3b8c7e2-8c2a-4e2a-9b1a-2e4b6c8d9f0a",
+	}
+
+	result, err := handler.V1betaDescribeOperation(ctx, params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+	operationResult := result.(*gcpgenserver.OperationV1beta)
+	assert.True(t, operationResult.Done.Value)
+	assert.True(t, operationResult.Metadata.Set)
+	assert.Equal(t, "status_message", operationResult.Metadata.Value.Type)
+
+	var metadataValue string
+	err = json.Unmarshal(operationResult.Metadata.Value.AnyValue, &metadataValue)
+	assert.NoError(t, err)
+	assert.Contains(t, metadataValue, errorDetails)
+}
+
+func TestV1betaDescribeOperation_Done_NoQuotaRuleFailure(t *testing.T) {
+	ctx := context.Background()
+	logger := &log.MockLogger{}
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+
+	originalCreateClient := createClient
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		createClient = originalCreateClient
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-east4", "us-east4", nil
+	}
+
+	job := &models.Job{
+		State:        models.JobsStateDONE,
+		Type:         models.JobTypeResumeVolumeReplication,
+		ErrorDetails: []byte(""),
+		TrackingID:   0,
+	}
+	mockOrch.On("GetJob", ctx, mock.Anything).Return(job, nil)
+	mockCVP := &cvpapi.Cvp{Async: &async.MockClientService{}}
+	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp { return *mockCVP }
+	handler := Handler{Orchestrator: mockOrch}
+	params := gcpgenserver.V1betaDescribeOperationParams{
+		ProjectNumber: "proj",
+		LocationId:    "valid-location",
+		OperationId:   "b3b8c7e2-8c2a-4e2a-9b1a-2e4b6c8d9f0a",
+	}
+
+	result, err := handler.V1betaDescribeOperation(ctx, params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+	operationResult := result.(*gcpgenserver.OperationV1beta)
+	assert.True(t, operationResult.Done.Value)
+	assert.False(t, operationResult.Metadata.Set)
+}
+
+func TestV1betaDescribeOperation_InternalResume_NoMetadata(t *testing.T) {
+	ctx := context.Background()
+	logger := &log.MockLogger{}
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+
+	originalCreateClient := createClient
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		createClient = originalCreateClient
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-east4", "us-east4", nil
+	}
+
+	// Internal resume should NOT trigger metadata even with quota error
+	errorDetails := "Operation was successful but quota rule sync between source and destination failed"
+	job := &models.Job{
+		State:        models.JobsStateDONE,
+		Type:         models.JobTypeResumeVolumeReplicationInternal,
+		ErrorDetails: []byte(errorDetails),
+		TrackingID:   0,
+	}
+	mockOrch.On("GetJob", ctx, mock.Anything).Return(job, nil)
+	mockCVP := &cvpapi.Cvp{Async: &async.MockClientService{}}
+	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp { return *mockCVP }
+	handler := Handler{Orchestrator: mockOrch}
+	params := gcpgenserver.V1betaDescribeOperationParams{
+		ProjectNumber: "proj",
+		LocationId:    "valid-location",
+		OperationId:   "b3b8c7e2-8c2a-4e2a-9b1a-2e4b6c8d9f0a",
+	}
+
+	result, err := handler.V1betaDescribeOperation(ctx, params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+	operationResult := result.(*gcpgenserver.OperationV1beta)
+	assert.True(t, operationResult.Done.Value)
+	// Internal resume should NOT have metadata set
+	assert.False(t, operationResult.Metadata.Set)
+}

@@ -53,9 +53,12 @@ func StopInternalVolumeReplicationWorkflow(ctx workflow.Context, replicationDb *
 		if quotaRuleSyncEnabled && isQuotaRuleFailure(customErr) {
 			logger.Warnf("Break replication succeeded but quota rule creation failed, marking workflow as completed")
 			stopRepWf.Status = workflows.WorkflowStatusCompleted
-			// Update job status to DONE with custom message indicating partial success
-			err = stopRepWf.UpdateJobStatus(ctx, string(models.JobsStateDONE),
-				temporal.NewApplicationError(models.VolumeReplicationBreakRelationshipQuotaRuleFailure, "QuotaRuleFailure"))
+			// Use vsaerrors.NewVCPError so it's recognized as CustomError in UpdateJobStatus
+			quotaRuleErr := vsaerrors.NewVCPError(
+				vsaerrors.ErrBreakReplicationQuotaRuleFailure,
+				errors.New(models.VolumeReplicationBreakRelationshipQuotaRuleFailure),
+			)
+			err = stopRepWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), quotaRuleErr)
 			return nil, err
 		}
 

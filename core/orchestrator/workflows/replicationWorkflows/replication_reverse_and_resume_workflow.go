@@ -55,8 +55,12 @@ func ReverseAndResumeVolumeReplicationWorkflow(ctx workflow.Context, params *com
 			// Quota rule sync failed but reverse resume succeeded - treat as partial success
 			logger.Warnf("Reverse resume succeeded but quota rule operations failed")
 			repWf.Status = workflows.WorkflowStatusCompleted
-			err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE),
-				temporal.NewApplicationError(reverseResumeQuotaRuleError, "QuotaRuleFailure"))
+			// Use vsaerrors.NewVCPError so it's recognized as CustomError in UpdateJobStatus
+			quotaRuleErr := vsaerrors.NewVCPError(
+				vsaerrors.ErrReverseResumeReplicationQuotaRuleFailure,
+				errors.New(reverseResumeQuotaRuleError),
+			)
+			err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), quotaRuleErr)
 			return nil, err
 		}
 		repWf.Status = workflows.WorkflowStatusFailed

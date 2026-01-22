@@ -898,10 +898,12 @@ func TestReverseResumeWorkflow_PartialSuccessHandling(t *testing.T) {
 
 	// Mock UpdateJobStatus to capture the partial success call (lines 58-60)
 	var capturedStatus string
+	var capturedTrackingID int
 	var capturedErrorDetails string
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything, mock.Anything).
 		Return(func(ctx context.Context, job *datamodel.Job) error {
 			capturedStatus = job.State
+			capturedTrackingID = job.TrackingID
 			capturedErrorDetails = job.ErrorDetails
 			return nil
 		})
@@ -915,6 +917,7 @@ func TestReverseResumeWorkflow_PartialSuccessHandling(t *testing.T) {
 
 	// Verify lines 56-58, 60: partial success handling
 	assert.Equal(t, string(models.JobsStateDONE), capturedStatus, "Should set status to DONE for partial success")
+	assert.Equal(t, vsaerrors.ErrReverseResumeReplicationQuotaRuleFailure, capturedTrackingID, "TrackingID should be ErrReverseResumeReplicationQuotaRuleFailure when using vsaerrors.NewVCPError")
 	assert.Contains(t, capturedErrorDetails, reverseResumeQuotaRuleError, "Should have reverseResumeQuotaRuleError message for partial success")
 }
 

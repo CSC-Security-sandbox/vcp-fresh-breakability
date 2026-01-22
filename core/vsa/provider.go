@@ -90,7 +90,6 @@ type Provider interface {
 	GetSnapshots(volumeUUID string) ([]*Snapshot, error)
 	ListSnapmirrorSnapshots(volumeUUID string) ([]*SnapshotListResponse, error)
 	CreateQuotaRule(ctx context.Context, params CreateQuotaRuleParams) (*JobStatus, error)
-	GetDefaultQuotaRule(ctx context.Context, volumeUUID, svmName, quotaType string) (*QuotaRuleInfo, error)
 	GetQuotaRuleCollection(ctx context.Context, volumeUUID, svmName string) ([]*QuotaRuleCollectionItem, error)
 	GetOntapQuotaUUIDAndType(ctx context.Context, volumeUUID, svmName, quotaType, target string) (string, string, error)
 	UpdateQuotaRule(ctx context.Context, params *UpdateQuotaRuleParams) (*JobStatus, error)

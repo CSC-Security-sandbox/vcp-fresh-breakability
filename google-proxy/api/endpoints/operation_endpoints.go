@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
@@ -27,6 +28,10 @@ var (
 const (
 	jobNewStateDetails   = "Job is still new"
 	jobInProgressDetails = "Job is in progress"
+
+	responseKeyForQuota  = "status_message"
+	resumeQuotaRuleError = "Operation was successful but quota rule sync between source and destination failed"
+	stopQuotaRuleError   = "Break operation is successful and destination volume has become RW, but post break quota rule creation operation failed"
 )
 
 func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserver.V1betaDescribeOperationParams) (gcpgenserver.V1betaDescribeOperationRes, error) {
@@ -89,6 +94,76 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 				Response: encodeOperationV1Beta(jobInProgressDetails),
 			}, nil
 		case models.JobsStateDONE:
+			// Check for partial quota rule failures in CRR operations
+			errorDetailsStr := string(job.ErrorDetails)
+
+			// Handle ResumeVolumeReplication quota rule failure
+			if job.Type == models.JobTypeResumeVolumeReplication {
+				if strings.Contains(errorDetailsStr, resumeQuotaRuleError) {
+					metadataValue, err := json.Marshal(errorDetailsStr)
+					if err != nil {
+						// If json.Marshal fails, use the constant error message directly as bytes
+						metadataValue = []byte(resumeQuotaRuleError)
+					}
+					return &gcpgenserver.OperationV1beta{
+						Done: gcpgenserver.NewOptBool(jobFinished),
+						Name: gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, params.OperationId)),
+						Metadata: gcpgenserver.OptAnyV1Beta{
+							Value: gcpgenserver.AnyV1Beta{
+								Type:     responseKeyForQuota,
+								AnyValue: metadataValue,
+							},
+							Set: true,
+						},
+					}, nil
+				}
+			}
+
+			// Handle ReverseResumeVolumeReplication quota rule failure
+			if job.Type == models.JobTypeReverseResumeVolumeReplication {
+				if strings.Contains(errorDetailsStr, resumeQuotaRuleError) {
+					metadataValue, err := json.Marshal(errorDetailsStr)
+					if err != nil {
+						// If json.Marshal fails, use the constant error message directly as bytes
+						metadataValue = []byte(resumeQuotaRuleError)
+					}
+					return &gcpgenserver.OperationV1beta{
+						Done: gcpgenserver.NewOptBool(jobFinished),
+						Name: gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, params.OperationId)),
+						Metadata: gcpgenserver.OptAnyV1Beta{
+							Value: gcpgenserver.AnyV1Beta{
+								Type:     responseKeyForQuota,
+								AnyValue: metadataValue,
+							},
+							Set: true,
+						},
+					}, nil
+				}
+			}
+
+			// Handle StopVolumeReplicationInternal quota rule failure
+			if job.Type == models.JobTypeStopVolumeReplicationInternal {
+				if strings.Contains(errorDetailsStr, stopQuotaRuleError) {
+					metadataValue, err := json.Marshal(errorDetailsStr)
+					if err != nil {
+						// If json.Marshal fails, use the constant error message directly as bytes
+						metadataValue = []byte(stopQuotaRuleError)
+					}
+					return &gcpgenserver.OperationV1beta{
+						Done: gcpgenserver.NewOptBool(jobFinished),
+						Name: gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, params.OperationId)),
+						Metadata: gcpgenserver.OptAnyV1Beta{
+							Value: gcpgenserver.AnyV1Beta{
+								Type:     responseKeyForQuota,
+								AnyValue: metadataValue,
+							},
+							Set: true,
+						},
+					}, nil
+				}
+			}
+
+			// Default DONE case (no quota rule failure)
 			return &gcpgenserver.OperationV1beta{
 				Done: gcpgenserver.NewOptBool(jobFinished),
 				Name: gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, params.OperationId)),

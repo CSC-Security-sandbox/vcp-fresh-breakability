@@ -843,35 +843,6 @@ func TestGetQuotaTypeForOntap(t *testing.T) {
 	})
 }
 
-func TestGetDefaultQuotaRule(t *testing.T) {
-	t.Run("WhenGetDefaultQuotaRule_ReturnsNotFound", func(tt *testing.T) {
-		rc := &OntapRestProvider{}
-		volumeUUID := "volume-uuid"
-		svmName := "svm-name"
-		quotaType := "user"
-
-		result, err := rc.GetDefaultQuotaRule(context.Background(), volumeUUID, svmName, quotaType)
-
-		assert.Error(tt, err)
-		assert.Nil(tt, result)
-		assert.True(tt, customerrors.IsNotFoundErr(err))
-		assert.Contains(tt, err.Error(), "Default quota rule not found")
-	})
-
-	t.Run("WhenGetDefaultQuotaRuleWithGroupType_ReturnsNotFound", func(tt *testing.T) {
-		rc := &OntapRestProvider{}
-		volumeUUID := "volume-uuid"
-		svmName := "svm-name"
-		quotaType := "group"
-
-		result, err := rc.GetDefaultQuotaRule(context.Background(), volumeUUID, svmName, quotaType)
-
-		assert.Error(tt, err)
-		assert.Nil(tt, result)
-		assert.True(tt, customerrors.IsNotFoundErr(err))
-	})
-}
-
 func TestCreateQuotaRule(t *testing.T) {
 	originalgetOntapClientFunc := getOntapClientFunc
 	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
