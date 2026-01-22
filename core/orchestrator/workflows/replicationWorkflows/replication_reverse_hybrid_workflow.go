@@ -10,7 +10,6 @@ import (
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -153,13 +152,13 @@ func (wf *reverseHybridReplicationWorkflow) Run(ctx workflow.Context, args ...in
 			return nil, workflows.ConvertToVSAError(err)
 		}
 
-		// Start ReverseHybridFallbackReplicationWorkflow and wait for completion
+		// Start ReverseHybridFallbackReplicationWorkflow and verify it started
 		childCtx1 := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			WorkflowID:            pollJob.WorkflowID,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-			ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_TERMINATE,
+			ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_ABANDON,
 		})
 
 		childWorkflowFuture := workflow.ExecuteChildWorkflow(
@@ -169,9 +168,9 @@ func (wf *reverseHybridReplicationWorkflow) Run(ctx workflow.Context, args ...in
 			reverseResult,
 		)
 
-		// Wait for the fallback workflow to complete
-		var fallbackResult *vsa.VolumeReplication
-		err = childWorkflowFuture.Get(ctx, &fallbackResult)
+		// Don't wait for completion - just verify it started
+		var childWE workflow.Execution
+		err = childWorkflowFuture.GetChildWorkflowExecution().Get(ctx, &childWE)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}

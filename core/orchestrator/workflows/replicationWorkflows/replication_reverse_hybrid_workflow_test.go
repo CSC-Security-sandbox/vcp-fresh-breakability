@@ -218,6 +218,7 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 		env.OnActivity("GenerateReverseCommandsForHybridReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
 		env.OnActivity("UpdateReplicationWithReverseCommandsForHybridReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
 		env.OnActivity("CreateJobForHybridReverse", mock.Anything, mock.Anything, mock.Anything).Return(fallbackJob, nil)
+		// Mock workflow - we only verify it started, not wait for completion
 		env.OnWorkflow("ReverseHybridFallbackReplicationWorkflow", mock.Anything, mock.Anything, mock.Anything).Return((*vsa.VolumeReplication)(nil), nil)
 
 		env.ExecuteWorkflow(ReverseHybridReplicationWorkflow, params, event)
@@ -796,6 +797,112 @@ func TestReverseHybridReplicationWorkflow(t *testing.T) {
 		env.ExecuteWorkflow(ReverseHybridReplicationWorkflow, params, event)
 
 		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
+
+	t.Run("TestReverseHybridReplicationWorkflow_FallbackChildWorkflowStartError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		replicationActivity := replicationActivities.ReverseHybridReplicationActivity{SE: mockStorage}
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(replicationActivity.SetHybridReplicationVariablesReverse)
+		env.RegisterActivity(replicationActivity.GetNodeProviderForHybridReverse)
+		env.RegisterActivity(replicationActivity.CheckClusterPeerHealthForHybridReverse)
+		env.RegisterActivity(replicationActivity.UpdateRbacRoleForHybridReverse)
+		env.RegisterActivity(replicationActivity.GenerateReverseCommandsForHybridReverse)
+		env.RegisterActivity(replicationActivity.UpdateReplicationWithReverseCommandsForHybridReverse)
+		env.RegisterActivity(replicationActivity.CreateJobForHybridReverse)
+		env.RegisterWorkflow(ReverseHybridFallbackReplicationWorkflow)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		params := &commonparams.ReverseAndResumeReplicationParams{
+			AccountName: "test-account",
+		}
+
+		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
+		event := &replication.ReverseReplicationEvent{
+			CommonReplicationEventParams: replication.CommonReplicationEventParams{
+				ReplicationModel: &datamodel.VolumeReplication{
+					BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-replication-uuid"},
+					Name:      "test-replication",
+					Volume: &datamodel.Volume{
+						BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
+						PoolID:    1,
+						Pool: &datamodel.Pool{
+							BaseModel: datamodel.BaseModel{ID: 1},
+							DeploymentName: "test-deployment",
+							PoolCredentials: &datamodel.PoolCredentials{
+								Password:      "test-password",
+								SecretID:      "test-secret-id",
+								CertificateID: "test-cert-id",
+							},
+						},
+					},
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceSvmName:      "source-svm",
+						SourceVolumeName:   "source-volume",
+						DestinationSvmName: "dest-svm",
+						DestinationVolumeName: "dest-volume",
+						ReplicationSchedule: vsa.VolumeReplicationScheduleHourly,
+						DestinationLocation: "customer", // This makes IsSrcForHybridReplication return true
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &reverseType,
+					},
+					ClusterPeer: &datamodel.ClusterPeerings{
+						BaseModel: datamodel.BaseModel{UUID: "test-cluster-peer-uuid"},
+						OntapPeerUUID: "test-ontap-peer-uuid",
+					},
+				},
+				SourceProjectNumber:      "123456789",
+				DestinationProjectNumber: "987654321",
+				XCorrelationID:          func() *string { s := "test-correlation-id"; return &s }(),
+			},
+		}
+
+		reverseResult := &replication.ReverseHybridReplicationResult{
+			Event:            event,
+			DbVolReplication: event.ReplicationModel,
+			DstProjectNumber: &event.DestinationProjectNumber,
+			SrcProjectNumber: &event.SourceProjectNumber,
+			IsSrcForHybridReplication: true, // This triggers fallback workflow
+		}
+
+		fallbackJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-fallback-job-uuid"},
+			WorkflowID: "test-fallback-workflow-id",
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     "NEW",
+		}, nil)
+		env.OnActivity("SetHybridReplicationVariablesReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("GetNodeProviderForHybridReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("CheckClusterPeerHealthForHybridReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("UpdateRbacRoleForHybridReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("GenerateReverseCommandsForHybridReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("UpdateReplicationWithReverseCommandsForHybridReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("CreateJobForHybridReverse", mock.Anything, mock.Anything, mock.Anything).Return(fallbackJob, nil)
+		// Mock workflow to return error - GetChildWorkflowExecution should still succeed if workflow starts
+		env.OnWorkflow("ReverseHybridFallbackReplicationWorkflow", mock.Anything, mock.Anything, mock.Anything).Return((*vsa.VolumeReplication)(nil), assert.AnError)
+
+		env.ExecuteWorkflow(ReverseHybridReplicationWorkflow, params, event)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		// GetChildWorkflowExecution only verifies workflow started, not completion
+		// So even if workflow fails later, GetChildWorkflowExecution should succeed
 		assert.NoError(tt, env.GetWorkflowError())
 	})
 }
