@@ -2121,6 +2121,10 @@ func TestListVolumeReplicationsWithPagination(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				Protocols: []string{"ISCSI"},
 			},
+			LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+				LargeCapacity:               true,
+				LargeVolumeConstituentCount: func() *int32 { v := int32(48); return &v }(),
+			},
 		}
 		err = store.db.Create(volume).Error()
 		assert.NoError(tt, err, "Failed to create volume")
@@ -2166,6 +2170,12 @@ func TestListVolumeReplicationsWithPagination(t *testing.T) {
 		assert.Empty(tt, resultReplications[0].Volume.Pool.Name, "Pool Name should be empty due to selective loading")
 		assert.Empty(tt, resultReplications[0].Volume.Pool.Description, "Pool Description should be empty due to selective loading")
 		assert.Zero(tt, resultReplications[0].Volume.Pool.SizeInBytes, "Pool SizeInBytes should be zero due to selective loading")
+
+		// Verify Volume.LargeVolumeAttributes is loaded
+		assert.NotNil(tt, resultReplications[0].Volume.LargeVolumeAttributes, "Volume.LargeVolumeAttributes should be preloaded")
+		assert.True(tt, resultReplications[0].Volume.LargeVolumeAttributes.LargeCapacity, "LargeCapacity should be true")
+		assert.NotNil(tt, resultReplications[0].Volume.LargeVolumeAttributes.LargeVolumeConstituentCount, "LargeVolumeConstituentCount should not be nil")
+		assert.Equal(tt, int32(48), *resultReplications[0].Volume.LargeVolumeAttributes.LargeVolumeConstituentCount, "LargeVolumeConstituentCount should be 48")
 	})
 }
 

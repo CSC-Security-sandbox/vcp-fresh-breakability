@@ -64,11 +64,10 @@ type VolumeReplicationInfo struct {
 }
 
 type ResourceCollection struct {
-	PoolData                  map[ResourceKey]ResourceData
-	VolumeData                map[ResourceKey]ResourceData
-	BackupData                map[ResourceKey]ResourceData
-	VolumeReplicationData     map[ResourceKey]ResourceData
-	VolumeLargeCapacityLookup map[string]bool // volumeUUID -> LargeCapacity
+	PoolData              map[ResourceKey]ResourceData
+	VolumeData            map[ResourceKey]ResourceData
+	BackupData            map[ResourceKey]ResourceData
+	VolumeReplicationData map[ResourceKey]ResourceData
 }
 
 type BillingProvider struct {
@@ -252,11 +251,10 @@ func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStar
 
 	// Create a new ResourceCollection for this aggregation cycle
 	resourceCollection := &ResourceCollection{
-		PoolData:                  make(map[ResourceKey]ResourceData),
-		VolumeData:                make(map[ResourceKey]ResourceData),
-		VolumeReplicationData:     make(map[ResourceKey]ResourceData),
-		BackupData:                make(map[ResourceKey]ResourceData),
-		VolumeLargeCapacityLookup: make(map[string]bool),
+		PoolData:              make(map[ResourceKey]ResourceData),
+		VolumeData:            make(map[ResourceKey]ResourceData),
+		VolumeReplicationData: make(map[ResourceKey]ResourceData),
+		BackupData:            make(map[ResourceKey]ResourceData),
 	}
 
 	var poolsDataError, volumeDataError, backupDataError, volumeReplicationDataError error
@@ -481,9 +479,6 @@ func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartT
 				ConsumerID:     accountName,
 			}
 			resourceCollection.VolumeData[id] = volumeResourceData
-
-			// Populate lookup for use by fetchBackupData and fetchVolumeReplicationData
-			resourceCollection.VolumeLargeCapacityLookup[volume.UUID] = largeCapacity
 		}
 
 		totalProcessed += len(volumes)
@@ -557,9 +552,17 @@ func (p *BillingProvider) fetchBackupData(ctx context.Context, aggregationStartT
 				labels = make(Labels)
 			}
 
-			// Get LargeCapacity from lookup (populated in fetchVolumeData)
-			largeCapacity := resourceCollection.VolumeLargeCapacityLookup[backup.VolumeUUID]
-			volumeStyle := getVolumeStyle(largeCapacity)
+			// Get VolumeStyle from backup attributes (authoritative source)
+			largeCapacity := false
+			volumeStyle := getVolumeStyle(largeCapacity) // Default
+			ontapVolumeStyle := backup.Attributes.OntapVolumeStyle
+			if ontapVolumeStyle != "" {
+				volumeStyle = strings.ToUpper(ontapVolumeStyle)
+				largeCapacity = strings.EqualFold(ontapVolumeStyle, database.OntapFgVolumeStyle)
+			} else {
+				logger.Warnf("Backup %s (volume: %s) missing OntapVolumeStyle, defaulting to FLEXVOL",
+					backup.UUID, backup.VolumeUUID)
+			}
 
 			backupResourceData := ResourceData{
 				UUID:          backup.VolumeUUID, // Using volume UUID
@@ -674,11 +677,13 @@ func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggreg
 				}
 			}
 
-			// Get LargeCapacity from lookup (populated in fetchVolumeData)
-			// Fallback to direct access if not in lookup (volume might be outside time window)
-			largeCapacity, found := resourceCollection.VolumeLargeCapacityLookup[volumeReplication.Volume.UUID]
-			if !found && volumeReplication.Volume.LargeVolumeAttributes != nil {
+			// Get LargeCapacity from volume's LargeVolumeAttributes (authoritative source)
+			largeCapacity := false
+			if volumeReplication.Volume.LargeVolumeAttributes != nil {
 				largeCapacity = volumeReplication.Volume.LargeVolumeAttributes.LargeCapacity
+			} else {
+				logger.Warnf("VolumeReplication %s missing Volume.LargeVolumeAttributes, defaulting to FLEXVOL",
+					volumeReplication.UUID)
 			}
 			volumeStyle := getVolumeStyle(largeCapacity)
 

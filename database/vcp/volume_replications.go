@@ -322,7 +322,7 @@ func _listVolumeReplicationsWithDetailsPagination(db *gorm.DB, pagination *utils
 	err := db.
 		Preload("Account").
 		Preload("Volume", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id, pool_id, volume_attributes")
+			return db.Select("id, pool_id, volume_attributes, large_volume_attributes")
 		}).
 		Preload("Volume.Pool", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id, deployment_name")

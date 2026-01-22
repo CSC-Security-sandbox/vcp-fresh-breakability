@@ -613,10 +613,9 @@ func TestProcessMetricsWithJobDef(t *testing.T) {
 		// With batch saving, test the collected record instead
 		var aggregatedRecords []datamodel2.AggregatedUsage
 		resourceCollection := &ResourceCollection{
-			PoolData:                  make(map[ResourceKey]ResourceData),
-			VolumeData:                make(map[ResourceKey]ResourceData),
-			VolumeReplicationData:     make(map[ResourceKey]ResourceData),
-			VolumeLargeCapacityLookup: make(map[string]bool),
+			PoolData:              make(map[ResourceKey]ResourceData),
+			VolumeData:            make(map[ResourceKey]ResourceData),
+			VolumeReplicationData: make(map[ResourceKey]ResourceData),
 		}
 
 		resourceIDRep := ResourceKey{
@@ -4130,60 +4129,6 @@ func TestFetchPoolData_AllowAutoTieringField(t *testing.T) {
 	mockVcpDB.AssertExpectations(t)
 }
 
-// TestVolumeLargeCapacityLookup_PopulatedInFetchVolumeData verifies that VolumeLargeCapacityLookup
-// is populated when fetching volumes with LargeCapacity=true
-func TestVolumeLargeCapacityLookup_PopulatedInFetchVolumeData(t *testing.T) {
-	ctx := context.Background()
-	mockVcpDB := &database2.MockStorage{}
-	mockMetricsDB := &database.MockStorage{}
-	mockSink := &MockUsageSink{}
-	config := &common.TelemetryConfig{PoolVolumeLabelPageSize: 100, GoogleBillingLabelsMaxEntries: 10}
-	provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
-
-	// Mock volumes - one with LargeCapacity, one without
-	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{
-		{
-			UUID:      "large-vol-uuid",
-			Name:      "large_volume",
-			AccountID: 1,
-			VolumeAttributes: &datamodel.VolumeAttributes{
-				AccountName:    "account1",
-				DeploymentName: "dep1",
-			},
-			LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
-				LargeCapacity: true,
-			},
-		},
-		{
-			UUID:      "regular-vol-uuid",
-			Name:      "regular_volume",
-			AccountID: 1,
-			VolumeAttributes: &datamodel.VolumeAttributes{
-				AccountName:    "account1",
-				DeploymentName: "dep1",
-			},
-			LargeVolumeAttributes: nil, // Regular volume
-		},
-	}, nil).Once()
-	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
-
-	resourceCollection := &ResourceCollection{
-		VolumeData:                make(map[ResourceKey]ResourceData),
-		VolumeLargeCapacityLookup: make(map[string]bool),
-	}
-
-	startTime := time.Now().Add(-1 * time.Hour)
-
-	err := provider.fetchVolumeData(ctx, startTime, resourceCollection)
-	assert.NoError(t, err)
-
-	// Verify lookup is populated correctly
-	assert.True(t, resourceCollection.VolumeLargeCapacityLookup["large-vol-uuid"], "Large volume should have LargeCapacity=true in lookup")
-	assert.False(t, resourceCollection.VolumeLargeCapacityLookup["regular-vol-uuid"], "Regular volume should have LargeCapacity=false in lookup")
-
-	mockVcpDB.AssertExpectations(t)
-}
-
 // TestProcessMetricsWithJobDef_DisableBillingForLargeVolumes_CRR verifies that CRR billing
 // is disabled for Large Volumes when EnableLargeVolumesBilling feature flag is false
 func TestProcessMetricsWithJobDef_DisableBillingForLargeVolumes_CRR(t *testing.T) {
@@ -4227,7 +4172,6 @@ func TestProcessMetricsWithJobDef_DisableBillingForLargeVolumes_CRR(t *testing.T
 				},
 			},
 		},
-		VolumeLargeCapacityLookup: make(map[string]bool),
 	}
 
 	metrics := []datamodel2.HydratedMetrics{
@@ -4280,7 +4224,6 @@ func TestProcessMetricsWithJobDef_DisableBillingForLargeVolumes_Backup(t *testin
 				VolumeStyle:   "FLEXGROUP",
 			},
 		},
-		VolumeLargeCapacityLookup: make(map[string]bool),
 	}
 
 	metrics := []datamodel2.HydratedMetrics{
@@ -4346,7 +4289,6 @@ func TestProcessMetricsWithJobDef_EnableBillingForLargeVolumes_WhenFlagEnabled(t
 				},
 			},
 		},
-		VolumeLargeCapacityLookup: make(map[string]bool),
 	}
 
 	metrics := []datamodel2.HydratedMetrics{
@@ -4421,8 +4363,7 @@ func TestFetchVolumeReplicationData_NilVolume(t *testing.T) {
 	mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
 
 	resourceCollection := &ResourceCollection{
-		VolumeReplicationData:     make(map[ResourceKey]ResourceData),
-		VolumeLargeCapacityLookup: make(map[string]bool),
+		VolumeReplicationData: make(map[ResourceKey]ResourceData),
 	}
 
 	startTime := time.Now().Add(-1 * time.Hour)
@@ -4433,9 +4374,9 @@ func TestFetchVolumeReplicationData_NilVolume(t *testing.T) {
 	// Only the valid replication should be in the collection (nil Volume one was skipped)
 	assert.Len(t, resourceCollection.VolumeReplicationData, 1)
 
-	// Verify the valid replication has LargeCapacity from LargeVolumeAttributes (fallback path)
+	// Verify the valid replication has LargeCapacity from Volume.LargeVolumeAttributes
 	for _, data := range resourceCollection.VolumeReplicationData {
-		assert.True(t, data.LargeCapacity, "Should get LargeCapacity from LargeVolumeAttributes fallback")
+		assert.True(t, data.LargeCapacity, "Should get LargeCapacity from Volume.LargeVolumeAttributes")
 		assert.Equal(t, "FLEXGROUP", data.VolumeStyle, "VolumeStyle should be FLEXGROUP for large capacity")
 	}
 
@@ -4485,7 +4426,6 @@ func TestProcessMetricsWithJobDef_RegularVolumes_BillingEnabled(t *testing.T) {
 				},
 			},
 		},
-		VolumeLargeCapacityLookup: make(map[string]bool),
 	}
 
 	metrics := []datamodel2.HydratedMetrics{
@@ -4508,4 +4448,198 @@ func TestProcessMetricsWithJobDef_RegularVolumes_BillingEnabled(t *testing.T) {
 	assert.Len(t, aggregatedRecords, 1)
 	// Regular volumes should have billing enabled
 	assert.True(t, aggregatedRecords[0].IsBillable, "CRR billing should be enabled for regular volumes")
+}
+
+// TestFetchBackupData_UsesOntapVolumeStyle verifies that fetchBackupData uses
+// backup.Attributes.OntapVolumeStyle to determine VolumeStyle (not volume lookup)
+func TestFetchBackupData_UsesOntapVolumeStyle(t *testing.T) {
+	ctx := context.Background()
+	mockVcpDB := &database2.MockStorage{}
+	mockMetricsDB := &database.MockStorage{}
+	mockSink := &MockUsageSink{}
+	config := &common.TelemetryConfig{
+		PoolVolumeLabelPageSize:       100,
+		GoogleBillingLabelsMaxEntries: 10,
+		EnableBackupBillingMetrics:    true,
+	}
+	provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+	// Mock backup metadata (no labels)
+	mockVcpDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.BackupMetadata{}, nil)
+
+	// Mock backups - one with flexgroup (large capacity), one with flexvol (regular)
+	mockVcpDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset == 0
+	})).Return([]*datamodel.Backup{
+		{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-1"},
+			VolumeUUID:              "deleted-volume-uuid", // Deleted volume UUID
+			LatestLogicalBackupSize: 1024,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "vault1",
+				AccountID: 123,
+			},
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:        "deleted-large-volume",
+				AccountIdentifier: "account1",
+				OntapVolumeStyle:  database2.OntapFgVolumeStyle, // Should result in FLEXGROUP VolumeStyle
+			},
+		},
+		{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-2"},
+			VolumeUUID:              "another-deleted-volume-uuid", // Deleted volume UUID
+			LatestLogicalBackupSize: 2048,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{ID: 2},
+				Name:      "vault2",
+				AccountID: 456,
+			},
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:        "deleted-regular-volume",
+				AccountIdentifier: "account2",
+				OntapVolumeStyle:  "flexvol", // Should result in FLEXVOL VolumeStyle
+			},
+		},
+	}, nil).Once()
+	mockVcpDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+		return pagination.Offset > 0
+	})).Return([]*datamodel.Backup{}, nil).Once()
+
+	resourceCollection := &ResourceCollection{
+		BackupData: make(map[ResourceKey]ResourceData),
+	}
+
+	startTime := time.Now().Add(-1 * time.Hour)
+
+	err := provider.fetchBackupData(ctx, startTime, resourceCollection)
+	assert.NoError(t, err)
+
+	// Verify both backups are in the collection
+	assert.Len(t, resourceCollection.BackupData, 2)
+
+	// Find and verify the large capacity backup
+	largeBackupKey := ResourceKey{
+		ResourceType:   metadata.Backup,
+		ResourceName:   "deleted-large-volume",
+		DeploymentName: "vault1",
+		ConsumerID:     "account1",
+	}
+	largeBackupData, found := resourceCollection.BackupData[largeBackupKey]
+	assert.True(t, found, "Large capacity backup should be in collection")
+	assert.True(t, largeBackupData.LargeCapacity, "LargeCapacity should be true for flexgroup backup")
+	assert.Equal(t, "FLEXGROUP", largeBackupData.VolumeStyle, "VolumeStyle should be FLEXGROUP for flexgroup backup")
+
+	// Find and verify the regular backup
+	regularBackupKey := ResourceKey{
+		ResourceType:   metadata.Backup,
+		ResourceName:   "deleted-regular-volume",
+		DeploymentName: "vault2",
+		ConsumerID:     "account2",
+	}
+	regularBackupData, found := resourceCollection.BackupData[regularBackupKey]
+	assert.True(t, found, "Regular backup should be in collection")
+	assert.False(t, regularBackupData.LargeCapacity, "LargeCapacity should be false for flexvol backup")
+	assert.Equal(t, "FLEXVOL", regularBackupData.VolumeStyle, "VolumeStyle should be FLEXVOL for flexvol backup")
+
+	mockVcpDB.AssertExpectations(t)
+}
+
+// TestFetchVolumeReplicationData_UsesLargeVolumeAttributes verifies that
+// fetchVolumeReplicationData uses Volume.LargeVolumeAttributes to determine VolumeStyle
+func TestFetchVolumeReplicationData_UsesLargeVolumeAttributes(t *testing.T) {
+	ctx := context.Background()
+	mockVcpDB := &database2.MockStorage{}
+	mockMetricsDB := &database.MockStorage{}
+	mockSink := &MockUsageSink{}
+	config := &common.TelemetryConfig{
+		PoolVolumeLabelPageSize:              100,
+		GoogleBillingLabelsMaxEntries:        10,
+		EnableReplicationBillingMetrics:      true,
+		EnableFilesReplicationBillingMetrics: true, // Required to allow non-ISCSI volumes
+	}
+	provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+	// Mock volume replications with LargeVolumeAttributes
+	mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "vol-rep-uuid-large"},
+			Name:      "replication-large-volume",
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "vol-uuid-large"},
+				Name:      "large-vol",
+				Pool:      &datamodel.Pool{DeploymentName: "dep1"},
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					Protocols: []string{"NFSV3"},
+				},
+				LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+					LargeCapacity: true, // Large capacity volume
+				},
+			},
+			Account: &datamodel.Account{Name: "account1"},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationType: "CROSS_REGION_REPLICATION",
+				ExternalUUID:    "ext-uuid-large",
+			},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "vol-rep-uuid-regular"},
+			Name:      "replication-regular-volume",
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "vol-uuid-regular"},
+				Name:      "regular-vol",
+				Pool:      &datamodel.Pool{DeploymentName: "dep2"},
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					Protocols: []string{"NFSV3"},
+				},
+				LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+					LargeCapacity: false, // Regular volume
+				},
+			},
+			Account: &datamodel.Account{Name: "account2"},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationType: "CROSS_REGION_REPLICATION",
+				ExternalUUID:    "ext-uuid-regular",
+			},
+		},
+	}, nil).Once()
+	mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
+
+	resourceCollection := &ResourceCollection{
+		VolumeReplicationData: make(map[ResourceKey]ResourceData),
+	}
+
+	startTime := time.Now().Add(-1 * time.Hour)
+
+	err := provider.fetchVolumeReplicationData(ctx, startTime, resourceCollection)
+	assert.NoError(t, err)
+
+	// Verify both replications are in the collection
+	assert.Len(t, resourceCollection.VolumeReplicationData, 2)
+
+	// Find and verify the large capacity replication
+	largeRepKey := ResourceKey{
+		ResourceType:   metadata.VolumeReplicationRelationship,
+		ResourceName:   "ext-uuid-large",
+		DeploymentName: "dep1",
+		ConsumerID:     "account1",
+	}
+	largeRepData, found := resourceCollection.VolumeReplicationData[largeRepKey]
+	assert.True(t, found, "Large capacity replication should be in collection")
+	assert.True(t, largeRepData.LargeCapacity, "LargeCapacity should be true from Volume.LargeVolumeAttributes")
+	assert.Equal(t, "FLEXGROUP", largeRepData.VolumeStyle, "VolumeStyle should be FLEXGROUP for large capacity")
+
+	// Find and verify the regular replication
+	regularRepKey := ResourceKey{
+		ResourceType:   metadata.VolumeReplicationRelationship,
+		ResourceName:   "ext-uuid-regular",
+		DeploymentName: "dep2",
+		ConsumerID:     "account2",
+	}
+	regularRepData, found := resourceCollection.VolumeReplicationData[regularRepKey]
+	assert.True(t, found, "Regular replication should be in collection")
+	assert.False(t, regularRepData.LargeCapacity, "LargeCapacity should be false from Volume.LargeVolumeAttributes")
+	assert.Equal(t, "FLEXVOL", regularRepData.VolumeStyle, "VolumeStyle should be FLEXVOL for regular volume")
+
+	mockVcpDB.AssertExpectations(t)
 }
