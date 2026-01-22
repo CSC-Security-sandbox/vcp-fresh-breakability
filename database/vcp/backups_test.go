@@ -2856,10 +2856,16 @@ func TestGetBackupMetrics(t *testing.T) {
 		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(tt, err)
 
-		// Create backup vault first
+		// Create backup vault first with CMEK attributes to verify they are loaded
+		kmsConfigPath := "projects/test-project/locations/us/keyRings/test-keyring/cryptoKeys/test-key"
+		encryptionState := "ENABLED"
 		backupVault := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
 			Name:      "test-backup-vault",
+			CmekAttributes: &datamodel.CmekAttributes{
+				KmsConfigResourcePath: &kmsConfigPath,
+				EncryptionState:       &encryptionState,
+			},
 		}
 		err = store.db.Create(backupVault).Error()
 		assert.NoError(tt, err)
@@ -2940,9 +2946,14 @@ func TestGetBackupMetrics(t *testing.T) {
 		assert.Equal(tt, "volume-uuid-1", volume1Backup.VolumeUUID)
 		assert.Equal(tt, int64(2048), volume1Backup.LatestLogicalBackupSize)
 		assert.NotNil(tt, volume1Backup.Attributes)
-		// Verify BackupVault is properly loaded
+		// Verify BackupVault is properly loaded with CMEK attributes
 		assert.NotNil(tt, volume1Backup.BackupVault)
 		assert.Equal(tt, "test-backup-vault", volume1Backup.BackupVault.Name)
+		assert.NotNil(tt, volume1Backup.BackupVault.CmekAttributes)
+		assert.NotNil(tt, volume1Backup.BackupVault.CmekAttributes.KmsConfigResourcePath)
+		assert.Equal(tt, kmsConfigPath, *volume1Backup.BackupVault.CmekAttributes.KmsConfigResourcePath)
+		assert.NotNil(tt, volume1Backup.BackupVault.CmekAttributes.EncryptionState)
+		assert.Equal(tt, encryptionState, *volume1Backup.BackupVault.CmekAttributes.EncryptionState)
 
 		assert.NotNil(tt, volume2Backup)
 		assert.Equal(tt, "backup-uuid-3", volume2Backup.UUID)
@@ -2950,9 +2961,12 @@ func TestGetBackupMetrics(t *testing.T) {
 		assert.Equal(tt, "volume-uuid-2", volume2Backup.VolumeUUID)
 		assert.Equal(tt, int64(4096), volume2Backup.LatestLogicalBackupSize)
 		assert.NotNil(tt, volume2Backup.Attributes)
-		// Verify BackupVault is properly loaded
+		// Verify BackupVault is properly loaded with CMEK attributes
 		assert.NotNil(tt, volume2Backup.BackupVault)
 		assert.Equal(tt, "test-backup-vault", volume2Backup.BackupVault.Name)
+		assert.NotNil(tt, volume2Backup.BackupVault.CmekAttributes)
+		assert.NotNil(tt, volume2Backup.BackupVault.CmekAttributes.KmsConfigResourcePath)
+		assert.Equal(tt, kmsConfigPath, *volume2Backup.BackupVault.CmekAttributes.KmsConfigResourcePath)
 	})
 
 	t.Run("ReturnsEmptySliceWhenNoAvailableBackups", func(tt *testing.T) {
@@ -3121,6 +3135,9 @@ func TestGetBackupMetrics(t *testing.T) {
 		assert.NotNil(tt, results[0].Attributes)
 		assert.Equal(tt, "", results[0].Attributes.AccountIdentifier)
 		assert.Equal(tt, "", results[0].Attributes.VolumeName)
+		// Verify BackupVault is loaded (cmek_attributes can be nil for non-CMEK vaults)
+		assert.NotNil(tt, results[0].BackupVault)
+		assert.Equal(tt, "test-backup-vault", results[0].BackupVault.Name)
 	})
 }
 

@@ -534,7 +534,7 @@ func (d *DataStoreRepository) GetBackupMetrics(ctx context.Context, conditions [
 	// Query to get the latest backup for each volume with state 'available'
 	// Use Find instead of Scan to ensure Preload works correctly
 	err := db.Preload("BackupVault", func(db *gorm.DB) *gorm.DB {
-		return db.Select("id, name, account_id, backup_vault_type")
+		return db.Select("id, name, account_id, backup_vault_type, cmek_attributes")
 	}).
 		Where("state = ?", models.LifeCycleStateAvailable).
 		Where("id IN (?)", db.Table("backups").
