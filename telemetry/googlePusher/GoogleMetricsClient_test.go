@@ -2841,3 +2841,45 @@ func Test_reportOperation_MockMode_AllErrorCodes(t *testing.T) {
 		}
 	}
 }
+
+func Test_isAllowedEmptyLabel(t *testing.T) {
+	t.Run("Returns true for source_service_level", func(t *testing.T) {
+		result := isAllowedEmptyLabel("/replication/source_service_level")
+		assert.True(t, result, "Expected /replication/source_service_level to be allowed")
+	})
+
+	t.Run("Returns true for destination_service_level", func(t *testing.T) {
+		result := isAllowedEmptyLabel("/replication/destination_service_level")
+		assert.True(t, result, "Expected /replication/destination_service_level to be allowed")
+	})
+
+	t.Run("Returns true for source_continent", func(t *testing.T) {
+		result := isAllowedEmptyLabel("/replication/source_continent")
+		assert.True(t, result, "Expected /replication/source_continent to be allowed")
+	})
+
+	t.Run("Returns false for non-allowed label", func(t *testing.T) {
+		result := isAllowedEmptyLabel("/replication/some_other_label")
+		assert.False(t, result, "Expected non-allowed label to return false")
+	})
+
+	t.Run("Returns false for empty string", func(t *testing.T) {
+		result := isAllowedEmptyLabel("")
+		assert.False(t, result, "Expected empty string to return false")
+	})
+
+	t.Run("Returns false for similar but not exact match", func(t *testing.T) {
+		result := isAllowedEmptyLabel("/replication/source_service_level_extra")
+		assert.False(t, result, "Expected similar but not exact match to return false")
+	})
+
+	t.Run("Returns false for label without prefix", func(t *testing.T) {
+		result := isAllowedEmptyLabel("source_service_level")
+		assert.False(t, result, "Expected label without prefix to return false")
+	})
+
+	t.Run("Returns false for case-sensitive mismatch", func(t *testing.T) {
+		result := isAllowedEmptyLabel("/replication/Source_Service_Level")
+		assert.False(t, result, "Expected case-sensitive mismatch to return false")
+	})
+}

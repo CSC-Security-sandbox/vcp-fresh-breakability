@@ -47,6 +47,13 @@ var (
 	getSourceRegion      = _getSourceRegion
 	getDestinationRegion = _getDestinationRegion
 	getServiceLevel      = _getServiceLevel
+
+	// allowedEmptyLabels defines labels that are allowed to have empty values in metrics
+	allowedEmptyLabels = []string{
+		"/replication/source_service_level",
+		"/replication/destination_service_level",
+		"/replication/source_continent",
+	}
 )
 
 type Operation servicecontrol.Operation
@@ -545,7 +552,8 @@ func (client *GoogleMetricsClient) CreateMetricValue(metric common.GoogleMetric)
 			if err != nil {
 				return nil, err
 			}
-			if metricLabelValue != "" || labelKey == "/replication/source_service_level" || labelKey == "/replication/destination_service_level" {
+			// Include label if it has a value or if it's allowed to be empty
+			if metricLabelValue != "" || isAllowedEmptyLabel(labelKey) {
 				valueLabels[labelKey] = metricLabelValue
 			}
 		}
@@ -872,6 +880,16 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 		}
 	}
 	return "", nil
+}
+
+// isAllowedEmptyLabel checks if a label key is allowed to have an empty value
+func isAllowedEmptyLabel(labelKey string) bool {
+	for _, allowedLabel := range allowedEmptyLabels {
+		if labelKey == allowedLabel {
+			return true
+		}
+	}
+	return false
 }
 
 func _getResourceUUID(metric common.GoogleMetric) (string, error) {
