@@ -108,7 +108,7 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(expertModeActivity.FetchOntapVolumeByName)
-		env.RegisterActivity(expertModeActivity.UpdateExpertModeVolumeInDB)
+		env.RegisterActivity(expertModeActivity.DeleteExpertModeVolumeInDB)
 
 		volume := &datamodel.ExpertModeVolumes{
 			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -144,7 +144,73 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("FetchOntapVolumeByName", mock.Anything, mock.Anything, mock.Anything).Return(nil, temporalAppError)
-		env.OnActivity("UpdateExpertModeVolumeInDB", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteExpertModeVolumeInDB", mock.Anything, "test-volume-uuid").Return(nil)
+
+		env.ExecuteWorkflow(VolumeCreateReconciliationWorkflow, volume)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		// Workflow should complete with error (resource not found)
+		assert.Error(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeNotFound_DeleteExpertModeVolumeInDBFails", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		expertModeActivity := expertmodeactivities.ExpertModeVolumeActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(expertModeActivity.FetchOntapVolumeByName)
+		env.RegisterActivity(expertModeActivity.DeleteExpertModeVolumeInDB)
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 1099511627776,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateCreating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		notFoundError := vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, nil)
+		temporalAppError := vsaerrors.WrapAsTemporalApplicationError(notFoundError)
+
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("FetchOntapVolumeByName", mock.Anything, mock.Anything, mock.Anything).Return(nil, temporalAppError)
+		// DeleteExpertModeVolumeInDB fails - this should trigger line 141 error logging
+		env.OnActivity("DeleteExpertModeVolumeInDB", mock.Anything, "test-volume-uuid").Return(assert.AnError)
 
 		env.ExecuteWorkflow(VolumeCreateReconciliationWorkflow, volume)
 

@@ -1,7 +1,6 @@
 package expertMode
 
 import (
-	"gorm.io/gorm"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -137,11 +136,9 @@ func (wf *volumeCreateReconciliationWorkflow) Run(ctx workflow.Context, args ...
 
 		if vsaErr != nil && vsaErr.TrackingID == vsaerrors.ErrResourceNotFound {
 			log.Infof("Volume %s not found in ONTAP after max retries, marking as DELETED", volume.Name)
-			volume.State = models.LifeCycleStateDeleted
-			volume.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
-			err2 := workflow.ExecuteActivity(ctx, activity.UpdateExpertModeVolumeInDB, volume).Get(ctx, nil)
+			err2 := workflow.ExecuteActivity(ctx, activity.DeleteExpertModeVolumeInDB, volume.UUID).Get(ctx, nil)
 			if err2 != nil {
-				log.Errorf("Failed to update volume state in DB to DELETED: %v", err2)
+				log.Errorf("Failed to delete volume in DB: %v", err2)
 			} else {
 				log.Infof("ExpertMode volume %s marked as DELETED (not found in ONTAP after max retries)", volume.Name)
 			}

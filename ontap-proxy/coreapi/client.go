@@ -126,14 +126,14 @@ func SubmitExpertModeVolumeOperation(ctx context.Context, request *coreapi.Exper
 
 	case *coreapi.V1ExpertModeVolumeBadRequest:
 		logger.ErrorContext(ctx, "Bad request when submitting expert mode volume operation",
-			"message", resp.Message,
+			"errorMessage", resp.Message,
 			"volumeName", request.VolumeName,
 			"action", request.Action)
 		return customerrors.NewBadRequestErr(fmt.Sprintf("bad request: %s", resp.Message))
 
 	case *coreapi.V1ExpertModeVolumeConflict:
 		logger.ErrorContext(ctx, "Conflict when submitting expert mode volume operation",
-			"message", resp.Message,
+			"errorMessage", resp.Message,
 			"volumeName", request.VolumeName,
 			"action", request.Action)
 		return customerrors.NewConflictErr(fmt.Sprintf("conflict: %s", resp.Message))
