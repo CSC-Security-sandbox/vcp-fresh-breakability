@@ -256,7 +256,6 @@ workerConfig:
   createSnapshotWorkflowTimeoutMinutes: "50" # Create snapshot workflow run timeout in minutes
   deleteSnapshotWorkflowTimeoutMinutes: "65" # Delete snapshot workflow run timeout in minutes
   revertVolumeWorkflowTimeoutMinutes: "95" # Revert volume workflow run timeout in minutes
-  cmekBackupEnabled: false
   workflowGlobalTimeoutForReplicationMinutes: 10
   poolWorkflowCancellationAckTimeout: 5 # Timeout (in minutes)
   poolWorkflowForceTerminationAckTimeout: 30 # Timeout (in seconds)

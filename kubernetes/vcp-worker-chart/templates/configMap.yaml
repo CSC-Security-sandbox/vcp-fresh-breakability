@@ -144,7 +144,6 @@ data:
   CREATE_SNAPSHOT_WORKFLOW_TIMEOUT_MINUTES: {{$.Values.workerConfig.createSnapshotWorkflowTimeoutMinutes | quote }}
   DELETE_SNAPSHOT_WORKFLOW_TIMEOUT_MINUTES: {{$.Values.workerConfig.deleteSnapshotWorkflowTimeoutMinutes | quote }}
   REVERT_VOLUME_WORKFLOW_TIMEOUT_MINUTES: {{$.Values.workerConfig.revertVolumeWorkflowTimeoutMinutes | quote }}
-  CMEK_BACKUP_ENABLED: {{$.Values.workerConfig.cmekBackupEnabled | quote }}
   CMEK_ROTATION_PAGE_SIZE: {{$.Values.workerConfig.cmekRotationPageSize | quote }}
   CMEK_ROTATION_MAX_WORKERS: {{$.Values.workerConfig.cmekRotationMaxWorkers | quote }}
   MAX_CMEK_ROTATION_PASSES: {{$.Values.workerConfig.cmekRotationMaxPasses | quote }}

@@ -45,7 +45,6 @@ var (
 	volumeRefreshIntervalMinutes         = env.GetInt("VOLUME_REFRESH_INTERVAL_MINUTES", 5)
 	maxThinClonesPerPool                 = env.GetInt64("MAX_THIN_CLONES_PER_POOL", 100)
 	thinCloneGASupport                   = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
-	cmekBackupEnabled                    = env.GetBool("CMEK_BACKUP_ENABLED", false)
 	minQuotaInBytesVolume                = utils.MinQuotaInBytesVolumeForVolume
 	maxQuotaInBytesVolume                = utils.MaxQuotaInBytesVolumeForVolume
 	createVolume                         = _createVolume
@@ -1124,7 +1123,6 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			msg := "Scheduled backups are not supported for Hybrid Replication, only manual backups are supported"
 			return customerrors.NewUserInputValidationErr(msg)
 		}
-
 		for _, ipAddress := range params.HybridReplicationParameters.PeerIPAddresses {
 			if !utils.ValidateIPv4Address(ipAddress) {
 				msg := "Invalid IP Address provided in Hybrid Replication Parameters"
@@ -1299,11 +1297,8 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			if err := validateCRBBackupVault(bv, params.Region); err != nil {
 				return err
 			}
-		}
-
-		if params.DataProtection.KmsGrant != nil && *params.DataProtection.KmsGrant != "" {
-			if !cmekBackupEnabled {
-				return customerrors.NewUserInputValidationErr("CMEK backup is not enabled")
+			if bv.CmekAttributes != nil && !nillable.IsNilOrEmpty(bv.CmekAttributes.KmsConfigResourcePath) && nillable.IsNilOrEmpty(params.DataProtection.KmsGrant) {
+				return customerrors.NewUserInputValidationErr("KMS Grant is required for CMEK Backup vault")
 			}
 		}
 	}
@@ -2257,6 +2252,9 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 			if err := validateCRBBackupVault(bv, params.Region); err != nil {
 				return err
 			}
+			if bv.CmekAttributes != nil && !nillable.IsNilOrEmpty(bv.CmekAttributes.KmsConfigResourcePath) && nillable.IsNilOrEmpty(params.DataProtection.KmsGrant) {
+				return customerrors.NewUserInputValidationErr("KMS Grant is required for CMEK Backup vault")
+			}
 		}
 	}
 
@@ -2277,29 +2275,6 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		}
 		if backupPolicy != nil && backupPolicy.LifeCycleState != models.LifeCycleStateREADY {
 			return customerrors.NewUserInputValidationErr("backup policy is not in ready state, please check the backup policy and try again")
-		}
-	}
-
-	// Block CMEK for all VCP volumes (both SAN and NAS)
-	// Since we got the volume from VCP database (line 1812), it exists in VCP and is a VCP volume
-	var backupVaultID string
-	if params.DataProtection != nil && params.DataProtection.BackupVaultID != nil && *params.DataProtection.BackupVaultID != "" {
-		backupVaultID = *params.DataProtection.BackupVaultID
-	} else if volume.DataProtection != nil && volume.DataProtection.BackupVaultID != "" {
-		backupVaultID = volume.DataProtection.BackupVaultID
-	}
-
-	if backupVaultID != "" {
-		if params.DataProtection != nil && params.DataProtection.KmsGrant != nil && *params.DataProtection.KmsGrant != "" {
-			if !cmekBackupEnabled {
-				return customerrors.NewUserInputValidationErr("CMEK backup is not enabled")
-			}
-		}
-
-		if volume.DataProtection != nil && volume.DataProtection.BackupVaultID == backupVaultID && volume.DataProtection.KmsGrant != nil && *volume.DataProtection.KmsGrant != "" {
-			if !cmekBackupEnabled {
-				return customerrors.NewUserInputValidationErr("CMEK backup is not enabled")
-			}
 		}
 	}
 
