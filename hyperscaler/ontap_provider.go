@@ -9,6 +9,7 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -34,12 +35,12 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 		util.GetLogger(ctx).Errorf("Node is nil")
 		return nil, errors.NewVCPError(errors.ErrResourceNotFound, fmt.Errorf("node is nil"))
 	}
-	
+
 	if node.AuthType == env.USER_CERTIFICATE {
-		// For certificate auth, we require EndpointAddressesToHostNameMap to be populated
+		// Validate that we have endpoint addresses for certificate auth
 		if len(node.EndpointAddressesToHostNameMap) == 0 {
 			util.GetLogger(ctx).Errorf("No endpoint addresses found in EndpointAddressesToHostNameMap for node %s", node.Name)
-			return nil, errors.NewVCPError(errors.ErrVSAClusterNodeIPAddressNotFound, fmt.Errorf("no endpoint addresses found for node %s - this indicates a database consistency issue", node.Name))
+			return nil, errors.NewVCPError(errors.ErrVSAClusterNodeIPAddressNotFound, fmt.Errorf("VSA cluster node IP address not found"))
 		}
 		// Create PoolCredentials from Node's CA URI for certificate retrieval
 		poolCredentials := &datamodel.PoolCredentials{
@@ -60,7 +61,7 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 			ipAddress = endpointAddr
 			break // Use the first available IP address
 		}
-		
+
 		// For certificate-based auth, we still need password for SSH connections
 		// Use the node's password directly - SecretID contains private key, not password
 		var password string
@@ -70,11 +71,11 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 			util.GetLogger(ctx).Warnf("No password available for SSH authentication with certificate-based auth")
 			// Continue without password - SSH will fail but REST API will work
 		}
-		
+
 		return vsa.NewProvider(ctx, vsa.ProviderDetails{
 			IPAddress: ipAddress,
-			Hosts: node.EndpointAddressesToHostNameMap,
-			Password: password, // Set password for SSH connections
+			Hosts:     node.EndpointAddressesToHostNameMap,
+			Password:  password, // Set password for SSH connections
 			Certificate: &vsa.Certificate{
 				SignedCertificate:        certificate.SignedCertificate,
 				InterMediateCertificates: certificate.InterMediateCertificates,
@@ -111,7 +112,7 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 		ipAddress = endpointAddr
 		break // Use the first available IP address
 	}
-	
+
 	return vsa.NewProvider(ctx, vsa.ProviderDetails{
 		IPAddress:          ipAddress,
 		Hosts:              node.EndpointAddressesToHostNameMap,
@@ -397,7 +398,7 @@ func _createCertificateInCAS(gcpService GoogleServices, certificate *hyperscaler
 func _createPrivateKeyInSecretManager(gcpService GoogleServices, certificate *hyperscalermodels.CustomCertificate, key *rsa.PrivateKey) (*hyperscalermodels.CustomSecret, error) {
 	logger := gcpService.GetLogger()
 	logger.Debugf("Creating private key in Secret Manager for commonName: %s, certificateId : %s", certificate.SubjectCommonName, certificate.CertificateID)
-	
+
 	// Store the private key in Secret Manager using the certificate ID directly
 	secretValue := common2.ConvertPrivateKeyToString(key, RsaKeyType)
 	secret, err := gcpService.CreateSecret(env.SecretManagerProjectID, certificate.Region, certificate.CertificateID, secretValue)
@@ -415,7 +416,7 @@ func _getCertificateAndPrivateKeyByID(gcpService GoogleServices, caDeployedProje
 	if err != nil || certificate == nil {
 		return nil, fmt.Errorf("failed to get certficate for project: %s, region: %s, caPoolName : %s, certificateID : %s, err: %s", caDeployedProjectID, region, caPoolName, certificateID, err)
 	}
-	
+
 	// Get the private key from Secret Manager using the certificate ID directly
 	secret, err := gcpService.GetSecretWithLatestVersion(secretManagerProjectID, certificateID)
 	if err != nil || secret == nil || secret.SecretVersion == nil {
@@ -430,7 +431,7 @@ func _getCertificateAndPrivateKeyByID(gcpService GoogleServices, caDeployedProje
 // _generatePasswordForVSACluster generates a strong password and creates a secret in GCP Secret Manager.
 func _generatePasswordForVSACluster(gcpService GoogleServices, secretID string) (*hyperscalermodels.CustomSecret, error) {
 	logger := gcpService.GetLogger()
-	
+
 	var secret *hyperscalermodels.CustomSecret
 	projectID := env.SecretManagerProjectID
 	secret, getSecretError := gcpService.GetSecretWithLatestVersion(projectID, secretID)
@@ -443,12 +444,12 @@ func _generatePasswordForVSACluster(gcpService GoogleServices, secretID string) 
 			logger.Errorf("failed to generate password for secretID: %s, err : %v", secretID, err)
 			return nil, err
 		}
-		
+
 		secret, err = gcpService.CreateSecret(projectID, env.Region, secretID, password)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		common.AddToUserAuthCache(secretID, secret.SecretVersion.Value)
 	}
 	return secret, nil
@@ -581,16 +582,40 @@ func _revokeCertificateAndDeleteFromCacheAndSecretManager(gcpService GoogleServi
 	logger := gcpService.GetLogger()
 	certificateID := poolCredentials.CertificateID
 	certificate, secret, err := GetCertificateAndSecret(gcpService, poolCredentials)
-	if err != nil {
+
+	// Check if the error is due to a revoked certificate
+	isRevoked := err != nil && strings.Contains(err.Error(), "certificate") && strings.Contains(err.Error(), "is revoked and cannot be used")
+
+	if err != nil && !isRevoked {
 		logger.Errorf("Failed to get Certificate and Secret for certificateID: %s, err: %v", certificateID, err)
 		return err
 	}
 
-	// Delete the certificate and Secret if any exist
-	err = DeleteCertificateAndSecret(gcpService, certificate, secret, poolCredentials)
-	if err != nil {
-		logger.Errorf("Failed to delete certificate and private key for certificateID: %s, err: %v", certificateID, err)
-		return err
+	if isRevoked {
+		logger.Warnf("Certificate %s is already revoked, proceeding with cleanup of secret and cache", certificateID)
+
+		// Check if the secret exists before attempting deletion
+		secret, secretErr := gcpService.GetSecretWithLatestVersion(env.SecretManagerProjectID, certificateID)
+		if secretErr != nil {
+			logger.Debugf("Secret not found for revoked certificate %s, skipping deletion", certificateID)
+		}
+
+		// Delete the secret if it exists
+		if secretErr == nil && secret != nil {
+			err = gcpService.DeleteSecret(env.SecretManagerProjectID, certificateID)
+			if err != nil {
+				logger.Errorf("Failed to delete private key from secret manager for projectID: %s and certificate: %s, err: %v", env.SecretManagerProjectID, certificateID, err)
+				// Don't return error - continue with cache cleanup
+			}
+		}
+	} else {
+		// Certificate is not revoked, proceed with normal deletion
+		// DeleteCertificateAndSecret handles both certificate revocation and secret deletion
+		err = DeleteCertificateAndSecret(gcpService, certificate, secret, poolCredentials)
+		if err != nil {
+			logger.Errorf("Failed to delete certificate and private key for certificateID: %s, err: %v", certificateID, err)
+			return err
+		}
 	}
 
 	// delete from cache if not expired

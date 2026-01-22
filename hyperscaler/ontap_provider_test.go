@@ -471,6 +471,46 @@ func Test_deleteVSAClusterPassword(t *testing.T) {
 		assert.NoError(t, err) // Should still return nil even if cache removal fails
 		mockGCP.AssertExpectations(t)
 	})
+
+	t.Run("certificate is revoked - GetSecretWithLatestVersion returns nil secret (no error), cache removed", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		// GetSecretWithLatestVersion returns nil, nil (no error, but secret is nil)
+		mockGCP.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		// DeleteSecret should NOT be called since secret is nil
+		// We don't set up expectation for DeleteSecret, so if it's called, the test will fail
+
+		// Mock cache removal to return true (cache was removed)
+		origRemove := common.RemoveFromUserAuthCache
+		defer func() { common.RemoveFromUserAuthCache = origRemove }()
+		common.RemoveFromUserAuthCache = func(secretID string) bool { return true }
+
+		err := DeletePasswordFromCacheAndSecretManager(mockGCP, secretID)
+		assert.NoError(t, err)
+		mockGCP.AssertExpectations(t)
+		// Verify DeleteSecret was NOT called
+		mockGCP.AssertNotCalled(t, "DeleteSecret", mock.Anything, mock.Anything)
+	})
+
+	t.Run("certificate is revoked - GetSecretWithLatestVersion returns nil secret (no error), cache not in cache", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		// GetSecretWithLatestVersion returns nil, nil (no error, but secret is nil)
+		mockGCP.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		// DeleteSecret should NOT be called since secret is nil
+		// We don't set up expectation for DeleteSecret, so if it's called, the test will fail
+
+		// Mock cache removal to return false (certificate was not in cache)
+		origRemove := common.RemoveFromUserAuthCache
+		defer func() { common.RemoveFromUserAuthCache = origRemove }()
+		common.RemoveFromUserAuthCache = func(secretID string) bool { return false }
+
+		err := DeletePasswordFromCacheAndSecretManager(mockGCP, secretID)
+		assert.NoError(t, err)
+		mockGCP.AssertExpectations(t)
+		// Verify DeleteSecret was NOT called
+		mockGCP.AssertNotCalled(t, "DeleteSecret", mock.Anything, mock.Anything)
+	})
 }
 
 func Test_GetCertificateAndPrivateKeyByID(t *testing.T) {
@@ -1463,6 +1503,136 @@ func Test_RevokeCertificateAndDeleteFromCacheAndSecretManager(t *testing.T) {
 		poolCredentials := &datamodel.PoolCredentials{CertificateID: certificateID}
 		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGCP, poolCredentials)
 		assert.NoError(t, err)
+	})
+
+	t.Run("certificate is revoked - secret exists and deleted successfully, cache removed", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		origRemoveFromCertAuthCache := common.RemoveFromCertAuthCache
+		origGetCertificateAndSecret := GetCertificateAndSecret
+		defer func() {
+			common.RemoveFromCertAuthCache = origRemoveFromCertAuthCache
+			GetCertificateAndSecret = origGetCertificateAndSecret
+		}()
+		GetCertificateAndSecret = func(gcpService GoogleServices, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return nil, nil, fmt.Errorf("certificate is revoked and cannot be used")
+		}
+		common.RemoveFromCertAuthCache = func(certID string) bool { return true }
+		mockGCP.On("GetLogger").Return(mockLogger)
+		mockGCP.On("GetSecretWithLatestVersion", env.SecretManagerProjectID, certificateID).Return(&hyperscaler3.CustomSecret{}, nil)
+		mockGCP.On("DeleteSecret", env.SecretManagerProjectID, certificateID).Return(nil)
+
+		poolCredentials := &datamodel.PoolCredentials{CertificateID: certificateID}
+		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGCP, poolCredentials)
+		assert.NoError(t, err)
+		mockGCP.AssertExpectations(t)
+	})
+
+	t.Run("certificate is revoked - secret exists and deleted successfully, cache not in cache", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		origRemoveFromCertAuthCache := common.RemoveFromCertAuthCache
+		origGetCertificateAndSecret := GetCertificateAndSecret
+		defer func() {
+			common.RemoveFromCertAuthCache = origRemoveFromCertAuthCache
+			GetCertificateAndSecret = origGetCertificateAndSecret
+		}()
+		GetCertificateAndSecret = func(gcpService GoogleServices, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return nil, nil, fmt.Errorf("certificate is revoked and cannot be used")
+		}
+		common.RemoveFromCertAuthCache = func(certID string) bool { return false }
+		mockGCP.On("GetLogger").Return(mockLogger)
+		mockGCP.On("GetSecretWithLatestVersion", env.SecretManagerProjectID, certificateID).Return(&hyperscaler3.CustomSecret{}, nil)
+		mockGCP.On("DeleteSecret", env.SecretManagerProjectID, certificateID).Return(nil)
+
+		poolCredentials := &datamodel.PoolCredentials{CertificateID: certificateID}
+		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGCP, poolCredentials)
+		assert.NoError(t, err)
+		mockGCP.AssertExpectations(t)
+	})
+
+	t.Run("certificate is revoked - secret not found, cache removed", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		origRemoveFromCertAuthCache := common.RemoveFromCertAuthCache
+		origGetCertificateAndSecret := GetCertificateAndSecret
+		defer func() {
+			common.RemoveFromCertAuthCache = origRemoveFromCertAuthCache
+			GetCertificateAndSecret = origGetCertificateAndSecret
+		}()
+		GetCertificateAndSecret = func(gcpService GoogleServices, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return nil, nil, fmt.Errorf("certificate is revoked and cannot be used")
+		}
+		common.RemoveFromCertAuthCache = func(certID string) bool { return true }
+		mockGCP.On("GetLogger").Return(mockLogger)
+		mockGCP.On("GetSecretWithLatestVersion", env.SecretManagerProjectID, certificateID).Return(nil, fmt.Errorf("secret not found"))
+
+		poolCredentials := &datamodel.PoolCredentials{CertificateID: certificateID}
+		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGCP, poolCredentials)
+		assert.NoError(t, err) // Should not return error even if secret doesn't exist
+		mockGCP.AssertExpectations(t)
+	})
+
+	t.Run("certificate is revoked - secret not found, cache not in cache", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		origRemoveFromCertAuthCache := common.RemoveFromCertAuthCache
+		origGetCertificateAndSecret := GetCertificateAndSecret
+		defer func() {
+			common.RemoveFromCertAuthCache = origRemoveFromCertAuthCache
+			GetCertificateAndSecret = origGetCertificateAndSecret
+		}()
+		GetCertificateAndSecret = func(gcpService GoogleServices, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return nil, nil, fmt.Errorf("certificate is revoked and cannot be used")
+		}
+		common.RemoveFromCertAuthCache = func(certID string) bool { return false }
+		mockGCP.On("GetLogger").Return(mockLogger)
+		mockGCP.On("GetSecretWithLatestVersion", env.SecretManagerProjectID, certificateID).Return(nil, fmt.Errorf("secret not found"))
+
+		poolCredentials := &datamodel.PoolCredentials{CertificateID: certificateID}
+		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGCP, poolCredentials)
+		assert.NoError(t, err) // Should not return error even if secret doesn't exist
+		mockGCP.AssertExpectations(t)
+	})
+
+	t.Run("certificate is revoked - secret exists but DeleteSecret fails, cache removed", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		origRemoveFromCertAuthCache := common.RemoveFromCertAuthCache
+		origGetCertificateAndSecret := GetCertificateAndSecret
+		defer func() {
+			common.RemoveFromCertAuthCache = origRemoveFromCertAuthCache
+			GetCertificateAndSecret = origGetCertificateAndSecret
+		}()
+		GetCertificateAndSecret = func(gcpService GoogleServices, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return nil, nil, fmt.Errorf("certificate is revoked and cannot be used")
+		}
+		common.RemoveFromCertAuthCache = func(certID string) bool { return true }
+		mockGCP.On("GetLogger").Return(mockLogger)
+		mockGCP.On("GetSecretWithLatestVersion", env.SecretManagerProjectID, certificateID).Return(&hyperscaler3.CustomSecret{}, nil)
+		mockGCP.On("DeleteSecret", env.SecretManagerProjectID, certificateID).Return(fmt.Errorf("delete secret failed"))
+
+		poolCredentials := &datamodel.PoolCredentials{CertificateID: certificateID}
+		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGCP, poolCredentials)
+		assert.NoError(t, err) // Should not return error even if DeleteSecret fails
+		mockGCP.AssertExpectations(t)
+	})
+
+	t.Run("certificate is revoked - secret exists but DeleteSecret fails, cache not in cache", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		origRemoveFromCertAuthCache := common.RemoveFromCertAuthCache
+		origGetCertificateAndSecret := GetCertificateAndSecret
+		defer func() {
+			common.RemoveFromCertAuthCache = origRemoveFromCertAuthCache
+			GetCertificateAndSecret = origGetCertificateAndSecret
+		}()
+		GetCertificateAndSecret = func(gcpService GoogleServices, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return nil, nil, fmt.Errorf("certificate is revoked and cannot be used")
+		}
+		common.RemoveFromCertAuthCache = func(certID string) bool { return false }
+		mockGCP.On("GetLogger").Return(mockLogger)
+		mockGCP.On("GetSecretWithLatestVersion", env.SecretManagerProjectID, certificateID).Return(&hyperscaler3.CustomSecret{}, nil)
+		mockGCP.On("DeleteSecret", env.SecretManagerProjectID, certificateID).Return(fmt.Errorf("delete secret failed"))
+
+		poolCredentials := &datamodel.PoolCredentials{CertificateID: certificateID}
+		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGCP, poolCredentials)
+		assert.NoError(t, err) // Should not return error even if DeleteSecret fails
+		mockGCP.AssertExpectations(t)
 	})
 }
 
