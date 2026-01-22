@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/endpoints"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/ontap-proxy-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/dsl"
@@ -42,6 +43,12 @@ func main() {
 			logger.ErrorContext(ctx, "error shutting down OpenTelemetry", "error", err)
 		}
 	}()
+
+	// Initialize ontap-proxy metrics (must be called after SetupOpenTelemetry)
+	if err := middleware.InitMetrics(); err != nil {
+		logger.Error("Failed to initialize metrics", "error", err.Error())
+		os.Exit(1)
+	}
 
 	// Create OpenAPI server with health endpoint handler
 	handler := endpoints.Handler{}
@@ -83,6 +90,9 @@ func setupHTTPServer(handler http.Handler) *http.Server {
 	mux.Use(httphelpers.LoggingHttpHandler)
 	mux.Use(log.LoggingMiddleware)
 	mux.Use(log.RecoverMiddleware)
+	// Metrics middleware BEFORE auth to capture auth failures
+	// Only track passthrough routes (will be filtered in the middleware)
+	mux.Use(middleware.MetricsMiddleware())
 	mux.Use(auth.AuthMiddleware(false)) // false = enable project number validation
 
 	ontapProxy := reverseproxy.BuildOntapRESTProxy()
@@ -109,6 +119,9 @@ func setupHTTPServer(handler http.Handler) *http.Server {
 
 	// Mount OpenAPI server for /health endpoint (less specific, handles remaining routes)
 	mux.Mount("/", handler)
+
+	// Expose Prometheus metrics endpoint (AuthMiddleware automatically skips /metrics)
+	mux.Handle("/metrics", promhttp.Handler())
 
 	return &http.Server{
 		Handler:           mux,

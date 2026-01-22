@@ -20,6 +20,7 @@ data:
   SECRET_MANAGER_PROJECT_ID: {{ .Values.gcp.secretManager.projectId | quote }}
   LOCAL_REGION: {{ .Values.gcp.region | quote }}
   CA_POOL_NAME: {{ .Values.gcp.caPool.name | quote }}
+  OTEL_GOOGLE_PROJECT_ID: {{ .Values.gcp.otelGoogleProjectId | quote }}
 
   # GCP Authentication Configuration
   GCP_AUTH_ACCEPTED_SERVICE_ACCOUNTS: {{ .Values.gcp.auth.acceptedServiceAccounts | quote }}
