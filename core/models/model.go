@@ -55,7 +55,7 @@ const (
 	LifeCycleStateUnknownDetails                       = "Unknown state" // Unknown state details, used when the state is not decided yet
 	LifeCycleStateInUseDetails                         = "In use"
 	LifeCycleStateMigratingDetails                     = "Kms config is in migrating state"
-	LifeCycleStateDegradedDetails                      = "Pool is running in a degraded state due to a node failure"
+	LifeCycleStateDegradedDetails                      = "We're currently experiencing degraded performance for this resource, which may result in increased write latency. Some operations maybe restricted during this time."
 	LifeCycleStateVolMigratingDetails                  = "Volume encryption in progress"
 	LifeCycleStateHyperscalerDisabledDetails           = "Hyperscaler disabled"
 	VolumeReplicationBreakRelationshipQuotaRuleFailure = "Break operation is successful and destination volume has become RW, but post break quota rule creation operation failed"

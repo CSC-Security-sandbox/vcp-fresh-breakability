@@ -313,8 +313,8 @@ stateDiagram-v2
     end note
     
     note left of DEGRADED
-        Pool runs in degraded mode
-        due to node failure
+        Degraded performance for resource
+        with increased write latency
     end note
 ```
 
