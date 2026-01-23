@@ -735,9 +735,9 @@ func getLdapEnabled(pool *models.Pool) bool {
 }
 
 func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
-	var deletedAt time.Time
+	var deletedAt gcpgenserver.OptNilDateTime
 	if pool.DeletedAt != nil {
-		deletedAt = *pool.DeletedAt
+		deletedAt = gcpgenserver.NewOptNilDateTime(*pool.DeletedAt)
 	}
 
 	var throughputValue float64
@@ -766,7 +766,7 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		PoolId:                   gcpgenserver.NewOptString(pool.UUID),
 		CreatedAt:                gcpgenserver.NewOptDateTime(pool.CreatedAt),
 		UpdatedAt:                gcpgenserver.NewOptDateTime(pool.UpdatedAt),
-		DeletedAt:                gcpgenserver.NewOptNilDateTime(deletedAt),
+		DeletedAt:                deletedAt,
 		ResourceId:               pool.Name,
 		Description:              gcpgenserver.NewOptNilString(pool.Description),
 		Network:                  pool.VendorSubNetID,

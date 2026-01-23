@@ -5016,6 +5016,211 @@ func TestConvertToPoolV1Beta(t *testing.T) {
 	})
 }
 
+func TestConvertToPoolV1Beta_DeletedAtHandling(t *testing.T) {
+	t.Run("WhenPoolHasNilDeletedAt_FieldIsOmitted", func(tt *testing.T) {
+		// Test for READY pools where deletedAt should be omitted (Swagger 2.0 behavior)
+		// This tests the fix for the bug where nil deletedAt was converted to 0001-01-01T00:00:00Z
+		createdAt := time.Now()
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID:      "ready-pool-uuid",
+				CreatedAt: createdAt,
+				UpdatedAt: createdAt,
+				DeletedAt: nil, // READY pool has nil deletedAt
+			},
+			Name:           "ready-pool",
+			Description:    "Test READY pool",
+			SizeInBytes:    1099511627776,
+			State:          models.LifeCycleStateREADY,
+			ServiceLevel:   "premium",
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "ready-pool-uuid", result.PoolId.Value)
+		// Critical assertion: DeletedAt should be Set=false to omit field from JSON
+		assert.False(tt, result.DeletedAt.IsSet(), "DeletedAt should be Set=false to omit field")
+		// Verify Get() returns false for unset values
+		_, ok := result.DeletedAt.Get()
+		assert.False(tt, ok, "Get() should return false for unset DeletedAt")
+	})
+
+	t.Run("WhenPoolHasValidDeletedAt_ReturnsDeletedAtValue", func(tt *testing.T) {
+		// Test for deleted pools where deletedAt has a timestamp
+		createdAt := time.Now()
+		deletedAt := time.Now().Add(1 * time.Hour)
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID:      "deleted-pool-uuid",
+				CreatedAt: createdAt,
+				UpdatedAt: createdAt,
+				DeletedAt: &deletedAt, // Deleted pool has timestamp
+			},
+			Name:           "deleted-pool",
+			Description:    "Test deleted pool",
+			SizeInBytes:    1099511627776,
+			State:          models.LifeCycleStateDeleted,
+			ServiceLevel:   "premium",
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "deleted-pool-uuid", result.PoolId.Value)
+		// Critical assertion: DeletedAt should be Set=true, Null=false, with valid timestamp
+		assert.True(tt, result.DeletedAt.IsSet(), "DeletedAt should be Set=true")
+		assert.False(tt, result.DeletedAt.IsNull(), "DeletedAt should be Null=false for deleted pool")
+		// Verify Get() returns the actual timestamp
+		actualDeletedAt, ok := result.DeletedAt.Get()
+		assert.True(tt, ok, "Get() should return true for non-null DeletedAt")
+		assert.Equal(tt, deletedAt, actualDeletedAt, "DeletedAt timestamp should match")
+	})
+
+	t.Run("WhenPoolHasZeroTimeDeletedAt_DoesNotReturnZeroTime", func(tt *testing.T) {
+		// Regression test: ensure we never return 0001-01-01T00:00:00Z
+		// This was the original bug where var deletedAt time.Time initialized to zero time
+		createdAt := time.Now()
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID:      "pool-with-nil-deleted",
+				CreatedAt: createdAt,
+				UpdatedAt: createdAt,
+				DeletedAt: nil,
+			},
+			Name:           "test-pool",
+			SizeInBytes:    1099511627776,
+			State:          models.LifeCycleStateREADY,
+			ServiceLevel:   "premium",
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		// Ensure field is not set (omitted from JSON)
+		assert.False(tt, result.DeletedAt.IsSet(), "Should be unset, not zero time")
+		actualDeletedAt, ok := result.DeletedAt.Get()
+		assert.False(tt, ok, "Should not return a value")
+		// If we accidentally got a value, ensure it's not year 1
+		if ok {
+			assert.NotEqual(tt, 1, actualDeletedAt.Year(), "Should never return year 1 (zero time)")
+		}
+	})
+
+	t.Run("WhenPoolDeletedAtIsNil_FieldOmittedFromJSON", func(tt *testing.T) {
+		// Test JSON serialization behavior - field should be omitted (Swagger 2.0 behavior)
+		// Critical for API response correctness
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID:      "pool-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				DeletedAt: nil,
+			},
+			Name:           "test-pool",
+			SizeInBytes:    1099511627776,
+			State:          models.LifeCycleStateREADY,
+			ServiceLevel:   "premium",
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		// Marshal to JSON and verify deletedAt is omitted (not "0001-01-01T00:00:00Z" or null)
+		jsonBytes, err := result.MarshalJSON()
+		assert.NoError(tt, err, "Should marshal to JSON without error")
+
+		jsonStr := string(jsonBytes)
+		// Ensure deletedAt is NOT the zero time string
+		assert.NotContains(tt, jsonStr, "0001-01-01", "Should not contain zero time in JSON")
+		// Field should be completely omitted (Swagger 2.0 behavior)
+		assert.NotContains(tt, jsonStr, "deletedAt", "deletedAt field should be omitted from JSON when nil")
+		assert.NotContains(tt, jsonStr, "deleted_at", "deleted_at field should be omitted from JSON when nil")
+	})
+
+	t.Run("WhenPoolDeletedAtIsSet_SerializesToJSONTimestamp", func(tt *testing.T) {
+		// Test JSON serialization with valid timestamp
+		deletedAt := time.Date(2026, 1, 23, 12, 0, 0, 0, time.UTC)
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID:      "pool-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				DeletedAt: &deletedAt,
+			},
+			Name:           "test-pool",
+			SizeInBytes:    1099511627776,
+			State:          models.LifeCycleStateDeleted,
+			ServiceLevel:   "premium",
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		// Marshal to JSON and verify deletedAt contains the timestamp
+		jsonBytes, err := result.MarshalJSON()
+		assert.NoError(tt, err, "Should marshal to JSON without error")
+
+		jsonStr := string(jsonBytes)
+		// Verify timestamp is present (2026)
+		assert.Contains(tt, jsonStr, "2026", "Should contain the year 2026 in JSON")
+		assert.NotContains(tt, jsonStr, `"deletedAt":null`, "deletedAt should not be null when set")
+		assert.NotContains(tt, jsonStr, `"deleted_at":null`, "deleted_at should not be null when set")
+	})
+
+	t.Run("WhenPoolInCREATINGState_DeletedAtIsOmitted", func(tt *testing.T) {
+		// Test that pools in CREATING state (not yet ready) have deletedAt field omitted
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID:      "creating-pool-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				DeletedAt: nil,
+			},
+			Name:           "creating-pool",
+			SizeInBytes:    1099511627776,
+			State:          models.LifeCycleStateCreating,
+			ServiceLevel:   "premium",
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		assert.False(tt, result.DeletedAt.IsSet(), "DeletedAt should be Set=false (field omitted)")
+	})
+
+	t.Run("WhenPoolInDELETINGState_DeletedAtMayBeSet", func(tt *testing.T) {
+		// Test that pools in DELETING state may have deletedAt already set
+		deletedAt := time.Now()
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID:      "deleting-pool-uuid",
+				CreatedAt: time.Now().Add(-1 * time.Hour),
+				UpdatedAt: time.Now(),
+				DeletedAt: &deletedAt,
+			},
+			Name:           "deleting-pool",
+			SizeInBytes:    1099511627776,
+			State:          models.LifeCycleStateDeleting,
+			ServiceLevel:   "premium",
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		assert.True(tt, result.DeletedAt.IsSet(), "DeletedAt should be Set=true")
+		assert.False(tt, result.DeletedAt.IsNull(), "DeletedAt should be Null=false for DELETING pool with timestamp")
+		actualDeletedAt, ok := result.DeletedAt.Get()
+		assert.True(tt, ok, "Get() should return true")
+		assert.Equal(tt, deletedAt, actualDeletedAt, "DeletedAt timestamp should match")
+	})
+}
+
 // TestValidateThroughputAndIopsForUpdate tests the validateThroughputAndIopsForUpdate function
 // which is used for pool updates and covers the missing coverage scenarios
 func TestValidateThroughputAndIopsForUpdate(t *testing.T) {
