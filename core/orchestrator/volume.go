@@ -1690,9 +1690,42 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
-	if utils.IsTransitionalState(volume.State) {
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+	var existingDeleteJobUUID string
+	// Flag to determine if we should use non-sequential execution (for same correlation ID case)
+	useNonSequentialExecution := false
+	// Determine the correct delete job type based on volume type
+	deleteJobType := models.JobTypeDeleteVolume
+	createJobType := models.JobTypeCreateVolume
+	if volume.LargeVolumeAttributes != nil && volume.LargeVolumeAttributes.LargeCapacity {
+		deleteJobType = models.JobTypeDeleteLargeVolume
+		createJobType = models.JobTypeCreateLargeVolume
+	}
+	if volume.CacheParameters != nil {
+		deleteJobType = models.JobTypeFlexCacheDeleteVolume
+		createJobType = models.JobTypeFlexCacheCreateVolume
+	}
+
+	if volume.State == models.LifeCycleStateCreating {
+		existingDeleteJobUUID, _, err = database.ValidateCorrelationIDForCreatingResource(
+			ctx, se, volume.UUID, "volume", createJobType, deleteJobType, logger)
+		if err != nil {
+			logger.Warnf("Volume %s cannot be deleted: existing create job not present and state is in CREATING", volume.UUID)
+			return nil, "", err
+		}
+		if existingDeleteJobUUID != "" {
+			return convertDatastoreVolumeToModel(volume, nil), existingDeleteJobUUID, nil
+		}
+		useNonSequentialExecution = true
+		logger.Infof("Create job found for volume %s with matching correlation ID %s, using non-sequential execution for immediate delete workflow start", volume.UUID, correlationID)
+	} else if utils.IsTransitionalState(volume.State) && volume.State != models.LifeCycleStateDeleting {
 		logger.Errorf("Volume %s cannot be deleted, while in transitioning state: %s", volume.Name, volume.State)
-		return nil, "", customerrors.NewUserInputValidationErr("volume is in transition state and cannot be deleted, state: " + volume.State)
+		return nil, "", customerrors.NewConflictErr(fmt.Sprintf("volume is in transition state and cannot be deleted, state: %s", volume.State))
+	}
+
+	existingJobUUID := database.GetExistingDeleteJobForDeletingState(ctx, se, volume.UUID, deleteJobType, logger)
+	if existingJobUUID != "" {
+		return convertDatastoreVolumeToModel(volume, nil), existingJobUUID, nil
 	}
 
 	// Validate delete volume parameters and preconditions
@@ -1704,11 +1737,11 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	previousState := volume.State
 	previousStateDetails := volume.StateDetails
 	job := &datamodel.Job{
-		Type:          string(models.JobTypeDeleteVolume),
+		Type:          string(deleteJobType),
 		State:         string(models.JobsStateNEW),
 		ResourceName:  volume.Name,
 		AccountID:     sql.NullInt64{Int64: volume.Account.ID, Valid: true},
-		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		CorrelationID: correlationID,
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID:         volume.UUID,
@@ -1719,12 +1752,7 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 
 	workflowFunc := workflows.DeleteVolumeWorkflow
 
-	if volume.LargeVolumeAttributes != nil && volume.LargeVolumeAttributes.LargeCapacity {
-		job.Type = string(models.JobTypeDeleteLargeVolume)
-	}
-
 	if volume.CacheParameters != nil {
-		job.Type = string(models.JobTypeFlexCacheDeleteVolume)
 		workflowFunc = flexcache_workflows.DeleteFlexCacheVolumeWorkflow
 
 		err = checkAndCancelCreateWorkflowIfNeeded(ctx, se, temporal, volume)
@@ -1750,13 +1778,15 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		}
 	}()
 
-	err = se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
-		"state":         models.LifeCycleStateDeleting,
-		"state_details": models.LifeCycleStateDeletingDetails,
-	})
-	if err != nil {
-		logger.Error("Failed to update volume state in database", "error", err)
-		return nil, "", err
+	if volume.State != models.LifeCycleStateCreating {
+		err = se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
+			"state":         models.LifeCycleStateDeleting,
+			"state_details": models.LifeCycleStateDeletingDetails,
+		})
+		if err != nil {
+			logger.Error("Failed to update volume state in database", "error", err)
+			return nil, "", err
+		}
 	}
 	// Defer to mark volume as error if workflow execution fails
 	defer func() {
@@ -1777,16 +1807,27 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
-	// controlWorkflowID defines the workflow ID for the control workflow
-	controlWorkflowID := workflows.GenerateControlWorkflowID(volume.Account.ID, location, volume.Pool.Name)
-	workflowOptions := workflows.DefaultSequentialWorkflowOptions(controlWorkflowID, createdJob.WorkflowID)
-
-	err = workflowExecutor.ExecuteSequentialWorkflow(
-		ctx,
-		workflowOptions,
-		workflowFunc,
-		volume,
-	)
+	if useNonSequentialExecution {
+		// Non-sequential execution: allows delete workflow to start immediately. This enables parallel execution with create workflow for cancellation handling
+		taskQueue := workflowengine.CustomerTaskQueue
+		err = workflowExecutor.ExecuteWorkflow(
+			ctx,
+			createdJob.WorkflowID,
+			taskQueue,
+			workflowFunc,
+			nil,
+			volume,
+		)
+	} else {
+		controlWorkflowID := workflows.GenerateControlWorkflowID(volume.Account.ID, location, volume.Pool.Name)
+		workflowOptions := workflows.DefaultSequentialWorkflowOptions(controlWorkflowID, createdJob.WorkflowID)
+		err = workflowExecutor.ExecuteSequentialWorkflow(
+			ctx,
+			workflowOptions,
+			workflowFunc,
+			volume,
+		)
+	}
 	if err != nil {
 		logger.Error("Failed to start delete volume workflow: ", "error", err)
 		return nil, "", err
@@ -1804,8 +1845,12 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		checkAndTriggerPoolScalingIfNeeded(ctx, se, temporal, dbPool, true)
 	}
 
-	volume.State = models.LifeCycleStateDeleting
-	volume.StateDetails = models.LifeCycleStateDeletingDetails
+	// If volume is in CREATING state (correlation IDs matched), keep it as CREATING in the response
+	// Otherwise, set it to DELETING
+	if volume.State != models.LifeCycleStateCreating {
+		volume.State = models.LifeCycleStateDeleting
+		volume.StateDetails = models.LifeCycleStateDeletingDetails
+	}
 	return convertDatastoreVolumeToModel(volume, nil), createdJob.UUID, nil
 }
 

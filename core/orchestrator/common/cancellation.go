@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -137,6 +138,14 @@ func (h *WorkflowCancellationHandler) CheckCancellation(ctx workflow.Context) er
 // IsCancelled returns true if cancellation was detected
 func (h *WorkflowCancellationHandler) IsCancelled() bool {
 	return h.cancelled
+}
+
+// CheckCancellationSignal checks for cancellation and converts the error to CustomError if cancellation was detected.
+func (h *WorkflowCancellationHandler) CheckCancellationSignal(ctx workflow.Context) *vsaerrors.CustomError {
+	if err := h.CheckCancellation(ctx); err != nil {
+		return vsaerrors.ExtractCustomError(vsaerrors.New(err.Error()))
+	}
+	return nil
 }
 
 // CreateJobResult holds the result of getting a create job
@@ -288,5 +297,44 @@ func HandleCancellationInDeleteWorkflow(
 		logger.Infof("Updated create job %s with error details", createJobResult.JobUUID)
 	}
 
+	return nil
+}
+
+// HandleCancellationForCreatingResourceParams holds parameters for the HandleCancellationForCreatingResource helper
+type HandleCancellationForCreatingResourceParams struct {
+	ResourceUUID               string
+	ResourceState              string
+	CreateJobType              models.JobType
+	SignalName                 string
+	CancellationAckTimeout     time.Duration
+	ForceTerminationAckTimeout time.Duration
+}
+
+// HandleCancellationForCreatingResource is a helper function that handles cancellation logic for resources in CREATING state within delete workflows.
+func HandleCancellationForCreatingResource(ctx workflow.Context, logger log.Logger, params HandleCancellationForCreatingResourceParams, getCreateJobActivity interface{}, cancellationActivity CancellationActivityMethods, commonActivity CommonActivityMethods) error {
+	// Only handle cancellation if resource is in CREATING state
+	if params.ResourceState != models.LifeCycleStateCreating {
+		return nil
+	}
+	// Get correlation ID from workflow context
+	correlationID, errCorr := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
+	if errCorr != nil {
+		logger.Warnf("Could not get correlation ID from workflow context: %v", errCorr)
+		correlationID = ""
+	}
+	// Set up cancellation parameters
+	cancellationParams := WorkflowCancellationParams{
+		ResourceUUID:               params.ResourceUUID,
+		CorrelationID:              correlationID,
+		CreateJobType:              params.CreateJobType,
+		SignalName:                 params.SignalName,
+		CancellationAckTimeout:     params.CancellationAckTimeout,
+		ForceTerminationAckTimeout: params.ForceTerminationAckTimeout,
+	}
+	// Handle cancellation
+	if cancelErr := HandleCancellationInDeleteWorkflow(ctx, cancellationParams, getCreateJobActivity, cancellationActivity, commonActivity); cancelErr != nil {
+		logger.Warnf("Error handling cancellation: %v, proceeding with normal delete", cancelErr)
+		return cancelErr
+	}
 	return nil
 }

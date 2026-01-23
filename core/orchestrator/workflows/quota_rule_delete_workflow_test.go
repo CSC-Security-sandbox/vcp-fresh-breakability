@@ -129,7 +129,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(1)).Return(nil, errors.New("volume not found"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -169,7 +169,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(1)).Return(volume, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -211,7 +211,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(1)).Return(volume, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return(nil, errors.New("failed to get volume replication"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -276,7 +276,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("DeleteQuotaRuleOnOntap", mock.Anything, "quota-uuid-123", mock.Anything).Return(&vsa.JobStatus{State: vsa.JobRespSuccess}, nil)
 		env.OnActivity("ListQuotaRulesForVolume", mock.Anything, volume.UUID).Return([]*datamodel.QuotaRule{}, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, false).Return(nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -334,7 +334,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return(replications, nil)
 		env.OnActivity("VerifyReplicationState", mock.Anything, replications[0], params.LocationId).Return(false, errors.New("replication state validation failed"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -397,7 +397,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("VerifyReplicationState", mock.Anything, replications[0], params.LocationId).Return(true, nil)
 		env.OnActivity("GetSignedDstTokenForQuotaRule", mock.Anything, "987654321").Return(&jwtToken, nil)
 		env.OnActivity("GetMatchingQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", "us-west1-a", "987654321", quotaRule.Name, &jwtToken).Return(nil, errors.New("failed to get matching quota rule"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -464,7 +464,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetSignedDstTokenForQuotaRule", mock.Anything, "987654321").Return(&jwtToken, nil)
 		env.OnActivity("GetMatchingQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", "us-west1-a", "987654321", quotaRule.Name, &jwtToken).Return(&destQuotaRuleID, nil)
 		env.OnActivity("DeleteQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", destQuotaRuleID, "us-west1-a", "987654321", &jwtToken).Return(nil, errors.New("failed to delete quota rule on destination"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -508,7 +508,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return([]*datamodel.VolumeReplication{}, nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nil, errors.New("failed to get nodes"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -556,7 +556,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return([]*datamodel.VolumeReplication{}, nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
 		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "delete").Return("", errors.New("failed to get quota UUID"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -604,7 +604,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return([]*datamodel.VolumeReplication{}, nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
 		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "delete").Return("", nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -655,7 +655,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
 		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "delete").Return("quota-uuid-123", nil)
 		env.OnActivity("DeleteQuotaRuleOnOntap", mock.Anything, "quota-uuid-123", mock.Anything).Return(nil, errors.New("failed to delete quota rule on ONTAP"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -708,7 +708,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "delete").Return("quota-uuid-123", nil)
 		env.OnActivity("DeleteQuotaRuleOnOntap", mock.Anything, "quota-uuid-123", mock.Anything).Return(&vsa.JobStatus{State: vsa.JobRespSuccess}, nil)
 		env.OnActivity("ListQuotaRulesForVolume", mock.Anything, volume.UUID).Return(nil, errors.New("failed to list quota rules"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -768,7 +768,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("ListQuotaRulesForVolume", mock.Anything, volume.UUID).Return([]*datamodel.QuotaRule{quotaRule}, nil)
 		env.OnActivity("HandleQuotaEnableDisable", mock.Anything, mock.Anything, volume, false).Return(&vsa.JobStatus{State: vsa.JobRespSuccess}, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, false).Return(nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -831,7 +831,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("ListQuotaRulesForVolume", mock.Anything, volume.UUID).Return([]*datamodel.QuotaRule{quotaRule, otherQuotaRule}, nil)
 		env.OnActivity("QuotaReinitialization", mock.Anything, mock.Anything, volume).Return(nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, false).Return(nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -887,7 +887,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 			Message: "unexpected error",
 		}, nil)
 		env.OnActivity("ListQuotaRulesForVolume", mock.Anything, volume.UUID).Return([]*datamodel.QuotaRule{}, nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -945,7 +945,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("ListQuotaRulesForVolume", mock.Anything, volume.UUID).Return([]*datamodel.QuotaRule{quotaRule}, nil)
 		env.OnActivity("HandleQuotaEnableDisable", mock.Anything, mock.Anything, volume, false).Return(nil, errors.New("failed to disable quota"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -1006,7 +1006,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 			State:   vsa.JobRespFailure,
 			Message: "quota disable failed",
 		}, nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -1067,7 +1067,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("ListQuotaRulesForVolume", mock.Anything, volume.UUID).Return([]*datamodel.QuotaRule{quotaRule, otherQuotaRule}, nil)
 		env.OnActivity("QuotaReinitialization", mock.Anything, mock.Anything, volume).Return(errors.New("quota reinitialization failed"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -1121,7 +1121,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "delete").Return("quota-uuid-123", nil)
 		env.OnActivity("DeleteQuotaRuleOnOntap", mock.Anything, "quota-uuid-123", mock.Anything).Return(&vsa.JobStatus{State: vsa.JobRespSuccess}, nil)
 		env.OnActivity("ListQuotaRulesForVolume", mock.Anything, volume.UUID).Return([]*datamodel.QuotaRule{}, nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -1176,7 +1176,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("DeleteQuotaRuleOnOntap", mock.Anything, "quota-uuid-123", mock.Anything).Return(&vsa.JobStatus{State: vsa.JobRespSuccess}, nil)
 		env.OnActivity("ListQuotaRulesForVolume", mock.Anything, volume.UUID).Return([]*datamodel.QuotaRule{}, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, false).Return(errors.New("failed to update RQuota on SVM"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -1230,7 +1230,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "delete").Return("quota-uuid-123", nil)
 		env.OnActivity("DeleteQuotaRuleOnOntap", mock.Anything, "quota-uuid-123", mock.Anything).Return(&vsa.JobStatus{State: vsa.JobRespSuccess}, nil)
 		env.OnActivity("ListQuotaRulesForVolume", mock.Anything, volume.UUID).Return([]*datamodel.QuotaRule{}, nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -1314,7 +1314,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("DeleteQuotaRuleOnOntap", mock.Anything, "quota-uuid-123", mock.Anything).Return(&vsa.JobStatus{State: vsa.JobRespSuccess}, nil)
 		env.OnActivity("ListQuotaRulesForVolume", mock.Anything, volume.UUID).Return([]*datamodel.QuotaRule{}, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, false).Return(nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -1385,7 +1385,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("DeleteQuotaRuleOnOntap", mock.Anything, "quota-uuid-123", mock.Anything).Return(&vsa.JobStatus{State: vsa.JobRespSuccess}, nil)
 		env.OnActivity("ListQuotaRulesForVolume", mock.Anything, volume.UUID).Return([]*datamodel.QuotaRule{}, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, false).Return(nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -1440,7 +1440,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("DeleteQuotaRuleOnOntap", mock.Anything, "quota-uuid-123", mock.Anything).Return(&vsa.JobStatus{State: vsa.JobRespSuccess}, nil)
 		env.OnActivity("ListQuotaRulesForVolume", mock.Anything, volume.UUID).Return([]*datamodel.QuotaRule{}, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, false).Return(nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -1525,7 +1525,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("DeleteQuotaRuleOnOntap", mock.Anything, "quota-uuid-123", mock.Anything).Return(&vsa.JobStatus{State: vsa.JobRespSuccess}, nil)
 		env.OnActivity("ListQuotaRulesForVolume", mock.Anything, volume.UUID).Return([]*datamodel.QuotaRule{}, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, false).Return(nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -1623,7 +1623,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		}
 		env.OnActivity("RevertQuotaRuleOnDestinationForDelete", mock.Anything, "dest-volume-uuid", mock.Anything, "us-west1-a", "987654321", &jwtToken).Return(revertResult, nil)
 		env.OnActivity("HydrateQuotaRuleCreate", mock.Anything, mock.Anything, "dest-volume-uuid", "us-west1-a", "987654321").Return(nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -1720,7 +1720,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		// Mock polling for revert operation completion (JWT token is reused from above)
 		env.OnActivity("DescribeQuotaRuleRemoteJob", mock.Anything, revertOperationName, "us-west1-a", "987654321", &jwtToken).Return(nil)
 		env.OnActivity("HydrateQuotaRuleCreate", mock.Anything, mock.Anything, "dest-volume-uuid", "us-west1-a", "987654321").Return(nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -1824,7 +1824,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		}
 		env.OnActivity("RevertQuotaRuleOnDestinationForDelete", mock.Anything, "dest-volume-uuid", mock.Anything, "us-west1-a", "987654321", &jwtToken).Return(revertResult, nil)
 		env.OnActivity("HydrateQuotaRuleCreate", mock.Anything, mock.Anything, "dest-volume-uuid", "us-west1-a", "987654321").Return(errors.New("hydration failed"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -1914,7 +1914,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("DeleteQuotaRuleOnOntap", mock.Anything, "quota-uuid-123", mock.Anything).Return(&vsa.JobStatus{State: vsa.JobRespSuccess}, nil)
 		env.OnActivity("ListQuotaRulesForVolume", mock.Anything, volume.UUID).Return([]*datamodel.QuotaRule{}, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, false).Return(nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
@@ -1990,11 +1990,198 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("DeleteQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", destQuotaRuleID, "us-west1-a", "987654321", &jwtToken).Return(deleteOperationResult, nil)
 		// Mock polling failure
 		env.OnActivity("DescribeQuotaRuleRemoteJob", mock.Anything, operationName, "us-west1-a", "987654321", &jwtToken).Return(errors.New("polling failed"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.Error(tt, env.GetWorkflowError())
+	})
+	t.Run("WhenQuotaRuleIsInCreatingStateAndCancellationHandlingSucceeds", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		mockStorage := database.NewMockStorage(tt)
+		quotaRuleDeleteActivity := activities.QuotaRuleDeleteActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		poolActivity := activities.PoolActivity{SE: mockStorage}
+
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeReplication)
+		env.RegisterActivity(quotaRuleCommonActivity.GetOntapQuotaUUID)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateRQuotaOnSvm)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(quotaRuleDeleteActivity.DeleteQuotaRuleOnOntap)
+		env.RegisterActivity(quotaRuleDeleteActivity.ListQuotaRulesForVolume)
+		env.RegisterActivity(poolActivity.GetCreateJobByResourceUUID)
+
+		params := createBaseParams()
+		quotaRule := createBaseQuotaRule()
+		quotaRule.State = models.LifeCycleStateCreating
+		volume := createBaseVolume(false, []string{"NFSV3"})
+		nodes := createBaseNodes()
+
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(1)).Return(volume, nil)
+		env.OnActivity("GetVolumeReplication", mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "create-job-uuid"},
+			State:     string(models.JobsStatePROCESSING),
+		}, nil)
+		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
+		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "delete").Return("", nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
+	t.Run("WhenQuotaRuleIsInCreatingStateAndCorrelationIDErrorOccurs", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		mockStorage := database.NewMockStorage(tt)
+		quotaRuleDeleteActivity := activities.QuotaRuleDeleteActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		poolActivity := activities.PoolActivity{SE: mockStorage}
+
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeReplication)
+		env.RegisterActivity(quotaRuleCommonActivity.GetOntapQuotaUUID)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateRQuotaOnSvm)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(quotaRuleDeleteActivity.DeleteQuotaRuleOnOntap)
+		env.RegisterActivity(quotaRuleDeleteActivity.ListQuotaRulesForVolume)
+		env.RegisterActivity(poolActivity.GetCreateJobByResourceUUID)
+
+		params := createBaseParams()
+		quotaRule := createBaseQuotaRule()
+		quotaRule.State = models.LifeCycleStateCreating
+		volume := createBaseVolume(false, []string{"NFSV3"})
+		nodes := createBaseNodes()
+
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(1)).Return(volume, nil)
+		env.OnActivity("GetVolumeReplication", mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "create-job-uuid"},
+			State:     string(models.JobsStatePROCESSING),
+		}, nil)
+		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
+		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "delete").Return("", nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
+
+		// Workflow should still succeed even if correlation ID error occurs
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
+	t.Run("WhenQuotaRuleIsInCreatingStateAndCancellationHandlingFails", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		mockStorage := database.NewMockStorage(tt)
+		quotaRuleDeleteActivity := activities.QuotaRuleDeleteActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		poolActivity := activities.PoolActivity{SE: mockStorage}
+		cancellationActivity := &activities.CancellationActivity{}
+
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeReplication)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(poolActivity.GetCreateJobByResourceUUID)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(quotaRuleCommonActivity.GetOntapQuotaUUID)
+		env.RegisterActivity(quotaRuleDeleteActivity.DeleteQuotaRuleOnOntap)
+		env.RegisterActivity(quotaRuleDeleteActivity.ListQuotaRulesForVolume)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateRQuotaOnSvm)
+		env.RegisterActivity(cancellationActivity.IsWorkflowRunningActivity)
+		env.RegisterActivity(cancellationActivity.SendCancelSignalActivity)
+		env.RegisterActivity(cancellationActivity.WaitForWorkflowCancellationAckActivity)
+		env.RegisterActivity(cancellationActivity.ForceCancelWorkflowActivity)
+
+		params := createBaseParams()
+		quotaRule := createBaseQuotaRule()
+		quotaRule.State = models.LifeCycleStateCreating
+		volume := createBaseVolume(false, []string{"NFSV3"})
+		nodes := createBaseNodes()
+
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(1)).Return(volume, nil)
+		env.OnActivity("GetVolumeReplication", mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		// Return a create job result to trigger cancellation handling
+		createJobResult := &commonparams.CreateJobResult{
+			JobUUID:    "create-job-uuid",
+			WorkflowID: "create-workflow-id",
+		}
+		env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything).Return(createJobResult, nil)
+		// Make IsWorkflowRunningActivity fail to trigger error path in HandleCancellationInDeleteWorkflow (covers line 133)
+		env.OnActivity("IsWorkflowRunningActivity", mock.Anything, mock.Anything).Return(false, errors.New("failed to check workflow status"))
+		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
+		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "delete").Return("quota-uuid", nil)
+		deleteResp := &vsa.JobStatus{
+			State:   vsa.JobRespSuccess,
+			Message: "quota deleted",
+		}
+		env.OnActivity("DeleteQuotaRuleOnOntap", mock.Anything, "quota-uuid", mock.Anything).Return(deleteResp, nil)
+		env.OnActivity("ListQuotaRulesForVolume", mock.Anything, volume.UUID).Return([]*datamodel.QuotaRule{}, nil)
+		// UpdateRQuotaOnSvm is called when RQuota is false (line 472 in workflow)
+		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
+
+		// Workflow should still succeed even if cancellation handling fails (covers line 133)
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
 	})
 }

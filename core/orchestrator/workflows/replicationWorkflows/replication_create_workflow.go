@@ -20,6 +20,10 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+const (
+	CancelReplicationSignalName = "cancel-replication-creation"
+)
+
 var (
 	ReplicationJobsRetryMaxAttempts = env.GetInt("REPLICATION_JOBS_RETRY_MAX_ATTEMPTS", 10)
 	quotaRuleSync                   = env.GetBool("QUOTA_RULE_SYNC", false)
@@ -113,6 +117,8 @@ func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...int
 		DbVolReplication: dbVolumeRep,
 	}
 
+	cancellationHandler := common.NewWorkflowCancellationHandler(ctx, CancelReplicationSignalName, volumeReplication.UUID, "replication")
+
 	// Defer function to mark the database entry in error state if any error occurs
 	defer func() {
 		if err != nil {
@@ -126,28 +132,47 @@ func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...int
 		}
 	}()
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
+
 	var dbNodes []*datamodel.Node
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSrcBasePath, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetDstBasePath, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSignedSrcToken, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSignedDstToken, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &replicationResult.Event.SourcePool.ID).Get(ctx, &dbNodes)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -160,16 +185,26 @@ func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...int
 	})
 
 	replicationResult.SrcNode = srcNode
+
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSourceInterclusterLifs, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetDestinationPoolDetails, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.CreateSnapmirrorFirewall, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -180,11 +215,17 @@ func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...int
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.CreateClusterPeering, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.AcceptClusterPeering, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -201,6 +242,9 @@ func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...int
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.CreateDestinationVolume, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -232,6 +276,9 @@ func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...int
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.CreateReplicationOnDestination, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -257,11 +304,17 @@ func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...int
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.MountReplication, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	if quotaRuleSync {
 		// Fetch source quota rules from database
 		var sourceQuotaRules []*datamodel.QuotaRule

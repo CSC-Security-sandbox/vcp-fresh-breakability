@@ -8901,6 +8901,38 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		assert.Equal(tt, "Volume cannot be deleted due to active replication", badReq.Message)
 	})
 
+	t.Run("DeleteVolumeConflictError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaDeleteVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		req := gcpgenserver.OptV1betaDeleteVolumeReq{}
+
+		// GetVolume succeeds
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: models.LifeCycleStateREADY,
+			CreationToken:  "token",
+			DisplayName:    "testvolume",
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+
+		// DeleteVolume returns conflict error (line 1410)
+		conflictErr := errors.NewConflictErr("Volume is in transition state and cannot be deleted")
+		mockOrchestrator.EXPECT().DeleteVolume(mock.Anything, "vol-1").Return(nil, "", conflictErr)
+
+		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		conflict, isConflict := result.(*gcpgenserver.V1betaDeleteVolumeConflict)
+		assert.True(tt, isConflict)
+		assert.Equal(tt, float64(409), conflict.Code)
+		assert.Equal(tt, "Volume is in transition state and cannot be deleted", conflict.Message)
+	})
+
 	t.Run("VolumeNotFound_GetVolume", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -13457,7 +13489,7 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Valid - update request with completely empty FlexCache (no required fields, no cacheConfig)",
+			name:        "Valid - update request with completely empty FlexCache (no required fields, no cacheConfig)",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
 				// All fields are missing - this should pass validation for updates
 			},
@@ -13846,6 +13878,73 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "AccessType must be READ_WRITE when AllSquash is enabled")
 	})
+}
+
+// TestV1betaDeleteVolume_DeletingState_GetJobByResourceUUIDFails tests lines 1316, 1318: error logging and dummy operation return when job lookup fails
+func TestV1betaDeleteVolume_DeletingState_GetJobByResourceUUIDFails(t *testing.T) {
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrchestrator}
+	params := gcpgenserver.V1betaDeleteVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+		VolumeId:      "vol-1",
+	}
+	req := gcpgenserver.OptV1betaDeleteVolumeReq{}
+
+	// Volume in DELETING state
+	volume := &models.Volume{
+		BaseModel:      models.BaseModel{UUID: "vol-1"},
+		LifeCycleState: models.LifeCycleStateDeleting,
+		CreationToken:  "token",
+		DisplayName:    "testvolume",
+	}
+	mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+
+	// GetJobByResourceUUID fails (covers lines 1316, 1318)
+	jobErr := fmt.Errorf("failed to get job")
+	mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, "vol-1", string(models.JobTypeDeleteVolume)).Return(nil, jobErr)
+
+	result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
+	assert.NoError(t, err)
+	operation, isOperation := result.(*gcpgenserver.OperationV1beta)
+	assert.True(t, isOperation)
+	// Should return dummy operation ID (line 1318)
+	assert.True(t, operation.Done.Value)
+}
+
+// TestV1betaDeleteVolume_DeletingState_LargeVolume tests lines 1310-1311: JobType determination for large volumes in DELETING state
+func TestV1betaDeleteVolume_DeletingState_LargeVolume(t *testing.T) {
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrchestrator}
+	params := gcpgenserver.V1betaDeleteVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+		VolumeId:      "vol-1",
+	}
+	req := gcpgenserver.OptV1betaDeleteVolumeReq{}
+
+	// Large volume in DELETING state
+	volume := &models.Volume{
+		BaseModel:      models.BaseModel{UUID: "vol-1"},
+		LifeCycleState: models.LifeCycleStateDeleting,
+		LargeCapacity:  true,
+		CreationToken:  "token",
+		DisplayName:    "testvolume",
+	}
+	mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+
+	// Should use JobTypeDeleteLargeVolume (lines 1310-1311)
+	job := &models.Job{
+		BaseModel: models.BaseModel{UUID: "job-123"},
+		State:     models.JobsStateDONE,
+	}
+	mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, "vol-1", string(models.JobTypeDeleteLargeVolume)).Return(job, nil)
+
+	result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
+	assert.NoError(t, err)
+	operation, isOperation := result.(*gcpgenserver.OperationV1beta)
+	assert.True(t, isOperation)
+	assert.Contains(t, operation.Name.Value, "job-123")
 }
 
 func TestPrepareCreateVolumeParams_SMBOnlyVolumeWithExportPolicyRules_ReturnsError(t *testing.T) {

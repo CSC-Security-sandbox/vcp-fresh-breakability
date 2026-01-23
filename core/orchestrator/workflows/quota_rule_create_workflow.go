@@ -26,6 +26,10 @@ var (
 	hydrationEnabled = env.GetBool("GCP_HYDRATE_ENABLED", true)
 )
 
+const (
+	CancelQuotaRuleSignalName = "cancel-quota-rule-creation"
+)
+
 type quotaRuleCreateWorkflow struct {
 	BaseWorkflow
 	SE database.Storage
@@ -116,19 +120,32 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
-	// Defer function to mark the database entry in error state if any error occurs
+	// Set up cancellation handler using common framework
+	cancellationHandler := common.NewWorkflowCancellationHandler(ctx, CancelQuotaRuleSignalName, quotaRule.UUID, "quota-rule")
+
+	// Defer function to mark the database entry in error state if any error occurs or if cancelled
 	defer func() {
-		if returnErr != nil {
-			// On error, mark quota rule in error state
+		if returnErr != nil || cancellationHandler.IsCancelled() {
+			// On error or cancellation, mark quota rule in error state
+			if cancellationHandler.IsCancelled() {
+				logger.Infof("Quota rule creation cancelled, marking quota rule as aborted: %s", quotaRule.UUID)
+				returnErr = ConvertToVSAError(vsaerrors.New("quota rule creation cancelled by delete request"))
+			}
 			quotaRule.State = models.LifeCycleStateError
 			quotaRule.StateDetails = models.LifeCycleStateCreationErrorDetails
-			err2 := workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *quotaRule).Get(ctx, nil)
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			err2 := workflow.ExecuteActivity(disconnectedCtx, commonActivity.UpdateQuotaRuleState, *quotaRule, false).Get(disconnectedCtx, nil)
 			if err2 != nil {
 				logger.Errorf("Failed to update quota rule state in DB to error: %v", err2)
 			}
 		}
 	}()
 	dbQuotaRule := quotaRule
+
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		returnErr = cancelErr
+		return
+	}
 
 	// Fetch volume details as the first activity and perform DP check
 	var volumeDetails *datamodel.Volume
@@ -145,6 +162,10 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}
 
 	if isDataProtection {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			returnErr = cancelErr
+			return
+		}
 		dbQuotaRule.State = models.LifeCycleStateREADY
 		dbQuotaRule.StateDetails = models.LifeCycleStateReadyDetails
 		err = workflow.ExecuteActivity(ctx, quotaRuleActivity.CreateQuotaRuleForDataProtectionVolume, dbQuotaRule).Get(ctx, nil)
@@ -154,6 +175,11 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 			return
 		}
 		return nil, nil
+	}
+
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		returnErr = cancelErr
+		return
 	}
 
 	// For non-DP volumes, proceed with ONTAP operations
@@ -183,6 +209,10 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 			returnErr = ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, customerrors.NewUserInputValidationErr("Volume has no SVM details or ExternalUUID")))
 			return
 		}
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			returnErr = cancelErr
+			return
+		}
 		svmExternalUUID := volumeDetails.Svm.SvmDetails.ExternalUUID
 		err = workflow.ExecuteActivity(ctx, commonActivity.UpdateRQuotaOnSvm, svmExternalUUID, node, true).Get(ctx, nil)
 		if err != nil {
@@ -196,6 +226,10 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	// This handles the case where default quota was auto-created as a side effect of individual quota
 	var defaultQuotaUpdateErr error
 	if quotaRule.QuotaTarget == "" {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			returnErr = cancelErr
+			return
+		}
 		defaultQuotaUpdateErr = workflow.ExecuteActivity(ctx, quotaRuleActivity.HandleDefaultQuotaRuleUpdate,
 			volumeDetails, node, dbQuotaRule.QuotaType, dbQuotaRule.DiskLimitInKib).Get(ctx, nil)
 
@@ -217,6 +251,10 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	isNotFoundForCreation := customerrors.IsNotFoundErr(defaultQuotaUpdateErr) ||
 		(defaultQuotaUpdateErr != nil && strings.Contains(strings.ToLower(defaultQuotaUpdateErr.Error()), "not found"))
 	if dbQuotaRule.QuotaTarget != "" || isNotFoundForCreation {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			returnErr = cancelErr
+			return
+		}
 		err = workflow.ExecuteActivity(ctx, quotaRuleActivity.CreateQuotaRuleOnONTAP,
 			node, volumeDetails, dbQuotaRule).Get(ctx, &quotaRuleCreateResponse)
 		if err != nil {
@@ -233,6 +271,10 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		// According to user requirements, we always perform quota enable (no isQuotaEnableRequired check)
 		// This matches the sample code where quota status check is inside the if block
 		var quotaStatus *vsa.QuotaStatus
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			returnErr = cancelErr
+			return
+		}
 		err = workflow.ExecuteActivity(ctx, quotaRuleActivity.GetQuotaStatus, node, volumeDetails).Get(ctx, &quotaStatus)
 		if err != nil {
 			logger.Errorf("Failed to get quota status: %v", err)
@@ -246,6 +288,10 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		if quotaStatus.State == vsa.QuotaStateOff {
 			// Enable quota for the first time
 			var quotaEnableResp *vsa.JobStatus
+			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+				returnErr = cancelErr
+				return
+			}
 			err = workflow.ExecuteActivity(ctx, commonActivity.HandleQuotaEnableDisable, node, volumeDetails, true).Get(ctx, &quotaEnableResp)
 			if err != nil {
 				logger.Errorf("Failed to enable quota: %v", err)
@@ -284,6 +330,10 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 					strings.Contains(quotaRuleCreateResponse.Message, vsa.ActivationOperationFailed) {
 					logger.Infof("Detected resize/activation failure - triggering quota reinitialization")
 					// Call QuotaReinitialization activity to handle reinitialization (matches spec Section 7)
+					if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+						returnErr = cancelErr
+						return
+					}
 					err = workflow.ExecuteActivity(ctx, commonActivity.QuotaReinitialization,
 						node, volumeDetails).Get(ctx, nil)
 					if err != nil {
@@ -305,6 +355,10 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	// Fetch volume replication details and verify replication state for destination sync
 	// These activities are used to sync quota rules to destination volumes in replication scenarios
 	var replications []*datamodel.VolumeReplication
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		returnErr = cancelErr
+		return
+	}
 	err = workflow.ExecuteActivity(ctx, commonActivity.GetVolumeReplication, volumeDetails.ID).Get(ctx, &replications)
 	if err != nil {
 		logger.Errorf("Failed to fetch volume replication details for destination sync: %v", err)
@@ -325,6 +379,10 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 			// This activity validates that replication is eligible for quota sync (MIRRORED or UNINITIALIZED state)
 			// Pass LocationId directly - activity will parse region internally
 			var isEligible bool
+			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+				returnErr = cancelErr
+				return
+			}
 			err = workflow.ExecuteActivity(ctx, commonActivity.VerifyReplicationState,
 				replication, locationId).Get(ctx, &isEligible)
 			if err != nil {
@@ -345,6 +403,10 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 				// Create JWT token once for reuse across all destination API calls
 				var jwtToken *string
+				if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+					returnErr = cancelErr
+					return
+				}
 				err = workflow.ExecuteActivity(ctx, commonActivity.GetSignedDstTokenForQuotaRule, destProjectNumber).Get(ctx, &jwtToken)
 				if err != nil {
 					logger.Errorf("Failed to get JWT token for destination project %s: %v", destProjectNumber, err)
@@ -355,6 +417,10 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 				// Create quota rule on destination via internal API
 				// Pass destination volume UUID directly instead of fetching full volume details
 				var createOperationResult *activities.QuotaRuleOperationResult
+				if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+					returnErr = cancelErr
+					return
+				}
 				err = workflow.ExecuteActivity(ctx, quotaRuleActivity.CreateQuotaRuleOnDestination,
 					replication.ReplicationAttributes.DestinationVolumeUUID, dbQuotaRule, replication.ReplicationAttributes.DestinationLocation, destProjectNumber, jwtToken).Get(ctx, &createOperationResult)
 				if err != nil {
@@ -367,6 +433,10 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 				// Poll for operation completion if async operation was started
 				if createOperationResult != nil && createOperationResult.OperationName != "" && !createOperationResult.IsDone {
 					logger.Infof("Polling for quota rule creation operation completion on destination: operationName=%s", createOperationResult.OperationName)
+					if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+						returnErr = cancelErr
+						return
+					}
 					err = workflow.ExecuteActivity(ctx, commonActivity.DescribeQuotaRuleRemoteJob,
 						createOperationResult.OperationName, replication.ReplicationAttributes.DestinationLocation, destProjectNumber, jwtToken).Get(ctx, nil)
 					if err != nil {
@@ -379,6 +449,10 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 				if hydrationEnabled {
 					// Hydrate the quota rule creation to CCFE after successful creation on destination
+					if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+						returnErr = cancelErr
+						return
+					}
 					hydrateErr := workflow.ExecuteActivity(ctx, commonActivity.HydrateQuotaRuleCreate,
 						dbQuotaRule, replication.ReplicationAttributes.DestinationVolumeUUID,
 						replication.ReplicationAttributes.DestinationLocation, destProjectNumber).Get(ctx, nil)
@@ -399,8 +473,12 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		}
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		returnErr = cancelErr
+		return
+	}
 	// Update quota rule state (will transition from CREATING to READY if applicable)
-	err = workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *dbQuotaRule).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *dbQuotaRule, false).Get(ctx, nil)
 	if err != nil {
 		logger.Errorf("Failed to update quota rule state: %v", err)
 		returnErr = ConvertToVSAError(err)

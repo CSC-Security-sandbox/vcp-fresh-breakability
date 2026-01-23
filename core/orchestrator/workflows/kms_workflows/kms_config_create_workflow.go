@@ -30,6 +30,10 @@ var (
 	cvpPollInterval   = env.GetUint64("CVP_JOB_POLL_INTERVAL_SEC", 30)
 )
 
+const (
+	CancelKmsConfigSignalName = "cancel-kms-config-creation"
+)
+
 // CreateKmsConfigWorkflow KMS config Workflow process pool related requests from a customer.
 func CreateKmsConfigWorkflow(ctx workflow.Context, params *common.CreateKmsConfigParams, kmsConfig *datamodel.KmsConfig) (interface{}, error) {
 	kmsConfigWorkflow := new(createKmsConfigWorkflow)
@@ -106,15 +110,24 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 	}
 
 	ctx = workflow.WithActivityOptions(ctx, ao)
+	cancellationHandler := common.NewWorkflowCancellationHandler(ctx, CancelKmsConfigSignalName, kmsConfig.UUID, "kms-config")
+
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
-		if err != nil {
-			rollbackManager.AddActivity(kmsConfigActivity.FailedKmsConfigCreateActivity, kmsConfig, err.Error(), params.LocationID)
-			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
-			rollbackManager.ExecuteRollback(disconnectedCtx, err)
-		}
+		common.ExecuteDeferredCleanup(ctx, cancellationHandler, rollbackManager, err, kmsConfigWorkflow.Logger, "kms config", kmsConfig.UUID,
+			func(disconnectedCtx workflow.Context) error {
+				rollbackManager.AddActivity(kmsConfigActivity.FailedKmsConfigCreateActivity, kmsConfig, err.Error(), params.LocationID)
+				return nil
+			},
+			func(disconnectedCtx workflow.Context, cancelErr error) {
+				rollbackManager.AddActivity(kmsConfigActivity.FailedKmsConfigCreateActivity, kmsConfig, "kms config creation cancelled by delete request", params.LocationID)
+			},
+			nil) // shouldRollbackOnError
 	}()
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	jwtToken := ""
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GetSignedTokenActivity, params.ProjectNumber).Get(ctx, &jwtToken)
 	if err != nil {
@@ -147,6 +160,9 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 		XCorrelationID: params.XCorrelationID,
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(pollingCtx, kmsConfigActivity.PollKmsConfigOperationActivity, pollKmsConfigParams).Get(ctx, nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -159,6 +175,9 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 		ProjectNumber: params.ProjectNumber,
 	}
 	var cvpKmsConfig cvpmodels.KmsConfigV1beta
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.DescribeSDEKmsConfigurationActivity, getKmsConfigParams).Get(ctx, &cvpKmsConfig)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -168,6 +187,9 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 	kmsConfig.KmsAttributes.SdeKmsConfigUUID = cvpKmsConfig.UUID
 	kmsConfig.KmsAttributes.SdeServiceAccountEmail = cvpKmsConfig.ServiceAccountEmail
 	kmsConfig.KmsAttributes.Instructions = cvpKmsConfig.Instructions
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.UpdateKmsConfigAttributesActivity, kmsConfig, kmsConfig.KmsAttributes).Get(ctx, kmsConfig)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -175,18 +197,27 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 
 	// After the KMS configuration is created, we need to perform additional steps like creating service account keys and granting roles
 	// Create the service account key for the KMS configuration
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CreateVSAKmsConfigSAKeyActivity, kmsConfig).Get(ctx, kmsConfig)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	// Grant the necessary roles to the service account
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GrantRoleActivity, kmsConfig).Get(ctx, nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	// Update the Created the KMS configuration in the database
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CreatedKmsConfigActivity, kmsConfig).Get(ctx, nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)

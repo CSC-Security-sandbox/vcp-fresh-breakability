@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"time"
 
@@ -315,29 +316,48 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	}()
 
 	var kmsConfigOriginalStateDetails string
+	var existingDeleteJobUUID string
 	kmsConfig, err = se.GetKmsConfig(ctx, params.KmsConfigID)
+	isCancellationRequest := false
 	if err == nil {
 		kmsConfigOriginalState = kmsConfig.State
 		kmsConfigOriginalStateDetails = kmsConfig.StateDetails
-		// If KMS config is already in DELETING state, check for existing delete job
-		if kmsConfig.State == models.LifeCycleStateDeleting {
-			existingJob, jobErr := se.GetJobByResourceUUID(ctx, params.KmsConfigID, string(models.JobTypeDeleteKmsConfig))
-			if jobErr == nil && existingJob != nil {
-				// Check if it's a delete job that's not done
-				if existingJob.Type == string(models.JobTypeDeleteKmsConfig) && existingJob.State != string(models.JobsStateDONE) {
-					return convertDataStoreKmsConfigToModel(kmsConfig), existingJob.UUID, nil
-				}
+		if kmsConfig.State == models.LifeCycleStateCreating {
+			existingDeleteJobUUID, _, err = database.ValidateCorrelationIDForCreatingResource(
+				ctx, se, params.KmsConfigID, "KMS config", models.JobTypeCreateKmsConfig, models.JobTypeDeleteKmsConfig, logger)
+			if err != nil {
+				logger.Warnf("KMS config %s cannot be deleted: existing create job not present and state is in CREATING", params.KmsConfigID)
+				return nil, "", err
+			}
+			if existingDeleteJobUUID != "" {
+				return convertDataStoreKmsConfigToModel(kmsConfig), existingDeleteJobUUID, nil
+			}
+			logger.Info("Delete request with same correlation ID as create, proceeding with cancellation", "kms_config_uuid", params.KmsConfigID)
+			isCancellationRequest = true
+		} else if utils.IsTransitionalState(kmsConfig.State) && kmsConfig.State != models.LifeCycleStateDeleting {
+			logger.Errorf("KMS config %s cannot be deleted, while in transitioning state: %s", params.KmsConfigID, kmsConfig.State)
+			return nil, "", errors.NewConflictErr(fmt.Sprintf("KMS config is in transition state and cannot be deleted, state: %s", kmsConfig.State))
+		}
+
+		existingJobUUID := database.GetExistingDeleteJobForDeletingState(ctx, se, params.KmsConfigID, models.JobTypeDeleteKmsConfig, logger)
+		if existingJobUUID != "" {
+			return convertDataStoreKmsConfigToModel(kmsConfig), existingJobUUID, nil
+		}
+
+		// Skipping validation for cancellation requests (already validated above)
+		if !isCancellationRequest {
+			err = validateDeleteKmsConfigParams(ctx, se, kmsConfig, params)
+			if err != nil {
+				return nil, "", err
 			}
 		}
 
-		err = validateDeleteKmsConfigParams(ctx, se, kmsConfig, params)
-		if err != nil {
-			return nil, "", err
-		}
-
-		kmsConfig, err = se.UpdateKmsConfigState(ctx, kmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails)
-		if err != nil {
-			return nil, "", err
+		// Skipping state update for cancellation requests - cancellation will be handled in workflow
+		if !isCancellationRequest {
+			kmsConfig, err = se.UpdateKmsConfigState(ctx, kmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails)
+			if err != nil {
+				return nil, "", err
+			}
 		}
 	} else {
 		if !errors.IsNotFoundErr(err) {

@@ -1396,6 +1396,12 @@ func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1b
 				Message: err.Error(),
 			}, nil
 		}
+		if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaDeleteVolumeConflict{
+				Code:    409,
+				Message: err.Error(),
+			}, nil
+		}
 		logger.Error("Failed to delete volume", "error", err.Error())
 		return &gcpgenserver.V1betaDeleteVolumeInternalServerError{
 			Code:    500,
@@ -1409,7 +1415,7 @@ func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1b
 	}
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if volume.LifeCycleState == models.LifeCycleStateDeleting {
+	if volume.LifeCycleState == models.LifeCycleStateDeleting || volume.LifeCycleState == models.LifeCycleStateCreating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,

@@ -118,7 +118,7 @@ func (wf *quotaRuleUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}
 			// On error, mark quota rule in error state
 			quotaRule.State = models.LifeCycleStateError
 			quotaRule.StateDetails = models.LifeCycleStateUpdateErrorDetails
-			err2 := workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *quotaRule).Get(ctx, nil)
+			err2 := workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *quotaRule, false).Get(ctx, nil)
 			if err2 != nil {
 				logger.Errorf("Failed to update quota rule state in DB to error: %v", err2)
 			}
@@ -157,7 +157,7 @@ func (wf *quotaRuleUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		dbQuotaRule.Description = newDescription
 
 		// Update quota rule state in database only (no ONTAP update needed)
-		err = workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *dbQuotaRule).Get(ctx, nil)
+		err = workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *dbQuotaRule, false).Get(ctx, nil)
 		if err != nil {
 			logger.Errorf("Failed to update quota rule state in database: %v", err)
 			return nil, ConvertToVSAError(err)
@@ -305,7 +305,7 @@ func (wf *quotaRuleUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	dbQuotaRule.DiskLimitInKib = newDiskLimitInKib
 	dbQuotaRule.Description = newDescription
 
-	err = workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *dbQuotaRule).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *dbQuotaRule, false).Get(ctx, nil)
 	if err != nil {
 		logger.Errorf("Failed to update quota rule state: %v", err)
 		return nil, ConvertToVSAError(err)

@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"fmt"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -18,6 +19,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+)
+
+const (
+	CancelActiveDirectorySignalName = "cancel-active-directory-creation"
 )
 
 type ActiveDirectoryCreateWorkflow struct {
@@ -110,14 +115,22 @@ func (wf *ActiveDirectoryCreateWorkflow) Run(ctx workflow.Context, args ...inter
 	adRecord := args[1].(*datamodel.ActiveDirectory)
 
 	rollbackManager := common.NewRollbackManager()
+	cancellationHandler := common.NewWorkflowCancellationHandler(ctx, CancelActiveDirectorySignalName, adRecord.UUID, "active directory")
+
 	rollbackManager.AddActivity(activeDirectoryActivity.RollbackActiveDirectory, adRecord)
 	defer func() {
-		// Trigger the rollback only if there was an error, and we are not in SDE mode
-		if err != nil && (cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP) {
-			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
-			rollbackManager.ExecuteRollback(disconnectedCtx, err)
-		}
+		common.ExecuteDeferredCleanup(ctx, cancellationHandler, rollbackManager, err, logger, "active directory", adRecord.UUID,
+			nil, // updateErrorState
+			nil, // onCancellationCallback
+			func(disconnectedCtx workflow.Context, err error) bool {
+				// Trigger the rollback only if there was an error, and we are not in SDE mode
+				return err != nil && (cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP)
+			})
 	}()
+
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 
 	if cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP {
 		logger.Info("CVP_HOST environment variable is not set, creating AD in VCP")
@@ -146,7 +159,7 @@ type ActiveDirectoryDeleteWorkflow struct {
 	BaseWorkflow
 }
 
-func DeleteActiveDirectoryWorkflow(ctx workflow.Context, params *common.DeleteActiveDirectoryParams) (interface{}, error) {
+func DeleteActiveDirectoryWorkflow(ctx workflow.Context, params *common.DeleteActiveDirectoryParams, ad *datamodel.ActiveDirectory) (interface{}, error) {
 	log := util.GetLogger(ctx)
 	activeDirectoryWf := new(ActiveDirectoryDeleteWorkflow)
 
@@ -163,7 +176,7 @@ func DeleteActiveDirectoryWorkflow(ctx workflow.Context, params *common.DeleteAc
 		return nil, err
 	}
 
-	_, customErr := activeDirectoryWf.Run(ctx, params)
+	_, customErr := activeDirectoryWf.Run(ctx, params, ad)
 	if customErr != nil {
 		log.Errorf("ActiveDirectoryDeleteWorkflow completed with error: %v", customErr)
 		activeDirectoryWf.Status = WorkflowStatusFailed
@@ -225,8 +238,29 @@ func (wf *ActiveDirectoryDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
 	params := args[0].(*common.DeleteActiveDirectoryParams)
+	activeDirectory := args[1].(*datamodel.ActiveDirectory)
 
 	logger.Info("Starting Active Directory delete workflow", "active_directory_uuid", params.ActiveDirectoryUUID)
+
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{}
+	poolActivity := &activities.PoolActivity{}
+	ackTimeout, forceTimeout := common.GetCancellationTimeouts("ACTIVE_DIRECTORY")
+	if cancelErr := common.HandleCancellationForCreatingResource(ctx, logger,
+		common.HandleCancellationForCreatingResourceParams{
+			ResourceUUID:               params.ActiveDirectoryUUID,
+			ResourceState:              activeDirectory.State,
+			CreateJobType:              models.JobTypeCreateActiveDirectory,
+			SignalName:                 CancelActiveDirectorySignalName,
+			CancellationAckTimeout:     ackTimeout,
+			ForceTerminationAckTimeout: forceTimeout,
+		},
+		poolActivity.GetCreateJobByResourceUUID,
+		cancellationActivity,
+		commonActivity,
+	); cancelErr != nil {
+		logger.Warnf("Error handling cancellation: %v, proceeding with normal delete", cancelErr)
+	}
 
 	var checkResult active_directory_activities.CheckDeletionAllowedResult
 	err = workflow.ExecuteActivity(

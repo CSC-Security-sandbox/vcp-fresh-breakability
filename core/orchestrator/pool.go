@@ -580,38 +580,39 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 		return nil, "", customerrors.NewBadRequestErr("pool cannot be deleted with active volumes")
 	}
 
-	correlationID := utils.GetCoRelationIDFromContext(ctx)
-	// If pool is in CREATING state, check for create job and validate correlation ID
+	poolCategory := models.GetPoolCategory(pool.LargeCapacity)
+	deleteJobType := models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationDelete, poolCategory)
+	var existingDeleteJobUUID string
 	if pool.State == models.LifeCycleStateCreating {
-		if correlationID == "" {
-			logger.Warnf("Correlation ID is empty for delete request on pool %s in CREATING state", pool.UUID)
-			return nil, "", customerrors.NewConflictErr("Error deleting pool - Pool is already transitioning between states")
-		}
-
-		createJob, err := se.GetJobByResourceUUID(ctx, pool.UUID, string(models.JobTypeCreatePool))
+		existingDeleteJobUUID, _, err = database.ValidateCorrelationIDForCreatingResource(
+			ctx, se, pool.UUID, "pool", models.JobTypeCreatePool, deleteJobType, logger)
 		if err != nil {
-			return nil, "", customerrors.NewConflictErr("Error deleting pool - Pool is already transitioning between states")
-		} else {
-			if createJob.CorrelationID != correlationID {
-				logger.Warnf("Correlation ID mismatch: create job correlation ID %s does not match delete request correlation ID %s",
-					createJob.CorrelationID, correlationID)
-				return nil, "", customerrors.NewConflictErr("Error deleting pool - Pool is already transitioning between states")
-			}
-			// Correlation ID matches, skip updating pool state to DELETING, cancellation will be handled in workflow
-			logger.Infof("Create job found for pool %s with matching correlation ID, skipping state update to DELETING", pool.UUID)
+			logger.Warnf("Pool %s cannot be deleted: existing create job not present and state is in CREATING", pool.UUID)
+			return nil, "", err
 		}
+		if existingDeleteJobUUID != "" {
+			return convertDatastorePoolToModel(pool, params.AccountName), existingDeleteJobUUID, nil
+		}
+		logger.Infof("Create job found for pool %s with matching correlation ID, skipping state update to DELETING", pool.UUID)
+	} else if utils.IsTransitionalState(pool.State) && pool.State != models.LifeCycleStateDeleting {
+		logger.Errorf("Pool %s cannot be deleted, while in transitioning state: %s", pool.Name, pool.State)
+		return nil, "", customerrors.NewConflictErr(fmt.Sprintf("pool is in transition state and cannot be deleted, state: %s", pool.State))
 	}
 
-	poolCategory := models.GetPoolCategory(pool.LargeCapacity)
+	existingJobUUID := database.GetExistingDeleteJobForDeletingState(ctx, se, pool.UUID, deleteJobType, logger)
+	if existingJobUUID != "" {
+		return convertDatastorePoolToModel(pool, params.AccountName), existingJobUUID, nil
+	}
+
 	dbpool := database.ConvertPoolViewToPool(pool)
 	previousState := dbpool.State
 	previousStateDetails := dbpool.StateDetails
 	job := &datamodel.Job{
-		Type:          string(models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationDelete, poolCategory)),
+		Type:          string(deleteJobType),
 		State:         string(models.JobsStateNEW),
 		ResourceName:  pool.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
-		CorrelationID: correlationID,
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID:         pool.UUID,

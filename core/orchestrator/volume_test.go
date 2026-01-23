@@ -8335,11 +8335,16 @@ func TestDeleteVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
 		}
 
 		err = store.DB().Create(pool).Error
 		if err != nil {
-			tt.Fatalf("Failed to create account: %v", err)
+			tt.Fatalf("Failed to create pool: %v", err)
 		}
 
 		volume := &datamodel.Volume{
@@ -8356,9 +8361,21 @@ func TestDeleteVolume(t *testing.T) {
 
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 
-		volumeResp, _, err := deleteVolume(ctx, store, temporal, "test-volume-uuid")
-		assert.Contains(tt, err.Error(), "volume is in transition state and cannot be deleted, state: DELETING")
-		assert.Nil(tt, volumeResp, "Expected nil volume")
+		// Mock ExecuteWorkflow for auto pool scaling
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+		// Mock ExecuteWorkflowSequentially - should succeed since we're allowing delete on DELETING state
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+		volumeResp, jobUUID, err := deleteVolume(ctx, store, temporal, "test-volume-uuid")
+		assert.NoError(tt, err, "Expected no error when deleting volume in DELETING state without existing job")
+		assert.NotNil(tt, volumeResp, "Expected volume response")
+		assert.NotEmpty(tt, jobUUID, "Expected job UUID to be created")
+		assert.Equal(tt, models.LifeCycleStateDeleting, volumeResp.LifeCycleState, "Expected volume state to be DELETING")
 	})
 	t.Run("WhenVolumeAlreadyDeletingVolumeAndAsyncFlowFails", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -8551,6 +8568,8 @@ func TestDeleteVolume(t *testing.T) {
 		mm.EXPECT().validateDeleteVolumeParams(ctx, mockStorage, volume).Return(nil)
 		mm.EXPECT().checkAndCancelCreateWorkflowIfNeeded(ctx, mockStorage, temporal, volume).Return(nil)
 		mockStorage.EXPECT().GetVolume(ctx, volume.UUID).Return(volume, nil)
+		// Mock GetJobByResourceUUID for FLEXCACHE_DELETE_VOLUME (check for existing delete job when in non-transitional state)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeFlexCacheDeleteVolume)).Return(nil, nil)
 		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
 			assert.Equal(tt, string(models.JobTypeFlexCacheDeleteVolume), job.Type)
 			assert.Equal(tt, string(models.JobsStateNEW), job.State)
@@ -8617,6 +8636,8 @@ func TestDeleteVolume(t *testing.T) {
 		mm.EXPECT().validateDeleteVolumeParams(ctx, mockStorage, volume).Return(nil)
 		mm.EXPECT().checkAndCancelCreateWorkflowIfNeeded(ctx, mockStorage, temporal, volume).Return(fmt.Errorf("some error"))
 		mockStorage.EXPECT().GetVolume(ctx, volume.UUID).Return(volume, nil)
+		// Mock GetJobByResourceUUID for FLEXCACHE_DELETE_VOLUME (check for existing delete job when in non-transitional state)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeFlexCacheDeleteVolume)).Return(nil, nil)
 
 		resultVolume, jobID, err := deleteVolume(ctx, mockStorage, temporal, volume.UUID)
 		assert.Error(tt, err)
@@ -8641,6 +8662,8 @@ func TestDeleteVolume(t *testing.T) {
 
 		// Mock GetVolume to return the volume
 		mockStorage.On("GetVolume", ctx, "test-volume-uuid").Return(volume, nil)
+		// Mock GetJobByResourceUUID for DELETE_VOLUME (check for existing delete job when in non-transitional state)
+		mockStorage.On("GetJobByResourceUUID", ctx, "test-volume-uuid", string(models.JobTypeDeleteVolume)).Return(nil, nil)
 		// Mock CreateJob to succeed
 		jobUUID := "wid"
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{WorkflowID: jobUUID, BaseModel: datamodel.BaseModel{UUID: jobUUID}}, nil)
@@ -8658,6 +8681,245 @@ func TestDeleteVolume(t *testing.T) {
 		assert.Nil(tt, vol)
 		assert.Empty(tt, jobID)
 		assert.EqualError(tt, err, "update failed")
+	})
+
+	t.Run("WhenVolumeInCreatingStateWithEmptyCorrelationID", func(tt *testing.T) {
+		// Test for lines 1655-1657: Empty correlation ID when volume is in CREATING state
+		ctx := context.Background() // No correlation ID in context
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			State:     models.LifeCycleStateCreating,
+			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test_account"},
+			AccountID: 1,
+			Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test_pool"},
+			PoolID:    1,
+		}
+
+		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
+		// When correlation ID is empty, ValidateCorrelationIDForCreatingResource returns early
+		// without making any GetJobByResourceUUID calls
+
+		vol, jobID, err := deleteVolume(ctx, mockStorage, temporal, "test-volume-uuid")
+
+		assert.Error(tt, err)
+		assert.True(tt, customerrors.IsConflictErr(err))
+		assert.Contains(tt, err.Error(), "Error deleting volume - volume is already transitioning between states")
+		assert.Nil(tt, vol)
+		assert.Empty(tt, jobID)
+	})
+
+	t.Run("WhenVolumeInCreatingStateWithLargeVolumeJobType", func(tt *testing.T) {
+		// Test for lines 1661-1663: Determine create job type for large volume
+		correlationID := "test-correlation-id-123"
+		fields := log.Fields{
+			string(middleware.RequestCorrelationID): correlationID,
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			VendorID:  "/projects/test-project/locations/us-central1/pools/test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test_account"}
+		volume := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
+			Name:             "test_volume",
+			State:            models.LifeCycleStateCreating,
+			Account:          account,
+			AccountID:        1,
+			Pool:             pool,
+			PoolID:           1,
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+			LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+				LargeCapacity: true,
+			},
+		}
+
+		createJob := &datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "create-job-uuid"},
+			CorrelationID: correlationID,
+			Type:          string(models.JobTypeCreateLargeVolume),
+		}
+
+		// Disable auto pool scaling to avoid GetPool call
+		originalAutoScaling := enableAutoPoolScaling
+		enableAutoPoolScaling = false
+		defer func() { enableAutoPoolScaling = originalAutoScaling }()
+
+		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
+		// Mock GetJobByResourceUUID with JobTypeCreateLargeVolume (lines 1661-1663)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeCreateLargeVolume)).Return(createJob, nil)
+		// Mock GetJobByResourceUUID with JobTypeDeleteLargeVolume (check for existing delete job)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteLargeVolume)).Return(nil, nil)
+		// Mock validateDeleteVolumeParams and rest of the flow
+		mockStorage.EXPECT().IsBackupInCreatingorDeletingStateByVolume(ctx, volume.UUID).Return(false, nil)
+		mockStorage.EXPECT().GetVolumeReplicationCountByVolumeID(ctx, volume.ID).Return(int64(0), nil)
+		mockStorage.EXPECT().CreateJob(ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "workflow-id"}, nil)
+
+		// Mock ExecuteWorkflow for non-sequential execution (matching correlation ID case)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		vol, jobID, err := deleteVolume(ctx, mockStorage, temporal, "test-volume-uuid")
+
+		// Should succeed - matching correlation ID, skipping state update (line 1676)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, vol)
+		assert.Equal(tt, "job-uuid", jobID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenVolumeInCreatingStateGetJobByResourceUUIDFails", func(tt *testing.T) {
+		// Test for lines 1666-1668: GetJobByResourceUUID error
+		correlationID := "test-correlation-id-123"
+		fields := log.Fields{
+			string(middleware.RequestCorrelationID): correlationID,
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			State:     models.LifeCycleStateCreating,
+			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test_account"},
+			AccountID: 1,
+			Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test_pool"},
+			PoolID:    1,
+		}
+
+		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
+		// Mock GetJobByResourceUUID for DELETE_VOLUME (first check in ValidateCorrelationIDForCreatingResource)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteVolume)).Return(nil, nil)
+		// Mock GetJobByResourceUUID to return error (lines 1666-1668)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeCreateVolume)).Return(nil, errors.New("job not found"))
+
+		vol, jobID, err := deleteVolume(ctx, mockStorage, temporal, "test-volume-uuid")
+
+		assert.Error(tt, err)
+		assert.True(tt, customerrors.IsConflictErr(err))
+		assert.Contains(tt, err.Error(), "Error deleting volume - volume is already transitioning between states")
+		assert.Nil(tt, vol)
+		assert.Empty(tt, jobID)
+	})
+
+	t.Run("WhenVolumeInCreatingStateWithCorrelationIDMismatch", func(tt *testing.T) {
+		// Test for lines 1670-1671, 1673: Correlation ID mismatch
+		correlationID := "test-correlation-id-123"
+		fields := log.Fields{
+			string(middleware.RequestCorrelationID): correlationID,
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			State:     models.LifeCycleStateCreating,
+			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test_account"},
+			AccountID: 1,
+			Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test_pool"},
+			PoolID:    1,
+		}
+
+		createJob := &datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "create-job-uuid"},
+			CorrelationID: "different-correlation-id", // Mismatch
+			Type:          string(models.JobTypeCreateVolume),
+		}
+
+		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
+		// Mock GetJobByResourceUUID for DELETE_VOLUME (first check in ValidateCorrelationIDForCreatingResource)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteVolume)).Return(nil, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeCreateVolume)).Return(createJob, nil)
+
+		vol, jobID, err := deleteVolume(ctx, mockStorage, temporal, "test-volume-uuid")
+
+		assert.Error(tt, err)
+		assert.True(tt, customerrors.IsConflictErr(err))
+		assert.Contains(tt, err.Error(), "Error deleting volume - volume is already transitioning between states")
+		assert.Nil(tt, vol)
+		assert.Empty(tt, jobID)
+	})
+
+	t.Run("WhenVolumeInCreatingStateWithMatchingCorrelationID", func(tt *testing.T) {
+		// Test for line 1676: Matching correlation ID, skipping state update
+		correlationID := "test-correlation-id-123"
+		fields := log.Fields{
+			string(middleware.RequestCorrelationID): correlationID,
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			VendorID:  "/projects/test-project/locations/us-central1/pools/test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-central1-a",
+				IsRegionalHA: false,
+			},
+		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test_account"}
+		volume := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
+			Name:             "test_volume",
+			State:            models.LifeCycleStateCreating,
+			Account:          account,
+			AccountID:        1,
+			Pool:             pool,
+			PoolID:           1,
+			Svm:              &datamodel.Svm{Name: "test-svm"},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+		}
+
+		createJob := &datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "create-job-uuid"},
+			CorrelationID: correlationID, // Matching
+			Type:          string(models.JobTypeCreateVolume),
+		}
+
+		// Disable auto pool scaling to avoid GetPool call
+		originalAutoScaling := enableAutoPoolScaling
+		enableAutoPoolScaling = false
+		defer func() { enableAutoPoolScaling = originalAutoScaling }()
+
+		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeCreateVolume)).Return(createJob, nil)
+		// Mock GetJobByResourceUUID with JobTypeDeleteVolume (check for existing delete job)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteVolume)).Return(nil, nil)
+		// Mock validateDeleteVolumeParams and rest of the flow
+		mockStorage.EXPECT().IsBackupInCreatingorDeletingStateByVolume(ctx, volume.UUID).Return(false, nil)
+		mockStorage.EXPECT().GetVolumeReplicationCountByVolumeID(ctx, volume.ID).Return(int64(0), nil)
+		mockStorage.EXPECT().CreateJob(ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "workflow-id"}, nil)
+
+		// Mock ExecuteWorkflow for non-sequential execution (matching correlation ID case)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		vol, jobID, err := deleteVolume(ctx, mockStorage, temporal, "test-volume-uuid")
+
+		// Should succeed - matching correlation ID, skipping state update (line 1676)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, vol)
+		assert.Equal(tt, "job-uuid", jobID)
+		mockStorage.AssertExpectations(tt)
 	})
 }
 
@@ -8727,6 +8989,8 @@ func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
 		mockStorage.EXPECT().IsBackupInCreatingorDeletingStateByVolume(ctx, volume.UUID).Return(false, nil)
 		mockStorage.EXPECT().GetVolumeReplicationCountByVolumeID(ctx, volume.ID).Return(int64(0), nil)
+		// Mock GetJobByResourceUUID for DELETE_VOLUME (called in GetExistingDeleteJobForDeletingState for non-transitional states)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteVolume)).Return(nil, errors.New("no delete job found"))
 		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
 			return job.JobAttributes != nil &&
 				job.JobAttributes.PreviousState == previousState &&
@@ -8749,6 +9013,203 @@ func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 
 		_, _, err = _deleteVolume(ctx, mockStorage, temporal, "test-volume-uuid")
 		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenVolumeInCreatingStateWithExistingDeleteJob_ReturnsExistingJobUUID", func(tt *testing.T) {
+		// Test for line 1717: When existingDeleteJobUUID is not empty, return it immediately
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		assert.NoError(tt, err)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		assert.NoError(tt, err)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-central1-a",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(tt, err)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateCreating,
+			Account:   account,
+			Pool:      pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection:  false,
+				Mounted:           false,
+				SnapReserve:       0,
+				SnapshotDirectory: false,
+			},
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err)
+
+		correlationID := "test-correlation-id-123"
+		// Set correlation ID in log.Fields so GetCoRelationIDFromContext can find it
+		fields := log.Fields{
+			"key": "value",
+			string(middleware.RequestCorrelationID): correlationID,
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+
+		existingDeleteJob := &datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "existing-delete-job-uuid"},
+			CorrelationID: correlationID,
+			Type:          string(models.JobTypeDeleteVolume),
+			State:         string(models.JobsStatePROCESSING),
+		}
+
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
+		// ValidateCorrelationIDForCreatingResource returns existingDeleteJobUUID when delete job is in progress
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteVolume)).Return(existingDeleteJob, nil)
+
+		result, jobUUID, err := _deleteVolume(ctx, mockStorage, temporal, "test-volume-uuid")
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "existing-delete-job-uuid", jobUUID)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, volume.UUID, result.UUID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenVolumeInTransitionalState_ReturnsConflictError", func(tt *testing.T) {
+		// Test for line 1723: When volume is in transitional state (not DELETING), return error
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		assert.NoError(tt, err)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		assert.NoError(tt, err)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(tt, err)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateUpdating, // Transitional state (not DELETING)
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err)
+
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
+		// When volume is in transitional state (not CREATING and not DELETING), function returns early
+		// without calling GetJobByResourceUUID (see line 1721-1723 in volume.go)
+
+		_, _, err = _deleteVolume(ctx, mockStorage, temporal, "test-volume-uuid")
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume is in transition state and cannot be deleted")
+		assert.Contains(tt, err.Error(), models.LifeCycleStateUpdating)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenVolumeInDeletingStateWithExistingJob_ReturnsExistingJobUUID", func(tt *testing.T) {
+		// Test for line 1728: When existingJobUUID is not empty, return it immediately
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		assert.NoError(tt, err)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		assert.NoError(tt, err)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-central1-a",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(tt, err)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateDeleting,
+			Account:   account,
+			Pool:      pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection:  false,
+				Mounted:           false,
+				SnapReserve:       0,
+				SnapshotDirectory: false,
+			},
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err)
+
+		existingJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "existing-job-uuid"},
+			Type:      string(models.JobTypeDeleteVolume),
+			State:     string(models.JobsStateNEW),
+		}
+
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
+		// GetExistingDeleteJobForDeletingState returns existingJobUUID when delete job is in progress
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteVolume)).Return(existingJob, nil)
+
+		result, jobUUID, err := _deleteVolume(ctx, mockStorage, temporal, "test-volume-uuid")
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "existing-job-uuid", jobUUID)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, volume.UUID, result.UUID)
 		mockStorage.AssertExpectations(tt)
 	})
 }

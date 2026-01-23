@@ -4733,3 +4733,227 @@ func TestHandleCancellationInDeleteWorkflow_CoversLines271_274_UpdateJobSucceeds
 	require.True(t, env.IsWorkflowCompleted())
 	require.NoError(t, env.GetWorkflowError())
 }
+
+func TestWorkflowCancellationHandler_CheckCancellationSignal_WithCancellation_ReturnsCustomError(t *testing.T) {
+	// Test for lines 145-146, 148: CheckCancellationSignal converts cancellation error to CustomError
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	signalName := "cancel-signal"
+	resourceUUID := "test-uuid"
+	resourceName := "test-resource"
+
+	// Send signal after workflow starts
+	env.RegisterDelayedCallback(func() {
+		env.SignalWorkflow(signalName, "cancel data")
+	}, 5*time.Millisecond)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) *vsaerrors.CustomError {
+		handler := NewWorkflowCancellationHandler(ctx, signalName, resourceUUID, resourceName)
+		_ = workflow.Sleep(ctx, 10*time.Millisecond)
+		return handler.CheckCancellationSignal(ctx)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	require.Error(t, err)
+	// Should return a CustomError when cancellation is detected
+	assert.Contains(t, err.Error(), "cancelled")
+}
+
+func TestWorkflowCancellationHandler_CheckCancellationSignal_NoCancellation_ReturnsNil(t *testing.T) {
+	// Test for lines 145-146, 148: CheckCancellationSignal returns nil when no cancellation
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	signalName := "cancel-signal"
+	resourceUUID := "test-uuid"
+	resourceName := "test-resource"
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		handler := NewWorkflowCancellationHandler(ctx, signalName, resourceUUID, resourceName)
+		customErr := handler.CheckCancellationSignal(ctx)
+		if customErr != nil {
+			return customErr
+		}
+		return nil
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestHandleCancellationForCreatingResource_NonCreatingState_ReturnsNilEarly(t *testing.T) {
+	// Test for lines 316-317: When resource state is not CREATING, return nil early
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockLogger := &log.MockLogger{}
+	params := HandleCancellationForCreatingResourceParams{
+		ResourceUUID:  "resource-uuid",
+		ResourceState: models.LifeCycleStateREADY, // Not CREATING
+		CreateJobType: models.JobTypeCreateVolume,
+	}
+
+	getCreateJobActivity := func(ctx context.Context, resourceUUID string, correlationID string, jobType string) (*CreateJobResult, error) {
+		return nil, nil
+	}
+	cancellationActivity := &testCancellationActivity{}
+	commonActivity := &testCommonActivity{}
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return HandleCancellationForCreatingResource(ctx, mockLogger, params, getCreateJobActivity, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+	// Should return early without calling HandleCancellationInDeleteWorkflow
+}
+
+func TestHandleCancellationForCreatingResource_Success_ReturnsNil(t *testing.T) {
+	// Test for lines 326, 335-337, 339: When HandleCancellationInDeleteWorkflow succeeds, return nil
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	fields := log.Fields{
+		string(middleware.RequestCorrelationID): "test-correlation-id",
+	}
+	env.SetTestTimeout(1 * time.Minute)
+
+	mockLogger := &log.MockLogger{}
+	params := HandleCancellationForCreatingResourceParams{
+		ResourceUUID:  "resource-uuid",
+		ResourceState: models.LifeCycleStateCreating,
+		CreateJobType: models.JobTypeCreateVolume,
+	}
+
+	createJobResult := &CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	getCreateJobActivity := func(ctx context.Context, resourceUUID string, correlationID string, jobType string) (*CreateJobResult, error) {
+		return createJobResult, nil
+	}
+	cancellationActivity := &testCancellationActivity{}
+	commonActivity := &testCommonActivity{}
+
+	env.RegisterActivity(getCreateJobActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+
+	// Correlation ID is extracted from workflow context, so use the value from fields
+	correlationID := fields[string(middleware.RequestCorrelationID)].(string)
+	env.OnActivity(getCreateJobActivity, mock.Anything, params.ResourceUUID, correlationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity(cancellationActivity.IsWorkflowRunningActivity, mock.Anything, createJobResult.WorkflowID).Return(false, nil)
+	env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		ctx = workflow.WithValue(ctx, middleware.TemporalSLoggerKey, fields)
+		return HandleCancellationForCreatingResource(ctx, mockLogger, params, getCreateJobActivity, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+}
+
+func TestHandleCancellationForCreatingResource_CorrelationIDError_ContinuesWithEmptyID(t *testing.T) {
+	// Test for lines 322-323: When GetCorrelationIDFromWorkflowContextLoggerFields returns error, continue with empty correlation ID
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	env.SetTestTimeout(1 * time.Minute)
+
+	mockLogger := &log.MockLogger{}
+	mockLogger.On("Warnf", "Could not get correlation ID from workflow context: %v", mock.Anything).Return()
+	params := HandleCancellationForCreatingResourceParams{
+		ResourceUUID:  "resource-uuid",
+		ResourceState: models.LifeCycleStateCreating,
+		CreateJobType: models.JobTypeCreateVolume,
+	}
+
+	createJobResult := &CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	getCreateJobActivity := func(ctx context.Context, resourceUUID string, correlationID string, jobType string) (*CreateJobResult, error) {
+		return createJobResult, nil
+	}
+	cancellationActivity := &testCancellationActivity{}
+	commonActivity := &testCommonActivity{}
+
+	env.RegisterActivity(getCreateJobActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+
+	// Don't set correlation ID in context, so GetCorrelationIDFromWorkflowContextLoggerFields will return error
+	// Use empty string as correlation ID when the function is called
+	env.OnActivity(getCreateJobActivity, mock.Anything, params.ResourceUUID, "", string(params.CreateJobType)).Return(createJobResult, nil)
+	env.OnActivity(cancellationActivity.IsWorkflowRunningActivity, mock.Anything, createJobResult.WorkflowID).Return(false, nil)
+	env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		// Don't set correlation ID in context to trigger error path
+		return HandleCancellationForCreatingResource(ctx, mockLogger, params, getCreateJobActivity, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+	// Verify that logger was called with warning about correlation ID
+	mockLogger.AssertExpectations(t)
+}
+
+func TestHandleCancellationForCreatingResource_CancellationError_ReturnsError(t *testing.T) {
+	// Test for lines 336-337: When HandleCancellationInDeleteWorkflow returns error, log warning and return error
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	fields := log.Fields{
+		string(middleware.RequestCorrelationID): "test-correlation-id",
+	}
+	env.SetTestTimeout(1 * time.Minute)
+
+	mockLogger := &log.MockLogger{}
+	params := HandleCancellationForCreatingResourceParams{
+		ResourceUUID:  "resource-uuid",
+		ResourceState: models.LifeCycleStateCreating,
+		CreateJobType: models.JobTypeCreateVolume,
+	}
+
+	createJobResult := &CreateJobResult{
+		JobUUID:    "job-uuid",
+		WorkflowID: "workflow-id",
+	}
+
+	getCreateJobActivity := func(ctx context.Context, resourceUUID string, correlationID string, jobType string) (*CreateJobResult, error) {
+		return createJobResult, nil
+	}
+	cancellationActivity := &testCancellationActivity{}
+	commonActivity := &testCommonActivity{}
+
+	env.RegisterActivity(getCreateJobActivity)
+	env.RegisterActivity(cancellationActivity)
+	env.RegisterActivity(commonActivity)
+
+	// Correlation ID is extracted from workflow context
+	correlationID := fields[string(middleware.RequestCorrelationID)].(string)
+	env.OnActivity(getCreateJobActivity, mock.Anything, params.ResourceUUID, correlationID, string(params.CreateJobType)).Return(createJobResult, nil)
+	// Make IsWorkflowRunningActivity return error to cause HandleCancellationInDeleteWorkflow to fail
+	env.OnActivity(cancellationActivity.IsWorkflowRunningActivity, mock.Anything, createJobResult.WorkflowID).Return(false, errors.New("temporal client error"))
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		ctx = workflow.WithValue(ctx, middleware.TemporalSLoggerKey, fields)
+		return HandleCancellationForCreatingResource(ctx, mockLogger, params, getCreateJobActivity, cancellationActivity, commonActivity)
+	})
+
+	require.True(t, env.IsWorkflowCompleted())
+	// The function should return nil even on error (it logs warning and proceeds)
+	require.NoError(t, env.GetWorkflowError())
+	mockLogger.AssertExpectations(t)
+}

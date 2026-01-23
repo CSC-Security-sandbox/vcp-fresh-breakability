@@ -1554,6 +1554,9 @@ func TestDeletePool(t *testing.T) {
 			},
 		}, nil)
 
+		// Mock GetJobByResourceUUID for DELETE_POOL (called first in ValidateCorrelationIDForCreatingResource)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeletePool)).Return(nil, nil)
+
 		// Mock GetJobByResourceUUID to return a job with matching correlation ID
 		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(&datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "job-uuid"},
@@ -1606,6 +1609,9 @@ func TestDeletePool(t *testing.T) {
 			},
 		}, nil)
 
+		// Mock GetJobByResourceUUID for DELETE_POOL (called first in ValidateCorrelationIDForCreatingResource)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeletePool)).Return(nil, nil)
+
 		// Mock GetJobByResourceUUID to return a job with different correlation ID
 		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(&datamodel.Job{
 			BaseModel:     datamodel.BaseModel{UUID: "job-uuid"},
@@ -1614,7 +1620,7 @@ func TestDeletePool(t *testing.T) {
 
 		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "Pool is already transitioning between states")
+		assert.Contains(tt, err.Error(), "Error deleting pool - pool is already transitioning between states")
 	})
 	t.Run("DeletePool_WhenPoolInCreatingStateAndGetJobByResourceUUIDFails_ReturnsConflictError", func(tt *testing.T) {
 		ctx, store, _, temporal := setup(tt)
@@ -1645,12 +1651,15 @@ func TestDeletePool(t *testing.T) {
 			},
 		}, nil)
 
+		// Mock GetJobByResourceUUID for DELETE_POOL (called first in ValidateCorrelationIDForCreatingResource)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeletePool)).Return(nil, nil)
+
 		// Mock GetJobByResourceUUID to return an error
 		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(nil, errors.New("job not found"))
 
 		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "Pool is already transitioning between states")
+		assert.Contains(tt, err.Error(), "Error deleting pool - pool is already transitioning between states")
 	})
 	t.Run("DeletePool_WhenPoolHasActiveVolumes_ReturnsBadRequestError", func(tt *testing.T) {
 		ctx, store, _, temporal := setup(tt)
@@ -1715,13 +1724,16 @@ func TestDeletePool(t *testing.T) {
 			},
 		}, nil)
 
+		// Mock GetJobByResourceUUID for DELETE_POOL (called first in ValidateCorrelationIDForCreatingResource)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeletePool)).Return(nil, nil)
+
 		// Mock GetJobByResourceUUID to return an error (triggers lines 554-557)
 		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(nil, errors.New("database error"))
 
 		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
 		assert.Error(tt, err)
 		assert.True(tt, errors.IsConflictErr(err), "Expected ConflictErr")
-		assert.Contains(tt, err.Error(), "Pool is already transitioning between states")
+		assert.Contains(tt, err.Error(), "Error deleting pool - pool is already transitioning between states")
 	})
 	t.Run("DeletePool_WhenPoolInCreatingStateWithNonEmptyMismatchedCorrelationID_ReturnsConflictError", func(tt *testing.T) {
 		ctx, store, _, temporal := setup(tt)
@@ -1756,6 +1768,9 @@ func TestDeletePool(t *testing.T) {
 			},
 		}, nil)
 
+		// Mock GetJobByResourceUUID for DELETE_POOL (called first in ValidateCorrelationIDForCreatingResource)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeletePool)).Return(nil, nil)
+
 		// Mock GetJobByResourceUUID to return a job with different correlation ID
 		// This triggers lines 559-560, 562 (correlationID != "" && createJob.CorrelationID != correlationID)
 		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(&datamodel.Job{
@@ -1766,7 +1781,7 @@ func TestDeletePool(t *testing.T) {
 		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
 		assert.Error(tt, err)
 		assert.True(tt, errors.IsConflictErr(err), "Expected ConflictErr")
-		assert.Contains(tt, err.Error(), "Pool is already transitioning between states")
+		assert.Contains(tt, err.Error(), "Error deleting pool - pool is already transitioning between states")
 	})
 	t.Run("DeletePool_WhenPoolInCreatingStateWithMatchingCorrelationID_LogsAndSkipsStateUpdate", func(tt *testing.T) {
 		ctx, store, _, temporal := setup(tt)
@@ -1807,6 +1822,9 @@ func TestDeletePool(t *testing.T) {
 				},
 			},
 		}, nil)
+
+		// Mock GetJobByResourceUUID for DELETE_POOL (called first in ValidateCorrelationIDForCreatingResource)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeletePool)).Return(nil, nil)
 
 		// Mock GetJobByResourceUUID to return a job with matching correlation ID
 		// This triggers line 565 (logger.Infof when correlation ID matches)
@@ -1858,6 +1876,11 @@ func TestDeletePool(t *testing.T) {
 			VolumeCount: 0, // No volumes, so delete is allowed
 		}, nil)
 
+		// Mock GetJobByResourceUUID for DELETE_POOL (check for existing delete job when in non-transitional state)
+		// Since LargeCapacity is not set in the mock, it defaults to false, which means PoolCategoryStandard
+		deleteJobType := models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationDelete, models.PoolCategoryStandard)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(deleteJobType)).Return(nil, nil)
+
 		// Mock CreateJob
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
 			BaseModel:  datamodel.BaseModel{UUID: "delete-job-uuid"},
@@ -1874,6 +1897,166 @@ func TestDeletePool(t *testing.T) {
 		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
 		assert.Error(tt, err)
 		assert.EqualError(tt, err, "failed to mark pool as deleting")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("DeletePool_WhenPoolInCreatingStateWithExistingDeleteJob_ReturnsExistingJobUUID", func(tt *testing.T) {
+		// Test for line 594: When existingDeleteJobUUID is not empty, return it immediately
+		ctx, store, _, temporal := setup(tt)
+		pools, account := createDBPools(t, store)
+		pool := pools[0]
+		correlationID := "test-correlation-id-123"
+
+		params := &common.DeletePoolParams{
+			AccountName: account.Name,
+			PoolID:      pool.UUID,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		// Add correlation ID to context
+		ctx = context.WithValue(ctx, middleware.CorrelationContextKey, correlationID)
+
+		existingDeleteJob := &datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "existing-delete-job-uuid"},
+			CorrelationID: correlationID,
+			Type:          string(models.JobTypeDeletePool),
+			State:         string(models.JobsStatePROCESSING),
+		}
+
+		// Mock GetPool to return a pool in CREATING state
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
+				Name:      pool.Name,
+				AccountID: account.ID,
+				State:     models.LifeCycleStateCreating,
+				Account:   account, // Required for convertDatastorePoolToModel
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone:     "us-central1-a",
+					SecondaryZone:   "us-central1-b",
+					ThroughputMibps: 64,
+					Iops:            1024,
+				},
+			},
+			VolumeCount: 0,
+		}, nil)
+
+		// ValidateCorrelationIDForCreatingResource returns existingDeleteJobUUID when delete job is in progress
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeletePool)).Return(existingDeleteJob, nil)
+
+		result, jobUUID, err := _deletePool(ctx, temporal, mockStorage, params)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "existing-delete-job-uuid", jobUUID)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, pool.UUID, result.UUID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("DeletePool_WhenPoolInTransitionalState_ReturnsConflictError", func(tt *testing.T) {
+		// Test for lines 598-599: When pool is in transitional state (not DELETING), return error
+		ctx, store, _, temporal := setup(tt)
+		pools, account := createDBPools(t, store)
+		pool := pools[0]
+
+		params := &common.DeletePoolParams{
+			AccountName: account.Name,
+			PoolID:      pool.UUID,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		// Mock GetPool to return a pool in transitional state (not DELETING)
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
+				Name:      pool.Name,
+				AccountID: account.ID,
+				State:     models.LifeCycleStateUpdating, // Transitional state (not DELETING)
+			},
+			VolumeCount: 0,
+		}, nil)
+
+		// Note: GetJobByResourceUUID is not called when pool is in transitional state
+		// because the function returns early at line 599 in pool.go
+
+		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "pool is in transition state and cannot be deleted")
+		assert.Contains(tt, err.Error(), models.LifeCycleStateUpdating)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("DeletePool_WhenPoolInDeletingStateWithExistingJob_ReturnsExistingJobUUID", func(tt *testing.T) {
+		// Test for line 604: When existingJobUUID is not empty, return it immediately
+		ctx, store, _, temporal := setup(tt)
+		pools, account := createDBPools(t, store)
+		pool := pools[0]
+
+		params := &common.DeletePoolParams{
+			AccountName: account.Name,
+			PoolID:      pool.UUID,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		existingJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "existing-job-uuid"},
+			Type:      string(models.JobTypeDeletePool),
+			State:     string(models.JobsStateNEW),
+		}
+
+		// Mock GetPool to return a pool in DELETING state
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
+				Name:      pool.Name,
+				AccountID: account.ID,
+				State:     models.LifeCycleStateDeleting,
+				Account:   account, // Required for convertDatastorePoolToModel
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone:     "us-central1-a",
+					SecondaryZone:   "us-central1-b",
+					ThroughputMibps: 64,
+					Iops:            1024,
+				},
+			},
+			VolumeCount: 0,
+		}, nil)
+
+		// GetExistingDeleteJobForDeletingState returns existingJobUUID when delete job is in progress
+		deleteJobType := models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationDelete, models.PoolCategoryStandard)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(deleteJobType)).Return(existingJob, nil)
+
+		result, jobUUID, err := _deletePool(ctx, temporal, mockStorage, params)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "existing-job-uuid", jobUUID)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, pool.UUID, result.UUID)
 		mockStorage.AssertExpectations(tt)
 	})
 }
@@ -2681,6 +2864,8 @@ func TestDeletePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
 
 	// Setup mocks
 	mockStorage.On("GetPool", ctx, "pool-uuid", account.ID).Return(poolView, nil)
+	// Mock GetJobByResourceUUID to check for existing delete job (called for non-CREATING, non-DELETING states)
+	mockStorage.On("GetJobByResourceUUID", ctx, "pool-uuid", string(models.JobTypeDeletePool)).Return(nil, nil)
 	mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 	mockStorage.On("DeletingPool", ctx, mock.Anything).Return(nil)
 
@@ -3222,6 +3407,9 @@ func TestDeletePool_UpdateJobFailsInDefer(t *testing.T) {
 	}()
 
 	mockStorage.On("GetPool", ctx, "pool-uuid", account.ID).Return(poolView, nil)
+	// Mock GetJobByResourceUUID for DELETE_POOL (check for existing delete job when in non-transitional state)
+	deleteJobType := models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationDelete, models.PoolCategoryStandard)
+	mockStorage.On("GetJobByResourceUUID", ctx, "pool-uuid", string(deleteJobType)).Return(nil, nil)
 	mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 	mockStorage.On("DeletingPool", ctx, mock.Anything).Return(nil)
 
@@ -3293,6 +3481,9 @@ func TestDeletePool_UpdatePoolStateFailsInDefer(t *testing.T) {
 	}()
 
 	mockStorage.On("GetPool", ctx, "pool-uuid", account.ID).Return(poolView, nil)
+	// Mock GetJobByResourceUUID for DELETE_POOL (check for existing delete job when in non-transitional state)
+	deleteJobType := models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationDelete, models.PoolCategoryStandard)
+	mockStorage.On("GetJobByResourceUUID", ctx, "pool-uuid", string(deleteJobType)).Return(nil, nil)
 	mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 	mockStorage.On("DeletingPool", ctx, mock.Anything).Return(nil)
 
@@ -7791,6 +7982,7 @@ func TestDeletePool_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 		mockStorage.EXPECT().GetPool(ctx, params.PoolID, account.ID).Return(&datamodel.PoolView{
 			Pool: *pool,
 		}, nil)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, pool.UUID, mock.Anything).Return(nil, nil)
 		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
 			return job.JobAttributes != nil &&
 				job.JobAttributes.PreviousState == previousState &&

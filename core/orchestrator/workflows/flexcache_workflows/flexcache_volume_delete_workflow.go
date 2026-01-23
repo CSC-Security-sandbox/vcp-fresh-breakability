@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/flexcache_activities"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
@@ -91,6 +92,28 @@ func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 	dbVolume := args[0].(*datamodel.Volume)
 	fcDeleteActivity := &flexcache_activities.FlexCacheVolumeDeleteActivity{}
 	deleteActivity := &activities.VolumeDeleteActivity{}
+
+	// Handle cancellation if volume is in CREATING state
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{}
+	poolActivity := &activities.PoolActivity{}
+	ackTimeout, forceTimeout := commonparams.GetCancellationTimeouts("FLEXCACHE")
+	if cancelErr := commonparams.HandleCancellationForCreatingResource(ctx, log,
+		commonparams.HandleCancellationForCreatingResourceParams{
+			ResourceUUID:               dbVolume.UUID,
+			ResourceState:              dbVolume.State,
+			CreateJobType:              models.JobTypeFlexCacheCreateVolume,
+			SignalName:                 CancelFlexCacheSignalName,
+			CancellationAckTimeout:     ackTimeout,
+			ForceTerminationAckTimeout: forceTimeout,
+		},
+		poolActivity.GetCreateJobByResourceUUID,
+		cancellationActivity,
+		commonActivity,
+	); cancelErr != nil {
+		log.Warnf("Error handling cancellation: %v, proceeding with normal delete", cancelErr)
+	}
+
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)

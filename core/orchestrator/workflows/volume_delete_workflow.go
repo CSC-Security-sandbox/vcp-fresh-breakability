@@ -190,6 +190,32 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	ao1.RetryPolicy.NonRetryableErrorTypes = append(ao1.RetryPolicy.NonRetryableErrorTypes, vsaerrors.DeleteVolumeInONTAPError)
 	ctx1 := workflow.WithActivityOptions(ctx, ao1)
 
+	// Handle cancellation only if volume is in CREATING state
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{}
+	poolActivity := &activities.PoolActivity{}
+	ackTimeout, forceTimeout := common.GetCancellationTimeouts("VOLUME")
+	// Determine the correct create job type based on volume type
+	createJobType := models.JobTypeCreateVolume
+	if volume.LargeVolumeAttributes != nil && volume.LargeVolumeAttributes.LargeCapacity {
+		createJobType = models.JobTypeCreateLargeVolume
+	}
+	if cancelErr := common.HandleCancellationForCreatingResource(ctx, wf.Logger,
+		common.HandleCancellationForCreatingResourceParams{
+			ResourceUUID:               volume.UUID,
+			ResourceState:              volume.State,
+			CreateJobType:              createJobType,
+			SignalName:                 CancelVolumeSignalName,
+			CancellationAckTimeout:     ackTimeout,
+			ForceTerminationAckTimeout: forceTimeout,
+		},
+		poolActivity.GetCreateJobByResourceUUID,
+		cancellationActivity,
+		commonActivity,
+	); cancelErr != nil {
+		wf.Logger.Warnf("Error handling cancellation: %v, proceeding with deletion", cancelErr)
+	}
+
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
 		if err != nil {
@@ -210,6 +236,12 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 	}()
 
+	// For volumes in CREATING state, check for the existence of partially created resources before accessing them
+	hasExternalUUID := volume.VolumeAttributes != nil && volume.VolumeAttributes.ExternalUUID != ""
+	hasFileProperties := volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil
+	hasBlockDevices := volume.VolumeAttributes != nil && volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0
+	hasBlockProperties := volume.VolumeAttributes != nil && volume.VolumeAttributes.BlockProperties != nil && len(volume.VolumeAttributes.BlockProperties.HostGroupDetails) > 0
+
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &volume.Pool.ID).Get(ctx, &dbNodes)
 	if err != nil {
@@ -222,47 +254,50 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		OntapCredentials: volume.Pool.PoolCredentials,
 	})
 
-	var ontapAsyncResponse *vsa.OntapAsyncResponse
-	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapmirrorInONTAP, &volume, &node).Get(ctx, &ontapAsyncResponse)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	err = WaitForONTAPJob(ctx, ontapAsyncResponse, node, time.Minute*10)
-	if err != nil {
-		return nil, ConvertToVSAError(fmt.Errorf("failed to delete snapmirror in ontap: %w", err))
-	}
-
-	// DeleteVolume polls the job internally, so we just wait for the activity to complete
-	err = workflow.ExecuteActivity(ctx1, deleteActivity.DeleteVolumeInONTAP, volume.VolumeAttributes.ExternalUUID, volume.Name, node).Get(ctx1, nil)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	if volume.VolumeAttributes.FileProperties != nil && volume.VolumeAttributes.FileProperties.ExportPolicy != nil &&
-		len(volume.VolumeAttributes.FileProperties.ExportPolicy.ExportRules) > 0 {
-		err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteExportPolicy, &volume, &node).Get(ctx, nil)
+	// Only perform ONTAP operations if volume was at least partially created
+	if hasExternalUUID {
+		var ontapAsyncResponse *vsa.OntapAsyncResponse
+		err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapmirrorInONTAP, &volume, &node).Get(ctx, &ontapAsyncResponse)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
-	}
 
-	if volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0 {
-		err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteIgroups, volume, node).Get(ctx, nil)
+		err = WaitForONTAPJob(ctx, ontapAsyncResponse, node, time.Minute*10)
+		if err != nil {
+			return nil, ConvertToVSAError(fmt.Errorf("failed to delete snapmirror in ontap: %w", err))
+		}
+
+		// DeleteVolume polls the job internally, so we just wait for the activity to complete
+		err = workflow.ExecuteActivity(ctx1, deleteActivity.DeleteVolumeInONTAP, volume.VolumeAttributes.ExternalUUID, volume.Name, node).Get(ctx1, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
-	} else if volume.VolumeAttributes.BlockProperties != nil && len(volume.VolumeAttributes.BlockProperties.HostGroupDetails) > 0 {
-		err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteIgroupsFromBlockProperties, volume, node).Get(ctx, nil)
+
+		if hasFileProperties && volume.VolumeAttributes.FileProperties.ExportPolicy != nil &&
+			len(volume.VolumeAttributes.FileProperties.ExportPolicy.ExportRules) > 0 {
+			err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteExportPolicy, &volume, &node).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+		}
+
+		if hasBlockDevices {
+			err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteIgroups, volume, node).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+		} else if hasBlockProperties {
+			err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteIgroupsFromBlockProperties, volume, node).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+		}
+
+		SnapshotPolicyName := getSnapshotPolicyName(volume)
+		err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapshotPolicyInONTAP, SnapshotPolicyName, &node).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
-	}
-
-	SnapshotPolicyName := getSnapshotPolicyName(volume)
-	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapshotPolicyInONTAP, SnapshotPolicyName, &node).Get(ctx, nil)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteVolumeAssociatedSnapshots, volume.ID).Get(ctx, nil)
@@ -270,24 +305,27 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(err)
 	}
 
-	if enableLdap && volume.Pool.PoolAttributes.LdapEnabled {
-		var isLastFilesVolume bool
-		err = workflow.ExecuteActivity(ctx, deleteActivity.DetermineIfVolumeIsLastFilesVolume, volume, node).Get(ctx, &isLastFilesVolume)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
-		}
-		if isLastFilesVolume {
-			err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteLDAPConfiguration, volume, node).Get(ctx, nil)
+	// Only perform LDAP and SMB cleanup if volume was at least partially created
+	if hasExternalUUID {
+		if enableLdap && volume.Pool.PoolAttributes != nil && volume.Pool.PoolAttributes.LdapEnabled {
+			var isLastFilesVolume bool
+			err = workflow.ExecuteActivity(ctx, deleteActivity.DetermineIfVolumeIsLastFilesVolume, volume, node).Get(ctx, &isLastFilesVolume)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
+			if isLastFilesVolume {
+				err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteLDAPConfiguration, volume, node).Get(ctx, nil)
+				if err != nil {
+					return nil, ConvertToVSAError(err)
+				}
+			}
 		}
-	}
 
-	if enableSmb {
-		err = workflow.ExecuteChildWorkflow(ctx, SmbTeardownWorkflow, volume, node).Get(ctx, nil)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
+		if enableSmb {
+			err = workflow.ExecuteChildWorkflow(ctx, SmbTeardownWorkflow, volume, node).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
 		}
 	}
 

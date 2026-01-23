@@ -4,8 +4,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -28,7 +29,7 @@ type deleteKmsConfigWorkflow struct {
 var _ workflows.WorkflowInterface = &deleteKmsConfigWorkflow{}
 
 // DeleteKmsConfigWorkflow process kms config delete request from a customer.
-func DeleteKmsConfigWorkflow(ctx workflow.Context, kmsConfig *datamodel.KmsConfig, params *common.DeleteKmsConfigParams) (gcpgenserver.V1betaDeleteKmsConfigurationRes, error) {
+func DeleteKmsConfigWorkflow(ctx workflow.Context, kmsConfig *datamodel.KmsConfig, params *commonparams.DeleteKmsConfigParams) (gcpgenserver.V1betaDeleteKmsConfigurationRes, error) {
 	kmsConfigWf := new(deleteKmsConfigWorkflow)
 	err := kmsConfigWf.Setup(ctx, params)
 	if err != nil {
@@ -54,7 +55,7 @@ func DeleteKmsConfigWorkflow(ctx workflow.Context, kmsConfig *datamodel.KmsConfi
 }
 
 func (wf *deleteKmsConfigWorkflow) Setup(ctx workflow.Context, input interface{}) error {
-	deleteParams := input.(*common.DeleteKmsConfigParams)
+	deleteParams := input.(*commonparams.DeleteKmsConfigParams)
 	info := workflow.GetInfo(ctx)
 	wf.ID = info.WorkflowExecution.ID
 	wf.CustomerID = deleteParams.AccountName
@@ -76,8 +77,9 @@ func (wf *deleteKmsConfigWorkflow) Setup(ctx workflow.Context, input interface{}
 
 func (wf *deleteKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	kmsConfig := args[0].(*datamodel.KmsConfig)
-	params := args[1].(*common.DeleteKmsConfigParams)
+	params := args[1].(*commonparams.DeleteKmsConfigParams)
 	deleteActivity := &kms_activities.KmsConfigActivity{}
+
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -95,6 +97,27 @@ func (wf *deleteKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}
 
 	ctx = workflow.WithActivityOptions(ctx, defaultActivityOpts)
+
+	// Handle cancellation if kms config is in CREATING state
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{}
+	poolActivity := &activities.PoolActivity{}
+	ackTimeout, forceTimeout := commonparams.GetCancellationTimeouts("KMS_CONFIG")
+	if cancelErr := commonparams.HandleCancellationForCreatingResource(ctx, wf.Logger,
+		commonparams.HandleCancellationForCreatingResourceParams{
+			ResourceUUID:               kmsConfig.UUID,
+			ResourceState:              kmsConfig.State,
+			CreateJobType:              models.JobTypeCreateKmsConfig,
+			SignalName:                 CancelKmsConfigSignalName,
+			CancellationAckTimeout:     ackTimeout,
+			ForceTerminationAckTimeout: forceTimeout,
+		},
+		poolActivity.GetCreateJobByResourceUUID,
+		cancellationActivity,
+		commonActivity,
+	); cancelErr != nil {
+		wf.Logger.Warnf("Error handling cancellation: %v, proceeding with normal delete", cancelErr)
+	}
 	jwtToken := ""
 	err = workflow.ExecuteActivity(ctx, deleteActivity.GetSignedTokenActivity, params.AccountName).Get(ctx, &jwtToken)
 	if err != nil {

@@ -1224,7 +1224,7 @@ func (a *QuotaRuleCommonActivity) HandleQuotaEnablementAndReinitialization(
 // UpdateQuotaRuleState updates the quota rule state in the database.
 // If the quota rule is in CREATING state, it will transition to READY state
 // and update the ExternalUUID. If in UPDATING state, it transitions to READY with updated fields.
-func (a *QuotaRuleCommonActivity) UpdateQuotaRuleState(ctx context.Context, quotaRule datamodel.QuotaRule) error {
+func (a *QuotaRuleCommonActivity) UpdateQuotaRuleState(ctx context.Context, quotaRule datamodel.QuotaRule, isCleanupDelete bool) error {
 	logger := util.GetLogger(ctx)
 	se := a.SE
 
@@ -1235,8 +1235,15 @@ func (a *QuotaRuleCommonActivity) UpdateQuotaRuleState(ctx context.Context, quot
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	// If quotaRule.State is ERROR (set by defer blocks), set it to ERROR regardless of current state
-	if quotaRule.State == models.LifeCycleStateError {
+	if isCleanupDelete { // Cleanup delete case
+		updatedAt := time.Now()
+		currentQuotaRule.State = models.LifeCycleStateDeleted
+		currentQuotaRule.StateDetails = models.LifeCycleStateDeletedDetails
+		currentQuotaRule.UpdatedAt = updatedAt
+		currentQuotaRule.DeletedAt = &gorm.DeletedAt{Time: updatedAt, Valid: true}
+		logger.Infof("Cleanup delete case: marking quota rule as DELETED from CREATING state: uuid=%s", quotaRule.UUID)
+	} else if quotaRule.State == models.LifeCycleStateError {
+		// If quotaRule.State is ERROR (set by defer blocks), set it to ERROR regardless of current state
 		logger.Infof("Setting quota rule state to ERROR: uuid=%s", quotaRule.UUID)
 		currentQuotaRule.State = models.LifeCycleStateError
 		currentQuotaRule.StateDetails = quotaRule.StateDetails

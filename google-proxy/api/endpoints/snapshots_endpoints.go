@@ -364,7 +364,7 @@ func (h Handler) V1betaDeleteSnapshot(ctx context.Context, params gcpgenserver.V
 	if err != nil {
 		return nil, err
 	}
-	if deleted.LifeCycleState == coremodels.LifeCycleStateDeleting {
+	if deleted.LifeCycleState == coremodels.LifeCycleStateDeleting || deleted.LifeCycleState == coremodels.LifeCycleStateCreating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID)),
 			Response: resp,

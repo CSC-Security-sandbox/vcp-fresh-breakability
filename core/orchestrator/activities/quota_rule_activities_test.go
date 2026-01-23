@@ -2190,7 +2190,7 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 				qr.StateDetails == models.LifeCycleStateReadyDetails
 		})).Return(currentQuotaRule, nil)
 
-		err := activity.UpdateQuotaRuleState(ctx, quotaRule)
+		err := activity.UpdateQuotaRuleState(ctx, quotaRule, false)
 
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
@@ -2221,7 +2221,7 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 		expectedError := errors.New("database update failed")
 		mockStorage.On("UpdateQuotaRule", ctx, mock.Anything).Return(nil, expectedError)
 
-		err := activity.UpdateQuotaRuleState(ctx, quotaRule)
+		err := activity.UpdateQuotaRuleState(ctx, quotaRule, false)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "database update failed")
@@ -2244,7 +2244,7 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 		expectedError := errors.New("failed to fetch quota rule")
 		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid", int64(1)).Return(nil, expectedError)
 
-		err := activity.UpdateQuotaRuleState(ctx, quotaRule)
+		err := activity.UpdateQuotaRuleState(ctx, quotaRule, false)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to fetch quota rule")
@@ -2291,7 +2291,7 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 				qr.StateDetails == models.LifeCycleStateCreationErrorDetails
 		})).Return(updatedQuotaRule, nil)
 
-		err := activity.UpdateQuotaRuleState(ctx, quotaRule)
+		err := activity.UpdateQuotaRuleState(ctx, quotaRule, false)
 
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
@@ -2345,7 +2345,7 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 				qr.Description == "updated description"
 		})).Return(updatedQuotaRule, nil)
 
-		err := activity.UpdateQuotaRuleState(ctx, quotaRule)
+		err := activity.UpdateQuotaRuleState(ctx, quotaRule, false)
 
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
@@ -2394,7 +2394,56 @@ func Test_UpdateQuotaRuleState(t *testing.T) {
 				qr.DeletedAt.Valid == true
 		})).Return(updatedQuotaRule, nil)
 
-		err := activity.UpdateQuotaRuleState(ctx, quotaRule)
+		err := activity.UpdateQuotaRuleState(ctx, quotaRule, false)
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleState_CleanupDelete_Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleCommonActivity{SE: mockStorage}
+		quotaRule := datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid",
+			},
+			Name:         "test-quota-rule",
+			AccountID:    int64(1),
+			State:        models.LifeCycleStateCreating,
+			StateDetails: models.LifeCycleStateCreatingDetails,
+		}
+
+		currentQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-rule-uuid",
+			},
+			Name:         "test-quota-rule",
+			AccountID:    int64(1),
+			State:        models.LifeCycleStateCreating,
+			StateDetails: models.LifeCycleStateCreatingDetails,
+		}
+
+		mockStorage.On("GetQuotaRuleByUUID", ctx, "quota-rule-uuid", int64(1)).Return(currentQuotaRule, nil)
+
+		updatedQuotaRule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "quota-rule-uuid",
+				DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true},
+			},
+			Name:         "test-quota-rule",
+			AccountID:    int64(1),
+			State:        models.LifeCycleStateDeleted,
+			StateDetails: models.LifeCycleStateDeletedDetails,
+		}
+
+		mockStorage.On("UpdateQuotaRule", ctx, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
+			return qr.State == models.LifeCycleStateDeleted &&
+				qr.StateDetails == models.LifeCycleStateDeletedDetails &&
+				qr.DeletedAt != nil &&
+				qr.DeletedAt.Valid == true
+		})).Return(updatedQuotaRule, nil)
+
+		err := activity.UpdateQuotaRuleState(ctx, quotaRule, true)
 
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)

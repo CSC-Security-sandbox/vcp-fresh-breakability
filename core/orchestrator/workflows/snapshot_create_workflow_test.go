@@ -446,6 +446,75 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowSucceedsWhenJobNotInEr
 	assert.NoError(s.T(), s.env.GetWorkflowError())
 }
 
+func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflow_CancellationHandling() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	snapshotCreateActivity := activities.SnapshotCreateActivity{SE: mockStorage}
+
+	params := &common.CreateSnapshotParams{
+		SnapshotBaseParams: common.SnapshotBaseParams{
+			AccountName: "test-account",
+		},
+	}
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+		Name:      "test-snapshot",
+		Volume: &datamodel.Volume{
+			PoolID: 1,
+			Pool: &datamodel.Pool{
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+		},
+		SnapshotAttributes: &datamodel.SnapshotAttributes{
+			SizeInBytes:            0,
+			LogicalSizeUsedInBytes: 0,
+		},
+	}
+
+	s.env.RegisterActivity(&commonActivity)
+	s.env.RegisterActivity(&snapshotCreateActivity)
+
+	// Mock GetJob for CheckJobStateBeforeProcessing
+	jobInNewState := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+	mockStorage.On("GetJob", mock.Anything, "default-test-workflow-id").Return(jobInNewState, nil).Maybe()
+
+	// Mock UpdateJobStatus activity calls (activity-level mocking for Temporal test framework)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	// Mock UpdateJob method calls (storage-level mocking as fallback)
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(nil).Maybe()
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "ERROR", 0, mock.Anything).Return(nil).Maybe()
+
+	// Mock UpdateSnapshot for the defer function that runs even after cancellation
+	mockStorage.On("UpdateSnapshot", mock.Anything, mock.Anything).Return(&datamodel.Snapshot{}, nil).Maybe()
+
+	// Send cancellation signal when GetNode completes, so it's available at the next cancellation check (before CreateSnapshotInONTAP)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		s.env.SignalWorkflow(CancelSnapshotSignalName, "cancellation requested")
+	}).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+
+	// CreateSnapshotInONTAP may not be called if cancellation is detected
+	s.env.OnActivity(snapshotCreateActivity.CreateSnapshotInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SnapshotProviderResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "snapshot-uuid"}, SizeInBytes: 1024, LogicalSizeInBytes: 1024}, nil).Maybe()
+
+	s.env.ExecuteWorkflow(CreateSnapshotWorkflow, params, snapshot)
+
+	// Verify workflow completed with cancellation error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	err := s.env.GetWorkflowError()
+	assert.Error(s.T(), err)
+	if err != nil {
+		assert.Contains(s.T(), err.Error(), "snapshot creation cancelled")
+	}
+}
+
 func TestSnapshotUnitTestSuite(t *testing.T) {
 	suite.Run(t, new(SnapshotUnitTestSuite))
 }

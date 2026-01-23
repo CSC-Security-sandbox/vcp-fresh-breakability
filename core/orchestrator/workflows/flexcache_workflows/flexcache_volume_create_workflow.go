@@ -31,6 +31,10 @@ var (
 	shouldForceEncryption  = _shouldForceEncryption
 )
 
+const (
+	CancelFlexCacheSignalName = "cancel-flexcache-creation"
+)
+
 func _getClusterPeerTimeout() time.Duration {
 	return clusterPeerTimeout
 }
@@ -148,16 +152,18 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		},
 	}
 
+	cancellationHandler := common.NewWorkflowCancellationHandler(ctx, CancelFlexCacheSignalName, dbVolume.UUID, "flexcache")
+
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
-		if err != nil {
-			vsaErr := workflows.ConvertToVSAError(err)
+		// Helper function to handle pre-rollback activities for flexcache
+		handleFlexCachePreRollback := func(disconnectedCtx workflow.Context, vsaErr *vsaerrors.CustomError) {
 			updateStateDetailsAndCode(&flexcacheResult, vsaErr)
 			if err2 := workflow.ExecuteActivity(
-				ctx,
+				disconnectedCtx,
 				flexCacheVolumeCreateActivity.UpdateVolumeDetailsOnErrorActivity,
 				&flexcacheResult,
-			).Get(ctx, nil); err2 != nil {
+			).Get(disconnectedCtx, nil); err2 != nil {
 				log.Errorf("Failed to update cache parameters in DB: %v", err2)
 			}
 
@@ -165,25 +171,33 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 				flexcacheResult.ErrorTrackingID = vsaErr.TrackingID
 				flexcacheResult.ErrorMessage = vsaErr.Error()
 				_ = workflow.ExecuteActivity(
-					ctx,
+					disconnectedCtx,
 					flexCacheVolumeCreateActivity.FailJobActivity,
 					&flexcacheResult,
-				).Get(ctx, nil)
+				).Get(disconnectedCtx, nil)
 			}
 
 			// Update cluster peering row state to ERROR in DB if not PEERED
 			if flexcacheResult.ClusterPeeringRow != nil && flexcacheResult.ClusterPeeringRow.State !=
 				coremodels.CvpClusterPeeringStatusPEERED {
-				err2 := workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateClusterPeeringRowStateErrorInDBActivity, &flexcacheResult).Get(ctx, nil)
+				err2 := workflow.ExecuteActivity(disconnectedCtx, flexCacheVolumeCreateActivity.UpdateClusterPeeringRowStateErrorInDBActivity, &flexcacheResult).Get(disconnectedCtx, nil)
 				if err2 != nil {
 					log.Errorf("Failed to update cluster peering row state in DB: %v", err2)
 				}
 			}
-
-			// Execute rollback in disconnected context
-			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
-			rollbackManager.ExecuteRollback(disconnectedCtx, err)
 		}
+
+		common.ExecuteDeferredCleanup(ctx, cancellationHandler, rollbackManager, err, wf.Logger, "flexcache", dbVolume.UUID,
+			func(disconnectedCtx workflow.Context) error {
+				vsaErr := workflows.ConvertToVSAError(err)
+				handleFlexCachePreRollback(disconnectedCtx, vsaErr)
+				return nil
+			},
+			func(disconnectedCtx workflow.Context, cancelErr error) {
+				vsaErr := workflows.ConvertToVSAError(cancelErr)
+				handleFlexCachePreRollback(disconnectedCtx, vsaErr)
+			},
+			nil) // shouldRollbackOnError
 	}()
 
 	// Active job helpers
@@ -204,6 +218,10 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		flexcacheResult = *copyInputCacheParameters(params, &flexcacheResult)
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
+
 	// CCFE compatibility: Handle create job
 	if err = workflow.ExecuteActivity(
 		ctx,
@@ -214,6 +232,10 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}
 	clearActiveJob()
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
+
 	// CCFE compatibility: Establish Peering job
 	if err = workflow.ExecuteActivity(
 		ctx,
@@ -223,6 +245,10 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	setActiveJob(coremodels.JobTypeFlexCacheEstablishPeering)
+
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 
 	// Fetch nodes needed for FlexCache creation
 	var dbNodes []*datamodel.Node
@@ -236,12 +262,18 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		OntapCredentials: dbVolume.Pool.PoolCredentials,
 	})
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	// Fetch cluster peering row from DB if exists
 	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.GetClusterPeeringRowFromDBActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	// check the status of cluster peer before creating new cluster peer
 	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.EnsureClusterPeerInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
 	if err != nil {
@@ -253,6 +285,9 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		if flexcacheResult.ClusterPeer != nil {
 			log.Debugf("Deleting existing cluster peer on ONTAP before creating a new one as a part of "+
 				"Establish Peering for flexcache volume %s", dbVolume.Name)
+			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+				return nil, cancelErr
+			}
 			err = workflow.ExecuteActivity(ctx, flexCacheVolumeDeleteActivity.DeleteClusterPeerInOntapActivity,
 				convertCreateResultToDeleteResult(&flexcacheResult)).Get(ctx, nil)
 			if err != nil {
@@ -264,6 +299,9 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 		// delete cluster peering row on DB if already created in previous attempt and has problem before creating new one
 		if flexcacheResult.ClusterPeeringRow != nil {
+			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+				return nil, cancelErr
+			}
 			err = workflow.ExecuteActivity(ctx, flexCacheVolumeDeleteActivity.DeleteClusterPeeringRowInDBActivity, convertCreateResultToDeleteResult(&flexcacheResult)).Get(ctx, nil)
 			if err != nil {
 				log.Errorf("Failed to delete cluster peering row in DB before creating a new one: %v", err)
@@ -272,6 +310,9 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 			flexcacheResult.ClusterPeeringRow = nil
 		}
 
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		// Create cluster peering row in DB if not exists
 		err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateClusterPeeringRowInDBActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
 		if err != nil {
@@ -288,6 +329,9 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 			return nil, workflows.ConvertToVSAError(err)
 		}
 
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateClusterPeerInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
@@ -307,6 +351,9 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	// calling activity again here only for existing peer scenario where action is READY to avoid unnecessary
 	// DB calls for create action and wait action
 	if flexcacheResult.ClusterPeerAction == flexcache.ActionReady {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		// Add cluster peering relationship to volume in DB when cluster peer is created or ready (existing peer for new volume)
 		err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateClusterPeeringInVolume, &flexcacheResult).Get(ctx, &flexcacheResult)
 		if err != nil {
@@ -314,6 +361,9 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		}
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	// CCFE compatibility: Complete peering job
 	if err = workflow.ExecuteActivity(
 		ctx,
@@ -324,6 +374,9 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}
 	clearActiveJob()
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	// CCFE compatibility: Internal job
 	if err = workflow.ExecuteActivity(
 		ctx,
@@ -336,6 +389,9 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 	if flexcacheResult.ClusterPeerAction == flexcache.ActionCreate || flexcacheResult.ClusterPeerAction == flexcache.ActionWait {
 		clusterPeerWaitCtx := getWaitContext(ctx, dbVolume.CacheParameters)
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		if err = workflow.ExecuteActivity(clusterPeerWaitCtx, flexCacheVolumeCreateActivity.WaitForClusterPeerActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 			if temporal.IsTimeoutError(err) {
 				err = vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrClusterPeerTimeout, err))
@@ -349,6 +405,9 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		}
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.EnsureSVMPeerInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
@@ -356,6 +415,9 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 	// delete SVM peer on ONTAP if already created in previous attempt and has problem before creating new one
 	if flexcacheResult.SVMPeerAction == flexcache.ActionCreate && flexcacheResult.SVMPeer != nil {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		err = workflow.ExecuteActivity(ctx, flexCacheVolumeDeleteActivity.DeleteSVMPeeringInOntapActivity,
 			convertCreateResultToDeleteResult(&flexcacheResult)).Get(ctx, nil)
 		if err != nil {
@@ -365,6 +427,9 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}
 
 	if flexcacheResult.SVMPeerAction == flexcache.ActionCreate {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateSVMPeeringInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
@@ -380,6 +445,9 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 	if flexcacheResult.SVMPeerAction == flexcache.ActionCreate || flexcacheResult.SVMPeerAction == flexcache.ActionWait {
 		svmPeerWaitCtx := getWaitContext(ctx, nil)
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		if err = workflow.ExecuteActivity(svmPeerWaitCtx, flexCacheVolumeCreateActivity.WaitForSVMPeeringActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 			if temporal.IsTimeoutError(err) {
 				err = vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrSVMPeerTimeout, err))
@@ -390,14 +458,23 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 	// Update the volume to be "creating" state because the volume is actually being created in ONTAP now that peering has been established
 	// In the creating state we must wait for completion or an error before we can delete.
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeLifecycleStateActivity, &flexcacheResult, coremodels.LifeCycleStateCreating).Get(ctx, &flexcacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	if err = workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.CreateExportPolicyInOntap, &flexcacheResult.DBVolume, &flexcacheResult.Node).Get(ctx, nil); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateFlexCacheVolumeInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -421,6 +498,9 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 	for _, wfToRun := range postCreationChildWorkflows {
 		var updatedVolume *datamodel.Volume
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		if err = workflow.ExecuteChildWorkflow(ctx, wfToRun, flexcacheResult.DBVolume, flexcacheResult.Node).Get(ctx, &updatedVolume); err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
@@ -436,6 +516,9 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}
 
 	if shouldForceEncryption() {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.VerifyVolumeEncryptionActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
@@ -449,6 +532,9 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	// CCFE compatibility: Complete internal job
 	if err = workflow.ExecuteActivity(
 		ctx,

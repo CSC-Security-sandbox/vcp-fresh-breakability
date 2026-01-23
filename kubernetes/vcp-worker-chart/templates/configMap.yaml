@@ -149,8 +149,28 @@ data:
   CMEK_ROTATION_MAX_WORKERS: {{$.Values.workerConfig.cmekRotationMaxWorkers | quote }}
   MAX_CMEK_ROTATION_PASSES: {{$.Values.workerConfig.cmekRotationMaxPasses | quote }}
   WORKFLOW_GLOBAL_TIMEOUT_FOR_REPLICATION_MINUTES: {{$.Values.workerConfig.workflowGlobalTimeoutForReplicationMinutes | quote }}
+  # Default cancellation timeouts
+  WORKFLOW_CANCELLATION_TIMEOUT: {{$.Values.workerConfig.workflowCancellationTimeout | quote }}
+  WORKFLOW_FORCE_CANCEL_WAIT_TIMEOUT: {{$.Values.workerConfig.workflowForceCancelWaitTimeout | quote }}
+  # Resource-specific cancellation timeout overrides
   POOL_WORKFLOW_CANCELLATION_TIMEOUT: {{$.Values.workerConfig.poolWorkflowCancellationAckTimeout | quote }}
   POOL_WORKFLOW_FORCE_CANCEL_WAIT_TIMEOUT: {{$.Values.workerConfig.poolWorkflowForceTerminationAckTimeout | quote }}
+  VOLUME_WORKFLOW_CANCELLATION_TIMEOUT: {{$.Values.workerConfig.volumeWorkflowCancellationAckTimeout | quote }}
+  VOLUME_WORKFLOW_FORCE_CANCEL_WAIT_TIMEOUT: {{$.Values.workerConfig.volumeWorkflowForceTerminationAckTimeout | quote }}
+  BACKUP_WORKFLOW_CANCELLATION_TIMEOUT: {{$.Values.workerConfig.backupWorkflowCancellationAckTimeout | quote }}
+  BACKUP_WORKFLOW_FORCE_CANCEL_WAIT_TIMEOUT: {{$.Values.workerConfig.backupWorkflowForceTerminationAckTimeout | quote }}
+  SNAPSHOT_WORKFLOW_CANCELLATION_TIMEOUT: {{$.Values.workerConfig.snapshotWorkflowCancellationAckTimeout | quote }}
+  SNAPSHOT_WORKFLOW_FORCE_CANCEL_WAIT_TIMEOUT: {{$.Values.workerConfig.snapshotWorkflowForceTerminationAckTimeout | quote }}
+  QUOTA_RULE_WORKFLOW_CANCELLATION_TIMEOUT: {{$.Values.workerConfig.quotaRuleWorkflowCancellationAckTimeout | quote }}
+  QUOTA_RULE_WORKFLOW_FORCE_CANCEL_WAIT_TIMEOUT: {{$.Values.workerConfig.quotaRuleWorkflowForceTerminationAckTimeout | quote }}
+  KMS_CONFIG_WORKFLOW_CANCELLATION_TIMEOUT: {{$.Values.workerConfig.kmsConfigWorkflowCancellationAckTimeout | quote }}
+  KMS_CONFIG_WORKFLOW_FORCE_CANCEL_WAIT_TIMEOUT: {{$.Values.workerConfig.kmsConfigWorkflowForceTerminationAckTimeout | quote }}
+  FLEXCACHE_WORKFLOW_CANCELLATION_TIMEOUT: {{$.Values.workerConfig.flexcacheWorkflowCancellationAckTimeout | quote }}
+  FLEXCACHE_WORKFLOW_FORCE_CANCEL_WAIT_TIMEOUT: {{$.Values.workerConfig.flexcacheWorkflowForceTerminationAckTimeout | quote }}
+  ACTIVE_DIRECTORY_WORKFLOW_CANCELLATION_TIMEOUT: {{$.Values.workerConfig.activeDirectoryWorkflowCancellationAckTimeout | quote }}
+  ACTIVE_DIRECTORY_WORKFLOW_FORCE_CANCEL_WAIT_TIMEOUT: {{$.Values.workerConfig.activeDirectoryWorkflowForceTerminationAckTimeout | quote }}
+  REPLICATION_WORKFLOW_CANCELLATION_TIMEOUT: {{$.Values.workerConfig.replicationWorkflowCancellationAckTimeout | quote }}
+  REPLICATION_WORKFLOW_FORCE_CANCEL_WAIT_TIMEOUT: {{$.Values.workerConfig.replicationWorkflowForceTerminationAckTimeout | quote }}
   FILES_PROTOCOL_SUPPORT: {{$.Values.workerConfig.filesProtocolSupport | quote }}
   IS_ALL_SQUASH_ENABLED: {{$.Values.workerConfig.isAllSquashEnabled | quote }}
   EXPERIMENTAL_VERSION_ALLOWLISTED_ACCOUNTS: {{$.Values.workerConfig.experimentalVersionAllowlistedAccounts | quote }}

@@ -138,7 +138,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		}, nil)
 		// Mock GetVolumeByID to fail
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(1)).Return(nil, errors.New("volume not found"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(UpdateQuotaRuleWorkflow, params, quotaRule)
@@ -179,7 +179,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(1)).Return(volume, nil)
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.MatchedBy(func(qr datamodel.QuotaRule) bool {
 			return qr.UUID == expectedQuotaRule.UUID && qr.Description == expectedQuotaRule.Description
-		})).Return(errors.New("failed to update quota rule state"))
+		}), mock.Anything).Return(errors.New("failed to update quota rule state"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
@@ -226,7 +226,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(1)).Return(volume, nil)
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.MatchedBy(func(qr datamodel.QuotaRule) bool {
 			return qr.UUID == expectedQuotaRule.UUID && qr.Description == expectedQuotaRule.Description
-		})).Return(errors.New("failed to update quota rule state"))
+		}), mock.Anything).Return(errors.New("failed to update quota rule state"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
@@ -269,7 +269,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(1)).Return(volume, nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nil, errors.New("failed to get nodes"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
@@ -315,7 +315,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(1)).Return(volume, nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
 		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "update").Return("", errors.New("failed to get quota UUID"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
@@ -364,7 +364,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
 		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "update").Return("quota-uuid-123", nil)
 		env.OnActivity("UpdateQuotaRulesOnOntap", mock.Anything, "quota-uuid-123", mock.Anything, int64(200*1024*1024)).Return(errors.New("failed to update quota rule on ONTAP"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
@@ -415,7 +415,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "update").Return("quota-uuid-123", nil)
 		env.OnActivity("UpdateQuotaRulesOnOntap", mock.Anything, "quota-uuid-123", mock.Anything, int64(200*1024*1024)).Return(nil)
 		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return(nil, errors.New("failed to get volume replication"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
@@ -476,7 +476,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "update").Return("quota-uuid-123", nil)
 		env.OnActivity("UpdateQuotaRulesOnOntap", mock.Anything, "quota-uuid-123", mock.Anything, int64(200*1024*1024)).Return(nil)
 		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return(replications, nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
@@ -543,7 +543,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("UpdateQuotaRulesOnOntap", mock.Anything, "quota-uuid-123", mock.Anything, int64(200*1024*1024)).Return(nil)
 		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return(replications, nil)
 		env.OnActivity("VerifyReplicationState", mock.Anything, replications[0], params.LocationId).Return(false, errors.New("replication state validation failed"))
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
@@ -617,7 +617,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetSignedDstTokenForQuotaRule", mock.Anything, "987654321").Return(&jwtToken, nil)
 		env.OnActivity("GetMatchingQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", "us-west1-a", "987654321", quotaRule.Name, &jwtToken).Return(nil, errors.New("failed to get matching quota rule"))
 		env.OnActivity("RevertQuotaRulesOnSource", mock.Anything, "quota-uuid-123", mock.Anything, quotaRule.DiskLimitInKib).Return(nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
@@ -696,7 +696,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetMatchingQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", "us-west1-a", "987654321", quotaRule.Name, &jwtToken).Return(&destinationQuotaRuleId, nil)
 		env.OnActivity("UpdateQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", destinationQuotaRuleId, int64(200*1024*1024), "us-west1-a", "987654321", &jwtToken).Return(nil, errors.New("failed to update quota rule on destination"))
 		env.OnActivity("RevertQuotaRulesOnSource", mock.Anything, "quota-uuid-123", mock.Anything, quotaRule.DiskLimitInKib).Return(nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
@@ -748,7 +748,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "update").Return("quota-uuid-123", nil)
 		env.OnActivity("UpdateQuotaRulesOnOntap", mock.Anything, "quota-uuid-123", mock.Anything, int64(200*1024*1024)).Return(nil)
 		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return([]*datamodel.VolumeReplication{}, nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(errors.New("failed to update quota rule state"))
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update quota rule state"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
@@ -827,7 +827,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetSignedDstTokenForQuotaRule", mock.Anything, "987654321").Return(&jwtToken, nil)
 		env.OnActivity("GetMatchingQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", "us-west1-a", "987654321", quotaRule.Name, &jwtToken).Return(&destinationQuotaRuleId, nil)
 		env.OnActivity("UpdateQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", destinationQuotaRuleId, int64(200*1024*1024), "us-west1-a", "987654321", &jwtToken).Return(&activities.QuotaRuleOperationResult{IsDone: true}, nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -884,7 +884,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return([]*datamodel.VolumeReplication{}, nil)
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.MatchedBy(func(qr datamodel.QuotaRule) bool {
 			return qr.UUID == quotaRule.UUID
-		})).Return(nil)
+		}), mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -941,7 +941,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return([]*datamodel.VolumeReplication{}, nil)
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.MatchedBy(func(qr datamodel.QuotaRule) bool {
 			return qr.UUID == quotaRule.UUID
-		})).Return(nil)
+		}), mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -986,7 +986,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		params := createBaseParams(200 * 1024)
 		quotaRule := createBaseQuotaRule()
 
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
@@ -1037,8 +1037,8 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "update").Return("quota-uuid-123", nil)
 		env.OnActivity("UpdateQuotaRulesOnOntap", mock.Anything, "quota-uuid-123", mock.Anything, int64(200*1024*1024)).Return(nil)
 		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return([]*datamodel.VolumeReplication{}, nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
@@ -1105,8 +1105,8 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("UpdateQuotaRulesOnOntap", mock.Anything, "quota-uuid-123", mock.Anything, int64(200*1024*1024)).Return(nil)
 		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return(replications, nil)
 		env.OnActivity("VerifyReplicationState", mock.Anything, replications[0], params.LocationId).Return(false, nil) // Not eligible
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
@@ -1173,7 +1173,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("UpdateQuotaRulesOnOntap", mock.Anything, "quota-uuid-123", mock.Anything, int64(200*1024*1024)).Return(nil)
 		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return(replications, nil)
 		env.OnActivity("VerifyReplicationState", mock.Anything, replications[0], params.LocationId).Return(true, nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
@@ -1249,7 +1249,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetSignedDstTokenForQuotaRule", mock.Anything, "987654321").Return(&jwtToken, nil)
 		env.OnActivity("GetMatchingQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", "us-west1-a", "987654321", quotaRule.Name, &jwtToken).Return(nilString, nil) // Returns nil
 		env.OnActivity("RevertQuotaRulesOnSource", mock.Anything, "quota-uuid-123", mock.Anything, quotaRule.DiskLimitInKib).Return(nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
@@ -1326,7 +1326,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetSignedDstTokenForQuotaRule", mock.Anything, "987654321").Return(&jwtToken, nil)
 		env.OnActivity("GetMatchingQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", "us-west1-a", "987654321", quotaRule.Name, &jwtToken).Return(emptyStringPtr, nil) // Returns empty string
 		env.OnActivity("RevertQuotaRulesOnSource", mock.Anything, "quota-uuid-123", mock.Anything, quotaRule.DiskLimitInKib).Return(nil)
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
@@ -1385,7 +1385,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "update").Return("quota-uuid-123", nil)
 		env.OnActivity("UpdateQuotaRulesOnOntap", mock.Anything, "quota-uuid-123", mock.Anything, int64(200*1024*1024)).Return(nil)
 		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return([]*datamodel.VolumeReplication{}, nil) // No replications
-		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(UpdateQuotaRuleWorkflow, params, quotaRule)
 

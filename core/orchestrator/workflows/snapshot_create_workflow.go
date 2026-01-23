@@ -23,6 +23,10 @@ var (
 	snapshotHeartbeatTimeoutSec    = env.GetUint64("SNAPSHOT_HEARTBEAT_TIMEOUT_SEC", 150)
 )
 
+const (
+	CancelSnapshotSignalName = "cancel-snapshot-creation"
+)
+
 type snapshotCreateWorkflow struct {
 	BaseWorkflow
 	SE database.Storage
@@ -117,6 +121,8 @@ func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{})
 
 	logger.Infof("Starting the snapshot creation workflow for snapshot: %s", dbSnapshot.Name)
 
+	cancellationHandler := common.NewWorkflowCancellationHandler(ctx, CancelSnapshotSignalName, dbSnapshot.UUID, "snapshot")
+
 	var snapshotCreateResponse *vsa.SnapshotProviderResponse
 	defer func() {
 		dbSnapshot.Description = snapshotDescription
@@ -127,6 +133,9 @@ func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{})
 		}
 	}()
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbSnapshot.Volume.PoolID).Get(ctx, &dbNodes)
 	if err != nil {
@@ -139,6 +148,9 @@ func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{})
 		OntapCredentials: dbSnapshot.Volume.Pool.PoolCredentials,
 	})
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(ctx, snapshotActivity.CreateSnapshotInONTAP, &dbSnapshot, &node).Get(ctx, &snapshotCreateResponse)
 	if err != nil {
 		logger.Errorf("Failed to update snapshot details: %v", err)

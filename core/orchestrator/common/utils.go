@@ -7,10 +7,13 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/workflow"
 )
 
 const (
@@ -159,4 +162,69 @@ func SetRegionsGroupJSONForTest(value string) string {
 // GetRegionsGroupJSONForTest returns the current value of regionsGroupJSON for testing purposes
 func GetRegionsGroupJSONForTest() string {
 	return regionsGroupJSON
+}
+
+// HandleCancellationAndRollback is a utility function that handles the common pattern of checking
+// for cancellation and executing rollback in create workflows. It checks if there's an error or
+// cancellation, and if so, executes rollback with appropriate error handling.
+//
+// Parameters:
+//   - ctx: The workflow context
+//   - err: The error from the workflow (can be nil)
+//   - cancellationHandler: The cancellation handler to check for cancellation
+//   - rollbackManager: The rollback manager to execute rollback
+//   - resourceType: The type of resource being created (e.g., "volume", "pool", "active directory")
+//   - resourceUUID: The UUID of the resource being created
+//   - onErrorCallback: Optional callback function to execute when there's an error but not cancellation.
+//     If nil, rollback will be executed with the error. The callback receives the disconnected context
+//     and the error, and should return true if rollback should be executed, false otherwise.
+//   - onCancellationCallback: Optional callback function to execute when cancellation is detected,
+//     before executing rollback. This allows adding activities or performing cleanup before rollback.
+//     The callback receives the disconnected context and the cancellation error message.
+//
+// Returns:
+//   - bool: true if rollback was executed (either due to cancellation or error), false otherwise
+func HandleCancellationAndRollback(
+	ctx workflow.Context,
+	err error,
+	cancellationHandler *WorkflowCancellationHandler,
+	rollbackManager *RollbackManager,
+	resourceType string,
+	resourceUUID string,
+	onErrorCallback func(disconnectedCtx workflow.Context, err error) bool,
+	onCancellationCallback func(disconnectedCtx workflow.Context, cancelErr error),
+) bool {
+	if err == nil && !cancellationHandler.IsCancelled() {
+		return false
+	}
+
+	disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+	logger := util.GetLogger(ctx)
+
+	if cancellationHandler.IsCancelled() {
+		logger.Infof("%s creation cancelled, executing rollback for %s: %s", resourceType, resourceType, resourceUUID)
+		cancelErr := vsaerrors.New(fmt.Sprintf("%s creation cancelled by delete request", resourceType))
+		if onCancellationCallback != nil {
+			onCancellationCallback(disconnectedCtx, cancelErr)
+		}
+		rollbackManager.ExecuteRollback(disconnectedCtx, cancelErr)
+		return true
+	}
+
+	// Handle error case
+	if err != nil {
+		if onErrorCallback != nil {
+			shouldRollback := onErrorCallback(disconnectedCtx, err)
+			if shouldRollback {
+				rollbackManager.ExecuteRollback(disconnectedCtx, err)
+				return true
+			}
+			return false
+		}
+		// Default behavior: execute rollback on error
+		rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		return true
+	}
+
+	return false
 }

@@ -468,41 +468,6 @@ func _createQuotaRule(ctx context.Context, se database.Storage, temporal client.
 	}
 	logger.Debugf("RQuota determination for volume %s: required=%t", volumeDataModel.UUID, rquotaRequired)
 
-	// Create job entry in database
-	job := &datamodel.Job{
-		Type:          string(models.JobTypeCreateQuotaRule),
-		State:         string(models.JobsStateNEW),
-		ResourceName:  params.Name,
-		AccountID:     sql.NullInt64{Int64: volumeDataModel.AccountID, Valid: true},
-		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
-		RequestID:     utils.GetRequestIDFromContext(ctx),
-	}
-
-	var dbQuotaRule *datamodel.QuotaRule
-	// Cleanup in case of error
-	defer func() {
-		if err != nil {
-			if job != nil && job.UUID != "" {
-				logger.Warnf("Error occurred, marking job entry in DB as deleted. Job UUID: %s", job.UUID)
-				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
-					logger.Errorf("Failed to delete job: %v", delErr)
-				}
-				if dbQuotaRule != nil && dbQuotaRule.UUID != "" {
-					logger.Warnf("Error occurred, marking quota rule in DB as deleted. Quota Rule UUID: %s", dbQuotaRule.UUID)
-					if _, delErr := se.DeleteQuotaRule(ctx, dbQuotaRule.UUID); delErr != nil {
-						logger.Errorf("Failed to delete quota rule: %v", delErr)
-					}
-				}
-			}
-		}
-	}()
-
-	job, err = se.CreateJob(ctx, job)
-	if err != nil {
-		logger.Errorf("Failed to create job in database. Error: %v", err)
-		return nil, "", err
-	}
-
 	// Convert disk limit from MiB (input param) to KiB (database storage and ONTAP API)
 	diskLimitInKib := params.DiskLimitInMib * mibToKibMultiplier
 
@@ -520,9 +485,49 @@ func _createQuotaRule(ctx context.Context, se database.Storage, temporal client.
 		Description:    params.Description,
 	}
 
+	var dbQuotaRule *datamodel.QuotaRule
+	var job *datamodel.Job
+
+	// Cleanup in case of error
+	defer func() {
+		if err != nil {
+			if job != nil && job.UUID != "" {
+				logger.Warnf("Error occurred, marking job entry in DB as deleted. Job UUID: %s", job.UUID)
+				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
+					logger.Errorf("Failed to delete job: %v", delErr)
+				}
+			}
+			if dbQuotaRule != nil && dbQuotaRule.UUID != "" {
+				logger.Warnf("Error occurred, marking quota rule in DB as deleted. Quota Rule UUID: %s", dbQuotaRule.UUID)
+				if _, delErr := se.DeleteQuotaRule(ctx, dbQuotaRule.UUID); delErr != nil {
+					logger.Errorf("Failed to delete quota rule: %v", delErr)
+				}
+			}
+		}
+	}()
+
 	dbQuotaRule, err = se.CreatingQuotaRule(ctx, quotaRuleDataModel)
 	if err != nil {
 		logger.Errorf("Failed to create quota rule in database. Error: %v", err)
+		return nil, "", err
+	}
+
+	// Create job entry in database with resource_uuid in job_attributes
+	job = &datamodel.Job{
+		Type:          string(models.JobTypeCreateQuotaRule),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.Name,
+		AccountID:     sql.NullInt64{Int64: volumeDataModel.AccountID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: dbQuotaRule.UUID,
+		},
+	}
+
+	job, err = se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Errorf("Failed to create job in database. Error: %v", err)
 		return nil, "", err
 	}
 
@@ -613,41 +618,6 @@ func _createQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 	// See CreateQuotaRuleForDataProtectionVolume activity in quota_rule_create_workflow
 	// DP volumes only need database entry, no ONTAP operations
 
-	// Create job entry in database
-	job := &datamodel.Job{
-		Type:          string(models.JobTypeCreateQuotaRule),
-		State:         string(models.JobsStateNEW),
-		ResourceName:  params.Name,
-		AccountID:     sql.NullInt64{Int64: volumeDataModel.AccountID, Valid: true},
-		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
-		RequestID:     utils.GetRequestIDFromContext(ctx),
-	}
-
-	var dbQuotaRule *datamodel.QuotaRule
-	// Cleanup in case of error
-	defer func() {
-		if err != nil {
-			if job != nil && job.UUID != "" {
-				logger.Warnf("Error occurred, marking job entry in DB as deleted. Job UUID: %s", job.UUID)
-				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
-					logger.Errorf("Failed to delete job: %v", delErr)
-				}
-				if dbQuotaRule != nil && dbQuotaRule.UUID != "" {
-					logger.Warnf("Error occurred, marking quota rule in DB as deleted. Quota Rule UUID: %s", dbQuotaRule.UUID)
-					if _, delErr := se.DeleteQuotaRule(ctx, dbQuotaRule.UUID); delErr != nil {
-						logger.Errorf("Failed to delete quota rule: %v", delErr)
-					}
-				}
-			}
-		}
-	}()
-
-	job, err = se.CreateJob(ctx, job)
-	if err != nil {
-		logger.Errorf("Failed to create job in database. Error: %v", err)
-		return nil, nil, err
-	}
-
 	// Convert disk limit from MiB (input param) to KiB (database storage and ONTAP API)
 	const mibToKibMultiplier = 1024
 	diskLimitInKib := params.DiskLimitInMib * mibToKibMultiplier
@@ -666,7 +636,47 @@ func _createQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 		Description:    params.Description,
 	}
 
+	var dbQuotaRule *datamodel.QuotaRule
+	var job *datamodel.Job
+
+	// Cleanup in case of error
+	defer func() {
+		if err != nil {
+			if job != nil && job.UUID != "" {
+				logger.Warnf("Error occurred, marking job entry in DB as deleted. Job UUID: %s", job.UUID)
+				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
+					logger.Errorf("Failed to delete job: %v", delErr)
+				}
+			}
+			if dbQuotaRule != nil && dbQuotaRule.UUID != "" {
+				logger.Warnf("Error occurred, marking quota rule in DB as deleted. Quota Rule UUID: %s", dbQuotaRule.UUID)
+				if _, delErr := se.DeleteQuotaRule(ctx, dbQuotaRule.UUID); delErr != nil {
+					logger.Errorf("Failed to delete quota rule: %v", delErr)
+				}
+			}
+		}
+	}()
+
 	dbQuotaRule, err = se.CreatingQuotaRule(ctx, quotaRuleDataModel)
+	if err != nil {
+		logger.Errorf("Failed to create quota rule in database. Error: %v", err)
+		return nil, nil, err
+	}
+
+	// Create job entry in database with resource_uuid in job_attributes
+	job = &datamodel.Job{
+		Type:          string(models.JobTypeCreateQuotaRule),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.Name,
+		AccountID:     sql.NullInt64{Int64: volumeDataModel.AccountID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: dbQuotaRule.UUID,
+		},
+	}
+
+	job, err = se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Errorf("Failed to create quota rule in database. Error: %v", err)
 		return nil, nil, err
@@ -972,9 +982,29 @@ func _deleteQuotaRule(ctx context.Context, se database.Storage, temporal client.
 		return nil, "", err
 	}
 
-	if isTransitionState(quotaRuleDataModel.State) {
-		logger.Errorf("Quota rule %s cannot be deleted while in transitioning state: %s", params.QuotaRuleUUID, quotaRuleDataModel.State)
-		return nil, "", customerrors.NewConflictErr("Quota rule is in transition state and cannot be deleted, state: " + quotaRuleDataModel.State)
+	var isCleanupDelete bool
+	var existingDeleteJobUUID string
+
+	if quotaRuleDataModel.State == models.LifeCycleStateCreating {
+		existingDeleteJobUUID, isCleanupDelete, err = database.ValidateCorrelationIDForCreatingResource(
+			ctx, se, quotaRuleDataModel.UUID, "quota rule", models.JobTypeCreateQuotaRule, models.JobTypeDeleteQuotaRule, logger)
+		if err != nil {
+			logger.Warnf("Quota rule %s cannot be deleted: existing create job not present and state is in CREATING", quotaRuleDataModel.UUID)
+			return nil, "", err
+		}
+		if existingDeleteJobUUID != "" {
+			dataStoreQuotaRule := convertDatastoreQuotaRuleToModel(quotaRuleDataModel)
+			return dataStoreQuotaRule, existingDeleteJobUUID, nil
+		}
+	} else if utils.IsTransitionalState(quotaRuleDataModel.State) && quotaRuleDataModel.State != models.LifeCycleStateDeleting {
+		logger.Errorf("Quota rule %s cannot be deleted, while in transitioning state: %s", quotaRuleDataModel.Name, quotaRuleDataModel.State)
+		return nil, "", customerrors.NewConflictErr(fmt.Sprintf("quota rule is in transition state and cannot be deleted, state: %s", quotaRuleDataModel.State))
+	}
+
+	existingJobUUID := database.GetExistingDeleteJobForDeletingState(ctx, se, quotaRuleDataModel.UUID, models.JobTypeDeleteQuotaRule, logger)
+	if existingJobUUID != "" {
+		dataStoreQuotaRule := convertDatastoreQuotaRuleToModel(quotaRuleDataModel)
+		return dataStoreQuotaRule, existingJobUUID, nil
 	}
 
 	// Get volume to access pool for provider and replication validation
@@ -1010,6 +1040,9 @@ func _deleteQuotaRule(ctx context.Context, se database.Storage, temporal client.
 		AccountID:     sql.NullInt64{Int64: volume.AccountID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: quotaRuleDataModel.UUID,
+		},
 	}
 
 	// Cleanup in case of error
@@ -1039,15 +1072,19 @@ func _deleteQuotaRule(ctx context.Context, se database.Storage, temporal client.
 		return nil, "", err
 	}
 
-	// Update state to DELETING
-	quotaRuleDataModel.State = models.LifeCycleStateDeleting
-	quotaRuleDataModel.StateDetails = models.LifeCycleStateDeletingDetails
-	quotaRuleDataModel.RQuota = rquotaRequired
-	// Mark quota rule as DELETING state in database
-	updatedQuotaRule, err := se.UpdatingQuotaRule(ctx, quotaRuleDataModel)
-	if err != nil {
-		logger.Errorf("Failed to mark quota rule as deleting: %v", err)
-		return nil, "", err
+	// Only update state to DELETING if not cleanup-delete (quota rule is not in CREATING state)
+	if !isCleanupDelete {
+		// Update state to DELETING
+		quotaRuleDataModel.State = models.LifeCycleStateDeleting
+		quotaRuleDataModel.StateDetails = models.LifeCycleStateDeletingDetails
+		quotaRuleDataModel.RQuota = rquotaRequired
+		// Mark quota rule as DELETING state in database
+		updatedQuotaRule, err := se.UpdatingQuotaRule(ctx, quotaRuleDataModel)
+		if err != nil {
+			logger.Errorf("Failed to mark quota rule as deleting: %v", err)
+			return nil, "", err
+		}
+		quotaRuleDataModel = updatedQuotaRule
 	}
 
 	// Start Temporal workflow for quota rule delete
@@ -1060,7 +1097,7 @@ func _deleteQuotaRule(ctx context.Context, se database.Storage, temporal client.
 		},
 		workflows.DeleteQuotaRuleWorkflow,
 		params,
-		updatedQuotaRule,
+		quotaRuleDataModel,
 	)
 
 	if err != nil {
@@ -1068,7 +1105,7 @@ func _deleteQuotaRule(ctx context.Context, se database.Storage, temporal client.
 		return nil, "", err
 	}
 
-	dataStoreQuotaRule := convertDatastoreQuotaRuleToModel(updatedQuotaRule)
+	dataStoreQuotaRule := convertDatastoreQuotaRuleToModel(quotaRuleDataModel)
 	return dataStoreQuotaRule, job.UUID, nil
 }
 
@@ -1113,6 +1150,9 @@ func _deleteQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 		AccountID:     sql.NullInt64{Int64: volume.AccountID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: quotaRuleDataModel.UUID,
+		},
 	}
 
 	// Cleanup in case of error

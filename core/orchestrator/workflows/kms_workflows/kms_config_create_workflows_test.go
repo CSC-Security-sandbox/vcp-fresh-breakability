@@ -2,6 +2,7 @@ package kms_workflows
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -562,6 +563,915 @@ func TestCreateKmsConfig(t *testing.T) {
 		// Activities with RecordHeartbeat would fail if HeartbeatTimeout wasn't set
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenCancellationSignalReceivedBeforeGetSignedTokenActivity", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+			LocationID:   "us-east4",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+		// Send cancellation signal before GetSignedTokenActivity
+		env.RegisterDelayedCallback(func() {
+			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
+		}, 5*time.Millisecond)
+
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenCancellationSignalReceivedAfterGetSignedTokenActivity", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+			LocationID:   "us-east4",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+
+		// Send cancellation signal after GetSignedTokenActivity but before PollKmsConfigOperationActivity
+		env.RegisterDelayedCallback(func() {
+			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
+		}, 10*time.Millisecond)
+
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenCancellationSignalReceivedBeforePollKmsConfigOperationActivity", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+			LocationID:   "us-east4",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+
+		// Send cancellation signal before PollKmsConfigOperationActivity
+		env.RegisterDelayedCallback(func() {
+			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
+		}, 10*time.Millisecond)
+
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenCancellationSignalReceivedBeforeDescribeSDEKmsConfigurationActivity", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+			LocationID:   "us-east4",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
+
+		// Send cancellation signal before DescribeSDEKmsConfigurationActivity
+		env.RegisterDelayedCallback(func() {
+			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
+		}, 15*time.Millisecond)
+
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenCancellationSignalReceivedBeforeUpdateKmsConfigAttributesActivity", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+			LocationID:   "us-east4",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+
+		// Send cancellation signal before UpdateKmsConfigAttributesActivity
+		env.RegisterDelayedCallback(func() {
+			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
+		}, 20*time.Millisecond)
+
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenCancellationSignalReceivedBeforeCreateVSAKmsConfigSAKeyActivity", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+			LocationID:   "us-east4",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
+
+		// Send cancellation signal before CreateVSAKmsConfigSAKeyActivity
+		env.RegisterDelayedCallback(func() {
+			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
+		}, 25*time.Millisecond)
+
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenCancellationSignalReceivedBeforeGrantRoleActivity", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+			LocationID:   "us-east4",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
+
+		// Send cancellation signal before GrantRoleActivity
+		env.RegisterDelayedCallback(func() {
+			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
+		}, 30*time.Millisecond)
+
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenCancellationSignalReceivedBeforeCreatedKmsConfigActivity", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+			LocationID:   "us-east4",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil)
+
+		// Send cancellation signal before CreatedKmsConfigActivity
+		env.RegisterDelayedCallback(func() {
+			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
+		}, 35*time.Millisecond)
+
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenCancellationOccursDuringRollback", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+			LocationID:   "us-east4",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+
+		// Send cancellation signal and then fail an activity to trigger rollback
+		env.RegisterDelayedCallback(func() {
+			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
+		}, 5*time.Millisecond)
+
+		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(errors.New("poll failed"))
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenCheckCancellationReturnsErrorBeforeGetSignedTokenActivity", func(t *testing.T) {
+		// Tests line 118: checkCancellation() returns an error
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+			LocationID:  "us-east4",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+		// Send cancellation signal immediately to trigger CheckCancellation error
+		env.RegisterDelayedCallback(func() {
+			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
+		}, 1*time.Millisecond)
+
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenCancellationOccursDuringRollback", func(t *testing.T) {
+		// Tests lines 128-130: rollback when cancellationHandler.IsCancelled() is true
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+			LocationID:  "us-east4",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+
+		// Send cancellation signal and then fail an activity to trigger rollback with cancellation
+		env.RegisterDelayedCallback(func() {
+			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
+		}, 5*time.Millisecond)
+
+		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(errors.New("poll failed"))
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenCheckCancellationReturnsErrorAfterGetSignedTokenActivity", func(t *testing.T) {
+		// Tests line 139: checkCancellation() returns an error after GetSignedTokenActivity
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+			LocationID:  "us-east4",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+
+		// Send cancellation signal after GetSignedTokenActivity
+		env.RegisterDelayedCallback(func() {
+			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
+		}, 10*time.Millisecond)
+
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenCheckCancellationReturnsErrorBeforePollKmsConfigOperationActivity", func(t *testing.T) {
+		// Tests line 174: checkCancellation() returns an error before PollKmsConfigOperationActivity
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+			LocationID:  "us-east4",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+
+		// Send cancellation signal before PollKmsConfigOperationActivity
+		env.RegisterDelayedCallback(func() {
+			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
+		}, 15*time.Millisecond)
+
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenCheckCancellationReturnsErrorBeforeDescribeSDEKmsConfigurationActivity", func(t *testing.T) {
+		// Tests line 189: checkCancellation() returns an error before DescribeSDEKmsConfigurationActivity
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+			LocationID:  "us-east4",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
+
+		// Send cancellation signal before DescribeSDEKmsConfigurationActivity
+		env.RegisterDelayedCallback(func() {
+			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
+		}, 20*time.Millisecond)
+
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenCheckCancellationReturnsErrorBeforeUpdateKmsConfigAttributesActivity", func(t *testing.T) {
+		// Tests line 201: checkCancellation() returns an error before UpdateKmsConfigAttributesActivity
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+			LocationID:  "us-east4",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+
+		// Send cancellation signal before UpdateKmsConfigAttributesActivity
+		env.RegisterDelayedCallback(func() {
+			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
+		}, 25*time.Millisecond)
+
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenCheckCancellationReturnsErrorBeforeCreateVSAKmsConfigSAKeyActivity", func(t *testing.T) {
+		// Tests line 211: checkCancellation() returns an error before CreateVSAKmsConfigSAKeyActivity
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+			LocationID:  "us-east4",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
+
+		// Send cancellation signal before CreateVSAKmsConfigSAKeyActivity
+		env.RegisterDelayedCallback(func() {
+			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
+		}, 30*time.Millisecond)
+
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenCheckCancellationReturnsErrorBeforeGrantRoleActivity", func(t *testing.T) {
+		// Tests line 220: checkCancellation() returns an error before GrantRoleActivity
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+			LocationID:  "us-east4",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		// CreateVSAKmsConfigSAKeyActivity sets ServiceAccount on kmsConfig before returning it (matching real behavior)
+		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil).Run(func(args mock.Arguments) {
+			// Set ServiceAccount on the kmsConfig (matching real behavior where CreateVSAKmsConfigSAKeyActivity sets it)
+			if kc, ok := args.Get(1).(*datamodel.KmsConfig); ok && kc != nil {
+				kc.ServiceAccount = &datamodel.ServiceAccount{
+					BaseModel: datamodel.BaseModel{UUID: "sa-uuid"},
+				}
+			}
+			// Send cancellation signal immediately after CreateVSAKmsConfigSAKeyActivity completes
+			// This ensures it arrives before the cancellation check at line 219
+			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
+		})
+
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenCheckCancellationReturnsErrorBeforeCreatedKmsConfigActivity", func(t *testing.T) {
+		// Tests line 229: checkCancellation() returns an error before CreatedKmsConfigActivity
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		originalFunc := getSignedJwtToken
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = originalFunc
+		}()
+
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+			LocationID:  "us-east4",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil)
+
+		// Send cancellation signal before CreatedKmsConfigActivity
+		env.RegisterDelayedCallback(func() {
+			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
+		}, 40*time.Millisecond)
+
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 }

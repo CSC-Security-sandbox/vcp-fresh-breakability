@@ -71,13 +71,11 @@ var (
 	waitTimeForGCPOperationInSec = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)
 	parallelNumberOfNodesForITC  = env.GetInt("PARALLEL_NUMBER_OF_NODES_FOR_ITC", 4) // As of now it's 4 as per the VLM design document
 
-	disableVsaCleanupOnVLMFailure          = env.GetBool("DISABLE_VSA_CLEANUP_ON_VLM_FAILURE", false)
-	enableAutoVolOfflineCronForGCPKMS      = env.GetBool("ENABLE_AUTO_VOL_OFFLINE_CRON_FOR_GCP_KMS", true)
-	ginLoggingFeatureFlag                  = env.GetBool("GIN_LOGGING_FEATURE", false)
-	enableSyncPoolZIZS                     = env.GetBool("ENABLE_SYNC_POOL_ZIZS", false)
-	enableLdap                             = env.GetBool("ENABLE_LDAP", false)
-	poolWorkflowCancellationAckTimeout     = env.GetUint64("POOL_WORKFLOW_CANCELLATION_TIMEOUT", 5)       // in minutes
-	poolWorkflowForceTerminationAckTimeout = env.GetUint64("POOL_WORKFLOW_FORCE_CANCEL_WAIT_TIMEOUT", 30) // in seconds
+	disableVsaCleanupOnVLMFailure     = env.GetBool("DISABLE_VSA_CLEANUP_ON_VLM_FAILURE", false)
+	enableAutoVolOfflineCronForGCPKMS = env.GetBool("ENABLE_AUTO_VOL_OFFLINE_CRON_FOR_GCP_KMS", true)
+	ginLoggingFeatureFlag             = env.GetBool("GIN_LOGGING_FEATURE", false)
+	enableSyncPoolZIZS                = env.GetBool("ENABLE_SYNC_POOL_ZIZS", false)
+	enableLdap                        = env.GetBool("ENABLE_LDAP", false)
 )
 
 const (
@@ -187,31 +185,14 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	// Set up cancellation handler using common framework
 	cancellationHandler := common.NewWorkflowCancellationHandler(ctx, CancelSignalName, dbPool.UUID, "pool")
 
-	// Helper function to check for cancellation before starting new activities
-	checkCancellation := func() *vsaerrors.CustomError {
-		if err := cancellationHandler.CheckCancellation(ctx); err != nil {
-			return ConvertToVSAError(vsaerrors.New(err.Error()))
-		}
-		return nil
-	}
-
 	defer func() {
-		if err != nil || cancellationHandler.IsCancelled() {
-			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
-			if cancellationHandler.IsCancelled() {
-				// If cancelled, mark pool as aborted and execute rollback
-				wf.Logger.Infof("Pool creation cancelled, executing rollback for pool: %s", dbPool.UUID)
-				rollbackManager.ExecuteRollback(disconnectedCtx, vsaerrors.New("pool creation cancelled by delete request"))
-			} else {
-				rollbackManager.ExecuteRollback(disconnectedCtx, err)
-			}
-		}
+		common.ExecuteDeferredCleanup(ctx, cancellationHandler, rollbackManager, err, wf.Logger, "pool", dbPool.UUID, nil, nil, nil)
 	}()
 
 	rollbackManager.AddActivity(poolActivity.ErroredPool, dbPool)
 	rollbackManager.AddActivity(poolActivity.DeletePoolResourcesOnRollback, dbPool)
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 
@@ -222,7 +203,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	if activities.ValidateImageDigestFlag {
-		if cancelErr := checkCancellation(); cancelErr != nil {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 			return nil, cancelErr
 		}
 		var verified bool
@@ -235,7 +216,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		}
 	}
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 	tenantProjectNumber := new(string)
@@ -244,7 +225,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 
@@ -259,7 +240,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 
@@ -273,15 +254,12 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	dbPool.SnHostProject = tenancyDetails.SnHostProject
 	dbPool.ClusterDetails = *tenancyInfo
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
-		return nil, cancelErr
-	}
 	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.SavePoolWithClusterDetails, dbPool, tenancyInfo).Get(dbHbCtx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 	setupNwCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(setupNwHeartbeatTimeout)*time.Second)
@@ -321,7 +299,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	// Create new context with custom activity options while preserving existing context
 	saCtx := workflow.WithActivityOptions(ctx, saActivityOptions)
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 	// Use the new context for the service account creation activity
@@ -339,7 +317,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	dbPool.AutoTieringConfig.BucketName = AutoTierBucketName
 
 	rollbackManager.AddActivity(poolActivity.DeleteAutoTierBucket, AutoTierBucketName, dbPool.Account.Name, dbPool.ID)
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateAutoTierBucket, AutoTierBucketName, params.Region, tenancyDetails.RegionalTenantProject).Get(ctx, nil)
@@ -349,7 +327,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	credConfig := &vlm.OntapCredentials{}
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateOnTapCredentials, pool).Get(ctx, &credConfig)
@@ -413,7 +391,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		Region:        params.Region,
 	}
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 
@@ -423,7 +401,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 	var resolvedLocationInfo *common.LocationInfo
@@ -443,7 +421,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	// This is disabled by default (enableUniqueSerialNumberGeneration=false)
 	// Serial number will only be allocated if the project is not a prober project.
 	if enableUniqueSerialNumberGeneration && !isProberProject(params.AccountName) {
-		if cancelErr := checkCancellation(); cancelErr != nil {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 			return nil, cancelErr
 		}
 		err = workflow.ExecuteActivity(ctx, poolActivity.AllocateClusterSerialNumber, createVSAClusterDeploymentRequest, params.AccountName).Get(ctx, createVSAClusterDeploymentRequest)
@@ -452,7 +430,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		}
 	}
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 
@@ -462,7 +440,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 
@@ -472,7 +450,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 	rollbackManager.AddActivity(poolActivity.DeleteCloudDNSRecords, hostMap, pool.PoolCredentials.AuthType)
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.SaveVSANodeDetails, dbPool, createVSAClusterDeploymentResponse.VLMConfig, pool.DeploymentName, &hostMap).Get(dbHbCtx, nil)
@@ -480,7 +458,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 	var dbNodes []*datamodel.Node
@@ -494,7 +472,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		OntapCredentials: pool.PoolCredentials,
 	})
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 	var ontapVersion string
@@ -503,7 +481,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 	// Get intercluster LIF IPs from VLM config
@@ -515,7 +493,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	// Add PSC Endpoint
 	if ginLoggingFeatureFlag {
-		if cancelErr := checkCancellation(); cancelErr != nil {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 			return nil, cancelErr
 		}
 		rollbackManager.AddWorkflow(workflowengine.CustomerTaskQueue, ReleasePSCEndpointWorkflow, dbPool)
@@ -549,9 +527,6 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		SubnetNames:           tenancyDetails.SubnetworkNames,
 	}
 	dbPool.SnHostProject = tenancyDetails.SnHostProject
-	if cancelErr := checkCancellation(); cancelErr != nil {
-		return nil, cancelErr
-	}
 	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.SavePoolWithClusterDetails, dbPool, clusterDetails).Get(dbHbCtx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -579,7 +554,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		}
 	}()
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 
@@ -591,7 +566,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	createSVMRequest := &vlm.CreateSVMRequest{}
 	prepareCreateSVMRequest(createSVMRequest, svmName, createVSAClusterDeploymentResponse.VLMConfig, *credConfig)
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 	createSVMResponse, err := vsaClientWorkflowManager.CreateVSASVM(ctx, createSVMRequest)
@@ -599,7 +574,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 
@@ -609,7 +584,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 	// Create QoS policy and apply it to the SVM
@@ -620,7 +595,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	expertCredConfig := &vlm.OntapCredentials{}
 	if params.Mode == common.ONTAPMode {
-		if cancelErr := checkCancellation(); cancelErr != nil {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 			return nil, cancelErr
 		}
 		rbacFileDetails := &hyperscalermodels.BucketFileDetails{}
@@ -638,7 +613,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		if len(pool.ExpertModeCredentials.ExpertModeCredential) == 0 || pool.ExpertModeCredentials.ExpertModeCredential[0].Username == "" {
 			return nil, ConvertToVSAError(vsaerrors.New("expert mode username not found in request"))
 		}
-		if cancelErr := checkCancellation(); cancelErr != nil {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 			return nil, cancelErr
 		}
 		err = workflow.ExecuteActivity(ctx, poolActivity.CreateExpertModeCredentials, pool, pool.DeploymentName, pool.ExpertModeCredentials.ExpertModeCredential[0].Username).Get(ctx, &expertCredConfig)
@@ -649,7 +624,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			rollbackManager.AddActivity(poolActivity.DeleteExpertModeCredentials, pool)
 		}
 
-		if cancelErr := checkCancellation(); cancelErr != nil {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 			return nil, cancelErr
 		}
 		createVSAExpertModeReq := &vlm.OntapExpertModeUserConfig{}
@@ -658,7 +633,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			return nil, ConvertToVSAError(err)
 		}
 
-		if cancelErr := checkCancellation(); cancelErr != nil {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 			return nil, cancelErr
 		}
 		ontapExpertModeUserResponse, err := vsaClientWorkflowManager.CreateVSAExpertModeUser(ctx, createVSAExpertModeReq)
@@ -666,7 +641,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			return nil, ConvertToVSAError(err)
 		}
 
-		if cancelErr := checkCancellation(); cancelErr != nil {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 			return nil, cancelErr
 		}
 		rbacFileDetails.FileHashSHA256 = ontapExpertModeUserResponse.RbacFileChecksum
@@ -676,7 +651,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		}
 	}
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 	// Enable KMS for SVM if KMS config is provided
@@ -685,7 +660,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
-	if cancelErr := checkCancellation(); cancelErr != nil {
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
 	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.CreatedPool, dbPool, &createSVMResponse.VLMConfig).Get(dbHbCtx, nil)
@@ -1222,12 +1197,6 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		}
 	}()
 
-	correlationID, errCorr := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
-	if errCorr != nil {
-		wf.Logger.Warnf("Could not get correlation ID from workflow context: %v", errCorr)
-		correlationID = ""
-	}
-
 	dbPool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{UUID: params.PoolID},
 	}
@@ -1236,25 +1205,24 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
-	cancellationParams := common.WorkflowCancellationParams{
-		ResourceUUID:               dbPool.UUID,
-		CorrelationID:              correlationID,
-		CreateJobType:              models.JobTypeCreatePool,
-		SignalName:                 CancelSignalName,
-		CancellationAckTimeout:     time.Duration(poolWorkflowCancellationAckTimeout) * time.Minute,
-		ForceTerminationAckTimeout: time.Duration(poolWorkflowForceTerminationAckTimeout) * time.Second,
-	}
-
+	// Handle cancellation only if pool is in CREATING state
 	cancellationActivity := &activities.CancellationActivity{}
 	commonActivity := &activities.CommonActivities{}
-
-	// Handle cancellation only if pool is in CREATING state
-	// This will signal, wait, force cancel if timeout, and update create job
-	if dbPool.State == models.LifeCycleStateCreating {
-		if cancelErr := common.HandleCancellationInDeleteWorkflow(
-			ctx, cancellationParams, poolActivity.GetCreateJobByResourceUUID, cancellationActivity, commonActivity); cancelErr != nil {
-			wf.Logger.Warnf("Error handling cancellation: %v, proceeding with deletion", cancelErr)
-		}
+	ackTimeout, forceTimeout := common.GetCancellationTimeouts("POOL")
+	if cancelErr := common.HandleCancellationForCreatingResource(ctx, wf.Logger,
+		common.HandleCancellationForCreatingResourceParams{
+			ResourceUUID:               dbPool.UUID,
+			ResourceState:              dbPool.State,
+			CreateJobType:              models.JobTypeCreatePool,
+			SignalName:                 CancelSignalName,
+			CancellationAckTimeout:     ackTimeout,
+			ForceTerminationAckTimeout: forceTimeout,
+		},
+		poolActivity.GetCreateJobByResourceUUID,
+		cancellationActivity,
+		commonActivity,
+	); cancelErr != nil {
+		wf.Logger.Warnf("Error handling cancellation: %v, proceeding with deletion", cancelErr)
 	}
 
 	// Add the cleanup / rollback activity using this rollback.AddActivity() method instead of writing multiple defer statements,

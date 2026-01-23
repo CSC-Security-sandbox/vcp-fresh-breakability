@@ -600,29 +600,26 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", customerrors.NewConflictErr("Cannot delete a snapshot that was generated for backups. This snapshot will be automatically deleted when the next backup is created.")
 	}
 
+	var existingDeleteJobUUID string
 	snapshot.Volume = volume
-	if snapshot.State == models.LifeCycleStateCreating ||
-		snapshot.State == models.LifeCycleStateUpdating {
-		return nil, "", customerrors.NewConflictErr("Snapshot is in transition state and cannot be deleted, state: " + snapshot.State)
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+	if snapshot.State == models.LifeCycleStateCreating {
+		existingDeleteJobUUID, _, err = database.ValidateCorrelationIDForCreatingResource(ctx, se, snapshot.UUID, "snapshot", models.JobTypeCreateSnapshot, models.JobTypeDeleteSnapshot, logger)
+		if err != nil {
+			logger.Warnf("Snapshot %s cannot be deleted: existing create job not present and state is in CREATING", snapshot.UUID)
+			return nil, "", err
+		}
+		if existingDeleteJobUUID != "" {
+			return ConvertDatastoreSnapshotToModel(snapshot), existingDeleteJobUUID, nil
+		}
+		logger.Infof("Create job found for snapshot %s with matching correlation ID, skipping state update to DELETING", snapshot.UUID)
+	} else if utils.IsTransitionalState(snapshot.State) && snapshot.State != models.LifeCycleStateDeleting {
+		return nil, "", customerrors.NewConflictErr(fmt.Sprintf("Snapshot is in transition state and cannot be deleted, state: %s", snapshot.State))
 	}
 
-	// Check for existing delete snapshot jobs for idempotency
-	filter := utils2.CreateFilterWithConditions(
-		utils2.NewFilterCondition("resource_name", "=", snapshot.Name),
-		utils2.NewFilterCondition("account_id", "=", volume.Account.ID),
-		utils2.NewFilterCondition("type", "=", string(models.JobTypeDeleteSnapshot)),
-		utils2.NewFilterCondition("state", "!=", string(models.JobsStateDONE)),
-		utils2.NewFilterCondition("state", "!=", string(models.JobsStateERROR)),
-		utils2.NewFilterCondition("job_attributes ->> 'volume_uuid'", "=", volume.UUID))
-
-	jobs, err := se.GetJobsWithCondition(ctx, *filter)
-	if err != nil {
-		logger.Errorf("Failed to get jobs with conditions: %v. Error: %v", filter, err)
-		return nil, "", err
-	}
-	if len(jobs) > 0 {
-		logger.Infof("Found ongoing snapshot deletion job for account %s with name %s. Job UUID: %s", params.AccountName, snapshot.Name, jobs[0].UUID)
-		return ConvertDatastoreSnapshotToModel(snapshot), jobs[0].UUID, nil
+	existingJobUUID := database.GetExistingDeleteJobForDeletingState(ctx, se, snapshot.UUID, models.JobTypeDeleteSnapshot, logger)
+	if existingJobUUID != "" {
+		return ConvertDatastoreSnapshotToModel(snapshot), existingJobUUID, nil
 	}
 
 	previousState := snapshot.State
@@ -632,7 +629,7 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		State:         string(models.JobsStateNEW),
 		ResourceName:  snapshot.Name,
 		AccountID:     sql.NullInt64{Int64: snapshot.Account.ID, Valid: true},
-		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		CorrelationID: correlationID,
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID:         snapshot.UUID, // Storing the snapshot UUID
@@ -668,8 +665,11 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	if err = se.DeletingSnapshot(ctx, snapshot); err != nil {
-		return nil, "", err
+	// Only update state to DELETING if snapshot is not in CREATING state (cancellation will be handled in workflow)
+	if snapshot.State != models.LifeCycleStateCreating {
+		if err = se.DeletingSnapshot(ctx, snapshot); err != nil {
+			return nil, "", err
+		}
 	}
 
 	location, err := utils.GetLocationFromVendorID(volume.Pool.VendorID)

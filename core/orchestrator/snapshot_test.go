@@ -38,6 +38,8 @@ type MockStorage struct {
 	database.Storage
 	getJobsWithConditionError      error
 	getSnapshotsWithConditionError error
+	getJobByResourceUUIDError      error
+	createJobError                 error
 }
 
 // GetJobsWithCondition overrides the real method to return an error when needed
@@ -48,12 +50,28 @@ func (m *MockStorage) GetJobsWithCondition(ctx context.Context, filter utils2.Fi
 	return m.Storage.GetJobsWithCondition(ctx, filter)
 }
 
+// GetJobByResourceUUID overrides the real method to return an error when needed
+func (m *MockStorage) GetJobByResourceUUID(ctx context.Context, resourceUUID, jobType string) (*datamodel.Job, error) {
+	if m.getJobByResourceUUIDError != nil {
+		return nil, m.getJobByResourceUUIDError
+	}
+	return m.Storage.GetJobByResourceUUID(ctx, resourceUUID, jobType)
+}
+
 // GetSnapshotsWithCondition overrides the real method to return an error when needed
 func (m *MockStorage) GetSnapshotsWithCondition(ctx context.Context, filter utils2.Filter) ([]*datamodel.Snapshot, error) {
 	if m.getSnapshotsWithConditionError != nil {
 		return nil, m.getSnapshotsWithConditionError
 	}
 	return m.Storage.GetSnapshotsWithCondition(ctx, filter)
+}
+
+// CreateJob overrides the real method to return an error when needed
+func (m *MockStorage) CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error) {
+	if m.createJobError != nil {
+		return nil, m.createJobError
+	}
+	return m.Storage.CreateJob(ctx, job)
 }
 
 func assertErrContainsOriginal(t *testing.T, err error, substring string) {
@@ -2123,7 +2141,7 @@ func TestDeleteSnapshot(t *testing.T) {
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
-		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 		orch := Orchestrator{
 			storage:  store,
 			temporal: temporal,
@@ -2193,7 +2211,9 @@ func TestDeleteSnapshot(t *testing.T) {
 
 		snapshotResp, jobUUID, err := orch.DeleteSnapshot(ctx, params)
 		assert.NoError(tt, err, "Failed to delete snapshot")
-		assert.Equal(tt, "test-job-uuid", jobUUID, "Expected job UUID to be returned")
+		// Code should return the existing job UUID for idempotency
+		assert.NotEmpty(tt, jobUUID, "Expected job UUID to be returned")
+		assert.Equal(tt, "test-job-uuid", jobUUID, "Expected the existing job UUID to be returned for idempotency")
 		assert.NotNil(tt, snapshotResp, "Expected snapshot to be returned")
 		assert.Equal(tt, snapshotResp.Name, "test_snapshot")
 		assert.Equal(tt, snapshotResp.VolumeUUID, "test-volume-uuid")
@@ -2275,6 +2295,115 @@ func TestDeleteSnapshot(t *testing.T) {
 		assert.Equal(tt, snapshotResp.VolumeUUID, "test-volume-uuid")
 	})
 
+	t.Run("WhenSnapshotDeletionFailsDueToDeletingSnapshotError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		orch := Orchestrator{
+			storage:  store,
+			temporal: temporal,
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Pool: &datamodel.Pool{
+				VendorID: "/projects/project123/locations/location123/pools/pool123",
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  volume.ID,
+			Volume:    volume,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.DeleteSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
+			SnapshotID: "test-snapshot-uuid",
+		}
+
+		// Mock DeletingSnapshot to return error (line 685)
+		mockStorage := database.NewMockStorage(tt)
+
+		// Create a datamodel.Volume with Account field populated for the mock return
+		volumeWithAccount := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: volume.UUID, ID: volume.ID},
+			AccountID: account.ID,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: account.ID},
+			},
+			State: models.LifeCycleStateAvailable,
+		}
+
+		// Create a snapshot with Account field populated
+		snapshotWithAccount := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: snapshot.UUID, ID: snapshot.ID},
+			Name:      snapshot.Name,
+			AccountID: account.ID,
+			VolumeID:  volume.ID,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: account.ID},
+			},
+			State: models.LifeCycleStateREADY, // Not CREATING or UPDATING
+			Type:  "",                         // Not Backup type, so it doesn't return early
+		}
+
+		// Use mock.Anything for context since it may have logger fields
+		mockStorage.EXPECT().VerifyVolumeOwnership(mock.Anything, volume.UUID, account.Name).Return(volumeWithAccount, nil)
+		mockStorage.EXPECT().GetSnapshotByUUID(mock.Anything, params.SnapshotID, account.ID, volume.ID).Return(snapshotWithAccount, nil)
+		// Mock GetJobByResourceUUID to return nil (no existing job) since code checks for existing jobs
+		mockStorage.EXPECT().GetJobByResourceUUID(mock.Anything, params.SnapshotID, string(models.JobTypeDeleteSnapshot)).Return(nil, errors.New("Job not found"))
+		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		}, nil)
+		mockStorage.EXPECT().DeletingSnapshot(mock.Anything, mock.Anything).Return(errors.New("database error when deleting snapshot"))
+		// Mock UpdateSnapshot for defer cleanup when DeletingSnapshot fails
+		mockStorage.EXPECT().UpdateSnapshot(mock.Anything, mock.Anything).Return(snapshotWithAccount, nil)
+		// Mock DeleteJob for defer cleanup
+		mockStorage.EXPECT().DeleteJob(mock.Anything, "test-job-uuid", mock.Anything).Return(nil)
+
+		orch.storage = mockStorage
+
+		snapshotResp, jobUUID, err := orch.DeleteSnapshot(ctx, params)
+		assert.Error(tt, err, "Expected error when DeletingSnapshot fails")
+		assert.Nil(tt, snapshotResp, "Expected nil snapshot on error")
+		assert.Empty(tt, jobUUID, "Expected empty job UUID on error")
+		assert.Contains(tt, err.Error(), "database error when deleting snapshot")
+	})
+
 	t.Run("WhenSnapshotDeletionWithSameNameInDifferentVolumes", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -2283,7 +2412,7 @@ func TestDeleteSnapshot(t *testing.T) {
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
-		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 		orch := Orchestrator{
 			storage:  store,
 			temporal: temporal,
@@ -2303,14 +2432,30 @@ func TestDeleteSnapshot(t *testing.T) {
 			tt.Fatalf("Failed to create account: %v", err)
 		}
 
+		// Create pool first
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+			APIAccessMode: common.DEFAULTMode,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
 		// Create two different volumes
 		volume1 := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-1-uuid"},
 			Name:      "test_volume_1",
 			AccountID: account.ID,
-			Pool: &datamodel.Pool{
-				VendorID: "/projects/project123/locations/location123/pools/pool123",
-			},
+			PoolID:    pool.ID,
+			Pool:      pool,
 		}
 		err = store.DB().Create(volume1).Error
 		if err != nil {
@@ -2321,9 +2466,8 @@ func TestDeleteSnapshot(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-2-uuid"},
 			Name:      "test_volume_2",
 			AccountID: account.ID,
-			Pool: &datamodel.Pool{
-				VendorID: "/projects/project123/locations/location123/pools/pool123",
-			},
+			PoolID:    pool.ID,
+			Pool:      pool,
 		}
 		err = store.DB().Create(volume2).Error
 		if err != nil {
@@ -2382,7 +2526,7 @@ func TestDeleteSnapshot(t *testing.T) {
 		err = store.DB().Create(job2).Error
 		assert.NoError(tt, err)
 
-		// Test deleting snapshot from volume1 - should return job1
+		// Test deleting snapshot from volume1 - code should return existing job for idempotency
 		params1 := &common.DeleteSnapshotParams{
 			SnapshotBaseParams: common.SnapshotBaseParams{
 				VolumeID:    volume1.UUID,
@@ -2393,12 +2537,14 @@ func TestDeleteSnapshot(t *testing.T) {
 
 		snapshotResp1, jobUUID1, err := orch.DeleteSnapshot(ctx, params1)
 		assert.NoError(tt, err, "Failed to delete snapshot for volume1")
-		assert.Equal(tt, "test-delete-job-1-uuid", jobUUID1, "Expected job1 UUID to be returned for volume1")
+		// Code should return the existing job UUID for idempotency
+		assert.NotEmpty(tt, jobUUID1, "Expected job UUID to be returned for volume1")
+		assert.Equal(tt, "test-delete-job-1-uuid", jobUUID1, "Expected the existing job UUID to be returned for idempotency")
 		assert.NotNil(tt, snapshotResp1, "Expected snapshot to be returned for volume1")
 		assert.Equal(tt, snapshotResp1.Name, "test_snapshot")
 		assert.Equal(tt, snapshotResp1.VolumeUUID, "test-volume-1-uuid")
 
-		// Test deleting snapshot from volume2 - should return job2 (not job1)
+		// Test deleting snapshot from volume2 - code should return existing job for idempotency
 		params2 := &common.DeleteSnapshotParams{
 			SnapshotBaseParams: common.SnapshotBaseParams{
 				VolumeID:    volume2.UUID,
@@ -2409,7 +2555,10 @@ func TestDeleteSnapshot(t *testing.T) {
 
 		snapshotResp2, jobUUID2, err := orch.DeleteSnapshot(ctx, params2)
 		assert.NoError(tt, err, "Failed to delete snapshot for volume2")
-		assert.Equal(tt, "test-delete-job-2-uuid", jobUUID2, "Expected job2 UUID to be returned for volume2")
+		// Code should return the existing job UUID for idempotency
+		assert.NotEmpty(tt, jobUUID2, "Expected job UUID to be returned for volume2")
+		assert.Equal(tt, "test-delete-job-2-uuid", jobUUID2, "Expected the existing job UUID to be returned for idempotency")
+		assert.NotEqual(tt, jobUUID1, jobUUID2, "Expected different job UUIDs for different volumes")
 		assert.NotNil(tt, snapshotResp2, "Expected snapshot to be returned for volume2")
 		assert.Equal(tt, snapshotResp2.Name, "test_snapshot")
 		assert.Equal(tt, snapshotResp2.VolumeUUID, "test-volume-2-uuid")
@@ -2426,7 +2575,7 @@ func TestDeleteSnapshot(t *testing.T) {
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
-		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 		orch := Orchestrator{
 			storage:  store,
 			temporal: temporal,
@@ -2446,13 +2595,29 @@ func TestDeleteSnapshot(t *testing.T) {
 			tt.Fatalf("Failed to create account: %v", err)
 		}
 
+		// Create pool first
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+			APIAccessMode: common.DEFAULTMode,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
 			AccountID: account.ID,
-			Pool: &datamodel.Pool{
-				VendorID: "/projects/project123/locations/location123/pools/pool123",
-			},
+			PoolID:    pool.ID,
+			Pool:      pool,
 		}
 		err = store.DB().Create(volume).Error
 		if err != nil {
@@ -2472,11 +2637,11 @@ func TestDeleteSnapshot(t *testing.T) {
 			tt.Fatalf("Failed to create snapshot: %v", err)
 		}
 
-		// Mock the storage to return an error when GetJobsWithCondition is called
+		// Mock the storage to return an error when CreateJob is called
 		origStorage := orch.storage
 		mockStorage := &MockStorage{
-			Storage:                   origStorage,
-			getJobsWithConditionError: errors.New("database connection failed"),
+			Storage:        origStorage,
+			createJobError: errors.New("database connection failed"),
 		}
 		orch.storage = mockStorage
 		defer func() { orch.storage = origStorage }()
@@ -2490,11 +2655,414 @@ func TestDeleteSnapshot(t *testing.T) {
 		}
 
 		snapshotResp, jobUUID, err := orch.DeleteSnapshot(ctx, params)
-		assert.Error(tt, err, "Expected error when GetJobsWithCondition fails")
+		assert.Error(tt, err, "Expected error when CreateJob fails")
 		assert.Contains(tt, err.Error(), "database connection failed", "Expected specific error message")
 		assert.Nil(tt, snapshotResp, "Expected nil snapshot response")
 		assert.Empty(tt, jobUUID, "Expected empty job UUID")
 	})
+}
+
+// TestDeleteSnapshot_WhenSnapshotInCreatingStateWithEmptyCorrelationID tests the scenario where
+// snapshot is in CREATING state but correlation ID is empty
+func TestDeleteSnapshot_WhenSnapshotInCreatingStateWithEmptyCorrelationID(t *testing.T) {
+	ctx := context.Background() // No correlation ID in context
+	store := database.NewMockStorage(t)
+	temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}, Name: "test-account"}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:      "test_volume",
+		AccountID: account.ID,
+		Account:   account,
+		Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-1"}},
+	}
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+		Name:      "test-snapshot",
+		State:     models.LifeCycleStateCreating,
+		VolumeID:  volume.ID,
+		Volume:    volume,
+		AccountID: account.ID,
+		Account:   account,
+	}
+
+	params := &common.DeleteSnapshotParams{
+		SnapshotID: snapshot.UUID,
+		SnapshotBaseParams: common.SnapshotBaseParams{
+			VolumeID:    volume.UUID,
+			AccountName: account.Name,
+		},
+	}
+
+	// Patch VolumeOwnershipCheck
+	origVolumeOwnershipCheck := VolumeOwnershipCheck
+	VolumeOwnershipCheck = func(ctx context.Context, se database.Storage, volumeUUID, accountName string) (*datamodel.Volume, error) {
+		return volume, nil
+	}
+	defer func() { VolumeOwnershipCheck = origVolumeOwnershipCheck }()
+
+	// Mock GetSnapshotByUUID
+	store.On("GetSnapshotByUUID", ctx, params.SnapshotID, account.ID, volume.ID).Return(snapshot, nil)
+
+	// Note: When correlation ID is empty, ValidateCorrelationIDForCreatingResource returns early
+	// without calling GetJobByResourceUUID, so no mock is needed here
+
+	// Act
+	result, jobID, err := deleteSnapshot(ctx, store, temporal, params)
+
+	// Assert
+	assert.Error(t, err)
+	assert.True(t, customerrors.IsConflictErr(err))
+	assert.Contains(t, err.Error(), "Error deleting snapshot - snapshot is already transitioning between states")
+	assert.Nil(t, result)
+	assert.Equal(t, "", jobID)
+	store.AssertExpectations(t)
+}
+
+// TestDeleteSnapshot_WhenSnapshotInCreatingStateWithMismatchedCorrelationID tests the scenario where
+// snapshot is in CREATING state but correlation ID doesn't match
+func TestDeleteSnapshot_WhenSnapshotInCreatingStateWithMismatchedCorrelationID(t *testing.T) {
+	correlationID := "test-correlation-id-123"
+	fields := log.Fields{
+		string(middleware.RequestCorrelationID): correlationID,
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+	store := database.NewMockStorage(t)
+	temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}, Name: "test-account"}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:      "test_volume",
+		AccountID: account.ID,
+		Account:   account,
+		Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-1"}},
+	}
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+		Name:      "test-snapshot",
+		State:     models.LifeCycleStateCreating,
+		VolumeID:  volume.ID,
+		Volume:    volume,
+		AccountID: account.ID,
+		Account:   account,
+	}
+
+	params := &common.DeleteSnapshotParams{
+		SnapshotID: snapshot.UUID,
+		SnapshotBaseParams: common.SnapshotBaseParams{
+			VolumeID:    volume.UUID,
+			AccountName: account.Name,
+		},
+	}
+
+	// Patch VolumeOwnershipCheck
+	origVolumeOwnershipCheck := VolumeOwnershipCheck
+	VolumeOwnershipCheck = func(ctx context.Context, se database.Storage, volumeUUID, accountName string) (*datamodel.Volume, error) {
+		return volume, nil
+	}
+	defer func() { VolumeOwnershipCheck = origVolumeOwnershipCheck }()
+
+	// Mock GetSnapshotByUUID
+	store.On("GetSnapshotByUUID", ctx, params.SnapshotID, account.ID, volume.ID).Return(snapshot, nil)
+
+	// Mock GetJobByResourceUUID for DELETE_SNAPSHOT (called first in ValidateCorrelationIDForCreatingResource)
+	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(models.JobTypeDeleteSnapshot)).Return(nil, errors.New("no delete job found"))
+
+	// Mock GetJobByResourceUUID to return a job with different correlation ID
+	createJob := &datamodel.Job{
+		BaseModel:     datamodel.BaseModel{UUID: "create-job-uuid"},
+		CorrelationID: "different-correlation-id", // Mismatch
+		Type:          string(models.JobTypeCreateSnapshot),
+	}
+	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(models.JobTypeCreateSnapshot)).Return(createJob, nil)
+
+	// Act
+	result, jobID, err := deleteSnapshot(ctx, store, temporal, params)
+
+	// Assert
+	assert.Error(t, err)
+	assert.True(t, customerrors.IsConflictErr(err))
+	assert.Contains(t, err.Error(), "Error deleting snapshot - snapshot is already transitioning between states")
+	assert.Nil(t, result)
+	assert.Equal(t, "", jobID)
+	store.AssertExpectations(t)
+}
+
+// TestDeleteSnapshot_WhenSnapshotInCreatingStateWithMatchingCorrelationID tests the scenario where
+// snapshot is in CREATING state and correlation ID matches
+func TestDeleteSnapshot_WhenSnapshotInCreatingStateWithMatchingCorrelationID(t *testing.T) {
+	correlationID := "test-correlation-id-123"
+	fields := log.Fields{
+		string(middleware.RequestCorrelationID): correlationID,
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+	store := database.NewMockStorage(t)
+	temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}, Name: "test-account"}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:      "test_volume",
+		AccountID: account.ID,
+		Account:   account,
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-1"},
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
+		},
+	}
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+		Name:      "test-snapshot",
+		State:     models.LifeCycleStateCreating,
+		VolumeID:  volume.ID,
+		Volume:    volume,
+		AccountID: account.ID,
+		Account:   account,
+		SnapshotAttributes: &datamodel.SnapshotAttributes{
+			SizeInBytes: bytesPerGB,
+		},
+	}
+
+	params := &common.DeleteSnapshotParams{
+		SnapshotID: snapshot.UUID,
+		SnapshotBaseParams: common.SnapshotBaseParams{
+			VolumeID:    volume.UUID,
+			AccountName: account.Name,
+		},
+	}
+
+	// Patch VolumeOwnershipCheck
+	origVolumeOwnershipCheck := VolumeOwnershipCheck
+	VolumeOwnershipCheck = func(ctx context.Context, se database.Storage, volumeUUID, accountName string) (*datamodel.Volume, error) {
+		return volume, nil
+	}
+	defer func() { VolumeOwnershipCheck = origVolumeOwnershipCheck }()
+
+	// Mock GetSnapshotByUUID
+	store.On("GetSnapshotByUUID", ctx, params.SnapshotID, account.ID, volume.ID).Return(snapshot, nil)
+
+	// Mock GetJobByResourceUUID to return a job with matching correlation ID
+	createJob := &datamodel.Job{
+		BaseModel:     datamodel.BaseModel{UUID: "create-job-uuid"},
+		CorrelationID: correlationID, // Match
+		Type:          string(models.JobTypeCreateSnapshot),
+	}
+	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(models.JobTypeCreateSnapshot)).Return(createJob, nil)
+	// Mock GetJobByResourceUUID for delete job type - return nil to indicate no existing delete job
+	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(models.JobTypeDeleteSnapshot)).Return(nil, customerrors.NewNotFoundErr("Job", nil))
+
+	// Mock CreateJob
+	store.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "delete-job-uuid"},
+		WorkflowID: "test-workflow-id",
+	}, nil)
+
+	// Mock DeletingSnapshot - should NOT be called when snapshot is in CREATING state
+	// (The test expects this not to be called, so we don't mock it)
+
+	// Mock SignalWithStartWorkflow - DeleteSnapshot uses ExecuteSequentialWorkflow which calls SignalWithStartWorkflow internally
+	temporal.EXPECT().SignalWithStartWorkflow(
+		mock.Anything, // ctx
+		mock.Anything, // controlWorkflowID
+		mock.Anything, // signal name
+		mock.Anything, // SignalWorkflowParams
+		mock.Anything, // StartWorkflowOptions
+		mock.Anything, // workflow function
+	).Return(nil, nil)
+
+	// Act
+	result, jobID, err := deleteSnapshot(ctx, store, temporal, params)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "delete-job-uuid", jobID)
+	store.AssertExpectations(t)
+}
+
+// TestDeleteSnapshot_WhenSnapshotInCreatingStateAndGetJobByResourceUUIDFails tests the scenario where
+// snapshot is in CREATING state but GetJobByResourceUUID fails
+func TestDeleteSnapshot_WhenSnapshotInCreatingStateAndGetJobByResourceUUIDFails(t *testing.T) {
+	correlationID := "test-correlation-id-123"
+	fields := log.Fields{
+		string(middleware.RequestCorrelationID): correlationID,
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+	store := database.NewMockStorage(t)
+	temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}, Name: "test-account"}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:      "test_volume",
+		AccountID: account.ID,
+		Account:   account,
+		Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-1"}},
+	}
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+		Name:      "test-snapshot",
+		State:     models.LifeCycleStateCreating,
+		VolumeID:  volume.ID,
+		Volume:    volume,
+		AccountID: account.ID,
+		Account:   account,
+	}
+
+	params := &common.DeleteSnapshotParams{
+		SnapshotID: snapshot.UUID,
+		SnapshotBaseParams: common.SnapshotBaseParams{
+			VolumeID:    volume.UUID,
+			AccountName: account.Name,
+		},
+	}
+
+	// Patch VolumeOwnershipCheck
+	origVolumeOwnershipCheck := VolumeOwnershipCheck
+	VolumeOwnershipCheck = func(ctx context.Context, se database.Storage, volumeUUID, accountName string) (*datamodel.Volume, error) {
+		return volume, nil
+	}
+	defer func() { VolumeOwnershipCheck = origVolumeOwnershipCheck }()
+
+	// Mock GetSnapshotByUUID
+	store.On("GetSnapshotByUUID", ctx, params.SnapshotID, account.ID, volume.ID).Return(snapshot, nil)
+
+	// Mock GetJobByResourceUUID for DELETE_SNAPSHOT (called first in ValidateCorrelationIDForCreatingResource)
+	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(models.JobTypeDeleteSnapshot)).Return(nil, errors.New("no delete job found"))
+
+	// Mock GetJobByResourceUUID to return an error
+	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(models.JobTypeCreateSnapshot)).Return(nil, errors.New("job not found"))
+
+	// Act
+	result, jobID, err := deleteSnapshot(ctx, store, temporal, params)
+
+	// Assert
+	assert.Error(t, err)
+	assert.True(t, customerrors.IsConflictErr(err))
+	assert.Contains(t, err.Error(), "Error deleting snapshot - snapshot is already transitioning between states")
+	assert.Nil(t, result)
+	assert.Equal(t, "", jobID)
+	store.AssertExpectations(t)
+}
+
+func TestDeleteSnapshot_CreatingStateWithExistingDeleteJob_ReturnsExistingJobUUID(t *testing.T) {
+	// Test for line 613: When existingDeleteJobUUID is not empty, return it immediately
+	ctx := context.Background()
+	store := new(database.MockStorage)
+	temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+	correlationID := "test-correlation-id-123"
+	fields := log.Fields{
+		string(middleware.RequestCorrelationID): correlationID,
+	}
+	ctx = context.WithValue(ctx, middleware.TemporalSLoggerKey, fields)
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: "test-account"}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid"},
+		AccountID: 42,
+	}
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid"},
+		Name:      "test-snapshot",
+		State:     models.LifeCycleStateCreating,
+		VolumeID:  volume.ID,
+		AccountID: 42,
+		Volume:    volume,
+		Account:   account,
+		SnapshotAttributes: &datamodel.SnapshotAttributes{
+			SizeInBytes: 1024 * 1024, // 1MB
+		},
+	}
+	existingDeleteJob := &datamodel.Job{
+		BaseModel:     datamodel.BaseModel{UUID: "existing-delete-job-uuid"},
+		CorrelationID: correlationID,
+		Type:          string(models.JobTypeDeleteSnapshot),
+		State:         string(models.JobsStatePROCESSING),
+	}
+
+	params := &common.DeleteSnapshotParams{
+		SnapshotID: snapshot.UUID,
+		SnapshotBaseParams: common.SnapshotBaseParams{
+			VolumeID:    volume.UUID,
+			AccountName: account.Name,
+		},
+	}
+
+	// Patch VolumeOwnershipCheck
+	origVolumeOwnershipCheck := VolumeOwnershipCheck
+	VolumeOwnershipCheck = func(ctx context.Context, se database.Storage, volumeUUID, accountName string) (*datamodel.Volume, error) {
+		// Set Account field on volume since it's used at line 594 in snapshot.go
+		volume.Account = account
+		return volume, nil
+	}
+	defer func() { VolumeOwnershipCheck = origVolumeOwnershipCheck }()
+
+	store.On("GetSnapshotByUUID", ctx, params.SnapshotID, account.ID, volume.ID).Return(snapshot, nil)
+	// ValidateCorrelationIDForCreatingResource returns existingDeleteJobUUID when delete job is in progress
+	store.On("GetJobByResourceUUID", ctx, snapshot.UUID, string(models.JobTypeDeleteSnapshot)).Return(existingDeleteJob, nil)
+
+	result, jobUUID, err := deleteSnapshot(ctx, store, temporal, params)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "existing-delete-job-uuid", jobUUID)
+	assert.NotNil(t, result)
+	assert.Equal(t, snapshot.UUID, result.UUID)
+	store.AssertExpectations(t)
+}
+
+func TestDeleteSnapshot_TransitionalState_ReturnsError(t *testing.T) {
+	// Test for line 617: When snapshot is in transitional state (not DELETING), return error
+	ctx := context.Background()
+	store := new(database.MockStorage)
+	temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}, Name: "test-account"}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid"},
+		AccountID: 42,
+	}
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid"},
+		Name:      "test-snapshot",
+		State:     models.LifeCycleStateUpdating, // Transitional state (not DELETING)
+		VolumeID:  volume.ID,
+		AccountID: 42,
+		Volume:    volume,
+		Account:   account,
+	}
+
+	params := &common.DeleteSnapshotParams{
+		SnapshotID: snapshot.UUID,
+		SnapshotBaseParams: common.SnapshotBaseParams{
+			VolumeID:    volume.UUID,
+			AccountName: account.Name,
+		},
+	}
+
+	// Patch VolumeOwnershipCheck
+	origVolumeOwnershipCheck := VolumeOwnershipCheck
+	VolumeOwnershipCheck = func(ctx context.Context, se database.Storage, volumeUUID, accountName string) (*datamodel.Volume, error) {
+		// Set Account field on volume since it's used at line 594 in snapshot.go
+		volume.Account = account
+		return volume, nil
+	}
+	defer func() { VolumeOwnershipCheck = origVolumeOwnershipCheck }()
+
+	store.On("GetSnapshotByUUID", ctx, params.SnapshotID, account.ID, volume.ID).Return(snapshot, nil)
+	// Note: GetJobByResourceUUID is not called when snapshot is in transitional state
+	// because the function returns early at line 617 in snapshot.go
+
+	result, jobUUID, err := deleteSnapshot(ctx, store, temporal, params)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Snapshot is in transition state and cannot be deleted")
+	assert.Contains(t, err.Error(), models.LifeCycleStateUpdating)
+	assert.Nil(t, result)
+	assert.Empty(t, jobUUID)
+	store.AssertExpectations(t)
 }
 
 func TestDeleteSnapshots(t *testing.T) {
@@ -4689,7 +5257,8 @@ func TestDeleteSnapshot_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 
 		mockStorage.EXPECT().VerifyVolumeOwnership(ctx, params.VolumeID, params.AccountName).Return(volume, nil)
 		mockStorage.EXPECT().GetSnapshotByUUID(ctx, params.SnapshotID, account.ID, volume.ID).Return(snapshot, nil)
-		mockStorage.EXPECT().GetJobsWithCondition(ctx, mock.Anything).Return([]*datamodel.Job{}, nil)
+		// Mock GetJobByResourceUUID for DELETE_SNAPSHOT (called in GetExistingDeleteJobForDeletingState for READY state)
+		mockStorage.EXPECT().GetJobByResourceUUID(ctx, snapshot.UUID, string(models.JobTypeDeleteSnapshot)).Return(nil, errors.New("no delete job found"))
 		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
 			return job.JobAttributes != nil &&
 				job.JobAttributes.PreviousState == previousState &&

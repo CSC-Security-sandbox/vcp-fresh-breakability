@@ -22,6 +22,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 )
@@ -42,6 +43,10 @@ type volumeCreateWorkflow struct {
 const (
 	PhasePre  = "pre"  // Pre-provisioning phase
 	PhasePost = "post" // Post-provisioning phase
+)
+
+const (
+	CancelVolumeSignalName = "cancel-volume-creation"
 )
 
 // Enforcing the WorkflowInterface on volumeCreateWorkflow
@@ -260,7 +265,11 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 				}
 				// Wait for firewall operations to complete using child workflow
 				if firewallOperations != nil && len(*firewallOperations) > 0 {
-					err = workflow.ExecuteChildWorkflow(ctx, WaitForGCPNetworkOperationStatusWorkflow, firewallOperations, retryPolicy.StartToCloseTimeout).Get(ctx, nil)
+					// Using REQUEST_CANCEL policy so child workflow is cancelled when parent is cancelled
+					firewallChildCtx := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+						ParentClosePolicy: enums.PARENT_CLOSE_POLICY_REQUEST_CANCEL,
+					})
+					err = workflow.ExecuteChildWorkflow(firewallChildCtx, WaitForGCPNetworkOperationStatusWorkflow, firewallOperations, retryPolicy.StartToCloseTimeout).Get(firewallChildCtx, nil)
 					if err != nil {
 						log.Error("Failed to wait for NAS firewall operations to complete", "error", err, "pool", dbVolume.Pool.Name)
 						return nil, ConvertToVSAError(fmt.Errorf("Failed to wait for NAS firewall operations: %w", err))
@@ -580,7 +589,11 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 		}
 
 		// Configure Kerberos for NFSv4 using workflow
-		err = workflow.ExecuteChildWorkflow(ctx, EnsureKerberosConfigWorkflow, node, activeDirectory, dbSvm.Name, dbSvm.SvmDetails.ExternalUUID).Get(ctx, nil)
+		// Using REQUEST_CANCEL policy so child workflow is cancelled when parent is cancelled
+		kerberosChildCtx := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+			ParentClosePolicy: enums.PARENT_CLOSE_POLICY_REQUEST_CANCEL,
+		})
+		err = workflow.ExecuteChildWorkflow(kerberosChildCtx, EnsureKerberosConfigWorkflow, node, activeDirectory, dbSvm.Name, dbSvm.SvmDetails.ExternalUUID).Get(kerberosChildCtx, nil)
 		if err != nil {
 			log.Error("Failed to configure Kerberos during PostFileVolumeWorkflow with error: ", err)
 			return nil, ConvertToVSAError(err)
@@ -736,21 +749,35 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	dbHbCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(dbHeartbeatTimeoutSec)*time.Second)
 
 	rollbackManager := common.NewRollbackManager()
+
+	// Set up cancellation handler using common framework
+	cancellationHandler := common.NewWorkflowCancellationHandler(ctx, CancelVolumeSignalName, dbVolume.UUID, "volume")
+
 	defer func() {
-		if err != nil {
-			err2 := workflow.ExecuteActivity(dbHbCtx, volumeActivity.UpdateVolumeStateInDB, dbVolume.UUID, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails).Get(dbHbCtx, nil)
-			if err2 != nil {
-				log.Errorf("Failed to update volume state in DB to error: %v", err2)
-			}
-			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
-			rollbackManager.ExecuteRollback(disconnectedCtx, err)
-		}
+		common.ExecuteDeferredCleanup(ctx, cancellationHandler, rollbackManager, err, log, "volume", dbVolume.UUID,
+			func(disconnectedCtx workflow.Context) error {
+				// Update volume state in DB before rollback
+				err2 := workflow.ExecuteActivity(disconnectedCtx, volumeActivity.UpdateVolumeStateInDB, dbVolume.UUID, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails).Get(disconnectedCtx, nil)
+				if err2 != nil {
+					log.Errorf("Failed to update volume state in DB to error: %v", err2)
+				}
+				return err2
+			},
+			nil, // onCancellationCallback
+			nil) // shouldRollbackOnError
 	}()
+
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 
 	// Fail fast if pool KMS config is not reachable, matching pool create workflow behavior.
 	// This ensures key disabled / EKM unreachable errors surface early.
 	if dbVolume.Pool != nil && dbVolume.Pool.KmsConfig != nil {
 		kmsConfigActivity := &kms_activities.KmsConfigActivity{}
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		// Access a crypto key using the KMS config in the VSA database to make sure key is reachable and update the kms config state based on the reachability
 		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.VerifyVsaKmsReachabilityActivity, dbVolume.Pool.KmsConfig.UUID, true).Get(ctx, nil)
 		if err != nil {
@@ -766,6 +793,9 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 		// Get authentication token for CVP API calls
 		if !env.IsLocalEnv() {
+			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+				return nil, cancelErr
+			}
 			var token string
 			err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, createVolumeParams.AccountName).Get(ctx, &token)
 			if err != nil {
@@ -775,6 +805,9 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, token)
 		}
 
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		// Fetch backup vault, backup, and bucket details from CVP/SDE
 		var backupMetadata *activities.BackupRestoreMetadata
 		err = workflow.ExecuteActivity(ctx, volumeActivity.FetchBackupMetadataForRestore, dbVolume, &dbVolume.Pool, createVolumeParams.BackupPath, region).Get(ctx, &backupMetadata)
@@ -826,6 +859,10 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
+
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbVolume.Pool.ID).Get(ctx, &dbNodes)
 	if err != nil {
@@ -841,10 +878,17 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	// Get Aggregates from ONTAP if the volume is large capacity
 	var aggregateResult *models.AggregateDistributionResult
 	if dbVolume.LargeVolumeAttributes != nil && dbVolume.LargeVolumeAttributes.LargeCapacity && dbVolume.LargeVolumeAttributes.LargeVolumeConstituentCount != nil {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		err = workflow.ExecuteActivity(ctx, volumeActivity.GetAggregatesFromOntap, &dbVolume, &node, len(dbNodes)).Get(ctx, &aggregateResult)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
+	}
+
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
 	}
 
 	// Pre-provisioning child workflow
@@ -854,8 +898,11 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		err = preErr
 		return nil, ConvertToVSAError(err)
 	}
+	preChildCtx := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+		ParentClosePolicy: enums.PARENT_CLOSE_POLICY_REQUEST_CANCEL,
+	})
 	var preUpdatedVolume *datamodel.Volume
-	err = workflow.ExecuteChildWorkflow(ctx, preWorkflowFunc, dbVolume, node).Get(ctx, &preUpdatedVolume)
+	err = workflow.ExecuteChildWorkflow(preChildCtx, preWorkflowFunc, dbVolume, node).Get(preChildCtx, &preUpdatedVolume)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -864,12 +911,18 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if preUpdatedVolume != nil {
 		dbVolume = preUpdatedVolume
 	}
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	rollbackManager.AddActivity(activities.VolumeDeleteActivity.DeleteSnapshotPolicyInONTAP, getSnapshotPolicyName(dbVolume), &node) // This will delete the snapshotPolicy if exists
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateSnapshotPolicyInONTAP, &dbVolume, &node).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	var volCreateResponse *vsa.VolumeResponse
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateVolumeInONTAP, &dbVolume, &node, &snapshot, backup, aggregateResult).Get(ctx, &volCreateResponse)
 	if err != nil {
@@ -900,10 +953,16 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	var restoreVolCreateResponse *vsa.VolumeResponse
 	if isRestoreSnapshot {
 		if utils.IsSanProtocols(dbVolume.VolumeAttributes.Protocols) {
+			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+				return nil, cancelErr
+			}
 			err = workflow.ExecuteActivity(ctx, volumeActivity.LunSizeUpdateValidation, &dbVolume, &node).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
+		}
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
 		}
 		// TODO: [VSCP-1435] To remove 'Split' keywords as split operation is removed from create volume workflow
 		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateClonedVolumeBeforeSplit, &dbVolume, &node).Get(ctx, &restoreVolCreateResponse)
@@ -915,6 +974,9 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	var hostGroups []*datamodel.HostGroup
 	var hostParams []*common.HostParams
 	if !dbVolume.VolumeAttributes.IsDataProtection && utils.IsSanProtocols(dbVolume.VolumeAttributes.Protocols) {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		// Get host groups for block volume
 		err = workflow.ExecuteActivity(ctx, volumeActivity.GetHosts, &dbVolume).Get(ctx, &hostGroups)
 		if err != nil {
@@ -923,6 +985,9 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 		hostParams = createHostParamsFromHostGroups(hostGroups, dbVolume)
 
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		// Create igroup for block volume
 		err = workflow.ExecuteActivity(ctx, volumeActivity.CreateIgroup, &dbVolume, &hostParams, node).Get(ctx, nil)
 		if err != nil {
@@ -932,6 +997,9 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	// If isRestoreFromBackup is true, we will restore the volume from the backup
 	// backup path example: "projects/123456789/locations/us-e4/backupVaults/bv1/backups/backupName"
 	if isRestoreFromBackup {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		err = workflow.ExecuteActivity(ctx, volumeActivity.CreateRestoreWorkflow, createVolumeParams, &dbVolume, &hostParams, backupVault, backup, &volCreateResponse).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(fmt.Errorf("failed to create Restore Workflow: %w", err))
@@ -939,17 +1007,26 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	if !isRestoreFromBackup {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		postWorkflowFunc, postErr := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePost, ontapVersion)
 		if postErr != nil {
 			err = postErr
 			return nil, ConvertToVSAError(err)
 		}
+		postChildCtx := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+			ParentClosePolicy: enums.PARENT_CLOSE_POLICY_REQUEST_CANCEL,
+		})
 		// Handle both single workflow and slice of workflows (for NFS+SMB combination)
 		var updatedVolume *datamodel.Volume
 		if workflowSlice, ok := postWorkflowFunc.([]interface{}); ok {
 			// Execute multiple workflows sequentially
 			for _, workflowFunc := range workflowSlice {
-				err = workflow.ExecuteChildWorkflow(ctx, workflowFunc, dbVolume, node, hostParams, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, restoreVolCreateResponse).Get(ctx, &updatedVolume)
+				if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+					return nil, cancelErr
+				}
+				err = workflow.ExecuteChildWorkflow(postChildCtx, workflowFunc, dbVolume, node, hostParams, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, restoreVolCreateResponse).Get(postChildCtx, &updatedVolume)
 				if err != nil {
 					return nil, ConvertToVSAError(err)
 				}
@@ -959,8 +1036,11 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				}
 			}
 		} else {
+			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+				return nil, cancelErr
+			}
 			// Single workflow execution
-			err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, dbVolume, node, hostParams, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, restoreVolCreateResponse).Get(ctx, &updatedVolume)
+			err = workflow.ExecuteChildWorkflow(postChildCtx, postWorkflowFunc, dbVolume, node, hostParams, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, restoreVolCreateResponse).Get(postChildCtx, &updatedVolume)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
@@ -973,6 +1053,9 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 	if dbVolume.DataProtection != nil && dbVolume.DataProtection.BackupVaultID != "" {
 		if !env.IsLocalEnv() {
+			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+				return nil, cancelErr
+			}
 			var token string
 			err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, createVolumeParams.AccountName).Get(ctx, &token)
 			if err != nil {
@@ -982,6 +1065,9 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, token)
 		}
 
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		var backupVault *datamodel.BackupVault
 		err = workflow.ExecuteActivity(ctx, volumeActivity.CheckBackupVaultExistsInVCP, &dbVolume, &region).Get(ctx, &backupVault)
 		if err != nil {
@@ -993,12 +1079,18 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			backupRegion = *backupVault.BackupRegionName
 		}
 
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		tenancyDetails := &common.TenancyInfo{}
 		err = workflow.ExecuteActivity(ctx, volumeActivity.FindTenancy, dbVolume.VolumeAttributes.VendorSubnetID, dbVolume.Account.Name, backupRegion).Get(ctx, &tenancyDetails)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
 
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		bucketDetails := &common.BucketDetails{}
 		err = workflow.ExecuteActivity(ctx, volumeActivity.CheckForBucketResourceName, &dbVolume).Get(ctx, &bucketDetails)
 		if err != nil {
@@ -1006,6 +1098,9 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 
 		if bucketDetails.BucketName == "" && bucketDetails.ServiceAccountName == "" && bucketDetails.TenantProjectNumber == "" {
+			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+				return nil, cancelErr
+			}
 			resourceName := &common.ResourceNames{}
 			err = workflow.ExecuteActivity(ctx, volumeActivity.GenerateResourceNames, &dbVolume, &tenancyDetails, region).Get(ctx, &resourceName)
 			if err != nil {
@@ -1016,6 +1111,9 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			var kmsGrant *string
 			if dbVolume.DataProtection != nil && !nillable.IsNilOrEmpty(dbVolume.DataProtection.KmsGrant) {
 				kmsGrant = dbVolume.DataProtection.KmsGrant
+			}
+			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+				return nil, cancelErr
 			}
 			err = workflow.ExecuteActivity(ctx, volumeActivity.CreateBucket, &resourceName, &tenancyDetails, backupRegion, kmsGrant).Get(ctx, &bucketDetails)
 			if err != nil {
@@ -1029,23 +1127,35 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, ConvertToVSAError(err)
 			}
 
+			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+				return nil, cancelErr
+			}
 			err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateBackupVaultWithBucketDetails, &dbVolume, &bucketDetails).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
 
+			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+				return nil, cancelErr
+			}
 			var RemoteBV *datamodel.BackupVault
 			err = workflow.ExecuteActivity(ctx, volumeActivity.CheckOrCreateRemoteBackupVaultInVCP, &dbVolume, backupVault, &bucketDetails).Get(ctx, &RemoteBV)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
 
+			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+				return nil, cancelErr
+			}
 			err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateRemoteBackupVaultWithBucketDetails, &dbVolume, backupVault, RemoteBV, &bucketDetails).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
 
 			if backupVault.BackupVaultType == activities.CrossRegionBackupType && backupVault.BackupRegionName != nil && *backupVault.BackupRegionName != "" {
+				if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+					return nil, cancelErr
+				}
 				err = workflow.ExecuteActivity(ctx, volumeActivity.SetupCrossRegionBackupPermissionsActivity, backupVault, &dbVolume.Pool, &bucketDetails).Get(ctx, nil)
 				if err != nil {
 					return nil, ConvertToVSAError(err)
@@ -1055,6 +1165,9 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	if dbVolume.DataProtection != nil && dbVolume.DataProtection.BackupPolicyID != "" {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
 		var backupPolicyExists bool
 		err = workflow.ExecuteActivity(ctx, volumeActivity.CheckIfBackupPolicyExistsInVCP, dbVolume.DataProtection.BackupPolicyID, dbVolume.AccountID).Get(ctx, &backupPolicyExists)
 		if err != nil {
@@ -1062,6 +1175,9 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 
 		if !backupPolicyExists {
+			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+				return nil, cancelErr
+			}
 			backupPolicyActivity := &activities.BackupPolicyActivity{}
 			var vcpBackupPolicy *datamodel.BackupPolicy
 			err = workflow.ExecuteActivity(ctx, volumeActivity.CreateBackupPolicyFetchedFromSDE, &dbVolume, region).Get(ctx, &vcpBackupPolicy)
@@ -1069,6 +1185,9 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, ConvertToVSAError(err)
 			}
 			rollbackManager.AddActivity(backupPolicyActivity.DeleteBackupPolicyInVCP, vcpBackupPolicy.UUID)
+			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+				return nil, cancelErr
+			}
 			err = workflow.ExecuteActivity(ctx, volumeActivity.CreateBackupPolicySchedule, &vcpBackupPolicy, createVolumeParams.BackupSchedule).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
@@ -1076,6 +1195,9 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			rollbackManager.AddActivity(backupPolicyActivity.DeleteBackupPolicySchedule, vcpBackupPolicy.UUID)
 
 			if !vcpBackupPolicy.PolicyEnabled {
+				if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+					return nil, cancelErr
+				}
 				err = workflow.ExecuteActivity(ctx, backupPolicyActivity.PauseBackupPolicySchedule, vcpBackupPolicy).Get(ctx, nil)
 				if err != nil {
 					return nil, ConvertToVSAError(err)
@@ -1084,6 +1206,9 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 	}
 
+	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+		return nil, cancelErr
+	}
 	err = workflow.ExecuteActivity(dbHbCtx, volumeActivity.UpdateVolumeDetails, &dbVolume, &volCreateResponse).Get(dbHbCtx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)

@@ -105,6 +105,27 @@ func (wf *snapshotDeleteWorkflow) Run(ctx workflow.Context, args ...interface{})
 	dbSnapshot := snapshot
 	logger.Infof("Starting the snapshot deletion workflow for snapshot: %s", dbSnapshot.Name)
 
+	poolActivity := &activities.PoolActivity{}
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{}
+	ackTimeout, forceTimeout := common.GetCancellationTimeouts("SNAPSHOT")
+	if cancelErr := common.HandleCancellationForCreatingResource(ctx, wf.Logger,
+		common.HandleCancellationForCreatingResourceParams{
+			ResourceUUID:               dbSnapshot.UUID,
+			ResourceState:              dbSnapshot.State,
+			CreateJobType:              models.JobTypeCreateSnapshot,
+			SignalName:                 CancelSnapshotSignalName,
+			CancellationAckTimeout:     ackTimeout,
+			ForceTerminationAckTimeout: forceTimeout,
+		},
+		poolActivity.GetCreateJobByResourceUUID,
+		cancellationActivity,
+		commonActivity,
+	); cancelErr != nil {
+		wf.Logger.Warnf("Error handling cancellation: %v, proceeding with deletion", cancelErr)
+	}
+
+	hasExternalUUID := dbSnapshot.SnapshotAttributes != nil && dbSnapshot.SnapshotAttributes.ExternalUUID != ""
 	var dbNodes []*datamodel.Node
 	defer func() {
 		if err != nil {
@@ -124,9 +145,11 @@ func (wf *snapshotDeleteWorkflow) Run(ctx workflow.Context, args ...interface{})
 		OntapCredentials: dbSnapshot.Volume.Pool.PoolCredentials,
 	})
 
-	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapshotInONTAP, &dbSnapshot, &node).Get(ctx, nil)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
+	if hasExternalUUID {
+		err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapshotInONTAP, &dbSnapshot, &node).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
 	}
 
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapshot, &dbSnapshot).Get(ctx, nil)

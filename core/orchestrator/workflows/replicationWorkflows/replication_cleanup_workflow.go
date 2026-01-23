@@ -4,6 +4,7 @@ import (
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
@@ -95,6 +96,35 @@ func (wf *replicationCleanupWorkflow) Run(ctx workflow.Context, args ...interfac
 		Event:            event,
 		CorrelationID:    event.CommonReplicationEventParams.XCorrelationID,
 	}
+
+	// Get UUID and state for cancellation handler
+	replicationUUID := event.CommonReplicationEventParams.ReplicationResourceID
+	replicationState := ""
+	if event.CommonReplicationEventParams.ReplicationModel != nil {
+		replicationUUID = event.CommonReplicationEventParams.ReplicationModel.UUID
+		replicationState = event.CommonReplicationEventParams.ReplicationModel.State
+	}
+
+	cancellationActivity := &activities.CancellationActivity{}
+	commonActivity := &activities.CommonActivities{}
+	poolActivity := &activities.PoolActivity{}
+	ackTimeout, forceTimeout := commonparams.GetCancellationTimeouts("REPLICATION")
+	if cancelErr := commonparams.HandleCancellationForCreatingResource(ctx, log,
+		commonparams.HandleCancellationForCreatingResourceParams{
+			ResourceUUID:               replicationUUID,
+			ResourceState:              replicationState,
+			CreateJobType:              models.JobTypeCreateVolumeReplication,
+			SignalName:                 CancelReplicationSignalName,
+			CancellationAckTimeout:     ackTimeout,
+			ForceTerminationAckTimeout: forceTimeout,
+		},
+		poolActivity.GetCreateJobByResourceUUID,
+		cancellationActivity,
+		commonActivity,
+	); cancelErr != nil {
+		log.Warnf("Error handling cancellation: %v, proceeding with normal delete", cancelErr)
+	}
+
 	defer func() {
 		if err != nil {
 			err2 := workflow.ExecuteActivity(ctx1, replicationActivity.UpdateReplicationOnDestinationToErrorStateForCleanup, &replicationResult).Get(ctx, &replicationResult)

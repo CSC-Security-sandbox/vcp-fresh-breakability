@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -95,10 +96,11 @@ func (wf *quotaRuleDeleteWorkflow) Setup(ctx workflow.Context, input interface{}
 // Run executes the quota rule delete workflow.
 func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	quotaRule := args[0].(*datamodel.QuotaRule)
-	params := args[1].(*common.DeleteQuotaRulesParam) // params - will be used for replication sync
+	params := args[1].(*commonparams.DeleteQuotaRulesParam) // params - will be used for replication sync
 	logger := util.GetLogger(ctx)
 	quotaRuleDeleteActivity := &activities.QuotaRuleDeleteActivity{}
 	commonActivity := &activities.QuotaRuleCommonActivity{}
+
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -114,6 +116,25 @@ func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
+	cancellationActivity := &activities.CancellationActivity{}
+	commonAct := &activities.CommonActivities{}
+	poolActivity := &activities.PoolActivity{}
+	ackTimeout, forceTimeout := commonparams.GetCancellationTimeouts("QUOTA_RULE")
+	if cancelErr := commonparams.HandleCancellationForCreatingResource(ctx, logger,
+		commonparams.HandleCancellationForCreatingResourceParams{
+			ResourceUUID:               quotaRule.UUID,
+			ResourceState:              quotaRule.State,
+			CreateJobType:              models.JobTypeCreateQuotaRule,
+			SignalName:                 CancelQuotaRuleSignalName,
+			CancellationAckTimeout:     ackTimeout,
+			ForceTerminationAckTimeout: forceTimeout,
+		},
+		poolActivity.GetCreateJobByResourceUUID,
+		cancellationActivity,
+		commonAct,
+	); cancelErr != nil {
+		logger.Warnf("Error handling cancellation: %v, proceeding with normal delete", cancelErr)
+	}
 
 	// Defer function to mark the database entry in error state if any error occur
 	defer func() {
@@ -121,13 +142,13 @@ func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}
 			// On error, mark quota rule in error state
 			quotaRule.State = models.LifeCycleStateError
 			quotaRule.StateDetails = models.LifeCycleStateDeletionErrorDetails
-			err2 := workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *quotaRule).Get(ctx, nil)
+			err2 := workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *quotaRule, false).Get(ctx, nil)
 			if err2 != nil {
 				logger.Errorf("Failed to update quota rule state in DB to error: %v", err2)
 			}
 		}
 		if err == nil {
-			err = workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *quotaRule).Get(ctx, nil)
+			err = workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *quotaRule, quotaRule.State == models.LifeCycleStateCreating).Get(ctx, nil)
 			if err != nil {
 				logger.Errorf("Failed to update quota rule state: %v", err)
 			}
@@ -152,7 +173,7 @@ func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}
 	// If volume is data protection, only delete from database (no ONTAP deletion needed)
 	if isDataProtection {
 		// Update quota rule state in database only (no ONTAP update needed)
-		err = workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *dbQuotaRule).Get(ctx, nil)
+		err = workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *dbQuotaRule, false).Get(ctx, nil)
 		if err != nil {
 			logger.Errorf("Failed to update quota rule state in database: %v", err)
 			return nil, ConvertToVSAError(err)
