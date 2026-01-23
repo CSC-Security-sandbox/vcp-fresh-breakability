@@ -631,6 +631,11 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 				return nil, err
 			}
 		}
+		if backupVault.BackupVaultType == CrossRegionBackupType {
+			if backupVault.BackupRegionName != nil && *backupVault.BackupRegionName == region {
+				return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrBadRequest, fmt.Errorf("cannot assign a cross-region backup vault to a volume in the destination region")))
+			}
+		}
 		return backupVault, nil
 	}
 	bvParams := &datamodel.BackupVault{}
@@ -671,10 +676,17 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 				if bvModel.CrossRegionBackupVaultName == nil || *bvModel.CrossRegionBackupVaultName == "" {
 					return nil, errors.NewBadRequestErr("Cross-region backup vault name must be specified for cross-region backup vault")
 				}
+				if bvModel.BackupRegionName != nil && *bvModel.BackupRegionName == region {
+					return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrBadRequest, fmt.Errorf("cannot assign a cross-region backup vault to a volume in the destination region")))
+				}
 			}
 			bvParams = bvModel
 			break
 		}
+	}
+
+	if bvParams.UUID == "" {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("backup vault with id %s not found", bvId)))
 	}
 
 	bvParams.AccountID = volume.AccountID

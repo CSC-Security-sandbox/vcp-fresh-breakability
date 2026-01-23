@@ -11560,3 +11560,326 @@ func TestCreateVolumeInONTAP_ClusterDetailsOntapVersion(t *testing.T) {
 	assert.Equal(t, expectedResponse, result)
 	mockProvider.AssertExpectations(t)
 }
+
+func TestCheckBackupVaultExistsInVCP_CrossRegionBackupVaultInSameRegion_FromVCP(t *testing.T) {
+	// Test for lines 634-636: When backup vault exists in VCP and is cross-region with BackupRegionName matching region
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	region := "us-central1"
+	backupVaultID := "bv-12345"
+	accountID := int64(123)
+
+	volume := &datamodel.Volume{
+		AccountID: accountID,
+		Account: &datamodel.Account{
+			Name: "project-123",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: backupVaultID,
+		},
+	}
+
+	// Create a cross-region backup vault with BackupRegionName matching the region
+	existingBackupVault := &datamodel.BackupVault{
+		BaseModel:        datamodel.BaseModel{UUID: backupVaultID},
+		BackupVaultType:  activities.CrossRegionBackupType,
+		BackupRegionName: &region,
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultID, accountID).Return(existingBackupVault, nil)
+
+	// Act
+	result, err := activities.CheckBackupVaultExistsInVCP(ctx, mockStorage, volume, region)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Bad Request")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCheckBackupVaultExistsInVCP_CrossRegionBackupVaultInDifferentRegion_FromVCP(t *testing.T) {
+	// Test that cross-region backup vault works when BackupRegionName is different from volume region
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volumeRegion := "us-central1"
+	backupRegion := "us-west1"
+	backupVaultID := "bv-12345"
+	accountID := int64(123)
+
+	volume := &datamodel.Volume{
+		AccountID: accountID,
+		Account: &datamodel.Account{
+			Name: "project-123",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: backupVaultID,
+		},
+	}
+
+	existingBackupVault := &datamodel.BackupVault{
+		BaseModel:        datamodel.BaseModel{UUID: backupVaultID},
+		BackupVaultType:  activities.CrossRegionBackupType,
+		BackupRegionName: &backupRegion,
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultID, accountID).Return(existingBackupVault, nil)
+
+	// Act
+	result, err := activities.CheckBackupVaultExistsInVCP(ctx, mockStorage, volume, volumeRegion)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, backupVaultID, result.UUID)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCheckBackupVaultExistsInVCP_CrossRegionBackupVaultInSameRegion_FromCVP(t *testing.T) {
+	// Test for lines 679-680: When backup vault is fetched from CVP and is cross-region with BackupRegionName matching region
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
+	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
+
+	region := "us-central1"
+	backupVaultID := "bv-12345"
+	accountID := int64(123)
+	projectNumber := "project-123"
+	crossRegionName := "cross-region-vault"
+
+	volume := &datamodel.Volume{
+		AccountID: accountID,
+		Account: &datamodel.Account{
+			Name: projectNumber,
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: backupVaultID,
+		},
+	}
+
+	// Mock storage to return not found (so it goes to CVP)
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultID, accountID).Return(nil, fmt.Errorf("not found"))
+
+	// Setup mock CVP client
+	mockBackupVaultClient := backup_vault.NewMockClientService(t)
+	cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
+
+	originalCreateClient := activities.CvpCreateClient
+	defer func() { activities.CvpCreateClient = originalCreateClient }()
+	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	// Mock CVP response with cross-region backup vault in same region as volume
+	mockBackupVaultClient.On("V1betaListBackupVaults", mock.Anything).Return(&backup_vault.V1betaListBackupVaultsOK{
+		Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+			BackupVaults: []*cvpModels.BackupVaultV1beta{
+				{
+					BackupVaultID:          backupVaultID,
+					BackupVaultType:        nillable.ToPointer(activities.CrossRegionBackupType),
+					BackupRegion:           &region, // Same as volume region - should trigger error
+					DestinationBackupVault: &crossRegionName,
+				},
+			},
+		},
+	}, nil)
+
+	// Act
+	result, err := activities.CheckBackupVaultExistsInVCP(ctx, mockStorage, volume, region)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Bad Request")
+	mockStorage.AssertExpectations(t)
+	mockBackupVaultClient.AssertExpectations(t)
+}
+
+func TestCheckBackupVaultExistsInVCP_BackupVaultNotFoundInList_FromCVP(t *testing.T) {
+	// Test for lines 688-690: When backup vault is not found in the list from CVP
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
+	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
+
+	region := "us-central1"
+	backupVaultID := "bv-12345"
+	accountID := int64(123)
+	projectNumber := "project-123"
+
+	volume := &datamodel.Volume{
+		AccountID: accountID,
+		Account: &datamodel.Account{
+			Name: projectNumber,
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: backupVaultID,
+		},
+	}
+
+	// Mock storage to return not found (so it goes to CVP)
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultID, accountID).Return(nil, fmt.Errorf("not found"))
+
+	// Setup mock CVP client
+	mockBackupVaultClient := backup_vault.NewMockClientService(t)
+	cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
+
+	originalCreateClient := activities.CvpCreateClient
+	defer func() { activities.CvpCreateClient = originalCreateClient }()
+	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	// Mock CVP response with a different backup vault (not the one we're looking for)
+	mockBackupVaultClient.On("V1betaListBackupVaults", mock.Anything).Return(&backup_vault.V1betaListBackupVaultsOK{
+		Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+			BackupVaults: []*cvpModels.BackupVaultV1beta{
+				{
+					BackupVaultID:   "bv-different",
+					BackupVaultType: nillable.ToPointer("STANDARD"),
+				},
+			},
+		},
+	}, nil)
+
+	// Act
+	result, err := activities.CheckBackupVaultExistsInVCP(ctx, mockStorage, volume, region)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Resource not found")
+	mockStorage.AssertExpectations(t)
+	mockBackupVaultClient.AssertExpectations(t)
+}
+
+func TestCheckBackupVaultExistsInVCP_EmptyBackupVaultList_FromCVP(t *testing.T) {
+	// Test for lines 688-690: When CVP returns an empty backup vault list
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
+	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
+
+	region := "us-central1"
+	backupVaultID := "bv-12345"
+	accountID := int64(123)
+	projectNumber := "project-123"
+
+	volume := &datamodel.Volume{
+		AccountID: accountID,
+		Account: &datamodel.Account{
+			Name: projectNumber,
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: backupVaultID,
+		},
+	}
+
+	// Mock storage to return not found (so it goes to CVP)
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultID, accountID).Return(nil, fmt.Errorf("not found"))
+
+	// Setup mock CVP client
+	mockBackupVaultClient := backup_vault.NewMockClientService(t)
+	cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
+
+	originalCreateClient := activities.CvpCreateClient
+	defer func() { activities.CvpCreateClient = originalCreateClient }()
+	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	// Mock CVP response with empty backup vault list
+	mockBackupVaultClient.On("V1betaListBackupVaults", mock.Anything).Return(&backup_vault.V1betaListBackupVaultsOK{
+		Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+			BackupVaults: []*cvpModels.BackupVaultV1beta{},
+		},
+	}, nil)
+
+	// Act
+	result, err := activities.CheckBackupVaultExistsInVCP(ctx, mockStorage, volume, region)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Resource not found")
+	mockStorage.AssertExpectations(t)
+	mockBackupVaultClient.AssertExpectations(t)
+}
+
+func TestCheckBackupVaultExistsInVCP_SuccessfullyFetchedAndCreatedFromCVP(t *testing.T) {
+	// Test successful path: vault found in CVP, not cross-region same region issue, and created in VCP
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
+	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
+
+	volumeRegion := "us-central1"
+	backupRegion := "us-west1"
+	backupVaultID := "bv-12345"
+	accountID := int64(123)
+	projectNumber := "project-123"
+	resourceID := "my-backup-vault"
+	crossRegionName := "cross-region-vault"
+
+	volume := &datamodel.Volume{
+		AccountID: accountID,
+		Account: &datamodel.Account{
+			Name: projectNumber,
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: backupVaultID,
+		},
+	}
+
+	// Mock storage to return not found (so it goes to CVP)
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultID, accountID).Return(nil, fmt.Errorf("not found"))
+
+	// Setup mock CVP client
+	mockBackupVaultClient := backup_vault.NewMockClientService(t)
+	cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
+
+	originalCreateClient := activities.CvpCreateClient
+	defer func() { activities.CvpCreateClient = originalCreateClient }()
+	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	// Mock CVP response with a valid cross-region backup vault (different region)
+	mockBackupVaultClient.On("V1betaListBackupVaults", mock.Anything).Return(&backup_vault.V1betaListBackupVaultsOK{
+		Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+			BackupVaults: []*cvpModels.BackupVaultV1beta{
+				{
+					BackupVaultID:          backupVaultID,
+					ResourceID:             &resourceID,
+					BackupVaultType:        nillable.ToPointer(activities.CrossRegionBackupType),
+					BackupRegion:           &backupRegion, // Different from volume region - should be OK
+					DestinationBackupVault: &crossRegionName,
+				},
+			},
+		},
+	}, nil)
+
+	// Mock CreateBackupVaultEntryInVCP
+	mockStorage.On("CreateBackupVaultEntryInVCP", ctx, mock.MatchedBy(func(bv *datamodel.BackupVault) bool {
+		return bv.UUID == backupVaultID && bv.AccountID == accountID && bv.Name == resourceID
+	})).Return(&datamodel.BackupVault{
+		BaseModel:  datamodel.BaseModel{UUID: backupVaultID},
+		AccountID:  accountID,
+		Name:       resourceID,
+		RegionName: volumeRegion,
+	}, nil)
+
+	// Act
+	result, err := activities.CheckBackupVaultExistsInVCP(ctx, mockStorage, volume, volumeRegion)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, backupVaultID, result.UUID)
+	assert.Equal(t, accountID, result.AccountID)
+	mockStorage.AssertExpectations(t)
+	mockBackupVaultClient.AssertExpectations(t)
+}
