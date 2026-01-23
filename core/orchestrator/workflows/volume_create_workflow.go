@@ -803,9 +803,10 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 		requiredVolumeSize := utils.CalculateRequiredVolumeSize(backup.SizeInBytes, backupAttributes)
 		if dbVolume.SizeInBytes < requiredVolumeSize {
-			log.Errorf("Volume size %d is too small for backup (requires %d bytes)", dbVolume.SizeInBytes, requiredVolumeSize)
-			err = fmt.Errorf("restored volume size should be greater than or equal to the logical size of the backup: %d bytes", requiredVolumeSize)
-			return nil, ConvertToVSAError(err)
+			errmsg := fmt.Sprintf("restored volume size should be greater than or equal to the logical size of the backup: %d bytes", requiredVolumeSize)
+			log.Errorf("restore failed: %v", errmsg)
+			err = fmt.Errorf("%s", errmsg)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrInsufficientRestoreVolumeSize, err)
 		}
 
 		// Verify backup restore protocol compatibility

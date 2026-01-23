@@ -359,6 +359,7 @@ const (
 	ErrCreateInternalQuotaRule                     = 12003
 	ErrSFRFilesMissing                             = 12004
 	ErrNoSFRFilesFound                             = 12005
+	ErrInsufficientRestoreVolumeSize               = 12017
 
 	ErrMatchingQuotaRuleNotFoundOnDestination   = 12006
 	ErrQuotaRuleNotFound                        = 12007

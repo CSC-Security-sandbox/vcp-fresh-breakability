@@ -1943,6 +1943,12 @@
     "retriable": false,
     "http_code": 200
   },
+  "12017": {
+    "description": "Restore failure due to insufficient volume size",
+    "message": "Restored volume size should be greater than or equal to the logical size of the backup",
+    "retriable": false,
+    "http_code": 400
+  },
   "13001": {
     "description": "Large Volume Backup Restore Validation failure",
     "message": "Large Volume Restore Validation failure",
