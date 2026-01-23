@@ -307,14 +307,14 @@ func TestSetupCredentialsForHandler(t *testing.T) {
 	})
 }
 
-func TestGetJWTFromContext(t *testing.T) {
+func TestExtractJWTFromContext(t *testing.T) {
 	t.Run("WhenHeadersInContext_ShouldReturnAuthorizationHeader", func(t *testing.T) {
 		headers := http.Header{}
 		headers.Set("Authorization", "Bearer test-jwt-token")
 
 		ctx := context.WithValue(context.Background(), utilsmiddleware.HeaderContextKey, headers)
 
-		token := getJWTFromContext(ctx)
+		token := ExtractJWTFromContext(ctx)
 
 		assert.Equal(t, "Bearer test-jwt-token", token)
 	})
@@ -322,7 +322,7 @@ func TestGetJWTFromContext(t *testing.T) {
 	t.Run("WhenNoHeadersInContext_ShouldReturnEmpty", func(t *testing.T) {
 		ctx := context.Background()
 
-		token := getJWTFromContext(ctx)
+		token := ExtractJWTFromContext(ctx)
 
 		assert.Equal(t, "", token)
 	})
@@ -330,7 +330,7 @@ func TestGetJWTFromContext(t *testing.T) {
 	t.Run("WhenHeadersAreNil_ShouldReturnEmpty", func(t *testing.T) {
 		ctx := context.WithValue(context.Background(), utilsmiddleware.HeaderContextKey, (http.Header)(nil))
 
-		token := getJWTFromContext(ctx)
+		token := ExtractJWTFromContext(ctx)
 
 		assert.Equal(t, "", token)
 	})
@@ -339,7 +339,7 @@ func TestGetJWTFromContext(t *testing.T) {
 		headers := http.Header{}
 		ctx := context.WithValue(context.Background(), utilsmiddleware.HeaderContextKey, headers)
 
-		token := getJWTFromContext(ctx)
+		token := ExtractJWTFromContext(ctx)
 
 		assert.Equal(t, "", token)
 	})
@@ -347,7 +347,7 @@ func TestGetJWTFromContext(t *testing.T) {
 	t.Run("WhenWrongTypeInContext_ShouldReturnEmpty", func(t *testing.T) {
 		ctx := context.WithValue(context.Background(), utilsmiddleware.HeaderContextKey, "not-headers")
 
-		token := getJWTFromContext(ctx)
+		token := ExtractJWTFromContext(ctx)
 
 		assert.Equal(t, "", token)
 	})

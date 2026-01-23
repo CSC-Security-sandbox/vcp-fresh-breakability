@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/dsl"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/ruleengine/dsl"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )

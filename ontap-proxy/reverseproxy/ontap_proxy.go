@@ -408,7 +408,7 @@ func (p *ConnectionPool) buildBasicAuthTransport() (*http.Transport, error) {
 func _testOntapEndpointReachability(endpoint string, authData *models.AuthData, ctx context.Context, transport *http.Transport) error {
 	testURL := fmt.Sprintf("https://%s/api/svm/svms?max_records=1", endpoint)
 
-	testCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	testCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
 	testReq, err := http.NewRequestWithContext(testCtx, "GET", testURL, nil)
@@ -424,7 +424,7 @@ func _testOntapEndpointReachability(endpoint string, authData *models.AuthData, 
 	}
 
 	testClient := &http.Client{
-		Timeout:   10 * time.Second,
+		Timeout:   20 * time.Second,
 		Transport: transport,
 	}
 

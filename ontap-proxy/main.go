@@ -13,9 +13,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/endpoints"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/ontap-proxy-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/dsl"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/reverseproxy"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/ruleengine/dsl"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -103,8 +103,13 @@ func setupHTTPServer(handler http.Handler) *http.Server {
 		r.Use(middleware.QueryTransformMiddleware())
 
 		// Ogen-handled routes (no chi middleware - ogen handler calls auth functions directly)
+		// These handlers setup credentials internally via SetupCredentialsForHandler()
+
 		// Snaplock file delete - delegated to ogen server which handles auth internally
 		r.Delete("/api/storage/snaplock/file/{volumeUuid}/*", handler.ServeHTTP)
+
+		// CLI execute - delegated to ogen server which handles auth and CLI rules internally
+		r.Post("/api/private/cli", handler.ServeHTTP)
 
 		// Passthrough routes (chi middleware for reverse proxy)
 		r.Group(func(r chi.Router) {

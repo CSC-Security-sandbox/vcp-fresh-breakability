@@ -16,6 +16,71 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestCLIExecuteRequest_EncodeDecode(t *testing.T) {
+	var typ CLIExecuteRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 CLIExecuteRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestCLIExecuteRequestPrivilege_EncodeDecode(t *testing.T) {
+	var typ CLIExecuteRequestPrivilege
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 CLIExecuteRequestPrivilege
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestCLIExecuteRequestPrivilege_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"admin\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ CLIExecuteRequestPrivilege
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 CLIExecuteRequestPrivilege
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestCLIExecuteResponse_EncodeDecode(t *testing.T) {
+	var typ CLIExecuteResponse
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 CLIExecuteResponse
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestCacheEntry_EncodeDecode(t *testing.T) {
 	var typ CacheEntry
 	typ.SetFake()
@@ -372,6 +437,66 @@ func TestSnaplockFileRetentionJobLinkResponse_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 SnaplockFileRetentionJobLinkResponse
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1PrivateCliBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1PrivateCliBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1PrivateCliBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1PrivateCliForbidden_EncodeDecode(t *testing.T) {
+	var typ V1PrivateCliForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1PrivateCliForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1PrivateCliInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1PrivateCliInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1PrivateCliInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1PrivateCliNotFound_EncodeDecode(t *testing.T) {
+	var typ V1PrivateCliNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1PrivateCliNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1PrivateCliUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1PrivateCliUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1PrivateCliUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestVolumeRef_EncodeDecode(t *testing.T) {

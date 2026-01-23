@@ -17,7 +17,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/dsl"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/ruleengine/dsl"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 )
 
@@ -1682,7 +1682,7 @@ func Test_testOntapEndpointReachability(t *testing.T) {
 	t.Run("ContextTimeout", func(t *testing.T) {
 		// Create a server that delays response beyond the timeout
 		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			time.Sleep(5 * time.Second) // Longer than the 3-second context timeout
+			time.Sleep(20 * time.Second) // Longer than the 15-second context timeout
 			w.WriteHeader(http.StatusOK)
 		}))
 		defer server.Close()
@@ -1697,7 +1697,9 @@ func Test_testOntapEndpointReachability(t *testing.T) {
 			TLSClientConfig: server.Client().Transport.(*http.Transport).TLSClientConfig,
 		}
 
-		ctx := context.Background()
+		// Use a short context timeout for faster tests
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
 		err := _testOntapEndpointReachability(endpoint, authData, ctx, transport)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "endpoint not reachable")

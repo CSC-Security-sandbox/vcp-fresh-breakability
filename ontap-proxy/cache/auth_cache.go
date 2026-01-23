@@ -24,7 +24,7 @@ type CacheEntryStatus struct {
 
 var (
 	CleanupAuthDataCache = cleanupAuthDataCache
-	authDataCacheMutex   sync.Mutex
+	authDataCacheMutex   sync.RWMutex
 	authDataCacheMap     = map[string]*AuthDataCache{}
 
 	cacheCleanupInterval = time.Duration(env.GetInt("AUTH_DATA_CACHE_CLEANUP_INTERVAL_MINUTES", 10080)) * time.Minute
@@ -63,6 +63,8 @@ func cleanupAuthDataCache() {
 }
 
 func _getFromAuthDataCache(key string) (*models.AuthData, bool) {
+	authDataCacheMutex.RLock()
+	defer authDataCacheMutex.RUnlock()
 	authCache, exists := authDataCacheMap[key]
 	if !exists {
 		return nil, false
@@ -109,8 +111,8 @@ func GetAuthDataKeyFromContext(ctx context.Context) string {
 
 // GetAuthDataCacheStatus returns cache status information without sensitive data
 func GetAuthDataCacheStatus() []CacheEntryStatus {
-	authDataCacheMutex.Lock()
-	defer authDataCacheMutex.Unlock()
+	authDataCacheMutex.RLock()
+	defer authDataCacheMutex.RUnlock()
 
 	entries := make([]CacheEntryStatus, 0, len(authDataCacheMap))
 	for key, value := range authDataCacheMap {

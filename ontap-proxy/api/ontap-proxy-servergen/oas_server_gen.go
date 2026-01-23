@@ -32,6 +32,24 @@ type Handler interface {
 	//
 	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/file/{volumeUuid}/{filePath}
 	SnaplockFileDelete(ctx context.Context, params SnaplockFileDeleteParams) (SnaplockFileDeleteRes, error)
+	// V1PrivateCli implements v1_privateCli operation.
+	//
+	// Executes an ONTAP CLI command through the private CLI API.
+	// This operation:
+	// 1. Parses and validates the CLI command against the rule engine
+	// 2. Fetches appropriate credentials based on command requirements
+	// 3. Executes the CLI command on ONTAP
+	// 4. Filters response fields based on configured rules
+	// 5. Returns the CLI output
+	// Commands are subject to the CLI rule engine which can:
+	// - Allow or deny specific commands
+	// - Apply conditional validation
+	// - Remove sensitive fields from response
+	// Requires the caller to have netapp.googleapis.com/ontapModeRead or ontapModeAdmin permission
+	// depending on the command.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/private/cli
+	V1PrivateCli(ctx context.Context, req *CLIExecuteRequest, params V1PrivateCliParams) (V1PrivateCliRes, error)
 	// NewError creates *ErrorStatusCode from error returned by handler.
 	//
 	// Used for common default response.

@@ -1,7 +1,7 @@
 package rules_v2
 
 import (
-	. "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/dsl"
+	. "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/ruleengine/dsl"
 )
 
 // GetProxyRules returns the rule map for the proxy.

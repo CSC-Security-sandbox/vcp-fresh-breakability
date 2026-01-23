@@ -164,60 +164,98 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							break
 						}
 						switch elem[0] {
-						case '/': // Prefix: "/ontap/api/storage/snaplock/file/"
+						case '/': // Prefix: "/ontap/api/"
 
-							if l := len("/ontap/api/storage/snaplock/file/"); len(elem) >= l && elem[0:l] == "/ontap/api/storage/snaplock/file/" {
+							if l := len("/ontap/api/"); len(elem) >= l && elem[0:l] == "/ontap/api/" {
 								elem = elem[l:]
 							} else {
 								break
 							}
 
-							// Param: "volumeUuid"
-							// Match until "/"
-							idx := strings.IndexByte(elem, '/')
-							if idx < 0 {
-								idx = len(elem)
-							}
-							args[3] = elem[:idx]
-							elem = elem[idx:]
-
 							if len(elem) == 0 {
 								break
 							}
 							switch elem[0] {
-							case '/': // Prefix: "/"
+							case 'p': // Prefix: "private/cli"
 
-								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								if l := len("private/cli"); len(elem) >= l && elem[0:l] == "private/cli" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
-								// Param: "filePath"
-								// Leaf parameter, slashes are prohibited
-								idx := strings.IndexByte(elem, '/')
-								if idx >= 0 {
-									break
-								}
-								args[4] = elem
-								elem = ""
-
 								if len(elem) == 0 {
 									// Leaf node.
 									switch r.Method {
-									case "DELETE":
-										s.handleSnaplockFileDeleteRequest([5]string{
+									case "POST":
+										s.handleV1PrivateCliRequest([3]string{
 											args[0],
 											args[1],
 											args[2],
-											args[3],
-											args[4],
 										}, elemIsEscaped, w, r)
 									default:
-										s.notAllowed(w, r, "DELETE")
+										s.notAllowed(w, r, "POST")
 									}
 
 									return
+								}
+
+							case 's': // Prefix: "storage/snaplock/file/"
+
+								if l := len("storage/snaplock/file/"); len(elem) >= l && elem[0:l] == "storage/snaplock/file/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "volumeUuid"
+								// Match until "/"
+								idx := strings.IndexByte(elem, '/')
+								if idx < 0 {
+									idx = len(elem)
+								}
+								args[3] = elem[:idx]
+								elem = elem[idx:]
+
+								if len(elem) == 0 {
+									break
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "filePath"
+									// Leaf parameter, slashes are prohibited
+									idx := strings.IndexByte(elem, '/')
+									if idx >= 0 {
+										break
+									}
+									args[4] = elem
+									elem = ""
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "DELETE":
+											s.handleSnaplockFileDeleteRequest([5]string{
+												args[0],
+												args[1],
+												args[2],
+												args[3],
+												args[4],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "DELETE")
+										}
+
+										return
+									}
+
 								}
 
 							}
@@ -433,58 +471,96 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							break
 						}
 						switch elem[0] {
-						case '/': // Prefix: "/ontap/api/storage/snaplock/file/"
+						case '/': // Prefix: "/ontap/api/"
 
-							if l := len("/ontap/api/storage/snaplock/file/"); len(elem) >= l && elem[0:l] == "/ontap/api/storage/snaplock/file/" {
+							if l := len("/ontap/api/"); len(elem) >= l && elem[0:l] == "/ontap/api/" {
 								elem = elem[l:]
 							} else {
 								break
 							}
 
-							// Param: "volumeUuid"
-							// Match until "/"
-							idx := strings.IndexByte(elem, '/')
-							if idx < 0 {
-								idx = len(elem)
-							}
-							args[3] = elem[:idx]
-							elem = elem[idx:]
-
 							if len(elem) == 0 {
 								break
 							}
 							switch elem[0] {
-							case '/': // Prefix: "/"
+							case 'p': // Prefix: "private/cli"
 
-								if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+								if l := len("private/cli"); len(elem) >= l && elem[0:l] == "private/cli" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
-								// Param: "filePath"
-								// Leaf parameter, slashes are prohibited
-								idx := strings.IndexByte(elem, '/')
-								if idx >= 0 {
-									break
-								}
-								args[4] = elem
-								elem = ""
-
 								if len(elem) == 0 {
 									// Leaf node.
 									switch method {
-									case "DELETE":
-										r.name = SnaplockFileDeleteOperation
-										r.summary = "Privileged delete of unexpired WORM file"
-										r.operationID = "snaplockFileDelete"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/file/{volumeUuid}/{filePath}"
+									case "POST":
+										r.name = V1PrivateCliOperation
+										r.summary = "Execute ONTAP CLI command"
+										r.operationID = "v1_privateCli"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/private/cli"
 										r.args = args
-										r.count = 5
+										r.count = 3
 										return r, true
 									default:
 										return
 									}
+								}
+
+							case 's': // Prefix: "storage/snaplock/file/"
+
+								if l := len("storage/snaplock/file/"); len(elem) >= l && elem[0:l] == "storage/snaplock/file/" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								// Param: "volumeUuid"
+								// Match until "/"
+								idx := strings.IndexByte(elem, '/')
+								if idx < 0 {
+									idx = len(elem)
+								}
+								args[3] = elem[:idx]
+								elem = elem[idx:]
+
+								if len(elem) == 0 {
+									break
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "filePath"
+									// Leaf parameter, slashes are prohibited
+									idx := strings.IndexByte(elem, '/')
+									if idx >= 0 {
+										break
+									}
+									args[4] = elem
+									elem = ""
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "DELETE":
+											r.name = SnaplockFileDeleteOperation
+											r.summary = "Privileged delete of unexpired WORM file"
+											r.operationID = "snaplockFileDelete"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/file/{volumeUuid}/{filePath}"
+											r.args = args
+											r.count = 5
+											return r, true
+										default:
+											return
+										}
+									}
+
 								}
 
 							}

@@ -33,7 +33,7 @@ func SetupCredentialsForHandler(
 ) (context.Context, error) {
 	logger := util.GetLogger(ctx)
 	// Get JWT token from context (set by auth.AuthMiddleware)
-	jwtToken := getJWTFromContext(ctx)
+	jwtToken := ExtractJWTFromContext(ctx)
 
 	// Determine username based on IAM role mapping or credential type
 	// Note: For SetupCredentialsForHandler, we need to extract headers from context
@@ -79,16 +79,6 @@ func SetupCredentialsForHandler(
 	}
 
 	return SetupCredentialsCache(ctx, poolDetails, projectNumber, poolID, userName, jwtToken)
-}
-
-// getJWTFromContext extracts the JWT token from context.
-// The token is stored by auth.AuthMiddleware in the request headers.
-func getJWTFromContext(ctx context.Context) string {
-	headers, ok := ctx.Value(utilsmiddleware.HeaderContextKey).(http.Header)
-	if !ok || headers == nil {
-		return ""
-	}
-	return headers.Get("Authorization")
 }
 
 func SetupCredentialsCache(ctx context.Context, poolDetails *models.PoolDetails, projectNumber, poolID, userName, jwtToken string) (context.Context, error) {

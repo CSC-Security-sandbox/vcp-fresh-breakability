@@ -5,11 +5,96 @@ package ontapserver
 import (
 	"fmt"
 	"time"
+
+	"github.com/go-faster/errors"
 )
 
 func (s *ErrorStatusCode) Error() string {
 	return fmt.Sprintf("code %d: %+v", s.StatusCode, s.Response)
 }
+
+// Request to execute an ONTAP CLI command.
+// Ref: #/components/schemas/CLIExecuteRequest
+type CLIExecuteRequest struct {
+	// The ONTAP CLI command to execute.
+	Input string `json:"input"`
+	// The privilege level for the command. Only 'admin' is allowed.
+	Privilege OptCLIExecuteRequestPrivilege `json:"privilege"`
+}
+
+// GetInput returns the value of Input.
+func (s *CLIExecuteRequest) GetInput() string {
+	return s.Input
+}
+
+// GetPrivilege returns the value of Privilege.
+func (s *CLIExecuteRequest) GetPrivilege() OptCLIExecuteRequestPrivilege {
+	return s.Privilege
+}
+
+// SetInput sets the value of Input.
+func (s *CLIExecuteRequest) SetInput(val string) {
+	s.Input = val
+}
+
+// SetPrivilege sets the value of Privilege.
+func (s *CLIExecuteRequest) SetPrivilege(val OptCLIExecuteRequestPrivilege) {
+	s.Privilege = val
+}
+
+// The privilege level for the command. Only 'admin' is allowed.
+type CLIExecuteRequestPrivilege string
+
+const (
+	CLIExecuteRequestPrivilegeAdmin CLIExecuteRequestPrivilege = "admin"
+)
+
+// AllValues returns all CLIExecuteRequestPrivilege values.
+func (CLIExecuteRequestPrivilege) AllValues() []CLIExecuteRequestPrivilege {
+	return []CLIExecuteRequestPrivilege{
+		CLIExecuteRequestPrivilegeAdmin,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CLIExecuteRequestPrivilege) MarshalText() ([]byte, error) {
+	switch s {
+	case CLIExecuteRequestPrivilegeAdmin:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CLIExecuteRequestPrivilege) UnmarshalText(data []byte) error {
+	switch CLIExecuteRequestPrivilege(data) {
+	case CLIExecuteRequestPrivilegeAdmin:
+		*s = CLIExecuteRequestPrivilegeAdmin
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Response from ONTAP CLI command execution.
+// Ref: #/components/schemas/CLIExecuteResponse
+type CLIExecuteResponse struct {
+	// CLI command output.
+	Output OptString `json:"output"`
+}
+
+// GetOutput returns the value of Output.
+func (s *CLIExecuteResponse) GetOutput() OptString {
+	return s.Output
+}
+
+// SetOutput sets the value of Output.
+func (s *CLIExecuteResponse) SetOutput(val OptString) {
+	s.Output = val
+}
+
+func (*CLIExecuteResponse) v1PrivateCliRes() {}
 
 // Ref: #/components/schemas/CacheEntry
 type CacheEntry struct {
@@ -300,6 +385,52 @@ func (o OptBool) Get() (v bool, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCLIExecuteRequestPrivilege returns new OptCLIExecuteRequestPrivilege with value set to v.
+func NewOptCLIExecuteRequestPrivilege(v CLIExecuteRequestPrivilege) OptCLIExecuteRequestPrivilege {
+	return OptCLIExecuteRequestPrivilege{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCLIExecuteRequestPrivilege is optional CLIExecuteRequestPrivilege.
+type OptCLIExecuteRequestPrivilege struct {
+	Value CLIExecuteRequestPrivilege
+	Set   bool
+}
+
+// IsSet returns true if OptCLIExecuteRequestPrivilege was set.
+func (o OptCLIExecuteRequestPrivilege) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCLIExecuteRequestPrivilege) Reset() {
+	var v CLIExecuteRequestPrivilege
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCLIExecuteRequestPrivilege) SetTo(v CLIExecuteRequestPrivilege) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCLIExecuteRequestPrivilege) Get() (v CLIExecuteRequestPrivilege, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCLIExecuteRequestPrivilege) Or(d CLIExecuteRequestPrivilege) CLIExecuteRequestPrivilege {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -881,6 +1012,26 @@ func (s *SnaplockFileRetentionJobLinkResponse) SetRecords(val []SnaplockFileRete
 }
 
 func (*SnaplockFileRetentionJobLinkResponse) snaplockFileDeleteRes() {}
+
+type V1PrivateCliBadRequest Error
+
+func (*V1PrivateCliBadRequest) v1PrivateCliRes() {}
+
+type V1PrivateCliForbidden Error
+
+func (*V1PrivateCliForbidden) v1PrivateCliRes() {}
+
+type V1PrivateCliInternalServerError Error
+
+func (*V1PrivateCliInternalServerError) v1PrivateCliRes() {}
+
+type V1PrivateCliNotFound Error
+
+func (*V1PrivateCliNotFound) v1PrivateCliRes() {}
+
+type V1PrivateCliUnauthorized Error
+
+func (*V1PrivateCliUnauthorized) v1PrivateCliRes() {}
 
 // Ref: #/components/schemas/VolumeRef
 type VolumeRef struct {

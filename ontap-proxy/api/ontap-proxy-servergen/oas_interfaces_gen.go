@@ -12,3 +12,7 @@ type GetHealthRes interface {
 type SnaplockFileDeleteRes interface {
 	snaplockFileDeleteRes()
 }
+
+type V1PrivateCliRes interface {
+	v1PrivateCliRes()
+}

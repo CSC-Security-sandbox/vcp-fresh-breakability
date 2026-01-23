@@ -330,3 +330,209 @@ func decodeSnaplockFileDeleteParams(args [5]string, argsEscaped bool, r *http.Re
 	}
 	return params, nil
 }
+
+// V1PrivateCliParams is parameters of v1_privateCli operation.
+type V1PrivateCliParams struct {
+	// The project number of the GCP project owning the resource.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the storage pool.
+	PoolId uuid.UUID
+}
+
+func unpackV1PrivateCliParams(packed middleware.Parameters) (params V1PrivateCliParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "projectNumber",
+			In:   "path",
+		}
+		params.ProjectNumber = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "locationId",
+			In:   "path",
+		}
+		params.LocationId = packed[key].(string)
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "poolId",
+			In:   "path",
+		}
+		params.PoolId = packed[key].(uuid.UUID)
+	}
+	return params
+}
+
+func decodeV1PrivateCliParams(args [3]string, argsEscaped bool, r *http.Request) (params V1PrivateCliParams, _ error) {
+	// Decode path: projectNumber.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "projectNumber",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ProjectNumber = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    18,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[1-9][0-9]{0,18}$"],
+				}).Validate(string(params.ProjectNumber)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "projectNumber",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: locationId.
+	if err := func() error {
+		param := args[1]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[1])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "locationId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.LocationId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    255,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(params.LocationId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "locationId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	// Decode path: poolId.
+	if err := func() error {
+		param := args[2]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[2])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "poolId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.PoolId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "poolId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}

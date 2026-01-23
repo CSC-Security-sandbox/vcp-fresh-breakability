@@ -540,12 +540,12 @@ func TestConvertOntapEndpoints(t *testing.T) {
 	})
 }
 
-func TestExtractJWTTokenFromRequest(t *testing.T) {
+func TestExtractJWTFromRequest(t *testing.T) {
 	t.Run("WhenBearerToken_ShouldReturnFullHeader", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/test", nil)
 		req.Header.Set("authorization", "Bearer test-jwt-token")
 
-		token := extractJWTTokenFromRequest(req)
+		token := ExtractJWTFromRequest(req)
 
 		assert.Equal(t, "Bearer test-jwt-token", token)
 	})
@@ -554,7 +554,7 @@ func TestExtractJWTTokenFromRequest(t *testing.T) {
 		req := httptest.NewRequest("GET", "/test", nil)
 		req.Header.Set("authorization", "test-jwt-token")
 
-		token := extractJWTTokenFromRequest(req)
+		token := ExtractJWTFromRequest(req)
 
 		assert.Equal(t, "test-jwt-token", token)
 	})
@@ -562,7 +562,7 @@ func TestExtractJWTTokenFromRequest(t *testing.T) {
 	t.Run("WhenNoAuthorizationHeader_ShouldReturnEmpty", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/test", nil)
 
-		token := extractJWTTokenFromRequest(req)
+		token := ExtractJWTFromRequest(req)
 
 		assert.Equal(t, "", token)
 	})
@@ -571,7 +571,7 @@ func TestExtractJWTTokenFromRequest(t *testing.T) {
 		req := httptest.NewRequest("GET", "/test", nil)
 		req.Header.Set("authorization", "")
 
-		token := extractJWTTokenFromRequest(req)
+		token := ExtractJWTFromRequest(req)
 
 		assert.Equal(t, "", token)
 	})

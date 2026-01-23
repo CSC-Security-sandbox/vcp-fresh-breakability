@@ -7,6 +7,34 @@ import (
 )
 
 // SetFake set fake values.
+func (s *CLIExecuteRequest) SetFake() {
+	{
+		{
+			s.Input = "string"
+		}
+	}
+	{
+		{
+			s.Privilege.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *CLIExecuteRequestPrivilege) SetFake() {
+	*s = CLIExecuteRequestPrivilegeAdmin
+}
+
+// SetFake set fake values.
+func (s *CLIExecuteResponse) SetFake() {
+	{
+		{
+			s.Output.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *CacheEntry) SetFake() {
 	{
 		{
@@ -219,6 +247,15 @@ func (s *OptBool) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptCLIExecuteRequestPrivilege) SetFake() {
+	var elem CLIExecuteRequestPrivilege
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptDateTime) SetFake() {
 	var elem time.Time
 	{
@@ -416,6 +453,51 @@ func (s *SnaplockFileRetentionJobLinkResponse) SetFake() {
 			}
 		}
 	}
+}
+
+// SetFake set fake values.
+func (s *V1PrivateCliBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1PrivateCliBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1PrivateCliForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1PrivateCliForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1PrivateCliInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1PrivateCliInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1PrivateCliNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1PrivateCliNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1PrivateCliUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1PrivateCliUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.

@@ -6,9 +6,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/dsl"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
-	rules "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/rules_v2"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/ruleengine/dsl"
+	rules "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/ruleengine/rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"

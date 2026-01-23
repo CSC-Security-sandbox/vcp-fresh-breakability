@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/coreapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -54,8 +55,7 @@ func CredentialMiddleware() func(http.Handler) http.Handler {
 				}
 				return
 			}
-			jwtToken := extractJWTTokenFromRequest(r)
-
+			jwtToken := ExtractJWTFromRequest(r)
 			ctx, err := SetupCredentialsCache(r.Context(), poolDetails, poolDetails.ProjectNumber, poolDetails.PoolID, poolDetails.UserName, jwtToken)
 			if err != nil {
 				logger.ErrorContext(r.Context(), "Failed to fetch and cache credentials", "error", err, "poolID", poolDetails.PoolID)
@@ -238,15 +238,20 @@ func validatePoolUri(uri string) error {
 	return nil
 }
 
-func extractJWTTokenFromRequest(req *http.Request) string {
-	authorizationHeader := req.Header.Get("authorization")
-	if authorizationHeader == "" {
+// ExtractJWTFromRequest extracts the JWT token from the request Authorization header.
+// Returns the full Authorization header value (including "Bearer " prefix if present).
+// Used by CredentialMiddleware for passthrough routes.
+func ExtractJWTFromRequest(req *http.Request) string {
+	return req.Header.Get("Authorization")
+}
+
+// ExtractJWTFromContext extracts the JWT token from context.
+// The headers are stored in context by auth.AuthMiddleware.
+// Used by SetupCredentialsForHandler for ogen handlers.
+func ExtractJWTFromContext(ctx context.Context) string {
+	headers, ok := ctx.Value(utilsmiddleware.HeaderContextKey).(http.Header)
+	if !ok || headers == nil {
 		return ""
 	}
-
-	tokenString := strings.TrimPrefix(authorizationHeader, "Bearer ")
-	if tokenString == authorizationHeader {
-		return authorizationHeader
-	}
-	return authorizationHeader
+	return headers.Get("Authorization")
 }

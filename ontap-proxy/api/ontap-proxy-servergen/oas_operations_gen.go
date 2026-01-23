@@ -9,4 +9,5 @@ const (
 	GetCacheStatusOperation     OperationName = "GetCacheStatus"
 	GetHealthOperation          OperationName = "GetHealth"
 	SnaplockFileDeleteOperation OperationName = "SnaplockFileDelete"
+	V1PrivateCliOperation       OperationName = "V1PrivateCli"
 )

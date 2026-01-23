@@ -10,6 +10,8 @@ tags:
     description: Health check operations
   - name: snaplock
     description: SnapLock file operations
+  - name: cli
+    description: ONTAP CLI command execution
 paths:
   /health:
     get:
@@ -120,6 +122,62 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/private/cli:
+    post:
+      operationId: v1_privateCli
+      summary: Execute ONTAP CLI command
+      description: |
+        Executes an ONTAP CLI command through the private CLI API.
+        
+        This operation:
+        1. Parses and validates the CLI command against the rule engine
+        2. Fetches appropriate credentials based on command requirements
+        3. Executes the CLI command on ONTAP
+        4. Filters response fields based on configured rules
+        5. Returns the CLI output
+        
+        Commands are subject to the CLI rule engine which can:
+        - Allow or deny specific commands
+        - Apply conditional validation
+        - Remove sensitive fields from response
+        
+        Requires the caller to have netapp.googleapis.com/ontapModeRead or ontapModeAdmin permission
+        depending on the command.
+      tags:
+        - cli
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CLIExecuteRequest'
+      responses:
+        '200':
+          description: CLI command executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CLIExecuteResponse'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   parameters:
     projectNumberPathParameter:
@@ -214,6 +272,34 @@ components:
           format: date-time
           description: Timestamp when the entry will expire
           example: "2025-12-29T10:30:00Z"
+    CLIExecuteRequest:
+      type: object
+      title: CLIExecuteRequest
+      description: Request to execute an ONTAP CLI command
+      required:
+        - input
+      properties:
+        input:
+          type: string
+          description: The ONTAP CLI command to execute
+          example: "system node run -node * -command options wafl.maxvolclonehier 499"
+          maxLength: 4096
+        privilege:
+          type: string
+          description: The privilege level for the command. Only 'admin' is allowed.
+          enum:
+            - admin
+          default: "admin"
+          example: "admin"
+    CLIExecuteResponse:
+      type: object
+      title: CLIExecuteResponse
+      description: Response from ONTAP CLI command execution
+      properties:
+        output:
+          type: string
+          description: CLI command output
+          example: "You are changing option wafl.maxvolclonehier, which applies to\nboth members of the HA\nconfiguration in takeover mode.\n"
     Error:
       required:
         - code
