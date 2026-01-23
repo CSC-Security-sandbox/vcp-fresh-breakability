@@ -147,7 +147,7 @@ func (s *BackupRestoreWorkflowTestSuite) registerCommonActivities() {
 
 	// Register missing activities
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
-	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
 	s.env.RegisterActivity(volumeCreateActivity.FinaliseRestoredVolume)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject)
 
@@ -199,7 +199,7 @@ func (s *BackupRestoreWorkflowTestSuite) setupCommonMocks(volume *datamodel.Volu
 	}, nil)
 	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: "rw"}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(volumeCreateActivity.DeleteRestoreObjectStore, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.FinaliseRestoredVolume, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
 
@@ -482,7 +482,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorTra
 
 	// Register missing activities
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
-	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
 
 	// Track UpdateJobStatus calls to verify error handling
 	var jobStatusCalls []string
@@ -577,7 +577,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_VolumeStateIn
 
 	// Register missing activities
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
-	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -662,7 +662,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_PostWorkflowF
 
 	// Register missing activities
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
-	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -752,7 +752,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_UpdateVolumeD
 
 	// Register missing activities
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
-	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -1041,7 +1041,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetBucketDeta
 
 	// Register missing activities
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
-	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -1109,7 +1109,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetOrCreateOb
 
 	// Register missing activities
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
-	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -1178,7 +1178,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorGet
 
 	// Register missing activities
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
-	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -1247,7 +1247,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorTra
 
 	// Register missing activities
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
-	s.env.RegisterActivity(volumeCreateActivity.DeleteObjectStoreForCrossVPC)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{

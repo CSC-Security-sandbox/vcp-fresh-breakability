@@ -2350,36 +2350,10 @@ func (a VolumeCreateActivity) DeleteRolesForServiceAccountInBackupTenantProject(
 	return nil
 }
 
-// DeleteObjectStoreForCrossVPC deletes object store if the target pool and backup are in different tenant projects
-func (a *VolumeCreateActivity) DeleteObjectStoreForCrossVPC(ctx context.Context, targetPool *datamodel.Pool, backup *datamodel.Backup, node *models.Node, name string) (*vsa.OntapAsyncResponse, error) {
-	activity.RecordHeartbeat(ctx, "DeleteObjectStoreForCrossVPC started")
+// DeleteRestoreObjectStore deletes restore object store after the transfer is complete
+func (a *VolumeCreateActivity) DeleteRestoreObjectStore(ctx context.Context, node *models.Node, name string) (*vsa.OntapAsyncResponse, error) {
+	activity.RecordHeartbeat(ctx, "DeleteRestoreObjectStore started")
 	log := util.GetLogger(ctx)
-
-	backupVault := backup.BackupVault
-	var bucketDetails *datamodel.BucketDetails
-	for _, details := range backupVault.BucketDetails {
-		if details.BucketName == backup.Attributes.BucketName {
-			bucketDetails = details
-			break
-		}
-	}
-
-	if bucketDetails == nil {
-		return nil, errors.New("could not find the bucket details of the backup in the backup vault")
-	}
-
-	targetPoolRegion, _, err := utils.ParseRegionAndZone(targetPool.PoolAttributes.PrimaryZone)
-	if err != nil {
-		return nil, err
-	}
-
-	// If the target pool belongs to the same VPC and the same region as the source volume of the backup, it could be possible
-	// that other volumes in the pool are associated with the same backup vault. In such cases, we cannot delete object store (cloud target)
-	// from ONTAP as other volumes could be having snapmirror relationships with the same bucket.
-	if targetPool.Network == bucketDetails.VendorSubnetID && *backupVault.SourceRegionName == targetPoolRegion {
-		log.Infof("Target Pool belongs to the same VPC and same region as the source volume of the backup - Cloud Target need not be deleted")
-		return nil, nil
-	}
 
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -2400,7 +2374,7 @@ func (a *VolumeCreateActivity) DeleteObjectStoreForCrossVPC(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	activity.RecordHeartbeat(ctx, "DeleteObjectStoreForCrossVPC completed")
+	activity.RecordHeartbeat(ctx, "DeleteRestoreObjectStore completed")
 	return asyncResp, nil
 }
 

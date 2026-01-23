@@ -939,13 +939,13 @@ func (a *BackupActivity) UpdateBackup(ctx context.Context, backup *datamodel.Bac
 // GenerateObjectStoreNameForRestore generates a unique object store name for restore operations.
 // It retrieves the base object store name from the backup and appends a random 4-character
 // alphanumeric suffix to ensure uniqueness. The returned name follows the format:
-// "{objectStore}-{4 random alphanumeric characters}".
+// "RST-{objectStore}-{4 random alphanumeric characters}".
 func (a *BackupActivity) GenerateObjectStoreNameForRestore(ctx context.Context, backupVault *datamodel.BackupVault, backup *datamodel.Backup) (string, error) {
 	objectStore, err := GetObjStoreNameFromBackup(backupVault, backup)
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s-%s", objectStore, utils.GenerateRandomAlphanumeric(4)), nil
+	return fmt.Sprintf("RST-%s-%s", objectStore, utils.GenerateRandomAlphanumeric(4)), nil
 }
 
 func getObjStoreName(backupVault *datamodel.BackupVault, vol *datamodel.Volume) (string, error) {

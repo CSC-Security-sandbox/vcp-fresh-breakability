@@ -288,6 +288,7 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
+		rollbackManager.AddActivity(volumeActivity.DeleteRestoreObjectStore, backupActivitiesContext.Node, backupActivitiesContext.ObjStoreName)
 
 		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.SnapmirrorGetOrCreate, node, &SnapmirrorRelationshipParams).Get(ctx, &snapmirrorRelationship)
 		if err != nil {
@@ -357,7 +358,7 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 	}
 
 	var ontapAsyncResponse *vsa.OntapAsyncResponse
-	err = workflow.ExecuteActivity(ctx, volumeActivity.DeleteObjectStoreForCrossVPC, backupActivitiesContext.BackupWorkflowInit.Volume.Pool, backupActivitiesContext.BackupWorkflowInit.Backup, backupActivitiesContext.Node, backupActivitiesContext.ObjStoreName).Get(ctx, &ontapAsyncResponse)
+	err = workflow.ExecuteActivity(ctx, volumeActivity.DeleteRestoreObjectStore, backupActivitiesContext.Node, backupActivitiesContext.ObjStoreName).Get(ctx, &ontapAsyncResponse)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}

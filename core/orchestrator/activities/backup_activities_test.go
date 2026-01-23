@@ -10353,11 +10353,12 @@ func TestGenerateObjectStoreNameForRestore_Success(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.NotEmpty(t, result)
-	// Verify format: objectStore-XXXX where XXXX is 4 alphanumeric characters
-	assert.Contains(t, result, "test-bucket-")
-	assert.Len(t, result, len("test-bucket-")+4) // "test-bucket-" + 4 random chars
+	// Verify format: RST-objectStore-XXXX where XXXX is 4 alphanumeric characters
+	assert.True(t, strings.HasPrefix(result, "RST-"), "Result should start with 'RST-' prefix")
+	assert.Contains(t, result, "RST-test-bucket-")
+	assert.Len(t, result, len("RST-test-bucket-")+4) // "RST-test-bucket-" + 4 random chars
 	// Verify the suffix is alphanumeric
-	suffix := result[len("test-bucket-"):]
+	suffix := result[len("RST-test-bucket-"):]
 	assert.Len(t, suffix, 4)
 	for _, char := range suffix {
 		assert.True(t, (char >= '0' && char <= '9') || (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z'),

@@ -442,6 +442,7 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
+	rollbackManager.AddActivity(volumeActivity.DeleteRestoreObjectStore, node, objStoreName)
 
 	snapmirrorRelationship := &commonparams.SnapmirrorRelationship{}
 	SnapmirrorRelationshipParams := &commonparams.SnapmirrorRelationshipParams{
@@ -552,7 +553,7 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 
 	// Delete object store for cross VPC after transfer completes
 	var ontapAsyncResponse *vsa.OntapAsyncResponse
-	err = workflow.ExecuteActivity(ctx, volumeActivity.DeleteObjectStoreForCrossVPC, volume.Pool, backup, node, objStoreName).Get(ctx, &ontapAsyncResponse)
+	err = workflow.ExecuteActivity(ctx, volumeActivity.DeleteRestoreObjectStore, node, objStoreName).Get(ctx, &ontapAsyncResponse)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
