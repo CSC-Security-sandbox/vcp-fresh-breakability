@@ -40,6 +40,10 @@ func (j *MountJobActivity) CheckMountJob(ctx context.Context, dbReplication *dat
 		logger.Errorf("Failed to get replication details from Ontap for replication %s: %v", dbReplication.UUID, err)
 		return utilErrors.NewNonRetryableErr(err.Error())
 	}
+	if strings.Contains(snapmirror.UnhealthyReason, "Scheduled update failed") || strings.Contains(snapmirror.UnhealthyReason, "Failed to create snapshot") {
+		logger.Infof("Replication %s failed due to scheduled update failure or snapshot creation error. UnhealthyReason: %s", dbReplication.UUID, snapmirror.UnhealthyReason)
+		return utilErrors.NewNonRetryableErr(snapmirror.UnhealthyReason)
+	}
 	if strings.Contains(snapmirror.UnhealthyReason, "Transfer aborted") && snapmirror.CurrentTransferType == "" {
 		logger.Infof("Transfer aborted, No data transfer is in progress for replication %s", dbReplication.UUID)
 		return nil
