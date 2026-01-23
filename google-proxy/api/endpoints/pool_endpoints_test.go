@@ -1627,6 +1627,65 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, operationID, result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
+	t.Run("WhenPoolCreationSucceedsWithManualQosType", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		originalRegionalPoolEnabled := regionalPoolEnabled
+		originalEnableMqos := enableMqos
+		regionalPoolEnabled = true
+		enableMqos = true
+		defer func() {
+			regionalPoolEnabled = originalRegionalPoolEnabled
+			enableMqos = originalEnableMqos
+		}()
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		labels := make(map[string]string)
+		labels["test"] = "label"
+
+		req := &gcpgenserver.PoolV1beta{
+			Unified:                  gcpgenserver.NewOptBool(true),
+			ServiceLevel:             gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:              1099511627776,
+			QosType:                  gcpgenserver.NewOptNilString("manual"),
+			Zone:                     gcpgenserver.NewOptString("us-east4-a"),
+			SecondaryZone:            gcpgenserver.NewOptString("us-east4-b"),
+			CustomPerformanceEnabled: gcpgenserver.NewOptBool(true),
+			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(64), // 128 MiBps
+			Labels:                   gcpgenserver.NewOptPoolV1betaLabels(labels),
+			Mode:                     gcpgenserver.NewOptPoolV1betaMode("GCNV"),
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+
+		defer func() {
+			parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+			getAndSyncKmsConfigForPool = _getAndSyncKmsConfigForPool
+		}()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+			return nil, nil
+		}
+
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(&models.Pool{BaseModel: models.BaseModel{UUID: "new-pool-uuid"}, PoolAttributes: &models.PoolAttributes{Labels: labels}}, "operation-id", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "operation-id")
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, operationID, result.(*gcpgenserver.OperationV1beta).Name.Value)
+	})
 	t.Run("WhenPoolCreationSucceedsWithExpertMode", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		originalRegionalPoolEnabled := regionalPoolEnabled
@@ -2830,6 +2889,281 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 		assert.Equal(tt, float64(409), conflict.Code)
 		assert.Equal(tt, "Update operation is not allowed when the pool is in degraded state", conflict.Message)
 	})
+}
+
+func TestV1betaCreatePoolValidationErrors(t *testing.T) {
+	validationErrorCases := []struct {
+		name                   string
+		req                    *gcpgenserver.PoolV1beta
+		message                string
+		setEnableMqos          bool
+		setEnableLdap          bool
+		setEnableAutoTiering   bool
+		setRegionalPool        bool
+		setRegionalPoolEnabled bool
+		locationId             string
+	}{
+		{
+			name: "Type field is STORAGE_POOL_TYPE_UNSPECIFIED",
+			req: &gcpgenserver.PoolV1beta{
+				Type:    gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED),
+				Unified: gcpgenserver.NewOptBool(true),
+			},
+			message: "type field cannot be STORAGE_POOL_TYPE_UNSPECIFIED",
+		},
+		{
+			name: "Type is FILE (not UNIFIED)",
+			req: &gcpgenserver.PoolV1beta{
+				Type: gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeFILE),
+			},
+			message: "type must be set to UNIFIED, or unified/unifiedPool must be set to true (for backward compatibility)",
+		},
+		{
+			name: "Active directory assigned to ONTAP Mode Pool",
+			req: &gcpgenserver.PoolV1beta{
+				Unified:                   gcpgenserver.NewOptBool(true),
+				Mode:                      gcpgenserver.NewOptPoolV1betaMode(gcpgenserver.PoolV1betaModeONTAP),
+				ActiveDirectoryResourceId: gcpgenserver.NewOptString("ad-resource-id"),
+			},
+			message: "Active directory cannot be assigned to ONTAP Mode Pool",
+		},
+		{
+			name: "Manual QosType is not supported",
+			req: &gcpgenserver.PoolV1beta{
+				Unified: gcpgenserver.NewOptBool(true),
+				QosType: gcpgenserver.NewOptNilString("manual"),
+			},
+			message:       "Manual QosType is not supported",
+			setEnableMqos: false,
+		},
+		{
+			name: "Manual QosType cannot be assigned to ONTAP Mode Pool",
+			req: &gcpgenserver.PoolV1beta{
+				Unified: gcpgenserver.NewOptBool(true),
+				Mode:    gcpgenserver.NewOptPoolV1betaMode(gcpgenserver.PoolV1betaModeONTAP),
+				QosType: gcpgenserver.NewOptNilString("manual"),
+			},
+			message:       "Manual QosType cannot be assigned to ONTAP Mode Pool",
+			setEnableMqos: true,
+		},
+		{
+			name: "Active Directory configuration is required when LDAP is enabled",
+			req: &gcpgenserver.PoolV1beta{
+				Unified:     gcpgenserver.NewOptBool(true),
+				LdapEnabled: gcpgenserver.NewOptNilBool(true),
+			},
+			message:       "Active Directory configuration is required when LDAP is enabled",
+			setEnableLdap: true,
+		},
+		{
+			name: "LDAP is not currently supported",
+			req: &gcpgenserver.PoolV1beta{
+				Unified:                 gcpgenserver.NewOptBool(true),
+				LdapEnabled:             gcpgenserver.NewOptNilBool(true),
+				ActiveDirectoryConfigId: gcpgenserver.NewOptNilString("ad-config-id"),
+			},
+			message: "LDAP is not currently supported for Unified Flex Storage Pool",
+		},
+		{
+			name: "Auto-Tiering feature is currently not enabled - AllowAutoTiering set to true",
+			req: &gcpgenserver.PoolV1beta{
+				Unified:          gcpgenserver.NewOptBool(true),
+				AllowAutoTiering: gcpgenserver.NewOptNilBool(true),
+			},
+			message: "Auto-Tiering feature is currently not enabled.",
+		},
+		{
+			name: "Auto-Tiering feature is currently not enabled - HotTierSizeInBytes set",
+			req: &gcpgenserver.PoolV1beta{
+				Unified:            gcpgenserver.NewOptBool(true),
+				HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(1024),
+			},
+			message: "Auto-Tiering feature is currently not enabled.",
+		},
+		{
+			name: "HotTierSizeInBytes is a required field to enable auto-tiering",
+			req: &gcpgenserver.PoolV1beta{
+				Unified:          gcpgenserver.NewOptBool(true),
+				AllowAutoTiering: gcpgenserver.NewOptNilBool(true),
+			},
+			message:              "HotTierSizeInBytes is a required field to enable auto-tiering",
+			setEnableAutoTiering: true,
+		},
+		{
+			name: "HotTierSizeInBytes and EnableHotTierAutoResize cannot be set without enabling AllowAutoTiering",
+			req: &gcpgenserver.PoolV1beta{
+				Unified:                 gcpgenserver.NewOptBool(true),
+				HotTierSizeInBytes:      gcpgenserver.NewOptNilFloat64(1024),
+				EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(true),
+			},
+			message:              "HotTierSizeInBytes and EnableHotTierAutoResize cannot be set without enabling AllowAutoTiering",
+			setEnableAutoTiering: true,
+		},
+		{
+			name: "Regional Pool Support is not enabled",
+			req: &gcpgenserver.PoolV1beta{
+				Unified: gcpgenserver.NewOptBool(true),
+			},
+			message:                "Regional Pool Support is not enabled",
+			setRegionalPool:        true,
+			setRegionalPoolEnabled: false,
+			locationId:             "us-east4",
+		},
+		{
+			name: "Zone cannot be empty for regional pool",
+			req: &gcpgenserver.PoolV1beta{
+				Unified: gcpgenserver.NewOptBool(true),
+			},
+			message:                "Zone cannot be empty for regional pool.",
+			setRegionalPool:        true,
+			setRegionalPoolEnabled: true,
+			locationId:             "us-east4",
+		},
+		{
+			name: "Secondary Zone cannot be empty for regional pool",
+			req: &gcpgenserver.PoolV1beta{
+				Unified: gcpgenserver.NewOptBool(true),
+				Zone:    gcpgenserver.NewOptString("us-east4-a"),
+			},
+			message:                "Secondary Zone cannot be empty for regional pool.",
+			setRegionalPool:        true,
+			setRegionalPoolEnabled: true,
+			locationId:             "us-east4",
+		},
+		{
+			name: "Secondary Zone cannot be same as Primary Zone - regional pool",
+			req: &gcpgenserver.PoolV1beta{
+				Unified:       gcpgenserver.NewOptBool(true),
+				Zone:          gcpgenserver.NewOptString("us-east4-a"),
+				SecondaryZone: gcpgenserver.NewOptString("us-east4-a"),
+			},
+			message:                "Secondary Zone cannot be same as Primary Zone",
+			setRegionalPool:        true,
+			setRegionalPoolEnabled: true,
+			locationId:             "us-east4",
+		},
+		{
+			name: "Multiple Zone values cannot be passed for Zonal Pool Creation",
+			req: &gcpgenserver.PoolV1beta{
+				Unified: gcpgenserver.NewOptBool(true),
+				Zone:    gcpgenserver.NewOptString("us-east4-b"),
+			},
+			message:    "Multiple Zone values cannot be passed for Zonal Pool Creation",
+			locationId: "us-east4-a",
+		},
+		{
+			name: "Secondary Zone cannot be same as Primary Zone - zonal pool",
+			req: &gcpgenserver.PoolV1beta{
+				Unified:       gcpgenserver.NewOptBool(true),
+				SecondaryZone: gcpgenserver.NewOptString("us-east4-a"),
+			},
+			message:    "Secondary Zone cannot be same as Primary Zone",
+			locationId: "us-east4-a",
+		},
+	}
+
+	for _, tc := range validationErrorCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+			// Use custom locationId if provided, otherwise default
+			locationId := tc.locationId
+			if locationId == "" {
+				locationId = "us-east4-a"
+			}
+
+			params := gcpgenserver.V1betaCreatePoolParams{
+				LocationId:    locationId,
+				ProjectNumber: "project-number",
+			}
+
+			// Save original flags and restore at end of test
+			originalAutoTieringEnabled := autoTieringEnabled
+			originalEnableMqos := enableMqos
+			originalEnableLdap := enableLdap
+			originalRegionalPoolEnabled := regionalPoolEnabled
+			originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+			originalGetAndSyncKmsConfigForPool := getAndSyncKmsConfigForPool
+
+			defer func() {
+				autoTieringEnabled = originalAutoTieringEnabled
+				enableMqos = originalEnableMqos
+				enableLdap = originalEnableLdap
+				regionalPoolEnabled = originalRegionalPoolEnabled
+				parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+				getAndSyncKmsConfigForPool = originalGetAndSyncKmsConfigForPool
+			}()
+			autoTieringEnabled = false
+			enableMqos = false
+			enableLdap = false
+			regionalPoolEnabled = false
+
+			// Set enableMqos for this specific test case if needed
+			if tc.setEnableMqos {
+				enableMqos = true
+				defer func() { enableMqos = false }()
+			}
+
+			// Set enableLdap for this specific test case if needed
+			if tc.setEnableLdap {
+				enableLdap = true
+				defer func() { enableLdap = false }()
+			}
+
+			// Set autoTieringEnabled for this specific test case if needed
+			if tc.setEnableAutoTiering {
+				autoTieringEnabled = true
+				defer func() { autoTieringEnabled = false }()
+			}
+
+			// Set regionalPoolEnabled for this specific test case if needed
+			if tc.setRegionalPoolEnabled {
+				regionalPoolEnabled = true
+				defer func() { regionalPoolEnabled = false }()
+			}
+
+			// Set up parseAndValidateRegionAndZone based on whether this is a regional pool test
+			if tc.setRegionalPool {
+				parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+					return "us-east4", "", nil // Empty zone for regional pool
+				}
+			} else {
+				// Extract region and zone from locationId
+				parts := strings.Split(locationId, "-")
+				region := strings.Join(parts[:len(parts)-1], "-")
+				parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+					return region, locationId, nil
+				}
+			}
+
+			getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+				return nil, nil
+			}
+
+			// Use Maybe() since validation errors return early and this won't be called
+			mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Maybe().Return(nil, errors.NewNotFoundErr("not found", nil))
+
+			// Set common fields once for all test cases
+			tc.req.ResourceId = "test-pool"
+			tc.req.ServiceLevel = gcpgenserver.PoolV1betaServiceLevelFLEX
+			tc.req.SizeInBytes = 1099511627776
+
+			handler := Handler{
+				Orchestrator: mockOrchestrator,
+			}
+			result, err := handler.V1betaCreatePool(context.Background(), tc.req, params)
+
+			assert.NoError(tt, err)
+			assert.NotNil(tt, result)
+			// Check if result is BadRequest error (most common for validation errors)
+			if badReq, ok := result.(*gcpgenserver.V1betaCreatePoolBadRequest); ok {
+				assert.Equal(tt, float64(400), badReq.Code)
+				assert.Equal(tt, tc.message, badReq.Message)
+			} else {
+				tt.Fatalf("Unexpected response type: %T, expected V1betaCreatePoolBadRequest", result)
+			}
+		})
+	}
 }
 
 func TestV1betaUpdatePool(t *testing.T) {

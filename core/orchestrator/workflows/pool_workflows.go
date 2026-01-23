@@ -587,10 +587,12 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
-	// Create QoS policy and apply it to the SVM
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateQoSPolicyAndApplyToSVM, dbPool, svm, node).Get(ctx, nil)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
+	// Create QoS policy and apply it to the SVM if qos type is auto
+	if pool.QosType == utils.QosTypeAuto {
+		err = workflow.ExecuteActivity(ctx, poolActivity.CreateQoSPolicyAndApplyToSVM, dbPool, svm, node).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
 	}
 
 	expertCredConfig := &vlm.OntapCredentials{}

@@ -41,7 +41,6 @@ var (
 
 const (
 	ServiceLevelNameFLEX                 = "FLEX"
-	QosTypeAuto                          = "auto"
 	TieringFullnessThresholdOntapDefault = 50
 	VCP_ADMIN_CERT_UN_SUFFIX             = "_admin" // Suffix for VCP admin user certificate
 	AdminUserName                        = "admin"
@@ -536,6 +535,10 @@ func _validateAndSetUpdatePoolParams(params *commonparams.UpdatePoolParams, pool
 	// Prevent changing pool type
 	if params.LargeCapacity != nil && (*params.LargeCapacity != pool.LargeCapacity) {
 		return customerrors.NewUserInputValidationErr("Given large capacity value is not supported. Large capacity cannot be changed for existing pool")
+	}
+
+	if params.QosType != "" && pool.QosType != "" && params.QosType != pool.QosType {
+		return customerrors.NewUserInputValidationErr("QoS type cannot be changed for existing pool")
 	}
 
 	// Call unified validation (no service level check needed for updates)

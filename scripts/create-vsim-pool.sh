@@ -13,6 +13,7 @@ POSTGRES_URL=""
 POSTGRES_USER="postgres"
 POSTGRES_PASS="testpass"
 POSTGRES_SSL_MODE="disable"
+QOS_TYPE="auto"
 
 # Colors for output
 RED='\033[0;31m'
@@ -42,6 +43,7 @@ Optional arguments:
   --postgres-user   PostgreSQL username (default: postgres)
   --postgres-pass   PostgreSQL password (default: testpass)
   --postgres-ssl-mode PostgreSQL SSL mode (default: disable, options: disable, require, verify-ca, verify-full)
+  --qos-type        QoS type (default: auto, options: auto, manual)
   --help            Show this help message
 
 Environment variables:
@@ -88,6 +90,10 @@ parse_args() {
                 POSTGRES_SSL_MODE="$2"
                 shift 2
                 ;;
+            --qos-type)
+                QOS_TYPE="$2"
+                shift 2
+                ;;
             --debug)
                 DEBUG=true
                 shift
@@ -129,6 +135,13 @@ parse_args() {
             exit 1
         fi
     done
+
+     # Validate qos-type if provided
+    if [[ "$QOS_TYPE" != "auto" && "$QOS_TYPE" != "manual" ]]; then
+        log_error "Invalid qos-type: $QOS_TYPE. Must be 'auto' or 'manual'"
+        usage
+        exit 1
+    fi
 }
 
 # =============================================================================
@@ -345,7 +358,7 @@ create_db_pool() {
         INSERT INTO pools (
             uuid, created_at, updated_at, name, state, state_details,
             service_level, size_in_bytes, vendor_id, network, deployment_name,
-            pool_attributes, pool_credentials, account_id
+            pool_attributes, pool_credentials, account_id, qos_type
         ) VALUES (
             '$pool_uuid', '$current_time', '$current_time', '$POOL_NAME', 'READY',
             'Available for use', 'FLEX', 2199023255552,
@@ -354,7 +367,7 @@ create_db_pool() {
             '$unique_deployment_name',
             '{\"primary_zone\": \"${region}-a\", \"secondary_zone\": \"${region}-b\", \"throughput\": 64}',
             '{\"password\": \"${ONTAP_PASSWORD}\", \"auth_type\": 0}',
-            $ACCOUNT_ID
+            $ACCOUNT_ID, '$QOS_TYPE'
         );
     "
 

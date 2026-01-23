@@ -115,6 +115,7 @@ const (
 	digits                     = "0123456789"
 	specialChars               = "!@#$%^&*()-_=+[]{}|;:,.<>?/`~"
 	QosTypeAuto                = "auto"
+	QosTypeManual              = "manual"
 	GiBInBytes                 = 1073741824
 	TiBInBytes                 = 1099511627776
 	PiBInBytes                 = 1125899906842624

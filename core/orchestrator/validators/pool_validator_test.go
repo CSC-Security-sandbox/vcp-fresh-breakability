@@ -323,6 +323,12 @@ func TestValidateIopsCommon(t *testing.T) {
 
 // Tests for ValidateCommonPoolParams function
 func TestValidateCommonPoolParams(t *testing.T) {
+	origEnableMqos := enableMqos
+	defer func() {
+		enableMqos = origEnableMqos
+	}()
+	enableMqos = false
+
 	t.Run("ValidParameters", func(t *testing.T) {
 		perf := &CustomPerformance{
 			SizeInBytes:      2 * utils.TiBInBytes,
@@ -373,6 +379,103 @@ func TestValidateCommonPoolParams(t *testing.T) {
 
 		err := ValidateCommonPoolParams(perf)
 		assert.NoError(t, err)
+	})
+
+	t.Run("QosTypeEmptyString", func(t *testing.T) {
+		perf := &CustomPerformance{
+			SizeInBytes:      2 * utils.TiBInBytes,
+			QosType:          "", // Empty string
+			AllowAutoTiering: false,
+			LargeCapacity:    false,
+		}
+
+		err := ValidateCommonPoolParams(perf)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "QoS type not supported")
+	})
+	t.Run("QosTypeEmptyStringWhenEnableMqosTrue", func(t *testing.T) {
+		enableMqos = true
+		defer func() {
+			enableMqos = origEnableMqos
+		}()
+
+		perf := &CustomPerformance{
+			SizeInBytes:      2 * utils.TiBInBytes,
+			QosType:          "", // Empty string
+			AllowAutoTiering: false,
+			LargeCapacity:    false,
+		}
+
+		err := ValidateCommonPoolParams(perf)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "QoS type not supported")
+	})
+
+	t.Run("InvalidQosTypeWhenEnableMqosTrue", func(t *testing.T) {
+		enableMqos = true
+		defer func() {
+			enableMqos = origEnableMqos
+		}()
+		perf := &CustomPerformance{
+			SizeInBytes:      2 * utils.TiBInBytes,
+			QosType:          "invalid-type",
+			AllowAutoTiering: false,
+			LargeCapacity:    false,
+		}
+
+		err := ValidateCommonPoolParams(perf)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "QoS type not supported")
+	})
+
+	t.Run("QosTypeManual", func(t *testing.T) {
+		perf := &CustomPerformance{
+			SizeInBytes:      2 * utils.TiBInBytes,
+			QosType:          utils.QosTypeManual,
+			AllowAutoTiering: false,
+			LargeCapacity:    false,
+		}
+
+		err := ValidateCommonPoolParams(perf)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Manual QoS is not enabled")
+		assert.Contains(t, err.Error(), "Supported QoS type is auto")
+	})
+
+	t.Run("QosTypeManualWhenEnableMqosTrue", func(t *testing.T) {
+		enableMqos = true
+		defer func() {
+			enableMqos = origEnableMqos
+		}()
+		perf := &CustomPerformance{
+			SizeInBytes:      2 * utils.TiBInBytes,
+			QosType:          utils.QosTypeManual,
+			AllowAutoTiering: false,
+			LargeCapacity:    false,
+		}
+
+		err := ValidateCommonPoolParams(perf)
+		assert.NoError(t, err, "Manual QoS type should be allowed when enableMqos is true")
+	})
+
+	t.Run("QosTypeAutoAlwaysValid", func(t *testing.T) {
+		perf := &CustomPerformance{
+			SizeInBytes:      2 * utils.TiBInBytes,
+			QosType:          utils.QosTypeAuto,
+			AllowAutoTiering: false,
+			LargeCapacity:    false,
+		}
+
+		err := ValidateCommonPoolParams(perf)
+		assert.NoError(t, err, "Auto QoS type should always be valid")
+
+		enableMqos = true
+		defer func() {
+			enableMqos = origEnableMqos
+		}()
+
+		err = ValidateCommonPoolParams(perf)
+		assert.NoError(t, err, "Auto QoS type should always be valid")
 	})
 }
 

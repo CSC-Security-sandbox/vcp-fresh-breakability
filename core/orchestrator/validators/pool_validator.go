@@ -5,6 +5,7 @@ import (
 
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
@@ -33,6 +34,7 @@ var (
 	minLvCustomIops       = utils.MinLvCustomIops
 	maxLvCustomIops       = utils.MaxLvCustomIops
 	AutoTieringEnabled    = utils.AutoTieringEnabled
+	enableMqos            = env.GetBool("ENABLE_MQOS", false)
 )
 
 // CustomPerformance represents performance parameters that can be used for both create and update operations
@@ -201,6 +203,13 @@ func ValidateCommonPoolParams(perf *CustomPerformance) error {
 	}
 
 	if perf.QosType != utils.QosTypeAuto {
+		if perf.QosType == utils.QosTypeManual {
+			if !enableMqos {
+				return customerrors.NewUserInputValidationErr(
+					"Manual QoS is not enabled. Supported QoS type is auto")
+			}
+			return nil
+		}
 		return customerrors.NewUserInputValidationErr(
 			"Given QoS type not supported for Unified Flex Storage Pool. Supported QoS type is auto")
 	}

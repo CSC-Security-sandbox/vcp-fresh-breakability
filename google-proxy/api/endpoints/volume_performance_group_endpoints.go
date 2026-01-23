@@ -14,7 +14,6 @@ import (
 )
 
 var (
-	enableMqos         = env.GetBool("ENABLE_MQOS", false)
 	enableVpgEndpoints = env.GetBool("ENABLE_VPG_ENDPOINTS", false)
 )
 

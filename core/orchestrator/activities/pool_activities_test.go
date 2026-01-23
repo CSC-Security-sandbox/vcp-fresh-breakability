@@ -5992,6 +5992,26 @@ func TestCreateQoSPolicyAndApplyToSVM(t *testing.T) {
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
+
+	t.Run("WhenQosTypeIsManual_ThenSkipCreationAndReturnEarly", func(tt *testing.T) {
+		// Setup Temporal test environment
+		var ts testsuite.WorkflowTestSuite
+		testEnv := ts.NewTestActivityEnvironment()
+
+		// Create a pool with QosTypeManual
+		poolWithManualQoS := pool
+		poolWithManualQoS.QosType = utils.QosTypeManual
+
+		// No provider should be called when QosType is Manual
+		// We don't set up any mocks because the function should return early
+
+		activity := &activities.PoolActivity{}
+		testEnv.RegisterActivity(activity.CreateQoSPolicyAndApplyToSVM)
+		_, err := testEnv.ExecuteActivity(activity.CreateQoSPolicyAndApplyToSVM, poolWithManualQoS, svm, node)
+
+		// Should return successfully without any provider interactions
+		assert.NoError(tt, err)
+	})
 }
 
 func TestModifyQoSPolicyAndApplyToSVM(t *testing.T) {
@@ -6339,6 +6359,26 @@ func TestModifyQoSPolicyAndApplyToSVM(t *testing.T) {
 		assert.Contains(tt, err.Error(), "SVM modification failed")
 		mockProvider.AssertExpectations(tt)
 		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenQosTypeIsManual_ThenSkipModificationAndReturnEarly", func(tt *testing.T) {
+		// Setup Temporal test environment
+		var ts testsuite.WorkflowTestSuite
+		testEnv := ts.NewTestActivityEnvironment()
+
+		// Create a pool with QosTypeManual
+		poolWithManualQoS := pool
+		poolWithManualQoS.QosType = utils.QosTypeManual
+
+		// No provider or storage should be called when QosType is Manual
+		// We don't set up any mocks because the function should return early
+
+		activity := &activities.PoolActivity{}
+		testEnv.RegisterActivity(activity.ModifyQoSPolicyAndApplyToSVM)
+		_, err := testEnv.ExecuteActivity(activity.ModifyQoSPolicyAndApplyToSVM, poolWithManualQoS, node, updateParams)
+
+		// Should return successfully without any provider or storage interactions
+		assert.NoError(tt, err)
 	})
 }
 

@@ -34,6 +34,7 @@ var (
 	getAndSyncKmsConfigForPool = _getAndSyncKmsConfigForPool
 	enableLdap                 = env.GetBool("ENABLE_LDAP", false)
 	blockUpdatePooltoATPool    = env.GetBool("BLOCK_UPDATE_POOL_TO_AT_POOL", true)
+	enableMqos                 = env.GetBool("ENABLE_MQOS", false)
 )
 
 const (
@@ -996,6 +997,21 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 		return &gcpgenserver.Error{
 			Code:    http.StatusBadRequest,
 			Message: "Active directory cannot be assigned to ONTAP Mode Pool",
+		}
+	}
+
+	if req.QosType.IsSet() && req.QosType.Value == utils.QosTypeManual {
+		if !enableMqos {
+			return &gcpgenserver.Error{
+				Code:    http.StatusBadRequest,
+				Message: "Manual QosType is not supported",
+			}
+		}
+		if req.Mode.Value == gcpgenserver.PoolV1betaModeONTAP {
+			return &gcpgenserver.Error{
+				Code:    http.StatusBadRequest,
+				Message: "Manual QosType cannot be assigned to ONTAP Mode Pool",
+			}
 		}
 	}
 

@@ -453,6 +453,9 @@ func (j *PoolActivity) UpdatedPoolWithVLMConfig(ctx context.Context, pool *datam
 	pool.VLMConfig = string(marshalledVlmConfig)
 	pool.SizeInBytes = int64(updatePoolParams.SizeInBytes)
 	pool.Description = updatePoolParams.Description
+	if pool.PoolAttributes == nil {
+		pool.PoolAttributes = &datamodel.PoolAttributes{}
+	}
 	pool.PoolAttributes.ThroughputMibps = updatePoolParams.TotalThroughputMibps
 	if updatePoolParams.TotalIops != nil {
 		pool.PoolAttributes.Iops = *updatePoolParams.TotalIops
@@ -1435,6 +1438,11 @@ func generateQoSPolicyName(svmName string) string {
 // This activity is idempotent - it will check if the QoS policy already exists before creating
 func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *datamodel.Pool, svm *datamodel.Svm, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+	if pool.QosType == utils.QosTypeManual {
+		logger.Info("QoS type is manual, skipping creating QoS policy assigned to the SVM", "poolName", pool.Name)
+		return nil
+	}
+
 	logger.Info("Creating QoS policy and applying to SVM", "svmName", svm.Name, "poolName", pool.Name)
 
 	activity.RecordHeartbeat(ctx, "Starting CreateQoSPolicyAndApplyToSVM activity & Getting ONTAP provider")
@@ -1447,6 +1455,9 @@ func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 	// Create QoS policy group with default values
 	// These values can be made configurable in the future
 	qosPolicyName := generateQoSPolicyName(svm.Name)
+	if pool.PoolAttributes == nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("pool attributes cannot be nil"))
+	}
 	maxThroughput := pool.PoolAttributes.ThroughputMibps
 	maxIOPS := pool.PoolAttributes.Iops
 
@@ -1533,6 +1544,12 @@ func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 // This activity is idempotent - it will only update the QoS policy if the new requirements differ from the current ones
 func (j *PoolActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *datamodel.Pool, node *models.Node, updateParams *commonparams.UpdatePoolParams) error {
 	logger := util.GetLogger(ctx)
+
+	if pool.QosType == utils.QosTypeManual {
+		logger.Info("QoS type is manual, no modification needed for QoS policy as no QoS policy is assigned to the SVM for manual QoS type", "poolName", pool.Name)
+		return nil
+	}
+
 	logger.Info("Modifying QoS policy and applying to SVM", "poolName", pool.Name)
 
 	activity.RecordHeartbeat(ctx, "Starting ModifyQoSPolicyAndApplyToSVM activity & Getting ONTAP provider")
@@ -2665,6 +2682,13 @@ func _deleteLIFs(ctx context.Context, se database.Storage, pool *datamodel.Pool)
 
 // deleteNodes deletes node database records associated with the given pool.
 func _deleteNodes(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
+	if pool == nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("pool cannot be nil"))
+	}
+	if se == nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("storage cannot be nil"))
+	}
+
 	// Retrieve the nodes associated with the pool
 	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
 	if err != nil {
