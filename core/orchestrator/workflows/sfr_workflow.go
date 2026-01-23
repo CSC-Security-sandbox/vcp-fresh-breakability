@@ -544,6 +544,12 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 		}
 	}
 
+	// Wait for 60 seconds before proceeding
+	err = workflow.Sleep(ctx, 60*time.Second)
+	if err != nil {
+		return nil, ConvertToVSAError(fmt.Errorf("failed to sleep before deleting object store: %w", err))
+	}
+
 	// Delete object store for cross VPC after transfer completes
 	var ontapAsyncResponse *vsa.OntapAsyncResponse
 	err = workflow.ExecuteActivity(ctx, volumeActivity.DeleteObjectStoreForCrossVPC, volume.Pool, backup, node, objStoreName).Get(ctx, &ontapAsyncResponse)
