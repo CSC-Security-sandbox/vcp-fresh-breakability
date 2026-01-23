@@ -140,7 +140,9 @@ data:
   PROBER_PROJECT_LIST: {{$.Values.workerConfig.proberProjectList | quote }}
   WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{$.Values.workerConfig.workflowGlobalTimeoutMinutes | quote }}
   CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{$.Values.workerConfig.cmekWorkflowGlobalTimeoutMinutes | quote }}
+  CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES: {{$.Values.workerConfig.createPoolWorkflowTimeoutMinutes | quote }}
   CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES_LV: {{$.Values.workerConfig.createPoolWorkflowTimeoutMinutesLV | quote }}
+  UPDATE_POOL_WORKFLOW_TIMEOUT_MINUTES: {{$.Values.workerConfig.updatePoolWorkflowTimeoutMinutes | quote }}
   UPDATE_POOL_WORKFLOW_TIMEOUT_MINUTES_LV: {{$.Values.workerConfig.updatePoolWorkflowTimeoutMinutesLV | quote }}
   CREATE_SNAPSHOT_WORKFLOW_TIMEOUT_MINUTES: {{$.Values.workerConfig.createSnapshotWorkflowTimeoutMinutes | quote }}
   DELETE_SNAPSHOT_WORKFLOW_TIMEOUT_MINUTES: {{$.Values.workerConfig.deleteSnapshotWorkflowTimeoutMinutes | quote }}

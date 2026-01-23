@@ -12,8 +12,10 @@ var (
 	CMEKWorkflowGlobalTimeoutMinutes     = env.GetString("CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "14")
 	WorkflowGlobalTimeoutMinutes         = env.GetString("WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "60")
 	ExpertModeSyncWorkflowTimeoutMinutes = env.GetString("EXPERT_MODE_SYNC_WORKFLOW_TIMEOUT_MINUTES", "10")
-	CreatePoolWorkflowTimeoutMinutesLV   = env.GetString("CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES_LV", "120")
-	UpdatePoolWorkflowTimeoutMinutesLV   = env.GetString("UPDATE_POOL_WORKFLOW_TIMEOUT_MINUTES_LV", "120")
+	CreatePoolWorkflowTimeoutMinutes     = env.GetString("CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES", "150")
+	CreatePoolWorkflowTimeoutMinutesLV   = env.GetString("CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES_LV", "150")
+	UpdatePoolWorkflowTimeoutMinutes     = env.GetString("UPDATE_POOL_WORKFLOW_TIMEOUT_MINUTES", "150")
+	UpdatePoolWorkflowTimeoutMinutesLV   = env.GetString("UPDATE_POOL_WORKFLOW_TIMEOUT_MINUTES_LV", "150")
 	CreateBackupWorkflowTimeoutMinutes   = env.GetString("CREATE_BACKUP_WORKFLOW_TIMEOUT_MINUTES", "8640")
 	DeleteBackupWorkflowTimeoutMinutes   = env.GetString("DELETE_BACKUP_WORKFLOW_TIMEOUT_MINUTES", "6480")
 	SFRWorkflowTimeoutMinutes            = env.GetString("SFR_WORKFLOW_TIMEOUT_MINUTES", "13680")
@@ -113,39 +115,33 @@ func getWorkflowTimeoutWithDefault(configValue string, defaultMinutes int) *time
 }
 
 func GetCreatePoolWorkflowTimeout(largeCapacity bool) *time.Duration {
-	if !largeCapacity {
-		return nil
+	if largeCapacity {
+		return getWorkflowTimeoutWithDefault(CreatePoolWorkflowTimeoutMinutesLV, 150)
 	}
-	return getWorkflowTimeoutWithDefault(CreatePoolWorkflowTimeoutMinutesLV, 120)
+	return getWorkflowTimeoutWithDefault(CreatePoolWorkflowTimeoutMinutes, 150)
 }
 
 // GetCreatePoolWorkflowRunTimeout returns the workflow run timeout used when starting CreatePoolWorkflow.
 // - Large capacity (LV) pools use the create-pool LV timeout
-// - Standard pools explicitly use the global workflow timeout
+// - Standard pools use the standard create-pool timeout
 func GetCreatePoolWorkflowRunTimeout(largeCapacity bool) *time.Duration {
-	if d := GetCreatePoolWorkflowTimeout(largeCapacity); d != nil {
-		return d
-	}
-	global := GetWorkflowGlobalTimeout()
-	return &global
+	timeout := GetCreatePoolWorkflowTimeout(largeCapacity)
+	return timeout
 }
 
 func GetUpdatePoolWorkflowTimeout(largeCapacity bool) *time.Duration {
-	if !largeCapacity {
-		return nil
+	if largeCapacity {
+		return getWorkflowTimeoutWithDefault(UpdatePoolWorkflowTimeoutMinutesLV, 150)
 	}
-	return getWorkflowTimeoutWithDefault(UpdatePoolWorkflowTimeoutMinutesLV, 120)
+	return getWorkflowTimeoutWithDefault(UpdatePoolWorkflowTimeoutMinutes, 150)
 }
 
 // GetUpdatePoolWorkflowRunTimeout returns the workflow run timeout used when starting UpdatePoolWorkflow.
 // - Large capacity (LV) pools use the update-pool LV timeout
-// - Standard pools explicitly use the global workflow timeout
+// - Standard pools use the standard update-pool timeout
 func GetUpdatePoolWorkflowRunTimeout(largeCapacity bool) *time.Duration {
-	if d := GetUpdatePoolWorkflowTimeout(largeCapacity); d != nil {
-		return d
-	}
-	global := GetWorkflowGlobalTimeout()
-	return &global
+	timeout := GetUpdatePoolWorkflowTimeout(largeCapacity)
+	return timeout
 }
 
 func GetCreateBackupWorkflowTimeout() *time.Duration {

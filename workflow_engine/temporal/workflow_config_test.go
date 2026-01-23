@@ -6,18 +6,24 @@ import (
 )
 
 func TestGetWorkflowGlobalTimeout_InvalidEnv(t *testing.T) {
-	t.Setenv("WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "invalid")
+	original := WorkflowGlobalTimeoutMinutes
+	defer func() { WorkflowGlobalTimeoutMinutes = original }()
+
+	WorkflowGlobalTimeoutMinutes = "invalid"
 	got := GetWorkflowGlobalTimeout()
-	want := 60 * time.Minute
+	want := 60 * time.Minute // fallback default when parsing fails
 	if got != want {
 		t.Errorf("expected %v, got %v", want, got)
 	}
 }
 
 func TestGetWorkflowGlobalTimeout_DefaultEnv(t *testing.T) {
-	t.Setenv("WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "")
+	original := WorkflowGlobalTimeoutMinutes
+	defer func() { WorkflowGlobalTimeoutMinutes = original }()
+
+	WorkflowGlobalTimeoutMinutes = "60"
 	got := GetWorkflowGlobalTimeout()
-	want := 60 * time.Minute
+	want := 60 * time.Minute // default value
 	if got != want {
 		t.Errorf("expected %v, got %v", want, got)
 	}
@@ -69,11 +75,11 @@ func TestGetCreatePoolWorkflowTimeout_Defaults(t *testing.T) {
 		CreatePoolWorkflowTimeoutMinutesLV = origLV
 	}()
 
-	CreatePoolWorkflowTimeoutMinutesLV = "120"
+	CreatePoolWorkflowTimeoutMinutesLV = "150"
 
 	lv := GetCreatePoolWorkflowTimeout(true)
-	if lv == nil || *lv != 120*time.Minute {
-		t.Fatalf("expected 120m, got %v", lv)
+	if lv == nil || *lv != 150*time.Minute {
+		t.Fatalf("expected 150m, got %v", lv)
 	}
 }
 
@@ -86,23 +92,38 @@ func TestGetCreatePoolWorkflowTimeout_InvalidEnvFallsBack(t *testing.T) {
 	CreatePoolWorkflowTimeoutMinutesLV = "invalid"
 
 	lv := GetCreatePoolWorkflowTimeout(true)
-	if lv == nil || *lv != 120*time.Minute {
-		t.Fatalf("expected fallback 120m, got %v", lv)
+	if lv == nil || *lv != 150*time.Minute {
+		t.Fatalf("expected fallback 150m, got %v", lv)
 	}
 }
 
-func TestGetCreatePoolWorkflowTimeout_StandardReturnsNil(t *testing.T) {
+func TestGetCreatePoolWorkflowTimeout_StandardReturnsTimeout(t *testing.T) {
+	origStd := CreatePoolWorkflowTimeoutMinutes
+	defer func() { CreatePoolWorkflowTimeoutMinutes = origStd }()
+
+	CreatePoolWorkflowTimeoutMinutes = "150"
 	got := GetCreatePoolWorkflowTimeout(false)
-	if got != nil {
-		t.Fatalf("expected nil, got %v", got)
+	if got == nil || *got != 150*time.Minute {
+		t.Fatalf("expected 150m, got %v", got)
 	}
 }
 
-func TestGetCreatePoolWorkflowRunTimeout_StandardUsesGlobal(t *testing.T) {
-	origGlobal := WorkflowGlobalTimeoutMinutes
-	defer func() { WorkflowGlobalTimeoutMinutes = origGlobal }()
+func TestGetCreatePoolWorkflowTimeout_StandardInvalidEnvFallsBack(t *testing.T) {
+	origStd := CreatePoolWorkflowTimeoutMinutes
+	defer func() { CreatePoolWorkflowTimeoutMinutes = origStd }()
 
-	WorkflowGlobalTimeoutMinutes = "75"
+	CreatePoolWorkflowTimeoutMinutes = "invalid"
+	got := GetCreatePoolWorkflowTimeout(false)
+	if got == nil || *got != 150*time.Minute {
+		t.Fatalf("expected fallback 150m, got %v", got)
+	}
+}
+
+func TestGetCreatePoolWorkflowRunTimeout_StandardUsesStandardTimeout(t *testing.T) {
+	origStd := CreatePoolWorkflowTimeoutMinutes
+	defer func() { CreatePoolWorkflowTimeoutMinutes = origStd }()
+
+	CreatePoolWorkflowTimeoutMinutes = "75"
 	got := GetCreatePoolWorkflowRunTimeout(false)
 	if got == nil || *got != 75*time.Minute {
 		t.Fatalf("expected 75m, got %v", got)
@@ -110,14 +131,14 @@ func TestGetCreatePoolWorkflowRunTimeout_StandardUsesGlobal(t *testing.T) {
 }
 
 func TestGetCreatePoolWorkflowRunTimeout_LVUsesLVTimeout(t *testing.T) {
-	origGlobal := WorkflowGlobalTimeoutMinutes
+	origStd := CreatePoolWorkflowTimeoutMinutes
 	origLV := CreatePoolWorkflowTimeoutMinutesLV
 	defer func() {
-		WorkflowGlobalTimeoutMinutes = origGlobal
+		CreatePoolWorkflowTimeoutMinutes = origStd
 		CreatePoolWorkflowTimeoutMinutesLV = origLV
 	}()
 
-	WorkflowGlobalTimeoutMinutes = "75"
+	CreatePoolWorkflowTimeoutMinutes = "75"
 	CreatePoolWorkflowTimeoutMinutesLV = "30"
 
 	got := GetCreatePoolWorkflowRunTimeout(true)
@@ -132,11 +153,11 @@ func TestGetUpdatePoolWorkflowTimeout_Defaults(t *testing.T) {
 		UpdatePoolWorkflowTimeoutMinutesLV = origLV
 	}()
 
-	UpdatePoolWorkflowTimeoutMinutesLV = "120"
+	UpdatePoolWorkflowTimeoutMinutesLV = "150"
 
 	lv := GetUpdatePoolWorkflowTimeout(true)
-	if lv == nil || *lv != 120*time.Minute {
-		t.Fatalf("expected 120m, got %v", lv)
+	if lv == nil || *lv != 150*time.Minute {
+		t.Fatalf("expected 150m, got %v", lv)
 	}
 }
 
@@ -149,23 +170,38 @@ func TestGetUpdatePoolWorkflowTimeout_InvalidEnvFallsBack(t *testing.T) {
 	UpdatePoolWorkflowTimeoutMinutesLV = "invalid"
 
 	lv := GetUpdatePoolWorkflowTimeout(true)
-	if lv == nil || *lv != 120*time.Minute {
-		t.Fatalf("expected fallback 120m, got %v", lv)
+	if lv == nil || *lv != 150*time.Minute {
+		t.Fatalf("expected fallback 150m, got %v", lv)
 	}
 }
 
-func TestGetUpdatePoolWorkflowTimeout_StandardReturnsNil(t *testing.T) {
+func TestGetUpdatePoolWorkflowTimeout_StandardReturnsTimeout(t *testing.T) {
+	origStd := UpdatePoolWorkflowTimeoutMinutes
+	defer func() { UpdatePoolWorkflowTimeoutMinutes = origStd }()
+
+	UpdatePoolWorkflowTimeoutMinutes = "150"
 	got := GetUpdatePoolWorkflowTimeout(false)
-	if got != nil {
-		t.Fatalf("expected nil, got %v", got)
+	if got == nil || *got != 150*time.Minute {
+		t.Fatalf("expected 150m, got %v", got)
 	}
 }
 
-func TestGetUpdatePoolWorkflowRunTimeout_StandardUsesGlobal(t *testing.T) {
-	origGlobal := WorkflowGlobalTimeoutMinutes
-	defer func() { WorkflowGlobalTimeoutMinutes = origGlobal }()
+func TestGetUpdatePoolWorkflowTimeout_StandardInvalidEnvFallsBack(t *testing.T) {
+	origStd := UpdatePoolWorkflowTimeoutMinutes
+	defer func() { UpdatePoolWorkflowTimeoutMinutes = origStd }()
 
-	WorkflowGlobalTimeoutMinutes = "75"
+	UpdatePoolWorkflowTimeoutMinutes = "invalid"
+	got := GetUpdatePoolWorkflowTimeout(false)
+	if got == nil || *got != 150*time.Minute {
+		t.Fatalf("expected fallback 150m, got %v", got)
+	}
+}
+
+func TestGetUpdatePoolWorkflowRunTimeout_StandardUsesStandardTimeout(t *testing.T) {
+	origStd := UpdatePoolWorkflowTimeoutMinutes
+	defer func() { UpdatePoolWorkflowTimeoutMinutes = origStd }()
+
+	UpdatePoolWorkflowTimeoutMinutes = "75"
 	got := GetUpdatePoolWorkflowRunTimeout(false)
 	if got == nil || *got != 75*time.Minute {
 		t.Fatalf("expected 75m, got %v", got)
@@ -173,14 +209,14 @@ func TestGetUpdatePoolWorkflowRunTimeout_StandardUsesGlobal(t *testing.T) {
 }
 
 func TestGetUpdatePoolWorkflowRunTimeout_LVUsesLVTimeout(t *testing.T) {
-	origGlobal := WorkflowGlobalTimeoutMinutes
+	origStd := UpdatePoolWorkflowTimeoutMinutes
 	origLV := UpdatePoolWorkflowTimeoutMinutesLV
 	defer func() {
-		WorkflowGlobalTimeoutMinutes = origGlobal
+		UpdatePoolWorkflowTimeoutMinutes = origStd
 		UpdatePoolWorkflowTimeoutMinutesLV = origLV
 	}()
 
-	WorkflowGlobalTimeoutMinutes = "75"
+	UpdatePoolWorkflowTimeoutMinutes = "75"
 	UpdatePoolWorkflowTimeoutMinutesLV = "30"
 
 	got := GetUpdatePoolWorkflowRunTimeout(true)
