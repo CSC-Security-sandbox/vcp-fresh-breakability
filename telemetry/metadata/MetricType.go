@@ -54,6 +54,7 @@ const (
 	CoolTierDataWriteSizeRaw                             MeasuredType = "COOL_TIER_DATA_WRITE_SIZE_RAW"
 	PoolHotTierProvisionedSize                           MeasuredType = "POOL_HOT_TIER_PROVISIONED_SIZE"
 	PoolCapacityTierLogicalFootprint                     MeasuredType = "POOL_CAPACITY_TIER_LOGICAL_FOOTPRINT"
+	CMEKBackupKeyRotationState                           MeasuredType = "CMEK_BACKUP_KEY_ROTATION_STATE"
 )
 
 func init() {
@@ -92,6 +93,7 @@ func init() {
 	CombinedKeyResourceTypeMeasuredTypeMap["pool_cloud_bin_operation_size_raw"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: CoolTierDataWriteSizeRaw}
 	CombinedKeyResourceTypeMeasuredTypeMap["pool_capacity_tier_logical_footprint"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: PoolCapacityTierLogicalFootprint}
 	CombinedKeyResourceTypeMeasuredTypeMap["pool_hot_tier_provisioned_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: PoolHotTierProvisionedSize}
+	CombinedKeyResourceTypeMeasuredTypeMap["cmek_backup_rotation_state"] = CombinedKeyResourceTypeMeasuredType{ResourceType: BackupVault, MeasuredType: CMEKBackupKeyRotationState}
 }
 
 // NewMeasuredType takes a string and converts it to the defined MeasuredType. If the string is not in the map of available measured types, exists is false and the result is nil.

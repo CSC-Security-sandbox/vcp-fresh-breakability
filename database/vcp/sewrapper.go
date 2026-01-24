@@ -3329,6 +3329,22 @@ func (re *retryEngine) GetBackupVaultUUIDsFromBackupPolicyUUID(ctx context.Conte
 	return var0, err
 }
 
+func (re *retryEngine) GetCmekRotationJobStatuses(ctx context.Context, startTime, endTime time.Time, limit, offset int) ([]*CmekRotationJobStatus, error) {
+	var var0 []*CmekRotationJobStatus
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetCmekRotationJobStatuses(ctx, startTime, endTime, limit, offset)
+		if err != nil {
+			re.logError("GetCmekRotationJobStatuses", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) ListBackupPolicyVolumeCount(ctx context.Context, conditions [][]interface{}) (map[string]int64, error) {
 	var var0 map[string]int64
 	err := retry.Do(func(attempt int) (bool, error) {

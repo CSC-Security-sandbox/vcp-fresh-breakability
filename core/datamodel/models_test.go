@@ -1298,3 +1298,82 @@ func TestCmekAttributes_Value(t *testing.T) {
 		assert.Equal(t, `{"kmsConfigResourcePath":null,"encryptionState":null,"backupsPrimaryKeyVersion":null}`, string(bytes))
 	})
 }
+
+func TestJobAttributes_Scan(t *testing.T) {
+	t.Run("Valid JSON bytes with NewKmsKeyURL", func(t *testing.T) {
+		var ja JobAttributes
+		err := ja.Scan([]byte(`{"resource_uuid": "vault-uuid", "location": "us-central1", "kms_attributes": {"new_kms_key_url": "projects/test/locations/us/keyRings/test/cryptoKeys/key1"}}`))
+		assert.NoError(t, err)
+		assert.Equal(t, "vault-uuid", ja.ResourceUUID)
+		assert.Equal(t, "us-central1", ja.Location)
+		assert.NotNil(t, ja.KmsAttributes)
+		assert.Equal(t, "projects/test/locations/us/keyRings/test/cryptoKeys/key1", ja.KmsAttributes.NewKmsKeyURL)
+	})
+	t.Run("Valid JSON bytes without NewKmsKeyURL", func(t *testing.T) {
+		var ja JobAttributes
+		err := ja.Scan([]byte(`{"resource_uuid": "vault-uuid", "location": "us-central1"}`))
+		assert.NoError(t, err)
+		assert.Equal(t, "vault-uuid", ja.ResourceUUID)
+		assert.Equal(t, "us-central1", ja.Location)
+		assert.Nil(t, ja.KmsAttributes)
+	})
+	t.Run("Nil value", func(t *testing.T) {
+		var ja JobAttributes
+		err := ja.Scan(nil)
+		assert.NoError(t, err)
+		assert.Equal(t, JobAttributes{}, ja)
+	})
+	t.Run("Invalid type", func(t *testing.T) {
+		var ja JobAttributes
+		err := ja.Scan("not bytes")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "type assertion to []byte failed")
+	})
+	t.Run("Invalid JSON", func(t *testing.T) {
+		var ja JobAttributes
+		err := ja.Scan([]byte(`{"invalid": json}`))
+		assert.Error(t, err)
+	})
+}
+
+func TestJobAttributes_Value(t *testing.T) {
+	t.Run("With NewKmsKeyURL", func(t *testing.T) {
+		ja := JobAttributes{
+			ResourceUUID: "vault-uuid",
+			Location:     "us-central1",
+			KmsAttributes: &JobKmsAttributes{
+				NewKmsKeyURL: "projects/test/locations/us/keyRings/test/cryptoKeys/key1",
+			},
+		}
+		val, err := ja.Value()
+		assert.NoError(t, err)
+		assert.NotNil(t, val)
+		var result JobAttributes
+		err = result.Scan(val)
+		assert.NoError(t, err)
+		assert.Equal(t, ja, result)
+	})
+	t.Run("Without NewKmsKeyURL", func(t *testing.T) {
+		ja := JobAttributes{
+			ResourceUUID: "vault-uuid",
+			Location:     "us-central1",
+		}
+		val, err := ja.Value()
+		assert.NoError(t, err)
+		assert.NotNil(t, val)
+		var result JobAttributes
+		err = result.Scan(val)
+		assert.NoError(t, err)
+		assert.Equal(t, ja, result)
+	})
+	t.Run("Empty struct", func(t *testing.T) {
+		ja := JobAttributes{}
+		val, err := ja.Value()
+		assert.NoError(t, err)
+		assert.NotNil(t, val)
+		var result JobAttributes
+		err = result.Scan(val)
+		assert.NoError(t, err)
+		assert.Equal(t, ja, result)
+	})
+}

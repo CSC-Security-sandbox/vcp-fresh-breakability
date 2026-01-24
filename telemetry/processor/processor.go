@@ -120,6 +120,17 @@ func (mp *MetricsProcessor) collectAndProcessMetrics(ctx context.Context, teleme
 		}
 	}
 
+	// Collect backup vault CMEK rotation metrics if enabled
+	var backupVaultMetricsResult *collector.BackupVaultMetricsResult
+	if telemetryConfig.EnableBackupVaultMetrics {
+		backupVaultMetricsResult, err = collector.GetBackupVaultMetrics(ctx, mp.vcpDatastore, telemetryConfig, timestamp)
+		if err != nil {
+			logger.Error("Failed to get backup vault metrics", "error", err.Error())
+			return nil, nil, err
+		}
+		logger.Infof("Backup vault metrics collected %d", len(backupVaultMetricsResult.HydratedMetrics))
+	}
+
 	// Collect volume metrics
 	volumeMetricsResult, err := collector.GetVolumeMetrics(ctx, mp.vcpDatastore, telemetryConfig, poolMetricsResult.PoolMetadataMap, timestamp)
 	if err != nil {
@@ -130,6 +141,11 @@ func (mp *MetricsProcessor) collectAndProcessMetrics(ctx context.Context, teleme
 	// Aggregate backup metrics for sink delivery
 	if telemetryConfig.EnableBackupMetrics {
 		allHydratedMetrics = append(allHydratedMetrics, backupMetricsResult.HydratedMetrics...)
+	}
+
+	// Aggregate backup vault metrics for sink delivery
+	if telemetryConfig.EnableBackupVaultMetrics && backupVaultMetricsResult != nil {
+		allHydratedMetrics = append(allHydratedMetrics, backupVaultMetricsResult.HydratedMetrics...)
 	}
 
 	// Aggregate backup and volume metrics for database storage

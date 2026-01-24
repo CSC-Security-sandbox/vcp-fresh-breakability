@@ -565,6 +565,16 @@ func (client *GoogleMetricsClient) CreateMetricValue(metric common.GoogleMetric)
 		if exists && nameAndKeyLabel.Middle != "" && nameAndKeyLabel.Right != "" {
 			valueLabels[nameAndKeyLabel.Middle] = nameAndKeyLabel.Right
 		}
+
+		// Add labels from Tags in ResourceMetadata (for custom metric labels like backup_crypto_key_version)
+		hydratedMetric, err := metric.GetAsHydratedMetric()
+		if err == nil && hydratedMetric.Metadata.Tags != nil {
+			for key, value := range hydratedMetric.Metadata.Tags {
+				if value != "" {
+					valueLabels[key] = value
+				}
+			}
+		}
 	}
 
 	metricValue.Labels = valueLabels
@@ -768,6 +778,8 @@ func (client *GoogleMetricsClient) GetMetricName(metric common.GoogleMetric) (st
 			metricsName = metadata.MetricsNamePrefixVolumeFirstParty + nameAndKeyLabel.Left
 		case metadata.Backup:
 			metricsName = metadata.MetricsNamePrefixVolumeFirstParty + nameAndKeyLabel.Left
+		case metadata.BackupVault:
+			metricsName = metadata.MetricsNamePrefixBackupVaultFirstParty + nameAndKeyLabel.Left
 		default:
 			return "", fmt.Errorf("unrecognized resource type: %s", resourceType)
 		}

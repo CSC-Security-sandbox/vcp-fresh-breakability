@@ -51,6 +51,7 @@ type TelemetryConfig struct {
 	IntervalBackfillLimitMinutes                 int
 	CounterBackfillLimitMinutes                  int
 	EnableLargeVolumesBilling                    bool // When true, enables billing for Large Volumes pools (CRR/Backup/AutoTiering)
+	EnableBackupVaultMetrics                     bool
 }
 
 type MetricItem struct {
@@ -83,6 +84,7 @@ func LoadConfig() *TelemetryConfig {
 	enableFilesAutoTieringBilling := env.GetBool("ENABLE_FILES_AUTO_TIERING_BILLING", false)
 	enableFilesReplicationBillingMetrics := env.GetBool("ENABLE_FILES_REPLICATION_BILLING_METRICS", false)
 	sfrMetricsEnabled := env.GetBool("ENABLE_SFR_METRICS", false)
+	enableBackupVaultMetrics := env.GetBool("ENABLE_BACKUP_VAULT_METRICS", false)
 	enableCrossRegionBackupBillingMetrics := env.GetBool("ENABLE_CROSS_REGION_BACKUP_BILLING_METRICS", false)
 	pushBatchSize := env.GetInt64("PUSH_BATCH_SIZE", 1000)
 	environment := env.GetString("ENVIRONMENT", Dev)
@@ -126,6 +128,7 @@ func LoadConfig() *TelemetryConfig {
 		EnableFilesAutoTieringBilling:                enableFilesAutoTieringBilling,
 		EnableFilesReplicationBillingMetrics:         enableFilesReplicationBillingMetrics,
 		SFRMetricsEnabled:                            sfrMetricsEnabled,
+		EnableBackupVaultMetrics:                     enableBackupVaultMetrics,
 		NumWorkersPerformance:                        numWorkersPerformance,
 		NumWorkersUsage:                              numWorkersUsage,
 		NumWorkersCollection:                         numWorkersCollection,

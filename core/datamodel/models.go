@@ -593,10 +593,16 @@ type JobAttributes struct {
 	VolumeUUID           string                 `json:"volume_uuid,omitempty"`
 	CurrentRetryCount    int                    `json:"current_retry_count"`
 	Location             string                 `json:"location"`
-	PreviousState        string                 `json:"previous_state,omitempty"`        // For UPDATE/DELETE operations
+	PreviousState        string                 `json:"previous_state,omitempty"`         // For UPDATE/DELETE operations
 	PreviousStateDetails string                 `json:"previous_state_details,omitempty"` // For UPDATE/DELETE operations
+	KmsAttributes        *JobKmsAttributes      `json:"kms_attributes,omitempty"`
 	SupervisorAttributes *SupervisorAttributes  `json:"supervisor_attributes,omitempty"`
 	PayloadAttributes    map[string]interface{} `json:"payload_attributes,omitempty"`
+}
+
+type JobKmsAttributes struct {
+	NewKmsKeyURL      string `json:"new_kms_key_url,omitempty"`
+	AccountIdentifier string `json:"account_identifier,omitempty"`
 }
 
 type SupervisorAttributes struct {

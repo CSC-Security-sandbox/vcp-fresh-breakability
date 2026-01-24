@@ -1204,6 +1204,10 @@ func (s *PersistenceStore) GetBackupVaultUUIDsFromBackupPolicyUUID(ctx context.C
 	return s.dataStore.GetBackupVaultUUIDsFromBackupPolicyUUID(ctx, backupPolicyUUID, accountID)
 }
 
+func (s *PersistenceStore) GetCmekRotationJobStatuses(ctx context.Context, startTime, endTime time.Time, limit, offset int) ([]*CmekRotationJobStatus, error) {
+	return s.dataStore.GetCmekRotationJobStatuses(ctx, startTime, endTime, limit, offset)
+}
+
 func (s *PersistenceStore) GetVolumeCountByBackupPolicyID(ctx context.Context, backupPolicyUUID string) (int64, error) {
 	return s.dataStore.GetVolumeCountByBackupPolicyID(ctx, backupPolicyUUID)
 }

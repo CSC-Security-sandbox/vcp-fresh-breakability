@@ -617,6 +617,10 @@ func (o *Orchestrator) RotateCmekBackupsForBackupVault(
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: dbBv.UUID,
 			Location:     params.Region,
+			KmsAttributes: &datamodel.JobKmsAttributes{
+				NewKmsKeyURL:      primaryKeyVersion,
+				AccountIdentifier: account.Name,
+			},
 		},
 	}
 

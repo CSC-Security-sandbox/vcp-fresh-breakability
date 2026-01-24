@@ -1730,3 +1730,287 @@ func TestMetricsProcessor_ProcessBillingSubmission_PartialFailures(t *testing.T)
 	mockMetricsDB.AssertExpectations(t)
 	mockUsageSink.AssertExpectations(t)
 }
+
+func TestMetricsProcessor_ProcessPerformanceMetrics_BackupVaultMetricsCollection(t *testing.T) {
+	originalValue := os.Getenv("ENABLE_BACKUP_VAULT_METRICS")
+	defer func() {
+		if originalValue == "" {
+			_ = os.Unsetenv("ENABLE_BACKUP_VAULT_METRICS")
+		} else {
+			_ = os.Setenv("ENABLE_BACKUP_VAULT_METRICS", originalValue)
+		}
+	}()
+	_ = os.Setenv("ENABLE_BACKUP_VAULT_METRICS", "true")
+
+	ctx := context.Background()
+	vcpStore := &database.MockStorage{}
+	telemetryStore := &metricdb.MockStorage{}
+	sink := &performance.MockSink{}
+
+	testPoolData := &database.PoolMetricsData{
+		ID:             1,
+		UUID:           "pool-uuid-1",
+		Name:           "test-pool",
+		SizeInBytes:    1000,
+		DeploymentName: "test-deployment",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: "test-account",
+		},
+	}
+
+	jobStatuses := []*database.CmekRotationJobStatus{
+		{
+			ID:                1,
+			Status:            "completed",
+			BackupVaultUUID:   "vault-uuid-1",
+			UpdatedAt:         time.Now(),
+			BackupVaultName:   "BackupVault1",
+			Region:            "us-east-1",
+			NewKmsKeyURL:      "projects/test/locations/us/keyRings/test/cryptoKeys/key1",
+			AccountIdentifier: "account-1",
+		},
+	}
+
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	vcpStore.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+	vcpStore.On("GetCmekRotationJobStatuses", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(offset int) bool {
+		return offset == 0
+	})).Return(jobStatuses, nil)
+	vcpStore.On("GetCmekRotationJobStatuses", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(offset int) bool {
+		return offset > 0
+	})).Return([]*database.CmekRotationJobStatus{}, nil)
+
+	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
+	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink}
+	err := mp.ProcessPerformanceMetrics(ctx)
+	assert.NoError(t, err)
+
+	waitForAsyncOperations(t, 200*time.Millisecond)
+
+	vcpStore.AssertCalled(t, "GetCmekRotationJobStatuses", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	sink.AssertCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
+	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestMetricsProcessor_ProcessPerformanceMetrics_BackupVaultMetricsError(t *testing.T) {
+	originalValue := os.Getenv("ENABLE_BACKUP_VAULT_METRICS")
+	defer func() {
+		if originalValue == "" {
+			_ = os.Unsetenv("ENABLE_BACKUP_VAULT_METRICS")
+		} else {
+			_ = os.Setenv("ENABLE_BACKUP_VAULT_METRICS", originalValue)
+		}
+	}()
+	_ = os.Setenv("ENABLE_BACKUP_VAULT_METRICS", "true")
+
+	ctx := context.Background()
+	vcpStore := &database.MockStorage{}
+	telemetryStore := &metricdb.MockStorage{}
+	sink := &performance.MockSink{}
+
+	testPoolData := &database.PoolMetricsData{
+		ID:             1,
+		UUID:           "pool-uuid-1",
+		Name:           "test-pool",
+		SizeInBytes:    1000,
+		DeploymentName: "test-deployment",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: "test-account",
+		},
+	}
+
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	vcpStore.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+	vcpStore.On("GetCmekRotationJobStatuses", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("backup vault metrics collection failed"))
+
+	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink}
+	err := mp.ProcessPerformanceMetrics(ctx)
+	assert.NoError(t, err)
+
+	waitForAsyncOperations(t, 200*time.Millisecond)
+
+	vcpStore.AssertCalled(t, "GetCmekRotationJobStatuses", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	telemetryStore.AssertNotCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestMetricsProcessor_ProcessPerformanceMetrics_BackupVaultMetricsEmptyResults(t *testing.T) {
+	originalValue := os.Getenv("ENABLE_BACKUP_VAULT_METRICS")
+	defer func() {
+		if originalValue == "" {
+			_ = os.Unsetenv("ENABLE_BACKUP_VAULT_METRICS")
+		} else {
+			_ = os.Setenv("ENABLE_BACKUP_VAULT_METRICS", originalValue)
+		}
+	}()
+	_ = os.Setenv("ENABLE_BACKUP_VAULT_METRICS", "true")
+
+	ctx := context.Background()
+	vcpStore := &database.MockStorage{}
+	telemetryStore := &metricdb.MockStorage{}
+	sink := &performance.MockSink{}
+
+	testPoolData := &database.PoolMetricsData{
+		ID:             1,
+		UUID:           "pool-uuid-1",
+		Name:           "test-pool",
+		SizeInBytes:    1000,
+		DeploymentName: "test-deployment",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: "test-account",
+		},
+	}
+
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	vcpStore.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+	vcpStore.On("GetCmekRotationJobStatuses", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database.CmekRotationJobStatus{}, nil)
+
+	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
+	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink}
+	err := mp.ProcessPerformanceMetrics(ctx)
+	assert.NoError(t, err)
+
+	waitForAsyncOperations(t, 200*time.Millisecond)
+
+	vcpStore.AssertCalled(t, "GetCmekRotationJobStatuses", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	sink.AssertCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
+	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestMetricsProcessor_ProcessPerformanceMetrics_BackupVaultMetricsAggregation(t *testing.T) {
+	originalValue := os.Getenv("ENABLE_BACKUP_VAULT_METRICS")
+	defer func() {
+		if originalValue == "" {
+			_ = os.Unsetenv("ENABLE_BACKUP_VAULT_METRICS")
+		} else {
+			_ = os.Setenv("ENABLE_BACKUP_VAULT_METRICS", originalValue)
+		}
+	}()
+	_ = os.Setenv("ENABLE_BACKUP_VAULT_METRICS", "true")
+
+	ctx := context.Background()
+	vcpStore := &database.MockStorage{}
+	telemetryStore := &metricdb.MockStorage{}
+	sink := &performance.MockSink{}
+
+	testPoolData := &database.PoolMetricsData{
+		ID:             1,
+		UUID:           "pool-uuid-1",
+		Name:           "test-pool",
+		SizeInBytes:    1000,
+		DeploymentName: "test-deployment",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: "test-account",
+		},
+	}
+
+	jobStatuses := []*database.CmekRotationJobStatus{
+		{
+			ID:                1,
+			Status:            "completed",
+			BackupVaultUUID:   "vault-uuid-1",
+			UpdatedAt:         time.Now(),
+			BackupVaultName:   "BackupVault1",
+			Region:            "us-east-1",
+			NewKmsKeyURL:      "projects/test/locations/us/keyRings/test/cryptoKeys/key1",
+			AccountIdentifier: "account-1",
+		},
+		{
+			ID:                2,
+			Status:            "pending",
+			BackupVaultUUID:   "vault-uuid-2",
+			UpdatedAt:         time.Now(),
+			BackupVaultName:   "BackupVault2",
+			Region:            "us-west-1",
+			NewKmsKeyURL:      "projects/test/locations/us/keyRings/test/cryptoKeys/key2",
+			AccountIdentifier: "account-2",
+		},
+	}
+
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	vcpStore.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+	vcpStore.On("GetCmekRotationJobStatuses", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(offset int) bool {
+		return offset == 0
+	})).Return(jobStatuses, nil)
+	vcpStore.On("GetCmekRotationJobStatuses", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(offset int) bool {
+		return offset > 0
+	})).Return([]*database.CmekRotationJobStatus{}, nil)
+
+	sink.On("DeliverMetrics", mock.Anything, mock.MatchedBy(func(metrics []entity.HydratedMetric) bool {
+		backupVaultMetricsCount := 0
+		for _, metric := range metrics {
+			if metric.MeasuredType == metadata.CMEKBackupKeyRotationState {
+				backupVaultMetricsCount++
+			}
+		}
+		return backupVaultMetricsCount == 2
+	})).Return(1)
+	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink}
+	err := mp.ProcessPerformanceMetrics(ctx)
+	assert.NoError(t, err)
+
+	waitForAsyncOperations(t, 200*time.Millisecond)
+
+	vcpStore.AssertCalled(t, "GetCmekRotationJobStatuses", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	sink.AssertCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
+	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestMetricsProcessor_ProcessPerformanceMetrics_BackupVaultMetricsDisabled(t *testing.T) {
+	originalValue := os.Getenv("ENABLE_BACKUP_VAULT_METRICS")
+	defer func() {
+		if originalValue == "" {
+			_ = os.Unsetenv("ENABLE_BACKUP_VAULT_METRICS")
+		} else {
+			_ = os.Setenv("ENABLE_BACKUP_VAULT_METRICS", originalValue)
+		}
+	}()
+	_ = os.Setenv("ENABLE_BACKUP_VAULT_METRICS", "false")
+
+	ctx := context.Background()
+	vcpStore := &database.MockStorage{}
+	telemetryStore := &metricdb.MockStorage{}
+	sink := &performance.MockSink{}
+
+	testPoolData := &database.PoolMetricsData{
+		ID:             1,
+		UUID:           "pool-uuid-1",
+		Name:           "test-pool",
+		SizeInBytes:    1000,
+		DeploymentName: "test-deployment",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: "test-account",
+		},
+	}
+
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+	vcpStore.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+
+	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
+	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink}
+	err := mp.ProcessPerformanceMetrics(ctx)
+	assert.NoError(t, err)
+
+	waitForAsyncOperations(t, 200*time.Millisecond)
+
+	vcpStore.AssertNotCalled(t, "GetCmekRotationJobStatuses", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	sink.AssertCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
+	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
+}

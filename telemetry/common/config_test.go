@@ -107,6 +107,24 @@ func TestEnableLargeVolumesBillingWithEnvironmentVariable(t *testing.T) {
 	}
 }
 
+func TestEnableBackupVaultMetricsDefaultValue(t *testing.T) {
+	config := LoadConfig()
+
+	if config.EnableBackupVaultMetrics != false {
+		t.Fatalf("Expected EnableBackupVaultMetrics to default to false, got %v", config.EnableBackupVaultMetrics)
+	}
+}
+
+func TestEnableBackupVaultMetricsWithEnvironmentVariable(t *testing.T) {
+	t.Setenv("ENABLE_BACKUP_VAULT_METRICS", "true")
+
+	config := LoadConfig()
+
+	if config.EnableBackupVaultMetrics != true {
+		t.Fatalf("Expected EnableBackupVaultMetrics to be true, got %v", config.EnableBackupVaultMetrics)
+	}
+}
+
 func TestLoadMetricsConfigFromBytesReturnsValidConfig(t *testing.T) {
 	config := LoadMetricsConfigFromBytes()
 

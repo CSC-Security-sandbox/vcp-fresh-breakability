@@ -1227,7 +1227,10 @@ func TestRotateCmekBackupsForBackupVault_Success(t *testing.T) {
 	mockLogger := log.NewLogger()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 
-	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"},
+		Name:      "test-project-number",
+	}
 	params := &commonparams.BackupVaultParams{
 		OwnerID:       "owner-uuid",
 		BackupVaultID: "backup-vault-uuid",
@@ -1262,7 +1265,17 @@ func TestRotateCmekBackupsForBackupVault_Success(t *testing.T) {
 		BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
 		WorkflowID: "workflow-id",
 	}
-	mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
+	mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(j *datamodel.Job) bool {
+		return j.Type == string(models.JobTypeRotateCmekBackups) &&
+			j.State == string(models.JobsStateNEW) &&
+			j.ResourceName == dbBV.Name &&
+			j.JobAttributes != nil &&
+			j.JobAttributes.ResourceUUID == dbBV.UUID &&
+			j.JobAttributes.Location == params.Region &&
+			j.JobAttributes.KmsAttributes != nil &&
+			j.JobAttributes.KmsAttributes.NewKmsKeyURL == primaryKeyVersion &&
+			j.JobAttributes.KmsAttributes.AccountIdentifier == account.Name
+	})).Return(job, nil)
 
 	mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
 	mockTemporal.On("ExecuteWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)

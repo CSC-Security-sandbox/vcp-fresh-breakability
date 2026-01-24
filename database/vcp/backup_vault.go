@@ -322,3 +322,41 @@ func (d *DataStoreRepository) GetBackupVaultUUIDsFromBackupPolicyUUID(ctx contex
 
 	return backupVaultUUIDs, nil
 }
+
+// CmekRotationJobStatus represents a CMEK rotation job status from the jobs table
+type CmekRotationJobStatus struct {
+	ID                int64     `gorm:"column:id"`
+	Status            string    `gorm:"column:status"`
+	BackupVaultUUID   string    `gorm:"column:backup_vault_uuid"`
+	UpdatedAt         time.Time `gorm:"column:updated_at"`
+	BackupVaultName   string    `gorm:"column:backup_vault_name"`
+	Region            string    `gorm:"column:region"`
+	NewKmsKeyURL      string    `gorm:"column:new_kms_key_url"`
+	AccountIdentifier string    `gorm:"column:account_identifier"`
+}
+
+// GetCmekRotationJobStatuses retrieves CMEK rotation job statuses from the jobs table
+// This queries the VCP jobs table for job statuses related to CMEK rotation
+//
+// Note: This function requires PostgreSQL as it uses PostgreSQL-specific features:
+// - JSONB operators (->>) for extracting values from JSONB columns
+// - Type casting (::text) for explicit type conversion
+// This function is incompatible with SQLite and will fail in SQLite environments.
+func (d *DataStoreRepository) GetCmekRotationJobStatuses(ctx context.Context, startTime, endTime time.Time, limit, offset int) ([]*CmekRotationJobStatus, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var results []*CmekRotationJobStatus
+
+	err := db.Model(&datamodel.Job{}).
+		Select("id, state as status, (job_attributes->>'resource_uuid')::text as backup_vault_uuid, updated_at, resource_name as backup_vault_name, (job_attributes->>'location')::text as region, (job_attributes->'kms_attributes'->>'new_kms_key_url')::text as new_kms_key_url, COALESCE((job_attributes->'kms_attributes'->>'account_identifier')::text, '') as account_identifier").
+		Where("type = ? AND updated_at >= ? AND updated_at <= ? AND deleted_at IS NULL", models.JobTypeRotateCmekBackups, startTime, endTime).
+		Where("(job_attributes->>'resource_uuid') IS NOT NULL AND resource_name IS NOT NULL AND resource_name != '' AND (job_attributes->>'location') IS NOT NULL AND (job_attributes->'kms_attributes'->>'new_kms_key_url') IS NOT NULL AND (job_attributes->'kms_attributes'->>'account_identifier') IS NOT NULL").
+		Order("updated_at").
+		Limit(limit).
+		Offset(offset).
+		Scan(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}

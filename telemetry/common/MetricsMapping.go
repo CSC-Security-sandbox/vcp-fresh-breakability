@@ -85,6 +85,9 @@ func CreateMetricsMappingMap() map[metadata.CombinedKeyResourceTypeMeasuredType]
 		{ResourceType: metadata.VolumePool, MeasuredType: metadata.CoolTierDataWriteSize}: {
 			Left: "auto_tiering/cold_tier_write_byte_count", Middle: "", Right: "",
 		},
+		{ResourceType: metadata.BackupVault, MeasuredType: metadata.CMEKBackupKeyRotationState}: {
+			Left: "cmek_backup_rotation_state", Middle: "", Right: "",
+		},
 	}
 	return metricsMappingMap
 }

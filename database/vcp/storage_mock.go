@@ -6410,6 +6410,68 @@ func (_c *MockStorage_GetBackupVaultUUIDsFromBackupPolicyUUID_Call) RunAndReturn
 	return _c
 }
 
+// GetCmekRotationJobStatuses provides a mock function with given fields: ctx, startTime, endTime, limit, offset
+func (_m *MockStorage) GetCmekRotationJobStatuses(ctx context.Context, startTime time.Time, endTime time.Time, limit int, offset int) ([]*CmekRotationJobStatus, error) {
+	ret := _m.Called(ctx, startTime, endTime, limit, offset)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCmekRotationJobStatuses")
+	}
+
+	var r0 []*CmekRotationJobStatus
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time, int, int) ([]*CmekRotationJobStatus, error)); ok {
+		return rf(ctx, startTime, endTime, limit, offset)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time, int, int) []*CmekRotationJobStatus); ok {
+		r0 = rf(ctx, startTime, endTime, limit, offset)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*CmekRotationJobStatus)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time, time.Time, int, int) error); ok {
+		r1 = rf(ctx, startTime, endTime, limit, offset)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetCmekRotationJobStatuses_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCmekRotationJobStatuses'
+type MockStorage_GetCmekRotationJobStatuses_Call struct {
+	*mock.Call
+}
+
+// GetCmekRotationJobStatuses is a helper method to define mock.On call
+//   - ctx context.Context
+//   - startTime time.Time
+//   - endTime time.Time
+//   - limit int
+//   - offset int
+func (_e *MockStorage_Expecter) GetCmekRotationJobStatuses(ctx interface{}, startTime interface{}, endTime interface{}, limit interface{}, offset interface{}) *MockStorage_GetCmekRotationJobStatuses_Call {
+	return &MockStorage_GetCmekRotationJobStatuses_Call{Call: _e.mock.On("GetCmekRotationJobStatuses", ctx, startTime, endTime, limit, offset)}
+}
+
+func (_c *MockStorage_GetCmekRotationJobStatuses_Call) Run(run func(ctx context.Context, startTime time.Time, endTime time.Time, limit int, offset int)) *MockStorage_GetCmekRotationJobStatuses_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(time.Time), args[2].(time.Time), args[3].(int), args[4].(int))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetCmekRotationJobStatuses_Call) Return(_a0 []*CmekRotationJobStatus, _a1 error) *MockStorage_GetCmekRotationJobStatuses_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetCmekRotationJobStatuses_Call) RunAndReturn(run func(context.Context, time.Time, time.Time, int, int) ([]*CmekRotationJobStatus, error)) *MockStorage_GetCmekRotationJobStatuses_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBackupsByBackupVaultOwnerIDAndFilter provides a mock function with given fields: ctx, backupVaultUUID, accountID, filters
 func (_m *MockStorage) GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.Context, backupVaultUUID string, accountID int64, filters [][]interface{}) ([]*datamodel.Backup, error) {
 	ret := _m.Called(ctx, backupVaultUUID, accountID, filters)

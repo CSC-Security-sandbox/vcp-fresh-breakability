@@ -101,6 +101,7 @@ harvestConfig:
   enableVolumeMetrics: "false"
   enablePoolMetrics: "false"
   enableBackupMetrics: "false"
+  enableBackupVaultMetrics: "false"
   enableReplicationMetrics: "false"
   coreApiBaseUrl: "core-service.vcp.svc.cluster.local"
   coreApiPort: "8080"

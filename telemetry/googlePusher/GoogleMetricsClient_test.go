@@ -1204,6 +1204,21 @@ func Test_GetMetricName_BillingMetric(t *testing.T) {
 		assert.Contains(t, metricName, metadata.MetricsNamePrefixPoolFirstParty)
 	})
 
+	t.Run("BackupVault resource type performance metric", func(t *testing.T) {
+		rm := metadata.ResourceMetadata{
+			ResourceType: metadata.BackupVault,
+		}
+		hydratedM := &entity.HydratedMetric{
+			Metadata:     rm,
+			MeasuredType: metadata.CMEKBackupKeyRotationState,
+		}
+		googleMetric := *common.NewGoogleMetric(hydratedM)
+
+		metricName, err := client.GetMetricName(googleMetric)
+		assert.NoError(t, err)
+		assert.Contains(t, metricName, metadata.MetricsNamePrefixBackupVaultFirstParty)
+		assert.Contains(t, metricName, "cmek_backup_rotation_state")
+	})
 	t.Run("Unrecognized resource type performance metric", func(t *testing.T) {
 		rm := metadata.ResourceMetadata{
 			ResourceType: "UnknownResourceType",
@@ -1406,6 +1421,87 @@ func Test_CreateMetricValue_HydratedMetricType(t *testing.T) {
 		assert.NotEmpty(t, mv.EndTime)
 		// For HydratedMetric type, endTime should be startTime + 59 with secondsRemaining subtracted
 		assert.NotEqual(t, mv.StartTime, mv.EndTime)
+	})
+	t.Run("HydratedMetric with Tags adds labels", func(t *testing.T) {
+		rm := metadata.ResourceMetadata{
+			ResourceType: metadata.BackupVault,
+			Tags: map[string]string{
+				"backup_crypto_key_version": "projects/test/locations/us/keyRings/test/cryptoKeys/key1",
+			},
+		}
+		hydratedM := &entity.HydratedMetric{
+			Metadata:     rm,
+			MeasuredType: metadata.CMEKBackupKeyRotationState,
+			Quantity:     2.0,
+			Timestamp:    entity.UnixNano(time.Now().UnixNano()),
+		}
+		googleMetric := *common.NewGoogleMetric(hydratedM)
+
+		mv, err := client.CreateMetricValue(googleMetric)
+		assert.NoError(t, err)
+		assert.NotNil(t, mv)
+		assert.NotEmpty(t, mv.Labels)
+		assert.Equal(t, "projects/test/locations/us/keyRings/test/cryptoKeys/key1", mv.Labels["backup_crypto_key_version"])
+	})
+	t.Run("HydratedMetric with empty Tags does not add labels", func(t *testing.T) {
+		rm := metadata.ResourceMetadata{
+			ResourceType: metadata.BackupVault,
+			Tags: map[string]string{
+				"backup_crypto_key_version": "",
+			},
+		}
+		hydratedM := &entity.HydratedMetric{
+			Metadata:     rm,
+			MeasuredType: metadata.CMEKBackupKeyRotationState,
+			Quantity:     2.0,
+			Timestamp:    entity.UnixNano(time.Now().UnixNano()),
+		}
+		googleMetric := *common.NewGoogleMetric(hydratedM)
+
+		mv, err := client.CreateMetricValue(googleMetric)
+		assert.NoError(t, err)
+		assert.NotNil(t, mv)
+		_, exists := mv.Labels["backup_crypto_key_version"]
+		assert.False(t, exists, "Empty tag value should not be added to labels")
+	})
+	t.Run("HydratedMetric with nil Tags does not panic", func(t *testing.T) {
+		rm := metadata.ResourceMetadata{
+			ResourceType: metadata.BackupVault,
+			Tags:        nil,
+		}
+		hydratedM := &entity.HydratedMetric{
+			Metadata:     rm,
+			MeasuredType: metadata.CMEKBackupKeyRotationState,
+			Quantity:     2.0,
+			Timestamp:    entity.UnixNano(time.Now().UnixNano()),
+		}
+		googleMetric := *common.NewGoogleMetric(hydratedM)
+
+		mv, err := client.CreateMetricValue(googleMetric)
+		assert.NoError(t, err)
+		assert.NotNil(t, mv)
+	})
+	t.Run("HydratedMetric with multiple Tags adds all labels", func(t *testing.T) {
+		rm := metadata.ResourceMetadata{
+			ResourceType: metadata.BackupVault,
+			Tags: map[string]string{
+				"backup_crypto_key_version": "projects/test/locations/us/keyRings/test/cryptoKeys/key1",
+				"custom_label":               "custom_value",
+			},
+		}
+		hydratedM := &entity.HydratedMetric{
+			Metadata:     rm,
+			MeasuredType: metadata.CMEKBackupKeyRotationState,
+			Quantity:     2.0,
+			Timestamp:    entity.UnixNano(time.Now().UnixNano()),
+		}
+		googleMetric := *common.NewGoogleMetric(hydratedM)
+
+		mv, err := client.CreateMetricValue(googleMetric)
+		assert.NoError(t, err)
+		assert.NotNil(t, mv)
+		assert.Equal(t, "projects/test/locations/us/keyRings/test/cryptoKeys/key1", mv.Labels["backup_crypto_key_version"])
+		assert.Equal(t, "custom_value", mv.Labels["custom_label"])
 	})
 }
 

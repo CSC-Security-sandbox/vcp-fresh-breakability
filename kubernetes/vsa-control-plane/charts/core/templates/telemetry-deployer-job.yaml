@@ -170,6 +170,8 @@ spec:
               value: {{ .Values.telemetryDeployer.enableVolumeMetrics | default "false" | quote }}
             - name: ENABLE_BACKUP_METRICS
               value: {{ .Values.telemetryDeployer.enableBackupMetrics | default "false" | quote }}
+            - name: ENABLE_BACKUP_VAULT_METRICS
+              value: {{ .Values.telemetryDeployer.enableBackupVaultMetrics | default "false" | quote }}
             - name: ENABLE_SFR_METRICS
               value: {{ .Values.telemetryDeployer.enableSfrMetrics | default "false" | quote }}
             - name: ENABLE_BACKUP_BILLING_METRICS

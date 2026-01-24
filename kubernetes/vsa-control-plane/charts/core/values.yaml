@@ -281,6 +281,7 @@ telemetryDeployer:
   pusherServiceProject: "netapp-au-se1-autopush-sde-tst"
   enableVolumeMetrics: false
   enableBackupMetrics: false
+  enableBackupVaultMetrics: false
   enableSfrMetrics: false
   enableBackupBillingMetrics: false
   enableFilesBackupBilling: false

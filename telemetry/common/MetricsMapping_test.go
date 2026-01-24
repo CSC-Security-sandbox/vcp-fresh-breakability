@@ -218,6 +218,9 @@ func TestMetricsMappingMapCompleteness(t *testing.T) {
 
 		// Backup mappings
 		{ResourceType: metadata.Backup, MeasuredType: metadata.BackupLogicalSize},
+
+		// BackupVault mappings
+		{ResourceType: metadata.BackupVault, MeasuredType: metadata.CMEKBackupKeyRotationState},
 	}
 
 	for _, expectedKey := range expectedMappings {
@@ -233,5 +236,33 @@ func TestMetricsMappingMapCompleteness(t *testing.T) {
 
 	if actualCount != expectedCount {
 		t.Fatalf("Expected %d mappings, got %d", expectedCount, actualCount)
+	}
+}
+
+// TestBackupVaultCMEKKeyRotationStateMapping tests the BackupVault CMEK key rotation state mapping
+func TestBackupVaultCMEKKeyRotationStateMapping(t *testing.T) {
+	metricsMappingMap := CreateMetricsMappingMap()
+
+	key := metadata.CombinedKeyResourceTypeMeasuredType{
+		ResourceType: metadata.BackupVault,
+		MeasuredType: metadata.CMEKBackupKeyRotationState,
+	}
+
+	result, exists := metricsMappingMap[key]
+	if !exists {
+		t.Fatalf("Expected BackupVault CMEKBackupKeyRotationState key to exist in the map")
+	}
+
+	expectedLeft := "cmek_backup_rotation_state"
+	if result.Left != expectedLeft {
+		t.Fatalf("Expected Left to be '%s', got '%s'", expectedLeft, result.Left)
+	}
+
+	if result.Middle != "" {
+		t.Fatalf("Expected Middle to be empty, got '%s'", result.Middle)
+	}
+
+	if result.Right != "" {
+		t.Fatalf("Expected Right to be empty, got '%s'", result.Right)
 	}
 }
