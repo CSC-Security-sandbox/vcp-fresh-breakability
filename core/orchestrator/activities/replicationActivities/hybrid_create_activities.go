@@ -710,7 +710,7 @@ func (a *HybridReplicationActivity) createSVMPeerForHybridReplication(ctx contex
 	logger.Debug("createSVMPeerForHybridReplication")
 	snapmirrorApplication := ontaprestmodels.SvmPeerApplicationsSnapmirror
 	flexcacheApplication := ontaprestmodels.SvmPeerApplicationsFlexcache
-	
+
 	params := vsa.CreateSVMPeerParams{
 		LocalSVMName:    result.DestinationVolume.Svm.Name,
 		PeerSVMName:     result.HybridReplicationParameters.PeerSvmName,
@@ -1230,7 +1230,10 @@ func (a *HybridReplicationActivity) UpdateClusterPeerDetailsOnErrorActivity(ctx 
 	// Update cluster peering record with ONTAP cluster peer details
 
 	clusterPeering := result.ClusterPeeringRow
-	if clusterPeering.State == models.CvpClusterPeeringStatusPENDINGCLUSTERPEERING || clusterPeering.State == models.CvpClusterPeeringStatusCREATING {
+	if clusterPeering.State == models.CvpClusterPeeringStatusPENDINGCLUSTERPEERING ||
+		clusterPeering.State == models.CvpClusterPeeringStatusCREATING ||
+		(result.ClusterPeeringRow.State == models.CvpClusterPeeringStatusPEERED &&
+			result.DbVolReplication.HybridReplicationAttributes.Status == models.HybridReplicationStatusPendingSVMPeer) {
 		if clusterPeering.ClusterPeeringAttributes != nil {
 			clusterPeering.ClusterPeeringAttributes.PassPhrase = nil
 			clusterPeering.ClusterPeeringAttributes.Command = nil

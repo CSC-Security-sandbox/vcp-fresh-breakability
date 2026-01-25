@@ -445,17 +445,18 @@ func (wf *createInternalEstablishWorkflow) Run(ctx workflow.Context, args ...int
 	defer func() {
 		if err != nil {
 			updateStateDetailsAndCode(&replicationResult, workflows.ConvertToVSAError(err))
-			err2 := workflow.ExecuteActivity(ctx, replicationActivity.UpdateClusterPeerDetailsOnErrorActivity, &replicationResult).Get(ctx, nil)
-			if err2 != nil {
-				log.Errorf("Failed to update cache parameters in DB: %v", err2)
-			}
 			err4 := workflow.ExecuteActivity(ctx, replicationActivity.UpdateSVMPeerOnErrorActivity, &replicationResult).Get(ctx, nil)
 			if err4 != nil {
 				log.Errorf("Failed to update cache parameters in DB: %v", err4)
 			}
+			err2 := workflow.ExecuteActivity(ctx, replicationActivity.UpdateClusterPeerDetailsOnErrorActivity, &replicationResult).Get(ctx, nil)
+			if err2 != nil {
+				log.Errorf("Failed to update cache parameters in DB: %v", err2)
+			}
+
 			err3 := workflow.ExecuteActivity(ctx, replicationActivity.UpdateReplicationRowDetailsOnErrorActivity, &replicationResult).Get(ctx, nil)
 			if err3 != nil {
-				log.Errorf("Failed to update cache parameters in DB: %v", err2)
+				log.Errorf("Failed to update cache parameters in DB: %v", err3)
 			}
 			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
 			rollbackManager.ExecuteRollback(disconnectedCtx, err)
