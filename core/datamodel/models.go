@@ -155,7 +155,8 @@ func (pbi PoolBuildInfo) Value() (driver.Value, error) {
 
 type PoolView struct {
 	Pool
-	Throughput           float64 `json:"throughput"`
+	Throughput           float64 `json:"throughput"` // Stores the utilized throughput
+	Iops                 int64   `json:"iops"`       // Stores the utilized iops
 	QuotaInBytes         uint64  `json:"quotaInBytes"`
 	VolumeCount          int64   `json:"volumeCount"`
 	ThinCloneVolumeCount int64   `json:"cloneCount"`

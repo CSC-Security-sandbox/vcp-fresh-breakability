@@ -532,6 +532,10 @@ func _validateAndSetUpdatePoolParams(params *commonparams.UpdatePoolParams, pool
 	// Build CustomPerformance params first
 	perf := validators.NewCustomPerformanceFromUpdate(params)
 	perf.LargeCapacity = pool.LargeCapacity // Use existing pool type for validation
+	// Use existing pool QosType for validation when update parameter is empty
+	if perf.QosType == "" {
+		perf.QosType = pool.QosType
+	}
 	// Prevent changing pool type
 	if params.LargeCapacity != nil && (*params.LargeCapacity != pool.LargeCapacity) {
 		return customerrors.NewUserInputValidationErr("Given large capacity value is not supported. Large capacity cannot be changed for existing pool")
@@ -884,9 +888,13 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 		Account: &models.Account{
 			Name: accountName,
 		},
-		SatisfiesPzi:  pool.SatisfyZI,
-		SatisfiesPzs:  pool.SatisfyZS,
-		APIAccessMode: pool.APIAccessMode,
+		SatisfiesPzi:            pool.SatisfyZI,
+		SatisfiesPzs:            pool.SatisfyZS,
+		APIAccessMode:           pool.APIAccessMode,
+		TotalThroughputMibps:    float64(pool.PoolAttributes.ThroughputMibps),
+		UtilizedThroughputMibps: float64(pool.Throughput),
+		TotalIops:               pool.PoolAttributes.Iops,
+		UtilizedIops:            pool.Iops,
 	}
 
 	if pool.Account != nil && &pool.Account.ID != nil {

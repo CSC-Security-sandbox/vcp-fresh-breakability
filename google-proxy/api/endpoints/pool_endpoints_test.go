@@ -4844,13 +4844,17 @@ func TestConvertToPoolV1Beta(t *testing.T) {
 				CreatedAt: createdAt,
 				DeletedAt: &deletedAt,
 			},
-			Description:  "Test pool description",
-			VendorID:     "/projects/123/locations/us-east4/pools/test-pool",
-			Region:       "us-east4",
-			SizeInBytes:  1099511627776, // 1 TiB
-			ServiceLevel: "premium",
-			State:        models.LifeCycleStateAvailable,
-			QosType:      "auto",
+			Description:             "Test pool description",
+			VendorID:                "/projects/123/locations/us-east4/pools/test-pool",
+			Region:                  "us-east4",
+			SizeInBytes:             1099511627776, // 1 TiB
+			ServiceLevel:            "premium",
+			State:                   models.LifeCycleStateAvailable,
+			QosType:                 "auto",
+			TotalThroughputMibps:    1024.0,
+			TotalIops:               2048,
+			UtilizedThroughputMibps: 1024.0,
+			UtilizedIops:            2048,
 			AutoTieringConfig: &models.AutoTieringConfig{
 				HotTierSizeInBytes:      549755813888, // 512 GiB
 				EnableHotTierAutoResize: true,
@@ -4883,6 +4887,10 @@ func TestConvertToPoolV1Beta(t *testing.T) {
 		assert.True(tt, result.DeletedAt.IsSet())
 		assert.Equal(tt, float64(1024), result.TotalThroughputMibps.Value)
 		assert.Equal(tt, float64(2048), result.TotalIops.Value)
+		assert.True(tt, result.AvailableThroughputMibps.IsSet())
+		assert.Equal(tt, float64(0), result.AvailableThroughputMibps.Value)
+		assert.True(tt, result.AvailableIops.IsSet())
+		assert.Equal(tt, float64(0), result.AvailableIops.Value)
 		assert.Equal(tt, "test-kms-config-id", result.KmsConfigId.Value)
 		assert.Equal(tt, "projects/test-kms-project-id/locations/us-east4/keyRings/test-kms-keyring/cryptoKeys/test-kms-config", result.KmsConfigResourceId.Value)
 		assert.Equal(tt, gcpgenserver.PoolV1betaTypeUNIFIED, result.Type.Value, "Type should be set to UNIFIED for VSA pools")
@@ -7119,6 +7127,90 @@ func TestConvertToPoolV1Beta_WithActiveDirectoryFields(t *testing.T) {
 		// Auto tiering related fields should not be set when auto tiering is not enabled
 		assert.False(tt, result.HotTierSizeInBytes.IsSet())
 		assert.False(tt, result.EnableHotTierAutoResize.IsSet())
+	})
+
+	t.Run("WhenPoolHasUtilizedThroughputAndIops_CalculatesAvailableCorrectly", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Name:                    "test-pool",
+			TotalThroughputMibps:    1024.0,
+			UtilizedThroughputMibps: 256.0,
+			TotalIops:               2048,
+			UtilizedIops:            512,
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Enabled:    true,
+				Throughput: 1024.0,
+				Iops:       2048,
+			},
+			QosType:        utils.QosTypeManual,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.Equal(tt, "pool-uuid", result.PoolId.Value)
+		assert.Equal(tt, float64(1024), result.TotalThroughputMibps.Value)
+		assert.Equal(tt, float64(768), result.AvailableThroughputMibps.Value) // 1024 - 256
+		assert.Equal(tt, float64(2048), result.TotalIops.Value)
+		assert.Equal(tt, float64(1536), result.AvailableIops.Value) // 2048 - 512
+	})
+
+	t.Run("WhenPoolHasFullyUtilizedThroughputAndIops_CalculatesAvailableCorrectly", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Name:                    "test-pool",
+			TotalThroughputMibps:    1024.0,
+			UtilizedThroughputMibps: 1024.0,
+			TotalIops:               2048,
+			UtilizedIops:            2048,
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Enabled:    true,
+				Throughput: 1024.0,
+				Iops:       2048,
+			},
+			QosType:        utils.QosTypeManual,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.Equal(tt, "pool-uuid", result.PoolId.Value)
+		assert.Equal(tt, float64(1024), result.TotalThroughputMibps.Value)
+		assert.Equal(tt, float64(0), result.AvailableThroughputMibps.Value)
+		assert.Equal(tt, float64(2048), result.TotalIops.Value)
+		assert.Equal(tt, float64(0), result.AvailableIops.Value)
+	})
+
+	t.Run("WhenPoolHasNoUtilizedThroughputAndIops_CalculatesAvailableCorrectly", func(tt *testing.T) {
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Name:                    "test-pool",
+			TotalThroughputMibps:    1024.0,
+			UtilizedThroughputMibps: 0.0,
+			TotalIops:               2048,
+			UtilizedIops:            0,
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Enabled:    true,
+				Throughput: 1024.0,
+				Iops:       2048,
+			},
+			QosType:        utils.QosTypeManual,
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.Equal(tt, "pool-uuid", result.PoolId.Value)
+		assert.Equal(tt, float64(1024), result.TotalThroughputMibps.Value)
+		assert.Equal(tt, float64(1024), result.AvailableThroughputMibps.Value)
+		assert.Equal(tt, float64(2048), result.TotalIops.Value)
+		assert.Equal(tt, float64(2048), result.AvailableIops.Value)
 	})
 
 	t.Run("WhenConvertingPoolV1Beta_WithoutAutoTiering_NoAutoTieringFields", func(tt *testing.T) {

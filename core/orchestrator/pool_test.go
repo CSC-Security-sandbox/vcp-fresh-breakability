@@ -152,6 +152,10 @@ func TestConvertDatastorePoolToModel_ValidPool_ReturnsCorrectModelWIthAccountID(
 	assert.Equal(t, datastorePool.AllowAutoTiering, result.AllowAutoTiering)
 	assert.Equal(t, datastorePool.Network, result.VendorSubNetID)
 	assert.Equal(t, datastorePool.ServiceLevel, result.ServiceLevel)
+	assert.Equal(t, float64(datastorePool.PoolAttributes.ThroughputMibps), result.TotalThroughputMibps)
+	assert.Equal(t, float64(0), result.UtilizedThroughputMibps)
+	assert.Equal(t, datastorePool.PoolAttributes.Iops, result.TotalIops)
+	assert.Equal(t, int64(0), result.UtilizedIops)
 }
 
 func TestConvertDatastorePoolToModel_ValidPool_ReturnsCorrectModel(t *testing.T) {
@@ -199,6 +203,10 @@ func TestConvertDatastorePoolToModel_ValidPool_ReturnsCorrectModel(t *testing.T)
 	assert.Equal(t, datastorePool.AllowAutoTiering, result.AllowAutoTiering)
 	assert.Equal(t, datastorePool.Network, result.VendorSubNetID)
 	assert.Equal(t, datastorePool.ServiceLevel, result.ServiceLevel)
+	assert.Equal(t, float64(datastorePool.PoolAttributes.ThroughputMibps), result.TotalThroughputMibps)
+	assert.Equal(t, float64(0), result.UtilizedThroughputMibps)
+	assert.Equal(t, datastorePool.PoolAttributes.Iops, result.TotalIops)
+	assert.Equal(t, int64(0), result.UtilizedIops)
 }
 
 func TestConvertDatastorePoolToModel_NilDeletedAt_ReturnsNilDeletedAt(t *testing.T) {
@@ -4867,6 +4875,26 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		assert.NoError(tt, err, "Valid update params with labels should pass validation")
 	})
 
+	t.Run("ValidParams_WithoutQosType", func(tt *testing.T) {
+		params := &common.UpdatePoolParams{
+			SizeInBytes:          uint64(4 * utils.TiBInBytes),
+			QosType:              "",
+			LargeCapacity:        nillable.ToPointer(false),
+			TotalThroughputMibps: 256,
+			TotalIops:            nillable.ToPointer(int64(4096)),
+			Description:          "Updated pool description",
+		}
+
+		pool := &datamodel.Pool{
+			SizeInBytes:      int64(2 * utils.TiBInBytes),
+			AllowAutoTiering: false,
+			LargeCapacity:    false,
+			QosType:          utils.QosTypeAuto,
+		}
+
+		err := _validateAndSetUpdatePoolParams(params, pool)
+		assert.NoError(tt, err, "Valid update params with description should pass validation")
+	})
 	t.Run("ValidParams_WithDescription", func(tt *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),

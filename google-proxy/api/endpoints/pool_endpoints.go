@@ -742,14 +742,15 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 	}
 
 	var throughputValue float64
+	var iops int64
 	customPerformanceEnabled := false
-	var iops int64 = 0
 	if (pool.CustomPerformanceParams != nil) && (pool.CustomPerformanceParams.Enabled) {
 		customPerformanceEnabled = pool.CustomPerformanceParams.Enabled
 		throughputValue = pool.CustomPerformanceParams.Throughput
 		iops = pool.CustomPerformanceParams.Iops
 	} else {
 		throughputValue = pool.TotalThroughputMibps
+		iops = pool.TotalIops
 	}
 
 	labels := gcpgenserver.PoolV1betaLabels{}
@@ -773,10 +774,12 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		Network:                  pool.VendorSubNetID,
 		SizeInBytes:              float64(pool.SizeInBytes),
 		TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(throughputValue),
+		AvailableThroughputMibps: gcpgenserver.NewOptNilFloat64(throughputValue - pool.UtilizedThroughputMibps),
+		TotalIops:                gcpgenserver.NewOptNilFloat64(float64(iops)),
+		AvailableIops:            gcpgenserver.NewOptNilFloat64(float64(iops) - float64(pool.UtilizedIops)),
 		StoragePoolState:         gcpgenserver.NewOptPoolV1betaStoragePoolState(gcpgenserver.PoolV1betaStoragePoolState(pool.State)),
 		StoragePoolStateDetails:  gcpgenserver.NewOptString(pool.StateDetails),
 		ServiceLevel:             gcpgenserver.PoolV1betaServiceLevel(pool.ServiceLevel),
-		TotalIops:                gcpgenserver.NewOptNilFloat64(float64(iops)),
 		QosType:                  gcpgenserver.NewOptNilString(pool.QosType),
 		CustomPerformanceEnabled: gcpgenserver.NewOptBool(customPerformanceEnabled),
 		// Unified Pool is set true & StorageClass is to software for VSA pools

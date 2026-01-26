@@ -47,13 +47,36 @@ func CreateOrUpdatePoolView(db *gormwrapper.Wrapper) error {
 	const viewSQL = `CREATE VIEW pool_views AS
 	SELECT
 		p.*,
-		coalesce(sum(v.throughput), 0.0) as throughput,
-		coalesce(sum(v.size_in_bytes), 0) as quota_in_bytes,
+		coalesce(
+			CASE
+				WHEN p.qos_type = 'manual' AND v.volume_performance_group_id IS NOT NULL AND vpg.is_shared = false
+					THEN sum(vpg.throughput_mibps)
+				WHEN p.qos_type = 'manual' AND v.volume_performance_group_id IS NOT NULL AND vpg.is_shared = true
+					THEN sum(vpg.throughput_mibps) / NULLIF((
+						SELECT COUNT(*) FROM volumes v2 WHERE v2.volume_performance_group_id = vpg.id AND v2.deleted_at IS NULL), 0)
+				ELSE sum(v.throughput)
+			END,
+			0.0
+		) as throughput,
+		coalesce(
+			CASE
+				WHEN p.qos_type = 'manual' AND v.volume_performance_group_id IS NOT NULL AND vpg.is_shared = false
+					THEN sum(vpg.iops)
+				WHEN p.qos_type = 'manual' AND v.volume_performance_group_id IS NOT NULL AND vpg.is_shared = true
+					THEN sum(vpg.iops) / NULLIF((
+						SELECT COUNT(*) FROM volumes v2 WHERE v2.volume_performance_group_id = vpg.id AND v2.deleted_at IS NULL), 0)
+				ELSE 0
+			END,
+			0
+		) as iops,
+		coalesce(max(0, sum(v.size_in_bytes - v.clones_shared_bytes)), 0) as quota_in_bytes,
+		coalesce(sum(CASE WHEN v.clones_shared_bytes > 0 THEN 1 ELSE 0 END), 0) as thin_clone_volume_count,
 		count(v.id) as volume_count
 	FROM pools p
 		LEFT JOIN volumes v on v.pool_id = p.id
 		and v.account_id = p.account_id
 		and v.deleted_at is null
+		LEFT JOIN volume_performance_groups vpg on vpg.id = v.volume_performance_group_id
 	GROUP BY
 		p.id,
 		p.name;`

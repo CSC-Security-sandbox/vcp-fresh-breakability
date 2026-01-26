@@ -14367,6 +14367,8 @@ type PoolInternalV1beta struct {
 	CustomPerformanceEnabled OptBool `json:"customPerformanceEnabled"`
 	// The total iops set for a pool.
 	TotalIops OptNilFloat64 `json:"totalIops"`
+	// The available iops for the pool.
+	AvailableIops OptNilFloat64 `json:"AvailableIops"`
 	// The type of storage pool. STORAGE_POOL_TYPE_UNSPECIFIED is the default value and should not be
 	// used. STANDARD represents the classic/legacy storage pool. UNIFIED represents the VSA-based
 	// storage pool.
@@ -14572,6 +14574,11 @@ func (s *PoolInternalV1beta) GetCustomPerformanceEnabled() OptBool {
 // GetTotalIops returns the value of TotalIops.
 func (s *PoolInternalV1beta) GetTotalIops() OptNilFloat64 {
 	return s.TotalIops
+}
+
+// GetAvailableIops returns the value of AvailableIops.
+func (s *PoolInternalV1beta) GetAvailableIops() OptNilFloat64 {
+	return s.AvailableIops
 }
 
 // GetType returns the value of Type.
@@ -14802,6 +14809,11 @@ func (s *PoolInternalV1beta) SetCustomPerformanceEnabled(val OptBool) {
 // SetTotalIops sets the value of TotalIops.
 func (s *PoolInternalV1beta) SetTotalIops(val OptNilFloat64) {
 	s.TotalIops = val
+}
+
+// SetAvailableIops sets the value of AvailableIops.
+func (s *PoolInternalV1beta) SetAvailableIops(val OptNilFloat64) {
+	s.AvailableIops = val
 }
 
 // SetType sets the value of Type.
@@ -15445,6 +15457,8 @@ type PoolV1beta struct {
 	CustomPerformanceEnabled OptBool `json:"customPerformanceEnabled"`
 	// The total iops set for a pool.
 	TotalIops OptNilFloat64 `json:"totalIops"`
+	// The available iops for the pool.
+	AvailableIops OptNilFloat64 `json:"AvailableIops"`
 	// The type of storage pool. STORAGE_POOL_TYPE_UNSPECIFIED is the default value and should not be
 	// used. STANDARD represents the classic/legacy storage pool. UNIFIED represents the VSA-based
 	// storage pool.
@@ -15646,6 +15660,11 @@ func (s *PoolV1beta) GetCustomPerformanceEnabled() OptBool {
 // GetTotalIops returns the value of TotalIops.
 func (s *PoolV1beta) GetTotalIops() OptNilFloat64 {
 	return s.TotalIops
+}
+
+// GetAvailableIops returns the value of AvailableIops.
+func (s *PoolV1beta) GetAvailableIops() OptNilFloat64 {
+	return s.AvailableIops
 }
 
 // GetType returns the value of Type.
@@ -15866,6 +15885,11 @@ func (s *PoolV1beta) SetCustomPerformanceEnabled(val OptBool) {
 // SetTotalIops sets the value of TotalIops.
 func (s *PoolV1beta) SetTotalIops(val OptNilFloat64) {
 	s.TotalIops = val
+}
+
+// SetAvailableIops sets the value of AvailableIops.
+func (s *PoolV1beta) SetAvailableIops(val OptNilFloat64) {
+	s.AvailableIops = val
 }
 
 // SetType sets the value of Type.

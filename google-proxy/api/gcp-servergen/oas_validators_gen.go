@@ -6406,6 +6406,24 @@ func (s *PoolInternalV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.AvailableIops.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "AvailableIops",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.Type.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -7058,6 +7076,24 @@ func (s *PoolV1beta) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "totalIops",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.AvailableIops.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "AvailableIops",
 			Error: err,
 		})
 	}

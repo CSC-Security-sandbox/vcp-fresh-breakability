@@ -3241,6 +3241,71 @@ func TestCreateVolume(t *testing.T) {
 		assert.Contains(tt, err.Error(), "Cannot create Volumes in ONTAP mode pool using GCNV API")
 	})
 
+	t.Run("WhenPoolAttributesIsNil", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			APIAccessMode:  common.DEFAULTMode,
+			VendorID:       "/projects/project123/locations/us-west1-a/pools/test-pool",
+			PoolAttributes: nil,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:       "test_account",
+			Region:            "test_region",
+			Name:              "test_volume",
+			Zone:              "us-west1-a",
+			VendorID:          "/projects/project123/locations/us-west1-a/volumes/test-volume",
+			QuotaInBytes:      minQuotaInBytesPool,
+			Protocols:         []string{"NFS"},
+			Description:       "Some description",
+			DisplayName:       "Some display name",
+			SnapshotDirectory: true,
+			PoolID:            "test-pool-uuid",
+		}
+
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getOrCreateAccount = originalGetOrCreateAccount
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		volume, _, err := createVolume(ctx, store, temporal, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, volume)
+		assert.Contains(tt, err.Error(), "Pool attributes are required")
+	})
+
 	t.Run("WhenValidateCreateVolumeParamFails", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewLogger()
@@ -9065,7 +9130,7 @@ func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 		correlationID := "test-correlation-id-123"
 		// Set correlation ID in log.Fields so GetCoRelationIDFromContext can find it
 		fields := log.Fields{
-			"key": "value",
+			"key":                                   "value",
 			string(middleware.RequestCorrelationID): correlationID,
 		}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
@@ -22719,6 +22784,71 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		mockTemporal.AssertExpectations(tt)
 	})
 
+	t.Run("WhenPoolAttributesIsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		pool := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+			Name:             "test-pool",
+			State:            models.LifeCycleStateREADY,
+			Account:          &datamodel.Account{Name: "test-account"},
+			AccountID:        1,
+			SizeInBytes:      1000000000000, // 1TB
+			Description:      "test pool",
+			LargeCapacity:    false,
+			AllowAutoTiering: false,
+			PoolAttributes:   nil,
+		}
+
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+
+		// Mock GetVolumeCountByPoolID to succeed with a count that exceeds c3-standard-4-lssd limit (245)
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(250), nil)
+		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{
+			{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				NodeAttributes: &datamodel.NodeDetails{InstanceType: "c3-standard-4-lssd"},
+			},
+		}, nil)
+		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.Type == string(models.JobTypeUpdatePool) &&
+				job.State == string(models.JobsStateNEW) &&
+				job.ResourceName == pool.UUID &&
+				job.AccountID.Int64 == pool.AccountID &&
+				job.AccountID.Valid
+		})).Return(createdJob, nil)
+		mockStorage.On("UpdatePoolState", ctx, pool, "UPDATING", "Update in progress").Return(pool, nil)
+
+		mockTemporal.EXPECT().ExecuteWorkflow(ctx,
+			mock.AnythingOfType("internal.StartWorkflowOptions"),
+			mock.AnythingOfType("func(internal.Context, *common.UpdatePoolParams, *datamodel.Pool, *common.AutoPoolScalingParams) (gcpserver.V1betaDescribePoolRes, error)"),
+			mock.MatchedBy(func(updateParams *common.UpdatePoolParams) bool {
+				return updateParams.PoolId == pool.UUID &&
+					updateParams.AccountName == pool.Account.Name &&
+					updateParams.SizeInBytes == uint64(pool.SizeInBytes) &&
+					updateParams.TotalThroughputMibps == 0 &&
+					updateParams.TotalIops == nil &&
+					updateParams.Description == pool.Description &&
+					updateParams.Labels == nil
+			}),
+			pool,
+			mock.MatchedBy(func(autoScalingParams *common.AutoPoolScalingParams) bool {
+				return autoScalingParams.CurrentVolumeCount == 250 &&
+					len(autoScalingParams.VolLimitPerInstanceMap) > 0
+			}),
+		).Return(nil, nil)
+
+		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool, false)
+
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
 	t.Run("WhenAutoTieringDisabled", func(tt *testing.T) {
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
@@ -26696,7 +26826,6 @@ func TestValidateUpdateVolumeRequest_ISCSIWithCMEK_ExistingKmsGrant(t *testing.T
 	}
 	err = store.DB().Create(volume).Error
 	assert.NoError(t, err)
-
 
 	params := &common.UpdateVolumeParams{
 		DataProtection: &models.UpdateDataProtection{

@@ -2670,16 +2670,25 @@ func checkAndTriggerPoolScalingIfNeeded(ctx context.Context, se database.Storage
 		CurrentVolumeCount:     currentVolumeCount,
 	}
 
+	totalThroughputMibps := int64(0)
+	var totalIops *int64
+	var labels *datamodel.JSONB
+	if pool.PoolAttributes != nil {
+		totalThroughputMibps = pool.PoolAttributes.ThroughputMibps
+		totalIops = &pool.PoolAttributes.Iops
+		labels = pool.PoolAttributes.Labels
+	}
+
 	region := env.GetString("LOCAL_REGION", "")
 	updateParams := &common.UpdatePoolParams{
 		PoolId:               pool.UUID,
 		AccountName:          pool.Account.Name,
 		Region:               region,
 		SizeInBytes:          uint64(pool.SizeInBytes),
-		TotalThroughputMibps: pool.PoolAttributes.ThroughputMibps,
-		TotalIops:            &pool.PoolAttributes.Iops,
+		TotalThroughputMibps: totalThroughputMibps,
+		TotalIops:            totalIops,
 		Description:          pool.Description,
-		Labels:               pool.PoolAttributes.Labels,
+		Labels:               labels,
 		AllowAutoTiering:     pool.AllowAutoTiering,
 		LargeCapacity:        &pool.LargeCapacity,
 	}

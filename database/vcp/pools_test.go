@@ -1464,6 +1464,9 @@ func TestConvertPoolToPoolView(t *testing.T) {
 	if view.Throughput != 0 {
 		t.Errorf("expected Throughput 0, got %v", view.Throughput)
 	}
+	if view.Iops != 0 {
+		t.Errorf("expected Iops 0, got %v", view.Iops)
+	}
 	if view.QuotaInBytes != 0 {
 		t.Errorf("expected QuotaInBytes 0, got %v", view.QuotaInBytes)
 	}

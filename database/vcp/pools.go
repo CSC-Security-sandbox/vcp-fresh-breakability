@@ -485,6 +485,7 @@ func ConvertPoolToPoolView(pool *datamodel.Pool) *datamodel.PoolView {
 	return &datamodel.PoolView{
 		Pool:                 *pool,
 		Throughput:           0, // Set to 0 or fill in with actual value if available
+		Iops:                 0, // Set to 0 or fill in with actual value if available
 		QuotaInBytes:         0, // Set to 0 or fill in with actual value if available
 		VolumeCount:          0, // Set to 0 or fill in with actual value if available
 		ThinCloneVolumeCount: 0, // Set to 0 or fill in with actual value if available

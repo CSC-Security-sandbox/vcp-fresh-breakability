@@ -317,8 +317,8 @@ func (m *Migrator) calculateChecksum(models []interface{}) (string, error) {
 func (m *Migrator) needsMigration(db *gormwrapper.Wrapper, checksum string) (bool, error) {
 	var lastChecksum string
 	err := db.Raw(`
-		SELECT checksum FROM schema_checksums 
-		ORDER BY created_at DESC 
+		SELECT checksum FROM schema_checksums
+		ORDER BY created_at DESC
 		LIMIT 1
 	`).Scan(&lastChecksum).Error()
 
@@ -331,7 +331,7 @@ func (m *Migrator) needsMigration(db *gormwrapper.Wrapper, checksum string) (boo
 
 func (m *Migrator) recordMigration(db *gormwrapper.Wrapper, checksum string) error {
 	return db.Exec(`
-		INSERT INTO schema_checksums (checksum) 
+		INSERT INTO schema_checksums (checksum)
 		VALUES (?)
 	`, checksum).Error()
 }
@@ -349,14 +349,56 @@ func CreateOrUpdatePoolView(db *gormwrapper.Wrapper) error {
 	const viewSQL = `CREATE OR REPLACE VIEW pool_views AS
 	SELECT
 		p.*,
-		coalesce(sum(v.throughput), 0.0) as throughput,
-		coalesce(sum(v.size_in_bytes - v.clones_shared_bytes), 0) as quota_in_bytes,
+		coalesce(
+			CASE
+				WHEN p.qos_type = 'manual' THEN
+					-- Sum throughput for non-shared VPGs (each volume gets full VPG throughput)
+					COALESCE(SUM(vpg.throughput_mibps) FILTER (WHERE vpg.is_shared = false), 0) +
+					-- Sum throughput for shared VPGs (divided by volume count per VPG)
+					COALESCE(SUM(
+						CASE
+							WHEN vpg.is_shared = true AND vpg.id IS NOT NULL THEN
+								vpg.throughput_mibps / NULLIF((
+									SELECT COUNT(*) FROM volumes v2
+									WHERE v2.volume_performance_group_id = vpg.id
+									AND v2.deleted_at IS NULL
+								), 0)
+							ELSE 0
+						END
+					), 0)
+				ELSE sum(v.throughput)
+			END,
+			0.0
+		) as throughput,
+		coalesce(
+			CASE
+				WHEN p.qos_type = 'manual' THEN
+					-- Sum IOPS for non-shared VPGs (each volume gets full VPG IOPS)
+					COALESCE(SUM(vpg.iops) FILTER (WHERE vpg.is_shared = false), 0) +
+					-- Sum IOPS for shared VPGs (divided by volume count per VPG)
+					COALESCE(SUM(
+						CASE
+							WHEN vpg.is_shared = true AND vpg.id IS NOT NULL THEN
+								vpg.iops / NULLIF((
+									SELECT COUNT(*) FROM volumes v2
+									WHERE v2.volume_performance_group_id = vpg.id
+									AND v2.deleted_at IS NULL
+								), 0)
+							ELSE 0
+						END
+					), 0)
+				ELSE 0
+			END,
+			0
+		) as iops,
+		coalesce(greatest(0, sum(v.size_in_bytes - v.clones_shared_bytes)), 0) as quota_in_bytes,
 		coalesce(count(v.id) filter (where v.clones_shared_bytes > 0), 0) as thin_clone_volume_count,
 		count(v.id) as volume_count
 	FROM pools p
 		LEFT JOIN volumes v on v.pool_id = p.id
 		and v.account_id = p.account_id
 		and v.deleted_at is null
+		LEFT JOIN volume_performance_groups vpg on vpg.id = v.volume_performance_group_id
 	GROUP BY
 		p.id,
 		p.name;`

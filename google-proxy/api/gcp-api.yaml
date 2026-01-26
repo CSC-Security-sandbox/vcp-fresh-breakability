@@ -723,7 +723,7 @@ paths:
       tags:
         - volume-performance-groups
       summary: Delete a volume performance group
-      description: "Warning! This operation will permanently delete the volume performance group. This operation will fail if the volume performance group still has assigned volumes." 
+      description: "Warning! This operation will permanently delete the volume performance group. This operation will fail if the volume performance group still has assigned volumes."
       operationId: v1beta_deleteVolumePerformanceGroup
       parameters:
         - $ref: '#/components/parameters/poolIdPathParameter'
@@ -7071,7 +7071,7 @@ paths:
         - $ref: '#/components/parameters/xCorrelationIdHeader'
       responses:
         '200':
-          description: Quota rule details fetched 
+          description: Quota rule details fetched
           content:
             application/json:
               schema:
@@ -9141,6 +9141,14 @@ components:
           description: The total iops set for a pool.
           format: double
           nullable: true
+          example: 1600.0
+        AvailableIops:
+          title: AvailableIops
+          type: number
+          description: The available iops for the pool.
+          format: double
+          nullable: true
+          readOnly: true
           example: 1600.0
         type:
           title: type

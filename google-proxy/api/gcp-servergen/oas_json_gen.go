@@ -18556,6 +18556,12 @@ func (s *PoolInternalV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.AvailableIops.Set {
+			e.FieldStart("AvailableIops")
+			s.AvailableIops.Encode(e)
+		}
+	}
+	{
 		if s.Type.Set {
 			e.FieldStart("type")
 			s.Type.Encode(e)
@@ -18615,7 +18621,7 @@ func (s *PoolInternalV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfPoolInternalV1beta = [46]string{
+var jsonFieldsNameOfPoolInternalV1beta = [47]string{
 	0:  "activeDirectoryConfigId",
 	1:  "activeDirectoryResourceId",
 	2:  "kmsConfigId",
@@ -18653,15 +18659,16 @@ var jsonFieldsNameOfPoolInternalV1beta = [46]string{
 	34: "assetLocationMetadata",
 	35: "customPerformanceEnabled",
 	36: "totalIops",
-	37: "type",
-	38: "unified",
-	39: "unifiedPool",
-	40: "largeCapacity",
-	41: "hotTierConsumption",
-	42: "coldTierConsumption",
-	43: "mode",
-	44: "clusterName",
-	45: "interclusterLifs",
+	37: "AvailableIops",
+	38: "type",
+	39: "unified",
+	40: "unifiedPool",
+	41: "largeCapacity",
+	42: "hotTierConsumption",
+	43: "coldTierConsumption",
+	44: "mode",
+	45: "clusterName",
+	46: "interclusterLifs",
 }
 
 // Decode decodes PoolInternalV1beta from json.
@@ -19049,6 +19056,16 @@ func (s *PoolInternalV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"totalIops\"")
+			}
+		case "AvailableIops":
+			if err := func() error {
+				s.AvailableIops.Reset()
+				if err := s.AvailableIops.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"AvailableIops\"")
 			}
 		case "type":
 			if err := func() error {
@@ -20120,6 +20137,12 @@ func (s *PoolV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.AvailableIops.Set {
+			e.FieldStart("AvailableIops")
+			s.AvailableIops.Encode(e)
+		}
+	}
+	{
 		if s.Type.Set {
 			e.FieldStart("type")
 			s.Type.Encode(e)
@@ -20163,7 +20186,7 @@ func (s *PoolV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfPoolV1beta = [44]string{
+var jsonFieldsNameOfPoolV1beta = [45]string{
 	0:  "activeDirectoryConfigId",
 	1:  "activeDirectoryResourceId",
 	2:  "kmsConfigId",
@@ -20201,13 +20224,14 @@ var jsonFieldsNameOfPoolV1beta = [44]string{
 	34: "assetLocationMetadata",
 	35: "customPerformanceEnabled",
 	36: "totalIops",
-	37: "type",
-	38: "unified",
-	39: "unifiedPool",
-	40: "largeCapacity",
-	41: "hotTierConsumption",
-	42: "coldTierConsumption",
-	43: "mode",
+	37: "AvailableIops",
+	38: "type",
+	39: "unified",
+	40: "unifiedPool",
+	41: "largeCapacity",
+	42: "hotTierConsumption",
+	43: "coldTierConsumption",
+	44: "mode",
 }
 
 // Decode decodes PoolV1beta from json.
@@ -20595,6 +20619,16 @@ func (s *PoolV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"totalIops\"")
+			}
+		case "AvailableIops":
+			if err := func() error {
+				s.AvailableIops.Reset()
+				if err := s.AvailableIops.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"AvailableIops\"")
 			}
 		case "type":
 			if err := func() error {
