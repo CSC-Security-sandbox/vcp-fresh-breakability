@@ -944,7 +944,6 @@ func (p *BillingProvider) fetchMetricsForCounterAndIntegralAggregation(ctx conte
 		"measuredType": measuredType,
 		"order":        "resource_name, deployment_name, consumer_id, metric_timestamp DESC", // Database sorts for us
 	})
-
 	// Fetch all metrics using pagination to handle large datasets efficiently
 	allMetrics, err := p.fetchAllHydratedMetricsWithPagination(ctx, filter)
 	if err != nil {
@@ -1364,10 +1363,10 @@ func (p *BillingProvider) calculateCounterDeltaWithAggregatedHistory(ctx context
 			*lastAggregatedCounterValue, resourceUUID, measuredType)
 
 		// Use existing CounterDelta logic with enhanced data points
-		return common.CounterDelta(enhancedDataPoints, logger)
+		return common.CounterDelta(enhancedDataPoints, logger, measuredType, resourceUUID)
 	}
 
 	// No previous aggregated value found, use standard counter delta calculation
 	logger.Debugf("No previous aggregated counter value found for resource %s, measured type %s, using standard CounterDelta", resourceUUID, measuredType)
-	return common.CounterDelta(dataPoints, logger)
+	return common.CounterDelta(dataPoints, logger, measuredType, resourceUUID)
 }

@@ -67,9 +67,36 @@ func Integral(points []DataPoint) float64 {
 // data point quantities. It is assumed that the data points represent the values of a monotonic counter,
 // i.e., the value should always be increasing. Under some circumstances the counter can reset and this
 // function handles that by using the value of the current data point as long as it is less that 25% of the
-// previous data point. Otherwise, an anomalous dip has occurred and the data point is skipped. It is assumed
-// that the data points have been sorted in chronological order.
-func CounterDelta(points []DataPoint, logger log.Logger) float64 {
+// previous data point. Otherwise, an anomalous dip has occurred and the data point is skipped.
+//
+// Special handling for auto-tiering and replication metrics:
+//
+// 1. CoolTierDataWriteSizeRaw (Cold Tier Write Size):
+//   - Behavior: Skip ANY decrease in value (even non-zero decreases)
+//   - Rationale: Write operations to cold tier are incremental. A decrease indicates data movement
+//     or deletion from cold tier back to hot tier, which should not be billed as a write operation.
+//   - Example: Value drops from 5000 to 4000 → skip this sample, maintain lastPoint at 5000
+//
+// 2. CoolTierDataReadSizeRaw (Cold Tier Read Size):
+//   - Behavior: Skip ONLY when value decreases to exactly zero
+//   - Rationale: Counter may reset to zero during tier transitions or when all cold data is accessed.
+//     Non-zero decreases follow standard counter reset logic (25% threshold) as they may indicate
+//     legitimate counter resets rather than tier transitions.
+//   - Example: Value drops from 1500 to 0 → skip, but 1500 to 200 → apply standard reset logic
+//
+// 3. XregionReplicationTotalTransferBytes (Cross-Region Replication Transfer):
+//   - Behavior: Skip ONLY when value decreases to exactly zero
+//   - Rationale: Replication relationships may be deleted or paused, resetting the counter to zero.
+//     This is expected lifecycle behavior and should not generate billing. Non-zero decreases follow
+//     standard counter reset logic as they may indicate actual counter resets on the storage system.
+//   - Example: Value drops from 2000 to 0 (relationship deleted) → skip, but 2000 to 300 → apply standard reset logic
+//
+// When samples are skipped, lastPoint is maintained at the previous valid value to ensure subsequent
+// valid increments are calculated correctly. This prevents billing anomalies and ensures accurate
+// usage tracking during normal operational events like tier transitions and replication lifecycle changes.
+//
+// It is assumed that the data points have been sorted in chronological order.
+func CounterDelta(points []DataPoint, logger log.Logger, measuredType metadata.MeasuredType, resourceUUID string) float64 {
 	if len(points) < 2 {
 		return 0
 	}
@@ -89,17 +116,25 @@ func CounterDelta(points []DataPoint, logger log.Logger) float64 {
 
 		// Check for counter reset
 		if quantity < 0 {
-			// If the current quantity is less than 25% of the previous quantity, then we assume a counter
-			// reset and use the quantity of the current data point. Otherwise, we assume an anomalous dip
-			// and skip the current data point.
-			if point.Quantity < lastPoint.Quantity*0.25 {
-				logger.Warnf("Counter reset detected: previous value %.2f, current value %.2f at timestamp %v",
-					lastPoint.Quantity, point.Quantity, point.Timestamp)
-				quantity = point.Quantity
-			} else {
-				logger.Warnf("Anomalous counter dip detected and skipped: previous value %.2f, current value %.2f at timestamp %v",
-					lastPoint.Quantity, point.Quantity, point.Timestamp)
+			if measuredType == metadata.CoolTierDataWriteSizeRaw {
+				logger.Warnf("Skipping cold tier write size sample value for pool uuid %s since value decreased from %.2f to %.2f", resourceUUID, lastPoint.Quantity, point.Quantity)
 				continue
+			} else if (measuredType == metadata.CoolTierDataReadSizeRaw || measuredType == metadata.XregionReplicationTotalTransferBytes) && point.Quantity == 0 {
+				logger.Warnf("Skipping cold tier read size sample value for pool uuid %s since value decreased from %.2f to zero", resourceUUID, lastPoint.Quantity)
+				continue
+			} else {
+				// If the current quantity is less than 25% of the previous quantity, then we assume a counter
+				// reset and use the quantity of the current data point. Otherwise, we assume an anomalous dip
+				// and skip the current data point.
+				if point.Quantity < lastPoint.Quantity*0.25 {
+					logger.Warnf("Counter reset detected for resource uuid %s: previous value %.2f, current value %.2f at timestamp %v", resourceUUID,
+						lastPoint.Quantity, point.Quantity, point.Timestamp)
+					quantity = point.Quantity
+				} else {
+					logger.Warnf("Anomalous counter dip detected and skipped for resource uuid %s: previous value %.2f, current value %.2f at timestamp %v", resourceUUID,
+						lastPoint.Quantity, point.Quantity, point.Timestamp)
+					continue
+				}
 			}
 		}
 
