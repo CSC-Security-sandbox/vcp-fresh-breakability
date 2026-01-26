@@ -1249,10 +1249,10 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_CRB_VCPBucketFailure() {
 
 	sourceRegion := "us-east1"
 	backupVault := &datamodel.BackupVault{
-		BaseModel:       datamodel.BaseModel{UUID: "bv-uuid"},
-		Name:            "crb-vault",
-		AccountID:       1,
-		BackupVaultType: activities.CrossRegionBackupType,
+		BaseModel:        datamodel.BaseModel{UUID: "bv-uuid"},
+		Name:             "crb-vault",
+		AccountID:        1,
+		BackupVaultType:  activities.CrossRegionBackupType,
 		SourceRegionName: &sourceRegion,
 		BucketDetails: datamodel.BucketDetailsArray{
 			&datamodel.BucketDetails{BucketName: "bucket-1"},
@@ -1571,7 +1571,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_CRB_UpdateCmekInVCPFailur
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultCmekInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to update CMEK metadata"))
 	// The source-region hydration on failure is best-effort; even if it fails,
 	// the workflow should still surface the CMEK update error.
-	s.env.OnActivity(backupVaultActivity.UpdateRemoteBackupVaultInVCP, mock.Anything, mock.Anything).Return(nil, errors.New("failed to hydrate FAILED state"))
+	s.env.OnActivity(backupVaultActivity.UpdateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to hydrate FAILED state"))
 
 	s.env.ExecuteWorkflow(RotateCmekBackupsWorkflow, params, backupVault, primaryKeyVersion)
 
@@ -1629,7 +1629,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_CRB_HydrationFailure() {
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultCmekInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Fail the final hydration to the source-region VCP backup vault. This is
 	// best-effort and should not cause the workflow to fail.
-	s.env.OnActivity(backupVaultActivity.UpdateRemoteBackupVaultInVCP, mock.Anything, mock.Anything).Return(nil, errors.New("failed to hydrate source-region vault"))
+	s.env.OnActivity(backupVaultActivity.UpdateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to hydrate source-region vault"))
 
 	s.env.ExecuteWorkflow(RotateCmekBackupsWorkflow, params, backupVault, primaryKeyVersion)
 

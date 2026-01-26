@@ -7154,7 +7154,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationInDeferBlock() {
 	volume.Pool = &datamodel.Pool{
 		KmsConfig: &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "kms-uuid"}},
 	}
-	s.env.OnActivity(s.kmsConfigActivity.VerifyVsaKmsReachabilityActivity, mock.Anything, mock.Anything).Return(errors.New("kms error"))
+	s.env.OnActivity(s.kmsConfigActivity.VerifyVsaKmsReachabilityActivity, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("kms error"))
 	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
@@ -7200,7 +7200,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationBeforeGetAggregate
 	volume := CreateTestVolume()
 	volume.VolumeAttributes.Protocols = []string{utils.ProtocolISCSI}
 	volume.LargeVolumeAttributes = &datamodel.LargeVolumeAttributes{
-		LargeCapacity:              true,
+		LargeCapacity:               true,
 		LargeVolumeConstituentCount: intPtr(5),
 	}
 	params := &common.CreateVolumeParams{}
@@ -7663,7 +7663,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationForLargeVolumeAggr
 	volume := CreateTestVolume()
 	volume.VolumeAttributes.Protocols = []string{utils.ProtocolISCSI}
 	volume.LargeVolumeAttributes = &datamodel.LargeVolumeAttributes{
-		LargeCapacity:              true,
+		LargeCapacity:               true,
 		LargeVolumeConstituentCount: nillable.GetInt32Ptr(5),
 	}
 	params := &common.CreateVolumeParams{}
@@ -8079,7 +8079,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationChecks() {
 		},
 	}
 	volume.DataProtection = &datamodel.DataProtection{
-		BackupVaultID: "backup-vault-123",
+		BackupVaultID:  "backup-vault-123",
 		BackupPolicyID: "backup-policy-123",
 	}
 
@@ -8107,13 +8107,13 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationChecks() {
 	s.env.RegisterActivity(volumeCreateActivity.CreateBackupPolicyFetchedFromSDE)
 	s.env.RegisterActivity(volumeCreateActivity.CreateBackupPolicySchedule)
 	s.env.RegisterActivity(kmsConfigActivity.VerifyVsaKmsReachabilityActivity)
-	
+
 	// Register BackupPolicyActivity for rollback activities
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage}
 	s.env.RegisterActivity(backupPolicyActivity.PauseBackupPolicySchedule)
 	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicySchedule)
 	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInVCP)
-	
+
 	// Register SyncBucketDetails activity
 	syncBackupZiZsActivity := backgroundactivities.SyncBackupZiZsActivity{SE: mockStorage}
 	s.env.RegisterActivity(syncBackupZiZsActivity.SyncBucketDetails)
@@ -8127,7 +8127,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationChecks() {
 
 	// Mock backup vault activities
 	backupVault := &datamodel.BackupVault{
-		BackupVaultType: activities.CrossRegionBackupType,
+		BackupVaultType:  activities.CrossRegionBackupType,
 		BackupRegionName: nillable.ToPointer("us-east1"),
 	}
 	s.env.OnActivity(volumeCreateActivity.CheckBackupVaultExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
@@ -8152,7 +8152,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationChecks() {
 	// Mock backup policy activities
 	s.env.OnActivity(volumeCreateActivity.CheckIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
 	backupPolicy := &datamodel.BackupPolicy{
-		BaseModel: datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		BaseModel:     datamodel.BaseModel{UUID: "backup-policy-uuid"},
 		PolicyEnabled: false,
 	}
 	s.env.OnActivity(volumeCreateActivity.CreateBackupPolicyFetchedFromSDE, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
@@ -8164,11 +8164,11 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationChecks() {
 	// Register GetHosts activity for block volumes
 	s.env.RegisterActivity(volumeCreateActivity.GetHosts)
 	s.env.RegisterActivity(volumeCreateActivity.CreateIgroup)
-	
+
 	// Mock GetHosts activity (called for block volumes)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	
+
 	// Mock GetMultipleHostGroups on storage (called by GetHosts activity)
 	mockStorage.On("GetMultipleHostGroups", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil).Maybe()
 
@@ -8208,7 +8208,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreFromBackup_Cancellation
 	}
 	volume.SizeInBytes = 100 * 1024 * 1024 * 1024 // 100 GB
 	volume.LargeVolumeAttributes = &datamodel.LargeVolumeAttributes{
-		LargeCapacity: true,
+		LargeCapacity:               true,
 		LargeVolumeConstituentCount: intPtr(4),
 	}
 
@@ -8230,7 +8230,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreFromBackup_Cancellation
 	s.env.RegisterActivity(volumeCreateActivity.CreateIgroup)
 	s.env.RegisterActivity(volumeCreateActivity.CreateRestoreWorkflow)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
-	
+
 	// Mock GetMultipleHostGroups on storage (called by GetHosts activity)
 	mockStorage.On("GetMultipleHostGroups", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil).Maybe()
 
@@ -8246,12 +8246,12 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreFromBackup_Cancellation
 			Name:      "test-backup-vault",
 		},
 		Backup: &datamodel.Backup{
-			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
-			Name:      "test-backup",
+			BaseModel:   datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:        "test-backup",
 			SizeInBytes: volume.SizeInBytes / 2, // Set backup size to be smaller than volume size
 			Attributes: &datamodel.BackupAttributes{
-				Protocols:              volume.VolumeAttributes.Protocols,
-				OntapVolumeStyle:       "flexgroup",
+				Protocols:                volume.VolumeAttributes.Protocols,
+				OntapVolumeStyle:         "flexgroup",
 				ConstituentCountOfBackup: int32(4),
 			},
 		},

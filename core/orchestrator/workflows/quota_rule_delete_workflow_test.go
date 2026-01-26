@@ -2040,7 +2040,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(1)).Return(volume, nil)
 		env.OnActivity("GetVolumeReplication", mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "create-job-uuid"},
 			State:     string(models.JobsStatePROCESSING),
 		}, nil)
@@ -2096,7 +2096,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(1)).Return(volume, nil)
 		env.OnActivity("GetVolumeReplication", mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "create-job-uuid"},
 			State:     string(models.JobsStatePROCESSING),
 		}, nil)
@@ -2163,7 +2163,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 			JobUUID:    "create-job-uuid",
 			WorkflowID: "create-workflow-id",
 		}
-		env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything).Return(createJobResult, nil)
+		env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(createJobResult, nil)
 		// Make IsWorkflowRunningActivity fail to trigger error path in HandleCancellationInDeleteWorkflow (covers line 133)
 		env.OnActivity("IsWorkflowRunningActivity", mock.Anything, mock.Anything).Return(false, errors.New("failed to check workflow status"))
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)

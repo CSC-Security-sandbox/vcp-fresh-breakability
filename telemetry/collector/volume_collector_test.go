@@ -905,13 +905,164 @@ func Test_GetVolumeMetrics_WithThroughputMapping(t *testing.T) {
 
 	// Check VolumeAllocatedThroughput metric (in separate field)
 	assert.Equal(t, metadata.VolumeAllocatedThroughput, result.VolumeAllocatedThroughputHydratedMetrics[0].MeasuredType)
-	assert.Equal(t, float64(100), result.VolumeAllocatedThroughputHydratedMetrics[0].Quantity) // Should use volume throughput when volume.Throughput != 0
+	assert.Equal(t, float64(100), result.VolumeAllocatedThroughputHydratedMetrics[0].Quantity) // Should use volume throughput when available
 	assert.Equal(t, "volume-uuid-throughput", derefString(result.VolumeAllocatedThroughputHydratedMetrics[0].Metadata.ResourceUUID))
 	assert.Equal(t, "ThroughputVolume", derefString(result.VolumeAllocatedThroughputHydratedMetrics[0].Metadata.ResourceName))
 	assert.Equal(t, "ThroughputAccount", derefString(result.VolumeAllocatedThroughputHydratedMetrics[0].Metadata.AccountName))
 	assert.Equal(t, metadata.Volume, result.VolumeAllocatedThroughputHydratedMetrics[0].Metadata.ResourceType)
 
 	// BackupEnabledVolumeAllocatedSize metric is only in HydratedMetricsDataModel, not in HydratedMetrics
+}
+
+func Test_GetVolumeMetrics_WithManualQos_NoAssignedThroughput_ReturnsZero(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	poolMetadata := metadata.ResourceMetadata{}
+	poolMetadata.SetResourceID(int64(40))
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{
+		40: poolMetadata,
+	}
+
+	backupChainBytes := int64(1024)
+	volumes := []*database.VolumeMetricsData{
+		{
+			UUID:        "volume-uuid-manual-no-throughput",
+			Name:        "ManualNoThroughputVolume",
+			SizeInBytes: 2048,
+			Throughput:  0,
+			Iops:        1200,
+			PoolID:      40,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "ManualAccount",
+				DeploymentName: "manual-deployment",
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
+	assert.Equal(t, float64(0), result.VolumeAllocatedThroughputHydratedMetrics[0].Quantity)
+}
+
+func Test_GetVolumeMetrics_WithManualQos_AutoGenVpgAssignment(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	poolMetadata := metadata.ResourceMetadata{}
+	poolMetadata.SetResourceID(int64(50))
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{
+		50: poolMetadata,
+	}
+
+	backupChainBytes := int64(1024)
+	volumes := []*database.VolumeMetricsData{
+		{
+			UUID:        "volume-uuid-autogen-vpg",
+			Name:        "AutoGenVpgVolume",
+			SizeInBytes: 4096,
+			Throughput:  75,
+			Iops:        2400,
+			PoolID:      50,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "ManualAccount",
+				DeploymentName: "manual-deployment",
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 1)
+	assert.Equal(t, float64(75), result.VolumeAllocatedThroughputHydratedMetrics[0].Quantity)
+}
+
+func Test_GetVolumeMetrics_WithManualQos_SharedVpgAssignment(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	poolMetadata := metadata.ResourceMetadata{}
+	poolMetadata.SetResourceID(int64(60))
+	poolMetadataMap := map[int64]metadata.ResourceMetadata{
+		60: poolMetadata,
+	}
+
+	backupChainBytes := int64(1024)
+	volumes := []*database.VolumeMetricsData{
+		{
+			UUID:        "volume-uuid-manual-vpg-1",
+			Name:        "ManualVpgVolume1",
+			SizeInBytes: 1024,
+			Throughput:  200,
+			Iops:        3200,
+			PoolID:      60,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "ManualAccount",
+				DeploymentName: "manual-deployment",
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+		{
+			UUID:        "volume-uuid-manual-vpg-2",
+			Name:        "ManualVpgVolume2",
+			SizeInBytes: 2048,
+			Throughput:  200,
+			Iops:        3200,
+			PoolID:      60,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "ManualAccount",
+				DeploymentName: "manual-deployment",
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	assert.Len(t, result.VolumeAllocatedThroughputHydratedMetrics, 2)
+	assert.Equal(t, float64(200), result.VolumeAllocatedThroughputHydratedMetrics[0].Quantity)
+	assert.Equal(t, float64(200), result.VolumeAllocatedThroughputHydratedMetrics[1].Quantity)
 }
 
 func Test_GetVolumeMetrics_WithZeroVolumeThroughput(t *testing.T) {
@@ -1016,7 +1167,7 @@ func Test_GetVolumeMetrics_WithNilPoolThroughput(t *testing.T) {
 	// BackupEnabledVolumeAllocatedSize should only be in HydratedMetricsDataModel when EnableBackupBillingMetrics is true
 	assert.Len(t, result.HydratedMetrics, 0)
 
-	// Check VolumeAllocatedThroughput metric - should use volume throughput when volume.Throughput != 0
+	// Check VolumeAllocatedThroughput metric - should use volume throughput when available
 	assert.Equal(t, metadata.VolumeAllocatedThroughput, result.VolumeAllocatedThroughputHydratedMetrics[0].MeasuredType)
 	assert.Equal(t, float64(150), result.VolumeAllocatedThroughputHydratedMetrics[0].Quantity) // Should use volume throughput (150)
 	assert.Equal(t, "volume-uuid-nil-pool-throughput", derefString(result.VolumeAllocatedThroughputHydratedMetrics[0].Metadata.ResourceUUID))

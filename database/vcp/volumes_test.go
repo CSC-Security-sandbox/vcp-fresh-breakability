@@ -5302,8 +5302,21 @@ func TestListVolumesForTelemetryMetrics(t *testing.T) {
 			Name:           "test_pool",
 			AccountID:      account.ID,
 			DeploymentName: "deployment-1",
+			QosType:        "manual",
 		}
 		err = store.db.Create(pool).Error()
+		require.NoError(tt, err)
+
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:       datamodel.BaseModel{ID: 1},
+			Name:            "test-vpg",
+			PoolID:          pool.ID,
+			IsShared:        true,
+			IsAutoGen:       false,
+			ThroughputMibps: 2048,
+			Iops:            12345,
+		}
+		err = store.db.Create(vpg).Error()
 		require.NoError(tt, err)
 
 		// Create a volume with VolumeAttributes
@@ -5311,9 +5324,13 @@ func TestListVolumesForTelemetryMetrics(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid-1"},
 			Name:        "test_volume_1",
 			SizeInBytes: 1000000,
-			Throughput:  1024,
+			Throughput:  1024, // Legacy throughput should be ignored in telemetry query.
 			PoolID:      pool.ID,
 			AccountID:   account.ID,
+			VolumePerformanceGroupID: sql.NullInt64{
+				Int64: vpg.ID,
+				Valid: true,
+			},
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				AccountName:    "test_account",
 				DeploymentName: "deployment-1",
@@ -5330,7 +5347,8 @@ func TestListVolumesForTelemetryMetrics(t *testing.T) {
 		assert.Equal(tt, "test-volume-uuid-1", results[0].UUID)
 		assert.Equal(tt, "test_volume_1", results[0].Name)
 		assert.Equal(tt, int64(1000000), results[0].SizeInBytes)
-		assert.Equal(tt, int64(1024), results[0].Throughput)
+		assert.Equal(tt, int64(2048), results[0].Throughput)
+		assert.Equal(tt, int64(12345), results[0].Iops)
 		assert.Equal(tt, pool.ID, results[0].PoolID)
 		assert.Equal(tt, "test_account", results[0].GetAccountName())
 		assert.Equal(tt, "deployment-1", results[0].GetDeploymentName())
@@ -5539,5 +5557,136 @@ func TestListVolumesForTelemetryMetrics(t *testing.T) {
 		assert.Len(tt, results, 1)
 		assert.NotNil(tt, results[0].DataProtection)
 		assert.Equal(tt, "backup-vault-uuid", results[0].DataProtection.BackupVaultID)
+	})
+
+	t.Run("NoVpgAssignmentReturnsZeroThroughputAndIops", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: "test-account-uuid-2"},
+			Name:      "test_account_2",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-2", ID: 2},
+			Name:           "test_pool_2",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-2",
+			QosType:        utils.QosTypeAuto,
+		}
+		err = store.db.Create(pool).Error()
+		require.NoError(tt, err)
+
+		volume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid-2"},
+			Name:        "test_volume_2",
+			SizeInBytes: 2000000,
+			Throughput:  1111, // Legacy throughput should be ignored in telemetry query.
+			PoolID:      pool.ID,
+			AccountID:   account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "test_account_2",
+				DeploymentName: "deployment-2",
+				Protocols:      []string{"NFS"},
+			},
+		}
+		err = store.db.Create(volume).Error()
+		require.NoError(tt, err)
+
+		results, err := store.ListVolumesForTelemetryMetrics(ctx)
+		require.NoError(tt, err)
+		require.NotEmpty(tt, results)
+
+		// Find the test volume in results to avoid ordering dependency.
+		var found *VolumeMetricsData
+		for _, result := range results {
+			if result.UUID == volume.UUID {
+				found = result
+				break
+			}
+		}
+		require.NotNil(tt, found)
+		assert.Equal(tt, int64(0), found.Throughput)
+		assert.Equal(tt, int64(0), found.Iops)
+	})
+
+	t.Run("CoalescesNullVpgValues", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: "test-account-uuid-2"},
+			Name:      "test_account_2",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid-2", ID: 2},
+			Name:           "test_pool_2",
+			AccountID:      account.ID,
+			DeploymentName: "deployment-2",
+			QosType:        utils.QosTypeAuto,
+		}
+		err = store.db.Create(pool).Error()
+		require.NoError(tt, err)
+
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel: datamodel.BaseModel{ID: 2},
+			Name:      "test-vpg-null",
+			PoolID:    pool.ID,
+			IsShared:  true,
+			IsAutoGen: true,
+			// Set non-zero to prove DB null overwrite + COALESCE behavior.
+			ThroughputMibps: 999,
+			Iops:            999,
+		}
+		err = store.db.Create(vpg).Error()
+		require.NoError(tt, err)
+
+		err = store.db.Exec(
+			"UPDATE volume_performance_groups SET throughput_mibps = NULL, iops = NULL WHERE id = ?",
+			vpg.ID,
+		).Error()
+		require.NoError(tt, err)
+
+		volume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid-2"},
+			Name:        "test_volume_2",
+			SizeInBytes: 2000000,
+			Throughput:  1111, // Legacy throughput should be ignored in telemetry query.
+			PoolID:      pool.ID,
+			AccountID:   account.ID,
+			VolumePerformanceGroupID: sql.NullInt64{
+				Int64: vpg.ID,
+				Valid: true,
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "test_account_2",
+				DeploymentName: "deployment-2",
+				Protocols:      []string{"NFS"},
+			},
+		}
+		err = store.db.Create(volume).Error()
+		require.NoError(tt, err)
+
+		results, err := store.ListVolumesForTelemetryMetrics(ctx)
+		require.NoError(tt, err)
+		require.NotEmpty(tt, results)
+
+		// Find the test volume in results to avoid ordering dependency.
+		var found *VolumeMetricsData
+		for _, result := range results {
+			if result.UUID == volume.UUID {
+				found = result
+				break
+			}
+		}
+		require.NotNil(tt, found)
+		assert.Equal(tt, int64(0), found.Throughput)
+		assert.Equal(tt, int64(0), found.Iops)
 	})
 }

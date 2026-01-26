@@ -358,7 +358,7 @@ create_db_pool() {
         INSERT INTO pools (
             uuid, created_at, updated_at, name, state, state_details,
             service_level, size_in_bytes, vendor_id, network, deployment_name,
-            pool_attributes, pool_credentials, account_id, qos_type
+            pool_attributes, pool_credentials, build_info, account_id, qos_type
         ) VALUES (
             '$pool_uuid', '$current_time', '$current_time', '$POOL_NAME', 'READY',
             'Available for use', 'FLEX', 2199023255552,
@@ -367,6 +367,7 @@ create_db_pool() {
             '$unique_deployment_name',
             '{\"primary_zone\": \"${region}-a\", \"secondary_zone\": \"${region}-b\", \"throughput\": 64}',
             '{\"password\": \"${ONTAP_PASSWORD}\", \"auth_type\": 0}',
+            '{\"ontapVersion\": \"9.18.1\"}',
             $ACCOUNT_ID, '$QOS_TYPE'
         );
     "

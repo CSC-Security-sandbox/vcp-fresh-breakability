@@ -6958,6 +6958,15 @@ func TestPersistenceStore_ListVolumesForTelemetryMetrics(t *testing.T) {
 	err = store.DB().Create(volume).Error
 	require.NoError(t, err)
 
+	// SQLite may store JSONB as TEXT. Force BLOB storage to ensure Scan receives []byte.
+	err = store.DB().Exec(
+		"UPDATE volumes SET volume_attributes = ?, data_protection = ? WHERE id = ?",
+		[]byte(`{"account_name":"test_account","deployment_name":"deployment-1","protocols":["NFS"]}`),
+		[]byte(`{}`),
+		volume.ID,
+	).Error
+	require.NoError(t, err)
+
 	// Test successful call
 	results, err := store.ListVolumesForTelemetryMetrics(ctx)
 	assert.NoError(t, err)

@@ -886,6 +886,7 @@ type VolumeMetricsData struct {
 	Name             string                      `gorm:"column:name"`
 	SizeInBytes      int64                       `gorm:"column:size_in_bytes"`
 	Throughput       int64                       `gorm:"column:throughput"`
+	Iops             int64                       `gorm:"column:iops"`
 	PoolID           int64                       `gorm:"column:pool_id"`
 	VolumeAttributes *datamodel.VolumeAttributes `gorm:"column:volume_attributes;type:jsonb"`
 	DataProtection   *datamodel.DataProtection   `gorm:"column:data_protection;type:jsonb"`
@@ -932,18 +933,20 @@ func (d *DataStoreRepository) ListVolumesForTelemetryMetrics(ctx context.Context
 	var results []*VolumeMetricsData
 
 	// Select only the required columns from volumes table
-	// Account name, deployment name, and protocols are in volume_attributes JSONB, no JOIN needed
+	// Account name, deployment name, and protocols are in volume_attributes JSONB, JOIN on vpg needed for throughput/iops
 	err := db.Table("volumes").
+		Joins("LEFT JOIN volume_performance_groups vpg ON vpg.id = volumes.volume_performance_group_id").
 		Select(`
-			uuid,
-			name,
-			size_in_bytes,
-			throughput,
-			pool_id,
-			volume_attributes,
-			data_protection
+			volumes.uuid,
+			volumes.name,
+			volumes.size_in_bytes,
+			COALESCE(vpg.throughput_mibps, 0) AS throughput,
+			COALESCE(vpg.iops, 0) AS iops,
+			volumes.pool_id,
+			volumes.volume_attributes,
+			volumes.data_protection
 		`).
-		Where("deleted_at IS NULL").
+		Where("volumes.deleted_at IS NULL").
 		Find(&results).Error
 
 	if err != nil {
