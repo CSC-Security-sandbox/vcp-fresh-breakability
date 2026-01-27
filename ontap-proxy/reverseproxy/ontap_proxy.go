@@ -555,15 +555,15 @@ func handleProxyError(w http.ResponseWriter, r *http.Request, err error) {
 	logger.ErrorContext(r.Context(), "Error handling request", "error", err, "path", r.URL.Path)
 
 	if strings.Contains(err.Error(), "context canceled") {
-		http.Error(w, "Request timeout - ONTAP cluster not responding", http.StatusGatewayTimeout)
+		utils.WriteErrorResponse(w, http.StatusGatewayTimeout, "Request timeout - ONTAP cluster not responding")
 	} else if strings.Contains(err.Error(), "connection refused") {
-		http.Error(w, "Cannot connect to ONTAP cluster", http.StatusBadGateway)
+		utils.WriteErrorResponse(w, http.StatusBadGateway, "Cannot connect to ONTAP cluster")
 	} else if strings.Contains(err.Error(), "no such host") {
-		http.Error(w, "ONTAP cluster host not found", http.StatusBadGateway)
+		utils.WriteErrorResponse(w, http.StatusBadGateway, "ONTAP cluster host not found")
 	} else if strings.Contains(err.Error(), "Missing ONTAP credentials") {
-		http.Error(w, "ONTAP credentials not configured", http.StatusInternalServerError)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "ONTAP credentials not configured")
 	} else {
-		http.Error(w, "Proxy error: "+err.Error(), http.StatusBadGateway)
+		utils.WriteErrorResponse(w, http.StatusBadGateway, "Proxy error: "+err.Error())
 	}
 }
 

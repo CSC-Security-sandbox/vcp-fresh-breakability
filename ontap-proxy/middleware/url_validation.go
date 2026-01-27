@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	ontapproxyutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -91,7 +92,7 @@ func URLValidationMiddleware() func(http.Handler) http.Handler {
 					"error", err,
 					"path", r.URL.Path,
 					"method", r.Method)
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				ontapproxyutils.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
 				return
 			}
 
@@ -101,7 +102,7 @@ func URLValidationMiddleware() func(http.Handler) http.Handler {
 					"path", r.URL.Path,
 					"method", r.Method,
 					"query", r.URL.RawQuery)
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				ontapproxyutils.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
 				return
 			}
 

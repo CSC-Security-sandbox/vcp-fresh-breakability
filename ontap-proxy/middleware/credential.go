@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/coreapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
+	ontapproxyutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -51,7 +52,7 @@ func CredentialMiddleware() func(http.Handler) http.Handler {
 					handleCredentialError(w, err)
 				} else {
 					// URI validation error
-					http.Error(w, "Invalid URI", http.StatusBadRequest)
+					ontapproxyutils.WriteErrorResponse(w, http.StatusBadRequest, "Invalid URI")
 				}
 				return
 			}
@@ -117,22 +118,22 @@ func handleCredentialError(w http.ResponseWriter, err error) {
 
 	switch {
 	case contains(errorMsg, "pool not found"):
-		http.Error(w, "Pool not found", http.StatusNotFound)
+		ontapproxyutils.WriteErrorResponse(w, http.StatusNotFound, "Pool not found")
 	case contains(errorMsg, "invalid pool details"):
-		http.Error(w, "Invalid pool details", http.StatusBadRequest)
+		ontapproxyutils.WriteErrorResponse(w, http.StatusBadRequest, "Invalid pool details")
 	case contains(errorMsg, "unable to determine IAM role from context headers"):
 		// IAM role validation error - missing or invalid IAM role header
-		http.Error(w, "Unauthorized: Unable to determine IAM role from request headers", http.StatusUnauthorized)
+		ontapproxyutils.WriteErrorResponse(w, http.StatusUnauthorized, "Unauthorized: Unable to determine IAM role from request headers")
 	case contains(errorMsg, "unauthorized access"):
-		http.Error(w, "Unauthorized access", http.StatusUnauthorized)
+		ontapproxyutils.WriteErrorResponse(w, http.StatusUnauthorized, "Unauthorized access")
 	case contains(errorMsg, "forbidden access"):
-		http.Error(w, "Forbidden access", http.StatusForbidden)
+		ontapproxyutils.WriteErrorResponse(w, http.StatusForbidden, "Forbidden access")
 	case contains(errorMsg, "internal server error"):
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		ontapproxyutils.WriteErrorResponse(w, http.StatusInternalServerError, "Internal server error")
 	case contains(errorMsg, "core API call failed"):
-		http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
+		ontapproxyutils.WriteErrorResponse(w, http.StatusServiceUnavailable, "Service unavailable")
 	default:
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		ontapproxyutils.WriteErrorResponse(w, http.StatusInternalServerError, "Internal server error")
 	}
 }
 

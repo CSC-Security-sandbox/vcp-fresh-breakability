@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
 	ontapproxymodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
+	ontapproxyutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -21,14 +22,14 @@ func CertificateMiddleware() func(http.Handler) http.Handler {
 			cacheKey := cache.GetAuthDataKeyFromContext(r.Context())
 			if cacheKey == "" {
 				logger.ErrorContext(r.Context(), "No cache key found in context")
-				http.Error(w, "Cache key not available", http.StatusInternalServerError)
+				ontapproxyutils.WriteErrorResponse(w, http.StatusInternalServerError, "Cache key not available")
 				return
 			}
 
 			authData, exists := cache.GetFromAuthDataCache(cacheKey)
 			if !exists || authData == nil {
 				logger.ErrorContext(r.Context(), "No authentication data found in cache", "cacheKey", cacheKey)
-				http.Error(w, "Authentication data not available in cache", http.StatusInternalServerError)
+				ontapproxyutils.WriteErrorResponse(w, http.StatusInternalServerError, "Authentication data not available in cache")
 				return
 			}
 
@@ -38,7 +39,7 @@ func CertificateMiddleware() func(http.Handler) http.Handler {
 					certificate, err := getCertificateFromSecretManager(r.Context(), authData, logger)
 					if err != nil {
 						logger.ErrorContext(r.Context(), "Failed to fetch certificate from secret manager", "error", err, "certificateID", authData.CertificateID)
-						http.Error(w, "Failed to fetch certificate", http.StatusInternalServerError)
+						ontapproxyutils.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to fetch certificate")
 						return
 					}
 
@@ -63,7 +64,7 @@ func CertificateMiddleware() func(http.Handler) http.Handler {
 					password, err := getPasswordFromSecretManager(r.Context(), authData.SecretID, logger)
 					if err != nil {
 						logger.ErrorContext(r.Context(), "Failed to fetch password from secret manager", "error", err, "secretID", authData.SecretID)
-						http.Error(w, "Failed to fetch password", http.StatusInternalServerError)
+						ontapproxyutils.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to fetch password")
 						return
 					}
 

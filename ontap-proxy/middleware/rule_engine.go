@@ -9,13 +9,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/ruleengine/dsl"
 	rules "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/ruleengine/rest"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
+	ontapproxyutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var (
-	extractOntapPathUtil = utils.ExtractOntapPath
+	extractOntapPathUtil = ontapproxyutils.ExtractOntapPath
 )
 
 // uuidPattern is a compiled regex pattern for matching UUIDs in URL paths
@@ -41,7 +41,7 @@ func RuleEngineMiddleware() func(http.Handler) http.Handler {
 			action := matchedRule.GetAction(r)
 			if action == nil {
 				logger.WarnContext(r.Context(), "Method not allowed for path", "path", matchedPath, "method", r.Method)
-				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				ontapproxyutils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
 				return
 			}
 
@@ -54,7 +54,7 @@ func RuleEngineMiddleware() func(http.Handler) http.Handler {
 			resolvedAction, allowed, reason := dsl.ResolveAction(action, r)
 			if !allowed {
 				logger.InfoContext(r.Context(), "Request denied by action", "path", matchedPath, "method", r.Method, "reason", reason)
-				http.Error(w, reason, http.StatusBadRequest)
+				ontapproxyutils.WriteErrorResponse(w, http.StatusBadRequest, reason)
 				return
 			}
 
@@ -62,7 +62,7 @@ func RuleEngineMiddleware() func(http.Handler) http.Handler {
 			actionName, err := resolvedAction.ProcessRequest(r, w)
 			if err != nil {
 				logger.ErrorContext(r.Context(), "Error processing request", "error", err, "action", actionName, "path", matchedPath)
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				ontapproxyutils.WriteErrorResponse(w, http.StatusInternalServerError, "Internal server error")
 				return
 			}
 
