@@ -326,6 +326,7 @@ workerConfig:
 
   # Volume activities timeout configuration (in seconds)
   volumeActivitiesStartToCloseTimeoutSec: "600"  # 10 minutes
+  volumeActivitiesStartToCloseTimeoutSecLV: "1800"  # 30 minutes for large capacity volumes
   volumeActivitiesHeartbeatTimeoutSec: "300"     # 5 minutes
 
   # Snapshot workflow timeout configuration (in seconds)

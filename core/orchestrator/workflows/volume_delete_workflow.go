@@ -174,8 +174,10 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
+	// Use LV-specific timeout for large capacity volumes
+	startToCloseTimeout := getVolumeStartToCloseTimeout(volume)
 	options := workflow.ActivityOptions{
-		StartToCloseTimeout: time.Duration(volumeStartToCloseTimeoutSec) * time.Second,
+		StartToCloseTimeout: time.Duration(startToCloseTimeout) * time.Second,
 		HeartbeatTimeout:    time.Duration(volumeHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,

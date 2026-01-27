@@ -28,12 +28,23 @@ import (
 )
 
 var (
-	thinCloneGASupport           = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
-	volumeStartToCloseTimeoutSec = env.GetUint64("VOLUME_ACTIVITIES_START_TO_CLOSE_TIMEOUT_SEC", 600)
-	volumeHeartbeatTimeoutSec    = env.GetUint64("VOLUME_ACTIVITIES_HEARTBEAT_TIMEOUT_SEC", 300)
-	dbHeartbeatTimeoutSec        = env.GetUint64("DATABASE_HEARTBEAT_TIMEOUT_SEC", 10)
-	enableKerberos               = env.GetBool("ENABLE_KERBEROS", false)
+	thinCloneGASupport             = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
+	volumeStartToCloseTimeoutSec   = env.GetUint64("VOLUME_ACTIVITIES_START_TO_CLOSE_TIMEOUT_SEC", 600)
+	volumeStartToCloseTimeoutSecLV = env.GetUint64("VOLUME_ACTIVITIES_START_TO_CLOSE_TIMEOUT_SEC_LV", 1800) // 30 minutes for large volumes
+	volumeHeartbeatTimeoutSec      = env.GetUint64("VOLUME_ACTIVITIES_HEARTBEAT_TIMEOUT_SEC", 300)
+	dbHeartbeatTimeoutSec          = env.GetUint64("DATABASE_HEARTBEAT_TIMEOUT_SEC", 10)
+	enableKerberos                 = env.GetBool("ENABLE_KERBEROS", false)
 )
+
+// getVolumeStartToCloseTimeout returns the appropriate start-to-close timeout based on volume characteristics.
+// For large capacity volumes, it returns the LV-specific timeout (30 minutes by default).
+// For regular volumes, it returns the standard timeout (10 minutes by default).
+func getVolumeStartToCloseTimeout(volume *datamodel.Volume) uint64 {
+	if volume != nil && volume.LargeVolumeAttributes != nil && volume.LargeVolumeAttributes.LargeCapacity {
+		return volumeStartToCloseTimeoutSecLV
+	}
+	return volumeStartToCloseTimeoutSec
+}
 
 type volumeCreateWorkflow struct {
 	BaseWorkflow
@@ -733,8 +744,10 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
+	// Use LV-specific timeout for large capacity volumes
+	startToCloseTimeout := getVolumeStartToCloseTimeout(dbVolume)
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: time.Duration(volumeStartToCloseTimeoutSec) * time.Second,
+		StartToCloseTimeout: time.Duration(startToCloseTimeout) * time.Second,
 		HeartbeatTimeout:    time.Duration(volumeHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,

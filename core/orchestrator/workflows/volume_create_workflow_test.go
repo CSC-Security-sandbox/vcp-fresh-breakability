@@ -8578,3 +8578,91 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_PostWorkflowSlice_Cancellation
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 }
+
+// TestGetVolumeStartToCloseTimeout tests the getVolumeStartToCloseTimeout function
+// which returns the appropriate timeout based on volume characteristics.
+func TestGetVolumeStartToCloseTimeout(t *testing.T) {
+	// Store original values to restore after tests
+	originalTimeoutSec := volumeStartToCloseTimeoutSec
+	originalTimeoutSecLV := volumeStartToCloseTimeoutSecLV
+	defer func() {
+		volumeStartToCloseTimeoutSec = originalTimeoutSec
+		volumeStartToCloseTimeoutSecLV = originalTimeoutSecLV
+	}()
+
+	// Set known values for testing
+	volumeStartToCloseTimeoutSec = 600    // 10 minutes for regular volumes
+	volumeStartToCloseTimeoutSecLV = 1800 // 30 minutes for large volumes
+
+	tests := []struct {
+		name            string
+		volume          *datamodel.Volume
+		expectedTimeout uint64
+		description     string
+	}{
+		{
+			name:            "NilVolume_ReturnsStandardTimeout",
+			volume:          nil,
+			expectedTimeout: 600,
+			description:     "When volume is nil, should return standard timeout",
+		},
+		{
+			name: "VolumeWithNilLargeVolumeAttributes_ReturnsStandardTimeout",
+			volume: &datamodel.Volume{
+				LargeVolumeAttributes: nil,
+			},
+			expectedTimeout: 600,
+			description:     "When LargeVolumeAttributes is nil, should return standard timeout",
+		},
+		{
+			name: "VolumeWithLargeCapacityFalse_ReturnsStandardTimeout",
+			volume: &datamodel.Volume{
+				LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+					LargeCapacity: false,
+				},
+			},
+			expectedTimeout: 600,
+			description:     "When LargeCapacity is false, should return standard timeout",
+		},
+		{
+			name: "VolumeWithLargeCapacityTrue_ReturnsLVTimeout",
+			volume: &datamodel.Volume{
+				LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+					LargeCapacity: true,
+				},
+			},
+			expectedTimeout: 1800,
+			description:     "When LargeCapacity is true, should return LV timeout",
+		},
+		{
+			name: "LargeVolumeWithConstituentCount_ReturnsLVTimeout",
+			volume: &datamodel.Volume{
+				LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+					LargeCapacity:               true,
+					LargeVolumeConstituentCount: nillable.GetInt32Ptr(6),
+				},
+			},
+			expectedTimeout: 1800,
+			description:     "Large volume with constituent count should return LV timeout",
+		},
+		{
+			name: "RegularVolumeWithOtherAttributes_ReturnsStandardTimeout",
+			volume: &datamodel.Volume{
+				Name: "test-volume",
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					Protocols: []string{"NFSv3"},
+				},
+				LargeVolumeAttributes: nil,
+			},
+			expectedTimeout: 600,
+			description:     "Regular volume with other attributes but no LargeVolumeAttributes should return standard timeout",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getVolumeStartToCloseTimeout(tt.volume)
+			assert.Equal(t, tt.expectedTimeout, result, tt.description)
+		})
+	}
+}

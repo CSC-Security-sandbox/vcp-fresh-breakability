@@ -288,6 +288,7 @@ data:
 
   # Volume activities timeout configuration
   VOLUME_ACTIVITIES_START_TO_CLOSE_TIMEOUT_SEC: {{$.Values.workerConfig.volumeActivitiesStartToCloseTimeoutSec | quote }}
+  VOLUME_ACTIVITIES_START_TO_CLOSE_TIMEOUT_SEC_LV: {{$.Values.workerConfig.volumeActivitiesStartToCloseTimeoutSecLV | quote }}
   VOLUME_ACTIVITIES_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.volumeActivitiesHeartbeatTimeoutSec | quote }}
 
   # Snapshot workflow timeout configuration
