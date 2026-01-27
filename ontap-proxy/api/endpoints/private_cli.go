@@ -62,7 +62,7 @@ func (h Handler) V1PrivateCli(
 		ctx,
 		params.ProjectNumber,
 		params.PoolId.String(),
-		middleware.CredentialTypeAdmin,
+		middleware.CredentialTypeExpertModeUser,
 	)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to setup credentials", "error", err)
