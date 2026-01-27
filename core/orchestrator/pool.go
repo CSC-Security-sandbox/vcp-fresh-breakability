@@ -909,6 +909,7 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 	if pool.ActiveDirectory != nil {
 		poolRes.ActiveDirectoryConfigId = pool.ActiveDirectory.UUID
 		poolRes.ActiveDirectoryResourceId = pool.ActiveDirectory.AdName
+		poolRes.ActiveDirectory = convertDatastoreActiveDirectoryToModel(pool.ActiveDirectory)
 	}
 
 	if pool.KmsConfig != nil {

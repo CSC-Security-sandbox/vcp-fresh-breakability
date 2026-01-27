@@ -69,11 +69,31 @@ var (
 // ConvertToVSAError converts a regular error to *vsaerrors.CustomError.
 // If the error is already a *vsaerrors.CustomError, it returns it as is.
 // Otherwise, it wraps it in a generic workflow error.
+// NOTE: This should NOT be used in child workflows when returning errors.
+// Use WrapErrorForChildWorkflow instead to preserve tracking IDs.
 func ConvertToVSAError(err error) *vsaerrors.CustomError {
 	if err == nil {
 		return nil
 	}
 	return vsaerrors.ExtractCustomError(err)
+}
+
+// WrapErrorForChildWorkflow extracts a CustomError from the given error and wraps it
+// as a Temporal ApplicationError. This should be used when returning errors from
+// child workflows to ensure the tracking ID is preserved across the workflow boundary.
+//
+// When a child workflow returns a *CustomError directly, Temporal serializes it
+// without preserving the "CustomError" type. The parent workflow then cannot
+// extract the tracking ID, falling back to ErrInternalServerError (1011).
+//
+// By wrapping as ApplicationError with CustomErrorType, the tracking ID survives
+// the serialization and can be properly extracted by the parent workflow.
+func WrapErrorForChildWorkflow(err error) error {
+	if err == nil {
+		return nil
+	}
+	customErr := vsaerrors.ExtractCustomError(err)
+	return vsaerrors.WrapAsTemporalApplicationError(customErr)
 }
 
 type WorkflowRetryPolicy struct {

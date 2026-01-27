@@ -82,6 +82,9 @@ func (a ActiveDirectoryActivity) CreateOrModifyADDNS(ctx context.Context, node *
 		})
 		if err != nil {
 			logger.Error("failed to create DNS", "error", err.Error(), "domains", domainsSlice, "dnsServers", dnsServersSlice, "svmUUID", externalSVMUUID)
+			if strings.Contains(err.Error(), "cannot be reached") {
+				return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDNSServerUnreachable, err))
+			}
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 		return nil

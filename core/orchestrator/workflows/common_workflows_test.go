@@ -1100,6 +1100,70 @@ func TestPollTransferStatusWithContinueAsNewCommon(t *testing.T) {
 	})
 }
 
+func TestWrapErrorForChildWorkflow(t *testing.T) {
+	t.Run("ReturnsNilWhenErrorIsNil", func(t *testing.T) {
+		result := WrapErrorForChildWorkflow(nil)
+		assert.Nil(t, result)
+	})
+
+	t.Run("WrapsRegularErrorAsTemporalApplicationError", func(t *testing.T) {
+		originalErr := errors.New("test error")
+		result := WrapErrorForChildWorkflow(originalErr)
+		assert.NotNil(t, result)
+
+		var appErr *temporal.ApplicationError
+		assert.True(t, vsaerrors.As(result, &appErr))
+		assert.Equal(t, vsaerrors.CustomErrorType, appErr.Type())
+	})
+
+	t.Run("WrapsCustomErrorPreservingTrackingID", func(t *testing.T) {
+		customErr := vsaerrors.NewVCPError(vsaerrors.ErrBadRequest, errors.New("bad request"))
+		result := WrapErrorForChildWorkflow(customErr)
+		assert.NotNil(t, result)
+
+		var appErr *temporal.ApplicationError
+		assert.True(t, vsaerrors.As(result, &appErr))
+		assert.Equal(t, vsaerrors.CustomErrorType, appErr.Type())
+
+		var trackingID int
+		var errorDetails string
+		err := appErr.Details(&trackingID, &errorDetails)
+		assert.NoError(t, err)
+		assert.Equal(t, vsaerrors.ErrBadRequest, trackingID)
+	})
+
+	t.Run("WrapsTemporalApplicationError", func(t *testing.T) {
+		appErr := temporal.NewApplicationError("wrapped error", vsaerrors.CustomErrorType, vsaerrors.ErrResourceNotFound, "original details")
+		result := WrapErrorForChildWorkflow(appErr)
+		assert.NotNil(t, result)
+
+		var extractedAppErr *temporal.ApplicationError
+		assert.True(t, vsaerrors.As(result, &extractedAppErr))
+		assert.Equal(t, vsaerrors.CustomErrorType, extractedAppErr.Type())
+	})
+}
+
+func TestConvertToVSAError(t *testing.T) {
+	t.Run("ReturnsNilWhenErrorIsNil", func(t *testing.T) {
+		result := ConvertToVSAError(nil)
+		assert.Nil(t, result)
+	})
+
+	t.Run("ExtractsCustomErrorFromRegularError", func(t *testing.T) {
+		originalErr := errors.New("test error")
+		result := ConvertToVSAError(originalErr)
+		assert.NotNil(t, result)
+		assert.Equal(t, vsaerrors.ErrInternalServerError, result.TrackingID)
+	})
+
+	t.Run("PreservesExistingCustomError", func(t *testing.T) {
+		customErr := vsaerrors.NewVCPError(vsaerrors.ErrBadRequest, errors.New("bad request"))
+		result := ConvertToVSAError(customErr)
+		assert.NotNil(t, result)
+		assert.Equal(t, vsaerrors.ErrBadRequest, result.TrackingID)
+	})
+}
+
 func TestPopulateRotationRetryPolicyParams(t *testing.T) {
 	// Save original values
 	originalRetryInterval := RetryInterval

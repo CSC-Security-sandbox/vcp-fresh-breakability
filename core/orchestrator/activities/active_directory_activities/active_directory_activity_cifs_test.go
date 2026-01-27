@@ -581,6 +581,97 @@ func TestCreateOrModifyADDNS_DnsCreateError(t *testing.T) {
 	mockNameSvc.AssertExpectations(t)
 }
 
+func TestCreateOrModifyADDNS_DnsCreateError_DNSServerUnreachable(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockClient := new(ontapRest.MockRESTClient)
+	mockNameSvc := new(ontapRest.MockNameServicesClient)
+	mockClient.On("NameServices").Return(mockNameSvc).Times(2)
+	mockNameSvc.On("DNSGet", mock.Anything).Return((*ontapRest.DNS)(nil), utilerrors.NewNotFoundErr("dns", nil)).Once()
+
+	// Simulate DNS server unreachable error from ONTAP
+	dnsUnreachableErr := errors.New(`The DNS specified for SVM "gcnv-test-svm-01" cannot be reached. Reason: 10.150.0.2: Operation timed out`)
+	mockNameSvc.On("DnsCreate", mock.Anything).Return(nil, dnsUnreachableErr).Once()
+
+	ctx := context.Background()
+	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
+	defer cleanup()
+
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.CreateOrModifyADDNS)
+
+	ad := &vsa.ActiveDirectory{DNS: "10.150.0.2", Domain: "example.com"}
+	_, err := env.ExecuteActivity(activity.CreateOrModifyADDNS, &models.Node{}, ad, "svm", "svm-uuid")
+
+	require.Error(t, err)
+	// Verify the error message contains the customer-facing message from errors.json (5016)
+	assert.Contains(t, err.Error(), "One or more of the Active Directory DNS IP do not exist or cannot be reached")
+	mockClient.AssertExpectations(t)
+	mockNameSvc.AssertExpectations(t)
+}
+
+func TestCreateOrModifyADDNS_DnsCreateError_DNSServerUnreachable_ConnectionRefused(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockClient := new(ontapRest.MockRESTClient)
+	mockNameSvc := new(ontapRest.MockNameServicesClient)
+	mockClient.On("NameServices").Return(mockNameSvc).Times(2)
+	mockNameSvc.On("DNSGet", mock.Anything).Return((*ontapRest.DNS)(nil), utilerrors.NewNotFoundErr("dns", nil)).Once()
+
+	// Simulate another variant of DNS unreachable error
+	dnsUnreachableErr := errors.New(`The DNS server cannot be reached. Connection refused.`)
+	mockNameSvc.On("DnsCreate", mock.Anything).Return(nil, dnsUnreachableErr).Once()
+
+	ctx := context.Background()
+	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
+	defer cleanup()
+
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.CreateOrModifyADDNS)
+
+	ad := &vsa.ActiveDirectory{DNS: "10.150.0.2", Domain: "example.com"}
+	_, err := env.ExecuteActivity(activity.CreateOrModifyADDNS, &models.Node{}, ad, "svm", "svm-uuid")
+
+	require.Error(t, err)
+	// Verify the error message contains the customer-facing message from errors.json (5016)
+	assert.Contains(t, err.Error(), "One or more of the Active Directory DNS IP do not exist or cannot be reached")
+	mockClient.AssertExpectations(t)
+	mockNameSvc.AssertExpectations(t)
+}
+
+func TestCreateOrModifyADDNS_DnsCreateError_OtherError_NotDNSUnreachable(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockClient := new(ontapRest.MockRESTClient)
+	mockNameSvc := new(ontapRest.MockNameServicesClient)
+	mockClient.On("NameServices").Return(mockNameSvc).Times(2)
+	mockNameSvc.On("DNSGet", mock.Anything).Return((*ontapRest.DNS)(nil), utilerrors.NewNotFoundErr("dns", nil)).Once()
+
+	// Simulate a different DNS error that is NOT "cannot be reached"
+	otherDnsErr := errors.New(`Domain name cannot be an IP address`)
+	mockNameSvc.On("DnsCreate", mock.Anything).Return(nil, otherDnsErr).Once()
+
+	ctx := context.Background()
+	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
+	defer cleanup()
+
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.CreateOrModifyADDNS)
+
+	ad := &vsa.ActiveDirectory{DNS: "10.150.0.2", Domain: "192.168.1.1"}
+	_, err := env.ExecuteActivity(activity.CreateOrModifyADDNS, &models.Node{}, ad, "svm", "svm-uuid")
+
+	require.Error(t, err)
+	// Verify this error does NOT get the DNS unreachable customer-facing message (5016)
+	assert.NotContains(t, err.Error(), "One or more of the Active Directory DNS IP do not exist or cannot be reached")
+	assert.Contains(t, err.Error(), "Domain name cannot be an IP address")
+	mockClient.AssertExpectations(t)
+	mockNameSvc.AssertExpectations(t)
+}
+
 func TestCreateOrModifyADDNS_DNSModifyError(t *testing.T) {
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestActivityEnvironment()

@@ -113,6 +113,7 @@ const (
 	ErrInsufficientAggregateCapacity   = 5013
 	ErrOntapAggregateCountMismatch     = 5014
 	ErrOfflineAggregateError           = 5015
+	ErrDNSServerUnreachable            = 5016
 
 	ErrIamClientNotFoundError      = 6020
 	ErrFailedToParseProjectNumber  = 6021

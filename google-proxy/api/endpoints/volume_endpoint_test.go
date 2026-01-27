@@ -7241,6 +7241,16 @@ func TestValidateKerberosPolicyV1beta(t *testing.T) {
 		Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{kerberosRule},
 	})
 
+	validPoolWithAD := &models.Pool{
+		ActiveDirectoryConfigId: "ad",
+		ActiveDirectory: &models.ActiveDirectory{
+			ActiveDirectoryAttributes: &models.ActiveDirectoryAttributes{
+				KdcIP:       "192.168.1.1",
+				KdcHostname: "kdc.example.com",
+			},
+		},
+	}
+
 	t.Run("RegionDoesNotSupportKerberos", func(tt *testing.T) {
 		orig := enableKerberos
 		enableKerberos = false
@@ -7250,7 +7260,7 @@ func TestValidateKerberosPolicyV1beta(t *testing.T) {
 			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
 			kerberosEnabledPtr,
 			kerberosPolicy,
-			&models.Pool{ActiveDirectoryConfigId: "ad"},
+			validPoolWithAD,
 		)
 
 		assert.EqualError(tt, err, "Kerberos is not supported in this region")
@@ -7272,6 +7282,48 @@ func TestValidateKerberosPolicyV1beta(t *testing.T) {
 		assert.EqualError(tt, err, "Kerberos requires the pool to be joined to an Active Directory.")
 	})
 
+	t.Run("MissingKDCConfiguration", func(tt *testing.T) {
+		orig := enableKerberos
+		enableKerberos = true
+		defer func() { enableKerberos = orig }()
+
+		poolWithADButNoKDC := &models.Pool{
+			ActiveDirectoryConfigId: "ad",
+			ActiveDirectory: &models.ActiveDirectory{
+				ActiveDirectoryAttributes: &models.ActiveDirectoryAttributes{
+					KdcIP:       "",
+					KdcHostname: "",
+				},
+			},
+		}
+
+		err := _validateKerberosPolicyV1beta(
+			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
+			kerberosEnabledPtr,
+			kerberosPolicy,
+			poolWithADButNoKDC,
+		)
+
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "Active directory configuration must have KDC Name and KDC IP set for creating kerberos volume")
+	})
+
+	t.Run("NilActiveDirectory", func(tt *testing.T) {
+		orig := enableKerberos
+		enableKerberos = true
+		defer func() { enableKerberos = orig }()
+
+		err := _validateKerberosPolicyV1beta(
+			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
+			kerberosEnabledPtr,
+			kerberosPolicy,
+			&models.Pool{ActiveDirectoryConfigId: "ad", ActiveDirectory: nil},
+		)
+
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "Kerberos requires the pool to be joined to an Active Directory.")
+	})
+
 	t.Run("PolicyNotSetWhenKerberosEnabled", func(tt *testing.T) {
 		orig := enableKerberos
 		enableKerberos = true
@@ -7281,7 +7333,7 @@ func TestValidateKerberosPolicyV1beta(t *testing.T) {
 			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
 			kerberosEnabledPtr,
 			gcpgenserver.OptExportPolicyV1beta{},
-			&models.Pool{ActiveDirectoryConfigId: "ad"},
+			validPoolWithAD,
 		)
 
 		assert.EqualError(tt, err, "Export policy must be defined for kerberos enabled volumes")
@@ -7307,7 +7359,7 @@ func TestValidateKerberosPolicyV1beta(t *testing.T) {
 			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
 			kerberosEnabledPtr,
 			policy,
-			&models.Pool{ActiveDirectoryConfigId: "ad"},
+			validPoolWithAD,
 		)
 
 		assert.EqualError(tt, err, "When kerberos is enabled, 'accessType' should be set to READ_NONE in export policy rules")
@@ -7331,7 +7383,7 @@ func TestValidateKerberosPolicyV1beta(t *testing.T) {
 			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
 			kerberosEnabledPtr,
 			policy,
-			&models.Pool{ActiveDirectoryConfigId: "ad"},
+			validPoolWithAD,
 		)
 
 		assert.EqualError(tt, err, "Export policy rules doesn't contain any kerberos export policy rule for kerberos enabled volume")
@@ -7346,7 +7398,7 @@ func TestValidateKerberosPolicyV1beta(t *testing.T) {
 			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3},
 			kerberosEnabledPtr,
 			kerberosPolicy,
-			&models.Pool{ActiveDirectoryConfigId: "ad"},
+			validPoolWithAD,
 		)
 
 		assert.EqualError(tt, err, "Kerberos feature is enabled for only NFSv4 volumes")
@@ -7361,7 +7413,7 @@ func TestValidateKerberosPolicyV1beta(t *testing.T) {
 			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
 			kerberosDisabledPtr,
 			kerberosPolicy,
-			&models.Pool{ActiveDirectoryConfigId: "ad"},
+			validPoolWithAD,
 		)
 
 		assert.EqualError(tt, err, "Export policy rules don't match kerberos enabled flag")
@@ -7376,7 +7428,7 @@ func TestValidateKerberosPolicyV1beta(t *testing.T) {
 			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
 			nil,
 			kerberosPolicy,
-			&models.Pool{ActiveDirectoryConfigId: "ad"},
+			validPoolWithAD,
 		)
 
 		assert.EqualError(tt, err, "Export policy rules don't match kerberos enabled flag")
@@ -7391,7 +7443,7 @@ func TestValidateKerberosPolicyV1beta(t *testing.T) {
 			[]gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV4},
 			kerberosEnabledPtr,
 			kerberosPolicy,
-			&models.Pool{ActiveDirectoryConfigId: "ad"},
+			validPoolWithAD,
 		)
 
 		assert.NoError(tt, err)
@@ -10354,6 +10406,156 @@ func TestGetFilesMountInstructions(t *testing.T) {
 	})
 }
 
+// TestGetExportPath tests the getExportPath function with different protocols
+func TestGetExportPath(t *testing.T) {
+	t.Run("NFSV3_Protocol_ShouldReturnJunctionPathAsIs", func(tt *testing.T) {
+		junctionPath := "/testvolume"
+		protocol := "NFSV3"
+
+		result := getExportPath(junctionPath, protocol)
+
+		assert.True(tt, result.IsSet())
+		assert.Equal(tt, "/testvolume", result.Value)
+	})
+
+	t.Run("NFSV4_Protocol_ShouldReturnJunctionPathAsIs", func(tt *testing.T) {
+		junctionPath := "/vol1"
+		protocol := "NFSV4"
+
+		result := getExportPath(junctionPath, protocol)
+
+		assert.True(tt, result.IsSet())
+		assert.Equal(tt, "/vol1", result.Value)
+	})
+
+	t.Run("SMB_Protocol_ShouldTrimLeadingSlash", func(tt *testing.T) {
+		junctionPath := "/smb-share"
+		protocol := "SMB"
+
+		result := getExportPath(junctionPath, protocol)
+
+		assert.True(tt, result.IsSet())
+		assert.Equal(tt, "smb-share", result.Value)
+	})
+
+	t.Run("SMB_Protocol_WithNoLeadingSlash_ShouldReturnAsIs", func(tt *testing.T) {
+		junctionPath := "smb-share"
+		protocol := "SMB"
+
+		result := getExportPath(junctionPath, protocol)
+
+		assert.True(tt, result.IsSet())
+		assert.Equal(tt, "smb-share", result.Value)
+	})
+
+	t.Run("SMB_Protocol_EmptyJunctionPath_ShouldReturnEmpty", func(tt *testing.T) {
+		junctionPath := ""
+		protocol := "SMB"
+
+		result := getExportPath(junctionPath, protocol)
+
+		assert.True(tt, result.IsSet())
+		assert.Equal(tt, "", result.Value)
+	})
+
+	t.Run("NFS_Protocol_NestedPath_ShouldReturnJunctionPathAsIs", func(tt *testing.T) {
+		junctionPath := "/vol1/subvol"
+		protocol := "NFSV3"
+
+		result := getExportPath(junctionPath, protocol)
+
+		assert.True(tt, result.IsSet())
+		assert.Equal(tt, "/vol1/subvol", result.Value)
+	})
+}
+
+// TestGetExportFullPath tests the getExportFullPath function with different protocols
+func TestGetExportFullPath(t *testing.T) {
+	t.Run("NFSV3_Protocol_ShouldReturnAddressColonPath", func(tt *testing.T) {
+		address := "192.168.1.100"
+		path := "/testvolume"
+		protocol := "NFSV3"
+		fqdn := ""
+
+		result := getExportFullPath(address, path, protocol, fqdn)
+
+		assert.True(tt, result.IsSet())
+		assert.Equal(tt, "192.168.1.100:/testvolume", result.Value)
+	})
+
+	t.Run("NFSV4_Protocol_ShouldReturnAddressColonPath", func(tt *testing.T) {
+		address := "10.0.0.50"
+		path := "/vol1"
+		protocol := "NFSV4"
+		fqdn := ""
+
+		result := getExportFullPath(address, path, protocol, fqdn)
+
+		assert.True(tt, result.IsSet())
+		assert.Equal(tt, "10.0.0.50:/vol1", result.Value)
+	})
+
+	t.Run("SMB_Protocol_ShouldReturnUNCPath", func(tt *testing.T) {
+		address := "192.168.1.200"
+		path := "/smb-share"
+		protocol := "SMB"
+		fqdn := "netbios.domain.com"
+
+		result := getExportFullPath(address, path, protocol, fqdn)
+
+		assert.True(tt, result.IsSet())
+		assert.Equal(tt, `\\netbios.domain.com\smb-share`, result.Value)
+	})
+
+	t.Run("SMB_Protocol_PathWithoutLeadingSlash_ShouldReturnUNCPath", func(tt *testing.T) {
+		address := "192.168.1.200"
+		path := "smb-share"
+		protocol := "SMB"
+		fqdn := "netbios.domain.com"
+
+		result := getExportFullPath(address, path, protocol, fqdn)
+
+		assert.True(tt, result.IsSet())
+		assert.Equal(tt, `\\netbios.domain.com\smb-share`, result.Value)
+	})
+
+	t.Run("SMB_Protocol_EmptyFqdn_ShouldStillReturnUNCPath", func(tt *testing.T) {
+		address := "192.168.1.200"
+		path := "/smb-share"
+		protocol := "SMB"
+		fqdn := ""
+
+		result := getExportFullPath(address, path, protocol, fqdn)
+
+		assert.True(tt, result.IsSet())
+		assert.Equal(tt, `\\\smb-share`, result.Value)
+	})
+
+	t.Run("NFS_Protocol_EmptyAddress_ShouldStillReturnColonPath", func(tt *testing.T) {
+		address := ""
+		path := "/vol1"
+		protocol := "NFSV3"
+		fqdn := ""
+
+		result := getExportFullPath(address, path, protocol, fqdn)
+
+		assert.True(tt, result.IsSet())
+		assert.Equal(tt, ":/vol1", result.Value)
+	})
+
+	t.Run("NFS_Protocol_NestedPath_ShouldReturnFullPath", func(tt *testing.T) {
+		address := "192.168.1.100"
+		path := "/vol1/subvol"
+		protocol := "NFSV4"
+		fqdn := ""
+
+		result := getExportFullPath(address, path, protocol, fqdn)
+
+		assert.True(tt, result.IsSet())
+		assert.Equal(tt, "192.168.1.100:/vol1/subvol", result.Value)
+	})
+}
+
 // TestConvertModelToVCPVolume_NFSMountPoints tests the NFS mount points functionality
 func TestConvertModelToVCPVolume_NFSMountPoints(t *testing.T) {
 	t.Run("NFSv3_SingleProtocol_ShouldCreateMountPoints", func(tt *testing.T) {
@@ -10579,20 +10781,28 @@ func TestConvertModelToVCPVolume_NFSMountPoints(t *testing.T) {
 						},
 					},
 				},
+				Fqdn: "netbios.domain.com",
 			},
 		}
 
 		result := convertModelToVCPVolume(vol)
 
 		assert.NotNil(tt, result.MountPoints)
-		assert.Len(tt, result.MountPoints, 3) // Only NFSv3 and NFSv4 should create mount points
+		assert.Len(tt, result.MountPoints, 3) // NFSv3, NFSv4, and SMB should create mount points
 
 		protocols := make(map[gcpgenserver.ProtocolsV1beta]bool)
 		for _, mp := range result.MountPoints {
 			protocols[mp.Protocol.Value] = true
-			// Verify Export and ExportFull for all mount points
-			assert.Equal(tt, "/mixedvolume", mp.Export.Value)
-			assert.Equal(tt, "192.168.1.100:/mixedvolume", mp.ExportFull.Value)
+			// Verify Export and ExportFull based on protocol type
+			if mp.Protocol.Value == gcpgenserver.ProtocolsV1betaSMB {
+				// SMB uses UNC path format
+				assert.Equal(tt, "mixedvolume", mp.Export.Value)
+				assert.Equal(tt, `\\netbios.domain.com\mixedvolume`, mp.ExportFull.Value)
+			} else {
+				// NFS protocols use standard format
+				assert.Equal(tt, "/mixedvolume", mp.Export.Value)
+				assert.Equal(tt, "192.168.1.100:/mixedvolume", mp.ExportFull.Value)
+			}
 		}
 
 		assert.True(tt, protocols[gcpgenserver.ProtocolsV1betaNFSV3])
@@ -10634,9 +10844,9 @@ func TestConvertModelToVCPVolume_NFSMountPoints(t *testing.T) {
 		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "Mapping your network drive")
 		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "Click the Start button")
 		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "\\\\netbios.domain.com\\smb-share")
-		// Verify Export and ExportFull for SMB
-		assert.Equal(tt, "/smb-share", result.MountPoints[0].Export.Value)
-		assert.Equal(tt, "192.168.1.200:/smb-share", result.MountPoints[0].ExportFull.Value)
+		// Verify Export and ExportFull for SMB (SMB uses UNC path format)
+		assert.Equal(tt, "smb-share", result.MountPoints[0].Export.Value)
+		assert.Equal(tt, `\\netbios.domain.com\smb-share`, result.MountPoints[0].ExportFull.Value)
 	})
 
 	t.Run("VolumeNotReady_ShouldNotCreateMountPoints", func(tt *testing.T) {

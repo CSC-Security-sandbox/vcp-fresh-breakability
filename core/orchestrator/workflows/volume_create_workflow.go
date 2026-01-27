@@ -232,7 +232,7 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 	if dbVolume.Pool == nil {
 		err = fmt.Errorf("pool details not loaded for volume %s", dbVolume.UUID)
 		log.Error("Pool details missing during NAS LIF check", "error", err)
-		return nil, ConvertToVSAError(err)
+		return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, err))
 	}
 
 	ontapVersion := activities.GetOntapVersionFromPool(dbVolume.Pool)
@@ -365,27 +365,27 @@ func PostFileVolumeWorkflowForSMB(ctx workflow.Context, dbVolume *datamodel.Volu
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetSVM, &dbVolume.PoolID).Get(ctx, &dbSvm)
 	if err != nil {
 		log.Error("Failed to get SVM info during PostFileVolumeWorkflowForSMB with error: ", err)
-		return nil, ConvertToVSAError(err)
+		return nil, WrapErrorForChildWorkflow(err)
 	}
 
 	var activeDirectory *vsa.ActiveDirectory
 	err = workflow.ExecuteActivity(ctx, active_directory_activities.ActiveDirectoryActivity.GetActiveDirectoryForPool, &dbVolume.PoolID).Get(ctx, &activeDirectory)
 	if err != nil {
 		log.Error("Failed to get active directory during PostFileVolumeWorkflowForSMB with error: ", err)
-		return nil, ConvertToVSAError(err)
+		return nil, WrapErrorForChildWorkflow(err)
 	}
 
 	if dbVolume.Pool == nil {
 		err = fmt.Errorf("pool details not loaded for volume %s", dbVolume.UUID)
 		log.Error("Pool details missing during PostFileVolumeWorkflowForSMB with error: ", err)
-		return nil, ConvertToVSAError(err)
+		return nil, WrapErrorForChildWorkflow(err)
 	}
 
 	poolClusterDetails := dbVolume.Pool.ClusterDetails
 	if poolClusterDetails.SnHostProject == "" || poolClusterDetails.Network == "" {
 		err = fmt.Errorf("pool %s missing SN host project or network details", dbVolume.Pool.UUID)
 		log.Error("Pool network metadata missing during PostFileVolumeWorkflowForSMB with error: ", err)
-		return nil, ConvertToVSAError(err)
+		return nil, WrapErrorForChildWorkflow(err)
 	}
 
 	var fqdn string
@@ -393,7 +393,7 @@ func PostFileVolumeWorkflowForSMB(ctx workflow.Context, dbVolume *datamodel.Volu
 	fqdn, err = EnsureCIFSShareWorkflow(ctx, dbVolume, node, activeDirectory, dbSvm.Name, dbSvm.SvmDetails.ExternalUUID)
 	if err != nil {
 		log.Error("Failed to create cifs share during PostFileVolumeWorkflowForSMB with error: ", err)
-		return nil, ConvertToVSAError(err)
+		return nil, WrapErrorForChildWorkflow(err)
 	}
 	if fqdn != "" && dbVolume.VolumeAttributes != nil && dbVolume.VolumeAttributes.FileProperties != nil {
 		log.Infof("Setting the fqdn: [%s] for volume:[%s]", fqdn, dbVolume.Name)
@@ -406,7 +406,7 @@ func PostFileVolumeWorkflowForSMB(ctx workflow.Context, dbVolume *datamodel.Volu
 		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.UpdateSvmActiveDirectory, params).Get(ctx, &updatedSvm)
 		if err != nil {
 			log.Error("Failed to update SVM Active Directory association during PostFileVolumeWorkflowForSMB with error: ", err)
-			return nil, ConvertToVSAError(err)
+			return nil, WrapErrorForChildWorkflow(err)
 		}
 		dbSvm = updatedSvm
 	}
@@ -571,7 +571,7 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 		if dbVolume.Pool == nil {
 			err = fmt.Errorf("pool details not loaded for volume %s", dbVolume.UUID)
 			log.Error("Pool details missing during PostFileVolumeWorkflow with error: ", err)
-			return nil, ConvertToVSAError(err)
+			return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, err))
 		}
 
 		var dbSvm *datamodel.Svm
@@ -605,7 +605,7 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 		if dbVolume.Pool == nil {
 			err = fmt.Errorf("pool details not loaded for volume %s", dbVolume.UUID)
 			log.Error("Pool details missing during PostFileVolumeWorkflow with error: ", err)
-			return nil, ConvertToVSAError(err)
+			return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, err))
 		}
 
 		ldapEnabled := false

@@ -377,6 +377,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "5016": {
+    "description": "DNS server unreachable",
+    "message": "One or more of the Active Directory DNS IP do not exist or cannot be reached. Verify that the Active Directory policy is correct and that DNS servers are available.",
+    "retriable": false,
+    "http_code": 400
+  },
   "6020": {
     "description": "IAM client Not Found",
     "message": "IAM client Not Found",

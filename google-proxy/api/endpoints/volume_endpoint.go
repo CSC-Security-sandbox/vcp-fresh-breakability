@@ -1545,8 +1545,8 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 				for _, protocol := range volume.ProtocolTypes {
 					if utils.IsFilesProtocol(protocol) {
 						res.MountPoints = append(res.MountPoints, gcpgenserver.MountPointV1beta{
-							Export:       gcpgenserver.NewOptString(volume.FileProperties.JunctionPath),
-							ExportFull:   gcpgenserver.NewOptString(ipAddress + ":" + volume.FileProperties.JunctionPath),
+							Export:       getExportPath(volume.FileProperties.JunctionPath, protocol),
+							ExportFull:   getExportFullPath(ipAddress, volume.FileProperties.JunctionPath, protocol, volume.FileProperties.Fqdn),
 							IpAddress:    gcpgenserver.NewOptString(ipAddress),
 							Protocol:     gcpgenserver.NewOptProtocolsV1beta(gcpgenserver.ProtocolsV1beta(protocol)),
 							Instructions: getFilesMountInstructions(ipAddress, volume.FileProperties.JunctionPath, "/"+volume.DisplayName, protocol, volume.FileProperties.Fqdn),
@@ -1704,6 +1704,20 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 	}
 
 	return res
+}
+
+func getExportFullPath(address string, path string, protocol string, fqdn string) gcpgenserver.OptString {
+	if protocol == string(gcpgenserver.ProtocolsV1betaSMB) {
+		return gcpgenserver.NewOptString(fmt.Sprintf(`\\%s\%s`, fqdn, strings.TrimPrefix(path, "/")))
+	}
+	return gcpgenserver.NewOptString(fmt.Sprintf(`%s:%s`, address, path))
+}
+
+func getExportPath(junctionPath, protocol string) gcpgenserver.OptString {
+	if protocol == string(gcpgenserver.ProtocolsV1betaSMB) {
+		return gcpgenserver.NewOptString(strings.TrimPrefix(junctionPath, "/"))
+	}
+	return gcpgenserver.NewOptString(junctionPath)
 }
 
 func getFilesMountInstructions(ipAddress, junctionPath, fileDir, protocol, fqdn string) gcpgenserver.OptString {
@@ -3153,6 +3167,14 @@ func _validateKerberosPolicyV1beta(protocols []gcpgenserver.ProtocolsV1beta, ker
 		return errors.NewUserInputValidationErr("Kerberos requires the pool to be joined to an Active Directory.")
 	}
 	if isKerberosEnabledInVolumeRequest {
+		if pool == nil || pool.ActiveDirectory == nil || pool.ActiveDirectory.ActiveDirectoryAttributes == nil {
+			return errors.NewUserInputValidationErr("Kerberos requires the pool to be joined to an Active Directory.")
+		}
+		kdcIP := pool.ActiveDirectory.ActiveDirectoryAttributes.KdcIP
+		kdcHostname := pool.ActiveDirectory.ActiveDirectoryAttributes.KdcHostname
+		if kdcIP == "" || kdcHostname == "" {
+			return errors.NewUserInputValidationErr("Active directory configuration must have KDC Name and KDC IP set for creating kerberos volume")
+		}
 		if !policy.IsSet() {
 			return errors.New("Export policy must be defined for kerberos enabled volumes")
 		}

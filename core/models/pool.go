@@ -37,6 +37,7 @@ type Pool struct {
 	ActiveDirectoryConfigId   string
 	ActiveDirectoryResourceId string
 	ActiveDirectoryChangeId   string
+	ActiveDirectory           *ActiveDirectory
 	APIAccessMode             string
 }
 
