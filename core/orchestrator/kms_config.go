@@ -458,6 +458,13 @@ func migrateKmsConfig(ctx context.Context, se database.Storage, temporal client.
 		return ongoingJobUuid, nil
 	}
 
+	// Get previous state from KMS config before updating to MIGRATING
+	var previousState, previousStateDetails string
+	if localEntryPresent {
+		previousState = dbKmsConfig.State
+		previousStateDetails = dbKmsConfig.StateDetails
+	}
+
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeMigrateKmsConfig),
 		State:         string(models.JobsStateNEW),
@@ -465,6 +472,11 @@ func migrateKmsConfig(ctx context.Context, se database.Storage, temporal client.
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID:         params.UUID,
+			PreviousState:        previousState,
+			PreviousStateDetails: previousStateDetails,
+		},
 	}
 	createdJob, errJob := se.CreateJob(ctx, job)
 	if errJob != nil {

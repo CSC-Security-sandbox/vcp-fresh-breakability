@@ -49,6 +49,7 @@ func TestRunWorkflowSupervisorTask_RegistersAllHandlers(t *testing.T) {
 		supervisorhandler.NewReplicationUpdateHandler(),
 		supervisorhandler.NewReplicationDeleteHandler(),
 		supervisorhandler.NewKmsDeleteHandler(),
+		supervisorhandler.NewKmsMigrateHandler(),
 		supervisorhandler.NewNetworkHandler(),
 	}
 
@@ -101,6 +102,11 @@ func TestRunWorkflowSupervisorTask_RegistersAllHandlers(t *testing.T) {
 	require.NotNil(t, handler)
 
 	handler, ok = runner.handlerFor(string(models.JobTypeDeleteKmsConfig))
+	require.True(t, ok)
+	require.NotNil(t, handler)
+
+	// Verify MIGRATE handlers are registered
+	handler, ok = runner.handlerFor(string(models.JobTypeMigrateKmsConfig))
 	require.True(t, ok)
 	require.NotNil(t, handler)
 }

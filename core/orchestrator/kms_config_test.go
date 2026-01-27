@@ -2924,3 +2924,145 @@ func TestDeleteKmsConfig_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 }
+
+func TestMigrateKmsConfig_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
+	t.Run("WhenMigrateKmsConfig_JobAttributesContainsPreviousStateAndDetails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflow_engine.NewMockTemporalTestClient(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+
+		previousState := models.LifeCycleStateREADY
+		previousStateDetails := models.LifeCycleStateReadyDetails
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:    datamodel.BaseModel{UUID: "test-kms-config-uuid"},
+			Name:         "test-kms-config",
+			State:        previousState,
+			StateDetails: previousStateDetails,
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeKmsConfigUUID: "sde-kms-config-uuid",
+			},
+		}
+
+		params := &common.MigrateKmsConfigParams{
+			UUID:          kmsConfig.UUID,
+			AccountName:   account.Name,
+			LocationID:    "us-central1",
+			ProjectNumber: account.Name,
+			State:         previousState,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		mockStorage.EXPECT().GetKmsConfigByUUID(ctx, params.UUID).Return(kmsConfig, nil)
+		// GetOngoingMigrateKmsConfigJob is only called when state is Updating or Migrating, not for READY/InUse
+		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.JobAttributes != nil &&
+				job.JobAttributes.PreviousState == previousState &&
+				job.JobAttributes.PreviousStateDetails == previousStateDetails &&
+				job.JobAttributes.ResourceUUID == kmsConfig.UUID
+		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
+		mockStorage.EXPECT().UpdateKmsConfigState(ctx, kmsConfig.UUID, models.LifeCycleStateMigrating, models.LifeCycleStateMigratingDetails).Return(kmsConfig, nil)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		jobUUID, err := migrateKmsConfig(ctx, mockStorage, temporal, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "job-uuid", jobUUID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenMigrateKmsConfig_WithInUseState_JobAttributesContainsPreviousStateAndDetails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflow_engine.NewMockTemporalTestClient(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+
+		previousState := models.LifeCycleStateInUse
+		previousStateDetails := models.LifeCycleStateInUseDetails
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:    datamodel.BaseModel{UUID: "test-kms-config-uuid"},
+			Name:         "test-kms-config",
+			State:        previousState,
+			StateDetails: previousStateDetails,
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeKmsConfigUUID: "sde-kms-config-uuid",
+			},
+		}
+
+		params := &common.MigrateKmsConfigParams{
+			UUID:          kmsConfig.UUID,
+			AccountName:   account.Name,
+			LocationID:    "us-central1",
+			ProjectNumber: account.Name,
+			State:         previousState,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		mockStorage.EXPECT().GetKmsConfigByUUID(ctx, params.UUID).Return(kmsConfig, nil)
+		// GetOngoingMigrateKmsConfigJob is only called when state is Updating or Migrating, not for READY/InUse
+		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.JobAttributes != nil &&
+				job.JobAttributes.PreviousState == previousState &&
+				job.JobAttributes.PreviousStateDetails == previousStateDetails &&
+				job.JobAttributes.ResourceUUID == kmsConfig.UUID
+		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
+		mockStorage.EXPECT().UpdateKmsConfigState(ctx, kmsConfig.UUID, models.LifeCycleStateMigrating, models.LifeCycleStateMigratingDetails).Return(kmsConfig, nil)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		jobUUID, err := migrateKmsConfig(ctx, mockStorage, temporal, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "job-uuid", jobUUID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenMigrateKmsConfig_NoLocalEntry_JobAttributesHasEmptyPreviousState", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflow_engine.NewMockTemporalTestClient(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+
+		params := &common.MigrateKmsConfigParams{
+			UUID:          "test-kms-config-uuid",
+			AccountName:   account.Name,
+			LocationID:    "us-central1",
+			ProjectNumber: account.Name,
+			State:         models.LifeCycleStateREADY,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		mockStorage.EXPECT().GetKmsConfigByUUID(ctx, params.UUID).Return(nil, errors.NewNotFoundErr("kms", nil))
+		// GetOngoingMigrateKmsConfigJob is only called when state is Updating or Migrating, not for READY/InUse
+		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.JobAttributes != nil &&
+				job.JobAttributes.PreviousState == "" &&
+				job.JobAttributes.PreviousStateDetails == "" &&
+				job.JobAttributes.ResourceUUID == params.UUID
+		})).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		jobUUID, err := migrateKmsConfig(ctx, mockStorage, temporal, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "job-uuid", jobUUID)
+		mockStorage.AssertExpectations(tt)
+	})
+}

@@ -85,6 +85,7 @@ func runWorkflowSupervisorTask(ctx context.Context, storage database.Storage, te
 			supervisorhandler.NewReplicationUpdateHandler(),
 			supervisorhandler.NewReplicationDeleteHandler(),
 			supervisorhandler.NewKmsDeleteHandler(),
+			supervisorhandler.NewKmsMigrateHandler(),
 			supervisorhandler.NewNetworkHandler(),
 		)
 	}
