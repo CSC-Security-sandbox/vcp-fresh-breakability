@@ -10493,6 +10493,7 @@ components:
           description:
             If enabled (true), all UIDs are mapped to the anonymous UID specified by anonUid.
             When true, hasRootAccess must be false for that particular rule.
+          default: false
           nullable: true
           example: true
         anonUid:
@@ -10502,6 +10503,7 @@ components:
             The anonymous UID to which all UIDs are mapped when allSquash is true.
             Must be a integer representing a valid UID (0 to 4294967295).
             Required when allSquash is true.
+          default: 0
           minimum: 0
           maximum: 4294967295
           nullable: true
