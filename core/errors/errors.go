@@ -41,6 +41,7 @@ const (
 	ErrResourceEmptyError         = 1015
 	ErrCSRGenerationError         = 1016
 	ErrWorkflowNotLaunched        = 1017
+	ErrWorkflowSupervisorTimeout  = 1018
 
 	ErrDatabaseConnectionClosed  = 2001
 	ErrDatabaseTransactionError  = 2002

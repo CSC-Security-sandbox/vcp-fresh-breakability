@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	supervisorhandler "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/tasks/supervisor-handler"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -227,7 +228,13 @@ func (r *workflowSupervisorTaskRunner) evaluateJob(ctx context.Context, job *dat
 
 // markJobAsError updates the job state and detail to record a timeout failure.
 func (r *workflowSupervisorTaskRunner) markJobAsError(ctx context.Context, job *datamodel.Job) error {
-	return r.storage.UpdateJob(ctx, job.UUID, string(models.JobsStateERROR), job.TrackingID, supervisorhandler.WorkflowTimeoutDetail)
+	trackingID := job.TrackingID
+	// If the job never started processing (TrackingID is 0), use the supervisor timeout error code
+	// so customers get a proper error message instead of "undefined error"
+	if trackingID == 0 {
+		trackingID = vsaerrors.ErrWorkflowSupervisorTimeout
+	}
+	return r.storage.UpdateJob(ctx, job.UUID, string(models.JobsStateERROR), trackingID, supervisorhandler.WorkflowTimeoutDetail)
 }
 
 // cleanupJob terminates the workflow if needed, delegates compensating actions,

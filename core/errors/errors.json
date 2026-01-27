@@ -101,6 +101,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "1018": {
+    "description": "Workflow timed out waiting in queue",
+    "message": "The operation timed out. Please try again.",
+    "retriable": false,
+    "http_code": 504
+  },
   "2001": {
     "description": "Database Connection Closed",
     "message": "An internal error occurred.",

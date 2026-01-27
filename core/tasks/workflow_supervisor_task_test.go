@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	supervisorhandler "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/tasks/supervisor-handler"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -780,4 +781,86 @@ func TestWorkflowSupervisorTaskRunnerCleanupJobSkipsTerminateWhenJobNotNew(t *te
 	require.Empty(t, handler.events)
 	temporal.AssertNotCalled(t, "TerminateWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	storage.AssertNotCalled(t, "UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+}
+
+// TestMarkJobAsErrorWithZeroTrackingID verifies that when a job has TrackingID 0
+// (i.e., it never started processing), the supervisor uses ErrWorkflowSupervisorTimeout
+// so customers get a proper error message instead of "undefined error".
+func TestMarkJobAsErrorWithZeroTrackingID(t *testing.T) {
+	storage := database.NewMockStorage(t)
+
+	runner := &workflowSupervisorTaskRunner{storage: storage}
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-zero-tracking"},
+		WorkflowID: "wf-zero-tracking",
+		TrackingID: 0, // Job never started processing
+	}
+
+	// Expect UpdateJob to be called with ErrWorkflowSupervisorTimeout (1018) instead of 0
+	storage.EXPECT().UpdateJob(
+		mock.Anything,
+		job.UUID,
+		string(models.JobsStateERROR),
+		vsaerrors.ErrWorkflowSupervisorTimeout, // Should use 1018, not 0
+		supervisorhandler.WorkflowTimeoutDetail,
+	).Return(nil)
+
+	err := runner.markJobAsError(context.Background(), job)
+	require.NoError(t, err)
+}
+
+// TestMarkJobAsErrorPreservesNonZeroTrackingID verifies that when a job has a non-zero
+// TrackingID (i.e., it started processing and got a proper error code), the supervisor
+// preserves the original tracking ID.
+func TestMarkJobAsErrorPreservesNonZeroTrackingID(t *testing.T) {
+	storage := database.NewMockStorage(t)
+
+	runner := &workflowSupervisorTaskRunner{storage: storage}
+	originalTrackingID := 5001 // Some error that occurred during processing
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-with-tracking"},
+		WorkflowID: "wf-with-tracking",
+		TrackingID: originalTrackingID,
+	}
+
+	// Expect UpdateJob to be called with the original TrackingID
+	storage.EXPECT().UpdateJob(
+		mock.Anything,
+		job.UUID,
+		string(models.JobsStateERROR),
+		originalTrackingID, // Should preserve original tracking ID
+		supervisorhandler.WorkflowTimeoutDetail,
+	).Return(nil)
+
+	err := runner.markJobAsError(context.Background(), job)
+	require.NoError(t, err)
+}
+
+// TestCleanupJobWithZeroTrackingIDUsesTimeoutError verifies the full cleanup flow
+// when a job with TrackingID 0 is cleaned up by the supervisor.
+func TestCleanupJobWithZeroTrackingIDUsesTimeoutError(t *testing.T) {
+	storage := database.NewMockStorage(t)
+	handler := newTestHandler(models.JobTypeCreateVolume)
+
+	runner := &workflowSupervisorTaskRunner{storage: storage}
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-cleanup-zero"},
+		WorkflowID: "wf-cleanup-zero",
+		Type:       string(models.JobTypeCreateVolume),
+		TrackingID: 0, // Job stuck in NEW state, never got a tracking ID
+	}
+
+	// Expect UpdateJob to be called with ErrWorkflowSupervisorTimeout
+	storage.EXPECT().UpdateJob(
+		mock.Anything,
+		job.UUID,
+		string(models.JobsStateERROR),
+		vsaerrors.ErrWorkflowSupervisorTimeout,
+		supervisorhandler.WorkflowTimeoutDetail,
+	).Return(nil)
+
+	runner.cleanupJob(context.Background(), job, handler, supervisorhandler.EventTimeout, util.GetLogger(context.Background()))
+
+	require.Len(t, handler.events, 1)
+	assert.Equal(t, supervisorhandler.EventTimeout, handler.events[0])
 }

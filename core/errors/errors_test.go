@@ -975,3 +975,50 @@ func TestCustomErrorWithArgsDeepCopy(t *testing.T) {
 		t.Error("Expected different instances")
 	}
 }
+
+// TestErrWorkflowSupervisorTimeoutMapping verifies that ErrWorkflowSupervisorTimeout (1018)
+// is properly mapped to a user-friendly error message and HTTP code, ensuring customers
+// get a proper error instead of "undefined error" when a job times out in the queue.
+func TestErrWorkflowSupervisorTimeoutMapping(t *testing.T) {
+	// Set up the error map with the expected mapping for ErrWorkflowSupervisorTimeout
+	// This mirrors what should be in errors.json for tracking ID 1018
+	httpCode := 503
+	retriable := false
+	errorMap[ErrWorkflowSupervisorTimeout] = ErrorMessage{
+		Message:   "The operation timed out. Please try again.",
+		Retriable: &retriable,
+		HttpCode:  &httpCode,
+	}
+
+	msg := GetErrorMessageByTrackingID(ErrWorkflowSupervisorTimeout)
+	if msg == nil {
+		t.Fatalf("Expected non-nil ErrorMessage for ErrWorkflowSupervisorTimeout (1018)")
+	}
+
+	// Verify the message is not "undefined error" (which would indicate missing mapping)
+	if msg.Message == "undefined error" {
+		t.Errorf("ErrWorkflowSupervisorTimeout should be mapped to a proper message, got 'undefined error'")
+	}
+
+	// Verify the message is user-friendly
+	expectedMessage := "The operation timed out. Please try again."
+	if msg.Message != expectedMessage {
+		t.Errorf("Expected message '%s', got '%s'", expectedMessage, msg.Message)
+	}
+
+	// Verify the HTTP code is 504 (Gateway Timeout) not 500 (Internal Server Error)
+	if msg.HttpCode == nil {
+		t.Fatalf("Expected non-nil HTTP code for ErrWorkflowSupervisorTimeout")
+	}
+	if *msg.HttpCode != 503 {
+		t.Errorf("Expected HTTP code 503, got %d", *msg.HttpCode)
+	}
+
+	// Verify the error is non-retriable as per the configuration
+	if msg.Retriable == nil {
+		t.Fatalf("Expected non-nil Retriable for ErrWorkflowSupervisorTimeout")
+	}
+	if *msg.Retriable {
+		t.Errorf("Expected ErrWorkflowSupervisorTimeout to be non retriable")
+	}
+}
