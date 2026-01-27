@@ -175,7 +175,8 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(err)
 	}
 	options := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(volumeStartToCloseTimeoutSec) * time.Second,
+		HeartbeatTimeout:    time.Duration(volumeHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,

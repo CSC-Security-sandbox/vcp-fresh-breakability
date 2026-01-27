@@ -22,6 +22,7 @@ var (
 	CreateSnapshotWorkflowTimeoutMinutes = env.GetString("CREATE_SNAPSHOT_WORKFLOW_TIMEOUT_MINUTES", "50")
 	DeleteSnapshotWorkflowTimeoutMinutes = env.GetString("DELETE_SNAPSHOT_WORKFLOW_TIMEOUT_MINUTES", "65")
 	RevertVolumeWorkflowTimeoutMinutes   = env.GetString("REVERT_VOLUME_WORKFLOW_TIMEOUT_MINUTES", "95")
+	VolumeRefreshWorkflowTimeoutMinutes  = env.GetString("VOLUME_REFRESH_WORKFLOW_TIMEOUT_MINUTES", "20")
 )
 
 // Struct for RetryPolicy configuration
@@ -166,4 +167,8 @@ func GetDeleteSnapshotWorkflowTimeout() *time.Duration {
 
 func GetRevertVolumeWorkflowTimeout() *time.Duration {
 	return getWorkflowTimeoutWithDefault(RevertVolumeWorkflowTimeoutMinutes, 95)
+}
+
+func GetVolumeRefreshWorkflowTimeout() *time.Duration {
+	return getWorkflowTimeoutWithDefault(VolumeRefreshWorkflowTimeoutMinutes, 20)
 }

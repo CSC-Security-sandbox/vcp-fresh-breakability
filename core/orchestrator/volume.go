@@ -1948,13 +1948,17 @@ func (o *Orchestrator) TriggerRefreshWorkflow(ctx context.Context, account *data
 	}
 
 	workflowId := fmt.Sprintf("VolumeRefreshWorkflow_AccountId_%s", volumes[0].Account.UUID)
-	_, err := o.temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.BackgroundTaskQueue,
-			ID:                    workflowId,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE,
-		},
+
+	workflowExecutor := workflows.NewWorkflowExecutor(o.temporal, log)
+	// Use ALLOW_DUPLICATE policy since this workflow runs periodically for the same account
+	reusePolicy := enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
+	err := workflowExecutor.ExecuteWorkflowWithRetry(
+		ctx,
+		workflowId,
+		workflowengine.BackgroundTaskQueue,
 		workflows.VolumeRefreshWorkflow,
+		workflowengine.GetVolumeRefreshWorkflowTimeout(),
+		&reusePolicy,
 		volumes,
 	)
 	if err != nil {

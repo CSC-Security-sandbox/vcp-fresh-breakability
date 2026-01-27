@@ -81,22 +81,24 @@ func (we *WorkflowExecutor) ExecuteWorkflow(
 	workflowRunTimeout *time.Duration,
 	args ...interface{},
 ) error {
-	return we.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, workflowRunTimeout, args...)
+	return we.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, workflowRunTimeout, nil, args...)
 }
 
 // ExecuteWorkflowWithRetry executes standard workflow with retry logic for transient failures
+// workflowIDReusePolicy is optional - if nil, defaults to WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE
 func (we *WorkflowExecutor) ExecuteWorkflowWithRetry(
 	ctx context.Context,
 	workflowID string,
 	taskQueue string,
 	workflowFunc interface{},
 	workflowRunTimeout *time.Duration,
+	workflowIDReusePolicy *enums.WorkflowIdReusePolicy,
 	args ...interface{},
 ) error {
 	var lastErr error
 
 	for attempt := 1; attempt <= temporalWorkflowMaxRetries; attempt++ {
-		err := we.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, workflowRunTimeout, args...)
+		err := we.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, workflowRunTimeout, workflowIDReusePolicy, args...)
 
 		if err == nil {
 			if attempt > 1 {
@@ -150,12 +152,14 @@ func (we *WorkflowExecutor) ExecuteWorkflowWithRetry(
 }
 
 // ExecuteWorkflowSingle performs a single standard workflow execution attempt
+// workflowIDReusePolicy is optional - if nil, defaults to WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE
 func (we *WorkflowExecutor) ExecuteWorkflowSingle(
 	ctx context.Context,
 	workflowID string,
 	taskQueue string,
 	workflowFunc interface{},
 	workflowRunTimeout *time.Duration,
+	workflowIDReusePolicy *enums.WorkflowIdReusePolicy,
 	args ...interface{},
 ) error {
 	timeout := workflowengine.GetWorkflowGlobalTimeout()
@@ -163,10 +167,16 @@ func (we *WorkflowExecutor) ExecuteWorkflowSingle(
 		timeout = *workflowRunTimeout
 	}
 
+	// Default to REJECT_DUPLICATE for backwards compatibility
+	reusePolicy := enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE
+	if workflowIDReusePolicy != nil {
+		reusePolicy = *workflowIDReusePolicy
+	}
+
 	options := client.StartWorkflowOptions{
 		TaskQueue:             taskQueue,
 		ID:                    workflowID,
-		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		WorkflowIDReusePolicy: reusePolicy,
 		WorkflowRunTimeout:    timeout,
 	}
 

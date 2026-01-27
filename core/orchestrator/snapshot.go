@@ -224,6 +224,7 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		workflowengine.CustomerTaskQueue,
 		workflows.CreateSnapshotWorkflow,
 		createSnapshotTimeout,
+		nil, // Use default WorkflowIDReusePolicy (REJECT_DUPLICATE)
 		params,
 		dbSnapshot,
 	)
@@ -797,7 +798,8 @@ func _deleteSnapshots(ctx context.Context, se database.Storage, temporal client.
 		job.WorkflowID,
 		workflowengine.CustomerTaskQueue,
 		replicationWorkflows.DeleteInternalSnapshotWorkflow,
-		nil,
+		nil, // workflowRunTimeout
+		nil, // Use default WorkflowIDReusePolicy (REJECT_DUPLICATE)
 		params,
 	)
 	if err != nil {

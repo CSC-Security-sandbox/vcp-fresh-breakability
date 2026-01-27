@@ -459,7 +459,7 @@ func TestWorkflowExecutor_ExecuteWorkflowSingle_Success(t *testing.T) {
 	mockClient.On("ExecuteWorkflow", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
 
-	err := executor.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, nil)
+	err := executor.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, nil, nil)
 
 	assert.NoError(t, err)
 	mockClient.AssertExpectations(t)
@@ -479,7 +479,7 @@ func TestWorkflowExecutor_ExecuteWorkflowSingle_Error(t *testing.T) {
 	mockClient.On("ExecuteWorkflow", mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedErr)
 	mockLogger.On("Error", mock.Anything, mock.Anything).Return()
 
-	err := executor.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, nil)
+	err := executor.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, nil, nil)
 
 	assert.Error(t, err)
 	mockClient.AssertExpectations(t)
@@ -499,7 +499,7 @@ func TestWorkflowExecutor_ExecuteWorkflowWithRetry_FirstAttemptSuccess(t *testin
 	mockClient.On("ExecuteWorkflow", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
 	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
 
-	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil)
+	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil, nil)
 
 	assert.NoError(t, err)
 	mockClient.AssertExpectations(t)
@@ -525,7 +525,7 @@ func TestWorkflowExecutor_ExecuteWorkflowWithRetry_RetryableErrorThenSuccess(t *
 	mockLogger.On("Warn", mock.Anything, mock.Anything).Return()
 	mockLogger.On("Info", mock.Anything, mock.Anything).Return()
 
-	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil)
+	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil, nil)
 
 	assert.NoError(t, err)
 	mockClient.AssertExpectations(t)
@@ -548,7 +548,7 @@ func TestWorkflowExecutor_ExecuteWorkflowWithRetry_NonRetryableError(t *testing.
 
 	mockLogger.On("Error", mock.Anything, mock.Anything).Return()
 
-	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil)
+	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil, nil)
 
 	assert.Error(t, err)
 	mockClient.AssertExpectations(t)
@@ -575,7 +575,7 @@ func TestWorkflowExecutor_ExecuteWorkflowWithRetry_MaxRetriesExceeded(t *testing
 	mockLogger.On("Warn", mock.Anything, mock.Anything).Return().Times(temporalWorkflowMaxRetries - 1)
 	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
 
-	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil)
+	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil, nil)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed after")
@@ -606,7 +606,7 @@ func TestWorkflowExecutor_ExecuteWorkflowWithRetry_ContextCancellation(t *testin
 		cancel()
 	}()
 
-	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil)
+	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil, nil)
 
 	assert.Error(t, err)
 	assert.Equal(t, context.Canceled, err)
@@ -712,7 +712,7 @@ func TestWorkflowExecutor_ExecuteWorkflowWithRetry_WithArgs(t *testing.T) {
 		Return(nil, nil).Once()
 	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
 
-	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil, arg1, arg2)
+	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil, nil, arg1, arg2)
 
 	assert.NoError(t, err)
 	mockClient.AssertExpectations(t)
@@ -865,7 +865,7 @@ func TestWorkflowExecutor_ExecuteWorkflowSingle_WithArgs(t *testing.T) {
 		Return(nil, nil).Once()
 	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
 
-	err := executor.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, nil, arg1, arg2, arg3)
+	err := executor.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, nil, nil, arg1, arg2, arg3)
 
 	assert.NoError(t, err)
 	mockClient.AssertExpectations(t)
@@ -1005,7 +1005,7 @@ func TestWorkflowExecutor_ExecuteWorkflowWithRetry_SecondAttemptSuccess(t *testi
 	mockLogger.On("Info", mock.Anything, mock.Anything).Return().Once()
 	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
 
-	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil)
+	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil, nil)
 
 	assert.NoError(t, err)
 	mockClient.AssertExpectations(t)
@@ -1034,7 +1034,7 @@ func TestWorkflowExecutor_ExecuteWorkflowWithRetry_ThirdAttemptSuccess(t *testin
 	mockLogger.On("Info", mock.Anything, mock.Anything).Return().Once()
 	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
 
-	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil)
+	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil, nil)
 
 	assert.NoError(t, err)
 	mockClient.AssertExpectations(t)
@@ -1076,7 +1076,7 @@ func TestWorkflowExecutor_ExecuteWorkflowSingle_WithNilTimeout_UsesDefault(t *te
 	}), mock.Anything).Return(nil, nil).Once()
 	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
 
-	err := executor.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, nil)
+	err := executor.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, nil, nil)
 
 	assert.NoError(t, err)
 	mockClient.AssertExpectations(t)
@@ -1099,7 +1099,7 @@ func TestWorkflowExecutor_ExecuteWorkflowSingle_WithCustomTimeout_UsesCustom(t *
 	}), mock.Anything).Return(nil, nil).Once()
 	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
 
-	err := executor.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, &customTimeout)
+	err := executor.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, &customTimeout, nil)
 
 	assert.NoError(t, err)
 	mockClient.AssertExpectations(t)
@@ -1168,7 +1168,7 @@ func TestWorkflowExecutor_ExecuteWorkflowWithRetry_WithNilTimeout_UsesDefault(t 
 	}), mock.Anything).Return(nil, nil).Once()
 	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
 
-	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil)
+	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil, nil)
 
 	assert.NoError(t, err)
 	mockClient.AssertExpectations(t)
@@ -1191,7 +1191,7 @@ func TestWorkflowExecutor_ExecuteWorkflowWithRetry_WithCustomTimeout_UsesCustom(
 	}), mock.Anything).Return(nil, nil).Once()
 	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
 
-	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, &customTimeout)
+	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, &customTimeout, nil)
 
 	assert.NoError(t, err)
 	mockClient.AssertExpectations(t)
@@ -1223,7 +1223,7 @@ func TestWorkflowExecutor_ExecuteWorkflowWithRetry_WithCustomTimeout_RetryUsesSa
 	mockLogger.On("Info", mock.Anything, mock.Anything).Return().Once()
 	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
 
-	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, &customTimeout)
+	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, &customTimeout, nil)
 
 	assert.NoError(t, err)
 	mockClient.AssertExpectations(t)
@@ -1249,7 +1249,7 @@ func TestWorkflowExecutor_ExecuteWorkflowSingle_WithZeroTimeout_UsesDefault(t *t
 	}), mock.Anything).Return(nil, nil).Once()
 	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
 
-	err := executor.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, &zeroTimeout)
+	err := executor.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, &zeroTimeout, nil)
 
 	assert.NoError(t, err)
 	mockClient.AssertExpectations(t)
@@ -1309,4 +1309,225 @@ func TestWorkflowExecutor_executeSingle_WithCustomWorkflowRunTimeout(t *testing.
 	err := executor.executeSingle(ctx, options, workflowFunc)
 
 	assert.NoError(t, err)
+}
+
+func TestWorkflowExecutor_ExecuteWorkflowSingle_WithNilReusePolicy_UsesDefault(t *testing.T) {
+	mockClient := new(MockTemporalClient)
+	mockLogger := new(MockLogger)
+	executor := NewWorkflowExecutor(mockClient, mockLogger)
+
+	ctx := context.Background()
+	workflowID := "test-workflow-123"
+	taskQueue := "test-queue"
+	workflowFunc := func() {}
+
+	// Verify that when nil is passed, it uses the default policy (REJECT_DUPLICATE)
+	mockClient.On("ExecuteWorkflow", mock.Anything, mock.MatchedBy(func(opts client.StartWorkflowOptions) bool {
+		return opts.WorkflowIDReusePolicy == enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE
+	}), mock.Anything).Return(nil, nil).Once()
+	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
+
+	err := executor.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, nil, nil)
+
+	assert.NoError(t, err)
+	mockClient.AssertExpectations(t)
+}
+
+func TestWorkflowExecutor_ExecuteWorkflowSingle_WithAllowDuplicatePolicy(t *testing.T) {
+	mockClient := new(MockTemporalClient)
+	mockLogger := new(MockLogger)
+	executor := NewWorkflowExecutor(mockClient, mockLogger)
+
+	ctx := context.Background()
+	workflowID := "test-workflow-123"
+	taskQueue := "test-queue"
+	workflowFunc := func() {}
+	reusePolicy := enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
+
+	// Verify that when ALLOW_DUPLICATE is passed, it uses that policy
+	mockClient.On("ExecuteWorkflow", mock.Anything, mock.MatchedBy(func(opts client.StartWorkflowOptions) bool {
+		return opts.WorkflowIDReusePolicy == enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
+	}), mock.Anything).Return(nil, nil).Once()
+	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
+
+	err := executor.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, nil, &reusePolicy)
+
+	assert.NoError(t, err)
+	mockClient.AssertExpectations(t)
+}
+
+func TestWorkflowExecutor_ExecuteWorkflowSingle_WithAllowDuplicateFailedOnlyPolicy(t *testing.T) {
+	mockClient := new(MockTemporalClient)
+	mockLogger := new(MockLogger)
+	executor := NewWorkflowExecutor(mockClient, mockLogger)
+
+	ctx := context.Background()
+	workflowID := "test-workflow-123"
+	taskQueue := "test-queue"
+	workflowFunc := func() {}
+	reusePolicy := enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
+
+	// Verify that when ALLOW_DUPLICATE_FAILED_ONLY is passed, it uses that policy
+	mockClient.On("ExecuteWorkflow", mock.Anything, mock.MatchedBy(func(opts client.StartWorkflowOptions) bool {
+		return opts.WorkflowIDReusePolicy == enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
+	}), mock.Anything).Return(nil, nil).Once()
+	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
+
+	err := executor.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, nil, &reusePolicy)
+
+	assert.NoError(t, err)
+	mockClient.AssertExpectations(t)
+}
+
+func TestWorkflowExecutor_ExecuteWorkflowWithRetry_WithAllowDuplicatePolicy(t *testing.T) {
+	mockClient := new(MockTemporalClient)
+	mockLogger := new(MockLogger)
+	executor := NewWorkflowExecutor(mockClient, mockLogger)
+
+	ctx := context.Background()
+	workflowID := "test-workflow-123"
+	taskQueue := "test-queue"
+	workflowFunc := func() {}
+	reusePolicy := enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
+
+	// Verify that the custom policy is passed through ExecuteWorkflowWithRetry
+	mockClient.On("ExecuteWorkflow", mock.Anything, mock.MatchedBy(func(opts client.StartWorkflowOptions) bool {
+		return opts.WorkflowIDReusePolicy == enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
+	}), mock.Anything).Return(nil, nil).Once()
+	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
+
+	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil, &reusePolicy)
+
+	assert.NoError(t, err)
+	mockClient.AssertExpectations(t)
+}
+
+func TestWorkflowExecutor_ExecuteWorkflowWithRetry_WithCustomPolicyAndRetry(t *testing.T) {
+	mockClient := new(MockTemporalClient)
+	mockLogger := new(MockLogger)
+	executor := NewWorkflowExecutor(mockClient, mockLogger)
+
+	ctx := context.Background()
+	workflowID := "test-workflow-123"
+	taskQueue := "test-queue"
+	workflowFunc := func() {}
+	reusePolicy := enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
+
+	// First call fails with retryable error, second succeeds
+	// Both should use the same custom policy
+	mockClient.On("ExecuteWorkflow", mock.Anything, mock.MatchedBy(func(opts client.StartWorkflowOptions) bool {
+		return opts.WorkflowIDReusePolicy == enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
+	}), mock.Anything).
+		Return(nil, serviceerror.NewUnavailable("unavailable")).Once()
+	mockClient.On("ExecuteWorkflow", mock.Anything, mock.MatchedBy(func(opts client.StartWorkflowOptions) bool {
+		return opts.WorkflowIDReusePolicy == enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
+	}), mock.Anything).
+		Return(nil, nil).Once()
+
+	mockLogger.On("Warn", mock.Anything, mock.Anything).Return().Once()
+	mockLogger.On("Info", mock.Anything, mock.Anything).Return().Once()
+	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
+
+	err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil, &reusePolicy)
+
+	assert.NoError(t, err)
+	mockClient.AssertExpectations(t)
+	mockLogger.AssertExpectations(t)
+}
+
+func TestWorkflowExecutor_ExecuteWorkflowSingle_WithCustomTimeoutAndPolicy(t *testing.T) {
+	mockClient := new(MockTemporalClient)
+	mockLogger := new(MockLogger)
+	executor := NewWorkflowExecutor(mockClient, mockLogger)
+
+	ctx := context.Background()
+	workflowID := "test-workflow-123"
+	taskQueue := "test-queue"
+	workflowFunc := func() {}
+	customTimeout := 25 * time.Minute
+	reusePolicy := enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
+
+	// Verify both custom timeout and custom policy are used together
+	mockClient.On("ExecuteWorkflow", mock.Anything, mock.MatchedBy(func(opts client.StartWorkflowOptions) bool {
+		return opts.WorkflowIDReusePolicy == enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE &&
+			opts.WorkflowRunTimeout == customTimeout &&
+			opts.ID == workflowID &&
+			opts.TaskQueue == taskQueue
+	}), mock.Anything).Return(nil, nil).Once()
+	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
+
+	err := executor.ExecuteWorkflowSingle(ctx, workflowID, taskQueue, workflowFunc, &customTimeout, &reusePolicy)
+
+	assert.NoError(t, err)
+	mockClient.AssertExpectations(t)
+}
+
+func TestWorkflowExecutor_ExecuteWorkflow_PassesThroughWithNilPolicy(t *testing.T) {
+	mockClient := new(MockTemporalClient)
+	mockLogger := new(MockLogger)
+	executor := NewWorkflowExecutor(mockClient, mockLogger)
+
+	ctx := context.Background()
+	workflowID := "test-workflow-123"
+	taskQueue := "test-queue"
+	workflowFunc := func() {}
+
+	// Verify that ExecuteWorkflow passes nil policy (defaults to REJECT_DUPLICATE)
+	mockClient.On("ExecuteWorkflow", mock.Anything, mock.MatchedBy(func(opts client.StartWorkflowOptions) bool {
+		return opts.WorkflowIDReusePolicy == enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE
+	}), mock.Anything).Return(nil, nil).Once()
+	mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
+
+	err := executor.ExecuteWorkflow(ctx, workflowID, taskQueue, workflowFunc, nil)
+
+	assert.NoError(t, err)
+	mockClient.AssertExpectations(t)
+}
+
+func TestWorkflowExecutor_ExecuteWorkflowWithRetry_AllPolicies(t *testing.T) {
+	tests := []struct {
+		name   string
+		policy enums.WorkflowIdReusePolicy
+	}{
+		{
+			name:   "REJECT_DUPLICATE",
+			policy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		{
+			name:   "ALLOW_DUPLICATE",
+			policy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE,
+		},
+		{
+			name:   "ALLOW_DUPLICATE_FAILED_ONLY",
+			policy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
+		},
+		{
+			name:   "TERMINATE_IF_RUNNING",
+			policy: enums.WORKFLOW_ID_REUSE_POLICY_TERMINATE_IF_RUNNING,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockClient := new(MockTemporalClient)
+			mockLogger := new(MockLogger)
+			executor := NewWorkflowExecutor(mockClient, mockLogger)
+
+			ctx := context.Background()
+			workflowID := "test-workflow-123"
+			taskQueue := "test-queue"
+			workflowFunc := func() {}
+			policy := tt.policy
+
+			mockClient.On("ExecuteWorkflow", mock.Anything, mock.MatchedBy(func(opts client.StartWorkflowOptions) bool {
+				return opts.WorkflowIDReusePolicy == policy
+			}), mock.Anything).Return(nil, nil).Once()
+			mockLogger.On("Error", mock.Anything, mock.Anything).Return().Maybe()
+
+			err := executor.ExecuteWorkflowWithRetry(ctx, workflowID, taskQueue, workflowFunc, nil, &policy)
+
+			assert.NoError(t, err)
+			mockClient.AssertExpectations(t)
+		})
+	}
 }

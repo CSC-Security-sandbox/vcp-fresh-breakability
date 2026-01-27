@@ -404,3 +404,48 @@ func TestGetRevertVolumeWorkflowTimeout_ValidEnv(t *testing.T) {
 		t.Errorf("expected %v, got %v", want, *got)
 	}
 }
+
+func TestGetVolumeRefreshWorkflowTimeout_InvalidEnv(t *testing.T) {
+	original := VolumeRefreshWorkflowTimeoutMinutes
+	defer func() { VolumeRefreshWorkflowTimeoutMinutes = original }()
+
+	VolumeRefreshWorkflowTimeoutMinutes = "invalid"
+	got := GetVolumeRefreshWorkflowTimeout()
+	want := 20 * time.Minute
+	if got == nil {
+		t.Fatal("expected non-nil timeout, got nil")
+	}
+	if *got != want {
+		t.Errorf("expected %v, got %v", want, *got)
+	}
+}
+
+func TestGetVolumeRefreshWorkflowTimeout_ValidEnv(t *testing.T) {
+	original := VolumeRefreshWorkflowTimeoutMinutes
+	defer func() { VolumeRefreshWorkflowTimeoutMinutes = original }()
+
+	VolumeRefreshWorkflowTimeoutMinutes = "30"
+	got := GetVolumeRefreshWorkflowTimeout()
+	want := 30 * time.Minute
+	if got == nil {
+		t.Fatal("expected non-nil timeout, got nil")
+	}
+	if *got != want {
+		t.Errorf("expected %v, got %v", want, *got)
+	}
+}
+
+func TestGetVolumeRefreshWorkflowTimeout_DefaultEnv(t *testing.T) {
+	original := VolumeRefreshWorkflowTimeoutMinutes
+	defer func() { VolumeRefreshWorkflowTimeoutMinutes = original }()
+
+	VolumeRefreshWorkflowTimeoutMinutes = "20"
+	got := GetVolumeRefreshWorkflowTimeout()
+	want := 20 * time.Minute
+	if got == nil {
+		t.Fatal("expected non-nil timeout, got nil")
+	}
+	if *got != want {
+		t.Errorf("expected %v, got %v", want, *got)
+	}
+}
