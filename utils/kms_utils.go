@@ -186,3 +186,25 @@ func IsKmsKeyUnreachable(err error) (string, bool) {
 	}
 	return "", false
 }
+
+// IsKmsPermissionDenied inspects Google API errors to detect permission denied
+// (403) errors and returns the user-facing message when matched.
+func IsKmsPermissionDenied(err error) (string, bool) {
+	var gerr *googleapi.Error
+	if stdErrors.As(err, &gerr) {
+		if gerr.Code == 403 {
+			if gerr.Message != "" {
+				return gerr.Message, true
+			}
+			return "Permission denied accessing KMS key", true
+		}
+	}
+	// Also check error message string for permission_denied
+	if err != nil {
+		msg := strings.ToLower(err.Error())
+		if strings.Contains(msg, "permission_denied") || strings.Contains(msg, "permission denied") {
+			return err.Error(), true
+		}
+	}
+	return "", false
+}

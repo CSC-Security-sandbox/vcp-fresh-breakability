@@ -345,6 +345,9 @@ func _accessCryptoKeyAndEncryptData(ctx context.Context, kmsConfig *datamodel.Km
 			if msg, ok := utils.IsKmsKeyUnreachable(errGetCrypto); ok {
 				return false, errors2.NewVCPError(errors2.ErrKMSKeyUnreachable, goErrors.New(msg))
 			}
+			if msg, ok := utils.IsKmsPermissionDenied(errGetCrypto); ok {
+				return false, errors2.NewVCPError(errors2.ErrKMSPermissionDenied, goErrors.New(msg))
+			}
 			return true, retry.NewRetriableErr(fmt.Sprintf("Projects.Locations.KeyRings.CryptoKeys.Get: %v", errGetCrypto))
 		}
 		errValidate := utils.ValidateKeyProperties(cryptoKey, kmsConfig.KeyName, kmsConfig.KeyRing)
@@ -369,6 +372,9 @@ func _accessCryptoKeyAndEncryptData(ctx context.Context, kmsConfig *datamodel.Km
 		if err != nil {
 			if msg, ok := utils.IsKmsKeyUnreachable(err); ok {
 				return false, errors2.NewVCPError(errors2.ErrKMSKeyUnreachable, goErrors.New(msg))
+			}
+			if msg, ok := utils.IsKmsPermissionDenied(err); ok {
+				return false, errors2.NewVCPError(errors2.ErrKMSPermissionDenied, goErrors.New(msg))
 			}
 			return true, retry.NewRetriableErr(fmt.Sprintf("Projects.Locations.KeyRings.CryptoKeys.Encrypt: %v", err))
 		}

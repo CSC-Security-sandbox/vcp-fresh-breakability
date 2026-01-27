@@ -15,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -30,6 +31,7 @@ import (
 	"go.temporal.io/sdk/testsuite"
 	googleOauth2 "golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudkms/v1"
+	"google.golang.org/api/googleapi"
 )
 
 func TestPollKmsConfigOperationActivity(t *testing.T) {
@@ -1720,5 +1722,77 @@ func TestUpdateKmsConfigHealth(t *testing.T) {
 		result, err := UpdateKmsConfigHealth(ctx, mockStorage, response)
 		assert.Error(t, err)
 		assert.Nil(t, result)
+	})
+}
+
+func TestAccessCryptoKeyPermissionDenied(t *testing.T) {
+	t.Run("ReturnsVCPErrorWhenGetCryptoKeyReturns403", func(t *testing.T) {
+		// Simulate a 403 permission denied error from Google API
+		permissionDeniedErr := &googleapi.Error{
+			Code:    403,
+			Message: "Permission denied on resource 'projects/test/locations/us-east1/keyRings/test/cryptoKeys/test'",
+		}
+
+		// Verify that the error is detected as permission denied
+		msg, ok := utils.IsKmsPermissionDenied(permissionDeniedErr)
+		assert.True(t, ok)
+		assert.Contains(t, msg, "Permission denied")
+
+		// Verify that the VCP error is created correctly
+		vcpErr := errors2.NewVCPError(errors2.ErrKMSPermissionDenied, permissionDeniedErr)
+		assert.NotNil(t, vcpErr)
+		assert.Equal(t, errors2.ErrKMSPermissionDenied, vcpErr.TrackingID)
+	})
+
+	t.Run("ReturnsVCPErrorWhenEncryptReturns403", func(t *testing.T) {
+		// Simulate a 403 permission denied error from Google API during encryption
+		permissionDeniedErr := &googleapi.Error{
+			Code:    403,
+			Message: "The caller does not have permission to encrypt with this key",
+		}
+
+		// Verify that the error is detected as permission denied
+		msg, ok := utils.IsKmsPermissionDenied(permissionDeniedErr)
+		assert.True(t, ok)
+		assert.Contains(t, msg, "permission")
+
+		// Verify that the VCP error is created correctly
+		vcpErr := errors2.NewVCPError(errors2.ErrKMSPermissionDenied, permissionDeniedErr)
+		assert.NotNil(t, vcpErr)
+		assert.Equal(t, errors2.ErrKMSPermissionDenied, vcpErr.TrackingID)
+		assert.False(t, vcpErr.IsRetriable())
+	})
+
+	t.Run("DoesNotReturnPermissionDeniedForOtherErrors", func(t *testing.T) {
+		// Test that non-403 errors are not treated as permission denied
+		notFoundErr := &googleapi.Error{
+			Code:    404,
+			Message: "Resource not found",
+		}
+
+		msg, ok := utils.IsKmsPermissionDenied(notFoundErr)
+		assert.False(t, ok)
+		assert.Empty(t, msg)
+	})
+
+	t.Run("DetectsPermissionDeniedFromErrorMessage", func(t *testing.T) {
+		// Test that permission_denied in error message is detected
+		err := errors.New("googleapi: Error 403: PERMISSION_DENIED: The caller does not have permission")
+
+		msg, ok := utils.IsKmsPermissionDenied(err)
+		assert.True(t, ok)
+		assert.Contains(t, msg, "PERMISSION_DENIED")
+	})
+
+	t.Run("VCPErrorHasCorrectHttpCode", func(t *testing.T) {
+		// Verify that the VCP error has the correct HTTP code (403)
+		permissionDeniedErr := &googleapi.Error{
+			Code:    403,
+			Message: "Permission denied",
+		}
+		vcpErr := errors2.NewVCPError(errors2.ErrKMSPermissionDenied, permissionDeniedErr)
+		hasHttpCode, httpCode := vcpErr.GetHttpCode()
+		assert.True(t, hasHttpCode)
+		assert.Equal(t, 412, httpCode)
 	})
 }

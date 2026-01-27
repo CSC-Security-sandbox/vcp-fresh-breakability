@@ -6380,6 +6380,28 @@ func TestGetResourceJobType_Comprehensive(t *testing.T) {
 		assert.Contains(tt, err.Error(), "KMS configuration state")
 		assert.Contains(tt, err.Error(), "KEY_CHECK_PENDING")
 	})
+	t.Run("KmsConfigIsCreatesState", func(tt *testing.T) {
+		logger := log.NewLogger()
+		ipos := int64(160001)
+		params := &common.CreatePoolParams{
+			SizeInBytes:             uint64(1 * utils.TiBInBytes),
+			ServiceLevel:            ServiceLevelNameFLEX,
+			CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: 64, Iops: &ipos}, // Just above 160000 IOPS
+			KmsConfig: &models.KmsConfig{
+				State: models.LifeCycleStateCreated,
+			},
+		}
+		defer func() {
+			ValidatePoolParams = _validatePoolParams
+		}()
+		ValidatePoolParams = func(perf *validators.CustomPerformance, serviceLevel string) error {
+			return nil
+		}
+		err := _validateCreatePoolParams(params, logger)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "KMS configuration state")
+		assert.Contains(tt, err.Error(), "KEY_CHECK_PENDING")
+	})
 }
 
 func TestCreatePoolInDB_ActiveDirectoryConfigId(t *testing.T) {

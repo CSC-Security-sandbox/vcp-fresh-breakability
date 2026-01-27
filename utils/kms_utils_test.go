@@ -332,3 +332,61 @@ func TestIsKmsKeyUnreachable(t *testing.T) {
 		assert.Empty(t, msg)
 	})
 }
+
+func TestIsKmsPermissionDenied(t *testing.T) {
+	t.Run("MatchesWhenGoogleApiCode403", func(t *testing.T) {
+		err := &googleapi.Error{
+			Code:    403,
+			Message: "Permission denied on resource 'projects/test/locations/us-east1/keyRings/test/cryptoKeys/test'",
+		}
+		msg, ok := IsKmsPermissionDenied(err)
+		assert.True(t, ok)
+		assert.Contains(t, msg, "Permission denied")
+	})
+
+	t.Run("MatchesWhenGoogleApiCode403WithEmptyMessage", func(t *testing.T) {
+		err := &googleapi.Error{
+			Code:    403,
+			Message: "",
+		}
+		msg, ok := IsKmsPermissionDenied(err)
+		assert.True(t, ok)
+		assert.Equal(t, "Permission denied accessing KMS key", msg)
+	})
+
+	t.Run("MatchesWhenErrorContainsPermissionDenied", func(t *testing.T) {
+		err := errors.New("googleapi: Error 403: PERMISSION_DENIED: The caller does not have permission")
+		msg, ok := IsKmsPermissionDenied(err)
+		assert.True(t, ok)
+		assert.Contains(t, msg, "PERMISSION_DENIED")
+	})
+
+	t.Run("MatchesWhenErrorContainsPermissionDeniedLowercase", func(t *testing.T) {
+		err := errors.New("permission denied: access denied to key")
+		msg, ok := IsKmsPermissionDenied(err)
+		assert.True(t, ok)
+		assert.Contains(t, msg, "permission denied")
+	})
+
+	t.Run("ReturnsFalseForNon403Error", func(t *testing.T) {
+		err := &googleapi.Error{
+			Code:    404,
+			Message: "Resource not found",
+		}
+		msg, ok := IsKmsPermissionDenied(err)
+		assert.False(t, ok)
+		assert.Empty(t, msg)
+	})
+
+	t.Run("ReturnsFalseForUnrelatedError", func(t *testing.T) {
+		msg, ok := IsKmsPermissionDenied(errors.New("some other failure"))
+		assert.False(t, ok)
+		assert.Empty(t, msg)
+	})
+
+	t.Run("ReturnsFalseForNilError", func(t *testing.T) {
+		msg, ok := IsKmsPermissionDenied(nil)
+		assert.False(t, ok)
+		assert.Empty(t, msg)
+	})
+}

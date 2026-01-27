@@ -301,6 +301,7 @@ const (
 	// CMEK precondition failures (user-facing, mapped to HTTP 412 Failed Precondition)
 	ErrKMSKeyDisabledOrDestroyed = 8009
 	ErrKMSKeyUnreachable         = 8010
+	ErrKMSPermissionDenied       = 8011
 
 	// Certificate and Password Rotation Error Codes (8500-8599 range)
 	ErrCertificateRotationFailed               = 8501

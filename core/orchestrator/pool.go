@@ -509,7 +509,12 @@ func _validateCreatePoolParams(params *commonparams.CreatePoolParams, logger log
 		case models.LifeCycleStateREADY, models.LifeCycleStateInUse:
 			break
 		default:
-			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid KMS configuration state for pool creation: %s", params.KmsConfig.State))
+			// For ccfe there is no state called created, instead there is key check pending
+			state := params.KmsConfig.State
+			if state == models.LifeCycleStateCreated {
+				state = models.LifeCycleStateKeyCheckPending
+			}
+			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid KMS configuration state for pool creation: %s", state))
 		}
 	}
 
