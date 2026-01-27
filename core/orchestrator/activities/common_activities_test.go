@@ -2867,3 +2867,41 @@ func TestGetOntapVersionFromPool(t *testing.T) {
 		assert.Equal(t, "", result)
 	})
 }
+
+func TestGetExternalPeerRolePrivileges(t *testing.T) {
+	t.Run("ReturnsCorrectPrivileges", func(tt *testing.T) {
+		privileges := GetExternalPeerRolePrivileges()
+
+		assert.Len(tt, privileges, 3)
+
+		// Check DEFAULT privilege
+		assert.Equal(tt, "DEFAULT", privileges[0].Path)
+		assert.Equal(tt, "none", privileges[0].Access)
+		assert.Empty(tt, privileges[0].Query)
+
+		// Check debug privilege
+		assert.Equal(tt, "debug", privileges[1].Path)
+		assert.Equal(tt, "none", privileges[1].Access)
+		assert.Empty(tt, privileges[1].Query)
+
+		// Check system capability privilege
+		assert.Equal(tt, "system capability clusterset show", privileges[2].Path)
+		assert.Equal(tt, "readonly", privileges[2].Access)
+		assert.NotEmpty(tt, privileges[2].Query)
+		assert.Equal(tt, "-capability DATA_ONTAP.9.2.0", privileges[2].Query)
+	})
+
+	t.Run("ReturnsNewSliceEachCall", func(tt *testing.T) {
+		privileges1 := GetExternalPeerRolePrivileges()
+		privileges2 := GetExternalPeerRolePrivileges()
+
+		assert.Len(tt, privileges1, len(privileges2))
+		assert.Equal(tt, privileges1, privileges2) // Same content
+
+		originalLen1 := len(privileges1)
+		originalLen2 := len(privileges2)
+		privileges1 = append(privileges1, &vsa.RolePrivilege{Path: "test"})
+		assert.Equal(tt, originalLen1+1, len(privileges1))
+		assert.Equal(tt, originalLen2, len(privileges2)) // Second slice unchanged
+	})
+}

@@ -17,6 +17,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -510,14 +511,99 @@ func TestFlexCacheVolumeCreateActivity_CreateClusterPeerInOntapActivity(t *testi
 		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol}
 		clusterPeer := &vsa.ClusterPeer{UUID: "cluster-peer-uuid"}
 
-		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mm.EXPECT().utilGetLogger(ctx).Return(logger).Times(2) // Once for activity, once for EnsureExternalPeerRole
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
-		mockProvider.EXPECT().CreateClusterPeer(mock.Anything).Return(clusterPeer, nil)
+
+		// Mock EnsureExternalPeerRole success (role creation succeeds)
+		mockProvider.EXPECT().CreateRole(mock.MatchedBy(func(params vsa.CreateRoleParams) bool {
+			return params.Name == activities.OnPremPeerRoleName
+		})).Return("role-location", nil)
+		logger.EXPECT().Infof("Successfully created role %s", activities.OnPremPeerRoleName)
+
+		// Mock CreateClusterPeer with LocalRole set
+		mockProvider.EXPECT().CreateClusterPeer(mock.MatchedBy(func(params vsa.CreateClusterPeerParams) bool {
+			return params.PeerName == "peer-cluster" &&
+				len(params.PeerAddresses) == 2 &&
+				params.PeerAddresses[0] == "10.0.0.1" &&
+				params.PeerAddresses[1] == "10.0.0.2" &&
+				params.IPSpace == activities.IpSpace &&
+				params.LocalRole != nil &&
+				*params.LocalRole == activities.OnPremPeerRoleName &&
+				params.ExpiryTime != nil
+		})).Return(clusterPeer, nil)
 		logger.EXPECT().Infof("cluster peer created successfully with UUID: %s", clusterPeer.UUID)
 
 		res, err := activity.CreateClusterPeerInOntapActivity(ctx, flexcacheResult)
 		assert.NoError(tt, err)
 		assert.Equal(tt, clusterPeer, res.ClusterPeer)
+	})
+
+	t.Run("Success_RoleAlreadyExists", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+		logger := log.NewMockLogger(tt)
+		vol := &datamodel.Volume{
+			Svm:     &datamodel.Svm{Name: "svm-name"},
+			Account: &datamodel.Account{Name: "account-name"},
+			CacheParameters: &datamodel.CacheParameters{
+				PeerIpAddresses: []string{"10.0.0.1"},
+				PeerClusterName: "peer-cluster",
+			},
+		}
+		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+		clusterPeer := &vsa.ClusterPeer{UUID: "cluster-peer-uuid"}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger).Times(2)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+
+		// Mock EnsureExternalPeerRole - role already exists (handled gracefully)
+		mockProvider.EXPECT().CreateRole(mock.Anything).Return("", errors.New("Role already exists"))
+		logger.EXPECT().Debugf("Role %s already exists, skipping creation", activities.OnPremPeerRoleName)
+
+		// Mock CreateClusterPeer
+		mockProvider.EXPECT().CreateClusterPeer(mock.MatchedBy(func(params vsa.CreateClusterPeerParams) bool {
+			return params.LocalRole != nil && *params.LocalRole == activities.OnPremPeerRoleName
+		})).Return(clusterPeer, nil)
+		logger.EXPECT().Infof("cluster peer created successfully with UUID: %s", clusterPeer.UUID)
+
+		res, err := activity.CreateClusterPeerInOntapActivity(ctx, flexcacheResult)
+		assert.NoError(tt, err)
+		assert.Equal(tt, clusterPeer, res.ClusterPeer)
+	})
+
+	t.Run("WhenEnsureExternalPeerRoleFails", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
+		ctx := context.Background()
+		logger := log.NewMockLogger(tt)
+		vol := &datamodel.Volume{
+			Svm:     &datamodel.Svm{Name: "svm-name"},
+			Account: &datamodel.Account{Name: "account-name"},
+			CacheParameters: &datamodel.CacheParameters{
+				PeerIpAddresses: []string{"10.0.0.1"},
+				PeerClusterName: "peer-cluster",
+			},
+		}
+		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol}
+		expectedError := errors.New("failed to create role: ONTAP connection error")
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger).Times(2)
+		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+
+		// Mock EnsureExternalPeerRole failure (real error, not "already exists")
+		mockProvider.EXPECT().CreateRole(mock.MatchedBy(func(params vsa.CreateRoleParams) bool {
+			return params.Name == activities.OnPremPeerRoleName
+		})).Return("", expectedError)
+		logger.EXPECT().Errorf("Failed to create role %s: %v", activities.OnPremPeerRoleName, mock.Anything)
+
+		res, err := activity.CreateClusterPeerInOntapActivity(ctx, flexcacheResult)
+		assert.Nil(tt, res)
+		assert.Error(tt, err)
+		// Verify CreateClusterPeer was never called
+		mockProvider.AssertExpectations(tt)
 	})
 
 	t.Run("WhenGetProviderByNodeFails", func(tt *testing.T) {
@@ -540,11 +626,17 @@ func TestFlexCacheVolumeCreateActivity_CreateClusterPeerInOntapActivity(t *testi
 		mockProvider := vsa.NewMockProvider(tt)
 		activity := &FlexCacheVolumeCreateActivity{SE: database.NewMockStorage(tt)}
 		ctx := context.Background()
+		logger := log.NewMockLogger(tt)
 		vol := &datamodel.Volume{CacheParameters: &datamodel.CacheParameters{PeerIpAddresses: []string{"10.0.0.1"}, PeerClusterName: "peer-cluster"}}
 		flexcacheResult := &flexcache.CreateFlexCacheResult{DBVolume: vol}
 
-		mm.EXPECT().utilGetLogger(ctx).Return(log.NewMockLogger(tt))
+		mm.EXPECT().utilGetLogger(ctx).Return(logger).Times(2)
 		mm.EXPECT().hyperscalerGetProviderByNode(ctx, mock.Anything).Return(mockProvider, nil)
+
+		// Mock EnsureExternalPeerRole success
+		mockProvider.EXPECT().CreateRole(mock.Anything).Return("role-location", nil)
+		logger.EXPECT().Infof("Successfully created role %s", activities.OnPremPeerRoleName)
+
 		mockProvider.EXPECT().CreateClusterPeer(mock.Anything).Return(nil, assert.AnError)
 
 		res, err := activity.CreateClusterPeerInOntapActivity(ctx, flexcacheResult)
@@ -2848,5 +2940,122 @@ func Test_getActiveJobs(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, got)
 		ms.AssertExpectations(tt)
+	})
+}
+
+func TestEnsureExternalPeerRole(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Success_RoleCreated", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mockProvider.EXPECT().CreateRole(mock.MatchedBy(func(params vsa.CreateRoleParams) bool {
+			return params.Name == activities.OnPremPeerRoleName &&
+				len(params.Privileges) == 3 &&
+				params.Privileges[0].Path == "DEFAULT" &&
+				params.Privileges[0].Access == "none" &&
+				params.Privileges[1].Path == "debug" &&
+				params.Privileges[1].Access == "none" &&
+				params.Privileges[2].Path == "system capability clusterset show" &&
+				params.Privileges[2].Access == "readonly" &&
+				params.Privileges[2].Query == "-capability DATA_ONTAP.9.2.0"
+		})).Return("role-location", nil)
+		logger.EXPECT().Infof("Successfully created role %s", activities.OnPremPeerRoleName)
+
+		err := EnsureExternalPeerRole(ctx, mockProvider)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("Success_RoleAlreadyExists_StandardError", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mockProvider.EXPECT().CreateRole(mock.Anything).Return("", errors.New("Role already exists"))
+		logger.EXPECT().Debugf("Role %s already exists, skipping creation", activities.OnPremPeerRoleName)
+
+		err := EnsureExternalPeerRole(ctx, mockProvider)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("Success_RoleAlreadyExists_LegacyTableError", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mockProvider.EXPECT().CreateRole(mock.Anything).Return("", errors.New("Role already exists in legacy role table"))
+		logger.EXPECT().Debugf("Role %s already exists, skipping creation", activities.OnPremPeerRoleName)
+
+		err := EnsureExternalPeerRole(ctx, mockProvider)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("Error_ProviderCreateRoleFails", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+
+		expectedError := errors.New("failed to connect to ONTAP")
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mockProvider.EXPECT().CreateRole(mock.Anything).Return("", expectedError)
+		logger.EXPECT().Errorf("Failed to create role %s: %v", activities.OnPremPeerRoleName, mock.Anything)
+
+		err := EnsureExternalPeerRole(ctx, mockProvider)
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("Error_ProviderCreateRoleReturnsEmptyString", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+
+		expectedError := errors.New("invalid role parameters")
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		mockProvider.EXPECT().CreateRole(mock.Anything).Return("", expectedError)
+		logger.EXPECT().Errorf("Failed to create role %s: %v", activities.OnPremPeerRoleName, mock.Anything)
+
+		err := EnsureExternalPeerRole(ctx, mockProvider)
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("Idempotent_MultipleCalls", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger).Times(2)
+
+		// First call - role doesn't exist, create it
+		mockProvider.EXPECT().CreateRole(mock.Anything).Return("role-location", nil).Once()
+		logger.EXPECT().Infof("Successfully created role %s", activities.OnPremPeerRoleName).Once()
+
+		// Second call - role already exists
+		mockProvider.EXPECT().CreateRole(mock.Anything).Return("", errors.New("Role already exists")).Once()
+		logger.EXPECT().Debugf("Role %s already exists, skipping creation", activities.OnPremPeerRoleName).Once()
+
+		// First call
+		err1 := EnsureExternalPeerRole(ctx, mockProvider)
+		assert.NoError(tt, err1)
+
+		// Second call
+		err2 := EnsureExternalPeerRole(ctx, mockProvider)
+		assert.NoError(tt, err2)
+
+		mockProvider.AssertExpectations(tt)
+		logger.AssertExpectations(tt)
 	})
 }

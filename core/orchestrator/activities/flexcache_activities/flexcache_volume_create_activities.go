@@ -135,10 +135,17 @@ func (a *FlexCacheVolumeCreateActivity) CreateClusterPeerInOntapActivity(ctx con
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	roleName := activities.OnPremPeerRoleName
+	err = EnsureExternalPeerRole(ctx, provider)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
 	params := vsa.CreateClusterPeerParams{
 		PeerAddresses: cacheParams.PeerIpAddresses,
 		PeerName:      cacheParams.PeerClusterName,
 		IPSpace:       activities.IpSpace,
+		LocalRole:     &roleName,
 	}
 
 	if cacheParams.CommandExpiryTime != nil {
@@ -949,4 +956,33 @@ func (a *FlexCacheVolumeCreateActivity) getActiveJobs(ctx context.Context, resou
 		dbutils.NewFilterCondition("state", "!=", string(coremodels.JobsStateERROR)),
 	)
 	return a.SE.GetJobsWithCondition(ctx, *filter)
+}
+
+// EnsureExternalPeerRole creates the "external-peer" role if it doesn't exist.
+// This role is used for both FlexCache and hybrid replication cluster peers.
+// It's idempotent - safe to call multiple times.
+func EnsureExternalPeerRole(ctx context.Context, provider vsa.Provider) error {
+	logger := utilGetLogger(ctx)
+
+	rolePrivileges := activities.GetExternalPeerRolePrivileges()
+	roleParams := vsa.CreateRoleParams{
+		Name:       activities.OnPremPeerRoleName,
+		Privileges: rolePrivileges,
+	}
+
+	_, err := provider.CreateRole(roleParams)
+	if err != nil {
+		// Role already exists - that's fine, continue
+		if strings.Contains(err.Error(), "Role already exists") ||
+			strings.Contains(err.Error(), "Role already exists in legacy role table") {
+			logger.Debugf("Role %s already exists, skipping creation", activities.OnPremPeerRoleName)
+			return nil
+		}
+		// Other errors are real failures
+		logger.Errorf("Failed to create role %s: %v", activities.OnPremPeerRoleName, err)
+		return err
+	}
+
+	logger.Infof("Successfully created role %s", activities.OnPremPeerRoleName)
+	return nil
 }

@@ -29,6 +29,13 @@ import (
 const (
 	VSASubnetPrefix   = "vsa-"
 	VSALVSubnetPrefix = "vsa-lv-"
+
+	// OnPremPeerRoleName is the name of the role used for external cluster peers
+	// in both FlexCache and hybrid replication scenarios.
+	OnPremPeerRoleName = "external-peer"
+	AccessNone         = "none"
+	AccessReadOnly     = "readonly"
+	DefaultPath        = "DEFAULT"
 )
 
 type CommonActivities struct {
@@ -62,6 +69,11 @@ var (
 	ilbHealthCheckFirewallSourceRanges     = splitAndTrim(IlbHealthCheckFirewallSourceRangesConfig)
 	ilbHealthCheckFirewallAllowedPortRules = splitAndTrim(IlbHealthCheckFirewallAllowedPortRulesConfig)
 )
+
+var defaultNoneRolePrivilege = []*vsa.RolePrivilege{
+	{Path: DefaultPath, Access: AccessNone},
+	{Path: "debug", Access: AccessNone},
+}
 
 func splitAndTrim(csv string) []string {
 	if csv == "" {
@@ -742,4 +754,14 @@ func GetOntapVersionFromPool(pool *datamodel.Pool) string {
 		return pool.ClusterDetails.OntapVersion
 	}
 	return ""
+}
+
+// GetExternalPeerRolePrivileges returns the privilege profile for external-peer role.
+// This role has minimal privileges needed for cluster peering operations.
+// Used by both FlexCache and hybrid replication.
+func GetExternalPeerRolePrivileges() []*vsa.RolePrivilege {
+	profile := append(
+		defaultNoneRolePrivilege,
+		&vsa.RolePrivilege{Path: "system capability clusterset show", Access: AccessReadOnly, Query: "-capability DATA_ONTAP.9.2.0"})
+	return profile
 }

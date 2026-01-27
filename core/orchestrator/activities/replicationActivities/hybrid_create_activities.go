@@ -37,17 +37,11 @@ type HybridReplicationActivity struct {
 
 const (
 	VolumeReplicationEndpointTypeDestination = "dst"
-	onPremPeerRole                           = "external-peer"
-	accessNone                               = "none"
-	accessReadOnly                           = "readonly"
-	defaultPath                              = "DEFAULT"
+	onPremPeerRole                           = activities.OnPremPeerRoleName // Use shared constant
+	accessNone                               = activities.AccessNone
+	defaultPath                              = activities.DefaultPath
 	RemoteRegionCustomer                     = "customer"
 )
-
-var defaultNoneRolePrivilege = []*vsa.RolePrivilege{
-	{Path: defaultPath, Access: accessNone},
-	{Path: "debug", Access: accessNone},
-}
 
 func (a *HybridReplicationActivity) CreateJobForHybridReplication(ctx context.Context, replicationResult replication.CreateHybridReplicationResult, jobType string) (*datamodel.Job, error) {
 	logger := util.GetLogger(ctx)
@@ -342,12 +336,9 @@ func areIPsMatching(existingIPs, newIPs []string) bool {
 }
 
 func onPremMigrationRoleProfile() []*vsa.RolePrivilege {
-	// add the 'system capability clusterset show' with 'readonly' access and query for auto SVM peering capabilities
+	// Use shared privilege function - same privileges for both FlexCache and hybrid replication
 	// Replication is not compatible with ONTAP 9.2.0 this gives the role the ability to see if we are compatible for replication
-	profile := append(
-		defaultNoneRolePrivilege,
-		&vsa.RolePrivilege{Path: "system capability clusterset show", Access: accessReadOnly, Query: "-capability DATA_ONTAP.9.2.0"})
-	return profile
+	return activities.GetExternalPeerRolePrivileges()
 }
 
 func modifyExternalVolumeReplicationSecurityRoleIfNeeded(provider vsa.Provider, roleName string) {
