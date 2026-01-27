@@ -1959,6 +1959,6 @@
     "description": "Large Volume Backup Restore Validation failure",
     "message": "Large Volume Restore Validation failure",
     "retriable": false,
-    "http_code": 200
+    "http_code": 400
   }
 }
