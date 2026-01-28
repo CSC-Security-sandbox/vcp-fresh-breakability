@@ -40,7 +40,7 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 		// Empty cache
 		counterCache := make(map[CounterAggregationCacheResourceKey]*float64)
 
-		result := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.AllocatedSize, aggregationStartTime, counterCache, resourceUUID, logger)
+		result, _ := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.AllocatedSize, aggregationStartTime, counterCache, resourceUUID, logger)
 
 		// Should calculate delta without previous value: (200-100) = 100, the dip to 150 is skipped as anomalous
 		expectedDelta := float64(100)
@@ -63,7 +63,7 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 			cacheKey: &lastCounterValue,
 		}
 
-		result := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.AllocatedSize, aggregationStartTime, counterCache, resourceUUID, logger)
+		result, _ := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.AllocatedSize, aggregationStartTime, counterCache, resourceUUID, logger)
 
 		// Should calculate delta with previous value: (120-100) + (170-120) = 20 + 50 = 70
 		expectedDelta := float64(70)
@@ -74,7 +74,7 @@ func TestCalculateCounterDeltaWithAggregatedHistory(t *testing.T) {
 		dataPoints := []common.DataPoint{}
 		counterCache := make(map[CounterAggregationCacheResourceKey]*float64)
 
-		result := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.AllocatedSize, aggregationStartTime, counterCache, resourceUUID, logger)
+		result, _ := processor.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, dataPoints, metadata.AllocatedSize, aggregationStartTime, counterCache, resourceUUID, logger)
 
 		assert.Equal(t, float64(0), result)
 	})

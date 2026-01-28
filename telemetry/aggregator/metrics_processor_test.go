@@ -1060,7 +1060,7 @@ func TestCounterDeltaWithReset(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Use a generic measured type for test - the test cases use standard counter reset logic
-			got := common.CounterDelta(hydratedMetricsToDataPoints(tt.metrics), logger, metadata.AllocatedSize, "test-resource-uuid")
+			got, _ := common.CounterDelta(hydratedMetricsToDataPoints(tt.metrics), logger, metadata.AllocatedSize, "test-resource-uuid")
 			assert.InDelta(t, tt.expected, got, 0.001, "CounterDelta calculation did not match expected value")
 		})
 	}

@@ -1,9 +1,9 @@
 package common
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"time"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
@@ -96,19 +96,24 @@ func Integral(points []DataPoint) float64 {
 // usage tracking during normal operational events like tier transitions and replication lifecycle changes.
 //
 // It is assumed that the data points have been sorted in chronological order.
-func CounterDelta(points []DataPoint, logger log.Logger, measuredType metadata.MeasuredType, resourceUUID string) float64 {
+// Returns the aggregate delta and the last valid counter value (from the last processed point)
+func CounterDelta(points []DataPoint, logger log.Logger, measuredType metadata.MeasuredType, resourceUUID string) (float64, *float64) {
+	if len(points) == 0 {
+		return 0, nil
+	}
+
 	if len(points) < 2 {
-		return 0
+		return 0, &points[0].Quantity
 	}
 
 	var aggregate float64
 	var lastPoint *DataPoint
 
-	for _, point := range points {
-		point := point
+	for i := range points {
+		point := &points[i]
 
 		if lastPoint == nil {
-			lastPoint = &point
+			lastPoint = point
 			continue
 		}
 
@@ -118,9 +123,11 @@ func CounterDelta(points []DataPoint, logger log.Logger, measuredType metadata.M
 		if quantity < 0 {
 			if measuredType == metadata.CoolTierDataWriteSizeRaw {
 				logger.Warnf("Skipping cold tier write size sample value for pool uuid %s since value decreased from %.2f to %.2f", resourceUUID, lastPoint.Quantity, point.Quantity)
+				// Don't update lastPoint for delta calculation, but track this as the last counter value
 				continue
 			} else if (measuredType == metadata.CoolTierDataReadSizeRaw || measuredType == metadata.XregionReplicationTotalTransferBytes) && point.Quantity == 0 {
 				logger.Warnf("Skipping cold tier read size sample value for pool uuid %s since value decreased from %.2f to zero", resourceUUID, lastPoint.Quantity)
+				// Don't update lastPoint for delta calculation, but track this as the last counter value
 				continue
 			} else {
 				// If the current quantity is less than 25% of the previous quantity, then we assume a counter
@@ -133,16 +140,17 @@ func CounterDelta(points []DataPoint, logger log.Logger, measuredType metadata.M
 				} else {
 					logger.Warnf("Anomalous counter dip detected and skipped for resource uuid %s: previous value %.2f, current value %.2f at timestamp %v", resourceUUID,
 						lastPoint.Quantity, point.Quantity, point.Timestamp)
+					// Don't update lastPoint for delta calculation, but track this as the last counter value
 					continue
 				}
 			}
 		}
 
 		aggregate += quantity
-		lastPoint = &point
+		lastPoint = point
 	}
 
-	return aggregate
+	return aggregate, &lastPoint.Quantity
 }
 
 // First accepts a collection of data points and returns the quantity of the first data point. It is assumed

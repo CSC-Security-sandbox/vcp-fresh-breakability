@@ -161,7 +161,7 @@ func TestCounter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := CounterDelta(hydratedMetricsToDataPoints(tt.metrics), logger, tt.measuredType, tt.resourceUUID)
+			got, _ := CounterDelta(hydratedMetricsToDataPoints(tt.metrics), logger, tt.measuredType, tt.resourceUUID)
 			assert.InDelta(t, tt.expected, got, 0.001, "Counter calculation did not match expected value")
 		})
 	}
@@ -355,7 +355,7 @@ func TestCounterDelta_CounterReset(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := CounterDelta(hydratedMetricsToDataPoints(tt.metrics), logger, tt.measuredType, tt.resourceUUID)
+			got, _ := CounterDelta(hydratedMetricsToDataPoints(tt.metrics), logger, tt.measuredType, tt.resourceUUID)
 			assert.InDelta(t, tt.expected, got, 0.001, "CounterDelta with reset scenario did not match expected value")
 		})
 	}
@@ -417,7 +417,7 @@ func TestCounterDelta_CoolTierWriteSpecialHandling(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := CounterDelta(hydratedMetricsToDataPoints(tt.metrics), logger, metadata.CoolTierDataWriteSizeRaw, tt.resourceUUID)
+			got, _ := CounterDelta(hydratedMetricsToDataPoints(tt.metrics), logger, metadata.CoolTierDataWriteSizeRaw, tt.resourceUUID)
 			assert.InDelta(t, tt.expected, got, 0.001, "CoolTierDataWriteSizeRaw handling did not match expected value")
 		})
 	}
@@ -498,7 +498,7 @@ func TestCounterDelta_CoolTierReadSpecialHandling(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := CounterDelta(hydratedMetricsToDataPoints(tt.metrics), logger, metadata.CoolTierDataReadSizeRaw, tt.resourceUUID)
+			got, _ := CounterDelta(hydratedMetricsToDataPoints(tt.metrics), logger, metadata.CoolTierDataReadSizeRaw, tt.resourceUUID)
 			assert.InDelta(t, tt.expected, got, 0.001, "CoolTierDataReadSizeRaw handling did not match expected value")
 		})
 	}
@@ -579,7 +579,7 @@ func TestCounterDelta_XregionReplicationSpecialHandling(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := CounterDelta(hydratedMetricsToDataPoints(tt.metrics), logger, metadata.XregionReplicationTotalTransferBytes, tt.resourceUUID)
+			got, _ := CounterDelta(hydratedMetricsToDataPoints(tt.metrics), logger, metadata.XregionReplicationTotalTransferBytes, tt.resourceUUID)
 			assert.InDelta(t, tt.expected, got, 0.001, "XregionReplicationTotalTransferBytes handling did not match expected value")
 		})
 	}
@@ -609,7 +609,7 @@ func TestCounterDelta_CoolTierBoundaryConditions(t *testing.T) {
 				Quantity:        2000, // Decrement - skip
 			},
 		}
-		got := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataWriteSizeRaw, "pool-all-decrements")
+		got, _ := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataWriteSizeRaw, "pool-all-decrements")
 		// All samples are decrements, so nothing is aggregated
 		assert.Equal(t, 0.0, got, "Expected 0 when all samples are decrements")
 	})
@@ -637,7 +637,7 @@ func TestCounterDelta_CoolTierBoundaryConditions(t *testing.T) {
 				Quantity:        2200, // +400
 			},
 		}
-		got := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataWriteSizeRaw, "pool-oscillating")
+		got, _ := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataWriteSizeRaw, "pool-oscillating")
 		// (1500-1000) + (1800-1500) + (2200-1800) = 500 + 300 + 400 = 1200
 		assert.InDelta(t, 1200.0, got, 0.001, "Expected correct aggregation skipping decrements")
 	})
@@ -665,7 +665,7 @@ func TestCounterDelta_CoolTierBoundaryConditions(t *testing.T) {
 				Quantity:        0, // Drop to zero again - skip
 			},
 		}
-		got := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataReadSizeRaw, "pool-oscillating-zero")
+		got, _ := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataReadSizeRaw, "pool-oscillating-zero")
 		// (1500-1000) + skip 0 + (800-1500 skipped) = 500, then (2300-1500) = 800
 		// Actually: (1500-1000) = 500, skip 0, (800-1500)=-700 but 800 > 1500*0.25=375, so skip anomalous dip
 		// So only first increment counts
@@ -691,7 +691,7 @@ func TestCounterDelta_CoolTierBoundaryConditions(t *testing.T) {
 				Quantity:        1500, // +500
 			},
 		}
-		got := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataWriteSizeRaw, "pool-start-zero")
+		got, _ := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataWriteSizeRaw, "pool-start-zero")
 		// 500 + 500 + 500 = 1500
 		assert.InDelta(t, 1500.0, got, 0.001, "Expected correct aggregation from zero start")
 	})
@@ -711,7 +711,7 @@ func TestCounterDelta_CoolTierBoundaryConditions(t *testing.T) {
 				Quantity:        1500, // +500
 			},
 		}
-		got := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataWriteSizeRaw, "pool-zero-start")
+		got, _ := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataWriteSizeRaw, "pool-zero-start")
 		// 1000 + 500 = 1500
 		assert.InDelta(t, 1500.0, got, 0.001, "Expected correct aggregation from zero")
 	})
@@ -739,7 +739,7 @@ func TestCounterDelta_CoolTierBoundaryConditions(t *testing.T) {
 				Quantity:        2000, // +2000 from last valid point (1500)
 			},
 		}
-		got := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.XregionReplicationTotalTransferBytes, "repl-multiple-zeros")
+		got, _ := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.XregionReplicationTotalTransferBytes, "repl-multiple-zeros")
 		// (1500-1000) + skip 0 + (2000-1500) = 500 + 500 = 1000
 		assert.InDelta(t, 1000.0, got, 0.001, "Expected correct handling of multiple zeros")
 	})
@@ -751,7 +751,7 @@ func TestCounterDelta_CoolTierBoundaryConditions(t *testing.T) {
 				Quantity:        1000,
 			},
 		}
-		got := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataWriteSizeRaw, "pool-single")
+		got, _ := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataWriteSizeRaw, "pool-single")
 		// Need at least 2 points
 		assert.Equal(t, 0.0, got, "Expected 0 for single data point")
 	})
@@ -771,7 +771,7 @@ func TestCounterDelta_CoolTierBoundaryConditions(t *testing.T) {
 				Quantity:        200, // This is also a decrease from 1000, should be skipped
 			},
 		}
-		got := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataWriteSizeRaw, "pool-negative")
+		got, _ := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataWriteSizeRaw, "pool-negative")
 		// CoolTierDataWriteSizeRaw skips ANY decrease, so both -100 and 200 are skipped
 		// Result: 0
 		assert.Equal(t, 0.0, got, "Expected 0 when all samples decrease for CoolTierWrite")
@@ -808,7 +808,7 @@ func TestCounterDelta_CoolTierBoundaryConditions(t *testing.T) {
 				Quantity:        2500, // Increase from last valid (2000), delta=500
 			},
 		}
-		got := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataReadSizeRaw, "pool-pure-oscillation")
+		got, _ := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataReadSizeRaw, "pool-pure-oscillation")
 		// (1500-1000) + (2000-1500) + (2500-2000) = 500 + 500 + 500 = 1500
 		// All zeros are skipped, lastPoint maintained at last non-zero value
 		assert.InDelta(t, 1500.0, got, 0.001, "Expected correct aggregation with pure 0/non-zero oscillation")
@@ -845,7 +845,7 @@ func TestCounterDelta_CoolTierBoundaryConditions(t *testing.T) {
 				Quantity:        1800, // Replication resumed, delta=600 from last valid (1200)
 			},
 		}
-		got := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.XregionReplicationTotalTransferBytes, "repl-pure-oscillation")
+		got, _ := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.XregionReplicationTotalTransferBytes, "repl-pure-oscillation")
 		// (800-500) + (1200-800) + (1800-1200) = 300 + 400 + 600 = 1300
 		// All zeros are skipped, lastPoint maintained at last non-zero value
 		assert.InDelta(t, 1300.0, got, 0.001, "Expected correct aggregation with pure 0/non-zero oscillation during replication pause/resume cycles")
@@ -859,7 +859,7 @@ func TestCounterDelta_EdgeCasesAllMetricTypes(t *testing.T) {
 
 	t.Run("Empty data points", func(t *testing.T) {
 		metrics := []datamodel2.HydratedMetrics{}
-		got := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataWriteSizeRaw, "empty")
+		got, _ := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataWriteSizeRaw, "empty")
 		assert.Equal(t, 0.0, got, "Expected 0 for empty data points")
 	})
 
@@ -870,7 +870,7 @@ func TestCounterDelta_EdgeCasesAllMetricTypes(t *testing.T) {
 			{MetricTimestamp: now.Add(-5 * time.Minute), Quantity: 1000},
 			{MetricTimestamp: now, Quantity: 1000},
 		}
-		got := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.AllocatedSize, "identical")
+		got, _ := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.AllocatedSize, "identical")
 		assert.Equal(t, 0.0, got, "Expected 0 for all identical values")
 	})
 
@@ -880,7 +880,7 @@ func TestCounterDelta_EdgeCasesAllMetricTypes(t *testing.T) {
 			{MetricTimestamp: now.Add(-5 * time.Minute), Quantity: 1e15 + 1e12},
 			{MetricTimestamp: now, Quantity: 1e15 + 2e12},
 		}
-		got := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataWriteSizeRaw, "large-values")
+		got, _ := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataWriteSizeRaw, "large-values")
 		assert.InDelta(t, 2e12, got, 1e9, "Expected correct handling of large values")
 	})
 
@@ -891,7 +891,7 @@ func TestCounterDelta_EdgeCasesAllMetricTypes(t *testing.T) {
 			{MetricTimestamp: now.Add(-5 * time.Minute), Quantity: 1000.003},
 			{MetricTimestamp: now, Quantity: 1000.004},
 		}
-		got := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.AllocatedSize, "tiny-increments")
+		got, _ := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.AllocatedSize, "tiny-increments")
 		assert.InDelta(t, 0.003, got, 0.0001, "Expected correct handling of tiny increments")
 	})
 }

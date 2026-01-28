@@ -994,25 +994,19 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 
 	// Calculate aggregated value based on job type
 	var quantity float64
+	var lastCounterValue *float64
 	switch jobDef.AggregationType {
 	case common.IntegralAggregation:
 		quantity = common.Integral(metrics.DataPoints)
 	case common.CounterAggregation:
 		// Use the new method that considers previous aggregated counter values
-		quantity = p.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, metrics.DataPoints, metrics.MeasuredType, start, counterCache, resourceData.UUID, logger)
+		quantity, lastCounterValue = p.calculateCounterDeltaWithAggregatedHistory(ctx, resourceKey, metrics.DataPoints, metrics.MeasuredType, start, counterCache, resourceData.UUID, logger)
 	case common.SumAggregation:
 		quantity = common.Sum(metrics.DataPoints)
 	case common.FirstAggregation:
 		quantity = common.First(metrics.DataPoints)
 	default:
 		return fmt.Errorf("unsupported job type: %s", jobDef.AggregationType)
-	}
-
-	// Get last counter value for counter metrics TODO Rishabh: verify if this is needed
-	var lastCounterValue *float64
-	if jobDef.AggregationType == common.CounterAggregation && len(metrics.DataPoints) > 0 {
-		val := metrics.DataPoints[len(metrics.DataPoints)-1].Quantity
-		lastCounterValue = &val
 	}
 
 	// Initialize with default values
@@ -1335,17 +1329,17 @@ func (p *BillingProvider) preloadCounterValues(ctx context.Context, aggregationS
 
 // calculateCounterDeltaWithAggregatedHistory adds the last aggregated counter value
 // as first data point and uses the existing CounterDelta logic
-func (p *BillingProvider) calculateCounterDeltaWithAggregatedHistory(ctx context.Context, resourceKey ResourceKey, dataPoints []common.DataPoint, measuredType metadata.MeasuredType, aggregationStartTime time.Time, counterCache map[CounterAggregationCacheResourceKey]*float64, resourceUUID string, logger log.Logger) float64 {
-	if len(dataPoints) == 0 {
-		return 0
-	}
-
+func (p *BillingProvider) calculateCounterDeltaWithAggregatedHistory(ctx context.Context, resourceKey ResourceKey, dataPoints []common.DataPoint, measuredType metadata.MeasuredType, aggregationStartTime time.Time, counterCache map[CounterAggregationCacheResourceKey]*float64, resourceUUID string, logger log.Logger) (float64, *float64) {
 	// Create the cache key using ResourceUUID and MeasuredType
 	cacheKey := CounterAggregationCacheResourceKey{
 		ResourceUUID: resourceUUID,
 		MeasuredType: measuredType,
 	}
 	lastAggregatedCounterValue := counterCache[cacheKey]
+	// If no data points, return 0 and lastAggregatedCounterValue
+	if len(dataPoints) == 0 {
+		return 0, lastAggregatedCounterValue
+	}
 
 	// If we have a previous aggregated counter value, add it as the first data point
 	if lastAggregatedCounterValue != nil {
@@ -1363,10 +1357,12 @@ func (p *BillingProvider) calculateCounterDeltaWithAggregatedHistory(ctx context
 			*lastAggregatedCounterValue, resourceUUID, measuredType)
 
 		// Use existing CounterDelta logic with enhanced data points
-		return common.CounterDelta(enhancedDataPoints, logger, measuredType, resourceUUID)
+		aggregate, lastCounter := common.CounterDelta(enhancedDataPoints, logger, measuredType, resourceUUID)
+		return aggregate, lastCounter
 	}
 
 	// No previous aggregated value found, use standard counter delta calculation
 	logger.Debugf("No previous aggregated counter value found for resource %s, measured type %s, using standard CounterDelta", resourceUUID, measuredType)
-	return common.CounterDelta(dataPoints, logger, measuredType, resourceUUID)
+	aggregate, lastCounter := common.CounterDelta(dataPoints, logger, measuredType, resourceUUID)
+	return aggregate, lastCounter
 }
