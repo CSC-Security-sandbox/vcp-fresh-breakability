@@ -11,7 +11,7 @@
   },
   "ROTATE_VSA_CERTIFICATE_AND_PASSWORD": {
     "jobType": "ROTATE_VSA_CERTIFICATE_AND_PASSWORD",
-    "cronExpression": "0 0 * * *",
+    "cronExpression": "0 * * * *",
     "state": "CREATING"
   },
   "VOLUME_DETAILS_TOTAL": {
