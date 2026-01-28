@@ -53,6 +53,8 @@ var (
 	enableSmb                         = env.GetBool("ENABLE_SMB", false)
 	enableKerberos                    = env.GetBool("ENABLE_KERBEROS", false)
 	unixPermissionsEnabled            = env.GetBool("ENABLE_UNIX_PERMISSIONS", true)
+	smbCaShareEnabled                 = env.GetBool("SMB_CA_SHARE_ENABLED", false)
+	exportRulesLimit                  = env.GetInt("EXPORT_POLICY_RULES_LIMIT", 20)
 )
 
 const (
@@ -517,7 +519,22 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 				ExportPolicyName: req.Volume.CreationToken.Value,
 			},
 		}
+		if req.Volume.SecurityStyle.Set {
+			param.FileProperties.SecurityStyle = string(req.Volume.SecurityStyle.Value)
+		}
 		if req.Volume.SmbSettings != nil {
+			if slices.Contains(req.Volume.SmbSettings, gcpgenserver.SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE) {
+				if !smbCaShareEnabled {
+					return nil, errors.NewUserInputValidationErr("SMB continuously_available share feature is not enabled")
+				}
+				if param.FileProperties.SecurityStyle != string(gcpgenserver.VolumeV1betaSecurityStyleNTFS) {
+					return nil, errors.NewUserInputValidationErr("Security style must be ntfs when specifying continuously_available share property for a SMB volume")
+				}
+			}
+			if slices.Contains(req.Volume.SmbSettings, gcpgenserver.SMBSettingsV1betaItemACCESSBASEDENUMERATION) &&
+				param.FileProperties.SecurityStyle == string(gcpgenserver.VolumeV1betaSecurityStyleUNIX) {
+				return nil, errors.NewUserInputValidationErr("Security style must be ntfs when specifying access_based_enumeration share property for a SMB volume")
+			}
 			err := validateSmbShareSettingsV2(req.Volume.SmbSettings)
 			if err != nil {
 				return nil, err
@@ -592,12 +609,15 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 				}
 				if rule.HasRootAccess.IsSet() {
 					if val, ok := rule.HasRootAccess.Get(); ok {
-						exportRule.Superuser = (val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue ||
-							val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn)
+						exportRule.Superuser = val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue ||
+													val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn
 					}
 				}
 				exportRules = append(exportRules, exportRule)
 			}
+		}
+		if len(exportRules) > exportRulesLimit {
+			return nil, errors.NewUserInputValidationErr(fmt.Sprintf("Number of export rules cannot exceed %d", exportRulesLimit))
 		}
 		param.FileProperties.ExportPolicy.ExportRules = exportRules
 	}
@@ -1182,8 +1202,8 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 			}
 			if rule.HasRootAccess.IsSet() {
 				if val, ok := rule.HasRootAccess.Get(); ok {
-					exportRule.Superuser = (val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue ||
-						val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn)
+					exportRule.Superuser = val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue ||
+											val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn
 				}
 			}
 			if utils.IsAllSquashEnabled {
@@ -1195,6 +1215,9 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 				}
 			}
 			param.FileProperties.ExportPolicy.ExportRules = append(param.FileProperties.ExportPolicy.ExportRules, exportRule)
+		}
+		if len(param.FileProperties.ExportPolicy.ExportRules) > exportRulesLimit {
+			return nil, errors.NewUserInputValidationErr(fmt.Sprintf("Number of export rules cannot exceed %d", exportRulesLimit))
 		}
 	}
 	if req.SnapshotDirectory.IsSet() {
@@ -1263,6 +1286,10 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 	if len(req.SmbSettings) > 0 {
 		if dbVolume != nil && !utils.IsSMBProtocols(dbVolume.ProtocolTypes) {
 			return nil, errors.NewUserInputValidationErr("Cannot change SMB share settings for NFS volume or Block Volume")
+		}
+		if slices.Contains(req.SmbSettings, gcpgenserver.SMBSettingsV1betaItemACCESSBASEDENUMERATION) && dbVolume != nil && dbVolume.FileProperties != nil &&
+			(dbVolume.FileProperties.SecurityStyle == string(gcpgenserver.VolumeV1betaSecurityStyleUNIX)) {
+			return nil, errors.NewUserInputValidationErr("Security style must be ntfs when specifying access based enumeration share property")
 		}
 		err := validateSmbShareSettingsV2(req.SmbSettings)
 		if err != nil {
@@ -3179,12 +3206,6 @@ func validateSmbShareSettingsV2(settings []gcpgenserver.SMBSettingsV1betaItem) e
 		}
 		if setting == gcpgenserver.SMBSettingsV1betaItemNONBROWSABLE {
 			nonBrowsable = true
-		}
-		if !(setting == gcpgenserver.SMBSettingsV1betaItemENCRYPTDATA ||
-			setting == gcpgenserver.SMBSettingsV1betaItemACCESSBASEDENUMERATION ||
-			setting == gcpgenserver.SMBSettingsV1betaItemBROWSABLE ||
-			setting == gcpgenserver.SMBSettingsV1betaItemNONBROWSABLE) {
-			return errors.NewUserInputValidationErr(fmt.Sprintf("Provided SMB share setting '%s' is not supported for software based volumes", setting))
 		}
 	}
 	if nonBrowsable && browsable {

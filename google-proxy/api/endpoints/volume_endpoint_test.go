@@ -1066,6 +1066,276 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.EqualError(tt, err, "SMB protocol is currently not enabled.")
 	})
 
+	t.Run("SMBContinuouslyAvailable_FeatureDisabled_ReturnsError", func(tt *testing.T) {
+		origEnableSmb := enableSmb
+		origSmbCaShareEnabled := smbCaShareEnabled
+		defer func() {
+			enableSmb = origEnableSmb
+			smbCaShareEnabled = origSmbCaShareEnabled
+		}()
+		enableSmb = true
+		smbCaShareEnabled = false
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaSMB,
+				},
+				SecurityStyle: gcpgenserver.NewOptVolumeV1betaSecurityStyle(gcpgenserver.VolumeV1betaSecurityStyleNTFS),
+				SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{
+					gcpgenserver.SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE,
+				},
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		_, err := _prepareCreateVolumeParams(req, params, region, zone, &models.Pool{ActiveDirectoryConfigId: "test-ad-config-id"})
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "SMB continuously_available share feature is not enabled")
+	})
+
+	t.Run("SMBContinuouslyAvailable_NonNTFSSecurityStyle_ReturnsError", func(tt *testing.T) {
+		origEnableSmb := enableSmb
+		origSmbCaShareEnabled := smbCaShareEnabled
+		defer func() {
+			enableSmb = origEnableSmb
+			smbCaShareEnabled = origSmbCaShareEnabled
+		}()
+		enableSmb = true
+		smbCaShareEnabled = true
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaSMB,
+				},
+				SecurityStyle: gcpgenserver.NewOptVolumeV1betaSecurityStyle(gcpgenserver.VolumeV1betaSecurityStyleUNIX),
+				SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{
+					gcpgenserver.SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE,
+				},
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		_, err := _prepareCreateVolumeParams(req, params, region, zone, &models.Pool{ActiveDirectoryConfigId: "test-ad-config-id"})
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Security style must be ntfs when specifying continuously_available share property for a SMB volume")
+	})
+
+	t.Run("SMBContinuouslyAvailable_WithNTFSSecurityStyle_Succeeds", func(tt *testing.T) {
+		origEnableSmb := enableSmb
+		origSmbCaShareEnabled := smbCaShareEnabled
+		defer func() {
+			enableSmb = origEnableSmb
+			smbCaShareEnabled = origSmbCaShareEnabled
+		}()
+		enableSmb = true
+		smbCaShareEnabled = true
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaSMB,
+				},
+				SecurityStyle: gcpgenserver.NewOptVolumeV1betaSecurityStyle(gcpgenserver.VolumeV1betaSecurityStyleNTFS),
+				SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{
+					gcpgenserver.SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE,
+				},
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		result, err := _prepareCreateVolumeParams(req, params, region, zone, &models.Pool{ActiveDirectoryConfigId: "test-ad-config-id"})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.FileProperties)
+		assert.Equal(tt, string(gcpgenserver.VolumeV1betaSecurityStyleNTFS), result.FileProperties.SecurityStyle)
+	})
+
+	t.Run("SMBAccessBasedEnumeration_WithUNIXSecurityStyle_ReturnsError", func(tt *testing.T) {
+		origEnableSmb := enableSmb
+		defer func() { enableSmb = origEnableSmb }()
+		enableSmb = true
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaSMB,
+				},
+				SecurityStyle: gcpgenserver.NewOptVolumeV1betaSecurityStyle(gcpgenserver.VolumeV1betaSecurityStyleUNIX),
+				SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{
+					gcpgenserver.SMBSettingsV1betaItemACCESSBASEDENUMERATION,
+				},
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		_, err := _prepareCreateVolumeParams(req, params, region, zone, &models.Pool{ActiveDirectoryConfigId: "test-ad-config-id"})
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Security style must be ntfs when specifying access_based_enumeration share property for a SMB volume")
+	})
+
+	t.Run("SMBAccessBasedEnumeration_WithNTFSSecurityStyle_Succeeds", func(tt *testing.T) {
+		origEnableSmb := enableSmb
+		defer func() { enableSmb = origEnableSmb }()
+		enableSmb = true
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaSMB,
+				},
+				SecurityStyle: gcpgenserver.NewOptVolumeV1betaSecurityStyle(gcpgenserver.VolumeV1betaSecurityStyleNTFS),
+				SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{
+					gcpgenserver.SMBSettingsV1betaItemACCESSBASEDENUMERATION,
+				},
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		result, err := _prepareCreateVolumeParams(req, params, region, zone, &models.Pool{ActiveDirectoryConfigId: "test-ad-config-id"})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.FileProperties)
+		assert.Equal(tt, string(gcpgenserver.VolumeV1betaSecurityStyleNTFS), result.FileProperties.SecurityStyle)
+	})
+
+	t.Run("ExportPolicyRules_ExceedsLimit_ReturnsError", func(tt *testing.T) {
+		origExportRulesLimit := exportRulesLimit
+		defer func() { exportRulesLimit = origExportRulesLimit }()
+		exportRulesLimit = 20
+
+		// Create 21 export rules to exceed the limit
+		rules := make([]gcpgenserver.SimpleExportPolicyRuleV1beta, 21)
+		for i := 0; i < 21; i++ {
+			rules[i] = gcpgenserver.SimpleExportPolicyRuleV1beta{
+				AllowedClients: fmt.Sprintf("10.0.0.%d/32", i),
+				AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+				Nfsv3:          gcpgenserver.NewOptNilBool(true),
+				Nfsv4:          gcpgenserver.NewOptNilBool(false),
+			}
+		}
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaNFSV3,
+				},
+				ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(
+					gcpgenserver.ExportPolicyV1beta{
+						Rules: rules,
+					},
+				),
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		_, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Number of export rules cannot exceed 20")
+	})
+
+	t.Run("ExportPolicyRules_WithinLimit_Succeeds", func(tt *testing.T) {
+		origExportRulesLimit := exportRulesLimit
+		defer func() { exportRulesLimit = origExportRulesLimit }()
+		exportRulesLimit = 20
+
+		// Create exactly 20 export rules (at the limit)
+		rules := make([]gcpgenserver.SimpleExportPolicyRuleV1beta, 20)
+		for i := 0; i < 20; i++ {
+			rules[i] = gcpgenserver.SimpleExportPolicyRuleV1beta{
+				AllowedClients: fmt.Sprintf("10.0.0.%d/32", i),
+				AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+				Nfsv3:          gcpgenserver.NewOptNilBool(true),
+				Nfsv4:          gcpgenserver.NewOptNilBool(false),
+			}
+		}
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaNFSV3,
+				},
+				ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(
+					gcpgenserver.ExportPolicyV1beta{
+						Rules: rules,
+					},
+				),
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.FileProperties)
+		assert.NotNil(tt, result.FileProperties.ExportPolicy)
+		assert.Len(tt, result.FileProperties.ExportPolicy.ExportRules, 20)
+	})
+
 	t.Run("ValidInputWithLargeCapacityAndConstituentCount", func(tt *testing.T) {
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
@@ -12567,20 +12837,14 @@ func TestValidateSmbShareSettingsV2(t *testing.T) {
 			errMsg:  "cannot have both browsable and non_browsable",
 		},
 		{
-			name: "Invalid - unsupported setting continuously_available",
-			settings: []gcpgenserver.SMBSettingsV1betaItem{
-				gcpgenserver.SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE,
-			},
-			wantErr: true,
-			errMsg:  "not supported for software based volumes",
+			name:     "Valid settings with continuously_available",
+			settings: []gcpgenserver.SMBSettingsV1betaItem{gcpgenserver.SMBSettingsV1betaItemCONTINUOUSLYAVAILABLE},
+			wantErr:  false,
 		},
 		{
-			name: "Invalid - unsupported setting show_snapshot",
-			settings: []gcpgenserver.SMBSettingsV1betaItem{
-				gcpgenserver.SMBSettingsV1betaItemSHOWSNAPSHOT,
-			},
-			wantErr: true,
-			errMsg:  "not supported for software based volumes",
+			name:     "Valid settings with show_snapshot",
+			settings: []gcpgenserver.SMBSettingsV1betaItem{gcpgenserver.SMBSettingsV1betaItemSHOWSNAPSHOT},
+			wantErr:  false,
 		},
 		{
 			name:     "Empty settings list",
@@ -14239,6 +14503,177 @@ func TestValidateAllSquash_InvalidConfigurations(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "AccessType must be READ_WRITE when AllSquash is enabled")
 	})
+}
+
+func TestPrepareUpdateVolumeParams_SMBAccessBasedEnumeration_WithUNIXSecurityStyle_ReturnsError(t *testing.T) {
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+		VolumeId:      "test-volume",
+	}
+	region := "test-region"
+
+	dbVolume := &models.Volume{
+		BaseModel:     models.BaseModel{UUID: "test-volume"},
+		DisplayName:   "testvolume",
+		ProtocolTypes: []string{"SMB"},
+		FileProperties: &models.FileProperties{
+			SecurityStyle: string(gcpgenserver.VolumeV1betaSecurityStyleUNIX),
+		},
+	}
+
+	req := &gcpgenserver.VolumeUpdateV1beta{
+		SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{
+			gcpgenserver.SMBSettingsV1betaItemACCESSBASEDENUMERATION,
+		},
+	}
+
+	result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Security style must be ntfs when specifying access based enumeration share property")
+}
+
+func TestPrepareUpdateVolumeParams_SMBAccessBasedEnumeration_WithNTFSSecurityStyle_Succeeds(t *testing.T) {
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+		VolumeId:      "test-volume",
+	}
+	region := "test-region"
+
+	dbVolume := &models.Volume{
+		BaseModel:     models.BaseModel{UUID: "test-volume"},
+		DisplayName:   "testvolume",
+		ProtocolTypes: []string{"SMB"},
+		FileProperties: &models.FileProperties{
+			SecurityStyle: string(gcpgenserver.VolumeV1betaSecurityStyleNTFS),
+		},
+	}
+
+	req := &gcpgenserver.VolumeUpdateV1beta{
+		SmbSettings: []gcpgenserver.SMBSettingsV1betaItem{
+			gcpgenserver.SMBSettingsV1betaItemACCESSBASEDENUMERATION,
+		},
+	}
+
+	result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestPrepareUpdateVolumeParams_ExportPolicyRules_ExceedsLimit_ReturnsError(t *testing.T) {
+	origExportRulesLimit := exportRulesLimit
+	defer func() { exportRulesLimit = origExportRulesLimit }()
+	exportRulesLimit = 20
+
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+		VolumeId:      "test-volume",
+	}
+	region := "test-region"
+
+	dbVolume := &models.Volume{
+		BaseModel:     models.BaseModel{UUID: "test-volume"},
+		DisplayName:   "testvolume",
+		ProtocolTypes: []string{"NFSV3"},
+		FileProperties: &models.FileProperties{
+			ExportPolicy: &models.ExportPolicy{
+				ExportRules: []*models.ExportRule{
+					{
+						AllowedClients: "10.0.0.1/32",
+						AccessType:     "ReadWrite",
+						NFSv3:          true,
+						NFSv4:          false,
+						Index:          1,
+					},
+				},
+			},
+		},
+	}
+
+	// Create 21 rules to exceed the limit (update replaces existing rules, so we need 21 new rules)
+	rules := make([]gcpgenserver.SimpleExportPolicyRuleV1beta, 21)
+	for i := 0; i < 21; i++ {
+		rules[i] = gcpgenserver.SimpleExportPolicyRuleV1beta{
+			AllowedClients: fmt.Sprintf("10.0.0.%d/32", i+1),
+			AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+			Nfsv3:          gcpgenserver.NewOptNilBool(true),
+			Nfsv4:          gcpgenserver.NewOptNilBool(false),
+		}
+	}
+
+	req := &gcpgenserver.VolumeUpdateV1beta{
+		ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(
+			gcpgenserver.ExportPolicyV1beta{
+				Rules: rules,
+			},
+		),
+	}
+
+	result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Number of export rules cannot exceed 20")
+}
+
+func TestPrepareUpdateVolumeParams_ExportPolicyRules_WithinLimit_Succeeds(t *testing.T) {
+	origExportRulesLimit := exportRulesLimit
+	defer func() { exportRulesLimit = origExportRulesLimit }()
+	exportRulesLimit = 20
+
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+		VolumeId:      "test-volume",
+	}
+	region := "test-region"
+
+	dbVolume := &models.Volume{
+		BaseModel:     models.BaseModel{UUID: "test-volume"},
+		DisplayName:   "testvolume",
+		ProtocolTypes: []string{"NFSV3"},
+		FileProperties: &models.FileProperties{
+			ExportPolicy: &models.ExportPolicy{
+				ExportRules: []*models.ExportRule{
+					{
+						AllowedClients: "10.0.0.1/32",
+						AccessType:     "ReadWrite",
+						NFSv3:          true,
+						NFSv4:          false,
+						Index:          1,
+					},
+				},
+			},
+		},
+	}
+
+	// Create 20 rules to stay at the limit (update replaces existing rules, so we need 20 new rules)
+	rules := make([]gcpgenserver.SimpleExportPolicyRuleV1beta, 20)
+	for i := 0; i < 20; i++ {
+		rules[i] = gcpgenserver.SimpleExportPolicyRuleV1beta{
+			AllowedClients: fmt.Sprintf("10.0.0.%d/32", i+1),
+			AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+			Nfsv3:          gcpgenserver.NewOptNilBool(true),
+			Nfsv4:          gcpgenserver.NewOptNilBool(false),
+		}
+	}
+
+	req := &gcpgenserver.VolumeUpdateV1beta{
+		ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(
+			gcpgenserver.ExportPolicyV1beta{
+				Rules: rules,
+			},
+		),
+	}
+
+	result, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotNil(t, result.FileProperties)
+	assert.NotNil(t, result.FileProperties.ExportPolicy)
+	assert.Len(t, result.FileProperties.ExportPolicy.ExportRules, 20)
 }
 
 // TestV1betaDeleteVolume_DeletingState_GetJobByResourceUUIDFails tests lines 1316, 1318: error logging and dummy operation return when job lookup fails

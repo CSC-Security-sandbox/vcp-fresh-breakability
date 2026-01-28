@@ -114,10 +114,12 @@ enableLdap: false
 enableSmb: false
 enableKerberos: false
 enableUnixPermissions: true
+enableSmbCaShare: true
 enableMultiAd: true
 maxNumberOfAdPerAccount: 5
 enableMqos: false
 enableVpgEndpoints: false
+exportPolicyRulesLimit: 20
 autoPoolScalingLimits:
   c3-standard-4-lssd:
     min_volume_count: 0
