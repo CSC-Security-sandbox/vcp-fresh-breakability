@@ -2,11 +2,12 @@ package workflows
 
 import (
 	"errors"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -65,8 +66,10 @@ func (wf *unRegisterNodeFromHarvestFarmWorkflow) Run(ctx workflow.Context, args 
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
+	// Set activity options with heartbeat timeout
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -89,9 +92,12 @@ func (wf *unRegisterNodeFromHarvestFarmWorkflow) Run(ctx workflow.Context, args 
 
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
+	// Create a separate context with shorter heartbeat timeout for DB operations
+	dbHbCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(dbHeartbeatTimeoutSec)*time.Second)
+
 	var dbNodes []*datamodel.Node
-	// 1. Validate and Get Nodes from DB which are in Deleted state
-	err = workflow.ExecuteActivity(ctx, unRegisterActivity.ValidateAndGetNodes, activityParams).Get(ctx, &dbNodes)
+	// 1. Validate and Get Nodes from DB which are in Deleted state (DB operation - uses dbHbCtx)
+	err = workflow.ExecuteActivity(dbHbCtx, unRegisterActivity.ValidateAndGetNodes, activityParams).Get(dbHbCtx, &dbNodes)
 	if err != nil {
 		var appErr *temporal.ApplicationError
 		if errors.As(err, &appErr) && appErr.NonRetryable() && appErr.Type() == activities.UnRegisterNodesInfoNotAvailable {
@@ -109,8 +115,8 @@ func (wf *unRegisterNodeFromHarvestFarmWorkflow) Run(ctx workflow.Context, args 
 	activityParams.Nodes = dbNodes
 
 	var nodeGroupMap []*datamodel.NodeNodeGroupMap
-	// 2. Get node and harvest mapping details which are not in soft deleted state
-	err = workflow.ExecuteActivity(ctx, unRegisterActivity.GetNodeGroupMapping, activityParams).Get(ctx, &nodeGroupMap)
+	// 2. Get node and harvest mapping details which are not in soft deleted state (DB operation - uses dbHbCtx)
+	err = workflow.ExecuteActivity(dbHbCtx, unRegisterActivity.GetNodeGroupMapping, activityParams).Get(dbHbCtx, &nodeGroupMap)
 	if err != nil {
 		var appErr *temporal.ApplicationError
 		if errors.As(err, &appErr) && appErr.NonRetryable() && appErr.Type() == activities.UnRegisterNodeGroupMapNotAvailable {
@@ -127,21 +133,20 @@ func (wf *unRegisterNodeFromHarvestFarmWorkflow) Run(ctx workflow.Context, args 
 	// Update NodeLeaseMap info to activity params
 	activityParams.NodeGroupsMap = nodeGroupMap
 
-	// 3.Delete NodeGroupMapping from DB i.e., soft delete
-	err = workflow.ExecuteActivity(ctx, unRegisterActivity.DeleteNodeGroupMapping, activityParams).Get(ctx, nil)
+	// 3. Delete NodeGroupMapping from DB i.e., soft delete (DB operation - uses dbHbCtx)
+	err = workflow.ExecuteActivity(dbHbCtx, unRegisterActivity.DeleteNodeGroupMapping, activityParams).Get(dbHbCtx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 
-	// 4. Delete node pollers from harvest farm, i.e., node harvest yaml files will be deleted from PVC
+	// 4. Delete node pollers from harvest farm, i.e., node harvest yaml files will be deleted from PVC (uses regular ctx)
 	err = workflow.ExecuteActivity(ctx, unRegisterActivity.DeletePollersFromHarvestFarm, activityParams).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 
-	// 5. Validate and delete kubernetes lease information from DB, i.e., if no nodes are assigned to
-	// harvest farm then HPA will delete the pod having poller count to 0
-	err = workflow.ExecuteActivity(ctx, unRegisterActivity.ValidateAndReleaseLease, activityParams).Get(ctx, nil)
+	// 5. Validate and delete kubernetes lease information from DB (DB operation - uses dbHbCtx)
+	err = workflow.ExecuteActivity(dbHbCtx, unRegisterActivity.ValidateAndReleaseLease, activityParams).Get(dbHbCtx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}

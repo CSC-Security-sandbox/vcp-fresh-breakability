@@ -13,7 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"go.temporal.io/sdk/testsuite"
 )
 
 func TestGetNodeGroupMaps(t *testing.T) {
@@ -159,7 +160,6 @@ func TestGetNodeGroupMaps(t *testing.T) {
 
 func TestRefreshHarvestNodes(t *testing.T) {
 	t.Run("EmptyNodeGroupMaps", func(t *testing.T) {
-		ctx := context.Background()
 		mockStorage := database.NewMockStorage(t)
 
 		activity := HarvestNodesRefreshActivity{SE: mockStorage}
@@ -168,11 +168,15 @@ func TestRefreshHarvestNodes(t *testing.T) {
 			RefreshURL:    "",
 		}
 
-		err := activity.RefreshHarvestNodes(ctx, params)
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.RefreshHarvestNodes)
+
+		_, err := env.ExecuteActivity(activity.RefreshHarvestNodes, params)
 		assert.NoError(t, err)
 	})
 	t.Run("AllInvalidNodeGroupMaps", func(t *testing.T) {
-		ctx := context.Background()
 		mockStorage := database.NewMockStorage(t)
 
 		activity := HarvestNodesRefreshActivity{SE: mockStorage}
@@ -185,11 +189,15 @@ func TestRefreshHarvestNodes(t *testing.T) {
 			RefreshURL: "",
 		}
 
-		err := activity.RefreshHarvestNodes(ctx, params)
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.RefreshHarvestNodes)
+
+		_, err := env.ExecuteActivity(activity.RefreshHarvestNodes, params)
 		assert.NoError(t, err)
 	})
 	t.Run("MixedValidAndInvalidMaps", func(t *testing.T) {
-		ctx := context.Background()
 		mockStorage := database.NewMockStorage(t)
 
 		// Mock successful upload response
@@ -207,23 +215,27 @@ func TestRefreshHarvestNodes(t *testing.T) {
 					BaseModel:     datamodel.BaseModel{ID: 1},
 					NodeID:        100,
 					NodeGroup:     &datamodel.NodeGroup{LeaseName: "lease1"},
-					HarvestConfig: &datamodel.HarvestConfig{}}, // Valid
+					HarvestConfig: &datamodel.HarvestConfig{}}, // Valid - but no SECRET_ID so will be skipped
 				{
 					BaseModel: datamodel.BaseModel{ID: 2}, NodeID: 0}, // Invalid
 				{
 					BaseModel:     datamodel.BaseModel{ID: 3},
 					NodeID:        200,
 					NodeGroup:     &datamodel.NodeGroup{LeaseName: "lease2"},
-					HarvestConfig: &datamodel.HarvestConfig{}}, // Valid
+					HarvestConfig: &datamodel.HarvestConfig{}}, // Valid - but no SECRET_ID so will be skipped
 			},
 			RefreshURL: mockServer.URL,
 		}
 
-		err := activity.RefreshHarvestNodes(ctx, params)
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.RefreshHarvestNodes)
+
+		_, err := env.ExecuteActivity(activity.RefreshHarvestNodes, params)
 		assert.NoError(t, err)
 	})
 	t.Run("ProcessingWithHttpError", func(t *testing.T) {
-		ctx := context.Background()
 		mockStorage := database.NewMockStorage(t)
 
 		// Mock server that returns error
@@ -247,12 +259,16 @@ func TestRefreshHarvestNodes(t *testing.T) {
 			RefreshURL: mockServer.URL,
 		}
 
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.RefreshHarvestNodes)
+
 		// Should not return error as individual failures are logged but don't fail the entire operation
-		err := activity.RefreshHarvestNodes(ctx, params)
+		_, err := env.ExecuteActivity(activity.RefreshHarvestNodes, params)
 		assert.NoError(t, err)
 	})
 	t.Run("ConcurrentProcessing", func(t *testing.T) {
-		ctx := context.Background()
 		mockStorage := database.NewMockStorage(t)
 
 		var requestCount int32
@@ -287,12 +303,17 @@ func TestRefreshHarvestNodes(t *testing.T) {
 			NodeGroupMaps: nodeGroupMaps,
 			RefreshURL:    mockServer.URL,
 		}
-		err := activity.RefreshHarvestNodes(ctx, params)
+
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.RefreshHarvestNodes)
+
+		_, err := env.ExecuteActivity(activity.RefreshHarvestNodes, params)
 		assert.NoError(t, err)
 		assert.Equal(t, int32(len(nodeGroupMaps)), atomic.LoadInt32(&requestCount))
 	})
 	t.Run("TemplateRenderError", func(t *testing.T) {
-		ctx := context.Background()
 		mockStorage := database.NewMockStorage(t)
 		oldRenderTemplate := renderTemplateForharvest
 		// Mock template rendering to always return error
@@ -310,14 +331,19 @@ func TestRefreshHarvestNodes(t *testing.T) {
 					BaseModel:     datamodel.BaseModel{ID: 1},
 					NodeID:        100,
 					NodeGroup:     &datamodel.NodeGroup{LeaseName: "lease1"},
-					HarvestConfig: &datamodel.HarvestConfig{},
+					HarvestConfig: &datamodel.HarvestConfig{SECRET_ID: "test-secretID"},
 				},
 			},
 			RefreshURL: "",
 		}
 
+		// Use Temporal test suite to provide proper activity context for heartbeat
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.RefreshHarvestNodes)
+
 		// Should not return error as individual failures are logged but don't fail the entire operation
-		err := activity.RefreshHarvestNodes(ctx, params)
+		_, err := env.ExecuteActivity(activity.RefreshHarvestNodes, params)
 		assert.NoError(t, err)
 	})
 }

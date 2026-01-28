@@ -7,12 +7,13 @@ import (
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/metrics"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/temporal"
 )
 
@@ -53,14 +54,18 @@ type UnRegisterNodeFromHarvestActivity struct {
 	SE database.Storage
 }
 
+// ValidateAndGetNodes retrieves nodes for the given pool ID.
+// Note: dbHbCtx is the context with DB heartbeat timeout configured from the workflow
 func (unRegisterNodeToHarvest *UnRegisterNodeFromHarvestActivity) ValidateAndGetNodes(
-	ctx context.Context,
+	dbHbCtx context.Context,
 	activityParams *UnRegisterNodeFromHarvestActivityParams,
 ) ([]*datamodel.Node, error) {
-	logger := util.GetLogger(ctx)
+	logger := util.GetLogger(dbHbCtx)
+	activity.RecordHeartbeat(dbHbCtx, "ValidateAndGetNodes started")
+
 	se := unRegisterNodeToHarvest.SE
 	poolID := activityParams.PoolID
-	nodes, err := se.GetNodesByPoolID(ctx, poolID)
+	nodes, err := se.GetNodesByPoolID(dbHbCtx, poolID)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
 			logger.Errorf("no nodes found for pool ID %d", poolID)
@@ -72,15 +77,20 @@ func (unRegisterNodeToHarvest *UnRegisterNodeFromHarvestActivity) ValidateAndGet
 	return nodes, nil
 }
 
+// GetNodeGroupMapping retrieves node group mappings for the given nodes.
+// Note: dbHbCtx is the context with DB heartbeat timeout configured from the workflow
 func (unRegisterNodeToHarvest *UnRegisterNodeFromHarvestActivity) GetNodeGroupMapping(
-	ctx context.Context,
+	dbHbCtx context.Context,
 	activityParams *UnRegisterNodeFromHarvestActivityParams,
 ) ([]*datamodel.NodeNodeGroupMap, error) {
 	se := unRegisterNodeToHarvest.SE
-	logger := util.GetLogger(ctx)
+	logger := util.GetLogger(dbHbCtx)
+	activity.RecordHeartbeat(dbHbCtx, "GetNodeGroupMapping started")
+
 	var nodeGroupMappings []*datamodel.NodeNodeGroupMap
-	for _, node := range activityParams.Nodes {
-		nodeGroupMap, err := se.GetNodeNodeGroupMapByNodeID(ctx, node.ID)
+	for i, node := range activityParams.Nodes {
+		activity.RecordHeartbeat(dbHbCtx, fmt.Sprintf("Getting node group mapping %d/%d", i+1, len(activityParams.Nodes)))
+		nodeGroupMap, err := se.GetNodeNodeGroupMapByNodeID(dbHbCtx, node.ID)
 		if err != nil {
 			if errors.IsNotFoundErr(err) {
 				logger.Errorf("no nodegroupmap info found for node ID %d", node.ID)
@@ -94,13 +104,18 @@ func (unRegisterNodeToHarvest *UnRegisterNodeFromHarvestActivity) GetNodeGroupMa
 	return nodeGroupMappings, nil
 }
 
+// DeleteNodeGroupMapping deletes node group mappings from the database.
+// Note: dbHbCtx is the context with DB heartbeat timeout configured from the workflow
 func (unRegisterNodeToHarvest *UnRegisterNodeFromHarvestActivity) DeleteNodeGroupMapping(
-	ctx context.Context, activityParams *UnRegisterNodeFromHarvestActivityParams,
+	dbHbCtx context.Context, activityParams *UnRegisterNodeFromHarvestActivityParams,
 ) error {
-	logger := util.GetLogger(ctx)
+	logger := util.GetLogger(dbHbCtx)
+	activity.RecordHeartbeat(dbHbCtx, "DeleteNodeGroupMapping started")
+
 	se := unRegisterNodeToHarvest.SE
-	for _, nodeGroupMapping := range activityParams.NodeGroupsMap {
-		err := se.DeleteNodeNodeGroupMap(ctx, nodeGroupMapping.ID)
+	for i, nodeGroupMapping := range activityParams.NodeGroupsMap {
+		activity.RecordHeartbeat(dbHbCtx, fmt.Sprintf("Deleting node group mapping %d/%d", i+1, len(activityParams.NodeGroupsMap)))
+		err := se.DeleteNodeNodeGroupMap(dbHbCtx, nodeGroupMapping.ID)
 		if err != nil {
 			logger.Warnf("failed to delete nodeGroupMap for node %s: %w", nodeGroupMapping.NodeID, err)
 			return err
@@ -112,7 +127,10 @@ func (unRegisterNodeToHarvest *UnRegisterNodeFromHarvestActivity) DeleteNodeGrou
 func (unRegisterNodeToHarvest *UnRegisterNodeFromHarvestActivity) DeletePollersFromHarvestFarm(
 	ctx context.Context, activityParams *UnRegisterNodeFromHarvestActivityParams) error {
 	logger := util.GetLogger(ctx)
-	for _, nodeMap := range activityParams.NodeGroupsMap {
+	activity.RecordHeartbeat(ctx, "DeletePollersFromHarvestFarm started")
+
+	for i, nodeMap := range activityParams.NodeGroupsMap {
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Deleting poller %d/%d", i+1, len(activityParams.NodeGroupsMap)))
 		leaseName := nodeMap.NodeGroup.LeaseName
 		if len(leaseName) == 0 {
 			logger.Warnf("no leaseName exists for nodeGroupMap Name:%s", nodeMap.NodeGroup.Name)
@@ -138,20 +156,25 @@ func (unRegisterNodeToHarvest *UnRegisterNodeFromHarvestActivity) DeletePollersF
 	return nil
 }
 
+// ValidateAndReleaseLease validates and releases Kubernetes leases for node groups.
+// Note: dbHbCtx is the context with DB heartbeat timeout configured from the workflow
 func (unRegisterNodeToHarvest *UnRegisterNodeFromHarvestActivity) ValidateAndReleaseLease(
-	ctx context.Context,
+	dbHbCtx context.Context,
 	activityParams *UnRegisterNodeFromHarvestActivityParams) error {
-	logger := util.GetLogger(ctx)
+	logger := util.GetLogger(dbHbCtx)
+	activity.RecordHeartbeat(dbHbCtx, "ValidateAndReleaseLease started")
+
 	se := unRegisterNodeToHarvest.SE
-	for _, nodeGroupMap := range activityParams.NodeGroupsMap {
-		nodesCount, err := se.GetNodeGroupMapNodeCount(ctx, nodeGroupMap.NodeGroupID)
+	for i, nodeGroupMap := range activityParams.NodeGroupsMap {
+		activity.RecordHeartbeat(dbHbCtx, fmt.Sprintf("Validating and releasing lease %d/%d", i+1, len(activityParams.NodeGroupsMap)))
+		nodesCount, err := se.GetNodeGroupMapNodeCount(dbHbCtx, nodeGroupMap.NodeGroupID)
 		if err != nil {
 			return err
 		}
 		if nodesCount == 0 {
 			if nodeGroupMap.NodeGroup != nil {
 				logger.Infof("Releasing kubernetes lease:%s for node group %d", nodeGroupMap.NodeGroup.LeaseName, nodeGroupMap.NodeGroupID)
-				err := deleteKubernetesLease(ctx, vcpLeaseNameSpace, nodeGroupMap.NodeGroup.LeaseName)
+				err := deleteKubernetesLease(dbHbCtx, vcpLeaseNameSpace, nodeGroupMap.NodeGroup.LeaseName)
 				if err != nil {
 					if strings.Contains(err.Error(), "not found") {
 						logger.Warnf("kubernetes lease not found for node group %d: %v", nodeGroupMap.NodeGroupID, err)
@@ -161,7 +184,7 @@ func (unRegisterNodeToHarvest *UnRegisterNodeFromHarvestActivity) ValidateAndRel
 					return err
 				}
 				// Delete lease table
-				err = se.DeleteNodeGroup(ctx, nodeGroupMap.NodeGroupID)
+				err = se.DeleteNodeGroup(dbHbCtx, nodeGroupMap.NodeGroupID)
 				if err != nil {
 					logger.Errorf("Failed to delete node group %d: %v", nodeGroupMap.NodeGroupID, err)
 					return err

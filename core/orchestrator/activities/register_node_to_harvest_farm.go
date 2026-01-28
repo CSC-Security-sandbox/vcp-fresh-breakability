@@ -19,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/metrics"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/temporal"
 	"gorm.io/gorm"
 )
@@ -37,9 +38,8 @@ var (
 
 // RegisterNodeToHarvestFarmInput holds input parameters for the activity
 type RegisterNodeToHarvestFarmInput struct {
-	PoolID           int64
-	MaxNodesPerGroup int
-
+	PoolID            int64
+	MaxNodesPerGroup  int
 	CustomerProjectID string
 	TenantProjectID   string
 	DeploymentName    string
@@ -66,11 +66,13 @@ type RegisterNodeToHarvestFarmActivity struct {
 // RegisterNodeToHarvestFarm registers all nodes to the Harvest farm and assigns them to node groups in the database.
 // Nodes are processed in pairs (HA pairs) - for Large Volumes pools with multiple HA pairs, all pairs are registered.
 // Now returns output for the upload activity
-func (a *RegisterNodeToHarvestFarmActivity) RegisterNodeToHarvestFarm(ctx context.Context, input RegisterNodeToHarvestFarmInput) ([]*datamodel.NodeNodeGroupMap, error) {
-	logger := util.GetLogger(ctx)
+// Note: dbHbCtx is the context with DB heartbeat timeout configured from the workflow
+func (a *RegisterNodeToHarvestFarmActivity) RegisterNodeToHarvestFarm(dbHbCtx context.Context, input RegisterNodeToHarvestFarmInput) ([]*datamodel.NodeNodeGroupMap, error) {
+	logger := util.GetLogger(dbHbCtx)
+	activity.RecordHeartbeat(dbHbCtx, "RegisterNodeToHarvestFarmActivity started")
 	logger.Infof("Registering nodes to Harvest farm for pool ID: %d", input.PoolID)
 
-	nodes, err := a.SE.GetNodesByPoolID(ctx, input.PoolID)
+	nodes, err := a.SE.GetNodesByPoolID(dbHbCtx, input.PoolID)
 	if err != nil {
 		logger.Errorf("Failed to fetch nodes for pool ID %d: %v", input.PoolID, err)
 		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("error fetching nodes for pool ID %d: %w", input.PoolID, err))
@@ -110,7 +112,8 @@ func (a *RegisterNodeToHarvestFarmActivity) RegisterNodeToHarvestFarm(ctx contex
 		logger.Debugf("Assigning HA pair %d: node1=%d (%s), node2=%d (%s)",
 			(i/2)+1, node1.ID, node1.Name, node2.ID, node2.Name)
 
-		nodeMappings, err := a.SE.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		activity.RecordHeartbeat(dbHbCtx, "RegisterNodeToHarvestFarmActivity processing HA pair")
+		nodeMappings, err := a.SE.AssignTwoNodesToTwoGroups(dbHbCtx, datamodel.NodeGroupAssignmentParams{
 			Node1:            node1,
 			Node2:            node2,
 			MaxNodesPerGroup: input.MaxNodesPerGroup,
@@ -124,7 +127,7 @@ func (a *RegisterNodeToHarvestFarmActivity) RegisterNodeToHarvestFarm(ctx contex
 			logger.Errorf("Failed to assign nodes %d and %d to groups for pool ID %d: %v",
 				node1.ID, node2.ID, input.PoolID, err)
 			// Rollback: delete all previously created mappings to maintain atomicity
-			a.rollbackNodeMappings(ctx, allMappings, logger)
+			a.rollbackNodeMappings(dbHbCtx, allMappings, logger)
 			return nil, vsaerrors.ExtractCustomError(fmt.Errorf("error assigning nodes to groups for pool ID %d: %w", input.PoolID, err))
 		}
 
@@ -132,7 +135,7 @@ func (a *RegisterNodeToHarvestFarmActivity) RegisterNodeToHarvestFarm(ctx contex
 			logger.Errorf("Node group assignment returned insufficient mappings for nodes %d and %d in pool ID %d",
 				node1.ID, node2.ID, input.PoolID)
 			// Rollback: delete all previously created mappings to maintain atomicity
-			a.rollbackNodeMappings(ctx, allMappings, logger)
+			a.rollbackNodeMappings(dbHbCtx, allMappings, logger)
 			return nil, vsaerrors.ExtractCustomError(fmt.Errorf("node group assignment returned insufficient mappings for pool"))
 		}
 
@@ -147,13 +150,14 @@ func (a *RegisterNodeToHarvestFarmActivity) RegisterNodeToHarvestFarm(ctx contex
 
 // rollbackNodeMappings deletes all previously created node-group mappings to maintain atomicity.
 // This is called when registration fails for any HA pair after previous pairs have been registered.
-func (a *RegisterNodeToHarvestFarmActivity) rollbackNodeMappings(ctx context.Context, mappings []*datamodel.NodeNodeGroupMap, logger log.Logger) {
+func (a *RegisterNodeToHarvestFarmActivity) rollbackNodeMappings(dbHbCtx context.Context, mappings []*datamodel.NodeNodeGroupMap, logger log.Logger) {
 	if len(mappings) == 0 {
 		return
 	}
 	logger.Infof("Rolling back %d node mappings due to registration failure", len(mappings))
 	for _, mapping := range mappings {
-		if err := a.SE.DeleteNodeNodeGroupMap(ctx, mapping.ID); err != nil {
+		activity.RecordHeartbeat(dbHbCtx, "RegisterNodeToHarvestFarmActivity rolling back node mapping")
+		if err := a.SE.DeleteNodeNodeGroupMap(dbHbCtx, mapping.ID); err != nil {
 			logger.Warnf("Failed to rollback node mapping ID %d during cleanup: %v", mapping.ID, err)
 		} else {
 			logger.Debugf("Successfully rolled back node mapping ID %d", mapping.ID)
@@ -162,10 +166,14 @@ func (a *RegisterNodeToHarvestFarmActivity) rollbackNodeMappings(ctx context.Con
 	logger.Infof("Completed rollback of %d node mappings", len(mappings))
 }
 
-func (a *RegisterNodeToHarvestFarmActivity) ValidateAndCreateKubernetesLease(ctx context.Context, nodeGroupsMap []*datamodel.NodeNodeGroupMap) ([]*datamodel.NodeNodeGroupMap, error) {
-	logger := util.GetLogger(ctx)
+// ValidateAndCreateKubernetesLease validates node group mappings and creates Kubernetes leases if needed.
+// Note: dbHbCtx is the context with DB heartbeat timeout configured from the workflow
+func (a *RegisterNodeToHarvestFarmActivity) ValidateAndCreateKubernetesLease(dbHbCtx context.Context, nodeGroupsMap []*datamodel.NodeNodeGroupMap) ([]*datamodel.NodeNodeGroupMap, error) {
+	logger := util.GetLogger(dbHbCtx)
+	activity.RecordHeartbeat(dbHbCtx, "ValidateAndCreateKubernetesLease started")
 
-	for _, nodeGroupMap := range nodeGroupsMap {
+	for i, nodeGroupMap := range nodeGroupsMap {
+		activity.RecordHeartbeat(dbHbCtx, fmt.Sprintf("Processing node group map %d/%d", i+1, len(nodeGroupsMap)))
 		if err := a.validateNodeGroupMap(nodeGroupMap, logger); err != nil {
 			return nil, err
 		}
@@ -173,7 +181,7 @@ func (a *RegisterNodeToHarvestFarmActivity) ValidateAndCreateKubernetesLease(ctx
 		nodeGroup := nodeGroupMap.NodeGroup
 		wasNewLease := nodeGroup.LeaseName == ""
 
-		if err := a.ensureLeaseExists(ctx, nodeGroup, vcpLeaseNameSpace, logger); err != nil {
+		if err := a.ensureLeaseExists(dbHbCtx, nodeGroup, vcpLeaseNameSpace, logger); err != nil {
 			return nil, err
 		}
 
@@ -182,7 +190,7 @@ func (a *RegisterNodeToHarvestFarmActivity) ValidateAndCreateKubernetesLease(ctx
 
 		// Update database records only if lease was newly created
 		if wasNewLease {
-			if err := a.updateDatabaseRecords(ctx, nodeGroup, nodeGroupMap, logger); err != nil {
+			if err := a.updateDatabaseRecords(dbHbCtx, nodeGroup, nodeGroupMap, logger); err != nil {
 				return nil, err
 			}
 		}
@@ -200,19 +208,19 @@ func (a *RegisterNodeToHarvestFarmActivity) validateNodeGroupMap(nodeGroupMap *d
 }
 
 // ensureLeaseExists ensures the Kubernetes lease exists, creating it if necessary
-func (a *RegisterNodeToHarvestFarmActivity) ensureLeaseExists(ctx context.Context, nodeGroup *datamodel.NodeGroup, vcpLeaseNameSpace string, logger log.Logger) error {
+func (a *RegisterNodeToHarvestFarmActivity) ensureLeaseExists(dbHbCtx context.Context, nodeGroup *datamodel.NodeGroup, vcpLeaseNameSpace string, logger log.Logger) error {
 	if nodeGroup.LeaseName == "" {
-		return a.createNewLease(ctx, nodeGroup, vcpLeaseNameSpace, logger)
+		return a.createNewLease(dbHbCtx, nodeGroup, vcpLeaseNameSpace, logger)
 	}
-	return a.validateExistingLease(ctx, nodeGroup, vcpLeaseNameSpace, logger)
+	return a.validateExistingLease(dbHbCtx, nodeGroup, vcpLeaseNameSpace, logger)
 }
 
 // createNewLease creates a new lease for a node group that doesn't have one
-func (a *RegisterNodeToHarvestFarmActivity) createNewLease(ctx context.Context, nodeGroup *datamodel.NodeGroup, vcpLeaseNameSpace string, logger log.Logger) error {
+func (a *RegisterNodeToHarvestFarmActivity) createNewLease(dbHbCtx context.Context, nodeGroup *datamodel.NodeGroup, vcpLeaseNameSpace string, logger log.Logger) error {
 	logger.Infof("Creating new k8's lease for node group: %d", nodeGroup.ID)
 
 	leaseName := leasePrefix + nodeGroup.UUID
-	if err := createKubernetesLease(ctx, vcpLeaseNameSpace, leaseName); err != nil {
+	if err := createKubernetesLease(dbHbCtx, vcpLeaseNameSpace, leaseName); err != nil {
 		logger.Errorf("Failed to create k8s lease for node group %d: %v", nodeGroup.ID, err)
 		return err
 	}
@@ -222,10 +230,10 @@ func (a *RegisterNodeToHarvestFarmActivity) createNewLease(ctx context.Context, 
 }
 
 // validateExistingLease validates that an existing lease exists in Kubernetes, creating it if missing
-func (a *RegisterNodeToHarvestFarmActivity) validateExistingLease(ctx context.Context, nodeGroup *datamodel.NodeGroup, vcpLeaseNameSpace string, logger log.Logger) error {
+func (a *RegisterNodeToHarvestFarmActivity) validateExistingLease(dbHbCtx context.Context, nodeGroup *datamodel.NodeGroup, vcpLeaseNameSpace string, logger log.Logger) error {
 	logger.Infof("Checking if k8's lease %s exists for node group: %d", nodeGroup.LeaseName, nodeGroup.ID)
 
-	exists, err := leaseExists(ctx, vcpLeaseNameSpace, nodeGroup.LeaseName)
+	exists, err := leaseExists(dbHbCtx, vcpLeaseNameSpace, nodeGroup.LeaseName)
 	if err != nil {
 		logger.Errorf("Failed to check k8s lease existence for node group %d: %v", nodeGroup.ID, err)
 		return err
@@ -233,7 +241,7 @@ func (a *RegisterNodeToHarvestFarmActivity) validateExistingLease(ctx context.Co
 
 	if !exists {
 		logger.Infof("k8's lease %s doesn't exist in Kubernetes, creating it for node group: %d", nodeGroup.LeaseName, nodeGroup.ID)
-		if err := createKubernetesLease(ctx, vcpLeaseNameSpace, nodeGroup.LeaseName); err != nil {
+		if err := createKubernetesLease(dbHbCtx, vcpLeaseNameSpace, nodeGroup.LeaseName); err != nil {
 			logger.Errorf("Failed to create k8s lease %s for node group %d: %v", nodeGroup.LeaseName, nodeGroup.ID, err)
 			return err
 		}
@@ -246,13 +254,15 @@ func (a *RegisterNodeToHarvestFarmActivity) validateExistingLease(ctx context.Co
 }
 
 // updateDatabaseRecords updates the database records for node group and mapping
-func (a *RegisterNodeToHarvestFarmActivity) updateDatabaseRecords(ctx context.Context, nodeGroup *datamodel.NodeGroup, nodeGroupMap *datamodel.NodeNodeGroupMap, logger log.Logger) error {
-	if _, err := a.SE.UpdateNodeGroup(ctx, nodeGroup); err != nil {
+func (a *RegisterNodeToHarvestFarmActivity) updateDatabaseRecords(dbHbCtx context.Context, nodeGroup *datamodel.NodeGroup, nodeGroupMap *datamodel.NodeNodeGroupMap, logger log.Logger) error {
+	activity.RecordHeartbeat(dbHbCtx, fmt.Sprintf("Updating DB records for node group %d and node id %d", nodeGroup.ID, nodeGroupMap.NodeID))
+	if _, err := a.SE.UpdateNodeGroup(dbHbCtx, nodeGroup); err != nil {
 		logger.Errorf("Failed to update k8s lease info in DB for node group %d: %v", nodeGroup.ID, err)
 		return err
 	}
 
-	if _, err := a.SE.UpdateNodeNodeGroupMap(ctx, nodeGroupMap); err != nil {
+	activity.RecordHeartbeat(dbHbCtx, fmt.Sprintf("Updating DB records for node group map %d", nodeGroup.ID))
+	if _, err := a.SE.UpdateNodeNodeGroupMap(dbHbCtx, nodeGroupMap); err != nil {
 		logger.Errorf("Failed to update k8s lease info in DB for node id %d: %v", nodeGroupMap.NodeID, err)
 		return err
 	}
@@ -293,6 +303,7 @@ type UploadYAMLFileInput struct {
 func uploadYAMLFile(ctx context.Context, input UploadYAMLFileInput) (*http.Response, error) {
 	var buf bytes.Buffer
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Uploading YAML File for harvest node")
 	writer := multipart.NewWriter(&buf)
 	fileName := fmt.Sprintf("%s%d.yaml", leasePrefix, input.NodeID) // Append nodeID to the file name
 	part, err := writer.CreateFormFile("file", fileName)
@@ -331,6 +342,7 @@ func uploadYAMLFile(ctx context.Context, input UploadYAMLFileInput) (*http.Respo
 // UploadHarvestTemplate uploads the rendered template as a YAML file via REST call for each node mapping
 func (a *UploadHarvestTemplateActivity) UploadHarvestTemplate(ctx context.Context, input UploadHarvestTemplateInput) error {
 	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "UploadHarvestTemplate started")
 	poolView, err := a.SE.GetPool(ctx, input.PoolUUID, input.AccountID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -358,6 +370,7 @@ func (a *UploadHarvestTemplateActivity) UploadHarvestTemplate(ctx context.Contex
 	}
 
 	for i, mapping := range input.NodeMappings {
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Uploading template for node mapping %d/%d", i+1, len(input.NodeMappings)))
 		if mapping == nil {
 			logger.Errorf("NodeNodeGroupMap is nil at index %d", i)
 			return errors.New("invalid node mapping: nil mapping")

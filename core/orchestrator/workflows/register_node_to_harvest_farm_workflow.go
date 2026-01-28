@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -76,6 +77,7 @@ func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...i
 	// Set activity options
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:    retryPolicy.InitialInterval,
 			BackoffCoefficient: retryPolicy.BackoffCoefficient,
@@ -91,6 +93,9 @@ func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...i
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
+	// Create a separate context with shorter heartbeat timeout for DB operations
+	dbHbCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(dbHeartbeatTimeoutSec)*time.Second)
+
 	defer func() {
 		if err != nil {
 			_ = workflow.ExecuteActivity(ctx, registerActivity.AlertHarvestRegisterFailure, err.Error()).Get(ctx, nil)
@@ -99,7 +104,7 @@ func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...i
 
 	// 1. Register nodes to Harvest farm
 	var nodeMappings []*datamodel.NodeNodeGroupMap
-	err = workflow.ExecuteActivity(ctx, registerActivity.RegisterNodeToHarvestFarm,
+	err = workflow.ExecuteActivity(dbHbCtx, registerActivity.RegisterNodeToHarvestFarm,
 		activities.RegisterNodeToHarvestFarmInput{
 			PoolID:            input.PoolID,
 			MaxNodesPerGroup:  input.MaxNodesPerGroup,
@@ -108,14 +113,14 @@ func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...i
 			DeploymentName:    input.DeploymentName,
 			PoolName:          input.PoolName,
 			IsRegionalHA:      input.IsRegionalHA,
-		}).Get(ctx, &nodeMappings)
+		}).Get(dbHbCtx, &nodeMappings)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 
 	// 2. Validate and create kubernetes lease if required.
 	var updatedNodeMappings []*datamodel.NodeNodeGroupMap
-	err = workflow.ExecuteActivity(ctx, registerActivity.ValidateAndCreateKubernetesLease, nodeMappings).Get(ctx, &updatedNodeMappings)
+	err = workflow.ExecuteActivity(ctx, registerActivity.ValidateAndCreateKubernetesLease, nodeMappings).Get(dbHbCtx, &updatedNodeMappings)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
