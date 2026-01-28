@@ -449,12 +449,23 @@ func (b *BackupActivity) UpdateBackupSizeActivity(ctx context.Context, backupAct
 	updates := make(map[string]interface{})
 	backupActivitiesContext.BackupWorkflowInit.Volume.DataProtection.BackupChainBytes = &backupActivitiesContext.BackupWorkflowInit.Backup.LatestLogicalBackupSize
 	updates["data_protection"] = backupActivitiesContext.BackupWorkflowInit.Volume.DataProtection
-	// Update the volume's LatestLogicalBackupSize field
-	err = b.SE.UpdateVolumeFields(ctx, volumeUUID, updates)
 
-	if err != nil {
-		logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volumeUUID, err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	if backupActivitiesContext.IsExpertMode {
+		// Update the expert mode volume's LatestLogicalBackupSize field
+		err = b.SE.UpdateExpertModeVolumeFields(ctx, volumeUUID, updates)
+
+		if err != nil {
+			logger.Errorf("Failed to update expert mode volume %s with latest logical backup size: %v", volumeUUID, err)
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+	} else {
+		// Update the volume's LatestLogicalBackupSize field
+		err = b.SE.UpdateVolumeFields(ctx, volumeUUID, updates)
+
+		if err != nil {
+			logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volumeUUID, err)
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
 	}
 
 	logger.Debugf("Successfully updated backup size fields for backup %s and volume %s", backup.UUID, volumeUUID)

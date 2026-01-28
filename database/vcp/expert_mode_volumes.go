@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"gorm.io/gorm"
 	"time"
 
@@ -162,6 +163,29 @@ func (d *DataStoreRepository) UpdateExpertModeVolumeDataProtection(ctx context.C
 		Updates(updateFields).Error
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (d *DataStoreRepository) UpdateExpertModeVolumeFields(ctx context.Context, volumeUUID string, updates map[string]interface{}) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	dbVolume, err := getExpertModeVolumeWithDetails(tx, &datamodel.ExpertModeVolumes{ExternalUUID: volumeUUID})
+	if err != nil {
+		return err
+	}
+	updates["updated_at"] = time.Now()
+
+	err = tx.Model(&dbVolume).Updates(updates).Error
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 
 	return nil

@@ -741,6 +741,21 @@ func (re *retryEngine) UpdateVolumeFields(ctx context.Context, volumeUUID string
 	return err
 }
 
+func (re *retryEngine) UpdateExpertModeVolumeFields(ctx context.Context, volumeUUID string, updates map[string]interface{}) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateExpertModeVolumeFields(ctx, volumeUUID, updates)
+		if err != nil {
+			re.logError("UpdateExpertModeVolumeFields", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
 func (re *retryEngine) BatchUpdateVolumeFields(ctx context.Context, updates []datamodel.VolumeFieldUpdate) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error

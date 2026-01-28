@@ -1602,3 +1602,7 @@ func (s *PersistenceStore) GetServiceAccountWithKeys(ctx context.Context, servic
 func (s *PersistenceStore) UpdateSvmCurrentKmsKeyID(ctx context.Context, svmUUID string, keyID string) error {
 	return s.dataStore.UpdateSvmCurrentKmsKeyID(ctx, svmUUID, keyID)
 }
+
+func (s *PersistenceStore) UpdateExpertModeVolumeFields(ctx context.Context, volumeUUID string, updates map[string]interface{}) error {
+	return s.dataStore.UpdateExpertModeVolumeFields(ctx, volumeUUID, updates)
+}

@@ -6410,68 +6410,6 @@ func (_c *MockStorage_GetBackupVaultUUIDsFromBackupPolicyUUID_Call) RunAndReturn
 	return _c
 }
 
-// GetCmekRotationJobStatuses provides a mock function with given fields: ctx, startTime, endTime, limit, offset
-func (_m *MockStorage) GetCmekRotationJobStatuses(ctx context.Context, startTime time.Time, endTime time.Time, limit int, offset int) ([]*CmekRotationJobStatus, error) {
-	ret := _m.Called(ctx, startTime, endTime, limit, offset)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetCmekRotationJobStatuses")
-	}
-
-	var r0 []*CmekRotationJobStatus
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time, int, int) ([]*CmekRotationJobStatus, error)); ok {
-		return rf(ctx, startTime, endTime, limit, offset)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time, int, int) []*CmekRotationJobStatus); ok {
-		r0 = rf(ctx, startTime, endTime, limit, offset)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*CmekRotationJobStatus)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, time.Time, time.Time, int, int) error); ok {
-		r1 = rf(ctx, startTime, endTime, limit, offset)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockStorage_GetCmekRotationJobStatuses_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCmekRotationJobStatuses'
-type MockStorage_GetCmekRotationJobStatuses_Call struct {
-	*mock.Call
-}
-
-// GetCmekRotationJobStatuses is a helper method to define mock.On call
-//   - ctx context.Context
-//   - startTime time.Time
-//   - endTime time.Time
-//   - limit int
-//   - offset int
-func (_e *MockStorage_Expecter) GetCmekRotationJobStatuses(ctx interface{}, startTime interface{}, endTime interface{}, limit interface{}, offset interface{}) *MockStorage_GetCmekRotationJobStatuses_Call {
-	return &MockStorage_GetCmekRotationJobStatuses_Call{Call: _e.mock.On("GetCmekRotationJobStatuses", ctx, startTime, endTime, limit, offset)}
-}
-
-func (_c *MockStorage_GetCmekRotationJobStatuses_Call) Run(run func(ctx context.Context, startTime time.Time, endTime time.Time, limit int, offset int)) *MockStorage_GetCmekRotationJobStatuses_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(time.Time), args[2].(time.Time), args[3].(int), args[4].(int))
-	})
-	return _c
-}
-
-func (_c *MockStorage_GetCmekRotationJobStatuses_Call) Return(_a0 []*CmekRotationJobStatus, _a1 error) *MockStorage_GetCmekRotationJobStatuses_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockStorage_GetCmekRotationJobStatuses_Call) RunAndReturn(run func(context.Context, time.Time, time.Time, int, int) ([]*CmekRotationJobStatus, error)) *MockStorage_GetCmekRotationJobStatuses_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetBackupsByBackupVaultOwnerIDAndFilter provides a mock function with given fields: ctx, backupVaultUUID, accountID, filters
 func (_m *MockStorage) GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.Context, backupVaultUUID string, accountID int64, filters [][]interface{}) ([]*datamodel.Backup, error) {
 	ret := _m.Called(ctx, backupVaultUUID, accountID, filters)
@@ -6825,6 +6763,68 @@ func (_c *MockStorage_GetClusterUpgradeJobsByClusterID_Call) Return(_a0 []*datam
 }
 
 func (_c *MockStorage_GetClusterUpgradeJobsByClusterID_Call) RunAndReturn(run func(context.Context, string) ([]*datamodel.ClusterUpgradeJob, error)) *MockStorage_GetClusterUpgradeJobsByClusterID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetCmekRotationJobStatuses provides a mock function with given fields: ctx, startTime, endTime, limit, offset
+func (_m *MockStorage) GetCmekRotationJobStatuses(ctx context.Context, startTime time.Time, endTime time.Time, limit int, offset int) ([]*CmekRotationJobStatus, error) {
+	ret := _m.Called(ctx, startTime, endTime, limit, offset)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCmekRotationJobStatuses")
+	}
+
+	var r0 []*CmekRotationJobStatus
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time, int, int) ([]*CmekRotationJobStatus, error)); ok {
+		return rf(ctx, startTime, endTime, limit, offset)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time, int, int) []*CmekRotationJobStatus); ok {
+		r0 = rf(ctx, startTime, endTime, limit, offset)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*CmekRotationJobStatus)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time, time.Time, int, int) error); ok {
+		r1 = rf(ctx, startTime, endTime, limit, offset)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetCmekRotationJobStatuses_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCmekRotationJobStatuses'
+type MockStorage_GetCmekRotationJobStatuses_Call struct {
+	*mock.Call
+}
+
+// GetCmekRotationJobStatuses is a helper method to define mock.On call
+//   - ctx context.Context
+//   - startTime time.Time
+//   - endTime time.Time
+//   - limit int
+//   - offset int
+func (_e *MockStorage_Expecter) GetCmekRotationJobStatuses(ctx interface{}, startTime interface{}, endTime interface{}, limit interface{}, offset interface{}) *MockStorage_GetCmekRotationJobStatuses_Call {
+	return &MockStorage_GetCmekRotationJobStatuses_Call{Call: _e.mock.On("GetCmekRotationJobStatuses", ctx, startTime, endTime, limit, offset)}
+}
+
+func (_c *MockStorage_GetCmekRotationJobStatuses_Call) Run(run func(ctx context.Context, startTime time.Time, endTime time.Time, limit int, offset int)) *MockStorage_GetCmekRotationJobStatuses_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(time.Time), args[2].(time.Time), args[3].(int), args[4].(int))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetCmekRotationJobStatuses_Call) Return(_a0 []*CmekRotationJobStatus, _a1 error) *MockStorage_GetCmekRotationJobStatuses_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetCmekRotationJobStatuses_Call) RunAndReturn(run func(context.Context, time.Time, time.Time, int, int) ([]*CmekRotationJobStatus, error)) *MockStorage_GetCmekRotationJobStatuses_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -14239,6 +14239,54 @@ func (_c *MockStorage_ListVolumesWithPagination_Call) RunAndReturn(run func(cont
 	return _c
 }
 
+// MarkKeyForDeletion provides a mock function with given fields: ctx, serviceAccountUUID, keyID
+func (_m *MockStorage) MarkKeyForDeletion(ctx context.Context, serviceAccountUUID string, keyID string) error {
+	ret := _m.Called(ctx, serviceAccountUUID, keyID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkKeyForDeletion")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, serviceAccountUUID, keyID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_MarkKeyForDeletion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkKeyForDeletion'
+type MockStorage_MarkKeyForDeletion_Call struct {
+	*mock.Call
+}
+
+// MarkKeyForDeletion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - serviceAccountUUID string
+//   - keyID string
+func (_e *MockStorage_Expecter) MarkKeyForDeletion(ctx interface{}, serviceAccountUUID interface{}, keyID interface{}) *MockStorage_MarkKeyForDeletion_Call {
+	return &MockStorage_MarkKeyForDeletion_Call{Call: _e.mock.On("MarkKeyForDeletion", ctx, serviceAccountUUID, keyID)}
+}
+
+func (_c *MockStorage_MarkKeyForDeletion_Call) Run(run func(ctx context.Context, serviceAccountUUID string, keyID string)) *MockStorage_MarkKeyForDeletion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_MarkKeyForDeletion_Call) Return(_a0 error) *MockStorage_MarkKeyForDeletion_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_MarkKeyForDeletion_Call) RunAndReturn(run func(context.Context, string, string) error) *MockStorage_MarkKeyForDeletion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Migrate provides a mock function with given fields: ctx
 func (_m *MockStorage) Migrate(ctx context.Context) error {
 	ret := _m.Called(ctx)
@@ -14329,54 +14377,6 @@ func (_c *MockStorage_RemoveKeyFromServiceAccount_Call) Return(_a0 error) *MockS
 }
 
 func (_c *MockStorage_RemoveKeyFromServiceAccount_Call) RunAndReturn(run func(context.Context, string, string) error) *MockStorage_RemoveKeyFromServiceAccount_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// MarkKeyForDeletion provides a mock function with given fields: ctx, serviceAccountUUID, keyID
-func (_m *MockStorage) MarkKeyForDeletion(ctx context.Context, serviceAccountUUID string, keyID string) error {
-	ret := _m.Called(ctx, serviceAccountUUID, keyID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for MarkKeyForDeletion")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
-		r0 = rf(ctx, serviceAccountUUID, keyID)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// MockStorage_MarkKeyForDeletion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkKeyForDeletion'
-type MockStorage_MarkKeyForDeletion_Call struct {
-	*mock.Call
-}
-
-// MarkKeyForDeletion is a helper method to define mock.On call
-//   - ctx context.Context
-//   - serviceAccountUUID string
-//   - keyID string
-func (_e *MockStorage_Expecter) MarkKeyForDeletion(ctx interface{}, serviceAccountUUID interface{}, keyID interface{}) *MockStorage_MarkKeyForDeletion_Call {
-	return &MockStorage_MarkKeyForDeletion_Call{Call: _e.mock.On("MarkKeyForDeletion", ctx, serviceAccountUUID, keyID)}
-}
-
-func (_c *MockStorage_MarkKeyForDeletion_Call) Run(run func(ctx context.Context, serviceAccountUUID string, keyID string)) *MockStorage_MarkKeyForDeletion_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string))
-	})
-	return _c
-}
-
-func (_c *MockStorage_MarkKeyForDeletion_Call) Return(_a0 error) *MockStorage_MarkKeyForDeletion_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *MockStorage_MarkKeyForDeletion_Call) RunAndReturn(run func(context.Context, string, string) error) *MockStorage_MarkKeyForDeletion_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -15863,6 +15863,54 @@ func (_c *MockStorage_UpdateExpertModeVolumeDataProtection_Call) Return(_a0 erro
 }
 
 func (_c *MockStorage_UpdateExpertModeVolumeDataProtection_Call) RunAndReturn(run func(context.Context, *datamodel.ExpertModeVolumes) error) *MockStorage_UpdateExpertModeVolumeDataProtection_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateExpertModeVolumeFields provides a mock function with given fields: ctx, volumeUUID, updates
+func (_m *MockStorage) UpdateExpertModeVolumeFields(ctx context.Context, volumeUUID string, updates map[string]interface{}) error {
+	ret := _m.Called(ctx, volumeUUID, updates)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateExpertModeVolumeFields")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, map[string]interface{}) error); ok {
+		r0 = rf(ctx, volumeUUID, updates)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_UpdateExpertModeVolumeFields_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateExpertModeVolumeFields'
+type MockStorage_UpdateExpertModeVolumeFields_Call struct {
+	*mock.Call
+}
+
+// UpdateExpertModeVolumeFields is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+//   - updates map[string]interface{}
+func (_e *MockStorage_Expecter) UpdateExpertModeVolumeFields(ctx interface{}, volumeUUID interface{}, updates interface{}) *MockStorage_UpdateExpertModeVolumeFields_Call {
+	return &MockStorage_UpdateExpertModeVolumeFields_Call{Call: _e.mock.On("UpdateExpertModeVolumeFields", ctx, volumeUUID, updates)}
+}
+
+func (_c *MockStorage_UpdateExpertModeVolumeFields_Call) Run(run func(ctx context.Context, volumeUUID string, updates map[string]interface{})) *MockStorage_UpdateExpertModeVolumeFields_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(map[string]interface{}))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdateExpertModeVolumeFields_Call) Return(_a0 error) *MockStorage_UpdateExpertModeVolumeFields_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_UpdateExpertModeVolumeFields_Call) RunAndReturn(run func(context.Context, string, map[string]interface{}) error) *MockStorage_UpdateExpertModeVolumeFields_Call {
 	_c.Call.Return(run)
 	return _c
 }

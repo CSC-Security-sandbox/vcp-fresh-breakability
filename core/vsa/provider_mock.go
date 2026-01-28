@@ -3044,67 +3044,6 @@ func (_c *MockProvider_GetClusterPeer_Call) RunAndReturn(run func(string) (*Clus
 	return _c
 }
 
-// GetDefaultQuotaRule provides a mock function with given fields: ctx, volumeUUID, svmName, quotaType
-func (_m *MockProvider) GetDefaultQuotaRule(ctx context.Context, volumeUUID string, svmName string, quotaType string) (*QuotaRuleInfo, error) {
-	ret := _m.Called(ctx, volumeUUID, svmName, quotaType)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetDefaultQuotaRule")
-	}
-
-	var r0 *QuotaRuleInfo
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (*QuotaRuleInfo, error)); ok {
-		return rf(ctx, volumeUUID, svmName, quotaType)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) *QuotaRuleInfo); ok {
-		r0 = rf(ctx, volumeUUID, svmName, quotaType)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*QuotaRuleInfo)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
-		r1 = rf(ctx, volumeUUID, svmName, quotaType)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockProvider_GetDefaultQuotaRule_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDefaultQuotaRule'
-type MockProvider_GetDefaultQuotaRule_Call struct {
-	*mock.Call
-}
-
-// GetDefaultQuotaRule is a helper method to define mock.On call
-//   - ctx context.Context
-//   - volumeUUID string
-//   - svmName string
-//   - quotaType string
-func (_e *MockProvider_Expecter) GetDefaultQuotaRule(ctx interface{}, volumeUUID interface{}, svmName interface{}, quotaType interface{}) *MockProvider_GetDefaultQuotaRule_Call {
-	return &MockProvider_GetDefaultQuotaRule_Call{Call: _e.mock.On("GetDefaultQuotaRule", ctx, volumeUUID, svmName, quotaType)}
-}
-
-func (_c *MockProvider_GetDefaultQuotaRule_Call) Run(run func(ctx context.Context, volumeUUID string, svmName string, quotaType string)) *MockProvider_GetDefaultQuotaRule_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
-	})
-	return _c
-}
-
-func (_c *MockProvider_GetDefaultQuotaRule_Call) Return(_a0 *QuotaRuleInfo, _a1 error) *MockProvider_GetDefaultQuotaRule_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockProvider_GetDefaultQuotaRule_Call) RunAndReturn(run func(context.Context, string, string, string) (*QuotaRuleInfo, error)) *MockProvider_GetDefaultQuotaRule_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetInterclusterLIFs provides a mock function with given fields: servicePolicyName
 func (_m *MockProvider) GetInterclusterLIFs(servicePolicyName string) ([]*InterclusterLif, error) {
 	ret := _m.Called(servicePolicyName)

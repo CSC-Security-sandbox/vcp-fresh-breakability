@@ -363,7 +363,7 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 		}
 	}
 
-	// Hydrate snapshot to CCFE
+	// Hydrate snapshot to CCFE if not expert mode
 	if backupActivitiesContext.DbSnapshot != nil &&
 		backupActivitiesContext.BackupWorkflowInit.Volume != nil &&
 		backupActivitiesContext.BackupWorkflowInit.BackupVault != nil &&

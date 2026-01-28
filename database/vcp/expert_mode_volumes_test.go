@@ -1223,6 +1223,277 @@ func TestUpdateExpertModeVolume_WhenVolumeNotFound_ReturnsError(t *testing.T) {
 	assert.Nil(t, retrievedVolume)
 }
 
+func TestUpdateExpertModeVolumeFields_Success(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+	account, pool := createTestAccountAndPoolForExpertMode(t, store)
+	svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+	svmExternalUUID := utils.RandomUUID()
+	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, svmExternalUUID)
+
+	// Create initial volume
+	expertModeVolume := &datamodel.ExpertModeVolumes{
+		Name:         "test-expert-volume",
+		SizeInBytes:  1099511627776, // 1TB
+		PoolID:       pool.ID,
+		AccountID:    account.ID,
+		SvmID:        svm.ID,
+		Style:        "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateCreating,
+		BackupConfig: &datamodel.DataProtection{
+			BackupVaultID: "old-vault-id",
+		},
+	}
+
+	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
+	assert.NoError(t, err)
+	assert.NotNil(t, createdVolume)
+
+	// Update fields
+	logicalSize := int64(2048)
+	updates := map[string]interface{}{
+		"data_protection": &datamodel.DataProtection{
+			BackupVaultID:    "new-vault-id",
+			BackupChainBytes: &logicalSize,
+		},
+		"state": models.LifeCycleStateAvailable,
+	}
+
+	err = store.UpdateExpertModeVolumeFields(ctx, createdVolume.ExternalUUID, updates)
+	assert.NoError(t, err)
+
+	// Verify the updates
+	retrievedVolume, err := store.GetExpertModeVolumeByExternalUUID(ctx, createdVolume.ExternalUUID)
+	assert.NoError(t, err)
+	assert.NotNil(t, retrievedVolume)
+	assert.Equal(t, models.LifeCycleStateAvailable, retrievedVolume.State)
+	assert.NotNil(t, retrievedVolume.BackupConfig)
+	assert.Equal(t, "new-vault-id", retrievedVolume.BackupConfig.BackupVaultID)
+	assert.NotNil(t, retrievedVolume.BackupConfig.BackupChainBytes)
+	assert.Equal(t, logicalSize, *retrievedVolume.BackupConfig.BackupChainBytes)
+}
+
+func TestUpdateExpertModeVolumeFields_VolumeNotFound(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+
+	updates := map[string]interface{}{
+		"state": models.LifeCycleStateAvailable,
+	}
+
+	err := store.UpdateExpertModeVolumeFields(ctx, "nonexistent-uuid", updates)
+	assert.Error(t, err)
+}
+
+func TestUpdateExpertModeVolumeFields_UpdateStateOnly(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+	account, pool := createTestAccountAndPoolForExpertMode(t, store)
+	svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+	svmExternalUUID := utils.RandomUUID()
+	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, svmExternalUUID)
+
+	expertModeVolume := &datamodel.ExpertModeVolumes{
+		Name:         "test-expert-volume",
+		SizeInBytes:  1099511627776,
+		PoolID:       pool.ID,
+		AccountID:    account.ID,
+		SvmID:        svm.ID,
+		Style:        "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateCreating,
+	}
+
+	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
+	assert.NoError(t, err)
+
+	// Update only state
+	updates := map[string]interface{}{
+		"state": models.LifeCycleStateAvailable,
+	}
+
+	err = store.UpdateExpertModeVolumeFields(ctx, createdVolume.ExternalUUID, updates)
+	assert.NoError(t, err)
+
+	// Verify the update
+	retrievedVolume, err := store.GetExpertModeVolumeByExternalUUID(ctx, createdVolume.ExternalUUID)
+	assert.NoError(t, err)
+	assert.Equal(t, models.LifeCycleStateAvailable, retrievedVolume.State)
+	assert.Equal(t, createdVolume.Name, retrievedVolume.Name)
+	assert.Equal(t, createdVolume.SizeInBytes, retrievedVolume.SizeInBytes)
+}
+
+func TestUpdateExpertModeVolumeFields_UpdateDataProtection(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+	account, pool := createTestAccountAndPoolForExpertMode(t, store)
+	svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+	svmExternalUUID := utils.RandomUUID()
+	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, svmExternalUUID)
+
+	expertModeVolume := &datamodel.ExpertModeVolumes{
+		Name:         "test-expert-volume",
+		SizeInBytes:  1099511627776,
+		PoolID:       pool.ID,
+		AccountID:    account.ID,
+		SvmID:        svm.ID,
+		Style:        "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateAvailable,
+	}
+
+	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
+	assert.NoError(t, err)
+
+	// Update data protection
+	backupChainBytes := int64(5120)
+	updates := map[string]interface{}{
+		"data_protection": &datamodel.DataProtection{
+			BackupVaultID:    "test-backup-vault",
+			BackupPolicyID:   "test-backup-policy",
+			BackupChainBytes: &backupChainBytes,
+		},
+	}
+
+	err = store.UpdateExpertModeVolumeFields(ctx, createdVolume.ExternalUUID, updates)
+	assert.NoError(t, err)
+
+	// Verify the update
+	retrievedVolume, err := store.GetExpertModeVolumeByExternalUUID(ctx, createdVolume.ExternalUUID)
+	assert.NoError(t, err)
+	assert.NotNil(t, retrievedVolume.BackupConfig)
+	assert.Equal(t, "test-backup-vault", retrievedVolume.BackupConfig.BackupVaultID)
+	assert.Equal(t, "test-backup-policy", retrievedVolume.BackupConfig.BackupPolicyID)
+	assert.NotNil(t, retrievedVolume.BackupConfig.BackupChainBytes)
+	assert.Equal(t, backupChainBytes, *retrievedVolume.BackupConfig.BackupChainBytes)
+}
+
+func TestUpdateExpertModeVolumeFields_UpdateMultipleFields(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+	account, pool := createTestAccountAndPoolForExpertMode(t, store)
+	svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+	svmExternalUUID := utils.RandomUUID()
+	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, svmExternalUUID)
+
+	expertModeVolume := &datamodel.ExpertModeVolumes{
+		Name:         "test-expert-volume",
+		SizeInBytes:  1099511627776,
+		PoolID:       pool.ID,
+		AccountID:    account.ID,
+		SvmID:        svm.ID,
+		Style:        "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateCreating,
+	}
+
+	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
+	assert.NoError(t, err)
+
+	// Update multiple fields
+	backupChainBytes := int64(3072)
+	updates := map[string]interface{}{
+		"state": models.LifeCycleStateAvailable,
+		"name":  "updated-name",
+		"style": "flexgroup",
+		"data_protection": &datamodel.DataProtection{
+			BackupVaultID:    "updated-vault",
+			BackupChainBytes: &backupChainBytes,
+		},
+	}
+
+	err = store.UpdateExpertModeVolumeFields(ctx, createdVolume.ExternalUUID, updates)
+	assert.NoError(t, err)
+
+	// Verify all updates
+	retrievedVolume, err := store.GetExpertModeVolumeByExternalUUID(ctx, createdVolume.ExternalUUID)
+	assert.NoError(t, err)
+	assert.Equal(t, models.LifeCycleStateAvailable, retrievedVolume.State)
+	assert.Equal(t, "updated-name", retrievedVolume.Name)
+	assert.Equal(t, "flexgroup", retrievedVolume.Style)
+	assert.NotNil(t, retrievedVolume.BackupConfig)
+	assert.Equal(t, "updated-vault", retrievedVolume.BackupConfig.BackupVaultID)
+	assert.NotNil(t, retrievedVolume.BackupConfig.BackupChainBytes)
+	assert.Equal(t, backupChainBytes, *retrievedVolume.BackupConfig.BackupChainBytes)
+}
+
+func TestUpdateExpertModeVolumeFields_EmptyUpdates(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+	account, pool := createTestAccountAndPoolForExpertMode(t, store)
+	svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+	svmExternalUUID := utils.RandomUUID()
+	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, svmExternalUUID)
+
+	expertModeVolume := &datamodel.ExpertModeVolumes{
+		Name:         "test-expert-volume",
+		SizeInBytes:  1099511627776,
+		PoolID:       pool.ID,
+		AccountID:    account.ID,
+		SvmID:        svm.ID,
+		Style:        "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateAvailable,
+	}
+
+	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
+	assert.NoError(t, err)
+
+	// Update with empty map (should still succeed and update updated_at)
+	updates := map[string]interface{}{}
+
+	err = store.UpdateExpertModeVolumeFields(ctx, createdVolume.ExternalUUID, updates)
+	assert.NoError(t, err)
+
+	// Verify volume is still retrievable and unchanged
+	retrievedVolume, err := store.GetExpertModeVolumeByExternalUUID(ctx, createdVolume.ExternalUUID)
+	assert.NoError(t, err)
+	assert.Equal(t, createdVolume.Name, retrievedVolume.Name)
+	assert.Equal(t, createdVolume.State, retrievedVolume.State)
+}
+
+func TestUpdateExpertModeVolumeFields_UpdatesUpdatedAtTimestamp(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+	account, pool := createTestAccountAndPoolForExpertMode(t, store)
+	svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+	svmExternalUUID := utils.RandomUUID()
+	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, svmExternalUUID)
+
+	expertModeVolume := &datamodel.ExpertModeVolumes{
+		Name:         "test-expert-volume",
+		SizeInBytes:  1099511627776,
+		PoolID:       pool.ID,
+		AccountID:    account.ID,
+		SvmID:        svm.ID,
+		Style:        "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateAvailable,
+	}
+
+	createdVolume, err := store.CreateExpertModeVolume(ctx, expertModeVolume)
+	assert.NoError(t, err)
+	originalUpdatedAt := createdVolume.UpdatedAt
+
+	// Wait a moment to ensure timestamp difference
+	time.Sleep(10 * time.Millisecond)
+
+	// Update a field
+	updates := map[string]interface{}{
+		"state": models.LifeCycleStateDeleting,
+	}
+
+	err = store.UpdateExpertModeVolumeFields(ctx, createdVolume.ExternalUUID, updates)
+	assert.NoError(t, err)
+
+	// Verify updated_at was changed
+	retrievedVolume, err := store.GetExpertModeVolumeByExternalUUID(ctx, createdVolume.ExternalUUID)
+	assert.NoError(t, err)
+	assert.True(t, retrievedVolume.UpdatedAt.After(originalUpdatedAt),
+		"UpdatedAt should be after the original timestamp")
+}
+
 func TestDeleteExpertModeVolume(t *testing.T) {
 	t.Run("WhenVolumeIsDeletedSuccessfully", func(tt *testing.T) {
 		store := setup(tt)

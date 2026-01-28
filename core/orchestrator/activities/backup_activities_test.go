@@ -5737,6 +5737,180 @@ func TestUpdateBackupSizeActivity_SkipsLatestLogicalBackupSizeUpdateWhenZero(t *
 	mockStorage.AssertNotCalled(t, "UpdateBackupLatestLogicalBackupSizeByVolume")
 }
 
+func TestUpdateBackupSizeActivity_ExpertMode_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
+		VolumeUUID:              "test-volume-uuid",
+		LatestLogicalBackupSize: 1024,
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: func() *int64 { v := int64(0); return &v }(),
+		},
+	}
+
+	backupActivitiesContext := &BackupActivitiesContext{
+		BackupWorkflowInit: &BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+		IsExpertMode: true,
+	}
+
+	mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil)
+	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "test-volume-uuid", "test-backup-uuid").Return(nil)
+	mockStorage.On("UpdateExpertModeVolumeFields", ctx, "test-volume-uuid", mock.AnythingOfType("map[string]interface {}")).Return(nil)
+
+	// Act
+	result, err := activity.UpdateBackupSizeActivity(ctx, backupActivitiesContext)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, backupActivitiesContext, result)
+	mockStorage.AssertExpectations(t)
+	// Verify that UpdateExpertModeVolumeFields was called instead of UpdateVolumeFields
+	mockStorage.AssertCalled(t, "UpdateExpertModeVolumeFields", ctx, "test-volume-uuid", mock.AnythingOfType("map[string]interface {}"))
+	mockStorage.AssertNotCalled(t, "UpdateVolumeFields")
+}
+
+func TestUpdateBackupSizeActivity_ExpertMode_UpdateExpertModeVolumeFieldsFailure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
+		VolumeUUID:              "test-volume-uuid",
+		LatestLogicalBackupSize: 1024,
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: func() *int64 { v := int64(0); return &v }(),
+		},
+	}
+
+	backupActivitiesContext := &BackupActivitiesContext{
+		BackupWorkflowInit: &BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+		IsExpertMode: true,
+	}
+
+	mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil)
+	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "test-volume-uuid", "test-backup-uuid").Return(nil)
+	mockStorage.On("UpdateExpertModeVolumeFields", ctx, "test-volume-uuid", mock.AnythingOfType("map[string]interface {}")).Return(errors.New("update expert mode volume fields failed"))
+
+	// Act
+	result, err := activity.UpdateBackupSizeActivity(ctx, backupActivitiesContext)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "update expert mode volume fields failed")
+	mockStorage.AssertExpectations(t)
+	// Verify that UpdateExpertModeVolumeFields was called instead of UpdateVolumeFields
+	mockStorage.AssertCalled(t, "UpdateExpertModeVolumeFields", ctx, "test-volume-uuid", mock.AnythingOfType("map[string]interface {}"))
+	mockStorage.AssertNotCalled(t, "UpdateVolumeFields")
+}
+
+func TestUpdateBackupSizeActivity_NonExpertMode_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
+		VolumeUUID:              "test-volume-uuid",
+		LatestLogicalBackupSize: 1024,
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: func() *int64 { v := int64(0); return &v }(),
+		},
+	}
+
+	backupActivitiesContext := &BackupActivitiesContext{
+		BackupWorkflowInit: &BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+		IsExpertMode: false,
+	}
+
+	mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil)
+	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "test-volume-uuid", "test-backup-uuid").Return(nil)
+	mockStorage.On("UpdateVolumeFields", ctx, "test-volume-uuid", mock.AnythingOfType("map[string]interface {}")).Return(nil)
+
+	// Act
+	result, err := activity.UpdateBackupSizeActivity(ctx, backupActivitiesContext)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, backupActivitiesContext, result)
+	mockStorage.AssertExpectations(t)
+	// Verify that UpdateVolumeFields was called instead of UpdateExpertModeVolumeFields
+	mockStorage.AssertCalled(t, "UpdateVolumeFields", ctx, "test-volume-uuid", mock.AnythingOfType("map[string]interface {}"))
+	mockStorage.AssertNotCalled(t, "UpdateExpertModeVolumeFields")
+}
+
+func TestUpdateBackupSizeActivity_ExpertMode_WithZeroLatestLogicalBackupSize(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		BaseModel:               datamodel.BaseModel{UUID: "test-backup-uuid"},
+		VolumeUUID:              "test-volume-uuid",
+		LatestLogicalBackupSize: 0, // Zero size should skip UpdateBackupLatestLogicalBackupSizeByVolume
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		DataProtection: &datamodel.DataProtection{
+			BackupChainBytes: func() *int64 { v := int64(0); return &v }(),
+		},
+	}
+
+	backupActivitiesContext := &BackupActivitiesContext{
+		BackupWorkflowInit: &BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+		IsExpertMode: true,
+	}
+
+	mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil)
+	mockStorage.On("UpdateExpertModeVolumeFields", ctx, "test-volume-uuid", mock.AnythingOfType("map[string]interface {}")).Return(nil)
+
+	// Act
+	result, err := activity.UpdateBackupSizeActivity(ctx, backupActivitiesContext)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, backupActivitiesContext, result)
+	mockStorage.AssertExpectations(t)
+	// Verify that UpdateBackupLatestLogicalBackupSizeByVolume was not called
+	mockStorage.AssertNotCalled(t, "UpdateBackupLatestLogicalBackupSizeByVolume")
+	// Verify that UpdateExpertModeVolumeFields was called
+	mockStorage.AssertCalled(t, "UpdateExpertModeVolumeFields", ctx, "test-volume-uuid", mock.AnythingOfType("map[string]interface {}"))
+	mockStorage.AssertNotCalled(t, "UpdateVolumeFields")
+}
+
 // Test HydrateSnapshotToCCFEActivity
 func TestHydrateSnapshotToCCFEActivity_Success(t *testing.T) {
 	// Arrange
