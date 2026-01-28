@@ -25,6 +25,7 @@ data:
   # true = Use IAM authentication via Cloud SQL Proxy sidecar (connects to 127.0.0.1)
   # false = Use password authentication via shared proxy service (connects to cloud-sql-proxy.sde.svc.cluster.local)
   CLOUD_SQL_IAM_AUTH_ENABLED: {{ .Values.global.cloudSqlIamAuthEnabled | default false | quote }}
+  TASK_QUEUE_VERSION: "{{ index .Chart.Version | lower | replace "." "-" }}"
   config.yaml: |
     {{- include "core.generateConfigMapData" . | nindent 4 }}
     {{- if .Values.global.cloudSqlIamAuthEnabled }}

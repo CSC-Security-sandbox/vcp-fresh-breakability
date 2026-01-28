@@ -439,6 +439,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(backgroundworkflows.BackupSizeDetailsWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.VolumeCreateReconciliationWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.VolumeDeleteReconciliationWorkflow)
+	worker.RegisterWorkflow(expertmodeworkflows.VolumeUpdateReconciliationWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})

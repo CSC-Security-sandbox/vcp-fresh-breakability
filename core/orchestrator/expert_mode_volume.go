@@ -212,10 +212,16 @@ func _deleteExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 	volume, err := se.GetExpertModeVolumeByExternalUUID(ctx, params.VolumeUUID)
 	if err != nil {
 		logger.Error("Failed to find volume by external UUID", "volumeUUID", params.VolumeUUID, "error", err)
-		if customerrors.IsNotFoundErr(err) {
+		if customerrors.IsNotFoundErr(err) || errors.Is(err, gorm.ErrRecordNotFound) {
 			return customerrors.NewBadRequestErr(fmt.Sprintf("volume with UUID '%s' not found", params.VolumeUUID))
 		}
 		return err
+	}
+
+	// VolumeUUID is required for delete
+	if params.PoolUUID != volume.Pool.UUID {
+		logger.Error("VolumeUUID is not associated to the pool for delete operation", "volumeUUID", params.VolumeUUID, params.PoolUUID)
+		return customerrors.NewBadRequestErr("VolumeUUID is not associated to the pool for delete operation")
 	}
 
 	// Check if volume is already deleted
@@ -293,7 +299,7 @@ func (o *Orchestrator) GetExpertModeVolumeByExternalUUID(ctx context.Context, vo
 
 // UpdateExpertModeVolume updates an existing expert mode volume
 func (o *Orchestrator) UpdateExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error {
-	return _updateExpertModeVolume(ctx, o.storage, params)
+	return _updateExpertModeVolume(ctx, o.storage, o.temporal, params)
 }
 
 func validateUpdateParams(ctx context.Context, se database.Storage, params *commonparams.ExpertModeVolumeParams, volume *datamodel.ExpertModeVolumes) error {
@@ -302,6 +308,11 @@ func validateUpdateParams(ctx context.Context, se database.Storage, params *comm
 	if params.VolumeUUID == "" {
 		logger.Error("VolumeUUID is required for update operation", "volumeUUID", params.VolumeUUID)
 		return customerrors.NewBadRequestErr("VolumeUUID is required for update operation")
+	}
+
+	if params.PoolUUID != volume.Pool.UUID {
+		logger.Error("VolumeUUID is not associated to the pool for update operation", "volumeUUID", params.VolumeUUID, "params.PoolUUID ", params.PoolUUID, "volume.Pool.UUID", volume.Pool.UUID)
+		return customerrors.NewBadRequestErr("VolumeUUID is not associated to the pool for update operation")
 	}
 	if params.SizeInBytes < 0 {
 		logger.Error("Volume size must be greater than or equal to 0", "volumeSize", params.SizeInBytes)
@@ -344,7 +355,7 @@ func validateUpdateParams(ctx context.Context, se database.Storage, params *comm
 }
 
 // _updateExpertModeVolume updates an expert mode volume and updates it in the DB
-func _updateExpertModeVolume(ctx context.Context, se database.Storage, params *commonparams.ExpertModeVolumeParams) error {
+func _updateExpertModeVolume(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.ExpertModeVolumeParams) error {
 	logger := util.GetLogger(ctx)
 
 	if params.VolumeUUID == "" {
@@ -378,6 +389,10 @@ func _updateExpertModeVolume(ctx context.Context, se database.Storage, params *c
 		return customerrors.NewBadRequestErr("volume does not belong to the specified account")
 	}
 
+	// Create a deep copy of the volume before modifying it
+	// This preserves the original values for the workflow's error handling
+	oldVolumeCopy := *volume
+	oldVolume := &oldVolumeCopy
 	var previousSize int64 = volume.SizeInBytes
 	// Validate size if provided
 	if params.SizeInBytes > 0 {
@@ -403,9 +418,23 @@ func _updateExpertModeVolume(ctx context.Context, se database.Storage, params *c
 
 	volumeMarkedAsUpdating := true
 
-	// to revert the volume state if the update fails while reconciliation
+	// Update volume in DB
+	_, err = se.UpdateExpertModeVolume(ctx, volume)
+	if err != nil {
+		logger.Error("Failed to update volume state to UPDATING and size", "volumeUUID", volume.UUID, "error", err)
+		return err
+	}
+
+	// Defer statement to mark job as errored and revert volume state if any operation fails
+	// Registered early to ensure it executes even if CreateJob or ExecuteWorkflow fails
+	var createdJob *datamodel.Job
 	defer func() {
 		if err != nil {
+			if createdJob != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error()); jobErr != nil {
+					logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+				}
+			}
 			// Revert volume state only if it was successfully marked as updating
 			if volumeMarkedAsUpdating {
 				volume.State = previousState
@@ -417,10 +446,38 @@ func _updateExpertModeVolume(ctx context.Context, se database.Storage, params *c
 		}
 	}()
 
-	// Update volume in DB
-	_, err = se.UpdateExpertModeVolume(ctx, volume)
+	// Create a job for the volume update workflow
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeUpdateExpertModeVolume),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  volume.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: volume.UUID, PoolUUID: volume.Pool.UUID},
+		CorrelationID: correlationID,
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	createdJob, err = se.CreateJob(ctx, job)
 	if err != nil {
-		logger.Error("Failed to update volume state to UPDATING and size", "volumeUUID", volume.UUID, "error", err)
+		logger.Error("Failed to create job for expert mode volume update", "error", err)
+		// Defer will handle the volume state revert
+		return err
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.BackgroundTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetExpertModeSyncWorkflowTimeout(),
+		},
+		expertModeWorkflows.VolumeUpdateReconciliationWorkflow,
+		volume, oldVolume,
+	)
+
+	if err != nil {
+		logger.Error("Failed to start volume update reconciliation workflow", "workflowID", createdJob.WorkflowID, "error", err)
 		return err
 	}
 

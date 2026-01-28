@@ -11,7 +11,7 @@ import (
 var (
 	CMEKWorkflowGlobalTimeoutMinutes     = env.GetString("CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "14")
 	WorkflowGlobalTimeoutMinutes         = env.GetString("WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "60")
-	ExpertModeSyncWorkflowTimeoutMinutes = env.GetString("EXPERT_MODE_SYNC_WORKFLOW_TIMEOUT_MINUTES", "10")
+	ExpertModeSyncWorkflowTimeoutMinutes = env.GetString("EXPERT_MODE_SYNC_WORKFLOW_TIMEOUT_MINUTES", "30")
 	CreatePoolWorkflowTimeoutMinutes     = env.GetString("CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES", "150")
 	CreatePoolWorkflowTimeoutMinutesLV   = env.GetString("CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES_LV", "150")
 	UpdatePoolWorkflowTimeoutMinutes     = env.GetString("UPDATE_POOL_WORKFLOW_TIMEOUT_MINUTES", "150")

@@ -65,11 +65,11 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 		}
 
 		updatedVolume := &datamodel.ExpertModeVolumes{
-			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
-			Name:        "test-volume",
-			SizeInBytes: 1099511627776,
-			Style:       "flexvol",
-			State:       models.LifeCycleStateAvailable,
+			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:         "test-volume",
+			SizeInBytes:  1099511627776,
+			Style:        "flexvol",
+			State:        models.LifeCycleStateAvailable,
 			ExternalUUID: "ontap-uuid-123",
 		}
 
@@ -322,11 +322,11 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 		}
 
 		updatedVolume := &datamodel.ExpertModeVolumes{
-			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
-			Name:        "test-volume",
-			SizeInBytes: 1099511627776,
-			Style:       "flexvol",
-			State:       models.LifeCycleStateAvailable,
+			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:         "test-volume",
+			SizeInBytes:  1099511627776,
+			Style:        "flexvol",
+			State:        models.LifeCycleStateAvailable,
 			ExternalUUID: "ontap-uuid-123",
 		}
 
@@ -474,7 +474,7 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 			SizeInBytes: 1099511627776,
 			Style:       "flexvol",
 			State:       models.LifeCycleStateCreating,
-			Account: nil, // Nil account will cause panic in Setup
+			Account:     nil, // Nil account will cause panic in Setup
 			Pool: &datamodel.Pool{
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "test-deployment",
@@ -540,11 +540,11 @@ func TestVolumeCreateReconciliationWorkflow(t *testing.T) {
 		}
 
 		updatedVolume := &datamodel.ExpertModeVolumes{
-			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
-			Name:        "test-volume",
-			SizeInBytes: 1099511627776,
-			Style:       "flexvol",
-			State:       models.LifeCycleStateAvailable,
+			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:         "test-volume",
+			SizeInBytes:  1099511627776,
+			Style:        "flexvol",
+			State:        models.LifeCycleStateAvailable,
 			ExternalUUID: "ontap-uuid-123",
 		}
 
@@ -1089,6 +1089,860 @@ func TestVolumeDeleteReconciliationWorkflow(t *testing.T) {
 		env.ExecuteWorkflow(VolumeDeleteReconciliationWorkflow, volume)
 
 		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
+	t.Run("Success_VolumeUpdatedAndValidated", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		expertModeActivity := expertmodeactivities.ExpertModeVolumeActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(expertModeActivity.ValidateONTAPVolumeUpdate)
+		env.RegisterActivity(expertModeActivity.UpdateExpertModeVolumeInDB)
+
+		oldVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 1099511627776, // 1TB
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 2199023255552, // 2TB - updated size
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		updatedVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:         "test-volume",
+			SizeInBytes:  2199023255552, // 2TB - matches expected
+			Style:        "flexvol",
+			State:        models.LifeCycleStateAvailable,
+			ExternalUUID: "ontap-uuid-123",
+		}
+
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, DONE
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("ValidateONTAPVolumeUpdate", mock.Anything, mock.Anything, mock.Anything).Return(updatedVolume, nil)
+		env.OnActivity("UpdateExpertModeVolumeInDB", mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(VolumeUpdateReconciliationWorkflow, volume, oldVolume)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_VolumeNotUpdatedInOntap_MarkedAsAvailable", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		expertModeActivity := expertmodeactivities.ExpertModeVolumeActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(expertModeActivity.ValidateONTAPVolumeUpdate)
+		env.RegisterActivity(expertModeActivity.UpdateExpertModeVolumeInDB)
+
+		oldVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 1099511627776, // 1TB
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 2199023255552, // 2TB - expected size
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		stateConflictError := vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, nil)
+		temporalAppError := vsaerrors.WrapAsTemporalApplicationError(stateConflictError)
+
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("ValidateONTAPVolumeUpdate", mock.Anything, mock.Anything, mock.Anything).Return(nil, temporalAppError)
+		env.OnActivity("UpdateExpertModeVolumeInDB", mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(VolumeUpdateReconciliationWorkflow, volume, oldVolume)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		// Workflow should complete with error (resource state conflict)
+		assert.Error(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_GetNodeActivityFails", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+
+		oldVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 1099511627776,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 2199023255552,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+
+		env.ExecuteWorkflow(VolumeUpdateReconciliationWorkflow, volume, oldVolume)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_UpdateExpertModeVolumeInDBFails", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		expertModeActivity := expertmodeactivities.ExpertModeVolumeActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(expertModeActivity.ValidateONTAPVolumeUpdate)
+		env.RegisterActivity(expertModeActivity.UpdateExpertModeVolumeInDB)
+
+		oldVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 1099511627776,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 2199023255552,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		updatedVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:         "test-volume",
+			SizeInBytes:  2199023255552,
+			Style:        "flexvol",
+			State:        models.LifeCycleStateAvailable,
+			ExternalUUID: "ontap-uuid-123",
+		}
+
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("ValidateONTAPVolumeUpdate", mock.Anything, mock.Anything, mock.Anything).Return(updatedVolume, nil)
+		env.OnActivity("UpdateExpertModeVolumeInDB", mock.Anything, mock.Anything).Return(assert.AnError)
+
+		env.ExecuteWorkflow(VolumeUpdateReconciliationWorkflow, volume, oldVolume)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_UpdateJobStatusToProcessingFails", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+
+		oldVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 1099511627776,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 2199023255552,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+		// First UpdateJobStatus (PROCESSING) fails, then ERROR update may succeed or fail
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError).Once()
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		env.ExecuteWorkflow(VolumeUpdateReconciliationWorkflow, volume, oldVolume)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_EnsureJobStateFails", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetJob)
+
+		oldVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 1099511627776,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 2199023255552,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		// Job state is not NEW, so EnsureJobState will fail
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStatePROCESSING), // Not NEW
+		}, nil)
+
+		env.ExecuteWorkflow(VolumeUpdateReconciliationWorkflow, volume, oldVolume)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_SetupWithNilAccount", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		oldVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 1099511627776,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account:     nil, // Nil account will cause panic in Setup
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 2199023255552,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account:     nil, // Nil account will cause panic in Setup
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		env.ExecuteWorkflow(VolumeUpdateReconciliationWorkflow, volume, oldVolume)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+	})
+
+	t.Run("Success_QueryWorkflowStatus", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		expertModeActivity := expertmodeactivities.ExpertModeVolumeActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(expertModeActivity.ValidateONTAPVolumeUpdate)
+		env.RegisterActivity(expertModeActivity.UpdateExpertModeVolumeInDB)
+
+		oldVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 1099511627776,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 2199023255552,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		updatedVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:         "test-volume",
+			SizeInBytes:  2199023255552,
+			Style:        "flexvol",
+			State:        models.LifeCycleStateAvailable,
+			ExternalUUID: "ontap-uuid-123",
+		}
+
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, DONE
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("ValidateONTAPVolumeUpdate", mock.Anything, mock.Anything, mock.Anything).Return(updatedVolume, nil)
+		env.OnActivity("UpdateExpertModeVolumeInDB", mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(VolumeUpdateReconciliationWorkflow, volume, oldVolume)
+
+		// Query workflow status
+		status, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		assert.NoError(tt, err)
+		assert.NotNil(tt, status)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_ValidateONTAPVolumeUpdate_OtherError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		expertModeActivity := expertmodeactivities.ExpertModeVolumeActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(expertModeActivity.ValidateONTAPVolumeUpdate)
+		env.RegisterActivity(expertModeActivity.UpdateExpertModeVolumeInDB)
+
+		oldVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 1099511627776,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 2199023255552,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		// Some other error (not state conflict) - should update oldVolume to AVAILABLE
+		otherError := vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, nil)
+		temporalAppError := vsaerrors.WrapAsTemporalApplicationError(otherError)
+
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("ValidateONTAPVolumeUpdate", mock.Anything, mock.Anything, mock.Anything).Return(nil, temporalAppError)
+		env.OnActivity("UpdateExpertModeVolumeInDB", mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(VolumeUpdateReconciliationWorkflow, volume, oldVolume)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeNotUpdated_UpdateExpertModeVolumeInDBFails", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		expertModeActivity := expertmodeactivities.ExpertModeVolumeActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(expertModeActivity.ValidateONTAPVolumeUpdate)
+		env.RegisterActivity(expertModeActivity.UpdateExpertModeVolumeInDB)
+
+		oldVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 1099511627776,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 2199023255552,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		stateConflictError := vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, nil)
+		temporalAppError := vsaerrors.WrapAsTemporalApplicationError(stateConflictError)
+
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("ValidateONTAPVolumeUpdate", mock.Anything, mock.Anything, mock.Anything).Return(nil, temporalAppError)
+		// UpdateExpertModeVolumeInDB fails when trying to update oldVolume to AVAILABLE
+		env.OnActivity("UpdateExpertModeVolumeInDB", mock.Anything, mock.Anything).Return(assert.AnError)
+
+		env.ExecuteWorkflow(VolumeUpdateReconciliationWorkflow, volume, oldVolume)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		// Workflow should complete with error (resource state conflict)
 		assert.Error(tt, env.GetWorkflowError())
 		env.AssertExpectations(tt)
 		mockStorage.AssertExpectations(tt)

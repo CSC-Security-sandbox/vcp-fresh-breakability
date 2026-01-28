@@ -20,6 +20,10 @@ type ExpertModeVolumeActivity struct {
 	SE database.Storage
 }
 
+var (
+	fetchOntapVolumeByUUID = _fetchOntapVolumeByUUID
+)
+
 // FetchOntapVolumeByName fetches a volume from ONTAP by name and updates the volume with ONTAP data.
 func (a *ExpertModeVolumeActivity) FetchOntapVolumeByName(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*datamodel.ExpertModeVolumes, error) {
 	logger := util.GetLogger(ctx)
@@ -115,8 +119,8 @@ func (a *ExpertModeVolumeActivity) UpdateExpertModeVolumeInDB(ctx context.Contex
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	logger.Infof("Successfully updated expert mode volume %s (UUID: %s) with state=%s, size=%d, name=%s, style=%s",
-		updatedVolume.Name, updatedVolume.UUID, updatedVolume.State, updatedVolume.SizeInBytes, updatedVolume.Name, updatedVolume.Style)
+	logger.Infof("Successfully updated expert mode volume %s (UUID: %s) with state=%s, size=%d, style=%s, state=%s",
+		updatedVolume.Name, updatedVolume.UUID, updatedVolume.State, updatedVolume.SizeInBytes, updatedVolume.Style, updatedVolume.State)
 
 	return nil
 }
@@ -136,4 +140,64 @@ func (a *ExpertModeVolumeActivity) DeleteExpertModeVolumeInDB(ctx context.Contex
 	logger.Infof("Successfully deleted expert mode volume (UUID: %s)", volumeUUID)
 
 	return nil
+}
+
+// ValidateONTAPVolumeUpdate fetches a volume from ONTAP by UUID and checks if the update was successful
+func (a *ExpertModeVolumeActivity) ValidateONTAPVolumeUpdate(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*datamodel.ExpertModeVolumes, error) {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Validating ONTAP volume update for %s", volume.Name))
+
+	ontapVolume, err := fetchOntapVolumeByUUID(ctx, volume, node)
+	if err != nil {
+		return nil, err
+	}
+
+	// validate state and name received from ontapVolume is same as volume.
+	if ontapVolume.Size == volume.SizeInBytes && ontapVolume.Name == volume.Name {
+		logger.Infof("ONTAP volume update validated successfully for volume %s (UUID: %s): SizeInBytes=%d, name=%s ontapVolume.State:%s",
+			ontapVolume.Name, ontapVolume.ExternalUUID, ontapVolume.Size, ontapVolume.Name, ontapVolume.State)
+		return volume, nil
+	}
+
+	logger.Infof("Volume %s still not updated in ONTAP (UUID: %s), update may be in progress. Will retry.", volume.Name, volume.ExternalUUID)
+	// in case of mismatch, update volume state and return error to trigger activity retry
+	// in case of last time retry, we have to set the value of DB to the values as set in ONTAP
+	volume.Name = ontapVolume.Name
+	volume.SizeInBytes = ontapVolume.Size
+	return volume, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, fmt.Errorf("Volume %s still not updated in ONTAP (UUID: %s), update may be in progress. Will retry.", volume.Name, volume.ExternalUUID)))
+}
+
+func _fetchOntapVolumeByUUID(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*vsa.VolumeResponse, error) {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetching volume %s from ONTAP", volume.Name))
+
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		logger.Errorf("Failed to get ONTAP provider from node: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	var svmName string
+	if volume.Svm != nil {
+		svmName = volume.Svm.Name
+	}
+
+	getVolumeParams := vsa.GetVolumeParams{
+		SvmName:   svmName,
+		IsRestore: false,
+		UUID:      volume.ExternalUUID,
+	}
+
+	volumeResponse, err := provider.GetVolumeForExpertMode(getVolumeParams)
+	if err != nil {
+		if utilErrors.IsNotFoundErr(err) || strings.Contains(strings.ToLower(err.Error()), "not found") {
+			logger.Infof("Volume external UUID : %s not found in ONTAP, will retry", volume.UUID)
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, err))
+		}
+		logger.Errorf("Failed to get volume external UUID : %s from ONTAP: %v", volume.UUID, err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Volume external UUID : %s found in ONTAP", volumeResponse.ExternalUUID)
+	return volumeResponse, nil
 }

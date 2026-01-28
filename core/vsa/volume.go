@@ -304,7 +304,7 @@ func (rc *OntapRestProvider) GetVolumeForExpertMode(params GetVolumeParams) (*Vo
 		Name:    params.VolumeName,
 		SvmName: &params.SvmName,
 		BaseParams: ontapRest.BaseParams{
-			Fields: []string{"uuid", "name", "state", "type"},
+			Fields: []string{"uuid", "name", "state", "type", "size", "style"},
 		},
 	})
 	if err != nil {
