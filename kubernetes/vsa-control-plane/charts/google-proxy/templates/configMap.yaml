@@ -129,6 +129,7 @@ data:
   ENABLE_LDAP: "{{ index .Values "enableLdap" }}"
   ENABLE_SMB: "{{ index .Values "enableSmb" }}"
   ENABLE_KERBEROS: "{{ index .Values "enableKerberos" }}"
+  ENABLE_UNIX_PERMISSIONS: "{{ index .Values "enableUnixPermissions" }}"
   ENABLE_MULTI_AD: "{{ index .Values "enableMultiAd" }}"
   MAX_NUMBER_OF_AD_PER_ACCOUNT: "{{ index .Values "maxNumberOfAdPerAccount" }}"
   READINESS_PROBE_FAILURE_THRESHOLD: "{{ index .Values "readinessProbe" "failureThreshold" }}"

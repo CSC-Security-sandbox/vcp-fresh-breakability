@@ -930,6 +930,35 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.Equal(tt, "UNIX", result.FileProperties.SecurityStyle)
 	})
 
+	t.Run("ValidInputWithUnixPermissions", func(tt *testing.T) {
+		originalUnixPermissionsEnabled := unixPermissionsEnabled
+		defer func() { unixPermissionsEnabled = originalUnixPermissionsEnabled }()
+		unixPermissionsEnabled = true
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:      "testvolume",
+				CreationToken:   gcpgenserver.NewOptString("test-token"),
+				PoolId:          gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:    gcpgenserver.NewOptFloat64(1024),
+				Protocols:       []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaNFSV3},
+				SecurityStyle:   gcpgenserver.NewOptVolumeV1betaSecurityStyle(gcpgenserver.VolumeV1betaSecurityStyleUNIX),
+				UnixPermissions: gcpgenserver.NewOptNilString("0755"),
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+
+		result, err := _prepareCreateVolumeParams(req, params, region, zone, nil)
+		assert.NoError(tt, err)
+		require.NotNil(tt, result.FileProperties)
+		assert.Equal(tt, "0755", result.FileProperties.UnixPermissions)
+	})
+
 	t.Run("ValidInputWithMultipleProtocols", func(tt *testing.T) {
 		origEnableSmb := enableSmb
 		defer func() { enableSmb = origEnableSmb }()
@@ -12563,6 +12592,71 @@ func TestValidateSmbShareSettingsV2(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateSmbShareSettingsV2(tt.settings)
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateUnixPermissions(t *testing.T) {
+	tests := []struct {
+		name       string
+		protocols  []string
+		permission string
+		style      string
+		wantErr    bool
+		errMsg     string
+	}{
+		{
+			name:       "Valid NFS permissions",
+			protocols:  []string{"NFSV3"},
+			permission: "0755",
+			style:      "unix",
+			wantErr:    false,
+		},
+		{
+			name:       "Empty permissions",
+			protocols:  []string{"NFSV3"},
+			permission: "",
+			style:      "unix",
+			wantErr:    true,
+			errMsg:     "UnixPermissions cannot be empty.",
+		},
+		{
+			name:       "Invalid permission format",
+			protocols:  []string{"NFSV3"},
+			permission: "08",
+			style:      "unix",
+			wantErr:    true,
+			errMsg:     "Unix permissions should be 4 digit long in octal format",
+		},
+		{
+			name:       "Mismatched security style",
+			protocols:  []string{"NFSV3"},
+			permission: "0755",
+			style:      "ntfs",
+			wantErr:    true,
+			errMsg:     "Unix permissions are only supported with unix security-style",
+		},
+		{
+			name:       "Unsupported protocol",
+			protocols:  []string{"SMB"},
+			permission: "0755",
+			style:      "unix",
+			wantErr:    true,
+			errMsg:     "Unix permissions is only supported with NFS protocol volumes",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateUnixPermissions(tt.protocols, tt.permission, tt.style)
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.errMsg != "" {

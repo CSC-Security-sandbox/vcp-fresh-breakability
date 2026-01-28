@@ -19,7 +19,7 @@ type ProviderDetails struct {
 	Protocol           string            `json:"protocol"`
 	InsecureSkipVerify bool              `json:"insecureSkipVerify"`
 	Certificate        *Certificate      `json:"certificate"`
-	AuthType           int               `json:"authType"` // 0=password, 2=certificate
+	AuthType           int               `json:"authType"`       // 0=password, 2=certificate
 	FastConnection     bool              `json:"fastConnection"` // When true, bypasses retries and uses shorter timeout for test connections
 }
 
@@ -341,6 +341,7 @@ type CreateVolumeParams struct {
 	Style               *string // Volume style, e.g., "flexvol", "flexgroup"
 	TieringSupported    *bool
 	SecurityStyle       *string
+	UnixPermissions     *string
 }
 
 type CreateFlexCacheVolumeParams struct {

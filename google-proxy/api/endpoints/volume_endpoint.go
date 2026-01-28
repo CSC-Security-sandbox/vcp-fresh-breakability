@@ -52,6 +52,7 @@ var (
 	bidiReplicationEnabled            = env.GetBool("BIDI_REPLICATION_ENABLED", false)
 	enableSmb                         = env.GetBool("ENABLE_SMB", false)
 	enableKerberos                    = env.GetBool("ENABLE_KERBEROS", false)
+	unixPermissionsEnabled            = env.GetBool("ENABLE_UNIX_PERMISSIONS", true)
 )
 
 const (
@@ -63,8 +64,9 @@ const (
 	MaxBackupPathComponents      = 8
 	MinBackupScheduleInterval    = 5 * time.Minute // Minimum 5 minutes interval
 
-	daysOfMonthError = `daysOfMonth must include unique values in the range 1-31 (inclusive).`
-	daysOfWeekError  = `day in weeklySchedule must include 1-7 (inclusive) unique weekdays, that are comma separated.`
+	daysOfMonthError            = `daysOfMonth must include unique values in the range 1-31 (inclusive).`
+	daysOfWeekError             = `day in weeklySchedule must include 1-7 (inclusive) unique weekdays, that are comma separated.`
+	unixPermissionsRegexPattern = "^[0-7]{4}$"
 )
 
 func (h Handler) V1betaDescribeVolume(ctx context.Context, params gcpgenserver.V1betaDescribeVolumeParams) (gcpgenserver.V1betaDescribeVolumeRes, error) {
@@ -525,6 +527,9 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		if req.Volume.SecurityStyle.Set {
 			param.FileProperties.SecurityStyle = string(req.Volume.SecurityStyle.Value)
 		}
+		if req.Volume.UnixPermissions.IsSet() && unixPermissionsEnabled {
+			param.FileProperties.UnixPermissions = req.Volume.UnixPermissions.Value
+		}
 	}
 	if req.Volume.ExportPolicy.IsSet() {
 		var exportRules []*models.ExportRule
@@ -744,7 +749,34 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		param.LargeVolumeConstituentCount = req.Volume.LargeVolumeConstituentCount.Value
 	}
 
+	if unixPermissionsEnabled && req.Volume.UnixPermissions.IsSet() {
+		unixPermissions := req.Volume.UnixPermissions.Value
+		securityStyle := req.Volume.SecurityStyle.Value
+		err := validateUnixPermissions(param.Protocols, unixPermissions, string(securityStyle))
+		if err != nil {
+			return nil, err
+		}
+		param.FileProperties.UnixPermissions = unixPermissions
+	}
 	return param, nil
+}
+
+func validateUnixPermissions(protocolTypes []string, unixPermissions string, securityStyle string) error {
+	if unixPermissions == "" {
+		return errors.NewUserInputValidationErr("UnixPermissions cannot be empty.")
+	}
+	if utils.IsNFSProtocols(protocolTypes) {
+		result, _ := regexp.MatchString(unixPermissionsRegexPattern, unixPermissions)
+		if !result {
+			return errors.NewUserInputValidationErr("Unix permissions should be 4 digit long in octal format(0 to 7),  Create/Update volume with valid unix permissions, example: 0755")
+		}
+		if strings.ToLower(securityStyle) != utils.UnixSecurityStyle {
+			return errors.NewUserInputValidationErr("Unix permissions are only supported with unix security-style")
+		}
+	} else {
+		return errors.NewUserInputValidationErr("Unix permissions is only supported with NFS protocol volumes, Create/Update SMB volume without unix permissions.")
+	}
+	return nil
 }
 
 func validateAllSquash(rules []gcpgenserver.SimpleExportPolicyRuleV1beta) error {
@@ -1563,6 +1595,9 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		}
 		if volume.FileProperties.SecurityStyle != "" {
 			res.SecurityStyle = gcpgenserver.NewOptVolumeV1betaSecurityStyle(gcpgenserver.VolumeV1betaSecurityStyle(volume.FileProperties.SecurityStyle))
+		}
+		if volume.FileProperties.UnixPermissions != "" {
+			res.UnixPermissions = gcpgenserver.NewOptNilString(volume.FileProperties.UnixPermissions)
 		}
 	}
 

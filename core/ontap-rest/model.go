@@ -2558,6 +2558,11 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 	if params.SecurityStyle != "" {
 		vol.Nas.SecurityStyle = &params.SecurityStyle
 	}
+	if params.UnixPermissions != nil {
+		if unixPermissions, err := strconv.Atoi(*params.UnixPermissions); err == nil {
+			vol.Nas.UnixPermissions = nillable.ToPointer(int64(unixPermissions))
+		}
+	}
 	otParams.SetInfo(vol)
 
 	otParams.Info.SnapshotDirectoryAccessEnabled = &params.SnapshotDirectoryAccessEnabled
@@ -4965,7 +4970,7 @@ type SecurityCertificateDeleteCollectionParams struct {
 // securityCertificateDeleteCollectionParamsToONTAP converts internal parameters to ONTAP REST API parameters
 func securityCertificateDeleteCollectionParamsToONTAP(params *SecurityCertificateDeleteCollectionParams) *security.SecurityCertificateDeleteCollectionParams {
 	otParams := security.NewSecurityCertificateDeleteCollectionParams()
-	
+
 	if params.Name != nil {
 		otParams.SetName(params.Name)
 	}
@@ -4978,7 +4983,7 @@ func securityCertificateDeleteCollectionParamsToONTAP(params *SecurityCertificat
 	if params.SerialNumber != nil {
 		otParams.SetSerialNumber(params.SerialNumber)
 	}
-	
+
 	return otParams
 }
 

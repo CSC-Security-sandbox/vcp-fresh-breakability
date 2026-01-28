@@ -132,6 +132,7 @@ const (
 	// ActiveDirectorySeSecurityPrivilege defines the name of the SE security privilege
 	ActiveDirectorySeSecurityPrivilege = `SeSecurityPrivilege`
 	wildCardForAllowlist               = "*"
+	UnixSecurityStyle                  = "unix"
 )
 
 func ValidateIPv4Address(ipAddr string) bool {

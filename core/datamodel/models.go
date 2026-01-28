@@ -445,6 +445,7 @@ type FileProperties struct {
 	Fqdn             string        `json:"fqdn"`
 	SMBShareSettings []string      `json:"smb_share_settings"`
 	SecurityStyle    string        `json:"security_style"`
+	UnixPermissions  string        `json:"unix_permissions"`
 }
 
 type ExportPolicy struct {

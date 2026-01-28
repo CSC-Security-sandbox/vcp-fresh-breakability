@@ -80,6 +80,8 @@ const (
 	bytesPerGB                = 1073741824 // 1024^3 bytes = 1 GB
 	ErrMsgSnapReserveIncrease = "Cannot increase SnapReserve to %.0f%% as we cannot decrease the available space (%.2f GB). " +
 		"Please increase the volume size to at least %.0f GB with this SnapReserve or reduce the SnapReserve percentage to continue."
+	DefaultUnixPermissionsOctal = "0770"
+	UnixSecurityStyle           = "unix"
 )
 
 // convertExportRulesToDatamodel converts a slice of models.ExportRule to a slice of datamodel.ExportRule
@@ -127,6 +129,11 @@ func buildFilePropertiesFromParams(paramsFileProperties *models.FileProperties, 
 		// SecurityStyle is only set when ExportPolicy exists (for regular volumes)
 		if paramsFileProperties.SecurityStyle != "" {
 			fileProperties.SecurityStyle = paramsFileProperties.SecurityStyle
+			if strings.ToLower(paramsFileProperties.SecurityStyle) == UnixSecurityStyle && paramsFileProperties.UnixPermissions == "" {
+				fileProperties.UnixPermissions = DefaultUnixPermissionsOctal
+			} else {
+				fileProperties.UnixPermissions = paramsFileProperties.UnixPermissions
+			}
 		}
 	}
 
@@ -1591,6 +1598,9 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 		}
 		if attributes.FileProperties.SecurityStyle != "" {
 			res.FileProperties.SecurityStyle = attributes.FileProperties.SecurityStyle
+		}
+		if attributes.FileProperties.UnixPermissions != "" {
+			res.FileProperties.UnixPermissions = attributes.FileProperties.UnixPermissions
 		}
 	}
 

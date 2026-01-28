@@ -80,6 +80,7 @@ type FileProperties struct {
 	Fqdn             string
 	SMBShareSettings []string
 	SecurityStyle    string
+	UnixPermissions  string
 }
 
 type ExportPolicy struct {

@@ -173,6 +173,14 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 			}
 			return nil
 		}(),
+		UnixPermissions: func() *string {
+			if volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil {
+				if volumeType != VolumeTypeDP {
+					return &volume.VolumeAttributes.FileProperties.UnixPermissions
+				}
+			}
+			return nil
+		}(),
 	}
 
 	if volume.LargeVolumeAttributes != nil && volume.LargeVolumeAttributes.LargeCapacity {

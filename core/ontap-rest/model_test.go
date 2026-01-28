@@ -1074,6 +1074,30 @@ func TestVolumeCreateParamsToONTAPWithSecurityStyle(t *testing.T) {
 	})
 }
 
+func TestVolumeCreateParamsToONTAPWithUnixPermissions(t *testing.T) {
+	t.Run("WhenUnixPermissionsProvided_ThenParsedAndSet", func(tt *testing.T) {
+		permissions := "755"
+		params := &VolumeCreateParams{
+			Aggregates:             []string{"aggr1"},
+			Name:                   "vol1",
+			Type:                   "rw",
+			Size:                   2048,
+			Svm:                    "svm1",
+			SnapshotReservePercent: 5,
+			UnixPermissions:        &permissions,
+		}
+
+		result := volumeCreateParamsToONTAP(params)
+
+		assert.NotNil(tt, result)
+		if assert.NotNil(tt, result.Info) && assert.NotNil(tt, result.Info.Nas) {
+			if assert.NotNil(tt, result.Info.Nas.UnixPermissions) {
+				assert.Equal(tt, int64(755), *result.Info.Nas.UnixPermissions)
+			}
+		}
+	})
+}
+
 func TestVolumeCreateParamsToONTAPWithTieringPolicy(t *testing.T) {
 	// Case 1: Both TieringPolicy and TieringSupported are set
 	t.Run("WhenBothTieringPolicyAndTieringSupportedAreSet", func(tt *testing.T) {
