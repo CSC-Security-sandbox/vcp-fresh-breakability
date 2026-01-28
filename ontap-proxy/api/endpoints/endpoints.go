@@ -11,7 +11,12 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/handlers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/reverseproxy"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+)
+
+var (
+	snapLockOperationEnabled = env.GetBool("SNAPLOCK_OPERATION_ENABLED", false)
 )
 
 type Handler struct {
@@ -74,6 +79,14 @@ func (h Handler) SnaplockFileDelete(
 	params oasgenserver.SnaplockFileDeleteParams,
 ) (oasgenserver.SnaplockFileDeleteRes, error) {
 	logger := util.GetLogger(ctx)
+
+	if !snapLockOperationEnabled {
+		logger.Debug("SnaplockFileDelete: operation is disabled")
+		return &oasgenserver.SnaplockFileDeleteBadRequest{
+			Code:    400,
+			Message: "Snaplock file delete operation is disabled",
+		}, nil
+	}
 
 	logger.InfoContext(ctx, "Processing snaplock file delete request",
 		"projectNumber", params.ProjectNumber,

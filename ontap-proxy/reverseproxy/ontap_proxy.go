@@ -19,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
 	ontapProxyutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -597,12 +598,12 @@ func logCurlCommand(req *http.Request, endpoint string) {
 			req.Body = io.NopCloser(bytes.NewReader(body))
 			if len(body) > 0 {
 				curlCmd += fmt.Sprintf(" -d '%s'", string(body))
-				logger.InfoContext(req.Context(), "Request body", "body", string(body))
+				logger.InfoContext(req.Context(), "Request body", "body", log.Sanitize(curlCmd))
 			}
 		}
 	}
 
-	logger.InfoContext(req.Context(), "Equivalent curl command", "command", curlCmd)
+	logger.InfoContext(req.Context(), "Equivalent curl command", "command", log.Sanitize(curlCmd))
 }
 
 // getAPICallCertificate prepares certificates for API calls

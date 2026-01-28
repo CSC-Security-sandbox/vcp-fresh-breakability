@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/handlers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/ruleengine/cli"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -34,7 +35,7 @@ func (h Handler) V1PrivateCli(
 
 	cliCmd, err := cli.ParseCLICommand(req.Input)
 	if err != nil {
-		logger.WarnContext(ctx, "Failed to parse CLI command", "input", req.Input, "error", err)
+		logger.WarnContext(ctx, "Failed to parse CLI command", "input", log.Sanitize(req.Input), "error", err)
 		return &oasgenserver.V1PrivateCliBadRequest{
 			Code:    400,
 			Message: fmt.Sprintf("invalid CLI command: %s", err.Error()),
@@ -124,8 +125,7 @@ func (h Handler) V1PrivateCli(
 
 	cliResponse, err := ontapClient.ExecuteCLI(ctx, commandToExecute, privilege)
 	if err != nil {
-		logger.ErrorContext(ctx, "CLI execution failed", "command", cliCmd.FullCommand, "error", err)
-
+		logger.ErrorContext(ctx, "CLI execution failed", "command", cliCmd.FullCommand, "error", log.Sanitize(err.Error()))
 		var cliErr *handlers.OntapCLIError
 		if errors.As(err, &cliErr) {
 			switch cliErr.StatusCode {

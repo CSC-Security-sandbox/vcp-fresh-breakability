@@ -187,7 +187,7 @@ func TestFetchAndCacheCredentials(t *testing.T) {
 
 		logger := &log.MockLogger{}
 		logger.On("InfoContext", mock.Anything, "Cache miss - fetching credentials from Core API", "projectNumber", "test-project", "poolID", "test-pool", "userName", "test-user").Return()
-		logger.On("InfoContext", mock.Anything, "Credentials fetched from Core API and stored as AuthData", "poolID", "test-pool", "accountName", "test-account", "userName", "test-user", "authType", 2, "cacheKey", "test-project:test-pool:test-user").Return()
+		logger.On("InfoContext", mock.Anything, "Credentials fetched from Core API and stored as AuthData", "poolID", "test-pool", "accountName", "test-account", "authType", 2, "cacheKey", "test-project:test-pool:test-user").Return()
 
 		err := fetchAndCacheCredentials(ctx, poolDetails, cacheKey, "test-jwt-token", logger)
 

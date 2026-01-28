@@ -48,13 +48,11 @@ func CertificateMiddleware() func(http.Handler) http.Handler {
 
 					logger.InfoContext(r.Context(), "Certificate fetched and added to auth data in cache",
 						"certificateID", authData.CertificateID,
-						"commonName", certificate.CommonName,
 						"poolID", authData.PoolID,
 						"cacheKey", cacheKey)
 				} else if authData.Certificate != nil {
 					logger.InfoContext(r.Context(), "Certificate already present in auth data",
 						"certificateID", authData.CertificateID,
-						"commonName", authData.Certificate.CommonName,
 						"poolID", authData.PoolID,
 						"cacheKey", cacheKey)
 				}

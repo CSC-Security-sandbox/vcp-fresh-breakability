@@ -175,7 +175,36 @@ func TestSnaplockFileDelete(t *testing.T) {
 	testPoolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 	testVolumeUUID := uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
 
+	t.Run("WhenSnapLockOperationDisabled_ShouldReturn400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = false
+		defer func() { snapLockOperationEnabled = original }()
+
+		handler := Handler{}
+		params := oasgenserver.SnaplockFileDeleteParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        testPoolUUID,
+			VolumeUuid:    testVolumeUUID,
+			FilePath:      "test/file.txt",
+		}
+
+		res, err := handler.SnaplockFileDelete(context.Background(), params)
+
+		require.NoError(t, err, "SnaplockFileDelete should not return a Go error")
+		require.NotNil(t, res, "Response should not be nil")
+
+		internalErr, ok := res.(*oasgenserver.SnaplockFileDeleteBadRequest)
+		require.True(t, ok, "Expected SnaplockFileDeleteBadRequest, got %T", res)
+		assert.Equal(t, 400, internalErr.Code, "Code should be 400")
+		assert.Equal(t, "Snaplock file delete operation is disabled", internalErr.Message, "Message should match")
+	})
+
 	t.Run("WhenMissingCredentials_ShouldReturnTypedError", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true // Ensure we hit credential path, not disabled path
+		defer func() { snapLockOperationEnabled = original }()
+
 		handler := Handler{}
 
 		// Create params with mock UUIDs
@@ -206,6 +235,10 @@ func TestSnaplockFileDelete(t *testing.T) {
 	})
 
 	t.Run("WhenURLEncodedFilePath_ShouldDecodeCorrectly", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
 		// This test verifies that file paths with special characters are handled
 		// The filePath parameter comes URL-decoded from ogen
 		handler := Handler{}
@@ -227,6 +260,10 @@ func TestSnaplockFileDelete(t *testing.T) {
 	})
 
 	t.Run("WhenFilePathHasLeadingSlash_ShouldTrimCorrectly", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
 		handler := Handler{}
 
 		params := oasgenserver.SnaplockFileDeleteParams{

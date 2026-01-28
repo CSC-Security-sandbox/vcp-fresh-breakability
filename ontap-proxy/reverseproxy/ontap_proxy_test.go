@@ -1,6 +1,7 @@
 package reverseproxy
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -17,8 +18,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/ruleengine/dsl"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/ruleengine/dsl"
 )
 
 // generateTestCertificates generates self-signed certificates for testing
@@ -699,6 +700,23 @@ func TestLogCurlCommand(t *testing.T) {
 		assert.NotPanics(t, func() {
 			logCurlCommand(req, targetURL)
 		}, "logCurlCommand should not panic with no headers at all")
+	})
+
+	t.Run("WhenLocalEnvAndNonEmptyBody_ShouldLogRequestBody", func(t *testing.T) {
+		originalEnv := runningEnv
+		runningEnv = "local"
+		defer func() { runningEnv = originalEnv }()
+
+		body := []byte(`{"key":"value"}`)
+		req, err := http.NewRequest("POST", "/api/storage/qtrees", bytes.NewReader(body))
+		assert.NoError(t, err, "Failed to create request")
+		req.Header.Set("Content-Type", "application/json")
+
+		targetURL := "ontap-cluster:443"
+
+		assert.NotPanics(t, func() {
+			logCurlCommand(req, targetURL)
+		}, "logCurlCommand should not panic with body when ENV=local")
 	})
 }
 

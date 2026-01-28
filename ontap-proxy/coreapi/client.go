@@ -53,7 +53,7 @@ func FetchCredentials(ctx context.Context, poolDetails *models.PoolDetails, jwtT
 			"poolID", poolDetails.PoolID,
 			"authType", resp.AuthType.Value,
 			"caURI", getStringValue(resp.CaURI),
-			"fullResponse", respJSONStr)
+			"fullResponse", log.Sanitize(respJSONStr))
 		return resp, nil
 
 	case *coreapi.V1GetOntapCredentialsNotFound:
