@@ -1773,145 +1773,6 @@ func TestDeleteSnapmirrorSnapshotsOnSource(t *testing.T) {
 	})
 }
 
-func TestDeHydrateDestinationVolumeReplication(t *testing.T) {
-	dstProj := "projDst"
-	dstPath := "dstPath"
-	dstToken := "dstToken"
-	correlationID := "correlation-id"
-	t.Run("WhenError", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		hydrationEnabled = true
-		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		inputResult := &replication.DeleteReplicationResult{
-			DstBasePath:      &dstPath,
-			DstProjectNumber: &dstProj,
-			DstJwtToken:      &dstToken,
-			CorrelationID:    &correlationID,
-			Event: &replication.DeleteReplicationEvent{
-				CommonReplicationEventParams: replication.CommonReplicationEventParams{
-					Location:                 "us-east4-a",
-					SourceProjectNumber:      "src-proj",
-					DestinationProjectNumber: "dst-proj",
-					ReplicationModel: &datamodel.VolumeReplication{
-						Name: "replication-name",
-						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation:        "us-central1-a",
-							DestinationReplicationUUID: "replication-uuid",
-							DestinationVolumeUUID:      "vol-uuid",
-							DestinationVolumeName:      "volume-name",
-							SourceLocation:             "us-central1",
-							SourceVolumeName:           "vol-1",
-						},
-					},
-				},
-			},
-		}
-		originalHydrateVolumeReplication := deHydrateVolumeReplication
-		defer func() {
-			deHydrateVolumeReplication = originalHydrateVolumeReplication
-			hydrationEnabled = false
-		}()
-
-		deHydrateVolumeReplication = func(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
-			return errors.New("hydration error")
-		}
-		_, err := activity.DeHydrateDestinationVolumeReplication(ctx, inputResult)
-
-		assert.Error(t, err)
-		var customErr *vsaerrors.CustomError
-		assert.True(t, vsaerrors.As(err, &customErr), "Expected a CustomError")
-		assert.ErrorContains(t, customErr.OriginalErr, "hydration error")
-		mockStorage.AssertExpectations(tt)
-	})
-	t.Run("WhenSuccessForDestinationRegion", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		hydrationEnabled = true
-		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		inputResult := &replication.DeleteReplicationResult{
-			DstBasePath:      &dstPath,
-			DstProjectNumber: &dstProj,
-			DstJwtToken:      &dstToken,
-			CorrelationID:    &correlationID,
-			Event: &replication.DeleteReplicationEvent{
-				CommonReplicationEventParams: replication.CommonReplicationEventParams{
-					Location:                 "us-east4-a",
-					SourceProjectNumber:      "src-proj",
-					DestinationProjectNumber: "dst-proj",
-					ReplicationModel: &datamodel.VolumeReplication{
-						Name: "replication-name",
-						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation:        "us-central1-a",
-							DestinationReplicationUUID: "replication-uuid",
-							DestinationVolumeUUID:      "vol-uuid",
-							DestinationVolumeName:      "volume-name",
-							SourceLocation:             "us-east4-a",
-							SourceVolumeName:           "vol-1",
-						},
-					},
-				},
-			},
-		}
-		originalHydrateVolumeReplication := deHydrateVolumeReplication
-		defer func() {
-			deHydrateVolumeReplication = originalHydrateVolumeReplication
-			hydrationEnabled = false
-		}()
-
-		deHydrateVolumeReplication = func(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
-			return nil
-		}
-		_, err := activity.DeHydrateDestinationVolumeReplication(ctx, inputResult)
-
-		assert.NoError(t, err)
-		mockStorage.AssertExpectations(tt)
-	})
-	t.Run("WhenSuccess", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		hydrationEnabled = true
-		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		inputResult := &replication.DeleteReplicationResult{
-			DstBasePath:      &dstPath,
-			DstProjectNumber: &dstProj,
-			DstJwtToken:      &dstToken,
-			CorrelationID:    &correlationID,
-			Event: &replication.DeleteReplicationEvent{
-				CommonReplicationEventParams: replication.CommonReplicationEventParams{
-					Location:                 "us-central1-a",
-					SourceProjectNumber:      "src-proj",
-					DestinationProjectNumber: "dst-proj",
-					ReplicationModel: &datamodel.VolumeReplication{
-						Name: "replication-name",
-						ReplicationAttributes: &datamodel.ReplicationDetails{
-							DestinationLocation:        "us-central1-a",
-							DestinationReplicationUUID: "replication-uuid",
-							DestinationVolumeUUID:      "vol-uuid",
-							DestinationVolumeName:      "volume-name",
-							SourceLocation:             "us-east4-a",
-							SourceVolumeName:           "vol-1",
-						},
-					},
-				},
-			},
-		}
-		originalHydrateVolumeReplication := deHydrateVolumeReplication
-		defer func() {
-			deHydrateVolumeReplication = originalHydrateVolumeReplication
-			hydrationEnabled = false
-		}()
-
-		deHydrateVolumeReplication = func(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
-			return nil
-		}
-		_, err := activity.DeHydrateDestinationVolumeReplication(ctx, inputResult)
-
-		assert.NoError(t, err)
-		mockStorage.AssertExpectations(tt)
-	})
-}
-
 func TestDescribeRemoteJobDelete(t *testing.T) {
 	t.Run("DescribeJobSuccess", func(tt *testing.T) {
 		ctx := context.Background()
@@ -5961,6 +5822,239 @@ func TestDeleteVolumeReplicationActivity_DeleteReplicationRecordOnSource(t *test
 		err := activity.DeleteReplicationRecordOnSource(ctx, result)
 
 		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestDeHydrateDestinationVolumeReplication(t *testing.T) {
+	t.Run("WhenHydrationDisabled", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = false
+		defer func() {
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					SourceProjectNumber:      "src-proj",
+					DestinationProjectNumber: "dst-proj",
+					ReplicationModel: &datamodel.VolumeReplication{
+						Name: "replication-name",
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							EndpointType:        database.VolumeReplicationEndpointTypeSource,
+							SourceLocation:      "us-central1",
+							SourceVolumeName:    "src-volume",
+							DestinationLocation: "us-east4",
+							DestinationVolumeName: "dst-volume",
+						},
+					},
+				},
+			},
+		}
+
+		originalDeHydrateVolumeReplication := deHydrateVolumeReplication
+		defer func() {
+			deHydrateVolumeReplication = originalDeHydrateVolumeReplication
+		}()
+
+		deHydrateVolumeReplication = func(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
+			tt.Fatal("deHydrateVolumeReplication should not be called when hydration is disabled")
+			return nil
+		}
+
+		res, err := activity.DeHydrateDestinationVolumeReplication(ctx, result)
+		assert.NoError(tt, err)
+		assert.Equal(tt, result, res)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenHydrationEnabledAndEndpointTypeSource", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() {
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					SourceProjectNumber:      "src-proj",
+					DestinationProjectNumber: "dst-proj",
+					ReplicationModel: &datamodel.VolumeReplication{
+						Name: "replication-name",
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							EndpointType:        database.VolumeReplicationEndpointTypeSource,
+							SourceLocation:      "us-central1",
+							SourceVolumeName:    "src-volume",
+							DestinationLocation: "us-east4",
+							DestinationVolumeName: "dst-volume",
+						},
+					},
+				},
+			},
+		}
+
+		originalDeHydrateVolumeReplication := deHydrateVolumeReplication
+		defer func() {
+			deHydrateVolumeReplication = originalDeHydrateVolumeReplication
+		}()
+
+		deHydrateVolumeReplication = func(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
+			// Verify it's called with destination details
+			assert.Equal(tt, "replication-name", createReplicationResponse.Name)
+			assert.Equal(tt, "us-east4", createReplicationResponse.ReplicationAttributes.DestinationRegion)
+			assert.Equal(tt, "dst-volume", createReplicationResponse.Volume.DisplayName)
+			assert.Equal(tt, "dst-proj", project)
+			return nil
+		}
+
+		res, err := activity.DeHydrateDestinationVolumeReplication(ctx, result)
+		assert.NoError(tt, err)
+		assert.Equal(tt, result, res)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenHydrationEnabledAndEndpointTypeDestination", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() {
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					SourceProjectNumber:      "src-proj",
+					DestinationProjectNumber: "dst-proj",
+					ReplicationModel: &datamodel.VolumeReplication{
+						Name: "replication-name",
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							EndpointType:        database.VolumeReplicationEndpointTypeDestination,
+							SourceLocation:      "us-central1",
+							SourceVolumeName:    "src-volume",
+							DestinationLocation: "us-east4",
+							DestinationVolumeName: "dst-volume",
+						},
+					},
+				},
+			},
+		}
+
+		originalDeHydrateVolumeReplication := deHydrateVolumeReplication
+		defer func() {
+			deHydrateVolumeReplication = originalDeHydrateVolumeReplication
+		}()
+
+		deHydrateVolumeReplication = func(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
+			// Verify it's called with source details (since endpoint type is destination)
+			assert.Equal(tt, "replication-name", createReplicationResponse.Name)
+			assert.Equal(tt, "us-central1", createReplicationResponse.ReplicationAttributes.DestinationRegion)
+			assert.Equal(tt, "src-volume", createReplicationResponse.Volume.DisplayName)
+			assert.Equal(tt, "src-proj", project)
+			return nil
+		}
+
+		res, err := activity.DeHydrateDestinationVolumeReplication(ctx, result)
+		assert.NoError(tt, err)
+		assert.Equal(tt, result, res)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenDeHydrateVolumeReplicationError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() {
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					SourceProjectNumber:      "src-proj",
+					DestinationProjectNumber: "dst-proj",
+					ReplicationModel: &datamodel.VolumeReplication{
+						Name: "replication-name",
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							EndpointType:        database.VolumeReplicationEndpointTypeSource,
+							SourceLocation:      "us-central1",
+							SourceVolumeName:    "src-volume",
+							DestinationLocation: "us-east4",
+							DestinationVolumeName: "dst-volume",
+						},
+					},
+				},
+			},
+		}
+
+		originalDeHydrateVolumeReplication := deHydrateVolumeReplication
+		defer func() {
+			deHydrateVolumeReplication = originalDeHydrateVolumeReplication
+		}()
+
+		deHydrateVolumeReplication = func(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
+			return errors.New("dehydration error")
+		}
+
+		res, err := activity.DeHydrateDestinationVolumeReplication(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, res)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() {
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					SourceProjectNumber:      "src-proj",
+					DestinationProjectNumber: "dst-proj",
+					ReplicationModel: &datamodel.VolumeReplication{
+						Name: "replication-name",
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							EndpointType:        database.VolumeReplicationEndpointTypeSource,
+							SourceLocation:      "us-central1",
+							SourceVolumeName:    "src-volume",
+							DestinationLocation: "us-east4",
+							DestinationVolumeName: "dst-volume",
+						},
+					},
+				},
+			},
+		}
+
+		originalDeHydrateVolumeReplication := deHydrateVolumeReplication
+		defer func() {
+			deHydrateVolumeReplication = originalDeHydrateVolumeReplication
+		}()
+
+		deHydrateVolumeReplication = func(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
+			return nil
+		}
+
+		res, err := activity.DeHydrateDestinationVolumeReplication(ctx, result)
+		assert.NoError(tt, err)
+		assert.Equal(tt, result, res)
 		mockStorage.AssertExpectations(tt)
 	})
 }
