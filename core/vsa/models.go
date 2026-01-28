@@ -346,6 +346,7 @@ type CreateVolumeParams struct {
 
 type CreateFlexCacheVolumeParams struct {
 	Name                     string
+	Size                     int64
 	OriginSVMName            string
 	OriginVolumeName         string
 	AggregateName            string

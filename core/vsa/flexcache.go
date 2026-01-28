@@ -16,6 +16,7 @@ func (rc *OntapRestProvider) CreateFlexCacheVolume(params CreateFlexCacheVolumeP
 
 	flexCacheVolumeCreateParams := &ontapRest.FlexCacheVolumeCreateParams{
 		Name:                     params.Name,
+		Size:                     params.Size,
 		OriginSvmName:            params.OriginSVMName,
 		OriginVolumeName:         params.OriginVolumeName,
 		Aggregates:               []string{params.AggregateName},

@@ -1293,7 +1293,7 @@ func Test_flexCacheVolumeCreateParamsToONTAP(t *testing.T) {
 		params := &FlexCacheVolumeCreateParams{
 			Name:                     "fcvol",
 			SvmName:                  "svm1",
-			Size:                     &size,
+			Size:                     size,
 			Aggregates:               []string{"aggr1", "aggr2"},
 			OriginSvmName:            "originSvm",
 			OriginVolumeName:         "originVol",
@@ -1313,6 +1313,7 @@ func Test_flexCacheVolumeCreateParamsToONTAP(t *testing.T) {
 
 		assert.Equal(tt, params.Name, *ot.Info.Name)
 		assert.Equal(tt, params.SvmName, *ot.Info.Svm.Name)
+		assert.Equal(tt, params.Size, *ot.Info.Size)
 		assert.Equal(tt, params.OriginSvmName, *ot.Info.FlexcacheInlineOrigins[0].Svm.Name)
 		assert.Equal(tt, params.OriginVolumeName, *ot.Info.FlexcacheInlineOrigins[0].Volume.Name)
 

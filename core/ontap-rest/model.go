@@ -2409,7 +2409,7 @@ type VolumeCreateParams struct {
 type FlexCacheVolumeCreateParams struct {
 	Name                     string
 	SvmName                  string
-	Size                     *int64
+	Size                     int64
 	Aggregates               []string
 	OriginSvmName            string
 	OriginVolumeName         string
@@ -2621,7 +2621,7 @@ func flexCacheVolumeCreateParamsToONTAP(params *FlexCacheVolumeCreateParams) *st
 		Svm: &models.FlexcacheInlineSvm{
 			Name: &params.SvmName,
 		},
-		Size: params.Size,
+		Size: &params.Size,
 		FlexcacheInlineOrigins: []*models.FlexcacheRelationship{
 			{
 				Svm: &models.FlexcacheRelationshipInlineSvm{

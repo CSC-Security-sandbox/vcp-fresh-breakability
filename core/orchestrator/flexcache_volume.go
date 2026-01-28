@@ -91,6 +91,9 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 			Protocols:      params.Protocols,
 			VendorSubnetID: params.Network,
 			Labels:         params.Labels,
+			AccountName:    getAccountName(account),
+			DeploymentName: getPoolDeploymentName(dbPool),
+			IsRegionalHA:   getPoolIsRegionalHA(dbPool),
 		},
 	}
 

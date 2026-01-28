@@ -65,6 +65,7 @@ func (a *FlexCacheVolumeCreateActivity) CreateFlexCacheVolumeInOntapActivity(ctx
 
 	params := vsa.CreateFlexCacheVolumeParams{
 		Name:                     volume.Name,
+		Size:                     volume.SizeInBytes,
 		SvmName:                  volume.Svm.Name,
 		AggregateName:            activities.AggregateName,
 		OriginSVMName:            cacheParams.PeerSvmName,
