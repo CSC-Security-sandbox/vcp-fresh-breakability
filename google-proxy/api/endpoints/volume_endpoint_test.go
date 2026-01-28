@@ -5261,6 +5261,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -5400,6 +5401,8 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		defer func() { prepareCreateVolumeParams = _prepareCreateVolumeParams }()
 
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
 		badReq, ok := result.(*gcpgenserver.V1betaCreateVolumeBadRequest)
@@ -5507,6 +5510,8 @@ func TestV1betaCreateVolume(t *testing.T) {
 			Volume: gcpgenserver.VolumeV1beta{},
 		}
 
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
 		badReq, ok := result.(*gcpgenserver.V1betaCreateVolumeBadRequest)
@@ -5527,6 +5532,8 @@ func TestV1betaCreateVolume(t *testing.T) {
 			return nil, fmt.Errorf("unexpected error")
 		}
 		defer func() { prepareCreateVolumeParams = _prepareCreateVolumeParams }()
+
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.Nil(tt, err)
@@ -5579,6 +5586,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("An error occurred"))
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -5607,6 +5615,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.New("An error occurred"))
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.Nil(tt, err)
@@ -5635,6 +5644,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewConflictErr("Volume already exists"))
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -5667,6 +5677,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -5699,6 +5710,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -5745,6 +5757,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -5888,6 +5901,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -5921,6 +5935,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -5958,6 +5973,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -5996,6 +6012,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -6054,6 +6071,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
@@ -7510,6 +7528,7 @@ func TestV1betaCreateVolume_BackupNotSupported(t *testing.T) {
 		LocationId:    "test-location",
 	}
 	req := &gcpgenserver.VolumeCreateV1beta{}
+	mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	result, err := handler.V1betaCreateVolume(context.Background(), req, params)
 	assert.NoError(t, err)
@@ -13019,6 +13038,44 @@ func TestConvertModelToVolumeV1beta_WithSMBSettings(t *testing.T) {
 		require.NotNil(tt, result, "convertModelToVCPVolume returned nil for volume without FileProperties")
 		// Volumes without FileProperties should not have SmbSettings
 		assert.Nil(tt, result.SmbSettings)
+	})
+}
+
+func TestDualProtocolVolumeCreation_WithLDAPDisabledPool(t *testing.T) {
+	t.Run("Failure_WithLDAPDisabledPool", func(tt *testing.T) {
+		origEnableSmb := enableSmb
+		defer func() { enableSmb = origEnableSmb }()
+		enableSmb = true
+
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "testvolume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaNFSV3, gcpgenserver.ProtocolsV1betaSMB,
+				},
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		zone := "test-zone"
+		pool := &models.Pool{
+			BaseModel:               models.BaseModel{UUID: "test-pool"},
+			ActiveDirectoryConfigId: "test-ad",
+			PoolAttributes: &models.PoolAttributes{
+				LdapEnabled: false,
+			},
+		}
+
+		result, err := _prepareCreateVolumeParams(req, params, region, zone, pool)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Cannot create dual protocol volume in LDAP disabled pool")
 	})
 }
 

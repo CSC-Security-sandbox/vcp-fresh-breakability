@@ -155,22 +155,19 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 		}
 	}
 
-	smbProtocolRequested := hasSMBProtocol(req.Volume.GetProtocols())
-	kerberosEnable := getKerberosEnabledFlagFromRequest(&req.Volume.KerberosEnabled.Value)
 	var pool *models.Pool
 	var err error
-	if smbProtocolRequested || kerberosEnable {
-		pool, err = h.Orchestrator.DescribePool(ctx, req.Volume.PoolId.Value, params.ProjectNumber)
-		if err != nil {
-			if errors.IsNotFoundErr(err) {
-				return &gcpgenserver.V1betaCreateVolumeBadRequest{
-					Code:    400,
-					Message: err.Error(),
-				}, nil
-			}
-			logger.Error("Failed to fetch pool for SMB validation", "error", err.Error())
-			return &gcpgenserver.V1betaCreateVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
+
+	pool, err = h.Orchestrator.DescribePool(ctx, req.Volume.PoolId.Value, params.ProjectNumber)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaCreateVolumeBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
 		}
+		logger.Error("Failed to fetch pool.", "error", err.Error())
+		return &gcpgenserver.V1betaCreateVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
 	}
 
 	param, err := prepareCreateVolumeParams(req, params, region, zone, pool)
@@ -455,6 +452,12 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 	if len(param.Protocols) == 1 && utils.IsSMBProtocols(param.Protocols) {
 		if req.Volume.ExportPolicy.IsSet() && len(req.Volume.ExportPolicy.Value.GetRules()) > 0 {
 			return nil, errors.NewUserInputValidationErr("Cannot specify export policy rules for non-NFS volume")
+		}
+	}
+
+	if pool != nil && pool.PoolAttributes != nil && !pool.PoolAttributes.LdapEnabled {
+		if len(param.Protocols) == 2 && utils.IsSMBProtocols(param.Protocols) && utils.IsNFSProtocols(param.Protocols) {
+			return nil, errors.NewUserInputValidationErr("Cannot create dual protocol volume in LDAP disabled pool")
 		}
 	}
 
