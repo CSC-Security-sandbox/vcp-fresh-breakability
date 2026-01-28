@@ -60,7 +60,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid", BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}
 		replicationDb := &datamodel.VolumeReplication{
 			Account: &datamodel.Account{
@@ -121,7 +121,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid", BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}
 		replicationDb := &datamodel.VolumeReplication{
 			Account: &datamodel.Account{
@@ -171,6 +171,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(quotaRuleCommonActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleCommonActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.HandleDefaultQuotaRuleUpdate)
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
@@ -190,7 +191,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid", BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}
 		replicationDb := &datamodel.VolumeReplication{
 			Account: &datamodel.Account{
@@ -230,6 +231,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(quotaRuleResponse, nil)
 		env.OnActivity("HandleQuotaEnablementAndReinitialization", mock.Anything, mock.Anything, mock.Anything, quotaRuleResponse).Return(nil)
@@ -280,7 +282,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid", BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}
 		destinationVolumeUUID := "destination-volume-uuid"
 		replicationDb := &datamodel.VolumeReplication{
@@ -352,7 +354,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid", BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}
 		destinationVolumeUUID := "destination-volume-uuid"
 		replicationDb := &datamodel.VolumeReplication{
@@ -410,6 +412,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(quotaRuleCommonActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleCommonActivity.UpdateRQuotaOnSvm)
 		quotaRuleCreateActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
@@ -427,7 +430,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid", BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}
 		destinationVolumeUUID := "destination-volume-uuid"
 		replicationDb := &datamodel.VolumeReplication{
@@ -463,6 +466,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(errors.New("failed to enable RQuota"))
 		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, replicationDb).Return(nil)
@@ -499,6 +503,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(quotaRuleCommonActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleCommonActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.HandleDefaultQuotaRuleUpdate)
 		env.RegisterActivity(quotaRuleCommonActivity.HandleQuotaEnablementAndReinitialization)
@@ -516,7 +521,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid", BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}
 		destinationVolumeUUID := "destination-volume-uuid"
 		replicationDb := &datamodel.VolumeReplication{
@@ -552,6 +557,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("HandleDefaultQuotaRuleUpdate", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// When HandleDefaultQuotaRuleUpdate succeeds, no quota rule is created, so HandleQuotaEnablementAndReinitialization is not called
@@ -590,6 +596,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(quotaRuleCommonActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleCommonActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.HandleDefaultQuotaRuleUpdate)
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
@@ -609,7 +616,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid", BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}
 		destinationVolumeUUID := "destination-volume-uuid"
 		replicationDb := &datamodel.VolumeReplication{
@@ -651,6 +658,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(quotaRuleResponse, nil)
 		env.OnActivity("HandleQuotaEnablementAndReinitialization", mock.Anything, mock.Anything, mock.Anything, quotaRuleResponse).Return(nil)
@@ -689,6 +697,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(quotaRuleCommonActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleCommonActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.HandleDefaultQuotaRuleUpdate)
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
@@ -707,7 +716,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid", BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}
 		destinationVolumeUUID := "destination-volume-uuid"
 		replicationDb := &datamodel.VolumeReplication{
@@ -749,6 +758,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		// Return error with "not found" in message - should be treated as not found and trigger creation
 		env.OnActivity("HandleDefaultQuotaRuleUpdate", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("default quota rule not found"))
@@ -787,6 +797,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(quotaRuleCommonActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleCommonActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
 		env.RegisterActivity(quotaRuleCommonActivity.HandleQuotaEnablementAndReinitialization)
@@ -804,7 +815,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid", BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}
 		destinationVolumeUUID := "destination-volume-uuid"
 		replicationDb := &datamodel.VolumeReplication{
@@ -858,6 +869,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
 			return qr.UUID == "quota-rule-uuid-1"
 		})).Return(quotaRuleResponse1, nil)
@@ -901,6 +913,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(quotaRuleCommonActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleCommonActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
 		env.RegisterActivity(quotaRuleCommonActivity.HandleQuotaEnablementAndReinitialization)
@@ -918,7 +931,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid", BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}
 		destinationVolumeUUID := "destination-volume-uuid"
 		replicationDb := &datamodel.VolumeReplication{
@@ -954,6 +967,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create quota rule"))
 		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
@@ -992,6 +1006,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(quotaRuleCommonActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleCommonActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.HandleDefaultQuotaRuleUpdate)
 		// Note: ParseQuotaRuleErrors is not registered here because Temporal can't serialize
@@ -1010,7 +1025,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid", BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}
 		destinationVolumeUUID := "destination-volume-uuid"
 		replicationDb := &datamodel.VolumeReplication{
@@ -1046,6 +1061,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("HandleDefaultQuotaRuleUpdate", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update default quota"))
 		// ParseQuotaRuleErrors will fail to serialize, but workflow handles it gracefully
@@ -1084,6 +1100,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(quotaRuleCommonActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleCommonActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
 
@@ -1100,7 +1117,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid", BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}
 		destinationVolumeUUID := "destination-volume-uuid"
 		replicationDb := &datamodel.VolumeReplication{
@@ -1136,6 +1153,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(errors.New("failed to enable RQuota"))
 		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, replicationDb).Return(nil)
@@ -1175,6 +1193,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(quotaRuleCommonActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleCommonActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
 		env.RegisterActivity(quotaRuleCommonActivity.HandleQuotaEnablementAndReinitialization)
@@ -1192,7 +1211,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid", BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}
 		destinationVolumeUUID := "destination-volume-uuid"
 		replicationDb := &datamodel.VolumeReplication{
@@ -1233,6 +1252,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(quotaRuleResponse, nil)
 		env.OnActivity("HandleQuotaEnablementAndReinitialization", mock.Anything, mock.Anything, mock.Anything, quotaRuleResponse).Return(errors.New("failed to enable quota subsystem"))
@@ -1274,6 +1294,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(quotaRuleCommonActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleCommonActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
 
@@ -1290,7 +1311,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
-			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid", BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}
 		destinationVolumeUUID := "destination-volume-uuid"
 		replicationDb := &datamodel.VolumeReplication{
@@ -1326,6 +1347,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create quota rule"))
 		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
@@ -1366,6 +1388,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateQuotaRulesStateToError)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(quotaRuleActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
@@ -1422,6 +1445,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create quota rule"))
 		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
@@ -1462,6 +1486,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateQuotaRulesStateToError)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(quotaRuleActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
@@ -1540,6 +1565,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create quota rule"))
 		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
@@ -1594,6 +1620,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateQuotaRulesStateToError)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(quotaRuleActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
 		env.RegisterActivity(replicationCommonActivity.UpdateReplicationState)
@@ -1651,6 +1678,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create quota rule"))
 		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(errors.New("database error"))
@@ -1691,6 +1719,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateQuotaRulesStateToError)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(quotaRuleActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
 		env.RegisterActivity(replicationCommonActivity.UpdateReplicationState)
@@ -1748,6 +1777,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create quota rule"))
 		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
@@ -1801,17 +1831,20 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 		quotaRuleActivity := activities.QuotaRuleCommonActivity{}
 		quotaRuleCreateActivity := activities.QuotaRuleCreateActivity{}
 
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
 		env.RegisterActivity(quotaRuleActivity.HandleQuotaEnablementAndReinitialization)
 
 		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "volume-uuid"},
+			AccountID: int64(100),
 			Svm: &datamodel.Svm{
 				SvmDetails: &datamodel.SvmDetails{
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid"},
 		}
 		replication := &datamodel.VolumeReplication{
 			Volume: volume,
@@ -1836,6 +1869,7 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 			Message: "Quota rule created successfully",
 		}
 
+		env.OnActivity("GetVolumeByID", mock.Anything, int64(1), int64(100)).Return(volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(quotaRuleResponse, nil)
 		env.OnActivity("HandleQuotaEnablementAndReinitialization", mock.Anything, mock.Anything, mock.Anything, quotaRuleResponse).Return(nil)
@@ -1866,16 +1900,19 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 		quotaRuleActivity := activities.QuotaRuleCommonActivity{}
 		quotaRuleCreateActivity := activities.QuotaRuleCreateActivity{}
 
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.HandleDefaultQuotaRuleUpdate)
 
 		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "volume-uuid"},
+			AccountID: int64(100),
 			Svm: &datamodel.Svm{
 				SvmDetails: &datamodel.SvmDetails{
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid"},
 		}
 		replication := &datamodel.VolumeReplication{
 			Volume: volume,
@@ -1895,6 +1932,7 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 			},
 		}
 
+		env.OnActivity("GetVolumeByID", mock.Anything, int64(1), int64(100)).Return(volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("HandleDefaultQuotaRuleUpdate", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -1924,18 +1962,21 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 		quotaRuleActivity := activities.QuotaRuleCommonActivity{}
 		quotaRuleCreateActivity := activities.QuotaRuleCreateActivity{}
 
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.HandleDefaultQuotaRuleUpdate)
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
 		env.RegisterActivity(quotaRuleActivity.HandleQuotaEnablementAndReinitialization)
 
 		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "volume-uuid"},
+			AccountID: int64(100),
 			Svm: &datamodel.Svm{
 				SvmDetails: &datamodel.SvmDetails{
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid"},
 		}
 		replication := &datamodel.VolumeReplication{
 			Volume: volume,
@@ -1960,6 +2001,7 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 			Message: "Quota rule created successfully",
 		}
 
+		env.OnActivity("GetVolumeByID", mock.Anything, int64(1), int64(100)).Return(volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("HandleDefaultQuotaRuleUpdate", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("default quota rule not found"))
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(quotaRuleResponse, nil)
@@ -1991,16 +2033,19 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 		quotaRuleActivity := activities.QuotaRuleCommonActivity{}
 		quotaRuleCreateActivity := activities.QuotaRuleCreateActivity{}
 
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.HandleDefaultQuotaRuleUpdate)
 
 		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "volume-uuid"},
+			AccountID: int64(100),
 			Svm: &datamodel.Svm{
 				SvmDetails: &datamodel.SvmDetails{
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid"},
 		}
 		replication := &datamodel.VolumeReplication{
 			Volume: volume,
@@ -2020,6 +2065,7 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 			},
 		}
 
+		env.OnActivity("GetVolumeByID", mock.Anything, int64(1), int64(100)).Return(volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("HandleDefaultQuotaRuleUpdate", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update default quota"))
 
@@ -2049,15 +2095,18 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 
 		quotaRuleActivity := activities.QuotaRuleCommonActivity{}
 
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
 
 		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "volume-uuid"},
+			AccountID: int64(100),
 			Svm: &datamodel.Svm{
 				SvmDetails: &datamodel.SvmDetails{
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid"},
 		}
 		replication := &datamodel.VolumeReplication{
 			Volume: volume,
@@ -2077,6 +2126,7 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 			},
 		}
 
+		env.OnActivity("GetVolumeByID", mock.Anything, int64(1), int64(100)).Return(volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(errors.New("failed to enable RQuota"))
 
 		env.ExecuteWorkflow(ProcessQuotaRulesPostBreakReplicationTestWorkflow, replication, quotaRules, node)
@@ -2106,16 +2156,19 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 		quotaRuleActivity := activities.QuotaRuleCommonActivity{}
 		quotaRuleCreateActivity := activities.QuotaRuleCreateActivity{}
 
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
 
 		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "volume-uuid"},
+			AccountID: int64(100),
 			Svm: &datamodel.Svm{
 				SvmDetails: &datamodel.SvmDetails{
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid"},
 		}
 		replication := &datamodel.VolumeReplication{
 			Volume: volume,
@@ -2135,6 +2188,7 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 			},
 		}
 
+		env.OnActivity("GetVolumeByID", mock.Anything, int64(1), int64(100)).Return(volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create quota rule"))
 
@@ -2165,17 +2219,20 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 		quotaRuleActivity := activities.QuotaRuleCommonActivity{}
 		quotaRuleCreateActivity := activities.QuotaRuleCreateActivity{}
 
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
 		env.RegisterActivity(quotaRuleActivity.HandleQuotaEnablementAndReinitialization)
 
 		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "volume-uuid"},
+			AccountID: int64(100),
 			Svm: &datamodel.Svm{
 				SvmDetails: &datamodel.SvmDetails{
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid"},
 		}
 		replication := &datamodel.VolumeReplication{
 			Volume: volume,
@@ -2200,6 +2257,7 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 			Message: "Quota rule created successfully",
 		}
 
+		env.OnActivity("GetVolumeByID", mock.Anything, int64(1), int64(100)).Return(volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(quotaRuleResponse, nil)
 		env.OnActivity("HandleQuotaEnablementAndReinitialization", mock.Anything, mock.Anything, mock.Anything, quotaRuleResponse).Return(errors.New("failed to enable quota"))
@@ -2231,17 +2289,20 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 		quotaRuleActivity := activities.QuotaRuleCommonActivity{}
 		quotaRuleCreateActivity := activities.QuotaRuleCreateActivity{}
 
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
 		env.RegisterActivity(quotaRuleActivity.HandleQuotaEnablementAndReinitialization)
 
 		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "volume-uuid"},
+			AccountID: int64(100),
 			Svm: &datamodel.Svm{
 				SvmDetails: &datamodel.SvmDetails{
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid"},
 		}
 		replication := &datamodel.VolumeReplication{
 			Volume: volume,
@@ -2276,6 +2337,7 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 		// First rule succeeds, second rule fails
 		// Note: HandleQuotaEnablementAndReinitialization is only called for the last rule after successful creation
 		// Since the second rule (last) fails, it won't be called
+		env.OnActivity("GetVolumeByID", mock.Anything, int64(1), int64(100)).Return(volume, nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
 			return qr.UUID == "quota-rule-uuid-1"
 		})).Return(quotaRuleResponse1, nil).Once()
@@ -2296,6 +2358,113 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 		env.AssertExpectations(tt)
 	})
 
+	t.Run("TestProcessQuotaRulesPostBreakReplication_GetVolumeByID_Failure", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		quotaRuleActivity := activities.QuotaRuleCommonActivity{}
+
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "volume-uuid"},
+			AccountID: int64(100),
+		}
+		replication := &datamodel.VolumeReplication{
+			Volume: volume,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationVolumeUUID: "dest-volume-uuid",
+			},
+		}
+		node := &models.Node{EndpointAddress: "127.0.0.1"}
+
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "quota-rule-uuid-1"},
+				Name:           "test-quota-rule",
+				QuotaType:      "INDIVIDUAL_USER_QUOTA",
+				QuotaTarget:    "1000",
+				DiskLimitInKib: 1048576,
+			},
+		}
+
+		// GetVolumeByID fails - all quota rules should be returned as failed
+		env.OnActivity("GetVolumeByID", mock.Anything, int64(1), int64(100)).Return(nil, errors.New("volume not found"))
+
+		env.ExecuteWorkflow(ProcessQuotaRulesPostBreakReplicationTestWorkflow, replication, quotaRules, node)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+		var result []*datamodel.QuotaRule
+		err := env.GetWorkflowResult(&result)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 1, "All quota rules should be returned as failed when GetVolumeByID fails")
+		assert.Equal(tt, "quota-rule-uuid-1", result[0].UUID)
+		env.AssertExpectations(tt)
+	})
+
+	t.Run("TestProcessQuotaRulesPostBreakReplication_SvmDetailsNil_Failure", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		quotaRuleActivity := activities.QuotaRuleCommonActivity{}
+
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "volume-uuid"},
+			AccountID: int64(100),
+			Svm:       nil, // SVM is nil - should fail
+		}
+		replication := &datamodel.VolumeReplication{
+			Volume: volume,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationVolumeUUID: "dest-volume-uuid",
+			},
+		}
+		node := &models.Node{EndpointAddress: "127.0.0.1"}
+
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "quota-rule-uuid-1"},
+				Name:           "test-quota-rule",
+				QuotaType:      "INDIVIDUAL_USER_QUOTA",
+				QuotaTarget:    "1000",
+				DiskLimitInKib: 1048576,
+			},
+		}
+
+		// GetVolumeByID returns volume with nil SVM - all quota rules should be returned as failed
+		env.OnActivity("GetVolumeByID", mock.Anything, int64(1), int64(100)).Return(volume, nil)
+
+		env.ExecuteWorkflow(ProcessQuotaRulesPostBreakReplicationTestWorkflow, replication, quotaRules, node)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+		var result []*datamodel.QuotaRule
+		err := env.GetWorkflowResult(&result)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 1, "All quota rules should be returned as failed when SVM details are nil")
+		assert.Equal(tt, "quota-rule-uuid-1", result[0].UUID)
+		env.AssertExpectations(tt)
+	})
+
 	t.Run("TestProcessQuotaRulesPostBreakReplication_EmptyQuotaRules_Success", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
@@ -2309,12 +2478,14 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 		env.SetHeader(mockHeader)
 
 		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "volume-uuid"},
+			AccountID: int64(100),
 			Svm: &datamodel.Svm{
 				SvmDetails: &datamodel.SvmDetails{
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid"},
 		}
 		replication := &datamodel.VolumeReplication{
 			Volume: volume,
@@ -2325,6 +2496,11 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 		node := &models.Node{EndpointAddress: "127.0.0.1"}
 
 		quotaRules := []*datamodel.QuotaRule{}
+
+		// Register and mock GetVolumeByID activity (called even for empty quota rules)
+		quotaRuleActivity := activities.QuotaRuleCommonActivity{}
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
+		env.OnActivity("GetVolumeByID", mock.Anything, int64(1), int64(100)).Return(volume, nil)
 
 		env.ExecuteWorkflow(ProcessQuotaRulesPostBreakReplicationTestWorkflow, replication, quotaRules, node)
 
@@ -2352,18 +2528,21 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 		quotaRuleActivity := activities.QuotaRuleCommonActivity{}
 		quotaRuleCreateActivity := activities.QuotaRuleCreateActivity{}
 
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
 		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
 		env.RegisterActivity(quotaRuleCreateActivity.HandleDefaultQuotaRuleUpdate)
 		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
 		env.RegisterActivity(quotaRuleActivity.HandleQuotaEnablementAndReinitialization)
 
 		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "volume-uuid"},
+			AccountID: int64(100),
 			Svm: &datamodel.Svm{
 				SvmDetails: &datamodel.SvmDetails{
 					ExternalUUID: "svm-external-uuid",
 				},
 			},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-external-uuid"},
 		}
 		replication := &datamodel.VolumeReplication{
 			Volume: volume,
@@ -2389,6 +2568,7 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 		}
 
 		// Test with error message containing "not found" (case-insensitive check)
+		env.OnActivity("GetVolumeByID", mock.Anything, int64(1), int64(100)).Return(volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("HandleDefaultQuotaRuleUpdate", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("resource NOT FOUND in system"))
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(quotaRuleResponse, nil)

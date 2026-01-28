@@ -1364,6 +1364,148 @@ func TestReverseResumeWorkflow_QuotaRuleSync_Lines(t *testing.T) {
 		assert.NoError(tt, env.GetWorkflowError())
 	})
 
+	t.Run("FullDehydrationSuccess_SourceQuotaRulesNotCleared", func(tt *testing.T) {
+		// This test verifies the fix for the bug where full dehydration success
+		// incorrectly cleared source quota rules, causing them to be missing in the sync call
+		// Enable quota rule sync and hydration
+		originalQuotaRuleSync := quotaRuleSync
+		originalHydrationEnabled := hydrationEnabled
+		quotaRuleSync = true
+		hydrationEnabled = true
+		defer func() {
+			quotaRuleSync = originalQuotaRuleSync
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		reverseReplicationActivity := replicationActivities.ReverseVolumeReplicationActivity{SE: mockStorage}
+
+		// Register activities
+		env.RegisterActivity(reverseReplicationActivity.GetSrcBasePathReverse)
+		env.RegisterActivity(reverseReplicationActivity.GetDstBasePathReverse)
+		env.RegisterActivity(reverseReplicationActivity.GetSignedSrcTokenReverse)
+		env.RegisterActivity(reverseReplicationActivity.GetSignedDstTokenReverse)
+		env.RegisterActivity(reverseReplicationActivity.VerifyNewDstVolume)
+		env.RegisterActivity(reverseReplicationActivity.ResizeNewDstVolumeIfNeeded)
+		env.RegisterActivity(reverseReplicationActivity.ReverseAndResumeReplication)
+		env.RegisterActivity(reverseReplicationActivity.DescribeRemoteJobOnSrc)
+		env.RegisterActivity(reverseReplicationActivity.DescribeRemoteJobOnDst)
+		env.RegisterActivity(reverseReplicationActivity.UpdateVolumeReplicationAttributesSrc)
+		env.RegisterActivity(reverseReplicationActivity.UpdateVolumeReplicationAttributesDst)
+		env.RegisterActivity(reverseReplicationActivity.MountReplicationAfterReverse)
+		env.RegisterActivity(reverseReplicationActivity.ListQuotaRulesOnNewSourceReverse)
+		env.RegisterActivity(reverseReplicationActivity.ListQuotaRulesOnNewDestinationReverse)
+		env.RegisterActivity(reverseReplicationActivity.DehydrateQuotaRulesReverse)
+		env.RegisterActivity(reverseReplicationActivity.AddNewSrcQuotaRulesToNewDstDBReverse)
+		env.RegisterActivity(reverseReplicationActivity.HydrateQuotaRulesReverse)
+		env.RegisterActivity(reverseReplicationActivity.CleanupOldReplication)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		params := &commonparams.ReverseAndResumeReplicationParams{
+			AccountName: "test-account",
+		}
+
+		event := &replication.ReverseReplicationEvent{
+			CommonReplicationEventParams: replication.CommonReplicationEventParams{
+				SourceProjectNumber:      "123456789",
+				DestinationProjectNumber: "987654321",
+				ReplicationModel: &datamodel.VolumeReplication{
+					BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						SourceLocation:      "us-east1",
+						DestinationLocation: "us-west1",
+					},
+					HybridReplicationAttributes: nil,
+				},
+			},
+		}
+
+		reverseResult := &replication.ReverseReplicationResult{
+			Event:            event,
+			SrcProjectNumber: &event.SourceProjectNumber,
+			DstProjectNumber: &event.DestinationProjectNumber,
+			DbVolReplication: event.ReplicationModel,
+			SrcBasePath:      stringPtr("https://src-path"),
+			DstBasePath:      stringPtr("https://dst-path"),
+			SrcJwtToken:      stringPtr("src-token"),
+			DstJwtToken:      stringPtr("dst-token"),
+			NewDstVolume: &googleproxyclient.VolumeV1beta{
+				ResourceId: "dst-volume-id",
+			},
+		}
+
+		env.OnActivity("GetSrcBasePathReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("GetDstBasePathReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("GetSignedSrcTokenReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("GetSignedDstTokenReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("VerifyNewDstVolume", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("ResizeNewDstVolumeIfNeeded", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("ReverseAndResumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("DescribeRemoteJobOnSrc", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateVolumeReplicationAttributesSrc", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("UpdateVolumeReplicationAttributesDst", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("DescribeRemoteJobOnDst", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("MountReplicationAfterReverse", mock.Anything, mock.Anything).Return(reverseResult, nil)
+
+		// Source has 1 quota rule (should be added to destination)
+		sourceQuotaRules := []*datamodel.QuotaRule{
+			{BaseModel: datamodel.BaseModel{UUID: "src-quota-1"}, Name: "src-rule-1"},
+		}
+
+		// Destination has 1 quota rule (should be dehydrated and removed)
+		destQuotaRules := []*datamodel.QuotaRule{
+			{BaseModel: datamodel.BaseModel{UUID: "dst-quota-1"}, Name: "dst-rule-1"},
+		}
+
+		// Full dehydration success: ALL destination rules successfully dehydrated
+		fullyDehydrated := []*datamodel.QuotaRule{
+			{BaseModel: datamodel.BaseModel{UUID: "dst-quota-1"}, Name: "dst-rule-1"},
+		}
+
+		env.OnActivity("ListQuotaRulesOnNewSourceReverse", mock.Anything, mock.Anything).Return(sourceQuotaRules, nil)
+		env.OnActivity("ListQuotaRulesOnNewDestinationReverse", mock.Anything, mock.Anything).Return(destQuotaRules, nil)
+
+		// Full dehydration success: all destination rules dehydrated
+		env.OnActivity("DehydrateQuotaRulesReverse", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fullyDehydrated, nil)
+
+		// CRITICAL ASSERTION: Verify that source quota rules are NOT nil (the bug fix)
+		env.OnActivity("AddNewSrcQuotaRulesToNewDstDBReverse", mock.Anything, mock.Anything).Return(func(ctx context.Context, result *replication.ReverseReplicationResult) (*replication.ReverseReplicationResult, error) {
+			// This is the key assertion - with the bug, SourceQuotaRules would be nil here
+			assert.NotNil(tt, result.SourceQuotaRules, "BUG: SourceQuotaRules should NOT be nil after full dehydration success")
+			assert.Len(tt, result.SourceQuotaRules, 1, "Should have 1 source quota rule")
+			assert.Equal(tt, "src-quota-1", result.SourceQuotaRules[0].UUID, "Source quota rule UUID should match")
+
+			// Verify destination rules are present (for removal)
+			assert.NotNil(tt, result.DestinationQuotaRules, "DestinationQuotaRules should be present")
+			assert.Len(tt, result.DestinationQuotaRules, 1, "Should have 1 destination quota rule to remove")
+
+			// Simulate successful sync
+			result.DestinationQuotaRules = sourceQuotaRules
+			return result, nil
+		})
+
+		env.OnActivity("HydrateQuotaRulesReverse", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CleanupOldReplication", mock.Anything, mock.Anything).Return(reverseResult, nil)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(ReverseAndResumeVolumeReplicationWorkflow, params, event)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
+
 	t.Run("Lines254_257_AddNewSrcQuotaRulesToNewDstDBReverseFailure", func(tt *testing.T) {
 		// Enable quota rule sync
 		originalQuotaRuleSync := quotaRuleSync

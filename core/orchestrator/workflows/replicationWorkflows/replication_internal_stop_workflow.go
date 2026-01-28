@@ -254,11 +254,7 @@ func processQuotaRulesPostBreakReplication(
 ) []*datamodel.QuotaRule {
 	log := util.GetLogger(ctx)
 
-	volumeDetails := replication.Volume
 	destinationVolumeUUID := replication.ReplicationAttributes.DestinationVolumeUUID
-
-	// Get SVM external UUID for RQuota operations
-	svmExternalUUID := volumeDetails.Svm.SvmDetails.ExternalUUID
 
 	// Collect failed quota rules for return
 	var failedQuotaRules []*datamodel.QuotaRule
@@ -270,6 +266,32 @@ func processQuotaRulesPostBreakReplication(
 	quotaRuleActivity := &activities.QuotaRuleCommonActivity{}
 	quotaRuleCreateActivity := &activities.QuotaRuleCreateActivity{}
 	var err error
+
+	// Fetch authoritative volume details from database to get SVM external UUID
+	// This ensures we have the complete volume object with all associations populated
+	var volumeDetails *datamodel.Volume
+	err = workflow.ExecuteActivity(ctx, quotaRuleActivity.GetVolumeByID,
+		replication.Volume.ID, replication.Volume.AccountID).Get(ctx, &volumeDetails)
+	if err != nil {
+		log.Errorf("Failed to fetch volume details for quota rule processing: %v", err)
+		// Return all quota rules as failed since we can't proceed without volume details
+		return quotaRules
+	}
+
+	// Extract SVM external UUID from the fetched volume details
+	// This is required for RQuota operations on ONTAP
+	if volumeDetails.Svm == nil || volumeDetails.Svm.SvmDetails == nil {
+		log.Errorf("SVM or SvmDetails is nil in volume details")
+		// Return all quota rules as failed since we can't proceed without SVM details
+		return quotaRules
+	}
+	svmExternalUUID := volumeDetails.Svm.SvmDetails.ExternalUUID
+
+	// Volume must have VolumeAttributes with ExternalUUID for quota operations
+	if volumeDetails.VolumeAttributes == nil || volumeDetails.VolumeAttributes.ExternalUUID == "" {
+		log.Errorf("Volume %s has no ExternalUUID in VolumeAttributes", volumeDetails.UUID)
+		return quotaRules
+	}
 
 	// Process each quota rule
 	for i, quotaRule := range quotaRules {

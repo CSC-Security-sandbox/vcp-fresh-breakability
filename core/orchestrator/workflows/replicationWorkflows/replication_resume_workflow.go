@@ -239,8 +239,12 @@ func (wf *ReplicationResumeWorkflow) Run(ctx workflow.Context, args ...interface
 				)
 			}
 
-			// Check if this is a partial failure (some quota rules were dehydrated)
-			if len(dehydratedQuotaRules) > 0 {
+			// Check if this is a partial failure (only SOME quota rules were dehydrated, not all)
+			// Partial failure: clear source and keep only dehydrated rules for recovery re-sync
+			// Full success: keep both source and destination as-is for normal sync
+			if len(dehydratedQuotaRules) > 0 && (len(dehydratedQuotaRules) < len(replicationResult.DestinationQuotaRules)) {
+				logger.Warnf("Partial dehydration failure: %d/%d quota rules dehydrated. Entering recovery mode.",
+					len(dehydratedQuotaRules), len(replicationResult.DestinationQuotaRules))
 				replicationResult.SourceQuotaRules = nil
 				replicationResult.DestinationQuotaRules = dehydratedQuotaRules
 			}

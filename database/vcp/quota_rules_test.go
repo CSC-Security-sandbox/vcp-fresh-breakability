@@ -1289,8 +1289,8 @@ func TestReplaceDstQuotaRulesWithSrc(t *testing.T) {
 		assert.NotEmpty(tt, createdQuotaRules[1].UUID, "Expected UUID to be generated")
 		assert.Equal(tt, volume.ID, createdQuotaRules[0].VolumeID, "Expected VolumeID to be set")
 		assert.Equal(tt, account.ID, createdQuotaRules[0].AccountID, "Expected AccountID to be set")
-		assert.Equal(tt, models.LifeCycleStateCreated, createdQuotaRules[0].State, "Expected state to be CREATED")
-		assert.Equal(tt, models.LifeCycleStateCreatedDetails, createdQuotaRules[0].StateDetails, "Expected state details to be CREATED successfully")
+		assert.Equal(tt, models.LifeCycleStateREADY, createdQuotaRules[0].State, "Expected state to be READY")
+		assert.Equal(tt, models.LifeCycleStateReadyDetails, createdQuotaRules[0].StateDetails, "Expected state details to be Ready for use")
 
 		// Verify destination quota rules are soft deleted
 		var deletedRule1 datamodel.QuotaRule
@@ -1630,8 +1630,8 @@ func TestReplaceDstQuotaRulesWithSrc(t *testing.T) {
 			var rule datamodel.QuotaRule
 			err = store.db.Where("uuid = ?", createdRule.UUID).First(&rule).Error()
 			assert.NoError(tt, err, "Expected to find created quota rule")
-			assert.Equal(tt, models.LifeCycleStateCreated, rule.State, "Expected state to be CREATED")
-			assert.Equal(tt, models.LifeCycleStateCreatedDetails, rule.StateDetails, "Expected state details to be CREATED successfully")
+			assert.Equal(tt, models.LifeCycleStateREADY, rule.State, "Expected state to be READY")
+			assert.Equal(tt, models.LifeCycleStateReadyDetails, rule.StateDetails, "Expected state details to be Ready for use")
 		}
 	})
 

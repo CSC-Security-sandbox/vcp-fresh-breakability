@@ -298,9 +298,9 @@ func (d *DataStoreRepository) ReplaceDstQuotaRulesWithSrc(ctx context.Context, v
 			quotaRule.CreatedAt = now
 			quotaRule.UpdatedAt = now
 
-			// Set state to CREATED
-			quotaRule.State = models.LifeCycleStateCreated
-			quotaRule.StateDetails = models.LifeCycleStateCreatedDetails
+			// Set state to READY
+			quotaRule.State = models.LifeCycleStateREADY
+			quotaRule.StateDetails = models.LifeCycleStateReadyDetails
 
 			// Create the quota rule entry
 			err = tx.Create(quotaRule).Error

@@ -1602,9 +1602,10 @@ func _resumeReplication(ctx context.Context, se database.Storage, temporal clien
 		return nil, "", err
 	}
 
-	// Verify source and destination quota rules only for file volumes
+	// Verify source and destination quota rules only for file volumes (not for hybrid replication)
 	// Quota rules are only applicable to file volumes (volumes with FileProperties)
-	if event.ReplicationModel != nil && event.ReplicationModel.Volume != nil && event.ReplicationModel.Volume.VolumeAttributes != nil && event.ReplicationModel.Volume.VolumeAttributes.FileProperties != nil {
+	// Skip quota verification for hybrid replication as HybridReplicationAttributes indicates different replication path
+	if event.ReplicationModel != nil && event.ReplicationModel.Volume != nil && event.ReplicationModel.Volume.VolumeAttributes != nil && event.ReplicationModel.Volume.VolumeAttributes.FileProperties != nil && event.ReplicationModel.HybridReplicationAttributes == nil {
 		// Verify source quota rules are ready before resuming replication
 		err = verifySourceQuotaRules(ctx, &event)
 		if err != nil {
@@ -2330,9 +2331,10 @@ func _reverseAndResumeReplication(ctx context.Context, se database.Storage, temp
 		return nil, nil, err
 	}
 
-	// Verify source and destination quota rules only for file volumes
+	// Verify source and destination quota rules only for file volumes (not for hybrid replication)
 	// Quota rules are only applicable to file volumes (volumes with FileProperties)
-	if event.ReplicationModel != nil && event.ReplicationModel.Volume != nil && event.ReplicationModel.Volume.VolumeAttributes != nil && event.ReplicationModel.Volume.VolumeAttributes.FileProperties != nil {
+	// Skip quota verification for hybrid replication as HybridReplicationAttributes indicates different replication path
+	if event.ReplicationModel != nil && event.ReplicationModel.Volume != nil && event.ReplicationModel.Volume.VolumeAttributes != nil && event.ReplicationModel.Volume.VolumeAttributes.FileProperties != nil && event.ReplicationModel.HybridReplicationAttributes == nil {
 		// Verify new source (current destination) quota rules are ready before reversing replication
 		err = verifyNewSourceQuotaRulesReverse(ctx, &event)
 		if err != nil {

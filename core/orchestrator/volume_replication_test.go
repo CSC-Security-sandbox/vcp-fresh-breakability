@@ -5978,6 +5978,83 @@ func TestResumeReplication(t *testing.T) {
 		assert.False(tt, sourceQuotaRulesCalled, "verifySourceQuotaRules should NOT be called when VolumeAttributes is nil")
 		assert.False(tt, destQuotaRulesCalled, "verifyDestinationQuotaRules should NOT be called when VolumeAttributes is nil")
 	})
+	t.Run("WhenHybridReplication_QuotaRuleVerificationNotCalled", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			verifyDstReplicationResume = replication.VerifyDstReplicationResume
+			verifySourceQuotaRules = replication.VerifySourceQuotaRules
+			verifyDestinationQuotaRules = replication.VerifyDestinationQuotaRules
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		var sourceQuotaRulesCalled, destQuotaRulesCalled bool
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			// Set up file volume with FileProperties but with HybridReplicationAttributes (hybrid replication)
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{},
+				Volume: &datamodel.Volume{
+					VolumeAttributes: &datamodel.VolumeAttributes{
+						FileProperties: &datamodel.FileProperties{},
+					},
+					Pool: &datamodel.Pool{
+						BaseModel: datamodel.BaseModel{UUID: "uuid"},
+					},
+				},
+			}
+			return nil, nil, nil
+		}
+
+		verifyDstReplicationResume = func(ctx context.Context, event *replication.ResumeReplicationEvent) (*models.VolumeReplication, error) {
+			return &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{},
+			}, nil
+		}
+
+		verifySourceQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			sourceQuotaRulesCalled = true
+			return nil
+		}
+
+		verifyDestinationQuotaRules = func(ctx context.Context, event *replication.ResumeReplicationEvent) error {
+			destQuotaRulesCalled = true
+			return nil
+		}
+
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID: "job-uuid",
+			},
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.ResumeReplicationParams{
+			AccountName: "account-name",
+		}
+		_, _, err := _resumeReplication(ctx, mockStorage, mockTemporal, params)
+		assert.Nil(tt, err)
+		assert.False(tt, sourceQuotaRulesCalled, "verifySourceQuotaRules should NOT be called for hybrid replication")
+		assert.False(tt, destQuotaRulesCalled, "verifyDestinationQuotaRules should NOT be called for hybrid replication")
+	})
 }
 
 func TestResumeReplicationInternal(t *testing.T) {
@@ -10863,6 +10940,96 @@ func TestReverseAndResumeReplication(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.False(tt, newSourceQuotaRulesCalled, "verifyNewSourceQuotaRulesReverse should NOT be called when FileProperties is nil")
 		assert.False(tt, newDestQuotaRulesCalled, "verifyNewDestinationQuotaRulesReverse should NOT be called when FileProperties is nil")
+	})
+	t.Run("WhenHybridReplication_QuotaRuleVerificationNotCalled", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		newSourceQuotaRulesCalled := false
+		newDestQuotaRulesCalled := false
+
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			verifyDstReplicationReverse = replication.VerifyDstReplicationReverse
+			verifyNewSourceQuotaRulesReverse = replication.VerifyNewSourceQuotaRulesReverse
+			verifyNewDestinationQuotaRulesReverse = replication.VerifyNewDestinationQuotaRulesReverse
+		}()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		hybridType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		mockReplicationModel := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
+			Uri:       "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				HybridReplicationType: &hybridType,
+			},
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					FileProperties: &datamodel.FileProperties{},
+				},
+				Pool: &datamodel.Pool{
+					BaseModel: datamodel.BaseModel{UUID: "uuid"},
+				},
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{},
+		}
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			event.ReplicationModel = mockReplicationModel
+			return nil, nil, nil
+		}
+
+		verifyDstReplicationReverse = func(ctx context.Context, event *replication.ReverseReplicationEvent) (*models.VolumeReplication, error) {
+			event.ReplicationModel = mockReplicationModel
+			return convertDataStoreReplicationToModel(mockReplicationModel), nil
+		}
+
+		verifyNewSourceQuotaRulesReverse = func(ctx context.Context, event *replication.ReverseReplicationEvent) error {
+			newSourceQuotaRulesCalled = true
+			return nil
+		}
+
+		verifyNewDestinationQuotaRulesReverse = func(ctx context.Context, event *replication.ReverseReplicationEvent) error {
+			newDestQuotaRulesCalled = true
+			return nil
+		}
+
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-123"},
+			WorkflowID: "workflow-123",
+		}
+
+		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil)
+		mockTemporal.On("ExecuteWorkflow", mock.Anything, mock.MatchedBy(func(opts client.StartWorkflowOptions) bool {
+			return opts.ID == createdJob.WorkflowID
+		}), mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.ReverseAndResumeReplicationParams{
+			VolumeResourceId:      "volume-123",
+			ReplicationResourceId: "replication-123",
+			AccountName:           "test-account",
+			CorrelationId:         "corr-123",
+			Region:                "us-central1",
+			Zone:                  "us-central1-a",
+		}
+
+		_, _, err := _reverseAndResumeReplication(ctx, mockStorage, mockTemporal, params)
+		assert.Nil(tt, err)
+		assert.False(tt, newSourceQuotaRulesCalled, "verifyNewSourceQuotaRulesReverse should NOT be called for hybrid replication")
+		assert.False(tt, newDestQuotaRulesCalled, "verifyNewDestinationQuotaRulesReverse should NOT be called for hybrid replication")
 	})
 }
 

@@ -996,6 +996,147 @@ func TestResumeReplicationWorkflow(t *testing.T) {
 		assert.NoError(tt, env.GetWorkflowError())
 	})
 
+	t.Run("TestResumeReplicationWorkflow_FullDehydrationSuccess_SourceQuotaRulesNotCleared", func(tt *testing.T) {
+		// This test verifies the fix for the bug where full dehydration success
+		// incorrectly cleared source quota rules, causing them to be missing in the sync call
+		cleanup := setQuotaRuleSyncTrue()
+		defer cleanup()
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		resumeReplicationActivity := replicationActivities.ResumeVolumeReplicationActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(resumeReplicationActivity.SetHybridReplicationVariablesResume)
+		env.RegisterActivity(resumeReplicationActivity.GetSrcBasePathResume)
+		env.RegisterActivity(resumeReplicationActivity.GetDstBasePathResume)
+		env.RegisterActivity(resumeReplicationActivity.GetSignedSrcTokenResume)
+		env.RegisterActivity(resumeReplicationActivity.GetSignedDstTokenResume)
+		env.RegisterActivity(resumeReplicationActivity.VerifyDstVolume)
+		env.RegisterActivity(resumeReplicationActivity.ResizeVolumeIfNeeded)
+		env.RegisterActivity(resumeReplicationActivity.ResumeReplicationOnDestination)
+		env.RegisterActivity(resumeReplicationActivity.DescribeRemoteJobResume)
+		env.RegisterActivity(resumeReplicationActivity.MountReplicationAfterResume)
+		env.RegisterActivity(resumeReplicationActivity.ListQuotaRulesOnSourceResume)
+		env.RegisterActivity(resumeReplicationActivity.ListQuotaRulesOnDestinationResume)
+		env.RegisterActivity(resumeReplicationActivity.DehydrateQuotaRulesResume)
+		env.RegisterActivity(resumeReplicationActivity.AddSrcQuotaRulesToDstDB)
+		env.RegisterActivity(resumeReplicationActivity.HydrateQuotaRulesResume)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		params := &commonparams.ResumeReplicationParams{}
+
+		projectNumber := "123456789"
+
+		// Source has 1 quota rule (should be added to destination)
+		sourceQuotaRules := []*datamodel.QuotaRule{
+			{BaseModel: datamodel.BaseModel{UUID: "011b775b-c97e-7fc3-f082-3d4afbaccf55"}, Name: "ind-usr-quota"},
+		}
+
+		// Destination has 1 quota rule (should be dehydrated and removed)
+		destQuotaRules := []*datamodel.QuotaRule{
+			{BaseModel: datamodel.BaseModel{UUID: "c13d0294-5d46-7bf9-ae4e-9509251936bc"}, Name: "ind-usr-quota"},
+		}
+
+		// All destination rules successfully dehydrated (full success scenario)
+		dehydratedRules := []*datamodel.QuotaRule{
+			{BaseModel: datamodel.BaseModel{UUID: "c13d0294-5d46-7bf9-ae4e-9509251936bc"}, Name: "ind-usr-quota"},
+		}
+
+		event := &replication.ResumeReplicationEvent{
+			CommonReplicationEventParams: replication.CommonReplicationEventParams{
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation: "us-central1-a",
+					},
+				},
+				DestinationProjectNumber: projectNumber,
+			},
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SetHybridReplicationVariablesResume", mock.Anything, mock.Anything).Return(func(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
+			if result != nil {
+				result.IsSrcForHybridReplication = false
+				result.IsHybridReplicationVolume = false
+			}
+			return result, nil
+		})
+		env.OnActivity("GetSrcBasePathResume", mock.Anything, mock.Anything).Return(func(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
+			basePath := "https://src-base.com"
+			result.SrcBasePath = &basePath
+			return result, nil
+		})
+		env.OnActivity("GetDstBasePathResume", mock.Anything, mock.Anything).Return(func(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
+			basePath := "https://dst-base.com"
+			result.DstBasePath = &basePath
+			return result, nil
+		})
+		env.OnActivity("GetSignedSrcTokenResume", mock.Anything, mock.Anything).Return(func(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
+			token := "src-token"
+			result.SrcJwtToken = &token
+			return result, nil
+		})
+		env.OnActivity("GetSignedDstTokenResume", mock.Anything, mock.Anything).Return(func(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
+			token := "dst-token"
+			result.DstJwtToken = &token
+			return result, nil
+		})
+		env.OnActivity("VerifyDstVolume", mock.Anything, mock.Anything).Return(func(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
+			result.DstVolume = &googleproxyclient.VolumeV1beta{
+				ResourceId: "dst-volume",
+				VolumeId:   googleproxyclient.NewOptString("a931664b-22bb-c26a-f887-a645b1f333d9"),
+			}
+			result.DstProjectNumber = &projectNumber
+			return result, nil
+		})
+		env.OnActivity("ResizeVolumeIfNeeded", mock.Anything, mock.Anything).Return(func(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
+			return result, nil
+		})
+		env.OnActivity("ResumeReplicationOnDestination", mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, result *replication.ResumeReplicationResult, params *commonparams.ResumeReplicationParams) (*replication.ResumeReplicationResult, error) {
+			return result, nil
+		})
+		env.OnActivity("DescribeRemoteJobResume", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("MountReplicationAfterResume", mock.Anything, mock.Anything).Return(func(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
+			return result, nil
+		})
+		env.OnActivity("ListQuotaRulesOnSourceResume", mock.Anything, mock.Anything).Return(sourceQuotaRules, nil)
+		env.OnActivity("ListQuotaRulesOnDestinationResume", mock.Anything, mock.Anything).Return(destQuotaRules, nil)
+
+		// Full dehydration success: all destination rules dehydrated
+		env.OnActivity("DehydrateQuotaRulesResume", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(dehydratedRules, nil)
+
+		// CRITICAL ASSERTION: Verify that source quota rules are NOT nil (the bug fix)
+		env.OnActivity("AddSrcQuotaRulesToDstDB", mock.Anything, mock.Anything).Return(func(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
+			// This is the key assertion - with the bug, SourceQuotaRules would be nil here
+			assert.NotNil(tt, result.SourceQuotaRules, "BUG: SourceQuotaRules should NOT be nil after full dehydration success")
+			assert.Len(tt, result.SourceQuotaRules, 1, "Should have 1 source quota rule")
+			assert.Equal(tt, "011b775b-c97e-7fc3-f082-3d4afbaccf55", result.SourceQuotaRules[0].UUID, "Source quota rule UUID should match")
+
+			// Verify destination rules are present (for removal)
+			assert.NotNil(tt, result.DestinationQuotaRules, "DestinationQuotaRules should be present")
+			assert.Len(tt, result.DestinationQuotaRules, 1, "Should have 1 destination quota rule to remove")
+
+			// Simulate successful sync
+			result.DestinationQuotaRules = sourceQuotaRules
+			return result, nil
+		})
+		env.OnActivity("HydrateQuotaRulesResume", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(ResumeReplicationWorkflow, params, event)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
+
 	t.Run("TestResumeReplicationWorkflow_HybridReplicationVolumeSkipsQuotaRules", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
