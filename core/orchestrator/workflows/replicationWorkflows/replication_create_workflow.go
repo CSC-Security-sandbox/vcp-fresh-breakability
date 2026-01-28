@@ -118,18 +118,26 @@ func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...int
 	}
 
 	cancellationHandler := common.NewWorkflowCancellationHandler(ctx, CancelReplicationSignalName, volumeReplication.UUID, "replication")
+	rollbackManager := common.NewRollbackManager()
+
+	updateReplicationStateToError := func(disconnectedCtx workflow.Context) error {
+		volumeReplication.State = models.LifeCycleStateError
+		volumeReplication.StateDetails = models.LifeCycleStateCreationErrorDetails
+		err2 := workflow.ExecuteActivity(disconnectedCtx, replicationActivity.UpdateReplicationState, *volumeReplication).Get(disconnectedCtx, nil)
+		if err2 != nil {
+			log.Errorf("Failed to update replication state in DB to error: %v", err2)
+		}
+		return err2
+	}
 
 	// Defer function to mark the database entry in error state if any error occurs
 	defer func() {
-		if err != nil {
-			// On panic, mark volume replication in error state
-			volumeReplication.State = models.LifeCycleStateError
-			volumeReplication.StateDetails = models.LifeCycleStateCreationErrorDetails
-			err2 := workflow.ExecuteActivity(ctx, replicationActivity.UpdateReplicationState, *volumeReplication).Get(ctx, nil)
-			if err2 != nil {
-				log.Errorf("Failed to update volume state in DB to error: %v", err2)
-			}
-		}
+		common.ExecuteDeferredCleanup(ctx, cancellationHandler, rollbackManager, err, log, "replication", volumeReplication.UUID,
+			updateReplicationStateToError,
+			func(disconnectedCtx workflow.Context, cancelErr error) {
+				_ = updateReplicationStateToError(disconnectedCtx)
+			},
+			nil) // shouldRollbackOnError
 	}()
 
 	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
