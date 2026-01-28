@@ -510,168 +510,441 @@ func TestCreateJobForChildWorkflow(t *testing.T) {
 }
 
 func TestGetReplicationMirrorState(t *testing.T) {
-	t.Run("WhenV1betaGetMultipleReplicationsError", func(tt *testing.T) {
+	t.Run("WhenListVolumeReplicationsError", func(tt *testing.T) {
 		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(tt)
-		mockStorage := &database.MockStorage{}
+		mockStorage := database.NewMockStorage(tt)
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		event := &common.VolumeUpdateEventParams{}
-		dbVolume := &datamodel.Volume{}
+		event := &common.VolumeUpdateEventParams{
+			Remote: common.ProjectInfo{
+				BasePath:      "remote-base-path",
+				JwtToken:      "remote-jwt-token",
+				ProjectNumber: "123456789",
+				Location:      "remote-location",
+			},
+			CorrelationID: "test-correlation-id",
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
-		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("some-error"))
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("database error"))
 		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
 		_, err := activity.GetReplicationMirrorState(ctx, event, dbVolume)
 		assert.NotNil(tt, err)
 	})
-	t.Run("WhenV1betaGetMultipleReplicationsBadRequest", func(tt *testing.T) {
+	t.Run("WhenNoReplicationsFound", func(tt *testing.T) {
 		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(tt)
-		mockStorage := &database.MockStorage{}
+		mockStorage := database.NewMockStorage(tt)
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		event := &common.VolumeUpdateEventParams{}
-		dbVolume := &datamodel.Volume{}
+		event := &common.VolumeUpdateEventParams{
+			Remote: common.ProjectInfo{
+				BasePath:      "remote-base-path",
+				JwtToken:      "remote-jwt-token",
+				ProjectNumber: "123456789",
+				Location:      "remote-location",
+			},
+			CorrelationID: "test-correlation-id",
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
-
-		badRequestResponse := &googleproxyclient.V1betaGetMultipleReplicationsBadRequest{
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil)
+		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
+		_, err := activity.GetReplicationMirrorState(ctx, event, dbVolume)
+		assert.NotNil(tt, err)
+	})
+	t.Run("WhenDestinationReplicationUUIDEmpty", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := database.NewMockStorage(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		event := &common.VolumeUpdateEventParams{
+			Remote: common.ProjectInfo{
+				BasePath:      "remote-base-path",
+				JwtToken:      "remote-jwt-token",
+				ProjectNumber: "123456789",
+				Location:      "remote-location",
+			},
+			CorrelationID: "test-correlation-id",
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		dbReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "repl-uuid"},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationReplicationUUID: "",
+			},
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{dbReplication}, nil)
+		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
+		_, err := activity.GetReplicationMirrorState(ctx, event, dbVolume)
+		assert.NotNil(tt, err)
+	})
+	t.Run("WhenV1betaGetMultipleReplicationsInternalError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := database.NewMockStorage(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		event := &common.VolumeUpdateEventParams{
+			Remote: common.ProjectInfo{
+				BasePath:      "remote-base-path",
+				JwtToken:      "remote-jwt-token",
+				ProjectNumber: "123456789",
+				Location:      "remote-location",
+			},
+			CorrelationID: "test-correlation-id",
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		dbReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "repl-uuid"},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationReplicationUUID: "dest-repl-uuid",
+			},
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{dbReplication}, nil)
+		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("some-error"))
+		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
+		_, err := activity.GetReplicationMirrorState(ctx, event, dbVolume)
+		assert.NotNil(tt, err)
+	})
+	t.Run("WhenV1betaGetMultipleReplicationsInternalBadRequest", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := database.NewMockStorage(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		event := &common.VolumeUpdateEventParams{
+			Remote: common.ProjectInfo{
+				BasePath:      "remote-base-path",
+				JwtToken:      "remote-jwt-token",
+				ProjectNumber: "123456789",
+				Location:      "remote-location",
+			},
+			CorrelationID: "test-correlation-id",
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		dbReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "repl-uuid"},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationReplicationUUID: "dest-repl-uuid",
+			},
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		badRequestResponse := &googleproxyclient.V1betaGetMultipleReplicationsInternalBadRequest{
 			Code:    400,
 			Message: "Invalid request parameters",
 		}
-		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything, mock.Anything, mock.Anything).Return(badRequestResponse, nil)
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{dbReplication}, nil)
+		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(mock.Anything, mock.Anything, mock.Anything).Return(badRequestResponse, nil)
 		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
 		res, err := activity.GetReplicationMirrorState(ctx, event, dbVolume)
 		assert.Nil(tt, res)
 		assert.Error(tt, err)
-		assert.Equal(tt, "Failed to get replication", err.Error())
 	})
-	t.Run("WhenV1betaGetMultipleReplicationsUnauthorized", func(tt *testing.T) {
+	t.Run("WhenV1betaGetMultipleReplicationsInternalUnauthorized", func(tt *testing.T) {
 		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(tt)
-		mockStorage := &database.MockStorage{}
+		mockStorage := database.NewMockStorage(tt)
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		event := &common.VolumeUpdateEventParams{}
-		dbVolume := &datamodel.Volume{}
+		event := &common.VolumeUpdateEventParams{
+			Remote: common.ProjectInfo{
+				BasePath:      "remote-base-path",
+				JwtToken:      "remote-jwt-token",
+				ProjectNumber: "123456789",
+				Location:      "remote-location",
+			},
+			CorrelationID: "test-correlation-id",
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		dbReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "repl-uuid"},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationReplicationUUID: "dest-repl-uuid",
+			},
+		}
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
-
-		unauthorizedResponse := &googleproxyclient.V1betaGetMultipleReplicationsUnauthorized{
+		unauthorizedResponse := &googleproxyclient.V1betaGetMultipleReplicationsInternalUnauthorized{
 			Code:    401,
 			Message: "Authentication failed",
 		}
-		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything, mock.Anything, mock.Anything).Return(unauthorizedResponse, nil)
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{dbReplication}, nil)
+		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(mock.Anything, mock.Anything, mock.Anything).Return(unauthorizedResponse, nil)
 		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
 		res, err := activity.GetReplicationMirrorState(ctx, event, dbVolume)
 		assert.Nil(tt, res)
 		assert.Error(tt, err)
-		assert.Equal(tt, "Failed to get replication", err.Error())
 	})
-	t.Run("WhenV1betaGetMultipleReplicationsForbidden", func(tt *testing.T) {
+	t.Run("WhenV1betaGetMultipleReplicationsInternalForbidden", func(tt *testing.T) {
 		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(tt)
-		mockStorage := &database.MockStorage{}
+		mockStorage := database.NewMockStorage(tt)
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		event := &common.VolumeUpdateEventParams{}
-		dbVolume := &datamodel.Volume{}
+		event := &common.VolumeUpdateEventParams{
+			Remote: common.ProjectInfo{
+				BasePath:      "remote-base-path",
+				JwtToken:      "remote-jwt-token",
+				ProjectNumber: "123456789",
+				Location:      "remote-location",
+			},
+			CorrelationID: "test-correlation-id",
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		dbReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "repl-uuid"},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationReplicationUUID: "dest-repl-uuid",
+			},
+		}
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
-
-		forbiddenResponse := &googleproxyclient.V1betaGetMultipleReplicationsForbidden{
-			Code:    401,
+		forbiddenResponse := &googleproxyclient.V1betaGetMultipleReplicationsInternalForbidden{
+			Code:    403,
 			Message: "Access denied",
 		}
-		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything, mock.Anything, mock.Anything).Return(forbiddenResponse, nil)
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{dbReplication}, nil)
+		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(mock.Anything, mock.Anything, mock.Anything).Return(forbiddenResponse, nil)
 		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
 		res, err := activity.GetReplicationMirrorState(ctx, event, dbVolume)
 		assert.Nil(tt, res)
 		assert.Error(tt, err)
-		assert.Equal(tt, "Failed to get replication", err.Error())
 	})
-	t.Run("WhenV1betaGetMultipleReplicationsNotFound", func(tt *testing.T) {
+	t.Run("WhenV1betaGetMultipleReplicationsInternalNotFound", func(tt *testing.T) {
 		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(tt)
-		mockStorage := &database.MockStorage{}
+		mockStorage := database.NewMockStorage(tt)
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		event := &common.VolumeUpdateEventParams{}
-		dbVolume := &datamodel.Volume{}
+		event := &common.VolumeUpdateEventParams{
+			Remote: common.ProjectInfo{
+				BasePath:      "remote-base-path",
+				JwtToken:      "remote-jwt-token",
+				ProjectNumber: "123456789",
+				Location:      "remote-location",
+			},
+			CorrelationID: "test-correlation-id",
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		dbReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "repl-uuid"},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationReplicationUUID: "dest-repl-uuid",
+			},
+		}
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
-
-		notFoundResponse := &googleproxyclient.V1betaGetMultipleReplicationsNotFound{
+		notFoundResponse := &googleproxyclient.V1betaGetMultipleReplicationsInternalNotFound{
 			Code:    404,
 			Message: "Replication not found",
 		}
-		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything, mock.Anything, mock.Anything).Return(notFoundResponse, nil)
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{dbReplication}, nil)
+		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(mock.Anything, mock.Anything, mock.Anything).Return(notFoundResponse, nil)
 		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
 		res, err := activity.GetReplicationMirrorState(ctx, event, dbVolume)
 		assert.Nil(tt, res)
 		assert.Error(tt, err)
-		assert.Equal(tt, "Failed to get replication", err.Error())
 	})
-	t.Run("WhenV1betaGetMultipleReplicationsInternalServerError", func(tt *testing.T) {
+	t.Run("WhenV1betaGetMultipleReplicationsInternalInternalServerError", func(tt *testing.T) {
 		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(tt)
-		mockStorage := &database.MockStorage{}
+		mockStorage := database.NewMockStorage(tt)
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		event := &common.VolumeUpdateEventParams{}
-		dbVolume := &datamodel.Volume{}
+		event := &common.VolumeUpdateEventParams{
+			Remote: common.ProjectInfo{
+				BasePath:      "remote-base-path",
+				JwtToken:      "remote-jwt-token",
+				ProjectNumber: "123456789",
+				Location:      "remote-location",
+			},
+			CorrelationID: "test-correlation-id",
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		dbReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "repl-uuid"},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationReplicationUUID: "dest-repl-uuid",
+			},
+		}
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
-
-		internalErrorResponse := &googleproxyclient.V1betaGetMultipleReplicationsInternalServerError{
+		internalErrorResponse := &googleproxyclient.V1betaGetMultipleReplicationsInternalInternalServerError{
 			Code:    500,
 			Message: "Internal server error",
 		}
-		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything, mock.Anything, mock.Anything).Return(internalErrorResponse, nil)
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{dbReplication}, nil)
+		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(mock.Anything, mock.Anything, mock.Anything).Return(internalErrorResponse, nil)
 		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
 		res, err := activity.GetReplicationMirrorState(ctx, event, dbVolume)
 		assert.Nil(tt, res)
 		assert.Error(tt, err)
-		assert.Equal(tt, "Failed to get replication", err.Error())
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(tt)
-		mockStorage := &database.MockStorage{}
+		mockStorage := database.NewMockStorage(tt)
 		mc := &googleproxyclient.ProxyClient{
 			Invoker: mockClient,
 		}
-		event := &common.VolumeUpdateEventParams{}
-		dbVolume := &datamodel.Volume{}
+		event := &common.VolumeUpdateEventParams{
+			Remote: common.ProjectInfo{
+				BasePath:      "remote-base-path",
+				JwtToken:      "remote-jwt-token",
+				ProjectNumber: "123456789",
+				Location:      "remote-location",
+			},
+			CorrelationID: "test-correlation-id",
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		dbReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "repl-uuid"},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationReplicationUUID: "dest-repl-uuid",
+			},
+		}
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
-		response := &googleproxyclient.V1betaGetMultipleReplicationsOK{
-			Replications: []googleproxyclient.ReplicationV1beta{
+		response := &googleproxyclient.V1betaGetMultipleReplicationsInternalOK{
+			Replications: []googleproxyclient.VolumeReplicationInternalV1beta{
 				{
-					MirrorState: googleproxyclient.NewOptReplicationV1betaMirrorState("MIRRORED"),
+					MirrorState: googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
 				},
 			},
 		}
-
-		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{dbReplication}, nil)
+		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
 		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
 		res, err := activity.GetReplicationMirrorState(ctx, event, dbVolume)
 		assert.Nil(tt, err)
 		assert.Equal(tt, "MIRRORED", *res)
+	})
+	t.Run("WhenNoReplicationsReturned", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := database.NewMockStorage(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		event := &common.VolumeUpdateEventParams{
+			Remote: common.ProjectInfo{
+				BasePath:      "remote-base-path",
+				JwtToken:      "remote-jwt-token",
+				ProjectNumber: "123456789",
+				Location:      "remote-location",
+			},
+			CorrelationID: "test-correlation-id",
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		dbReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "repl-uuid"},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationReplicationUUID: "dest-repl-uuid",
+			},
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		response := &googleproxyclient.V1betaGetMultipleReplicationsInternalOK{
+			Replications: []googleproxyclient.VolumeReplicationInternalV1beta{},
+		}
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{dbReplication}, nil)
+		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
+		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
+		_, err := activity.GetReplicationMirrorState(ctx, event, dbVolume)
+		assert.NotNil(tt, err)
+	})
+	t.Run("WhenMirrorStateNotSet", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := database.NewMockStorage(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		event := &common.VolumeUpdateEventParams{
+			Remote: common.ProjectInfo{
+				BasePath:      "remote-base-path",
+				JwtToken:      "remote-jwt-token",
+				ProjectNumber: "123456789",
+				Location:      "remote-location",
+			},
+			CorrelationID: "test-correlation-id",
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		dbReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "repl-uuid"},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationReplicationUUID: "dest-repl-uuid",
+			},
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		response := &googleproxyclient.V1betaGetMultipleReplicationsInternalOK{
+			Replications: []googleproxyclient.VolumeReplicationInternalV1beta{
+				{
+					MirrorState: googleproxyclient.OptVolumeReplicationInternalV1betaMirrorState{},
+				},
+			},
+		}
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{dbReplication}, nil)
+		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
+		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
+		_, err := activity.GetReplicationMirrorState(ctx, event, dbVolume)
+		assert.NotNil(tt, err)
 	})
 }
 

@@ -149,36 +149,63 @@ func (a *UpdateVolumeInReplicationActivity) CreateJobForChildWorkflow(ctx contex
 
 func (a *UpdateVolumeInReplicationActivity) GetReplicationMirrorState(ctx context.Context, event *common.VolumeUpdateEventParams, dbVolume *datamodel.Volume) (*string, error) {
 	logger := util.GetLogger(ctx)
-	googleProxyClient := googleproxyclient.GetGProxyClient(event.Local.BasePath, event.Local.JwtToken, logger)
-	getMultiReplicationParams := &googleproxyclient.V1betaGetMultipleReplicationsParams{
-		ProjectNumber:    event.Local.ProjectNumber,
-		LocationId:       event.Local.Location,
-		VolumeResourceId: dbVolume.Name,
-		XCorrelationID:   googleproxyclient.NewOptString(event.CorrelationID),
+
+	// Get replication from database to access destination replication UUID
+	filter := dbutils.CreateFilterWithConditions(
+		dbutils.NewFilterCondition("volume_id", "=", dbVolume.ID))
+
+	dbReplications, err := a.SE.ListVolumeReplications(ctx, *filter, database.QueryDepthZero)
+	if err != nil {
+		logger.Error("Failed to list volume replications", "error", err)
+		return nil, errors.NewVCPError(errors.ErrDatabaseDataReadError, err)
 	}
-	req := &googleproxyclient.ReplicationURIListV1beta{
-		ReplicationUris: []string{event.URI},
+	if dbReplications == nil || len(dbReplications) == 0 {
+		logger.Error("No replication found for the volume", "volumeID", dbVolume.ID)
+		return nil, errors.NewVCPError(errors.ErrDatabaseDataNotFoundError, utilErrors.NewNotFoundErr("replication", nil))
 	}
-	res, err := googleProxyClient.Invoker.V1betaGetMultipleReplications(ctx, req, *getMultiReplicationParams)
+
+	dbReplication := dbReplications[0]
+	destinationReplicationUUID := dbReplication.ReplicationAttributes.DestinationReplicationUUID
+	if destinationReplicationUUID == "" {
+		logger.Error("Destination replication UUID is empty", "replicationUUID", dbReplication.UUID)
+		return nil, errors.NewVCPError(errors.ErrDatabaseDataNotFoundError, utilErrors.NewNotFoundErr("destination replication UUID", nil))
+	}
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(event.Remote.BasePath, event.Remote.JwtToken, logger)
+	getMultiReplicationParams := googleproxyclient.V1betaGetMultipleReplicationsInternalParams{
+		ProjectNumber:  event.Remote.ProjectNumber,
+		LocationId:     event.Remote.Location,
+		XCorrelationID: googleproxyclient.NewOptString(event.CorrelationID),
+	}
+	req := &googleproxyclient.ReplicationIDListV1beta{
+		ReplicationUUIDs: []string{destinationReplicationUUID},
+	}
+	res, err := googleProxyClient.Invoker.V1betaGetMultipleReplicationsInternal(ctx, req, getMultiReplicationParams)
 	if err != nil || res == nil {
-		return nil, errors.NewVCPError(errors.ErrGoogleProxyGetMultipleReplications, err)
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
 	}
 	switch r := res.(type) {
-	case *googleproxyclient.V1betaGetMultipleReplicationsOK:
+	case *googleproxyclient.V1betaGetMultipleReplicationsInternalOK:
+		if len(r.Replications) == 0 {
+			return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, errors.New("no replications returned"))
+		}
+		if !r.Replications[0].MirrorState.IsSet() {
+			return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, errors.New("mirror state not set in response"))
+		}
 		mirrorState := string(r.Replications[0].MirrorState.Value)
 		return &mirrorState, nil
-	case *googleproxyclient.V1betaGetMultipleReplicationsBadRequest:
-		return nil, errors.NewVCPError(errors.ErrGoogleProxyGetMultipleReplications, errors.New(r.Message))
-	case *googleproxyclient.V1betaGetMultipleReplicationsUnauthorized:
-		return nil, errors.NewVCPError(errors.ErrGoogleProxyGetMultipleReplications, errors.New(r.Message))
-	case *googleproxyclient.V1betaGetMultipleReplicationsForbidden:
-		return nil, errors.NewVCPError(errors.ErrGoogleProxyGetMultipleReplications, errors.New(r.Message))
-	case *googleproxyclient.V1betaGetMultipleReplicationsNotFound:
-		return nil, errors.NewVCPError(errors.ErrGoogleProxyGetMultipleReplications, errors.New(r.Message))
-	case *googleproxyclient.V1betaGetMultipleReplicationsInternalServerError:
-		return nil, errors.NewVCPError(errors.ErrGoogleProxyGetMultipleReplications, errors.New(r.Message))
+	case *googleproxyclient.V1betaGetMultipleReplicationsInternalBadRequest:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsBadRequest, errors.New(r.Message))
+	case *googleproxyclient.V1betaGetMultipleReplicationsInternalUnauthorized:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsUnauthorized, errors.New(r.Message))
+	case *googleproxyclient.V1betaGetMultipleReplicationsInternalForbidden:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsForbidden, errors.New(r.Message))
+	case *googleproxyclient.V1betaGetMultipleReplicationsInternalNotFound:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsNotFound, errors.New(r.Message))
+	case *googleproxyclient.V1betaGetMultipleReplicationsInternalInternalServerError:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsInternalServerError, errors.New(r.Message))
 	default:
-		return nil, errors.NewVCPError(errors.ErrGoogleProxyGetMultipleReplications, errors.New("unexpected response type from Google Proxy"))
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsUnknown, errors.New("unexpected response type from Google Proxy"))
 	}
 }
 
