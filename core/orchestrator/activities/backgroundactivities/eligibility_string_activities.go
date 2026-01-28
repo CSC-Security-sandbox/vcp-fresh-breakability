@@ -2,7 +2,7 @@ package backgroundactivities
 
 import (
 	"context"
-	
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
@@ -17,13 +17,13 @@ type EligibilityStringActivity struct {
 	Scheduler *scheduler.TemporalScheduler
 }
 
-// Eligibility String fetches all non-deleted volumes name and state from DB.
+// Eligibility String fetches all non-deleted volumes name and state from DB and emits metrics.
 
-func (a *EligibilityStringActivity) GetEligibilityString(ctx context.Context) ([]*datamodel.Volume, error) {
+func (a *EligibilityStringActivity) GetEligibilityString(ctx context.Context) error {
 	logger := util.GetLogger(ctx)
 	se := a.SE
 
-	var filtered []*datamodel.Volume
+	var eligibleVolumes []*datamodel.Volume
 	limit := 1000
 	offset := 0
 
@@ -31,7 +31,7 @@ func (a *EligibilityStringActivity) GetEligibilityString(ctx context.Context) ([
 		select {
 		case <-ctx.Done():
 			logger.Warnf("Context cancelled while fetching eligibility string volumes: %v", ctx.Err())
-			return nil, ctx.Err()
+			return ctx.Err()
 		default:
 		}
 
@@ -39,23 +39,24 @@ func (a *EligibilityStringActivity) GetEligibilityString(ctx context.Context) ([
 			Offset: offset,
 			Limit:  limit,
 		}
-		vols, err := se.ListAllVolumes(ctx, [][]interface{}{}, pagination)
+		// Use GetEligibleVolumes - optimized for eligibility string (only selects name, state)
+		// Database already filters deleted_at IS NULL
+		vols, err := se.GetEligibleVolumes(ctx, [][]interface{}{}, pagination)
 		if err != nil {
 			logger.Errorf("Failed to fetch volumes: %v", err)
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 		}
 		if len(vols) == 0 {
 			break
 		}
-		for _, v := range vols {
-			if v.State != "deleted" {
-				filtered = append(filtered, v)
-			}
-		}
+
+		// No need to filter by state - GetEligibleVolumes already filters deleted_at IS NULL at DB level
+		eligibleVolumes = append(eligibleVolumes, vols...)
 		offset += len(vols)
 	}
 
-	metrics.EmitEligibilityStringMetric(filtered)
-	logger.Infof("Filtered %d eligibility string volumes", len(filtered))
-	return filtered, nil
+	// Emit metrics at activity level
+	metrics.EmitEligibilityStringMetric(eligibleVolumes)
+	logger.Infof("Fetched and emitted metrics for %d eligibility string volumes", len(eligibleVolumes))
+	return nil
 }

@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"go.temporal.io/sdk/testsuite"
 )
@@ -14,12 +13,9 @@ func TestEligibilityStringWorkflow_Success(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 
-	// Mock the activity
+	// Mock the activity - activity now returns only error (emits metrics internally)
 	eligibilityStringActivity := &backgroundactivities.EligibilityStringActivity{}
-	env.OnActivity(eligibilityStringActivity.GetEligibilityString, mock.Anything).Return([]*datamodel.Volume{
-		{Name: "Volume1", State: "active"},
-		{Name: "Volume2", State: "active"},
-	}, nil).Once()
+	env.OnActivity(eligibilityStringActivity.GetEligibilityString, mock.Anything).Return(nil).Once()
 
 	// Execute the workflow
 	env.ExecuteWorkflow(EligibilityStringWorkflow)
@@ -34,9 +30,9 @@ func TestEligibilityStringWorkflow_ActivityFails(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 
-	// Mock the activity to fail
+	// Mock the activity to fail - activity now returns only error
 	eligibilityStringActivity := &backgroundactivities.EligibilityStringActivity{}
-	env.OnActivity(eligibilityStringActivity.GetEligibilityString, mock.Anything).Return([]*datamodel.Volume{}, assert.AnError).Once()
+	env.OnActivity(eligibilityStringActivity.GetEligibilityString, mock.Anything).Return(assert.AnError).Once()
 
 	// Execute the workflow
 	env.ExecuteWorkflow(EligibilityStringWorkflow)

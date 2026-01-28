@@ -1,18 +1,16 @@
 package backgroundworkflows
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/metrics"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 )
 
-func EligibilityStringWorkflow(ctx workflow.Context) ([]metrics.VolumeDetails, error) {
+func EligibilityStringWorkflow(ctx workflow.Context) error {
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// Set activity options with timeout and optional retry policy
 	ao := workflow.ActivityOptions{
@@ -29,19 +27,11 @@ func EligibilityStringWorkflow(ctx workflow.Context) ([]metrics.VolumeDetails, e
 
 	EligibilityStringActivity := &backgroundactivities.EligibilityStringActivity{}
 
-	// Execute the activity to get non-deleted volumes
-	var volumes []*datamodel.Volume
-	err = workflow.ExecuteActivity(ctx, EligibilityStringActivity.GetEligibilityString).Get(ctx, &volumes)
+	// Execute the activity - it emits metrics internally, no need to return values
+	err = workflow.ExecuteActivity(ctx, EligibilityStringActivity.GetEligibilityString).Get(ctx, nil)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
-	var details []metrics.VolumeDetails
-	for _, v := range volumes {
-		details = append(details, metrics.VolumeDetails{
-			Name:  v.Name,
-			State: v.State,
-		})
-	}
-	return details, nil
+	return nil
 }

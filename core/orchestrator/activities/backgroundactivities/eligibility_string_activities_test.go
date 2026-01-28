@@ -2,12 +2,13 @@ package backgroundactivities
 
 import (
 	"context"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"testing"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 )
 
 type EligibilityStringActivityUnitTestSuite struct {
@@ -30,25 +31,82 @@ func (suite *EligibilityStringActivityUnitTestSuite) SetupTest() {
 func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_ReturnsNonDeletedVolumes() {
 	vols := []*datamodel.Volume{
 		{Name: "vol1", State: "available"},
-		{Name: "vol2", State: "deleted"},
+		{Name: "vol2", State: "available"},
 		{Name: "vol3", State: "available"},
 	}
 	// First call returns vols, second call returns empty slice to break loop
-	suite.mockStorage.On("ListAllVolumes", suite.ctx, mock.Anything, mock.Anything).Return(vols, nil).Once()
-	suite.mockStorage.On("ListAllVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+	// GetEligibleVolumes already filters deleted_at IS NULL at DB level, so mock returns only eligible volumes
+	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return(vols, nil).Once()
+	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
 
-	result, err := suite.activity.GetEligibilityString(suite.ctx)
+	err := suite.activity.GetEligibilityString(suite.ctx)
 	assert.NoError(suite.T(), err)
-	assert.Len(suite.T(), result, 2)
-	assert.Equal(suite.T(), "vol1", result[0].Name)
-	assert.Equal(suite.T(), "vol3", result[1].Name)
+	// Activity emits metrics and returns nil on success
 	suite.mockStorage.AssertExpectations(suite.T())
 }
 
 func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_ReturnsErrorOnListFailure() {
-	suite.mockStorage.On("ListAllVolumes", suite.ctx, mock.Anything, mock.Anything).Return(nil, assert.AnError)
-	result, err := suite.activity.GetEligibilityString(suite.ctx)
+	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return(nil, assert.AnError)
+	err := suite.activity.GetEligibilityString(suite.ctx)
 	assert.Error(suite.T(), err)
-	assert.Nil(suite.T(), result)
+	suite.mockStorage.AssertExpectations(suite.T())
+}
+
+func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_ContextCancellation() {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	// Mock should not be called since context is cancelled
+	err := suite.activity.GetEligibilityString(ctx)
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), context.Canceled, err)
+	suite.mockStorage.AssertExpectations(suite.T())
+}
+
+func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_MultiplePaginationIterations() {
+	// Test pagination with multiple pages (more than 2)
+	page1 := []*datamodel.Volume{
+		{Name: "vol1", State: "available"},
+		{Name: "vol2", State: "available"},
+	}
+	page2 := []*datamodel.Volume{
+		{Name: "vol3", State: "available"},
+		{Name: "vol4", State: "available"},
+	}
+	page3 := []*datamodel.Volume{
+		{Name: "vol5", State: "available"},
+	}
+
+	// First call returns page1, second returns page2, third returns page3, fourth returns empty to break
+	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return(page1, nil).Once()
+	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return(page2, nil).Once()
+	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return(page3, nil).Once()
+	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+
+	err := suite.activity.GetEligibilityString(suite.ctx)
+	assert.NoError(suite.T(), err)
+	suite.mockStorage.AssertExpectations(suite.T())
+}
+
+func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_EmptyResultOnFirstCall() {
+	// Test when first call returns empty (no volumes at all)
+	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+
+	err := suite.activity.GetEligibilityString(suite.ctx)
+	assert.NoError(suite.T(), err)
+	suite.mockStorage.AssertExpectations(suite.T())
+}
+
+func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_ErrorOnSecondPaginationCall() {
+	// Test error on second pagination call (not just first)
+	page1 := []*datamodel.Volume{
+		{Name: "vol1", State: "available"},
+	}
+
+	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return(page1, nil).Once()
+	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return(nil, assert.AnError).Once()
+
+	err := suite.activity.GetEligibilityString(suite.ctx)
+	assert.Error(suite.T(), err)
 	suite.mockStorage.AssertExpectations(suite.T())
 }
