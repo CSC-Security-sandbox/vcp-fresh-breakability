@@ -8,8 +8,6 @@ global:
   secondaryImageRegistryPath: "vcp-container-images-us"
   useTags: false
   secondaryImageRegistryPasswordAuth: false
-  nodeSelector:
-    nodeType: vsacp-nodes
   chartPrimaryImageRegistry: ""
   chartSecondaryImageRegistry: ""
   environment: gcp
