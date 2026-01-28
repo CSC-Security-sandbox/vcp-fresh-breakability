@@ -310,15 +310,12 @@ func TestActiveDirectoryActivity_GetSvmsForAd(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := ActiveDirectoryActivity{SE: mockStorage}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		oldAd := &models.ActiveDirectory{
-			BaseModel: models.BaseModel{ID: 123},
-			AdName:    "test-ad",
-		}
+		activeDirectoryId := int64(123)
 
 		expectedErr := vsaerrors.New("database connection failed")
-		mockStorage.On("GetSVMsUsingActiveDirectory", ctx, oldAd.ID).Return(([]*datamodel.Svm)(nil), expectedErr)
+		mockStorage.On("GetSVMsUsingActiveDirectory", ctx, activeDirectoryId).Return(([]*datamodel.Svm)(nil), expectedErr)
 
-		svms, err := activity.GetSvmsForAd(ctx, oldAd)
+		svms, err := activity.GetSvmsForAd(ctx, activeDirectoryId)
 
 		assert.Nil(tt, svms)
 		assert.Error(tt, err)
@@ -330,14 +327,11 @@ func TestActiveDirectoryActivity_GetSvmsForAd(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := ActiveDirectoryActivity{SE: mockStorage}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		oldAd := &models.ActiveDirectory{
-			BaseModel: models.BaseModel{ID: 456},
-			AdName:    "test-ad-2",
-		}
+		activeDirectoryId := int64(456)
 
-		mockStorage.On("GetSVMsUsingActiveDirectory", ctx, oldAd.ID).Return([]*datamodel.Svm{}, nil)
+		mockStorage.On("GetSVMsUsingActiveDirectory", ctx, activeDirectoryId).Return([]*datamodel.Svm{}, nil)
 
-		svms, err := activity.GetSvmsForAd(ctx, oldAd)
+		svms, err := activity.GetSvmsForAd(ctx, activeDirectoryId)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, svms)
@@ -349,18 +343,15 @@ func TestActiveDirectoryActivity_GetSvmsForAd(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := ActiveDirectoryActivity{SE: mockStorage}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		oldAd := &models.ActiveDirectory{
-			BaseModel: models.BaseModel{ID: 789},
-			AdName:    "test-ad-3",
-		}
+		activeDirectoryId := int64(789)
 
 		expectedSvms := []*datamodel.Svm{
 			{BaseModel: datamodel.BaseModel{ID: 1}, Name: "svm-1"},
 			{BaseModel: datamodel.BaseModel{ID: 2}, Name: "svm-2"},
 		}
-		mockStorage.On("GetSVMsUsingActiveDirectory", ctx, oldAd.ID).Return(expectedSvms, nil)
+		mockStorage.On("GetSVMsUsingActiveDirectory", ctx, activeDirectoryId).Return(expectedSvms, nil)
 
-		svms, err := activity.GetSvmsForAd(ctx, oldAd)
+		svms, err := activity.GetSvmsForAd(ctx, activeDirectoryId)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, svms)
@@ -768,4 +759,397 @@ func TestValidateAndGetVsaActiveDirectory(t *testing.T) {
 		assert.Nil(tt, result)
 		mockStorage.AssertExpectations(tt)
 	})
+
+	// Test that the Status field is properly populated from the database Active Directory state
+	t.Run("populates Status field from database state", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		// Create AD in READY state
+		ad := &datamodel.ActiveDirectory{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-4"},
+			CredentialPath: "secret-path",
+			State:          models.LifeCycleStateREADY, // Database state
+			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+				AesEncryption: true,
+			},
+		}
+
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(1)).Return(ad, nil)
+		activity := ActiveDirectoryActivity{SE: mockStorage}
+		env.RegisterActivity(activity.GetActiveDirectoryForPool)
+
+		origGetPasswordSecret := adHelper.GetPasswordSecret
+		adHelper.GetPasswordSecret = func(ctx context.Context, secretID string) (*hyperscalermodels.CustomSecret, error) {
+			return &hyperscalermodels.CustomSecret{
+				SecretVersion: &hyperscalermodels.CustomSecretVersion{
+					Value: "decrypted-password",
+				},
+			}, nil
+		}
+		defer func() { adHelper.GetPasswordSecret = origGetPasswordSecret }()
+
+		origEncryptPassword := utils.EncryptPassword
+		utils.EncryptPassword = func(password log.Secret) (*string, error) {
+			encrypted := "encrypted-password"
+			return &encrypted, nil
+		}
+		defer func() { utils.EncryptPassword = origEncryptPassword }()
+
+		val, err := env.ExecuteActivity(activity.GetActiveDirectoryForPool, int64(1))
+
+		assert.NoError(tt, err)
+		var result *vsa.ActiveDirectory
+		if val != nil {
+			_ = val.Get(&result)
+			assert.NotNil(tt, result)
+			// This is the key assertion: Status field should be populated from database state
+			assert.Equal(tt, models.LifeCycleStateREADY, result.Status)
+		} else {
+			tt.Fatal("ExecuteActivity returned nil value")
+		}
+		mockStorage.AssertExpectations(tt)
+	})
+
+	// Test that the Status field is populated with IN_USE state
+	t.Run("populates Status field with IN_USE state", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		// Create AD in IN_USE state
+		ad := &datamodel.ActiveDirectory{
+			BaseModel:      datamodel.BaseModel{UUID: "test-uuid-5"},
+			CredentialPath: "secret-path",
+			State:          models.LifeCycleStateInUse, // Database state = IN_USE
+			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+				AesEncryption: true,
+			},
+		}
+
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("GetActiveDirectoryForPoolByPoolID", mock.Anything, int64(1)).Return(ad, nil)
+		activity := ActiveDirectoryActivity{SE: mockStorage}
+		env.RegisterActivity(activity.GetActiveDirectoryForPool)
+
+		origGetPasswordSecret := adHelper.GetPasswordSecret
+		adHelper.GetPasswordSecret = func(ctx context.Context, secretID string) (*hyperscalermodels.CustomSecret, error) {
+			return &hyperscalermodels.CustomSecret{
+				SecretVersion: &hyperscalermodels.CustomSecretVersion{
+					Value: "decrypted-password",
+				},
+			}, nil
+		}
+		defer func() { adHelper.GetPasswordSecret = origGetPasswordSecret }()
+
+		origEncryptPassword := utils.EncryptPassword
+		utils.EncryptPassword = func(password log.Secret) (*string, error) {
+			encrypted := "encrypted-password"
+			return &encrypted, nil
+		}
+		defer func() { utils.EncryptPassword = origEncryptPassword }()
+
+		val, err := env.ExecuteActivity(activity.GetActiveDirectoryForPool, int64(1))
+
+		assert.NoError(tt, err)
+		var result *vsa.ActiveDirectory
+		if val != nil {
+			_ = val.Get(&result)
+			assert.NotNil(tt, result)
+			// This is the key assertion: Status field should be IN_USE from database state
+			assert.Equal(tt, models.LifeCycleStateInUse, result.Status)
+		} else {
+			tt.Fatal("ExecuteActivity returned nil value")
+		}
+		mockStorage.AssertExpectations(tt)
+	})
 }
+
+func TestActiveDirectoryActivity_UpdateActiveDirectoryState(t *testing.T) {
+	t.Run("successfully updates active directory state and state details", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := ActiveDirectoryActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		activeDirectoryUuid := "ad-uuid-123"
+		adState := models.LifeCycleStateREADY
+		adStateDetails := "Active directory is ready for use"
+
+		existingAd := &datamodel.ActiveDirectory{
+			BaseModel:    datamodel.BaseModel{UUID: activeDirectoryUuid},
+			State:        models.LifeCycleStateCreating,
+			StateDetails: "Creating active directory",
+		}
+
+		updatedAd := &datamodel.ActiveDirectory{
+			BaseModel:    datamodel.BaseModel{UUID: activeDirectoryUuid},
+			State:        adState,
+			StateDetails: adStateDetails,
+		}
+
+		mockStorage.On("GetActiveDirectoryByUUID", ctx, activeDirectoryUuid).Return(existingAd, nil)
+		mockStorage.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+			return ad.UUID == activeDirectoryUuid && ad.State == adState && ad.StateDetails == adStateDetails
+		})).Return(updatedAd, nil)
+
+		err := activity.UpdateActiveDirectoryState(ctx, activeDirectoryUuid, adState, adStateDetails)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("returns error when active directory not found", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := ActiveDirectoryActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		activeDirectoryUuid := "non-existent-uuid"
+		adState := models.LifeCycleStateREADY
+		adStateDetails := "Active directory is ready"
+
+		mockStorage.On("GetActiveDirectoryByUUID", ctx, activeDirectoryUuid).Return((*datamodel.ActiveDirectory)(nil), nil)
+
+		err := activity.UpdateActiveDirectoryState(ctx, activeDirectoryUuid, adState, adStateDetails)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "not found in VCP")
+		assert.Contains(tt, err.Error(), activeDirectoryUuid)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("returns error when GetActiveDirectoryByUUID fails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := ActiveDirectoryActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		activeDirectoryUuid := "ad-uuid-456"
+		adState := models.LifeCycleStateError
+		adStateDetails := "Error occurred"
+
+		expectedErr := errors.New("database connection failed")
+		mockStorage.On("GetActiveDirectoryByUUID", ctx, activeDirectoryUuid).Return((*datamodel.ActiveDirectory)(nil), expectedErr)
+
+		err := activity.UpdateActiveDirectoryState(ctx, activeDirectoryUuid, adState, adStateDetails)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedErr, err)
+		assert.ErrorContains(tt, err, "database connection failed")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("returns error when UpdateActiveDirectory fails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := ActiveDirectoryActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		activeDirectoryUuid := "ad-uuid-789"
+		adState := models.LifeCycleStateUpdating
+		adStateDetails := "Updating active directory"
+
+		existingAd := &datamodel.ActiveDirectory{
+			BaseModel:    datamodel.BaseModel{UUID: activeDirectoryUuid},
+			State:        models.LifeCycleStateREADY,
+			StateDetails: "Ready",
+		}
+
+		updateErr := errors.New("database update failed")
+		mockStorage.On("GetActiveDirectoryByUUID", ctx, activeDirectoryUuid).Return(existingAd, nil)
+		mockStorage.On("UpdateActiveDirectory", ctx, mock.Anything).Return((*datamodel.ActiveDirectory)(nil), updateErr)
+
+		err := activity.UpdateActiveDirectoryState(ctx, activeDirectoryUuid, adState, adStateDetails)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, updateErr, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("successfully updates to error state with details", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := ActiveDirectoryActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		activeDirectoryUuid := "ad-uuid-error"
+		adState := models.LifeCycleStateError
+		adStateDetails := "Failed to create: network timeout"
+
+		existingAd := &datamodel.ActiveDirectory{
+			BaseModel:    datamodel.BaseModel{UUID: activeDirectoryUuid},
+			State:        models.LifeCycleStateCreating,
+			StateDetails: "Creating active directory",
+		}
+
+		updatedAd := &datamodel.ActiveDirectory{
+			BaseModel:    datamodel.BaseModel{UUID: activeDirectoryUuid},
+			State:        adState,
+			StateDetails: adStateDetails,
+		}
+
+		mockStorage.On("GetActiveDirectoryByUUID", ctx, activeDirectoryUuid).Return(existingAd, nil)
+		mockStorage.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+			return ad.UUID == activeDirectoryUuid &&
+				ad.State == models.LifeCycleStateError &&
+				ad.StateDetails == "Failed to create: network timeout"
+		})).Return(updatedAd, nil)
+
+		err := activity.UpdateActiveDirectoryState(ctx, activeDirectoryUuid, adState, adStateDetails)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("successfully updates to deleting state", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := ActiveDirectoryActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		activeDirectoryUuid := "ad-uuid-deleting"
+		adState := models.LifeCycleStateDeleting
+		adStateDetails := "Deleting active directory resources"
+
+		existingAd := &datamodel.ActiveDirectory{
+			BaseModel:    datamodel.BaseModel{UUID: activeDirectoryUuid},
+			State:        models.LifeCycleStateREADY,
+			StateDetails: "Ready",
+		}
+
+		updatedAd := &datamodel.ActiveDirectory{
+			BaseModel:    datamodel.BaseModel{UUID: activeDirectoryUuid},
+			State:        adState,
+			StateDetails: adStateDetails,
+		}
+
+		mockStorage.On("GetActiveDirectoryByUUID", ctx, activeDirectoryUuid).Return(existingAd, nil)
+		mockStorage.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+			return ad.UUID == activeDirectoryUuid && ad.State == adState && ad.StateDetails == adStateDetails
+		})).Return(updatedAd, nil)
+
+		err := activity.UpdateActiveDirectoryState(ctx, activeDirectoryUuid, adState, adStateDetails)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("successfully updates state with empty state details", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := ActiveDirectoryActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		activeDirectoryUuid := "ad-uuid-empty-details"
+		adState := models.LifeCycleStateREADY
+		adStateDetails := ""
+
+		existingAd := &datamodel.ActiveDirectory{
+			BaseModel:    datamodel.BaseModel{UUID: activeDirectoryUuid},
+			State:        models.LifeCycleStateCreating,
+			StateDetails: "Creating",
+		}
+
+		updatedAd := &datamodel.ActiveDirectory{
+			BaseModel:    datamodel.BaseModel{UUID: activeDirectoryUuid},
+			State:        adState,
+			StateDetails: adStateDetails,
+		}
+
+		mockStorage.On("GetActiveDirectoryByUUID", ctx, activeDirectoryUuid).Return(existingAd, nil)
+		mockStorage.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+			return ad.UUID == activeDirectoryUuid && ad.State == adState && ad.StateDetails == ""
+		})).Return(updatedAd, nil)
+
+		err := activity.UpdateActiveDirectoryState(ctx, activeDirectoryUuid, adState, adStateDetails)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("successfully updates to in-use state", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := ActiveDirectoryActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		activeDirectoryUuid := "ad-uuid-in-use"
+		adState := models.LifeCycleStateInUse
+		adStateDetails := "Active directory is now in use by SVM"
+
+		existingAd := &datamodel.ActiveDirectory{
+			BaseModel:    datamodel.BaseModel{UUID: activeDirectoryUuid},
+			State:        models.LifeCycleStateREADY,
+			StateDetails: "Ready",
+		}
+
+		updatedAd := &datamodel.ActiveDirectory{
+			BaseModel:    datamodel.BaseModel{UUID: activeDirectoryUuid},
+			State:        adState,
+			StateDetails: adStateDetails,
+		}
+
+		mockStorage.On("GetActiveDirectoryByUUID", ctx, activeDirectoryUuid).Return(existingAd, nil)
+		mockStorage.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+			return ad.UUID == activeDirectoryUuid && ad.State == adState && ad.StateDetails == adStateDetails
+		})).Return(updatedAd, nil)
+
+		err := activity.UpdateActiveDirectoryState(ctx, activeDirectoryUuid, adState, adStateDetails)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("preserves other fields when updating state", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := ActiveDirectoryActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		activeDirectoryUuid := "ad-uuid-preserve"
+		adState := models.LifeCycleStateUpdating
+		adStateDetails := "Updating credentials"
+
+		existingAd := &datamodel.ActiveDirectory{
+			BaseModel:      datamodel.BaseModel{UUID: activeDirectoryUuid, ID: 999},
+			AdName:         "corp-ad",
+			Domain:         "example.com",
+			DNS:            "dns.example.com",
+			NetBIOS:        "CORP",
+			Username:       "admin",
+			CredentialPath: "secret-path",
+			State:          models.LifeCycleStateREADY,
+			StateDetails:   "Ready",
+			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+				AesEncryption: true,
+			},
+		}
+
+		updatedAd := &datamodel.ActiveDirectory{
+			BaseModel:      datamodel.BaseModel{UUID: activeDirectoryUuid, ID: 999},
+			AdName:         "corp-ad",
+			Domain:         "example.com",
+			DNS:            "dns.example.com",
+			NetBIOS:        "CORP",
+			Username:       "admin",
+			CredentialPath: "secret-path",
+			State:          adState,
+			StateDetails:   adStateDetails,
+			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+				AesEncryption: true,
+			},
+		}
+
+		mockStorage.On("GetActiveDirectoryByUUID", ctx, activeDirectoryUuid).Return(existingAd, nil)
+		mockStorage.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+			// Verify state and stateDetails are updated
+			stateMatches := ad.State == adState && ad.StateDetails == adStateDetails
+			// Verify other fields are preserved
+			fieldsPreserved := ad.AdName == "corp-ad" &&
+				ad.Domain == "example.com" &&
+				ad.DNS == "dns.example.com" &&
+				ad.NetBIOS == "CORP" &&
+				ad.Username == "admin" &&
+				ad.CredentialPath == "secret-path"
+			return stateMatches && fieldsPreserved
+		})).Return(updatedAd, nil)
+
+		err := activity.UpdateActiveDirectoryState(ctx, activeDirectoryUuid, adState, adStateDetails)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+

@@ -422,6 +422,10 @@ func PostFileVolumeWorkflowForSMB(ctx workflow.Context, dbVolume *datamodel.Volu
 		dbSvm = updatedSvm
 	}
 
+	if err := updateActiveDirectoryStateToInUse(ctx, activeDirectory); err != nil {
+		return nil, err
+	}
+
 	log.Info("SMB post-provisioning: created CIFS share for volume:", dbVolume.Name)
 	return dbVolume, nil
 }
@@ -664,6 +668,10 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 					return nil, ConvertToVSAError(err)
 				}
 				dbSvm = updatedSvm
+			}
+
+			if err := updateActiveDirectoryStateToInUse(ctx, activeDirectory); err != nil {
+				return nil, err
 			}
 		}
 	}
@@ -1436,4 +1444,25 @@ func WaitForGCPNetworkOperationStatusWorkflow(ctx workflow.Context, operations *
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	poolActivity := &activities.PoolActivity{}
 	return WaitForGCPNetworkOperationStatus(ctx, poolActivity, operations, timeout)
+}
+
+// updateActiveDirectoryStateToInUse updates the Active Directory state to IN_USE if it is currently READY.
+func updateActiveDirectoryStateToInUse(
+	ctx workflow.Context,
+	activeDirectory *vsa.ActiveDirectory,
+) error {
+	log := util.GetLogger(ctx)
+	if activeDirectory == nil {
+		return ConvertToVSAError(fmt.Errorf("active Directory is nil"))
+	}
+	if activeDirectory.Status == models.LifeCycleStateREADY {
+		log.Info("First SMB volume/LDAP enabled NFS volume created, updating Active Directory state to IN_USE")
+		err := workflow.ExecuteActivity(ctx, active_directory_activities.ActiveDirectoryActivity.UpdateActiveDirectoryState,
+			activeDirectory.UUID, models.LifeCycleStateInUse, models.LifeCycleStateInUseDetails).Get(ctx, nil)
+		if err != nil {
+			log.Error("Failed to update Active Directory state to IN_USE with error: ", err)
+			return ConvertToVSAError(err)
+		}
+	}
+	return nil
 }

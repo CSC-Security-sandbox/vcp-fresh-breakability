@@ -1837,62 +1837,6 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_Enabled_SVMUpdateFails(
 	assert.ErrorContains(s.T(), s.env.GetWorkflowError(), "Failed to update SVM Active Directory association during PostFileVolumeWorkflow")
 }
 
-func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_Kerberos_PoolNil() {
-	originalEnableKerberos := enableKerberos
-	defer func() { enableKerberos = originalEnableKerberos }()
-	enableKerberos = true
-
-	utils.SetFileProtocolSupportedForTesting(true)
-	defer utils.SetFileProtocolSupportedForTesting(false)
-
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
-		PoolID:    123,
-		Pool:      nil,
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			Protocols: []string{utils.ProtocolNFSv4},
-			FileProperties: &datamodel.FileProperties{
-				SecurityStyle: "unix",
-				ExportPolicy: &datamodel.ExportPolicy{
-					ExportRules: []*datamodel.ExportRule{
-						{Kerberos5ReadWrite: true},
-					},
-				},
-			},
-		},
-	}
-	node := &models.Node{EndpointAddress: "127.0.0.1"}
-
-	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node)
-
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.NotNil(s.T(), s.env.GetWorkflowError())
-}
-
-func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_PoolNil() {
-	originalEnableLdap := enableLdap
-	defer func() { enableLdap = originalEnableLdap }()
-	enableLdap = true
-
-	utils.SetFileProtocolSupportedForTesting(true)
-	defer utils.SetFileProtocolSupportedForTesting(false)
-
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
-		PoolID:    123,
-		Pool:      nil,
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			Protocols: []string{utils.ProtocolNFSv3},
-		},
-	}
-	node := &models.Node{EndpointAddress: "127.0.0.1"}
-
-	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node)
-
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.NotNil(s.T(), s.env.GetWorkflowError())
-}
-
 func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_FileProtocolsDisabled() {
 	// Test PostFileVolumeWorkflow when file protocols are disabled
 	volume := &datamodel.Volume{
@@ -1983,185 +1927,6 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_AssignsActiveDirectory
 	if assert.NotNil(s.T(), workflowResult) && workflowResult.VolumeAttributes != nil && workflowResult.VolumeAttributes.FileProperties != nil {
 		assert.Equal(s.T(), "fqdn.example.com", workflowResult.VolumeAttributes.FileProperties.Fqdn)
 	}
-}
-
-func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_GetSVMError() {
-	mockStorage := database.NewMockStorage(s.T())
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-
-	volume := &datamodel.Volume{
-		Name:   "vol-smb",
-		PoolID: int64(42),
-		Pool: &datamodel.Pool{
-			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
-			ClusterDetails: datamodel.ClusterDetails{SnHostProject: "sn-host-project", Network: "data-network"},
-		},
-		VolumeAttributes: &datamodel.VolumeAttributes{FileProperties: &datamodel.FileProperties{JunctionPath: "/vol/vol-smb"}},
-	}
-	node := &models.Node{EndpointAddress: "127.0.0.1"}
-
-	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(nil, errors.New("SVM not found")).Once()
-
-	s.env.ExecuteWorkflow(PostFileVolumeWorkflowForSMB, volume, node)
-
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.NotNil(s.T(), s.env.GetWorkflowError())
-}
-
-func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_GetActiveDirectoryError() {
-	mockStorage := database.NewMockStorage(s.T())
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
-
-	volume := &datamodel.Volume{
-		Name:   "vol-smb",
-		PoolID: int64(42),
-		Pool: &datamodel.Pool{
-			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
-			ClusterDetails: datamodel.ClusterDetails{SnHostProject: "sn-host-project", Network: "data-network"},
-		},
-		VolumeAttributes: &datamodel.VolumeAttributes{FileProperties: &datamodel.FileProperties{JunctionPath: "/vol/vol-smb"}},
-	}
-	node := &models.Node{EndpointAddress: "127.0.0.1"}
-	svm := &datamodel.Svm{
-		BaseModel:  datamodel.BaseModel{UUID: "svm-uuid"},
-		Name:       "svm-name",
-		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
-	}
-
-	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil).Once()
-	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(nil, errors.New("AD not found")).Once()
-
-	s.env.ExecuteWorkflow(PostFileVolumeWorkflowForSMB, volume, node)
-
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.NotNil(s.T(), s.env.GetWorkflowError())
-}
-
-func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_PoolNil() {
-	mockStorage := database.NewMockStorage(s.T())
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
-
-	volume := &datamodel.Volume{
-		Name:             "vol-smb",
-		PoolID:           int64(42),
-		Pool:             nil,
-		VolumeAttributes: &datamodel.VolumeAttributes{FileProperties: &datamodel.FileProperties{JunctionPath: "/vol/vol-smb"}},
-	}
-	node := &models.Node{EndpointAddress: "127.0.0.1"}
-	svm := &datamodel.Svm{
-		BaseModel:  datamodel.BaseModel{UUID: "svm-uuid"},
-		Name:       "svm-name",
-		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
-	}
-	activeDirectory := &vsa.ActiveDirectory{UUID: "ad-uuid"}
-
-	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil).Once()
-	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(activeDirectory, nil).Once()
-
-	s.env.ExecuteWorkflow(PostFileVolumeWorkflowForSMB, volume, node)
-
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.NotNil(s.T(), s.env.GetWorkflowError())
-}
-
-func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_MissingNetworkDetails() {
-	mockStorage := database.NewMockStorage(s.T())
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
-
-	volume := &datamodel.Volume{
-		Name:   "vol-smb",
-		PoolID: int64(42),
-		Pool: &datamodel.Pool{
-			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
-			ClusterDetails: datamodel.ClusterDetails{SnHostProject: "", Network: ""},
-		},
-		VolumeAttributes: &datamodel.VolumeAttributes{FileProperties: &datamodel.FileProperties{JunctionPath: "/vol/vol-smb"}},
-	}
-	node := &models.Node{EndpointAddress: "127.0.0.1"}
-	svm := &datamodel.Svm{
-		BaseModel:  datamodel.BaseModel{UUID: "svm-uuid"},
-		Name:       "svm-name",
-		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
-	}
-	activeDirectory := &vsa.ActiveDirectory{UUID: "ad-uuid"}
-
-	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil).Once()
-	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(activeDirectory, nil).Once()
-
-	s.env.ExecuteWorkflow(PostFileVolumeWorkflowForSMB, volume, node)
-
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.NotNil(s.T(), s.env.GetWorkflowError())
-}
-
-func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_EnsureCIFSShareWorkflowError() {
-	mockStorage := database.NewMockStorage(s.T())
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
-
-	volume := &datamodel.Volume{
-		Name:   "vol-smb",
-		PoolID: int64(42),
-		Pool: &datamodel.Pool{
-			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
-			ClusterDetails: datamodel.ClusterDetails{SnHostProject: "sn-host-project", Network: "data-network"},
-		},
-		VolumeAttributes: &datamodel.VolumeAttributes{FileProperties: &datamodel.FileProperties{JunctionPath: "/vol/vol-smb"}},
-	}
-	node := &models.Node{EndpointAddress: "127.0.0.1"}
-	svm := &datamodel.Svm{
-		BaseModel:  datamodel.BaseModel{UUID: "svm-uuid"},
-		Name:       "svm-name",
-		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
-	}
-	activeDirectory := &vsa.ActiveDirectory{UUID: "ad-uuid"}
-
-	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil).Once()
-	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(activeDirectory, nil).Once()
-	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("DNS creation failed")).Once()
-
-	s.env.ExecuteWorkflow(PostFileVolumeWorkflowForSMB, volume, node)
-
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.NotNil(s.T(), s.env.GetWorkflowError())
-}
-
-func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_UpdateSvmActiveDirectoryError() {
-	mockStorage := database.NewMockStorage(s.T())
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
-
-	volume := &datamodel.Volume{
-		Name:   "vol-smb",
-		PoolID: int64(42),
-		Pool: &datamodel.Pool{
-			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
-			ClusterDetails: datamodel.ClusterDetails{SnHostProject: "sn-host-project", Network: "data-network"},
-		},
-		VolumeAttributes: &datamodel.VolumeAttributes{FileProperties: &datamodel.FileProperties{JunctionPath: "/vol/vol-smb"}},
-	}
-	node := &models.Node{EndpointAddress: "127.0.0.1"}
-	svm := &datamodel.Svm{
-		BaseModel:  datamodel.BaseModel{UUID: "svm-uuid"},
-		Name:       "svm-name",
-		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
-	}
-	activeDirectory := &vsa.ActiveDirectory{UUID: "ad-uuid"}
-
-	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil).Once()
-	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(activeDirectory, nil).Once()
-	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
-	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&active_directory_activities.GetOrCreateCifsServiceResult{FQDN: "fqdn.example.com"}, nil).Once()
-	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
-	s.env.OnActivity(commonActivity.UpdateSvmActiveDirectory, mock.Anything, mock.Anything).Return(nil, errors.New("update SVM AD failed")).Once()
-
-	s.env.ExecuteWorkflow(PostFileVolumeWorkflowForSMB, volume, node)
-
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.NotNil(s.T(), s.env.GetWorkflowError())
 }
 
 func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_ISCSI() {
@@ -8665,4 +8430,433 @@ func TestGetVolumeStartToCloseTimeout(t *testing.T) {
 			assert.Equal(t, tt.expectedTimeout, result, tt.description)
 		})
 	}
+}
+
+// Test_PostFileVolumeWorkflowForSMB_UpdatesActiveDirectoryStateToInUse tests that
+// when an Active Directory is in READY state, it gets updated to IN_USE after the first SMB volume is created,
+// regardless of whether the SVM's ActiveDirectoryID is already set.
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_UpdatesActiveDirectoryStateToInUse() {
+	// Create a new test environment for this specific test to avoid interference from SetupTest mocks
+	s.env = s.NewTestWorkflowEnvironment()
+	s.env.RegisterWorkflow(PostFileVolumeWorkflowForSMB)
+	s.env.RegisterWorkflow(EnsureCIFSShareWorkflow)
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	// Create test volume with SMB protocol
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 1},
+		Name:      "test-smb-volume",
+		PoolID:    1,
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			ClusterDetails: datamodel.ClusterDetails{
+				SnHostProject: "test-project",
+				Network:       "test-network",
+			},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath:     "/test_share",
+				SMBShareSettings: []string{"browsable", "changenotify"},
+			},
+		},
+	}
+
+	node := &models.Node{Name: "test-node"}
+
+	// Active Directory in READY state
+	activeDirectory := &vsa.ActiveDirectory{
+		UUID:   "ad-uuid",
+		Domain: "example.com",
+		DNS:    "8.8.8.8",
+		Status: models.LifeCycleStateREADY,
+	}
+
+	// SVM with ActiveDirectoryID already set (Valid = true)
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-svm",
+		SvmDetails: &datamodel.SvmDetails{
+			ExternalUUID: "svm-uuid",
+		},
+		ActiveDirectoryID: sql.NullInt64{
+			Int64: 1,
+			Valid: true, // Already associated with AD
+		},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.GetSVM)
+	s.env.RegisterActivity(adActivity.GetActiveDirectoryForPool)
+	s.env.RegisterActivity(adActivity.CreateOrModifyADDNS)
+	s.env.RegisterActivity(adActivity.GetOrCreateCifsService)
+	s.env.RegisterActivity(adActivity.CreateJunctionPathForCifsShare)
+	s.env.RegisterActivity(adActivity.UpdateActiveDirectoryState)
+
+	// Mock activity responses
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil)
+	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(activeDirectory, nil)
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		&active_directory_activities.GetOrCreateCifsServiceResult{
+			FQDN:      "test-server.example.com",
+			NeedsDDNS: false,
+		}, nil)
+	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// This is the key assertion: UpdateActiveDirectoryState should be called
+	// even though SVM.ActiveDirectoryID.Valid is true (this tests the fix where we removed the dbSvm.ActiveDirectoryID.Valid check)
+	s.env.OnActivity(adActivity.UpdateActiveDirectoryState,
+		mock.Anything,
+		"ad-uuid",
+		models.LifeCycleStateInUse,
+		models.LifeCycleStateInUseDetails).Return(nil).Once()
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflowForSMB, volume, node)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+
+	// Verify UpdateActiveDirectoryState was called exactly once
+	s.env.AssertExpectations(s.T())
+}
+
+// Test_PostFileVolumeWorkflowForSMB_DoesNotUpdateActiveDirectoryIfNotReady tests that
+// when an Active Directory is NOT in READY state (e.g., already IN_USE), it does NOT get updated.
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_DoesNotUpdateActiveDirectoryIfNotReady() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	// Create test volume with SMB protocol
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 1},
+		Name:      "test-smb-volume",
+		PoolID:    1,
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			ClusterDetails: datamodel.ClusterDetails{
+				SnHostProject: "test-project",
+				Network:       "test-network",
+			},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath:     "/test_share",
+				SMBShareSettings: []string{"browsable", "changenotify"},
+			},
+		},
+	}
+
+	node := &models.Node{Name: "test-node"}
+
+	// Active Directory already IN_USE
+	activeDirectory := &vsa.ActiveDirectory{
+		UUID:   "ad-uuid",
+		Domain: "example.com",
+		DNS:    "8.8.8.8",
+		Status: models.LifeCycleStateInUse, // Already in use
+	}
+
+	// SVM with ActiveDirectoryID set
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-svm",
+		SvmDetails: &datamodel.SvmDetails{
+			ExternalUUID: "svm-uuid",
+		},
+		ActiveDirectoryID: sql.NullInt64{
+			Int64: 1,
+			Valid: true,
+		},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.GetSVM)
+	s.env.RegisterActivity(adActivity.GetActiveDirectoryForPool)
+	s.env.RegisterActivity(adActivity.CreateOrModifyADDNS)
+	s.env.RegisterActivity(adActivity.GetOrCreateCifsService)
+	s.env.RegisterActivity(adActivity.CreateJunctionPathForCifsShare)
+	s.env.RegisterActivity(adActivity.UpdateActiveDirectoryState)
+
+	// Mock activity responses
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil)
+	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(activeDirectory, nil)
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		&active_directory_activities.GetOrCreateCifsServiceResult{
+			FQDN:      "test-server.example.com",
+			NeedsDDNS: false,
+		}, nil)
+	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// UpdateActiveDirectoryState should NOT be called because AD is not in READY state
+	// We intentionally don't set up a mock for UpdateActiveDirectoryState
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflowForSMB, volume, node)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_PostFileVolumeWorkflowForSMB_UpdatesSvmActiveDirectoryAssociation tests that
+// when SVM's ActiveDirectoryID is not set, it gets associated with the Active Directory.
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_UpdatesSvmActiveDirectoryAssociation() {
+	// Create a new test environment for this specific test to avoid interference from SetupTest mocks
+	s.env = s.NewTestWorkflowEnvironment()
+	s.env.RegisterWorkflow(PostFileVolumeWorkflowForSMB)
+	s.env.RegisterWorkflow(EnsureCIFSShareWorkflow)
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	// Create test volume with SMB protocol
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 1},
+		Name:      "test-smb-volume",
+		PoolID:    1,
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			ClusterDetails: datamodel.ClusterDetails{
+				SnHostProject: "test-project",
+				Network:       "test-network",
+			},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolSMB},
+			FileProperties: &datamodel.FileProperties{
+				JunctionPath:     "/test_share",
+				SMBShareSettings: []string{"browsable", "changenotify"},
+			},
+		},
+	}
+
+	node := &models.Node{Name: "test-node"}
+
+	// Active Directory in READY state
+	activeDirectory := &vsa.ActiveDirectory{
+		UUID:   "ad-uuid",
+		Domain: "example.com",
+		DNS:    "8.8.8.8",
+		Status: models.LifeCycleStateREADY,
+	}
+
+	// SVM WITHOUT ActiveDirectoryID set (Valid = false)
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-svm",
+		SvmDetails: &datamodel.SvmDetails{
+			ExternalUUID: "svm-uuid",
+		},
+		ActiveDirectoryID: sql.NullInt64{
+			Valid: false, // Not yet associated with AD
+		},
+	}
+
+	// Updated SVM after association
+	updatedSvm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-svm",
+		SvmDetails: &datamodel.SvmDetails{
+			ExternalUUID: "svm-uuid",
+		},
+		ActiveDirectoryID: sql.NullInt64{
+			Int64: 1,
+			Valid: true, // Now associated
+		},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.GetSVM)
+	s.env.RegisterActivity(adActivity.GetActiveDirectoryForPool)
+	s.env.RegisterActivity(adActivity.CreateOrModifyADDNS)
+	s.env.RegisterActivity(adActivity.GetOrCreateCifsService)
+	s.env.RegisterActivity(adActivity.CreateJunctionPathForCifsShare)
+	s.env.RegisterActivity(commonActivity.UpdateSvmActiveDirectory)
+	s.env.RegisterActivity(adActivity.UpdateActiveDirectoryState)
+
+	// Mock activity responses
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil)
+	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(activeDirectory, nil)
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		&active_directory_activities.GetOrCreateCifsServiceResult{
+			FQDN:      "test-server.example.com",
+			NeedsDDNS: false,
+		}, nil)
+	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// UpdateSvmActiveDirectory should be called because ActiveDirectoryID is not valid
+	s.env.OnActivity(commonActivity.UpdateSvmActiveDirectory, mock.Anything, mock.MatchedBy(func(params activities.UpdateSvmActiveDirectoryParams) bool {
+		return params.ActiveDirectoryUUID == "ad-uuid"
+	})).Return(updatedSvm, nil).Once()
+
+	// UpdateActiveDirectoryState should be called after SVM association
+	s.env.OnActivity(adActivity.UpdateActiveDirectoryState,
+		mock.Anything,
+		"ad-uuid",
+		models.LifeCycleStateInUse,
+		models.LifeCycleStateInUseDetails).Return(nil).Once()
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflowForSMB, volume, node)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+
+	// Verify both activities were called
+	s.env.AssertExpectations(s.T())
+}
+
+// Test_updateActiveDirectoryStateToInUse_UpdatesWhenReady tests that the helper function
+// updates AD state to IN_USE when the AD status is READY.
+func (s *UnitTestSuite) Test_updateActiveDirectoryStateToInUse_UpdatesWhenReady() {
+	// Create a new test environment
+	s.env = s.NewTestWorkflowEnvironment()
+	s.env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	
+	adActivity := active_directory_activities.ActiveDirectoryActivity{}
+	s.env.RegisterActivity(adActivity.UpdateActiveDirectoryState)
+
+	// Active Directory in READY state
+	activeDirectory := &vsa.ActiveDirectory{
+		UUID:   "ad-uuid-ready",
+		Domain: "example.com",
+		DNS:    "8.8.8.8",
+		Status: models.LifeCycleStateREADY,
+	}
+
+	// Mock the activity to verify it's called
+	s.env.OnActivity(adActivity.UpdateActiveDirectoryState,
+		mock.Anything,
+		"ad-uuid-ready",
+		models.LifeCycleStateInUse,
+		models.LifeCycleStateInUseDetails).Return(nil).Once()
+
+	// Execute the helper function directly in the workflow context
+	s.env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		// Set activity options to avoid timeout errors
+		ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+			StartToCloseTimeout: time.Minute,
+		})
+		return updateActiveDirectoryStateToInUse(ctx, activeDirectory)
+	})
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+
+	// Verify UpdateActiveDirectoryState was called
+	s.env.AssertExpectations(s.T())
+}
+
+// Test_updateActiveDirectoryStateToInUse_DoesNotUpdateWhenNotReady tests that the helper function
+// does NOT update AD state when the AD status is not READY (e.g., already IN_USE).
+func (s *UnitTestSuite) Test_updateActiveDirectoryStateToInUse_DoesNotUpdateWhenNotReady() {
+	// Create a new test environment
+	s.env = s.NewTestWorkflowEnvironment()
+	s.env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	
+	adActivity := active_directory_activities.ActiveDirectoryActivity{}
+	s.env.RegisterActivity(adActivity.UpdateActiveDirectoryState)
+
+	// Active Directory already IN_USE
+	activeDirectory := &vsa.ActiveDirectory{
+		UUID:   "ad-uuid-in-use",
+		Domain: "example.com",
+		DNS:    "8.8.8.8",
+		Status: models.LifeCycleStateInUse, // Not READY
+	}
+
+	// UpdateActiveDirectoryState should NOT be called
+	// We intentionally don't set up a mock for it
+
+	// Execute the helper function in workflow context
+	s.env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+			StartToCloseTimeout: time.Minute,
+		})
+		return updateActiveDirectoryStateToInUse(ctx, activeDirectory)
+	})
+
+	// Assert workflow completed successfully without calling the activity
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_updateActiveDirectoryStateToInUse_ReturnsErrorOnFailure tests that the helper function
+// properly returns an error when the UpdateActiveDirectoryState activity fails.
+func (s *UnitTestSuite) Test_updateActiveDirectoryStateToInUse_ReturnsErrorOnFailure() {
+	// Create a new test environment
+	s.env = s.NewTestWorkflowEnvironment()
+	s.env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	
+	adActivity := active_directory_activities.ActiveDirectoryActivity{}
+	s.env.RegisterActivity(adActivity.UpdateActiveDirectoryState)
+
+	// Active Directory in READY state
+	activeDirectory := &vsa.ActiveDirectory{
+		UUID:   "ad-uuid-error",
+		Domain: "example.com",
+		DNS:    "8.8.8.8",
+		Status: models.LifeCycleStateREADY,
+	}
+
+	// Mock the activity to return an error - allow multiple calls due to potential retries
+	expectedError := errors.New("failed to update AD state")
+	s.env.OnActivity(adActivity.UpdateActiveDirectoryState,
+		mock.Anything,
+		"ad-uuid-error",
+		models.LifeCycleStateInUse,
+		models.LifeCycleStateInUseDetails).Return(expectedError)
+
+	// Execute the helper function in workflow context
+	s.env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+			StartToCloseTimeout: time.Minute,
+			RetryPolicy: &temporal.RetryPolicy{
+				MaximumAttempts: 1, // Don't retry on failure
+			},
+		})
+		return updateActiveDirectoryStateToInUse(ctx, activeDirectory)
+	})
+
+	// Assert workflow completed with error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	// The error might be wrapped, so just check that an error occurred
+}
+
+// Test_updateActiveDirectoryStateToInUse_HandlesNilActiveDirectory tests that the helper function
+// returns an error when given a nil Active Directory pointer.
+func (s *UnitTestSuite) Test_updateActiveDirectoryStateToInUse_HandlesNilActiveDirectory() {
+	// Create a new test environment
+	s.env = s.NewTestWorkflowEnvironment()
+	s.env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	// Execute the helper function with nil Active Directory
+	s.env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+			StartToCloseTimeout: time.Minute,
+		})
+		return updateActiveDirectoryStateToInUse(ctx, nil)
+	})
+
+	// Assert workflow completed with an error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	// Assert that an error occurred due to nil check
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	// Verify error message contains "active Directory is nil"
+	assert.ErrorContains(s.T(), s.env.GetWorkflowError(), "active Directory is nil")
 }

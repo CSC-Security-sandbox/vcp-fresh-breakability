@@ -49,11 +49,11 @@ func (a ActiveDirectoryActivity) GetActiveDirectoryForPool(ctx context.Context, 
 	return validateAndGetVsaActiveDirectory(ctx, activeDirectory)
 }
 
-func (a ActiveDirectoryActivity) GetSvmsForAd(ctx context.Context, oldAd *models.ActiveDirectory) ([]*datamodel.Svm, error) {
+func (a ActiveDirectoryActivity) GetSvmsForAd(ctx context.Context, activeDirectoryId int64) ([]*datamodel.Svm, error) {
 	logger := util.GetLogger(ctx)
-	svms, err := a.SE.GetSVMsUsingActiveDirectory(ctx, oldAd.ID)
+	svms, err := a.SE.GetSVMsUsingActiveDirectory(ctx, activeDirectoryId)
 	if err != nil {
-		logger.Errorf("Failed to fetch svms for Active Directory %s: %v", oldAd.AdName, err)
+		logger.Errorf("Failed to fetch svms for Active Directory id %d: %v", activeDirectoryId, err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return svms, nil
@@ -132,6 +132,7 @@ func validateAndGetVsaActiveDirectory(ctx context.Context, activeDirectory *data
 		LdapSigning:             &attributes.LdapSigning,
 		KdcIP:                   attributes.KdcIP,
 		AdName:                  activeDirectory.AdName,
+		Status:                  activeDirectory.State,
 	}
 
 	return ad, nil
@@ -209,4 +210,29 @@ func (a ActiveDirectoryActivity) buildNewCredentials(ctx context.Context, params
 	}
 
 	return newCredentials
+}
+
+func (a ActiveDirectoryActivity) UpdateActiveDirectoryState(ctx context.Context, activeDirectoryUuid string, adState string, adStateDetails string) error {
+	logger := util.GetLogger(ctx)
+	logger.Debug("Updating VCP ActiveDirectory DB Record", "activeDirectoryUuid", activeDirectoryUuid, "state", adState, "stateDetails", adStateDetails)
+
+	adRecord, err := a.SE.GetActiveDirectoryByUUID(ctx, activeDirectoryUuid)
+	if err != nil {
+		return err
+	}
+	if adRecord == nil {
+		return fmt.Errorf("active directory with uuid %s not found in VCP", activeDirectoryUuid)
+	}
+
+	if adRecord.State != adState {
+		adRecord.State = adState
+		adRecord.StateDetails = adStateDetails
+
+		_, err = a.SE.UpdateActiveDirectory(ctx, adRecord)
+		if err != nil {
+			return err
+		}
+		logger.Info("Successfully updated VCP ActiveDirectory DB Record", "activeDirectoryUuid", activeDirectoryUuid, "state", adState, "stateDetails", adStateDetails)
+	}
+	return nil
 }

@@ -577,7 +577,7 @@ func PushAdUpdatesToSVMWorkflow(ctx workflow.Context, oldAd *models.ActiveDirect
 
 	// Step 1: Fetch SMVs associated with the Active Directory
 	var svms []*datamodel.Svm
-	err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.GetSvmsForAd, oldAd).Get(ctx, &svms)
+	err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.GetSvmsForAd, oldAd.ID).Get(ctx, &svms)
 	if err != nil {
 		log.Errorf("Failed to fetch svms for Active Directory %s: %v", oldAd.AdName, err)
 		return err

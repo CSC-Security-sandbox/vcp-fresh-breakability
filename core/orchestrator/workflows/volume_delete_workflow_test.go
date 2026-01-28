@@ -13,8 +13,10 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	common "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -2423,4 +2425,638 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_DeleteLDAPConfiguratio
 	s.env.AssertCalled(s.T(), "DetermineIfVolumeIsLastFilesVolume", mock.Anything, mock.Anything, mock.Anything)
 	// Verify DeleteLDAPConfiguration was called (lines 324-327)
 	s.env.AssertCalled(s.T(), "DeleteLDAPConfiguration", mock.Anything, mock.Anything, mock.Anything)
+}
+
+// Test_DeleteVolumeWorkflow_UpdatesActiveDirectoryStateToReady tests that when the last SMB/LDAP-enabled NFS volume
+// is deleted from a pool, the Active Directory state is updated from IN_USE to READY.
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdatesActiveDirectoryStateToReady() {
+	// Save and enable SMB flag
+	originalEnableSmb := enableSmb
+	defer func() { enableSmb = originalEnableSmb }()
+	enableSmb = true
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(adActivity.GetSvmsForAd)
+	s.env.RegisterActivity(adActivity.UpdateActiveDirectoryState)
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(commonActivity.GetOntapJob)
+
+	// Mock SmbTeardownWorkflow as a child workflow to avoid complexity
+	s.env.OnWorkflow(SmbTeardownWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil).Maybe()
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+
+	// This is the key test: GetSvmsForAd returns empty list (no more SVMs using this AD)
+	emptySvmList := []*datamodel.Svm{}
+	s.env.OnActivity(adActivity.GetSvmsForAd, mock.Anything, int64(1)).Return(emptySvmList, nil)
+
+	// UpdateActiveDirectoryState should be called to change state from IN_USE to READY
+	s.env.OnActivity(adActivity.UpdateActiveDirectoryState,
+		mock.Anything,
+		"ad-uuid",
+		models.LifeCycleStateREADY,
+		models.LifeCycleStateReadyDetails).Return(nil).Once()
+
+	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+			ActiveDirectory: &datamodel.ActiveDirectory{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "ad-uuid"},
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_smb_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			Protocols:    []string{utils.ProtocolSMB}, // SMB volume
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+
+	// Verify UpdateActiveDirectoryState was called to update state to READY
+	s.env.AssertExpectations(s.T())
+}
+
+// Test_DeleteVolumeWorkflow_DoesNotUpdateActiveDirectoryIfOtherSvmsExist tests that when an SMB volume
+// is deleted but other SVMs still use the Active Directory, the state is NOT updated.
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_DoesNotUpdateActiveDirectoryIfOtherSvmsExist() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
+	s.env.RegisterActivity(commonActivity.GetSVM)
+	s.env.RegisterActivity(commonActivity.UnsetSvmActiveDirectory)
+	s.env.RegisterActivity(adActivity.GetSvmsForAd)
+	s.env.RegisterActivity(adActivity.UpdateActiveDirectoryState)
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+	s.env.RegisterWorkflow(SmbTeardownWorkflow)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+
+	// Mock SmbTeardownWorkflow activities
+	smbTeardownCtx := &activities.SmbTeardownContext{
+		ShouldDelete: false, // Should not delete because other SVMs exist
+		PoolID:       1,
+	}
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(smbTeardownCtx, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// GetSvmsForAd returns non-empty list (other SVMs still use this AD)
+	existingSvms := []*datamodel.Svm{
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "other-svm"},
+	}
+	s.env.OnActivity(adActivity.GetSvmsForAd, mock.Anything, int64(1)).Return(existingSvms, nil)
+
+	// UpdateActiveDirectoryState should NOT be called because other SVMs still use this AD
+	// We intentionally don't set up a mock for UpdateActiveDirectoryState
+
+	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+			ActiveDirectory: &datamodel.ActiveDirectory{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "ad-uuid"},
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_smb_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			Protocols:    []string{utils.ProtocolSMB}, // SMB volume
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_DeleteVolumeWorkflow_GetSvmsForAdError tests that when GetSvmsForAd fails,
+// the workflow returns an error and AD state is not updated.
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_GetSvmsForAdError() {
+	// Save and enable SMB flag
+	originalEnableSmb := enableSmb
+	defer func() { enableSmb = originalEnableSmb }()
+	enableSmb = true
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(adActivity.GetSvmsForAd)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(commonActivity.GetOntapJob)
+
+	// Mock SmbTeardownWorkflow as a child workflow
+	s.env.OnWorkflow(SmbTeardownWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil).Maybe()
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+
+	// GetSvmsForAd fails with an error
+	s.env.OnActivity(adActivity.GetSvmsForAd, mock.Anything, int64(1)).Return(nil, errors.New("database query failed"))
+
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "password",
+			},
+			ActiveDirectory: &datamodel.ActiveDirectory{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "ad-uuid"},
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_smb_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			Protocols:    []string{utils.ProtocolSMB},
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow completed with error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "database query failed")
+}
+
+// Test_DeleteVolumeWorkflow_UpdateActiveDirectoryStateError tests that when UpdateActiveDirectoryState fails,
+// the workflow returns an error.
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateActiveDirectoryStateError() {
+	// Save and enable SMB flag
+	originalEnableSmb := enableSmb
+	defer func() { enableSmb = originalEnableSmb }()
+	enableSmb = true
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(adActivity.GetSvmsForAd)
+	s.env.RegisterActivity(adActivity.UpdateActiveDirectoryState)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(commonActivity.GetOntapJob)
+
+	// Mock SmbTeardownWorkflow as a child workflow
+	s.env.OnWorkflow(SmbTeardownWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil).Maybe()
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+
+	// GetSvmsForAd returns empty list (no more SVMs)
+	emptySvmList := []*datamodel.Svm{}
+	s.env.OnActivity(adActivity.GetSvmsForAd, mock.Anything, int64(1)).Return(emptySvmList, nil)
+
+	// UpdateActiveDirectoryState fails
+	s.env.OnActivity(adActivity.UpdateActiveDirectoryState,
+		mock.Anything,
+		"ad-uuid",
+		models.LifeCycleStateREADY,
+		models.LifeCycleStateReadyDetails).Return(errors.New("failed to update AD state"))
+
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "password",
+			},
+			ActiveDirectory: &datamodel.ActiveDirectory{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "ad-uuid"},
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_smb_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			Protocols:    []string{utils.ProtocolSMB},
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow completed with error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "failed to update AD state")
+}
+
+// Test_DeleteVolumeWorkflow_NFSWithLDAP_UpdatesActiveDirectoryStateToReady tests that when
+// an NFS volume with LDAP enabled is deleted and no more SVMs use the AD, the AD state transitions to READY.
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_NFSWithLDAP_UpdatesActiveDirectoryStateToReady() {
+	// Save and enable LDAP flag
+	originalEnableLdap := enableLdap
+	defer func() { enableLdap = originalEnableLdap }()
+	enableLdap = true
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DetermineIfVolumeIsLastFilesVolume)
+	s.env.RegisterActivity(deleteActivity.DeleteLDAPConfiguration)
+	s.env.RegisterActivity(adActivity.GetSvmsForAd)
+	s.env.RegisterActivity(adActivity.UpdateActiveDirectoryState)
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(commonActivity.GetOntapJob)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil).Maybe()
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+	
+	// DetermineIfVolumeIsLastFilesVolume returns true (this is the last files volume)
+	s.env.OnActivity(deleteActivity.DetermineIfVolumeIsLastFilesVolume, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(deleteActivity.DeleteLDAPConfiguration, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// GetSvmsForAd returns empty list (no more SVMs using this AD)
+	emptySvmList := []*datamodel.Svm{}
+	s.env.OnActivity(adActivity.GetSvmsForAd, mock.Anything, int64(1)).Return(emptySvmList, nil)
+
+	// UpdateActiveDirectoryState should be called to change state to READY
+	s.env.OnActivity(adActivity.UpdateActiveDirectoryState,
+		mock.Anything,
+		"ad-uuid",
+		models.LifeCycleStateREADY,
+		models.LifeCycleStateReadyDetails).Return(nil).Once()
+
+	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// Execute workflow with NFS volume and LDAP enabled
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "password",
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				LdapEnabled: true, // LDAP enabled
+			},
+			ActiveDirectory: &datamodel.ActiveDirectory{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "ad-uuid"},
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_nfs_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			Protocols:    []string{utils.ProtocolNFS}, // NFS volume
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+
+	// Verify UpdateActiveDirectoryState was called
+	s.env.AssertExpectations(s.T())
+}
+
+// Test_DeleteVolumeWorkflow_NFSWithoutLDAP_DoesNotUpdateActiveDirectory tests that when
+// an NFS volume without LDAP is deleted, the AD state is NOT updated.
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_NFSWithoutLDAP_DoesNotUpdateActiveDirectory() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(adActivity.GetSvmsForAd)
+	s.env.RegisterActivity(adActivity.UpdateActiveDirectoryState)
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(commonActivity.GetOntapJob)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil).Maybe()
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+
+	// GetSvmsForAd and UpdateActiveDirectoryState should NOT be called because LDAP is not enabled
+	// We intentionally don't set up mocks for these activities
+
+	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// Execute workflow with NFS volume and LDAP disabled
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "password",
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				LdapEnabled: false, // LDAP disabled
+			},
+			ActiveDirectory: &datamodel.ActiveDirectory{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "ad-uuid"},
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_nfs_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			Protocols:    []string{utils.ProtocolNFS}, // NFS volume
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_DeleteVolumeWorkflow_NoActiveDirectory_DoesNotCheckSvms tests that when
+// a volume has no Active Directory configured, no AD state updates are attempted.
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_NoActiveDirectory_DoesNotCheckSvms() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(adActivity.GetSvmsForAd)
+	s.env.RegisterActivity(adActivity.UpdateActiveDirectoryState)
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(commonActivity.GetOntapJob)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil).Maybe()
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+
+	// GetSvmsForAd and UpdateActiveDirectoryState should NOT be called because no AD configured
+	// We intentionally don't set up mocks for these activities
+
+	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// Execute workflow with volume that has no Active Directory
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "password",
+			},
+			ActiveDirectory: nil, // No Active Directory
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_volume_no_ad",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			Protocols:    []string{utils.ProtocolNFS},
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_DeleteVolumeWorkflow_NilPoolAttributes_SMBVolume tests that when
+// Pool.PoolAttributes is nil but volume is SMB, AD state transition logic still runs.
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_NilPoolAttributes_SMBVolume() {
+	// Save and enable SMB flag
+	originalEnableSmb := enableSmb
+	defer func() { enableSmb = originalEnableSmb }()
+	enableSmb = true
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(adActivity.GetSvmsForAd)
+	s.env.RegisterActivity(adActivity.UpdateActiveDirectoryState)
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(commonActivity.GetOntapJob)
+
+	// Mock SmbTeardownWorkflow as a child workflow
+	s.env.OnWorkflow(SmbTeardownWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil).Maybe()
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+
+	// GetSvmsForAd should be called even with nil PoolAttributes because it's SMB
+	emptySvmList := []*datamodel.Svm{}
+	s.env.OnActivity(adActivity.GetSvmsForAd, mock.Anything, int64(1)).Return(emptySvmList, nil)
+
+	// UpdateActiveDirectoryState should be called
+	s.env.OnActivity(adActivity.UpdateActiveDirectoryState,
+		mock.Anything,
+		"ad-uuid",
+		models.LifeCycleStateREADY,
+		models.LifeCycleStateReadyDetails).Return(nil).Once()
+
+	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// Execute workflow with SMB volume and nil PoolAttributes
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "password",
+			},
+			PoolAttributes: nil, // nil PoolAttributes
+			ActiveDirectory: &datamodel.ActiveDirectory{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "ad-uuid"},
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_smb_volume_nil_attrs",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			Protocols:    []string{utils.ProtocolSMB}, // SMB volume
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+
+	// Verify UpdateActiveDirectoryState was called
+	s.env.AssertExpectations(s.T())
+}
+
+func TestVolumeDeleteWorkflowSuite(t *testing.T) {
+	suite.Run(t, new(VolumeDeleteTestSuite))
 }

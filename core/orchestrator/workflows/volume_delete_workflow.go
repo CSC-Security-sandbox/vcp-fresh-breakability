@@ -2,6 +2,8 @@ package workflows
 
 import (
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -328,6 +330,27 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			err = workflow.ExecuteChildWorkflow(ctx, SmbTeardownWorkflow, volume, node).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
+			}
+		}
+
+		if volume.VolumeAttributes != nil &&
+			((utils.IsNFSProtocols(volume.VolumeAttributes.Protocols) && volume.Pool.PoolAttributes != nil && volume.Pool.PoolAttributes.LdapEnabled) ||
+				utils.IsSMBProtocols(volume.VolumeAttributes.Protocols)) {
+			if volume.Pool.ActiveDirectory == nil {
+				return nil, ConvertToVSAError(fmt.Errorf("volume %s has no active directory", volume.Name))
+			}
+			var dbSvms []*datamodel.Svm
+			err = workflow.ExecuteActivity(ctx, active_directory_activities.ActiveDirectoryActivity.GetSvmsForAd, volume.Pool.ActiveDirectory.ID).Get(ctx, &dbSvms)
+
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+
+			if dbSvms != nil && len(dbSvms) == 0 {
+				err = workflow.ExecuteActivity(ctx, active_directory_activities.ActiveDirectoryActivity.UpdateActiveDirectoryState, volume.Pool.ActiveDirectory.UUID, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails).Get(ctx, nil)
+				if err != nil {
+					return nil, ConvertToVSAError(err)
+				}
 			}
 		}
 	}

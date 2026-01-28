@@ -589,8 +589,9 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
 
 		oldAd := &models.ActiveDirectory{
-			AdName: "test-ad",
-			Domain: "example.com",
+			BaseModel: models.BaseModel{ID: 456}, // Add ID field
+			AdName:    "test-ad",
+			Domain:    "example.com",
 		}
 
 		params := &common.UpdateActiveDirectoryParams{
@@ -600,7 +601,7 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 		}
 
 		// Mock Setup will be called by the workflow
-		env.OnActivity("GetSvmsForAd", mock.Anything, oldAd).Return([]*datamodel.Svm{}, nil)
+		env.OnActivity("GetSvmsForAd", mock.Anything, int64(456)).Return([]*datamodel.Svm{}, nil)
 		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, params, oldAd, mock.AnythingOfType("string")).Return(nil)
 
 		var runResult interface{}
@@ -838,8 +839,9 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		oldAd := &models.ActiveDirectory{
-			AdName: "test-ad-vcp-error",
-			Domain: "example.com",
+			BaseModel: models.BaseModel{ID: 123}, // Add ID field
+			AdName:    "test-ad-vcp-error",
+			Domain:    "example.com",
 		}
 
 		params := &common.UpdateActiveDirectoryParams{
@@ -848,7 +850,7 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 			Password:          nillable.GetStringPtr("new-password"),
 		}
 
-		env.OnActivity(adActivity.GetSvmsForAd, mock.Anything, oldAd).Return([]*datamodel.Svm{}, nil)
+		env.OnActivity(adActivity.GetSvmsForAd, mock.Anything, int64(123)).Return([]*datamodel.Svm{}, nil)
 		env.OnActivity(adUpdateActivity.UpdateVcpActiveDirectory, mock.Anything, params, oldAd, mock.AnythingOfType("string")).Return(vsaerrors.New("VCP update failed"))
 		env.OnActivity(adUpdateActivity.MarkVcpAdToErrorActivity, mock.Anything, params, oldAd).Return(nil)
 		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
@@ -958,8 +960,9 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
 
 		oldAd := &models.ActiveDirectory{
-			AdName: "test-ad",
-			Domain: "example.com",
+			BaseModel: models.BaseModel{ID: 789}, // Add ID
+			AdName:    "test-ad",
+			Domain:    "example.com",
 		}
 
 		params := &common.UpdateActiveDirectoryParams{
@@ -968,7 +971,7 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 			Password:          nillable.GetStringPtr("new-password"),
 		}
 
-		env.OnActivity("GetSvmsForAd", mock.Anything, oldAd).Return([]*datamodel.Svm{}, nil)
+		env.OnActivity("GetSvmsForAd", mock.Anything, int64(789)).Return([]*datamodel.Svm{}, nil)
 		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, params, oldAd, mock.AnythingOfType("string")).Return(nil)
 
 		wf := &ActiveDirectoryUpdateWorkflow{}
@@ -1040,7 +1043,7 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 		env.OnActivity("PollSdeUpdateActivity", mock.Anything, params, sdeResult).Return(nil)
 		env.OnActivity("MarkVcpAdToUpdatingActivity", mock.Anything, params, adRecord).Return(nil)
 		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetSvmsForAd", mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil)
+		env.OnActivity("GetSvmsForAd", mock.Anything, int64(2)).Return([]*datamodel.Svm{}, nil)
 
 		var runResult interface{}
 		var runErr *vsaerrors.CustomError
@@ -1099,7 +1102,7 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 		}
 
 		activityError := vsaerrors.New("VCP update execution failed")
-		env.OnActivity("GetSvmsForAd", mock.Anything, mock.Anything).Return(nil, activityError)
+		env.OnActivity("GetSvmsForAd", mock.Anything, int64(3)).Return(nil, activityError)
 		env.OnActivity("MarkVcpAdToErrorActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		var runResult interface{}
@@ -1207,8 +1210,9 @@ func TestPushAdUpdatesToSVMWorkflow(t *testing.T) {
 		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
 
 		oldAd := &models.ActiveDirectory{
-			AdName: "test-ad-no-svms",
-			Domain: "example.com",
+			BaseModel: models.BaseModel{ID: 100}, // Add ID
+			AdName:    "test-ad-no-svms",
+			Domain:    "example.com",
 		}
 
 		params := &common.UpdateActiveDirectoryParams{
@@ -1219,7 +1223,7 @@ func TestPushAdUpdatesToSVMWorkflow(t *testing.T) {
 
 		changeId := "change-id-123"
 
-		env.OnActivity("GetSvmsForAd", mock.Anything, oldAd).Return([]*datamodel.Svm{}, nil)
+		env.OnActivity("GetSvmsForAd", mock.Anything, int64(100)).Return([]*datamodel.Svm{}, nil)
 
 		var result error
 		env.RegisterWorkflow(func(ctx workflow.Context) error {
@@ -1250,8 +1254,9 @@ func TestPushAdUpdatesToSVMWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 
 		oldAd := models.ActiveDirectory{
-			AdName: "test-ad-single",
-			Domain: "example.com",
+			BaseModel: models.BaseModel{ID: 200}, // Add ID
+			AdName:    "test-ad-single",
+			Domain:    "example.com",
 		}
 
 		params := common.UpdateActiveDirectoryParams{
@@ -1303,7 +1308,7 @@ func TestPushAdUpdatesToSVMWorkflow(t *testing.T) {
 			},
 		}
 
-		env.OnActivity("GetSvmsForAd", mock.Anything, &oldAd).Return(svms, nil)
+		env.OnActivity("GetSvmsForAd", mock.Anything, int64(200)).Return(svms, nil)
 		env.OnActivity("GenerateUpdateAdCredentialsParams", mock.Anything, oldAd, params).Return(&updateParams, nil)
 		env.OnActivity("GetPoolBySvmPoolId", mock.Anything, int64(1)).Return(pool, nil)
 		env.OnActivity("GetNode", mock.Anything, int64(1)).Return(nodes, nil)
@@ -1340,8 +1345,9 @@ func TestPushAdUpdatesToSVMWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 
 		oldAd := models.ActiveDirectory{
-			AdName: "test-ad-batches",
-			Domain: "example.com",
+			BaseModel: models.BaseModel{ID: 300}, // Add ID
+			AdName:    "test-ad-batches",
+			Domain:    "example.com",
 		}
 
 		params := common.UpdateActiveDirectoryParams{
@@ -1395,7 +1401,7 @@ func TestPushAdUpdatesToSVMWorkflow(t *testing.T) {
 			},
 		}
 
-		env.OnActivity("GetSvmsForAd", mock.Anything, &oldAd).Return(svms, nil)
+		env.OnActivity("GetSvmsForAd", mock.Anything, int64(300)).Return(svms, nil)
 		env.OnActivity("GenerateUpdateAdCredentialsParams", mock.Anything, oldAd, params).Return(&updateParams, nil).Once()
 
 		// Setup mocks for all 15 SVMs
@@ -1467,8 +1473,9 @@ func TestPushAdUpdatesToSVMWorkflow(t *testing.T) {
 		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
 
 		oldAd := &models.ActiveDirectory{
-			AdName: "test-ad-get-error",
-			Domain: "example.com",
+			BaseModel: models.BaseModel{ID: 400}, // Add ID
+			AdName:    "test-ad-get-error",
+			Domain:    "example.com",
 		}
 
 		params := &common.UpdateActiveDirectoryParams{
@@ -1479,7 +1486,7 @@ func TestPushAdUpdatesToSVMWorkflow(t *testing.T) {
 
 		changeId := "change-id-get-error"
 
-		env.OnActivity("GetSvmsForAd", mock.Anything, oldAd).Return(nil, vsaerrors.New("failed to get SVMs"))
+		env.OnActivity("GetSvmsForAd", mock.Anything, int64(400)).Return(nil, vsaerrors.New("failed to get SVMs"))
 
 		var result error
 		env.RegisterWorkflow(func(ctx workflow.Context) error {
@@ -1509,8 +1516,9 @@ func TestPushAdUpdatesToSVMWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 
 		oldAd := models.ActiveDirectory{
-			AdName: "test-ad-update-error",
-			Domain: "example.com",
+			BaseModel: models.BaseModel{ID: 500}, // Add ID
+			AdName:    "test-ad-update-error",
+			Domain:    "example.com",
 		}
 
 		params := common.UpdateActiveDirectoryParams{
@@ -1562,7 +1570,7 @@ func TestPushAdUpdatesToSVMWorkflow(t *testing.T) {
 			},
 		}
 
-		env.OnActivity("GetSvmsForAd", mock.Anything, &oldAd).Return(svms, nil)
+		env.OnActivity("GetSvmsForAd", mock.Anything, int64(500)).Return(svms, nil)
 		env.OnActivity("GenerateUpdateAdCredentialsParams", mock.Anything, oldAd, params).Return(&updateParams, nil)
 		env.OnActivity("GetPoolBySvmPoolId", mock.Anything, int64(1)).Return(pool, nil)
 		env.OnActivity("GetNode", mock.Anything, int64(1)).Return(nodes, nil)
@@ -1597,8 +1605,9 @@ func TestPushAdUpdatesToSVMWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 
 		oldAd := models.ActiveDirectory{
-			AdName: "test-ad-propagate-error",
-			Domain: "example.com",
+			BaseModel: models.BaseModel{ID: 600}, // Add ID
+			AdName:    "test-ad-propagate-error",
+			Domain:    "example.com",
 		}
 
 		params := common.UpdateActiveDirectoryParams{
@@ -1650,7 +1659,7 @@ func TestPushAdUpdatesToSVMWorkflow(t *testing.T) {
 			},
 		}
 
-		env.OnActivity("GetSvmsForAd", mock.Anything, &oldAd).Return(svms, nil)
+		env.OnActivity("GetSvmsForAd", mock.Anything, int64(600)).Return(svms, nil)
 		env.OnActivity("GenerateUpdateAdCredentialsParams", mock.Anything, oldAd, params).Return(&updateParams, nil)
 		env.OnActivity("GetPoolBySvmPoolId", mock.Anything, int64(1)).Return(pool, nil)
 		env.OnActivity("GetNode", mock.Anything, int64(1)).Return(nodes, nil)
