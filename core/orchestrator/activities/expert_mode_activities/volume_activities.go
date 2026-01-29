@@ -160,11 +160,44 @@ func (a *ExpertModeVolumeActivity) ValidateONTAPVolumeUpdate(ctx context.Context
 	}
 
 	logger.Infof("Volume %s still not updated in ONTAP (UUID: %s), update may be in progress. Will retry.", volume.Name, volume.ExternalUUID)
-	// in case of mismatch, update volume state and return error to trigger activity retry
-	// in case of last time retry, we have to set the value of DB to the values as set in ONTAP
-	volume.Name = ontapVolume.Name
-	volume.SizeInBytes = ontapVolume.Size
-	return volume, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, fmt.Errorf("Volume %s still not updated in ONTAP (UUID: %s), update may be in progress. Will retry.", volume.Name, volume.ExternalUUID)))
+	return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, fmt.Errorf("Volume %s still not updated in ONTAP (UUID: %s), update may be in progress. Will retry.", volume.Name, volume.ExternalUUID)))
+}
+
+// ValidateONTAPVolumeUpdate fetches a volume from ONTAP by UUID and checks if the update was successful
+func (a *ExpertModeVolumeActivity) FetchOntapVolumeByUUID(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*datamodel.ExpertModeVolumes, error) {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetching ONTAP volume by UUID for external UUID: %s and Name : %s", volume.ExternalUUID, volume.Name))
+
+	logger.Debugf("Fetching volume from ONTAP Name: %s, external UUID: %s, UUID: %s", volume.Name, volume.ExternalUUID, volume.UUID)
+	ontapVolume, err := fetchOntapVolumeByUUID(ctx, volume, node)
+	if err != nil {
+		logger.Errorf("Failed to fetch volume from ONTAP: %v", err)
+		return nil, err
+	}
+	logger.Debugf("Successfully fetched volume from ONTAP Name: %s, external UUID: %s, size: %d", ontapVolume.Name, ontapVolume.ExternalUUID, ontapVolume.Size)
+	return convertOntapToONTAPModeVol(ontapVolume, volume), nil
+}
+
+func convertOntapToONTAPModeVol(ontapVol *vsa.VolumeResponse, dbVolume *datamodel.ExpertModeVolumes) *datamodel.ExpertModeVolumes {
+	var volume datamodel.ExpertModeVolumes
+
+	volume.Name = ontapVol.Name
+	volume.SizeInBytes = ontapVol.Size
+	volume.ExternalUUID = dbVolume.ExternalUUID
+	volume.UUID = dbVolume.UUID
+	volume.Svm = dbVolume.Svm
+	volume.Style = dbVolume.Style
+	volume.State = models.LifeCycleStateAvailable
+	volume.Description = dbVolume.Description
+	volume.AccountID = dbVolume.AccountID
+	volume.PoolID = dbVolume.PoolID
+	volume.SvmID = dbVolume.SvmID
+	volume.Account = dbVolume.Account
+	volume.Pool = dbVolume.Pool
+	volume.BackupConfig = dbVolume.BackupConfig
+	volume.VolumeAttributes = dbVolume.VolumeAttributes
+
+	return &volume
 }
 
 func _fetchOntapVolumeByUUID(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*vsa.VolumeResponse, error) {

@@ -1279,6 +1279,201 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
+	t.Run("Success_VolumeNotUpdatedInOntap_FetchOntapVolumeByUUIDSucceeds_MarkedAsAvailable", func(tt *testing.T) {
+		// Covers path: ValidateONTAPVolumeUpdate fails -> FetchOntapVolumeByUUID succeeds ->
+		// use fetched volume (not oldVolume), set AVAILABLE, UpdateExpertModeVolumeInDB succeeds (lines 391-406)
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		expertModeActivity := expertmodeactivities.ExpertModeVolumeActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(expertModeActivity.ValidateONTAPVolumeUpdate)
+		env.RegisterActivity(expertModeActivity.FetchOntapVolumeByUUID)
+		env.RegisterActivity(expertModeActivity.UpdateExpertModeVolumeInDB)
+
+		oldVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 1099511627776,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 2199023255552,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		fetchedVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:         "test-volume",
+			SizeInBytes:  1099511627776,
+			Style:        "flexvol",
+			ExternalUUID: "ontap-uuid-from-fetch",
+		}
+
+		stateConflictError := vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, nil)
+		temporalAppError := vsaerrors.WrapAsTemporalApplicationError(stateConflictError)
+
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("ValidateONTAPVolumeUpdate", mock.Anything, mock.Anything, mock.Anything).Return(nil, temporalAppError)
+		env.OnActivity("FetchOntapVolumeByUUID", mock.Anything, mock.Anything, mock.Anything).Return(fetchedVolume, nil)
+		env.OnActivity("UpdateExpertModeVolumeInDB", mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(VolumeUpdateReconciliationWorkflow, volume, oldVolume)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_VolumeNotUpdatedInOntap_FetchOntapVolumeByUUIDFails_UsesOldVolume_MarkedAsAvailable", func(tt *testing.T) {
+		// Covers path: ValidateONTAPVolumeUpdate fails -> FetchOntapVolumeByUUID fails ->
+		// log "Failed to fetch volume from ONTAP", set updatedVolume = oldVolume (lines 394-399), UpdateExpertModeVolumeInDB succeeds
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		expertModeActivity := expertmodeactivities.ExpertModeVolumeActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(expertModeActivity.ValidateONTAPVolumeUpdate)
+		env.RegisterActivity(expertModeActivity.FetchOntapVolumeByUUID)
+		env.RegisterActivity(expertModeActivity.UpdateExpertModeVolumeInDB)
+
+		oldVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:         "test-volume",
+			ExternalUUID: "old-external-uuid",
+			SizeInBytes:  1099511627776,
+			Style:        "flexvol",
+			State:        models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:        "test-volume",
+			SizeInBytes: 2199023255552,
+			Style:       "flexvol",
+			State:       models.LifeCycleStateUpdating,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "test-deployment",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		fetchErr := vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, nil)
+		temporalFetchErr := vsaerrors.WrapAsTemporalApplicationError(fetchErr)
+		stateConflictError := vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, nil)
+		temporalAppError := vsaerrors.WrapAsTemporalApplicationError(stateConflictError)
+
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("ValidateONTAPVolumeUpdate", mock.Anything, mock.Anything, mock.Anything).Return(nil, temporalAppError)
+		env.OnActivity("FetchOntapVolumeByUUID", mock.Anything, mock.Anything, mock.Anything).Return(nil, temporalFetchErr)
+		env.OnActivity("UpdateExpertModeVolumeInDB", mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(VolumeUpdateReconciliationWorkflow, volume, oldVolume)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
 	t.Run("Failure_GetNodeActivityFails", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
@@ -1859,6 +2054,8 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 	})
 
 	t.Run("Failure_VolumeNotUpdated_UpdateExpertModeVolumeInDBFails", func(tt *testing.T) {
+		// Covers path: ValidateONTAPVolumeUpdate fails -> FetchOntapVolumeByUUID (use oldVolume) ->
+		// UpdateExpertModeVolumeInDB fails (lines 403-404)
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -1876,6 +2073,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(expertModeActivity.ValidateONTAPVolumeUpdate)
+		env.RegisterActivity(expertModeActivity.FetchOntapVolumeByUUID)
 		env.RegisterActivity(expertModeActivity.UpdateExpertModeVolumeInDB)
 
 		oldVolume := &datamodel.ExpertModeVolumes{
@@ -1936,6 +2134,7 @@ func TestVolumeUpdateReconciliationWorkflow(t *testing.T) {
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2) // PROCESSING, ERROR
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("ValidateONTAPVolumeUpdate", mock.Anything, mock.Anything, mock.Anything).Return(nil, temporalAppError)
+		env.OnActivity("FetchOntapVolumeByUUID", mock.Anything, mock.Anything, mock.Anything).Return(nil, assert.AnError)
 		// UpdateExpertModeVolumeInDB fails when trying to update oldVolume to AVAILABLE
 		env.OnActivity("UpdateExpertModeVolumeInDB", mock.Anything, mock.Anything).Return(assert.AnError)
 

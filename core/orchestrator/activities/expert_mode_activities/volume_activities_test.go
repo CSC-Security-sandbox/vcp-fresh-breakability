@@ -1734,3 +1734,216 @@ func TestFetchOntapVolumeByUUID(t *testing.T) {
 		mockProvider.AssertExpectations(tt)
 	})
 }
+
+// TestExpertModeVolumeActivity_FetchOntapVolumeByUUID tests the public method
+// (a *ExpertModeVolumeActivity) FetchOntapVolumeByUUID which calls fetchOntapVolumeByUUID
+// and converts the result via convertOntapToONTAPModeVol.
+func TestExpertModeVolumeActivity_FetchOntapVolumeByUUID(t *testing.T) {
+	t.Run("WhenFetchSucceeds_ReturnsConvertedVolume", func(tt *testing.T) {
+		// Arrange
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.FetchOntapVolumeByUUID)
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid-123",
+			},
+			Name:         "test-volume",
+			SizeInBytes:  1099511627776,
+			Style:        "flexvol",
+			State:        models.LifeCycleStateCreating,
+			ExternalUUID: "external-uuid-456",
+			Description:  "my volume",
+			AccountID:    1,
+			PoolID:       2,
+			SvmID:        3,
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		node := &models.Node{
+			Name: "test-node",
+		}
+
+		ontapVolumeResponse := &vsa.VolumeResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				Name:         "test-volume-updated",
+				ExternalUUID: "external-uuid-456",
+			},
+			Size:  2199023255552, // 2TB
+			Style: "flexgroup",
+			State: "online",
+		}
+
+		originalFetchOntapVolumeByUUID := fetchOntapVolumeByUUID
+		defer func() { fetchOntapVolumeByUUID = originalFetchOntapVolumeByUUID }()
+
+		fetchOntapVolumeByUUID = func(ctx context.Context, vol *datamodel.ExpertModeVolumes, n *models.Node) (*vsa.VolumeResponse, error) {
+			return ontapVolumeResponse, nil
+		}
+
+		// Act
+		encodedValue, err := env.ExecuteActivity(activity.FetchOntapVolumeByUUID, volume, node)
+
+		// Assert
+		assert.NoError(tt, err)
+		var result *datamodel.ExpertModeVolumes
+		err = encodedValue.Get(&result)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// From ontap response
+		assert.Equal(tt, "test-volume-updated", result.Name)
+		assert.Equal(tt, int64(2199023255552), result.SizeInBytes)
+		assert.Equal(tt, models.LifeCycleStateAvailable, result.State)
+		// From input volume (db)
+		assert.Equal(tt, "volume-uuid-123", result.UUID)
+		assert.Equal(tt, "external-uuid-456", result.ExternalUUID)
+		assert.Equal(tt, "flexvol", result.Style) // convertOntapToONTAPModeVol uses dbVolume.Style
+		assert.Equal(tt, "my volume", result.Description)
+		assert.Equal(tt, int64(1), result.AccountID)
+		assert.Equal(tt, int64(2), result.PoolID)
+		assert.Equal(tt, int64(3), result.SvmID)
+		assert.Equal(tt, volume.Svm, result.Svm)
+	})
+
+	t.Run("WhenFetchReturnsError_ReturnsError", func(tt *testing.T) {
+		// Arrange
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.FetchOntapVolumeByUUID)
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-123"},
+			Name:        "test-volume",
+			ExternalUUID: "external-uuid-456",
+			Svm:         &datamodel.Svm{Name: "test-svm"},
+		}
+
+		node := &models.Node{Name: "test-node"}
+
+		fetchErr := errors.New("failed to fetch volume from ONTAP")
+
+		originalFetchOntapVolumeByUUID := fetchOntapVolumeByUUID
+		defer func() { fetchOntapVolumeByUUID = originalFetchOntapVolumeByUUID }()
+
+		fetchOntapVolumeByUUID = func(ctx context.Context, vol *datamodel.ExpertModeVolumes, n *models.Node) (*vsa.VolumeResponse, error) {
+			return nil, fetchErr
+		}
+
+		// Act
+		encodedValue, err := env.ExecuteActivity(activity.FetchOntapVolumeByUUID, volume, node)
+
+		// Assert
+		var result *datamodel.ExpertModeVolumes
+		if err == nil {
+			err = encodedValue.Get(&result)
+		}
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.True(tt, containsIgnoreCase(err.Error(), "failed to fetch volume from ONTAP"),
+			"Expected error to contain 'failed to fetch volume from ONTAP', got: %v", err)
+	})
+
+	t.Run("WhenFetchReturnsNotFoundError_ReturnsWrappedError", func(tt *testing.T) {
+		// Arrange
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.FetchOntapVolumeByUUID)
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-123"},
+			Name:        "test-volume",
+			ExternalUUID: "non-existent-uuid",
+			Svm:         &datamodel.Svm{Name: "test-svm"},
+		}
+
+		node := &models.Node{Name: "test-node"}
+
+		notFoundErr := utilErrors.NewNotFoundErr("volume", nil)
+
+		originalFetchOntapVolumeByUUID := fetchOntapVolumeByUUID
+		defer func() { fetchOntapVolumeByUUID = originalFetchOntapVolumeByUUID }()
+
+		fetchOntapVolumeByUUID = func(ctx context.Context, vol *datamodel.ExpertModeVolumes, n *models.Node) (*vsa.VolumeResponse, error) {
+			return nil, notFoundErr
+		}
+
+		// Act
+		encodedValue, err := env.ExecuteActivity(activity.FetchOntapVolumeByUUID, volume, node)
+
+		// Assert
+		var result *datamodel.ExpertModeVolumes
+		if err == nil {
+			err = encodedValue.Get(&result)
+		}
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		errMsg := err.Error()
+		assert.True(tt,
+			containsIgnoreCase(errMsg, "resource not found") || containsIgnoreCase(errMsg, "not found"),
+			"Expected error to contain 'resource not found' or 'not found', got: %v", err)
+	})
+
+	t.Run("WhenVolumeHasNilSvm_Succeeds", func(tt *testing.T) {
+		// Arrange
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.FetchOntapVolumeByUUID)
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "volume-uuid-123"},
+			Name:         "test-volume",
+			ExternalUUID: "external-uuid-456",
+			Svm:          nil, // No SVM
+		}
+
+		node := &models.Node{Name: "test-node"}
+
+		ontapVolumeResponse := &vsa.VolumeResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				Name:         "ontap-volume-name",
+				ExternalUUID: "external-uuid-456",
+			},
+			Size:  1099511627776,
+			Style: "flexvol",
+			State: "online",
+		}
+
+		originalFetchOntapVolumeByUUID := fetchOntapVolumeByUUID
+		defer func() { fetchOntapVolumeByUUID = originalFetchOntapVolumeByUUID }()
+
+		fetchOntapVolumeByUUID = func(ctx context.Context, vol *datamodel.ExpertModeVolumes, n *models.Node) (*vsa.VolumeResponse, error) {
+			assert.Nil(tt, vol.Svm, "volume.Svm should be nil")
+			return ontapVolumeResponse, nil
+		}
+
+		// Act
+		encodedValue, err := env.ExecuteActivity(activity.FetchOntapVolumeByUUID, volume, node)
+
+		// Assert
+		assert.NoError(tt, err)
+		var result *datamodel.ExpertModeVolumes
+		err = encodedValue.Get(&result)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "ontap-volume-name", result.Name)
+		assert.Equal(tt, int64(1099511627776), result.SizeInBytes)
+		assert.Equal(tt, models.LifeCycleStateAvailable, result.State)
+		assert.Equal(tt, "volume-uuid-123", result.UUID)
+		assert.Nil(tt, result.Svm)
+	})
+}

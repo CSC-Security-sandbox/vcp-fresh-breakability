@@ -377,7 +377,7 @@ func (wf *volumeUpdateReconciliationWorkflow) Run(ctx workflow.Context, args ...
 
 	activity := &expertmodeactivities.ExpertModeVolumeActivity{}
 
-	var updatedVolume *datamodel.ExpertModeVolumes
+	updatedVolume := &datamodel.ExpertModeVolumes{}
 	err = workflow.ExecuteActivity(ctx1, activity.ValidateONTAPVolumeUpdate, volume, node).Get(ctx1, &updatedVolume)
 	// Note: This error handling logic only executes after all activity retries (as per the retry policy)
 	// have been exhausted. If FetchOntapVolumeByName fails with a retryable error, Temporal will
@@ -390,7 +390,12 @@ func (wf *volumeUpdateReconciliationWorkflow) Run(ctx workflow.Context, args ...
 		// Update the volume state to available in DB since it's available and with older values in ONTAP
 		if vsaErr != nil {
 			log.Infof("Volume UUID: %s not updated in ONTAP after max retries, marking as %s", volume.UUID, models.LifeCycleStateAvailable)
-			if updatedVolume == nil {
+			err = workflow.ExecuteActivity(ctx1, activity.FetchOntapVolumeByUUID, volume, node).Get(ctx1, &updatedVolume)
+			if err != nil {
+				log.Errorf("Failed to fetch volume from ONTAP: %v", err)
+			}
+			if updatedVolume == nil || err != nil {
+				log.Debugf("setting the volume (external UUID: %s) to old volume(name : %s), since fetching volume from ONTAP failed: %v", oldVolume.ExternalUUID, oldVolume.Name, err)
 				updatedVolume = oldVolume
 			}
 			updatedVolume.State = models.LifeCycleStateAvailable
@@ -398,7 +403,7 @@ func (wf *volumeUpdateReconciliationWorkflow) Run(ctx workflow.Context, args ...
 			if updateErr != nil {
 				log.Errorf("Failed to update volume state in DB to AVAILABLE: %v. Volume isn't updated in ONTAP, reconciliation complete.", updateErr)
 			} else {
-				log.Infof("ExpertMode volume %s marked as AVAILABLE (not updated in ONTAP after max retries)", volume.Name)
+				log.Infof("ExpertMode volume %s marked as AVAILABLE (not updated in ONTAP after max retries)", updatedVolume.Name)
 			}
 		}
 		return nil, vsaErr
