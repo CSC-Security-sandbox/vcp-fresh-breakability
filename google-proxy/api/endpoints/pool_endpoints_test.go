@@ -7484,3 +7484,127 @@ func TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool(t *testing.T) {
 		assert.Equal(tt, "Update operation is not allowed when the pool is in degraded state", conflict.Message)
 	})
 }
+
+// TestValidateUpdatePoolParams_QosType tests that pool updates with QosType
+// are allowed when QosType matches the existing pool value
+func TestValidateUpdatePoolParams_QosType(t *testing.T) {
+	t.Run("AllowsUpdateWhenQosTypeMatchesExistingPool_Manual", func(tt *testing.T) {
+		// Pool with manual QosType
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			QosType: "manual",
+			State:   models.LifeCycleStateREADY,
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}
+
+		// Request with same QosType as existing pool
+		req := &gcpgenserver.PoolUpdateV1beta{
+			QosType:     gcpgenserver.NewOptNilString("manual"),
+			Description: gcpgenserver.NewOptNilString("Updated description"),
+		}
+
+		result := validateUpdatePoolParams(req, existingPool)
+		assert.Nil(tt, result, "Should allow update when QosType matches existing pool")
+	})
+
+	t.Run("AllowsUpdateWhenQosTypeMatchesExistingPool_Auto", func(tt *testing.T) {
+		// Pool with auto QosType
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			QosType: "auto",
+			State:   models.LifeCycleStateREADY,
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}
+
+		// Request with same QosType as existing pool
+		req := &gcpgenserver.PoolUpdateV1beta{
+			QosType:     gcpgenserver.NewOptNilString("auto"),
+			Description: gcpgenserver.NewOptNilString("Updated description"),
+		}
+
+		result := validateUpdatePoolParams(req, existingPool)
+		assert.Nil(tt, result, "Should allow update when QosType matches existing pool")
+	})
+
+	t.Run("RejectsUpdateWhenQosTypeChangesFromAutoToManual", func(tt *testing.T) {
+		// Pool with auto QosType
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			QosType: "auto",
+			State:   models.LifeCycleStateREADY,
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}
+
+		// Request trying to change QosType
+		req := &gcpgenserver.PoolUpdateV1beta{
+			QosType: gcpgenserver.NewOptNilString("manual"),
+		}
+
+		result := validateUpdatePoolParams(req, existingPool)
+
+		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		assert.True(tt, ok, "Expected V1betaUpdatePoolBadRequest response")
+		assert.Equal(tt, float64(http.StatusBadRequest), badReq.Code)
+		assert.Equal(tt, "Updating QosType is currently not supported", badReq.Message)
+	})
+
+	t.Run("RejectsUpdateWhenQosTypeChangesFromManualToAuto", func(tt *testing.T) {
+		// Pool with manual QosType
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			QosType: "manual",
+			State:   models.LifeCycleStateREADY,
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}
+
+		// Request trying to change QosType
+		req := &gcpgenserver.PoolUpdateV1beta{
+			QosType: gcpgenserver.NewOptNilString("auto"),
+		}
+
+		result := validateUpdatePoolParams(req, existingPool)
+
+		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		assert.True(tt, ok, "Expected V1betaUpdatePoolBadRequest response")
+		assert.Equal(tt, float64(http.StatusBadRequest), badReq.Code)
+		assert.Equal(tt, "Updating QosType is currently not supported", badReq.Message)
+	})
+
+	t.Run("AllowsUpdateWhenQosTypeNotSet", func(tt *testing.T) {
+		// Pool with manual QosType
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			QosType: "manual",
+			State:   models.LifeCycleStateREADY,
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}
+
+		// Request without QosType (not trying to change it)
+		req := &gcpgenserver.PoolUpdateV1beta{
+			Description: gcpgenserver.NewOptNilString("Updated description"),
+		}
+
+		result := validateUpdatePoolParams(req, existingPool)
+		assert.Nil(tt, result, "Should allow update when QosType is not set in request")
+	})
+}

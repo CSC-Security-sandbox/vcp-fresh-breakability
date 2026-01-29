@@ -1191,7 +1191,7 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 		}
 	}
 
-	if req.QosType.IsSet() && req.QosType.Value != QosTypeAuto {
+	if req.QosType.IsSet() && req.QosType.Value != existingPool.QosType {
 		return &gcpgenserver.V1betaUpdatePoolBadRequest{
 			Code:    http.StatusBadRequest,
 			Message: "Updating QosType is currently not supported",

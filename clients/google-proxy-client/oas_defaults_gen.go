@@ -287,14 +287,6 @@ func (s *PoolInternalV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
-func (s *PoolUpdateV1beta) setDefaults() {
-	{
-		val := string("auto")
-		s.QosType.SetTo(val)
-	}
-}
-
-// setDefaults set default value of fields.
 func (s *PoolV1beta) setDefaults() {
 	{
 		val := string("auto")

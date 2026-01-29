@@ -8823,7 +8823,6 @@ components:
           type: string
           description: The type of QoS for the pool
           nullable: true
-          default: auto
           example: auto
         customPerformanceEnabled:
           title: customPerformanceEnabled
