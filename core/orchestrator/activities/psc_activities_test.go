@@ -44,15 +44,19 @@ func TestCreateClusterLogForwardingProvider_Success(t *testing.T) {
 		return errors.New("record not found")
 	}
 
-	activity := activities.PSCActivity{
+	pscActivity := &activities.PSCActivity{
 		SE: database.NewMockStorage(t),
 	}
 
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	node := &coremodel.Node{}
 	mockProvider.On("CreateSecurityLogForwarding", mock.Anything).Return(nil, nil)
 
-	err := activity.CreateClusterLogForwarding(ctx, node, "test-address")
+	// Run activity through Temporal test environment so RecordHeartbeat has a valid activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(pscActivity.CreateClusterLogForwarding)
+
+	_, err := env.ExecuteActivity(pscActivity.CreateClusterLogForwarding, node, "test-address")
 	assert.NoError(t, err)
 }
 
@@ -75,15 +79,19 @@ func TestCreateClusterLogForwardingProvider_Failure(t *testing.T) {
 		return errors.New("record not found")
 	}
 
-	activity := activities.PSCActivity{
+	pscActivity := &activities.PSCActivity{
 		SE: database.NewMockStorage(t),
 	}
 
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	node := &coremodel.Node{}
 	mockProvider.On("CreateSecurityLogForwarding", mock.Anything).Return(nil, errors.New("failed to get create cluster log forwarding"))
 
-	err := activity.CreateClusterLogForwarding(ctx, node, "test-address")
+	// Run activity through Temporal test environment so RecordHeartbeat has a valid activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(pscActivity.CreateClusterLogForwarding)
+
+	_, err := env.ExecuteActivity(pscActivity.CreateClusterLogForwarding, node, "test-address")
 	assert.Error(t, err)
 }
 
@@ -170,15 +178,19 @@ func Test_updateSecurityAudit_Success(t *testing.T) {
 		return &securityAudit, nil
 	}
 
-	activity := activities.PSCActivity{
+	pscActivity := &activities.PSCActivity{
 		SE: database.NewMockStorage(t),
 	}
 
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	node := &coremodel.Node{}
 	mockProvider.On("UpdateSecurityAudit", mock.Anything).Return(nil, nil)
 
-	err := activity.UpdateSecurityAudit(ctx, node)
+	// Run activity through Temporal test environment so RecordHeartbeat has a valid activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(pscActivity.UpdateSecurityAudit)
+
+	_, err := env.ExecuteActivity(pscActivity.UpdateSecurityAudit, node)
 	assert.NoError(t, err)
 }
 
@@ -205,15 +217,19 @@ func Test_updateSecurityAudit_Failure(t *testing.T) {
 		return &securityAudit, nil
 	}
 
-	activity := activities.PSCActivity{
+	pscActivity := &activities.PSCActivity{
 		SE: database.NewMockStorage(t),
 	}
 
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	node := &coremodel.Node{}
 	mockProvider.On("UpdateSecurityAudit", mock.Anything).Return(nil, errors.New("failed to update"))
 
-	err := activity.UpdateSecurityAudit(ctx, node)
+	// Run activity through Temporal test environment so RecordHeartbeat has a valid activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(pscActivity.UpdateSecurityAudit)
+
+	_, err := env.ExecuteActivity(pscActivity.UpdateSecurityAudit, node)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to update")
 }
@@ -226,14 +242,18 @@ func Test_updateSecurityAudit_ProviderError(t *testing.T) {
 	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
 		return nil, errors.New("failed to get provider by node")
 	}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	node := &coremodel.Node{}
 
-	activity := activities.PSCActivity{
+	pscActivity := &activities.PSCActivity{
 		SE: database.NewMockStorage(t),
 	}
-	err := activity.UpdateSecurityAudit(ctx, node)
 
+	// Run activity through Temporal test environment so RecordHeartbeat has a valid activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(pscActivity.UpdateSecurityAudit)
+
+	_, err := env.ExecuteActivity(pscActivity.UpdateSecurityAudit, node)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to get provider by node")
 }

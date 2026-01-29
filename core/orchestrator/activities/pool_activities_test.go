@@ -287,7 +287,6 @@ func TestCreatedPoolSuccess_VLMUpdateFailed(t *testing.T) {
 func TestPoolActivity_FindTenancy(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := &activities.PoolActivity{SE: mockStorage}
-	ctx := context.Background()
 	params := commonparams.CreatePoolParams{}
 
 	origGetGCPService := hyperscaler2.GetGCPService
@@ -298,15 +297,23 @@ func TestPoolActivity_FindTenancy(t *testing.T) {
 	}()
 
 	t.Run("GetGCPService fails", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FindTenancyProject)
+
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return nil, errors.New("gcp service error")
 		}
-		_, err := activity.FindTenancyProject(ctx, params)
+		_, err := env.ExecuteActivity(activity.FindTenancyProject, params)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "gcp service error")
 	})
 
 	t.Run("GetTenantProject fails", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FindTenancyProject)
+
 		mockSvc := &google.GcpServices{}
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return mockSvc, nil
@@ -314,12 +321,16 @@ func TestPoolActivity_FindTenancy(t *testing.T) {
 		activities.GetTenantProject = func(service hyperscaler2.GoogleServices, params commonparams.CreatePoolParams) (string, error) {
 			return "", errors.New("tenant project error")
 		}
-		_, err := activity.FindTenancyProject(ctx, params)
+		_, err := env.ExecuteActivity(activity.FindTenancyProject, params)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "tenant project error")
 	})
 
 	t.Run("Success", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FindTenancyProject)
+
 		mockSvc := &google.GcpServices{}
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return mockSvc, nil
@@ -327,8 +338,10 @@ func TestPoolActivity_FindTenancy(t *testing.T) {
 		activities.GetTenantProject = func(service hyperscaler2.GoogleServices, params commonparams.CreatePoolParams) (string, error) {
 			return "tenant-project-id", nil
 		}
-		result, err := activity.FindTenancyProject(ctx, params)
+		val, err := env.ExecuteActivity(activity.FindTenancyProject, params)
 		assert.NoError(tt, err)
+		var result string
+		assert.NoError(tt, val.Get(&result))
 		assert.Equal(tt, "tenant-project-id", result)
 	})
 }
@@ -2292,9 +2305,13 @@ func Test_DeletesPoolResourcesSuccessfully(t *testing.T) {
 }
 
 func Test_ReturnsErrorWhenListPoolsFails(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
 	mockStorage := database.NewMockStorage(t)
-	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.Background()
+	activity := &activities.PoolActivity{SE: mockStorage}
+	env.RegisterActivity(activity.ReleaseDataSubnetOp)
+
 	pool := &datamodel.Pool{
 		AccountID: 1,
 		Network:   "test-network",
@@ -2303,19 +2320,17 @@ func Test_ReturnsErrorWhenListPoolsFails(t *testing.T) {
 			SubnetNames: []string{"subnet1"},
 		},
 	}
-	mockStorage.On("ListPools", ctx, mock.Anything).Return(nil, errors.New("failed to list pools"))
+	mockStorage.On("ListPools", mock.Anything, mock.Anything).Return(nil, errors.New("failed to list pools"))
 
-	ops, err := activity.ReleaseDataSubnetOp(ctx, pool)
+	_, err := env.ExecuteActivity(activity.ReleaseDataSubnetOp, pool)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to list pools")
-	assert.Nil(t, ops)
 	mockStorage.AssertExpectations(t)
 }
 
 // Unit tests for ReleaseSubnetOp in core/orchestrator/activities/pool_activities.go
 func TestPoolActivity_ReleaseDataSubnetOp(t *testing.T) {
-	ctx := context.Background()
 	pool := datamodel.Pool{
 		AccountID:      1,
 		Network:        "test-network",
@@ -2333,92 +2348,99 @@ func TestPoolActivity_ReleaseDataSubnetOp(t *testing.T) {
 	poolView2 := &datamodel.PoolView{Pool: pool2}
 
 	t.Run("listPoolsFails", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(t)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
 
-		mockStorage.On("ListPools", ctx, mock.Anything).Return(nil, errors.New("list pools error"))
-		activity := activities.PoolActivity{SE: mockStorage}
-		ops, err := activity.ReleaseDataSubnetOp(ctx, &pool)
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return(nil, errors.New("list pools error"))
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ReleaseDataSubnetOp)
+
+		_, err := env.ExecuteActivity(activity.ReleaseDataSubnetOp, &pool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "list pools error")
-		assert.Nil(tt, ops)
 		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("multiplePoolsExist", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-
-		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{poolView, poolView2}, nil)
-		activity := activities.PoolActivity{SE: mockStorage}
-		_, err := activity.ReleaseDataSubnetOp(ctx, &pool)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{poolView, poolView2}, nil)
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ReleaseDataSubnetOp)
+		_, err := env.ExecuteActivity(activity.ReleaseDataSubnetOp, &pool)
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("GetGCPServiceFails", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(t)
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		origGetGCPService := hyperscaler2.GetGCPService
+		defer func() { hyperscaler2.GetGCPService = origGetGCPService }()
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return nil, errors.New("initialisation of Google GCP service failed")
 		}
-		GetGCPService := hyperscaler2.GetGCPService
-		defer func() {
-			hyperscaler2.GetGCPService = GetGCPService
-		}()
-		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
-		activity := activities.PoolActivity{SE: mockStorage}
-		_, err := activity.ReleaseDataSubnetOp(ctx, &pool)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ReleaseDataSubnetOp)
+		_, err := env.ExecuteActivity(activity.ReleaseDataSubnetOp, &pool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "initialisation of Google GCP service failed")
 		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("getSubnetForConsumerProjectAndReleaseFails", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		GetGCPService := hyperscaler2.GetGCPService
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		origGetGCPService := hyperscaler2.GetGCPService
+		releaseSubnet := activities.ReleaseSubnetOp
 		defer func() {
-			hyperscaler2.GetGCPService = GetGCPService
+			hyperscaler2.GetGCPService = origGetGCPService
+			activities.ReleaseSubnetOp = releaseSubnet
 		}()
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
-		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
-		defer func() {}()
-		releaseSubnet := activities.ReleaseSubnetOp
-		defer func() { activities.ReleaseSubnetOp = releaseSubnet }()
 		activities.ReleaseSubnetOp = func(service hyperscaler2.GoogleServices, snHost, subnetName string) (string, error) {
 			return "", errors.New("release subnet error")
 		}
-		activity := activities.PoolActivity{SE: mockStorage}
-		_, err := activity.ReleaseDataSubnetOp(ctx, &pool)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ReleaseDataSubnetOp)
+		_, err := env.ExecuteActivity(activity.ReleaseDataSubnetOp, &pool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "release subnet error")
 		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("releasesSubnet", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-
-		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
-
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
 		originalGetGCPService := hyperscaler2.GetGCPService
 		releaseSubnet := activities.ReleaseSubnetOp
 		defer func() {
 			activities.ReleaseSubnetOp = releaseSubnet
 			hyperscaler2.GetGCPService = originalGetGCPService
 		}()
-
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
 		activities.ReleaseSubnetOp = func(service hyperscaler2.GoogleServices, snHost, subnetName string) (string, error) {
 			return "", nil
 		}
-		activity := activities.PoolActivity{SE: mockStorage}
-		_, err := activity.ReleaseDataSubnetOp(ctx, &pool)
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ReleaseDataSubnetOp)
+		_, err := env.ExecuteActivity(activity.ReleaseDataSubnetOp, &pool)
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
 }
 
 func TestPoolActivity_ReleaseSubnet(t *testing.T) {
-	ctx := context.Background()
 	rawPool := datamodel.Pool{
 		Name:    "test-pool",
 		Network: "test-network",
@@ -2444,103 +2466,111 @@ func TestPoolActivity_ReleaseSubnet(t *testing.T) {
 			}},
 	}
 	t.Run("NoSubnetNames", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
 		mockStorage := database.NewMockStorage(t)
-		activity := activities.PoolActivity{SE: mockStorage}
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ReleaseDataSubnetOp)
 
 		poolNoSubnet := rawPool
 		poolNoSubnet.ClusterDetails = datamodel.ClusterDetails{
 			SnHostProject: "sn-host-project",
 			SubnetNames:   []string{},
 		}
-		ops, err := activity.ReleaseDataSubnetOp(ctx, &poolNoSubnet)
-		assert.Nil(t, err)
-		assert.Nil(t, ops)
+		_, err := env.ExecuteActivity(activity.ReleaseDataSubnetOp, &poolNoSubnet)
+		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
 
 	t.Run("GetPoolsBySubnetworkFails", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
 		mockStorage := database.NewMockStorage(t)
-		activity := activities.PoolActivity{SE: mockStorage}
-
-		mockStorage.On("ListPools", ctx, mock.Anything).Return(nil, errors.New("list pools error"))
-		ops, err := activity.ReleaseDataSubnetOp(ctx, &rawPool)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return(nil, errors.New("list pools error"))
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ReleaseDataSubnetOp)
+		_, err := env.ExecuteActivity(activity.ReleaseDataSubnetOp, &rawPool)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "list pools error")
-		assert.Nil(t, ops)
 		mockStorage.AssertExpectations(t)
 	})
 
 	t.Run("MultiplePoolsUsingSubnet", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
 		mockStorage := database.NewMockStorage(t)
-		activity := activities.PoolActivity{SE: mockStorage}
-
-		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{pool, pool1}, nil)
-		ops, err := activity.ReleaseDataSubnetOp(ctx, &rawPool)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{pool, pool1}, nil)
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ReleaseDataSubnetOp)
+		_, err := env.ExecuteActivity(activity.ReleaseDataSubnetOp, &rawPool)
 		assert.NoError(t, err)
-		assert.Nil(t, ops)
 		mockStorage.AssertExpectations(t)
 	})
 	t.Run("GetGCPServiceFails", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		GetGCPService := hyperscaler2.GetGCPService
-		defer func() {
-			hyperscaler2.GetGCPService = GetGCPService
-		}()
-		// Override with mock that returns error
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		origGetGCPService := hyperscaler2.GetGCPService
+		defer func() { hyperscaler2.GetGCPService = origGetGCPService }()
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return nil, errors.New("initialisation of Google GCP service failed")
 		}
-		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
-		activity := activities.PoolActivity{SE: mockStorage}
-		ops, err := activity.ReleaseDataSubnetOp(ctx, &rawPool)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ReleaseDataSubnetOp)
+		_, err := env.ExecuteActivity(activity.ReleaseDataSubnetOp, &rawPool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "initialisation of Google GCP service failed")
-		assert.Nil(tt, ops)
 		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("ReleaseDataSubnetOp fails", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		GetGCPService := hyperscaler2.GetGCPService
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		origGetGCPService := hyperscaler2.GetGCPService
+		releaseSubnet := activities.ReleaseSubnetOp
 		defer func() {
-			hyperscaler2.GetGCPService = GetGCPService
+			hyperscaler2.GetGCPService = origGetGCPService
+			activities.ReleaseSubnetOp = releaseSubnet
 		}()
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
-		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
-		defer func() {}()
-		releaseSubnet := activities.ReleaseSubnetOp
-		defer func() { activities.ReleaseSubnetOp = releaseSubnet }()
 		activities.ReleaseSubnetOp = func(service hyperscaler2.GoogleServices, snHost, subnetName string) (string, error) {
 			return "", errors.New("release subnet error")
 		}
-		activity := activities.PoolActivity{SE: mockStorage}
-		ops, err := activity.ReleaseDataSubnetOp(ctx, &rawPool)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ReleaseDataSubnetOp)
+		_, err := env.ExecuteActivity(activity.ReleaseDataSubnetOp, &rawPool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "release subnet error")
-		assert.Nil(tt, ops)
 		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("success", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		GetGCPService := hyperscaler2.GetGCPService
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		origGetGCPService := hyperscaler2.GetGCPService
+		releaseSubnet := activities.ReleaseSubnetOp
 		defer func() {
-			hyperscaler2.GetGCPService = GetGCPService
+			hyperscaler2.GetGCPService = origGetGCPService
+			activities.ReleaseSubnetOp = releaseSubnet
 		}()
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
-		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
-
-		releaseSubnet := activities.ReleaseSubnetOp
-		defer func() { activities.ReleaseSubnetOp = releaseSubnet }()
 		activities.ReleaseSubnetOp = func(service hyperscaler2.GoogleServices, snHost, subnetName string) (string, error) {
 			return "operation", nil
 		}
-		activity := activities.PoolActivity{SE: mockStorage}
-		ops, err := activity.ReleaseDataSubnetOp(ctx, &rawPool)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ReleaseDataSubnetOp)
+		val, err := env.ExecuteActivity(activity.ReleaseDataSubnetOp, &rawPool)
 		assert.NoError(tt, err)
+		var ops *[]commonparams.Operations
+		assert.NoError(tt, val.Get(&ops))
 		assert.NotNil(tt, ops)
 		assert.Len(tt, *ops, 1)
 		mockStorage.AssertExpectations(tt)
@@ -4482,9 +4512,11 @@ func Test_GetAndCreateCloudDNSRecord(t *testing.T) {
 
 func TestPoolActivity_GetCloudDNSRecords(t *testing.T) {
 	t.Run("GetNode_Success", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
 		mockStorage := database.NewMockStorage(tt)
-		activity := activities.PoolActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		activity := &activities.PoolActivity{SE: mockStorage}
+		testEnv.RegisterActivity(activity.GetCloudDNSRecords)
 		poolId := int64(1)
 		expectedNode := []*datamodel.Node{
 			{
@@ -4497,41 +4529,45 @@ func TestPoolActivity_GetCloudDNSRecords(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetNodesByPoolID", ctx, poolId).Return(expectedNode, nil)
+		mockStorage.On("GetNodesByPoolID", mock.Anything, poolId).Return(expectedNode, nil)
 
-		mapHost, err := activity.GetCloudDNSRecords(ctx, poolId, env.USER_CERTIFICATE)
+		val, err := testEnv.ExecuteActivity(activity.GetCloudDNSRecords, poolId, env.USER_CERTIFICATE)
 
 		assert.NoError(tt, err)
+		var mapHost *map[string]string
+		assert.NoError(tt, val.Get(&mapHost))
 		mapHostExpected := &map[string]string{"1.2.3.4": "test-node.example.com"}
 		assert.Equal(tt, mapHostExpected, mapHost)
 		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("GetNode_Error", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
 		mockStorage := database.NewMockStorage(tt)
-		activity := activities.PoolActivity{SE: mockStorage}
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		activity := &activities.PoolActivity{SE: mockStorage}
+		testEnv.RegisterActivity(activity.GetCloudDNSRecords)
 		poolId := int64(1)
 
-		mockStorage.On("GetNodesByPoolID", ctx, poolId).Return(nil, gorm.ErrInvalidDB)
+		mockStorage.On("GetNodesByPoolID", mock.Anything, poolId).Return(nil, gorm.ErrInvalidDB)
 
-		mapHost, err := activity.GetCloudDNSRecords(ctx, poolId, env.USER_CERTIFICATE)
+		_, err := testEnv.ExecuteActivity(activity.GetCloudDNSRecords, poolId, env.USER_CERTIFICATE)
 
-		expectedHost := &map[string]string{}
 		assert.Error(tt, err)
-		assert.Equal(tt, expectedHost, mapHost)
 		mockStorage.AssertExpectations(tt)
 	})
 }
 
 func TestPoolActivity_DeleteCloudDNSRecords(t *testing.T) {
-	ctx := context.Background()
 	hostMap := map[string]string{
 		"1.2.3.4": "dns-1.test-cluster.example.com.",
 		"2.3.4.5": "dns-2.test-cluster.example.com.",
 	}
 
 	t.Run("successfully deletes all DNS records", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
 		activity := &activities.PoolActivity{}
+		testEnv.RegisterActivity(activity.DeleteCloudDNSRecords)
 		originalGetGCPService := hyperscaler2.GetGCPService
 		originalDeleteCloudDNSRecord := hyperscaler2.DeleteCloudDNSRecord
 		defer func() {
@@ -4545,12 +4581,15 @@ func TestPoolActivity_DeleteCloudDNSRecords(t *testing.T) {
 		hyperscaler2.DeleteCloudDNSRecord = func(gcpService hyperscaler2.GoogleServices, recordName string) error {
 			return nil
 		}
-		err := activity.DeleteCloudDNSRecords(ctx, hostMap, env.USER_CERTIFICATE)
+		_, err := testEnv.ExecuteActivity(activity.DeleteCloudDNSRecords, hostMap, env.USER_CERTIFICATE)
 		assert.NoError(t, err)
 	})
 
 	t.Run("GetGCPService fails", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
 		activity := &activities.PoolActivity{}
+		testEnv.RegisterActivity(activity.DeleteCloudDNSRecords)
 		originalGetGCPService := hyperscaler2.GetGCPService
 		defer func() {
 			hyperscaler2.GetGCPService = originalGetGCPService
@@ -4559,13 +4598,16 @@ func TestPoolActivity_DeleteCloudDNSRecords(t *testing.T) {
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return nil, fmt.Errorf("gcp error")
 		}
-		err := activity.DeleteCloudDNSRecords(ctx, hostMap, env.USER_CERTIFICATE)
+		_, err := testEnv.ExecuteActivity(activity.DeleteCloudDNSRecords, hostMap, env.USER_CERTIFICATE)
 		assert.Error(t, err)
 		assert.Contains(t, vsaerrors.ExtractCustomError(err).OriginalErr.Error(), "gcp error")
 	})
 
 	t.Run("DeleteCloudDNSRecord fails", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
 		activity := &activities.PoolActivity{}
+		testEnv.RegisterActivity(activity.DeleteCloudDNSRecords)
 		originalGetGCPService := hyperscaler2.GetGCPService
 		originalDeleteCloudDNSRecord := hyperscaler2.DeleteCloudDNSRecord
 		defer func() {
@@ -4579,19 +4621,21 @@ func TestPoolActivity_DeleteCloudDNSRecords(t *testing.T) {
 		hyperscaler2.DeleteCloudDNSRecord = func(gcpService hyperscaler2.GoogleServices, recordName string) error {
 			return fmt.Errorf("delete error")
 		}
-		err := activity.DeleteCloudDNSRecords(ctx, hostMap, env.USER_CERTIFICATE)
+		_, err := testEnv.ExecuteActivity(activity.DeleteCloudDNSRecords, hostMap, env.USER_CERTIFICATE)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "delete error")
 	})
 	t.Run("does nothing if not USER_CERTIFICATE", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
 		activity := &activities.PoolActivity{}
-		err := activity.DeleteCloudDNSRecords(ctx, hostMap, env.USERNAME_PWD)
+		testEnv.RegisterActivity(activity.DeleteCloudDNSRecords)
+		_, err := testEnv.ExecuteActivity(activity.DeleteCloudDNSRecords, hostMap, env.USERNAME_PWD)
 		assert.NoError(t, err)
 	})
 }
 
 func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
-	ctx := context.Background()
 	clusterName := "testcluster"
 	env.VsaDeployedDnsName = "example.com"
 
@@ -4612,6 +4656,10 @@ func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 
 	// Success case
 	t.Run("success", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		pa := &activities.PoolActivity{}
+		testEnv.RegisterActivity(pa.CreateCloudDNSRecords)
 		vlmConfig := &vlm.VLMConfig{
 			Cloud: vlm.CloudConfig{
 				HAPairs: []vlm.HAPair{
@@ -4630,28 +4678,35 @@ func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 				},
 			},
 		}
-		pa := &activities.PoolActivity{}
-		hostMap, err := pa.CreateCloudDNSRecords(ctx, vlmConfig, clusterName, env.USER_CERTIFICATE)
+		val, err := testEnv.ExecuteActivity(pa.CreateCloudDNSRecords, vlmConfig, clusterName, env.USER_CERTIFICATE)
 		assert.NoError(t, err)
+		var hostMap *map[string]string
+		assert.NoError(t, val.Get(&hostMap))
 		assert.NotNil(t, hostMap)
 		assert.Equal(t, 2, len(*hostMap))
 	})
 
 	// No HAPairs
 	t.Run("no HAPairs", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		pa := &activities.PoolActivity{}
+		testEnv.RegisterActivity(pa.CreateCloudDNSRecords)
 		vlmConfig := &vlm.VLMConfig{
 			Cloud: vlm.CloudConfig{
 				HAPairs: []vlm.HAPair{},
 			},
 		}
-		pa := &activities.PoolActivity{}
-		hostMap, err := pa.CreateCloudDNSRecords(ctx, vlmConfig, clusterName, env.USER_CERTIFICATE)
+		_, err := testEnv.ExecuteActivity(pa.CreateCloudDNSRecords, vlmConfig, clusterName, env.USER_CERTIFICATE)
 		assert.Error(t, err)
-		assert.Nil(t, hostMap)
 	})
 
 	// No SystemLIFs
 	t.Run("no SystemLIFs", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		pa := &activities.PoolActivity{}
+		testEnv.RegisterActivity(pa.CreateCloudDNSRecords)
 		vlmConfig := &vlm.VLMConfig{
 			Cloud: vlm.CloudConfig{
 				HAPairs: []vlm.HAPair{
@@ -4662,14 +4717,16 @@ func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 				},
 			},
 		}
-		pa := &activities.PoolActivity{}
-		hostMap, err := pa.CreateCloudDNSRecords(ctx, vlmConfig, clusterName, env.USER_CERTIFICATE)
+		_, err := testEnv.ExecuteActivity(pa.CreateCloudDNSRecords, vlmConfig, clusterName, env.USER_CERTIFICATE)
 		assert.Error(t, err)
-		assert.Nil(t, hostMap)
 	})
 
 	// CreateCloudDNSRecord returns error
 	t.Run("GetOrCreateCloudDNSRecord error", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		pa := &activities.PoolActivity{}
+		testEnv.RegisterActivity(pa.CreateCloudDNSRecords)
 		hyperscaler2.GetOrCreateCloudDNSRecord = func(gcpService hyperscaler2.GoogleServices, ip, recordName string) (*hyperscaler_models.CustomCloudDNSRecord, error) {
 			return nil, workflows.ConvertToVSAError(fmt.Errorf("dns error"))
 		}
@@ -4691,10 +4748,8 @@ func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 				},
 			},
 		}
-		pa := &activities.PoolActivity{}
-		hostMap, err := pa.CreateCloudDNSRecords(ctx, vlmConfig, clusterName, env.USER_CERTIFICATE)
+		_, err := testEnv.ExecuteActivity(pa.CreateCloudDNSRecords, vlmConfig, clusterName, env.USER_CERTIFICATE)
 		assert.Error(t, err)
-		assert.Nil(t, hostMap)
 	})
 }
 

@@ -1732,6 +1732,7 @@ func (sa *SubnetActivity) CreateDeleteDataSubnetJob(ctx context.Context, params 
 	poolCategory := models.GetPoolCategory(pool.LargeCapacity)
 	jobType := models.GetResourceJobType(models.ResourceTypeSubnet, actionType, poolCategory)
 
+	activity.RecordHeartbeat(ctx, "Creating subnet job in database")
 	job := &datamodel.Job{
 		Type:          string(jobType),
 		State:         string(models.JobsStateNEW),
@@ -1751,6 +1752,7 @@ func (sa *SubnetActivity) CreateDeleteDataSubnetJob(ctx context.Context, params 
 	// controlWorkflowID defines the workflow ID for the control workflow
 	// This control workflow will be common per same Account & same VPC level.
 	controlWorkflowID := fmt.Sprintf(PoolDataSubnetCreateDelete, pool.Account.ID, vpcName)
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Executing subnet workflow sequentially for account: %s, vpc: %s", params.AccountName, vpcName))
 	err = ExecuteWorkflowSequentially(
 		temporalClient,
 		ctx,
@@ -1776,6 +1778,7 @@ func (sa *SubnetActivity) CreateDeleteDataSubnetJob(ctx context.Context, params 
 		return "", err
 	}
 
+	activity.RecordHeartbeat(ctx, "CreateDeleteDataSubnetJob activity completed successfully")
 	return createdJob.WorkflowID, nil
 }
 
@@ -1785,10 +1788,12 @@ func (sa *SubnetActivity) GetTenancyDetails(ctx context.Context, workflowID stri
 
 	var subnetWfRes subnetWorkflowResult
 	// Sending runID as empty string will query the latest workflow run execution.
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Querying workflow %s for tenancy details", workflowID))
 	encVal, err := temporalClient.QueryWorkflow(ctx, workflowID, "", StatusQueryName)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
+	activity.RecordHeartbeat(ctx, "Decoding workflow query result")
 	err = encVal.Get(&subnetWfRes)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
@@ -1805,6 +1810,7 @@ func (sa *SubnetActivity) GetTenancyDetails(ctx context.Context, workflowID stri
 		return nil, vsaerror.Errorf("subnet create workflow %s returned tenancy details as nil", workflowID)
 	}
 
+	activity.RecordHeartbeat(ctx, "GetTenancyDetails activity completed successfully")
 	return subnetWfRes.TenancyDetails, nil
 }
 

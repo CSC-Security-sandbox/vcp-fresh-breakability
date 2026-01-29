@@ -525,11 +525,11 @@ func (j *PoolActivity) UpdatePoolState(ctx context.Context, pool *datamodel.Pool
 
 // FindTenancy finds the tenancy unit for a customer
 func (j *PoolActivity) FindTenancyProject(ctx context.Context, params commonparams.CreatePoolParams) (string, error) {
-	// need to pass tenantProjectRegion only in case of CBR where region != the regional region as set from env variable
 	service, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return "", vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Finding tenant project - consumer project: %s, VPC name: %s", params.AccountName, params.VendorSubNetID))
 	return GetTenantProject(service, params)
 }
 
@@ -656,7 +656,7 @@ func (j *PoolActivity) CreateVPCs(ctx context.Context, project string) (*[]commo
 	service := hyperscaler2.GoogleServices(serviceStruct)
 
 	// Record heartbeat to indicate progress to temporal server
-	activity.RecordHeartbeat(ctx, "Setting up VPC's for VSA pool")
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Setting up VPC's for VSA pool - tenant project: %s", project))
 	operations := make([]commonparams.Operations, 0)
 	op := ""
 	for _, values := range InternalVSANetworks {
@@ -686,7 +686,7 @@ func (j *PoolActivity) CreateSubnets(ctx context.Context, project string) (*[]co
 	service := hyperscaler2.GoogleServices(serviceStruct)
 
 	// Record heartbeat to indicate progress to temporal server
-	activity.RecordHeartbeat(ctx, "Setting up Subnets for VSA pool")
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Setting up Subnets for VSA pool - tenant project: %s", project))
 	operations := make([]commonparams.Operations, 0)
 	op := ""
 	for _, values := range InternalVSANetworks {
@@ -714,7 +714,7 @@ func (j *PoolActivity) CreateFirewalls(ctx context.Context, project, snHostProje
 	}
 	service := hyperscaler2.GoogleServices(serviceStruct)
 	// Record heartbeat to indicate progress to temporal server
-	activity.RecordHeartbeat(ctx, "Setting up Firewall for VSA pool")
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Setting up Firewall for VSA pool - tenant project: %s, network: %s", project, network))
 	operations := make([]commonparams.Operations, 0)
 	op := ""
 	internalVSANetworksLocal := PrepareInternalVSANetworksForFirewall()
@@ -736,7 +736,7 @@ func (j *PoolActivity) CreateFirewalls(ctx context.Context, project, snHostProje
 	}
 
 	// Record heartbeat to indicate progress to temporal server
-	activity.RecordHeartbeat(ctx, "Setting up network firewalls for iSCSI")
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Setting up network firewalls for iSCSI - tenant project: %s, SN host project: %s, network: %s", project, snHostProject, network))
 
 	op, err = SetupNetworkFirewallsForIscsi(service, snHostProject, network)
 	if err != nil {
@@ -828,7 +828,11 @@ func _getInternalVSANetworkForFirewalls(vpcName, firewallName string, sourceRang
 
 // CreateOnTapCredentials creates ONTAP admin credentials for the pool based on the authentication type
 func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.OntapCredentials, error) {
-	activity.RecordHeartbeat(ctx, "Starting CreateOnTapCredentials activity")
+	consumerProject := ""
+	if pool.Account != nil {
+		consumerProject = pool.Account.Name
+	}
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Starting CreateOnTapCredentials activity - pool Name: %s, deployment: %s, consumer project: %s", pool.Name, pool.DeploymentName, consumerProject))
 	credentials := &vlm.OntapCredentials{}
 	gcpService, getGcpServiceErr := hyperscaler2.GetGCPService(ctx)
 	if getGcpServiceErr != nil {
@@ -837,25 +841,25 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 
 	switch pool.PoolCredentials.AuthType {
 	case env.USER_CERTIFICATE:
-		activity.RecordHeartbeat(ctx, "Generating and creating certificate for ONTAP credentials")
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Generating and creating certificate for ONTAP credentials - pool Name: %s, deployment: %s, consumer project: %s", pool.Name, pool.DeploymentName, consumerProject))
 		// Generate and create a certificate for the VSA cluster in CAS and fallthrough to generate and create the password for VSA cluster in Secret Manager as well
 		certificate, err := hyperscaler2.GenerateAndCreateCertificateForVSACluster(gcpService, pool.DeploymentName, pool.PoolCredentials.Username, pool.PoolCredentials, EnableServerAuthInCSR)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 		credentials = setPoolCredentials(certificate)
-		activity.RecordHeartbeat(ctx, "Certificate generated and created successfully")
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Certificate generated and created successfully - pool Name: %s, deployment: %s, consumer project: %s", pool.Name, pool.DeploymentName, consumerProject))
 		fallthrough
 	case env.USERNAME_PWD_SEC_MGR:
-		activity.RecordHeartbeat(ctx, "Generating password for ONTAP credentials in Secret Manager")
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Generating password for ONTAP credentials in Secret Manager - pool Name: %s, deployment: %s, consumer project: %s", pool.Name, pool.DeploymentName, consumerProject))
 		secret, err := hyperscaler2.GeneratePasswordForVSACluster(gcpService, pool.PoolCredentials.SecretID)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 		credentials.AdminPassword = secret.SecretVersion.Value
-		activity.RecordHeartbeat(ctx, "password generated successfully")
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Password generated successfully - pool Name: %s, deployment: %s, consumer project: %s", pool.Name, pool.DeploymentName, consumerProject))
 	default:
-		activity.RecordHeartbeat(ctx, "Using default password for ONTAP credentials")
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Using default password for ONTAP credentials - pool Name: %s, deployment: %s, consumer project: %s", pool.Name, pool.DeploymentName, consumerProject))
 		credentials.AdminPassword = pool.PoolCredentials.Password
 	}
 	activity.RecordHeartbeat(ctx, "Finished CreateOnTapCredentials activity")
@@ -1176,7 +1180,7 @@ func (j *PoolActivity) SetupNasFirewalls(ctx context.Context, snHostProject, net
 	}
 	service := hyperscaler2.GoogleServices(serviceStruct)
 	// Record heartbeat to indicate progress to temporal server
-	activity.RecordHeartbeat(ctx, "Setting up NAS firewalls (NFS, SMB, ILB health check)")
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Setting up NAS firewalls (NFS, SMB, ILB health check) - project: %s, network: %s", snHostProject, network))
 	operations := make([]commonparams.Operations, 0)
 	op := ""
 
@@ -1246,7 +1250,11 @@ func (j *PoolActivity) SavePoolWithClusterDetails(ctx context.Context, dbPool *d
 }
 
 func (j *PoolActivity) GetIPsConsumedForSubnet(ctx context.Context, pool datamodel.Pool, tenancyDetails *commonparams.TenancyInfo, region string) (*[]datamodel.SubnetToIPs, error) {
-	activity.RecordHeartbeat(ctx, "Starting GetIPsConsumedForSubnet activity")
+	consumerProject := ""
+	if pool.Account != nil {
+		consumerProject = pool.Account.Name
+	}
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Starting GetIPsConsumedForSubnet activity - pool: %s, consumer project: %s", pool.Name, consumerProject))
 	logger := util.GetLogger(ctx)
 	gcpService, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
@@ -1255,7 +1263,7 @@ func (j *PoolActivity) GetIPsConsumedForSubnet(ctx context.Context, pool datamod
 
 	// Fetch all addresses with deployment ID filter only (no subnet filter)
 	// This avoids the issue with incomplete subnet information in the API response
-	activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetching addresses for deployment: %s", pool.DeploymentName))
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetching addresses for deployment: %s - pool: %s, consumer project: %s", pool.DeploymentName, pool.Name, consumerProject))
 	addresses, err := ListAddressesByDeployment(gcpService, tenancyDetails.RegionalTenantProject, region, pool.DeploymentName)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -1265,12 +1273,12 @@ func (j *PoolActivity) GetIPsConsumedForSubnet(ctx context.Context, pool datamod
 	if addresses != nil {
 		addressCount = len(*addresses)
 	}
-	activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetched %d addresses, filtering by subnet", addressCount))
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetched %d addresses, filtering by subnet - pool: %s, consumer project: %s", addressCount, pool.Name, consumerProject))
 
 	// If no subnetworkNAme
 	if len(tenancyDetails.SubnetworkNames) == 0 {
 		logger.Debugf("No subnetwork found for the pool: %s", pool.Name)
-		activity.RecordHeartbeat(ctx, "No subnetwork names provided, returning nil")
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("No subnetwork names provided, returning nil - pool: %s, consumer project: %s", pool.Name, consumerProject))
 		return nil, nil
 	}
 
@@ -1279,7 +1287,7 @@ func (j *PoolActivity) GetIPsConsumedForSubnet(ctx context.Context, pool datamod
 	// Iterate through addresses and filter by the specific subnetwork
 	if addresses != nil {
 		for _, targetSubnetName := range tenancyDetails.SubnetworkNames {
-			activity.RecordHeartbeat(ctx, fmt.Sprintf("Filtering addresses for subnet: %s", targetSubnetName))
+			activity.RecordHeartbeat(ctx, fmt.Sprintf("Filtering addresses for subnet: %s - pool: %s, consumer project: %s", targetSubnetName, pool.Name, consumerProject))
 			logger.Debugf("Filtering addresses for target subnet: %s", targetSubnetName)
 			totalIPs := int64(0)
 			for _, address := range *addresses {
@@ -1299,7 +1307,7 @@ func (j *PoolActivity) GetIPsConsumedForSubnet(ctx context.Context, pool datamod
 			logger.Infof("Target subnet %s has %d reserved IPs", targetSubnetName, totalIPs)
 		}
 	}
-	activity.RecordHeartbeat(ctx, "Finished GetIPsConsumedForSubnet activity")
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Finished GetIPsConsumedForSubnet activity - pool: %s, consumer project: %s", pool.Name, consumerProject))
 	return &subnetToIps, nil
 }
 
@@ -1445,7 +1453,7 @@ func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 
 	logger.Info("Creating QoS policy and applying to SVM", "svmName", svm.Name, "poolName", pool.Name)
 
-	activity.RecordHeartbeat(ctx, "Starting CreateQoSPolicyAndApplyToSVM activity & Getting ONTAP provider")
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Starting CreateQoSPolicyAndApplyToSVM activity - pool: %s, SVM: %s, node: %s", pool.Name, svm.Name, node.Name))
 	// Get the provider for the node - CA fields are already in the node struct from CreateNodeForProvider()
 	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -1552,7 +1560,7 @@ func (j *PoolActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 
 	logger.Info("Modifying QoS policy and applying to SVM", "poolName", pool.Name)
 
-	activity.RecordHeartbeat(ctx, "Starting ModifyQoSPolicyAndApplyToSVM activity & Getting ONTAP provider")
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Starting ModifyQoSPolicyAndApplyToSVM activity - pool: %s, node: %s", pool.Name, node.Name))
 	// Get the provider for the node - CA fields are already in the node struct from CreateNodeForProvider()
 	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -2073,6 +2081,7 @@ func (j *PoolActivity) AllocateClusterSerialNumber(ctx context.Context, cfg *vlm
 
 // CreateCloudDNSRecords creates DNS records for the VSA cluster's nodes in the cloud DNS service
 func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlm.VLMConfig, clusterName string, authType int) (*map[string]string, error) {
+	activity.RecordHeartbeat(ctx, "Initializing CreateCloudDNSRecords activity")
 	hostMap := make(map[string]string)
 	if authType == env.USER_CERTIFICATE {
 		if len(vlmConfig.Cloud.HAPairs) == 0 {
@@ -2088,6 +2097,7 @@ func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlm
 				return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 			}
 
+			activity.RecordHeartbeat(ctx, fmt.Sprintf("Creating DNS records for HA pair %d - cluster: %s", i+1, clusterName))
 			IpaddressVm1 := details.VM1.SystemLIFs[vlm.LIFTypeNodeMgmt].IP
 			haPairNode1 := fmt.Sprintf("%s-%d.%s.%s.", "dns", (2*i)+1, clusterName, env.VsaDeployedDnsName)
 			record1, err := hyperscaler2.GetOrCreateCloudDNSRecord(gcpService, haPairNode1, IpaddressVm1)
@@ -2106,7 +2116,6 @@ func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlm
 		}
 		return &hostMap, nil
 	}
-
 	return &hostMap, nil
 }
 
@@ -2118,6 +2127,8 @@ func (j *PoolActivity) DeleteCloudDNSRecords(ctx context.Context, hostMap map[st
 		}
 		// Delete entries for each node
 		for _, host := range hostMap {
+			// Record heartbeat before deleting DNS record to track progress
+			activity.RecordHeartbeat(ctx, fmt.Sprintf("Deleting DNS record for host: %s", host))
 			// Check if the node is already deleted
 			err = hyperscaler2.DeleteCloudDNSRecord(gcpService, host)
 			if err != nil {
@@ -2132,11 +2143,13 @@ func (j *PoolActivity) DeleteCloudDNSRecords(ctx context.Context, hostMap map[st
 func (j *PoolActivity) GetCloudDNSRecords(ctx context.Context, poolId int64, authType int) (*map[string]string, error) {
 	hostMap := make(map[string]string)
 	if authType == env.USER_CERTIFICATE {
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Retrieving nodes from database - poolId: %d", poolId))
 		se := j.SE
 		nodes, err := se.GetNodesByPoolID(ctx, poolId)
 		if err != nil {
 			return &hostMap, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err))
 		}
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Building host map from %d nodes", len(nodes)))
 		for _, node := range nodes {
 			hostMap[node.EndpointAddress] = node.HostDNSName
 		}
@@ -2282,6 +2295,7 @@ func (j *PoolActivity) DeletingPoolResources(ctx context.Context, pool *datamode
 
 func (j *PoolActivity) ReleaseDataSubnetOp(ctx context.Context, pool *datamodel.Pool) (*[]commonparams.Operations, error) {
 	logger := util.GetLogger(ctx)
+	consumerProject := pool.Account.Name
 	logger.Infof("Handling conditions for releasing data subnet for pool: %s Account : %s Network : %s", pool.Name, pool.Account.Name, pool.Network)
 	// identify the subnet having totalIPPerHAPair IPs and release it
 	if len(pool.ClusterDetails.SubnetNames) == 0 {
@@ -2290,6 +2304,7 @@ func (j *PoolActivity) ReleaseDataSubnetOp(ctx context.Context, pool *datamodel.
 	}
 	se := j.SE
 	subnetName := pool.ClusterDetails.SubnetNames[len(pool.ClusterDetails.SubnetNames)-1]
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Checking pools using subnet: %s - pool: %s, consumer project: %s", subnetName, pool.Name, consumerProject))
 	poolsUsingSubnet, err := getPoolsBySubnetwork(ctx, se, strconv.Itoa(int(pool.Account.ID)), subnetName, pool.Network)
 	if err != nil {
 		logger.Errorf("Failed to list pools for pool: %s subnetwork: %s for account: %s, network: %s, error: %s", pool.Name, subnetName, pool.Account.Name, pool.Network, err.Error())
@@ -2300,10 +2315,12 @@ func (j *PoolActivity) ReleaseDataSubnetOp(ctx context.Context, pool *datamodel.
 		logger.Infof("Skipping release subnetwork as there are other pools using the same subnetwork: %s for account: %s, network: %s, pool : %s", subnetName, pool.Account.Name, pool.Network, pool.Name)
 		return nil, nil
 	}
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Getting GCP service for subnet release - pool: %s, consumer project: %s", pool.Name, consumerProject))
 	service, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Releasing subnet: %s - pool: %s, consumer project: %s", subnetName, pool.Name, consumerProject))
 	operations := make([]commonparams.Operations, 0)
 	operationName, err := ReleaseSubnetOp(service, poolsUsingSubnet[0].ClusterDetails.SnHostProject, subnetName)
 	if err != nil {

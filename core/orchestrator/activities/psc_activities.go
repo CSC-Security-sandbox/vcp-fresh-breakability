@@ -79,6 +79,7 @@ func (j *PSCActivity) CreateInternalInfraSubnet(ctx context.Context, project str
 }
 
 func (j *PSCActivity) UpdateSecurityAudit(ctx context.Context, node *models.Node) error {
+	activity.RecordHeartbeat(ctx, "Updating security audit settings")
 	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -103,7 +104,6 @@ func (j *PSCActivity) UpdateSecurityAudit(ctx context.Context, node *models.Node
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 	}
-
 	return nil
 }
 
@@ -125,6 +125,7 @@ func _getSecurityAudit(ctx context.Context, node *models.Node) (*vsa.SecurityAud
 }
 
 func (j *PSCActivity) CreateClusterLogForwarding(ctx context.Context, node *models.Node, address string) error {
+	activity.RecordHeartbeat(ctx, "Creating log forwarding configuration")
 	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -176,12 +177,12 @@ func _getClusterLogForwarding(ctx context.Context, node *models.Node, address st
 }
 
 func (j *PSCActivity) CreateForwardingRuleForPSCEndpoint(ctx context.Context, projectName string, region string, privateAddressName string, addressURI string) (*[]commonparams.Operations, error) {
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Creating forwarding rule: %s", privateAddressName))
 	var service hyperscaler2.GoogleServices
 	service, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return nil, err
 	}
-
 	operations := make([]commonparams.Operations, 0)
 	op := ""
 	op, err = CreateForwardingRule(service, projectName, region, privateAddressName, MgmtVpcName, addressURI)
@@ -198,7 +199,6 @@ func (j *PSCActivity) CreateForwardingRuleForPSCEndpoint(ctx context.Context, pr
 			Project:            projectName,
 		})
 	}
-
 	return &operations, nil
 }
 
@@ -253,12 +253,12 @@ func _createForwardingRule(gService hyperscaler2.GoogleServices, projectName str
 }
 
 func (j *PSCActivity) CreateAddressForPSCEndpoint(ctx context.Context, projectName string, region string, privateAddressName string) (*[]commonparams.Operations, error) {
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Creating address: %s", privateAddressName))
 	var service hyperscaler2.GoogleServices
 	service, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return nil, err
 	}
-
 	operations := make([]commonparams.Operations, 0)
 	op := ""
 	op, err = CreateAddress(service, projectName, region, GinLoggingSubnetName, privateAddressName)
@@ -275,7 +275,6 @@ func (j *PSCActivity) CreateAddressForPSCEndpoint(ctx context.Context, projectNa
 			Project:            projectName,
 		})
 	}
-
 	return &operations, nil
 }
 
@@ -299,13 +298,14 @@ func (j *PSCActivity) DeleteForwardingRule(ctx context.Context, pool *datamodel.
 		return nil, nil
 	}
 
+	privateAddressName := GetPSCAddressName()
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Deleting forwarding rule: %s", privateAddressName))
 	var service hyperscaler2.GoogleServices
 	service, err = hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	privateAddressName := GetPSCAddressName()
 	operations := make([]commonparams.Operations, 0)
 	op := ""
 	op, err = DeleteForwardingRule(service, MgmtVpcName, pool.ClusterDetails.RegionalTenantProject, privateAddressName, pool.ClusterDetails)
@@ -322,7 +322,6 @@ func (j *PSCActivity) DeleteForwardingRule(ctx context.Context, pool *datamodel.
 			Project:            pool.ClusterDetails.RegionalTenantProject,
 		})
 	}
-
 	return &operations, nil
 }
 
@@ -346,13 +345,14 @@ func (j *PSCActivity) DeleteAddress(ctx context.Context, pool *datamodel.Pool) (
 		return nil, nil
 	}
 
+	privateAddressName := GetPSCAddressName()
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Deleting address: %s", privateAddressName))
 	var service hyperscaler2.GoogleServices
 	service, err = hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	privateAddressName := GetPSCAddressName()
 	operations := make([]commonparams.Operations, 0)
 	op := ""
 	op, err = DeleteAddress(service, MgmtVpcName, pool.ClusterDetails.RegionalTenantProject, privateAddressName, pool.ClusterDetails)
@@ -369,7 +369,6 @@ func (j *PSCActivity) DeleteAddress(ctx context.Context, pool *datamodel.Pool) (
 			Project:            pool.ClusterDetails.RegionalTenantProject,
 		})
 	}
-
 	return &operations, nil
 }
 
@@ -425,6 +424,7 @@ func _createAddress(gService hyperscaler2.GoogleServices, projectName, region st
 }
 
 func (j *PSCActivity) GetAddressURI(ctx context.Context, projectName string, region string, privateAddressName string) (*string, error) {
+	activity.RecordHeartbeat(ctx, "Retrieving address URI")
 	service, err := hyperscaler2.GetGCPService(ctx)
 	returnString := ""
 	if err != nil {
@@ -449,6 +449,7 @@ func _getAddressURI(gService hyperscaler2.GoogleServices, projectName string, re
 }
 
 func (j *PSCActivity) GetForwardingRuleIPAddress(ctx context.Context, projectName string, region string, privateAddressName string) (*string, error) {
+	activity.RecordHeartbeat(ctx, "Retrieving forwarding rule IP address")
 	service, err := hyperscaler2.GetGCPService(ctx)
 	returnString := ""
 	if err != nil {
