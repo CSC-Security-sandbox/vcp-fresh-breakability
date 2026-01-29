@@ -28,13 +28,7 @@ spec:
       serviceAccountName: {{ $.Values.serviceAccount.name }}
       {{- if $.Values.global.cloudSqlIamAuthEnabled }}
       nodeSelector:
-        {{- if $.Values.global.nodeSelector }}
-        {{- toYaml $.Values.global.nodeSelector | nindent 8 }}
-        {{- end }}
         iam.gke.io/gke-metadata-server-enabled: "true"
-      {{- else if $.Values.global.nodeSelector }}
-      nodeSelector:
-        {{- toYaml $.Values.global.nodeSelector | nindent 8 }}
       {{- end }}
       {{- if and $.Values.podAffinity.enabled (eq $.Values.global.environment "gcp") }}
       topologySpreadConstraints:
