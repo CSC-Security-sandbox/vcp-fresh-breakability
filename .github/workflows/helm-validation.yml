@@ -85,7 +85,27 @@ jobs:
           echo "Affected charts:"
           echo "$CHARTS"
 
-          CHARTS_JSON=$(printf '%s\n' "$CHARTS" | jq -R -s -c 'split("\n")[:-1]')
+          # Replace sub-charts with their parent charts
+          PARENT_CHARTS=$(printf '%s\n' "$CHARTS" | while read -r chart; do
+            # If chart path contains /charts/, it's a sub-chart - find parent
+            if [[ "$chart" == *"/charts/"* ]]; then
+              # Extract parent path (everything before /charts/)
+              parent_path=$(echo "$chart" | sed 's|/charts/.*||')
+              # Verify parent has Chart.yaml
+              if [[ -f "$parent_path/Chart.yaml" ]]; then
+                echo "$parent_path"
+              else
+                echo "$chart"
+              fi
+            else
+              echo "$chart"
+            fi
+          done | sort -u)
+
+          echo "Charts to validate (sub-charts replaced with parents):"
+          echo "$PARENT_CHARTS"
+
+          CHARTS_JSON=$(printf '%s\n' "$PARENT_CHARTS" | jq -R -s -c 'split("\n")[:-1]')
           echo "has-changes=true" >> "$GITHUB_OUTPUT"
           echo "charts=$CHARTS_JSON" >> "$GITHUB_OUTPUT"
 
