@@ -409,6 +409,7 @@ func TestValidateCommonPoolParams(t *testing.T) {
 		err := ValidateCommonPoolParams(perf)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "QoS type not supported")
+		assert.Contains(t, err.Error(), "Supported QoS types are auto and manual")
 	})
 
 	t.Run("InvalidQosTypeWhenEnableMqosTrue", func(t *testing.T) {
@@ -426,6 +427,7 @@ func TestValidateCommonPoolParams(t *testing.T) {
 		err := ValidateCommonPoolParams(perf)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "QoS type not supported")
+		assert.Contains(t, err.Error(), "Supported QoS types are auto and manual")
 	})
 
 	t.Run("QosTypeManual", func(t *testing.T) {

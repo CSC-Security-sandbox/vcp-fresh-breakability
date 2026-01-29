@@ -210,6 +210,10 @@ func ValidateCommonPoolParams(perf *CustomPerformance) error {
 			}
 			return nil
 		}
+		if enableMqos {
+			return customerrors.NewUserInputValidationErr(
+				fmt.Sprintf("Given QoS type not supported for Unified Flex Storage Pool. Received '%s'. Supported QoS types are auto and manual", perf.QosType))
+		}
 		return customerrors.NewUserInputValidationErr(
 			"Given QoS type not supported for Unified Flex Storage Pool. Supported QoS type is auto")
 	}
