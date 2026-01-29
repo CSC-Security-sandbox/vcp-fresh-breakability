@@ -458,9 +458,6 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 	// Update the volume to be "creating" state because the volume is actually being created in ONTAP now that peering has been established
 	// In the creating state we must wait for completion or an error before we can delete.
-	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
-		return nil, cancelErr
-	}
 	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.UpdateFlexCacheVolumeLifecycleStateActivity, &flexcacheResult, coremodels.LifeCycleStateCreating).Get(ctx, &flexcacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
@@ -468,13 +465,14 @@ func (wf *flexCacheCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
-	if err = workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.CreateExportPolicyInOntap, &flexcacheResult.DBVolume, &flexcacheResult.Node).Get(ctx, nil); err != nil {
+
+	var preUpdatedVolume *datamodel.Volume
+	if err = workflow.ExecuteChildWorkflow(ctx, workflows.PreFileVolumeWorkflow, flexcacheResult.DBVolume, flexcacheResult.Node).Get(ctx, &preUpdatedVolume); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
+	flexcacheResult.DBVolume = preUpdatedVolume
+	dbVolume = flexcacheResult.DBVolume
 
-	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
-		return nil, cancelErr
-	}
 	if err = workflow.ExecuteActivity(ctx, flexCacheVolumeCreateActivity.CreateFlexCacheVolumeInOntapActivity, &flexcacheResult).Get(ctx, &flexcacheResult); err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}

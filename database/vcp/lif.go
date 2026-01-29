@@ -68,7 +68,7 @@ func (d *DataStoreRepository) CreateLif(ctx context.Context, lif *datamodel.Lif)
 		return &dbLif, nil
 	} else if err1 != nil {
 		logger.Errorf("Error while checking if lif exists: %v", err1)
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err1)
 	}
 	return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, customerrors.NewConflictErr("lif already exists"))
 }

@@ -1829,10 +1829,7 @@ func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest 
 	if pool.Account != nil {
 		vlmConfig.Deployment.Labels["account_id"] = pool.Account.Name
 		ontapVersion := ExtractOntapVersion(utils.GetOntapVersionBasedOnAllowlisting(pool.Account.Name))
-		// temporarily allowing NAS to be enabled for ontap version greater than 9.18.1 in pool creation workflow
-		// it will be removed once VLM fixes modifySVM workflow
-		// utils.IsOntapVersionGreaterOrEqual(ontapVersion, env.FileSupportOntapVersion) && (pool.APIAccessMode == ONTAPMode) || (utils.IsFileProtocolSupportedV2(ontapVersion) && pool.LargeCapacity)
-		if utils.IsOntapVersionGreaterOrEqual(ontapVersion, env.FileSupportOntapVersion) && (pool.APIAccessMode == common.ONTAPMode) || (utils.IsFileProtocolSupportedV2(ontapVersion)) {
+		if utils.IsOntapVersionGreaterOrEqual(ontapVersion, env.FileSupportOntapVersion) && (pool.APIAccessMode == common.ONTAPMode) || (utils.IsFileProtocolSupportedV2(ontapVersion) && pool.LargeCapacity) {
 			// Set the NFS V3 support flag based on file support
 			vlmConfig.Deployment.DevFlags.EnableIlbSupport = true
 			vlmConfig.Deployment.DeploymentConfigFlags.EnableNfsV364BitIdentifier = "true"

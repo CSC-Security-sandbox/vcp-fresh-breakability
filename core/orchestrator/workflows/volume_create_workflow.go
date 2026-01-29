@@ -322,6 +322,11 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 				vlmConfig = &modifySVMResponse.VLMConfig
 			}
 
+			err = workflow.ExecuteActivity(ctx, poolActivity.SaveSVMAndLifData, dbVolume.Pool, vlmConfig, dbVolume.Svm.Name).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(fmt.Errorf("failed to save SVM and LIFs to database: %w", err))
+			}
+
 			// Save updated VLMConfig back to pool using UpdatePoolFields
 			// Marshal VLMConfig using activity
 			var marshalledVlmConfig string
