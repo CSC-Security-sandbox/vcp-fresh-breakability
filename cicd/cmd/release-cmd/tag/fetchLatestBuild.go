@@ -44,14 +44,6 @@ var FetchLatestBuildCmd = &cobra.Command{
 }
 
 func fetchLatestBuild(newTag *string) error {
-	checkCmd := exec.Command("git", "describe", "--exact-match", "--tags", "HEAD")
-	if output, err := checkCmd.Output(); err == nil {
-		existingTag := strings.TrimSpace(string(output))
-		log.Printf("HEAD already has tag: %s, skipping tag creation", existingTag)
-		*newTag = existingTag
-		return nil
-	}
-
 	// Fetch the latest tags from the remote repository
 	err := ghutils.FetchTags()
 	if err != nil {
@@ -96,29 +88,8 @@ func fetchLatestBuild(newTag *string) error {
 		return fmt.Errorf("error incrementing tag: %w", err)
 	}
 	*newTag = newTagVal
-	log.Printf("Calculated new tag: %s", *newTag)
 
-	// Create the tag locally
-	createTagCmd := exec.Command("git", "tag", "-a", *newTag, "-m", fmt.Sprintf("Auto-generated tag %s", *newTag))
-	if output, err := createTagCmd.CombinedOutput(); err != nil {
-		if strings.Contains(string(output), "already exists") {
-			log.Printf("Tag %s already exists locally", *newTag)
-		} else {
-			return fmt.Errorf("failed to create tag: %w, output: %s", err, string(output))
-		}
-	}
-
-	// Push the tag to remote
-	pushTagCmd := exec.Command("git", "push", "origin", *newTag)
-	if output, err := pushTagCmd.CombinedOutput(); err != nil {
-		if strings.Contains(string(output), "already exists") {
-			log.Printf("Tag %s already exists on remote, continuing", *newTag)
-		} else {
-			return fmt.Errorf("failed to push tag: %w, output: %s", err, string(output))
-		}
-	}
-
-	log.Printf("Successfully created and pushed tag: %s", *newTag)
+	log.Printf("New Tag: %s", *newTag)
 	return nil
 }
 

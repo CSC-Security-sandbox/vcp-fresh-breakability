@@ -3,7 +3,6 @@ package ghutils
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 
@@ -41,16 +40,9 @@ func GetGithubUser(ghToken, prUser string) (*gh.User, error) {
 	return user, nil
 }
 
-// FetchTags fetches the latest tags from the remote repository
+// fetchTags fetches the latest tags from the remote repository
 func FetchTags() error {
-	// Prune stale remote-tracking refs
-	pruneCmd := exec.Command("git", "remote", "prune", "origin")
-	if output, err := pruneCmd.CombinedOutput(); err != nil {
-		log.Printf("Warning: failed to prune remote refs: %s", string(output))
-	}
-
-	// Fetch tags with force to overwrite any diverged local refs
-	cmd := exec.Command("git", "fetch", "--tags", "--force", "--prune", "--prune-tags")
+	cmd := exec.Command("git", "fetch", "--tags")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to fetch tags: %s, output: %s", err, string(output))

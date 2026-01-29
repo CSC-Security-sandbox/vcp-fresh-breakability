@@ -31,23 +31,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-          clean: true
-
-      - name: Configure Git
-        run: |
-          USERNAME=${{ github.actor }}
-          echo "Fetching email for $USERNAME"
-          EMAIL=$(curl -s -H "Authorization: token ${{ secrets.GHVSA_PAT }}" https://api.github.com/users/$USERNAME | jq -r '.email')
-          if [ "$EMAIL" == "null" ]; then
-            EMAIL="$USERNAME@users.noreply.github.com"
-          fi
-          echo "Using email: $EMAIL"
-          echo "Using username: $USERNAME"
-          git config --global user.email "$EMAIL"
-          git config --global user.name "$USERNAME"
 
       - name: Set up Go
         uses: actions/setup-go@v3
@@ -125,19 +108,6 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version-file: go.mod
-
-      - name: Configure Git
-        run: |
-          USERNAME=${{ github.actor }}
-          echo "Fetching email for $USERNAME"
-          EMAIL=$(curl -s -H "Authorization: token ${{ secrets.GHVSA_PAT }}" https://api.github.com/users/$USERNAME | jq -r '.email')
-          if [ "$EMAIL" == "null" ]; then
-            EMAIL="$USERNAME@users.noreply.github.com"
-          fi
-          echo "Using email: $EMAIL"
-          echo "Using username: $USERNAME"
-          git config --global user.email "$EMAIL"
-          git config --global user.name "$USERNAME"
 
       - name: Fetch token
         uses: actions/create-github-app-token@v1
