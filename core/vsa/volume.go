@@ -88,8 +88,32 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 	}
 
 	// Validate the Volume response to avoid nil pointer dereferences
-	if vol == nil || vol.Name == nil || vol.UUID == nil {
-		return nil, errors.New("invalid Volume response from API")
+	if vol == nil {
+		return nil, errors.New("invalid Volume response from API: volume is nil")
+	}
+	if vol.Name == nil {
+		return nil, errors.New("invalid Volume response from API: name is nil")
+	}
+	if vol.UUID == nil {
+		return nil, errors.New("invalid Volume response from API: UUID is nil")
+	}
+
+	// Perform additional GET call if state is nil (necessary workaround for large FlexGroup volumes with many constituents)
+	if vol.State == nil {
+		getVol, err := client.Storage().VolumeGet(&ontapRest.VolumeGetParams{
+			UUID: *vol.UUID,
+			Name: *vol.Name,
+			BaseParams: ontapRest.BaseParams{
+				Fields: []string{"state", "space.*", "size", "constituents"},
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		if getVol == nil || getVol.State == nil {
+			return nil, errors.New("invalid Volume response from API: state is nil")
+		}
+		vol = getVol
 	}
 
 	// Return the created volume

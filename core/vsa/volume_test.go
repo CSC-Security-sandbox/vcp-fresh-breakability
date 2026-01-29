@@ -447,7 +447,7 @@ func TestCreateVolume_ErrorOnNilResponse(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, resp)
-	assert.Equal(t, err.Error(), "invalid Volume response from API")
+	assert.Equal(t, "invalid Volume response from API: volume is nil", err.Error())
 
 	mockStorage.AssertExpectations(t)
 	mockClient.AssertExpectations(t)
@@ -631,6 +631,406 @@ func TestCreateVolume_NilSpaceHandling(t *testing.T) {
 		assert.Equal(t, volumeName, resp.Name)
 		assert.Equal(t, "testUUID", resp.ExternalUUID)
 		assert.Equal(t, int64(0), resp.AvailableSpace) // Should be 0 when Available is nil
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+}
+
+func TestCreateVolume_ResponseValidation(t *testing.T) {
+	t.Run("WhenVolumeResponseIsNil_ThenReturnError", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		params := CreateVolumeParams{
+			VolumeName: volumeName,
+			SvmName:    "testSVM",
+			Aggregates: []string{"testAggregate"},
+			Size:       int64(1024),
+			VolumeType: "rw",
+		}
+
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+
+		mockStorage.On("VolumeCreate", mock.Anything).Return(nil, mockJob, nil)
+		mockClient.On("Poll", mockJob.JobUUID).Return(nil)
+
+		resp, err := rc.CreateVolume(params)
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Equal(t, "invalid Volume response from API: volume is nil", err.Error())
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenVolumeNameIsNil_ThenReturnError", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		params := CreateVolumeParams{
+			VolumeName: volumeName,
+			SvmName:    "testSVM",
+			Aggregates: []string{"testAggregate"},
+			Size:       int64(1024),
+			VolumeType: "rw",
+		}
+
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+
+		// Mock volume with nil Name
+		mockVolume := &ontaprest.Volume{
+			Volume: models.Volume{
+				UUID:  nillable.ToPointer("testUUID"),
+				Name:  nil, // Nil Name to test the nil pointer check
+				State: nillable.ToPointer(models.VolumeStateOnline),
+			},
+		}
+
+		mockStorage.On("VolumeCreate", mock.Anything).Return(mockVolume, mockJob, nil)
+		mockClient.On("Poll", mockJob.JobUUID).Return(nil)
+
+		resp, err := rc.CreateVolume(params)
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Equal(t, "invalid Volume response from API: name is nil", err.Error())
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenVolumeUUIDIsNil_ThenReturnError", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		params := CreateVolumeParams{
+			VolumeName: volumeName,
+			SvmName:    "testSVM",
+			Aggregates: []string{"testAggregate"},
+			Size:       int64(1024),
+			VolumeType: "rw",
+		}
+
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+
+		// Mock volume with nil UUID
+		mockVolume := &ontaprest.Volume{
+			Volume: models.Volume{
+				UUID:  nil, // Nil UUID to test the nil pointer check
+				Name:  &volumeName,
+				State: nillable.ToPointer(models.VolumeStateOnline),
+			},
+		}
+
+		mockStorage.On("VolumeCreate", mock.Anything).Return(mockVolume, mockJob, nil)
+		mockClient.On("Poll", mockJob.JobUUID).Return(nil)
+
+		resp, err := rc.CreateVolume(params)
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Equal(t, "invalid Volume response from API: UUID is nil", err.Error())
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenVolumeStateIsNil_ThenRetryWithVolumeGet", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		volumeUUID := "testUUID"
+		volSpace := int64(1024)
+		params := CreateVolumeParams{
+			VolumeName: volumeName,
+			SvmName:    "testSVM",
+			Aggregates: []string{"testAggregate"},
+			Size:       volSpace,
+			VolumeType: "rw",
+		}
+
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+
+		// Mock volume with nil State (typical for large FlexGroup volumes with many constituents)
+		mockVolumeCreate := &ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: nillable.ToPointer(volumeUUID),
+				Name: &volumeName,
+				Space: &models.VolumeInlineSpace{
+					Available: &volSpace,
+				},
+				Size:  nillable.GetInt64Ptr(volSpace),
+				State: nil, // Nil State triggers the redundant GET call
+			},
+		}
+
+		// Mock the successful VolumeGet response with state populated
+		mockVolumeGet := &ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: nillable.ToPointer(volumeUUID),
+				Name: &volumeName,
+				Space: &models.VolumeInlineSpace{
+					Available: &volSpace,
+				},
+				Size:  nillable.GetInt64Ptr(volSpace),
+				State: nillable.ToPointer(models.VolumeStateOnline),
+			},
+		}
+
+		mockStorage.On("VolumeCreate", mock.Anything).Return(mockVolumeCreate, mockJob, nil)
+		mockClient.On("Poll", mockJob.JobUUID).Return(nil)
+		mockStorage.On("VolumeGet", mock.MatchedBy(func(p *ontaprest.VolumeGetParams) bool {
+			return p.UUID == volumeUUID && p.Name == volumeName
+		})).Return(mockVolumeGet, nil)
+
+		resp, err := rc.CreateVolume(params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.Equal(t, volumeName, resp.Name)
+		assert.Equal(t, volumeUUID, resp.ExternalUUID)
+		assert.Equal(t, models.VolumeStateOnline, resp.State)
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenVolumeStateIsNil_AndVolumeGetReturnsError_ThenReturnError", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		volumeUUID := "testUUID"
+		volSpace := int64(1024)
+		params := CreateVolumeParams{
+			VolumeName: volumeName,
+			SvmName:    "testSVM",
+			Aggregates: []string{"testAggregate"},
+			Size:       volSpace,
+			VolumeType: "rw",
+		}
+
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+
+		// Mock volume with nil State
+		mockVolumeCreate := &ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: nillable.ToPointer(volumeUUID),
+				Name: &volumeName,
+				Space: &models.VolumeInlineSpace{
+					Available: &volSpace,
+				},
+				Size:  nillable.GetInt64Ptr(volSpace),
+				State: nil, // Nil State triggers the redundant GET call
+			},
+		}
+
+		mockStorage.On("VolumeCreate", mock.Anything).Return(mockVolumeCreate, mockJob, nil)
+		mockClient.On("Poll", mockJob.JobUUID).Return(nil)
+		mockStorage.On("VolumeGet", mock.MatchedBy(func(p *ontaprest.VolumeGetParams) bool {
+			return p.UUID == volumeUUID && p.Name == volumeName
+		})).Return(nil, errors.New("VolumeGet failed"))
+
+		resp, err := rc.CreateVolume(params)
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Equal(t, "VolumeGet failed", err.Error())
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenVolumeStateIsNil_AndVolumeGetReturnsNilVolume_ThenReturnError", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		volumeUUID := "testUUID"
+		volSpace := int64(1024)
+		params := CreateVolumeParams{
+			VolumeName: volumeName,
+			SvmName:    "testSVM",
+			Aggregates: []string{"testAggregate"},
+			Size:       volSpace,
+			VolumeType: "rw",
+		}
+
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+
+		// Mock volume with nil State
+		mockVolumeCreate := &ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: nillable.ToPointer(volumeUUID),
+				Name: &volumeName,
+				Space: &models.VolumeInlineSpace{
+					Available: &volSpace,
+				},
+				Size:  nillable.GetInt64Ptr(volSpace),
+				State: nil, // Nil State triggers the redundant GET call
+			},
+		}
+
+		mockStorage.On("VolumeCreate", mock.Anything).Return(mockVolumeCreate, mockJob, nil)
+		mockClient.On("Poll", mockJob.JobUUID).Return(nil)
+		mockStorage.On("VolumeGet", mock.MatchedBy(func(p *ontaprest.VolumeGetParams) bool {
+			return p.UUID == volumeUUID && p.Name == volumeName
+		})).Return(nil, nil)
+
+		resp, err := rc.CreateVolume(params)
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Equal(t, "invalid Volume response from API: state is nil", err.Error())
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenVolumeStateIsNil_AndVolumeGetReturnsNilState_ThenReturnError", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		volumeUUID := "testUUID"
+		volSpace := int64(1024)
+		params := CreateVolumeParams{
+			VolumeName: volumeName,
+			SvmName:    "testSVM",
+			Aggregates: []string{"testAggregate"},
+			Size:       volSpace,
+			VolumeType: "rw",
+		}
+
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+
+		// Mock volume with nil State
+		mockVolumeCreate := &ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: nillable.ToPointer(volumeUUID),
+				Name: &volumeName,
+				Space: &models.VolumeInlineSpace{
+					Available: &volSpace,
+				},
+				Size:  nillable.GetInt64Ptr(volSpace),
+				State: nil, // Nil State triggers the redundant GET call
+			},
+		}
+
+		// Mock VolumeGet returning volume with nil State
+		mockVolumeGet := &ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: nillable.ToPointer(volumeUUID),
+				Name: &volumeName,
+				Space: &models.VolumeInlineSpace{
+					Available: &volSpace,
+				},
+				Size:  nillable.GetInt64Ptr(volSpace),
+				State: nil, // Still nil State
+			},
+		}
+
+		mockStorage.On("VolumeCreate", mock.Anything).Return(mockVolumeCreate, mockJob, nil)
+		mockClient.On("Poll", mockJob.JobUUID).Return(nil)
+		mockStorage.On("VolumeGet", mock.MatchedBy(func(p *ontaprest.VolumeGetParams) bool {
+			return p.UUID == volumeUUID && p.Name == volumeName
+		})).Return(mockVolumeGet, nil)
+
+		resp, err := rc.CreateVolume(params)
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Equal(t, "invalid Volume response from API: state is nil", err.Error())
 
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)
