@@ -25344,6 +25344,8 @@ const (
 	VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION           VolumeReplicationCreateInternalV1betaReplicationType = "CROSS_REGION_REPLICATION"
 	VolumeReplicationCreateInternalV1betaReplicationTypeCROSSZONEREPLICATION             VolumeReplicationCreateInternalV1betaReplicationType = "CROSS_ZONE_REPLICATION"
 	VolumeReplicationCreateInternalV1betaReplicationTypeCROSSPROJECTREPLICATION          VolumeReplicationCreateInternalV1betaReplicationType = "CROSS_PROJECT_REPLICATION"
+	VolumeReplicationCreateInternalV1betaReplicationTypeINTERZONEREPLICATION             VolumeReplicationCreateInternalV1betaReplicationType = "INTER_ZONE_REPLICATION"
+	VolumeReplicationCreateInternalV1betaReplicationTypeINTRAZONEREPLICATION             VolumeReplicationCreateInternalV1betaReplicationType = "INTRA_ZONE_REPLICATION"
 )
 
 // AllValues returns all VolumeReplicationCreateInternalV1betaReplicationType values.
@@ -25357,6 +25359,8 @@ func (VolumeReplicationCreateInternalV1betaReplicationType) AllValues() []Volume
 		VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION,
 		VolumeReplicationCreateInternalV1betaReplicationTypeCROSSZONEREPLICATION,
 		VolumeReplicationCreateInternalV1betaReplicationTypeCROSSPROJECTREPLICATION,
+		VolumeReplicationCreateInternalV1betaReplicationTypeINTERZONEREPLICATION,
+		VolumeReplicationCreateInternalV1betaReplicationTypeINTRAZONEREPLICATION,
 	}
 }
 
@@ -25378,6 +25382,10 @@ func (s VolumeReplicationCreateInternalV1betaReplicationType) MarshalText() ([]b
 	case VolumeReplicationCreateInternalV1betaReplicationTypeCROSSZONEREPLICATION:
 		return []byte(s), nil
 	case VolumeReplicationCreateInternalV1betaReplicationTypeCROSSPROJECTREPLICATION:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaReplicationTypeINTERZONEREPLICATION:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaReplicationTypeINTRAZONEREPLICATION:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -25410,6 +25418,12 @@ func (s *VolumeReplicationCreateInternalV1betaReplicationType) UnmarshalText(dat
 		return nil
 	case VolumeReplicationCreateInternalV1betaReplicationTypeCROSSPROJECTREPLICATION:
 		*s = VolumeReplicationCreateInternalV1betaReplicationTypeCROSSPROJECTREPLICATION
+		return nil
+	case VolumeReplicationCreateInternalV1betaReplicationTypeINTERZONEREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeINTERZONEREPLICATION
+		return nil
+	case VolumeReplicationCreateInternalV1betaReplicationTypeINTRAZONEREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeINTRAZONEREPLICATION
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -26319,6 +26333,8 @@ const (
 	VolumeReplicationInternalV1betaReplicationTypeCROSSREGIONREPLICATION           VolumeReplicationInternalV1betaReplicationType = "CROSS_REGION_REPLICATION"
 	VolumeReplicationInternalV1betaReplicationTypeCROSSZONEREPLICATION             VolumeReplicationInternalV1betaReplicationType = "CROSS_ZONE_REPLICATION"
 	VolumeReplicationInternalV1betaReplicationTypeCROSSPROJECTREPLICATION          VolumeReplicationInternalV1betaReplicationType = "CROSS_PROJECT_REPLICATION"
+	VolumeReplicationInternalV1betaReplicationTypeINTERZONEREPLICATION             VolumeReplicationInternalV1betaReplicationType = "INTER_ZONE_REPLICATION"
+	VolumeReplicationInternalV1betaReplicationTypeINTRAZONEREPLICATION             VolumeReplicationInternalV1betaReplicationType = "INTRA_ZONE_REPLICATION"
 )
 
 // AllValues returns all VolumeReplicationInternalV1betaReplicationType values.
@@ -26332,6 +26348,8 @@ func (VolumeReplicationInternalV1betaReplicationType) AllValues() []VolumeReplic
 		VolumeReplicationInternalV1betaReplicationTypeCROSSREGIONREPLICATION,
 		VolumeReplicationInternalV1betaReplicationTypeCROSSZONEREPLICATION,
 		VolumeReplicationInternalV1betaReplicationTypeCROSSPROJECTREPLICATION,
+		VolumeReplicationInternalV1betaReplicationTypeINTERZONEREPLICATION,
+		VolumeReplicationInternalV1betaReplicationTypeINTRAZONEREPLICATION,
 	}
 }
 
@@ -26353,6 +26371,10 @@ func (s VolumeReplicationInternalV1betaReplicationType) MarshalText() ([]byte, e
 	case VolumeReplicationInternalV1betaReplicationTypeCROSSZONEREPLICATION:
 		return []byte(s), nil
 	case VolumeReplicationInternalV1betaReplicationTypeCROSSPROJECTREPLICATION:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaReplicationTypeINTERZONEREPLICATION:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaReplicationTypeINTRAZONEREPLICATION:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -26385,6 +26407,12 @@ func (s *VolumeReplicationInternalV1betaReplicationType) UnmarshalText(data []by
 		return nil
 	case VolumeReplicationInternalV1betaReplicationTypeCROSSPROJECTREPLICATION:
 		*s = VolumeReplicationInternalV1betaReplicationTypeCROSSPROJECTREPLICATION
+		return nil
+	case VolumeReplicationInternalV1betaReplicationTypeINTERZONEREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeINTERZONEREPLICATION
+		return nil
+	case VolumeReplicationInternalV1betaReplicationTypeINTRAZONEREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeINTRAZONEREPLICATION
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

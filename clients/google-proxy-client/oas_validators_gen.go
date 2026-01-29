@@ -19204,6 +19204,10 @@ func (s VolumeReplicationCreateInternalV1betaReplicationType) Validate() error {
 		return nil
 	case "CROSS_PROJECT_REPLICATION":
 		return nil
+	case "INTER_ZONE_REPLICATION":
+		return nil
+	case "INTRA_ZONE_REPLICATION":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -19782,6 +19786,10 @@ func (s VolumeReplicationInternalV1betaReplicationType) Validate() error {
 	case "CROSS_ZONE_REPLICATION":
 		return nil
 	case "CROSS_PROJECT_REPLICATION":
+		return nil
+	case "INTER_ZONE_REPLICATION":
+		return nil
+	case "INTRA_ZONE_REPLICATION":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

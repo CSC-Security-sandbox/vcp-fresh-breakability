@@ -8125,6 +8125,8 @@ components:
             - CROSS_REGION_REPLICATION
             - CROSS_ZONE_REPLICATION
             - CROSS_PROJECT_REPLICATION
+            - INTER_ZONE_REPLICATION
+            - INTRA_ZONE_REPLICATION
           example: CROSS_REGION_REPLICATION
         relationshipStatus:
           title: relationshipStatus

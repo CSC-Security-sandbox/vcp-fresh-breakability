@@ -4384,6 +4384,103 @@ func TestFetchVolumeReplicationData_NilVolume(t *testing.T) {
 	mockVcpDB.AssertExpectations(t)
 }
 
+// TestFetchVolumeReplicationData_InRegionReplicationSkipped verifies that in-region replications
+// (INTRAZONE and INTERZONE) are skipped when EnableInRegionReplicationBillingMetrics is false
+func TestFetchVolumeReplicationData_InRegionReplicationSkipped(t *testing.T) {
+	ctx := context.Background()
+	mockVcpDB := &database2.MockStorage{}
+	mockMetricsDB := &database.MockStorage{}
+	mockSink := &MockUsageSink{}
+	config := &common.TelemetryConfig{
+		PoolVolumeLabelPageSize:                 100,
+		GoogleBillingLabelsMaxEntries:           10,
+		EnableReplicationBillingMetrics:         true,
+		EnableInRegionReplicationBillingMetrics: false, // Disabled - should skip INTRAZONE and INTERZONE
+	}
+	provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+	// Mock volume replications with different replication types
+	mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "vol-rep-intrazone"},
+			Name:      "replication-intrazone",
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
+				Name:      "vol1",
+				Pool:      &datamodel.Pool{DeploymentName: "dep1"},
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					Protocols: []string{"ISCSI"},
+				},
+			},
+			Account: &datamodel.Account{Name: "account1"},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationType: "INTRA_ZONE_REPLICATION", // Should be skipped
+				ExternalUUID:    "ext-uuid-intrazone",
+			},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "vol-rep-interzone"},
+			Name:      "replication-interzone",
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "vol-uuid-2"},
+				Name:      "vol2",
+				Pool:      &datamodel.Pool{DeploymentName: "dep2"},
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					Protocols: []string{"ISCSI"},
+				},
+			},
+			Account: &datamodel.Account{Name: "account1"},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationType: "INTER_ZONE_REPLICATION", // Should be skipped
+				ExternalUUID:    "ext-uuid-interzone",
+			},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "vol-rep-crossregion"},
+			Name:      "replication-crossregion",
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "vol-uuid-3"},
+				Name:      "vol3",
+				Pool:      &datamodel.Pool{DeploymentName: "dep3"},
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					Protocols: []string{"ISCSI"},
+				},
+			},
+			Account: &datamodel.Account{Name: "account1"},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ReplicationType: "CROSS_REGION_REPLICATION", // Should be processed
+				ExternalUUID:    "ext-uuid-crossregion",
+				Labels:          &datamodel.JSONB{"env": "prod"},
+			},
+		},
+	}, nil).Once()
+	mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
+
+	resourceCollection := &ResourceCollection{
+		VolumeReplicationData: make(map[ResourceKey]ResourceData),
+	}
+
+	startTime := time.Now().Add(-1 * time.Hour)
+
+	err := provider.fetchVolumeReplicationData(ctx, startTime, resourceCollection)
+	assert.NoError(t, err)
+
+	// Only the CROSS_REGION_REPLICATION should be in the collection (INTRAZONE and INTERZONE were skipped)
+	assert.Len(t, resourceCollection.VolumeReplicationData, 1)
+
+	// Verify it's the cross-region replication by checking the ResourceKey
+	found := false
+	for key := range resourceCollection.VolumeReplicationData {
+		if key.ResourceName == "ext-uuid-crossregion" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "Should find cross-region replication in results")
+
+	mockVcpDB.AssertExpectations(t)
+}
+
 // TestProcessMetricsWithJobDef_RegularVolumes_BillingEnabled verifies that billing
 // is enabled for regular (non-Large) volumes even when EnableLargeVolumesBilling is false
 func TestProcessMetricsWithJobDef_RegularVolumes_BillingEnabled(t *testing.T) {

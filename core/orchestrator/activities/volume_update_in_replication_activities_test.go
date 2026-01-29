@@ -868,6 +868,62 @@ func TestGetReplicationMirrorState(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.Equal(tt, "MIRRORED", *res)
 	})
+	t.Run("WhenSuccessWithSrcEndpointType", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := database.NewMockStorage(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		event := &common.VolumeUpdateEventParams{
+			Local: common.ProjectInfo{
+				BasePath:      "local-base-path",
+				JwtToken:      "local-jwt-token",
+				ProjectNumber: "111111111",
+				Location:      "local-location",
+			},
+			Remote: common.ProjectInfo{
+				BasePath:      "remote-base-path",
+				JwtToken:      "remote-jwt-token",
+				ProjectNumber: "222222222",
+				Location:      "remote-location",
+			},
+			CorrelationID: "test-correlation-id",
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
+		dbReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "repl-uuid"},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationReplicationUUID: "dest-repl-uuid",
+				DestinationLocation:        "remote-location",
+				EndpointType:               "src",
+			},
+		}
+		// Verify that when EndpointType is "src", the Remote basePath and token are used
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			assert.Equal(tt, "remote-base-path", basePath)
+			assert.Equal(tt, "remote-jwt-token", jwt)
+			return mc
+		}
+		response := &googleproxyclient.V1betaGetMultipleReplicationsInternalOK{
+			Replications: []googleproxyclient.VolumeReplicationInternalV1beta{
+				{
+					MirrorState: googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+				},
+			},
+		}
+		mockStorage.EXPECT().ListVolumeReplications(mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{dbReplication}, nil)
+		// Verify that the Remote projectNumber is used when EndpointType is "src"
+		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(mock.Anything, mock.Anything, mock.MatchedBy(func(params googleproxyclient.V1betaGetMultipleReplicationsInternalParams) bool {
+			return params.ProjectNumber == "222222222"
+		})).Return(response, nil)
+		activity := UpdateVolumeInReplicationActivity{SE: mockStorage}
+		res, err := activity.GetReplicationMirrorState(ctx, event, dbVolume)
+		assert.Nil(tt, err)
+		assert.Equal(tt, "MIRRORED", *res)
+	})
 	t.Run("WhenNoReplicationsReturned", func(tt *testing.T) {
 		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(tt)

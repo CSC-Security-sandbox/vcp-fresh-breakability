@@ -7036,3 +7036,74 @@ func TestListQuotaRulesLocal(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 }
+
+func TestDetermineReplicationType(t *testing.T) {
+	tests := []struct {
+		name                string
+		sourceLocation      string
+		destinationLocation string
+		expected            googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationType
+	}{
+		{
+			name:                "Different regions - us-east4-a to us-central1-a",
+			sourceLocation:      "us-east4-a",
+			destinationLocation: "us-central1-a",
+			expected:            googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION,
+		},
+		{
+			name:                "Different regions - us-east4 to australia-southeast1",
+			sourceLocation:      "us-east4",
+			destinationLocation: "australia-southeast1",
+			expected:            googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION,
+		},
+		{
+			name:                "Different regions - australia-southeast1-a to us-central1",
+			sourceLocation:      "australia-southeast1-a",
+			destinationLocation: "us-central1",
+			expected:            googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION,
+		},
+		{
+			name:                "Same region, different zones - us-east4-a to us-east4-b",
+			sourceLocation:      "us-east4-a",
+			destinationLocation: "us-east4-b",
+			expected:            googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeINTERZONEREPLICATION,
+		},
+		{
+			name:                "Same region, one with zone - us-central1-a to us-central1",
+			sourceLocation:      "us-central1-a",
+			destinationLocation: "us-central1",
+			expected:            googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeINTERZONEREPLICATION,
+		},
+		{
+			name:                "Same region, one with zone - us-central1 to us-central1-b",
+			sourceLocation:      "us-central1",
+			destinationLocation: "us-central1-b",
+			expected:            googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeINTERZONEREPLICATION,
+		},
+		{
+			name:                "Same region and zone - us-east4-a to us-east4-a",
+			sourceLocation:      "us-east4-a",
+			destinationLocation: "us-east4-a",
+			expected:            googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeINTRAZONEREPLICATION,
+		},
+		{
+			name:                "Same region, no zones - us-east4 to us-east4",
+			sourceLocation:      "us-east4",
+			destinationLocation: "us-east4",
+			expected:            googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeINTRAZONEREPLICATION,
+		},
+		{
+			name:                "Same region, different zones - australia-southeast1-a to australia-southeast1-c",
+			sourceLocation:      "australia-southeast1-a",
+			destinationLocation: "australia-southeast1-c",
+			expected:            googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeINTERZONEREPLICATION,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := determineReplicationType(tt.sourceLocation, tt.destinationLocation)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

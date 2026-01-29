@@ -702,7 +702,7 @@ func (rc *OntapRestProvider) ReleaseVolumeReplication(params *ReleaseVolumeRepli
 			return nil, err
 		}
 	}
-	return volRep, err
+	return volRep, nil
 }
 
 // ResyncVolumeReplication resyncs the Volume Replication

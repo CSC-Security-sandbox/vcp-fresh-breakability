@@ -66656,6 +66656,10 @@ func (s *VolumeReplicationCreateInternalV1betaReplicationType) Decode(d *jx.Deco
 		*s = VolumeReplicationCreateInternalV1betaReplicationTypeCROSSZONEREPLICATION
 	case VolumeReplicationCreateInternalV1betaReplicationTypeCROSSPROJECTREPLICATION:
 		*s = VolumeReplicationCreateInternalV1betaReplicationTypeCROSSPROJECTREPLICATION
+	case VolumeReplicationCreateInternalV1betaReplicationTypeINTERZONEREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeINTERZONEREPLICATION
+	case VolumeReplicationCreateInternalV1betaReplicationTypeINTRAZONEREPLICATION:
+		*s = VolumeReplicationCreateInternalV1betaReplicationTypeINTRAZONEREPLICATION
 	default:
 		*s = VolumeReplicationCreateInternalV1betaReplicationType(v)
 	}
@@ -67797,6 +67801,10 @@ func (s *VolumeReplicationInternalV1betaReplicationType) Decode(d *jx.Decoder) e
 		*s = VolumeReplicationInternalV1betaReplicationTypeCROSSZONEREPLICATION
 	case VolumeReplicationInternalV1betaReplicationTypeCROSSPROJECTREPLICATION:
 		*s = VolumeReplicationInternalV1betaReplicationTypeCROSSPROJECTREPLICATION
+	case VolumeReplicationInternalV1betaReplicationTypeINTERZONEREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeINTERZONEREPLICATION
+	case VolumeReplicationInternalV1betaReplicationTypeINTRAZONEREPLICATION:
+		*s = VolumeReplicationInternalV1betaReplicationTypeINTRAZONEREPLICATION
 	default:
 		*s = VolumeReplicationInternalV1betaReplicationType(v)
 	}

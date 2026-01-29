@@ -184,6 +184,8 @@ spec:
               value: {{ .Values.telemetryDeployer.enableReplicationBillingMetrics | default "false" | quote }}
             - name: ENABLE_BIDIRECTIONAL_REPLICATION_BILLING_METRICS
               value: {{ .Values.telemetryDeployer.enableBidirectionalReplicationBillingMetrics | default "false" | quote }}
+            - name: ENABLE_IN_REGION_REPLICATION_BILLING_METRICS
+              value: {{ .Values.telemetryDeployer.enableInRegionReplicationBillingMetrics | default "false" | quote }}
             - name: ENABLE_AUTO_TIERING_BILLING_METRICS
               value: {{ .Values.telemetryDeployer.enableAutoTieringBillingMetrics | default "false" | quote }}
             - name: ENABLE_FILES_AUTO_TIERING_BILLING

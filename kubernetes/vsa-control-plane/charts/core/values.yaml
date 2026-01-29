@@ -287,6 +287,7 @@ telemetryDeployer:
   enableCrossRegionBackupBillingMetrics: false
   enableReplicationBillingMetrics: false
   enableBidirectionalReplicationBillingMetrics: false
+  enableInRegionReplicationBillingMetrics: false
   enableAutoTieringBillingMetrics: false
   enableFilesAutoTieringBilling: false
   enableFilesReplicationBillingMetrics: false

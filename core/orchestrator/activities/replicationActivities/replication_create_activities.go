@@ -620,7 +620,27 @@ func convertSourceVolumeToDestinationVolume(result *replication.CreateReplicatio
 	return volume
 }
 
+// determineReplicationType determines the replication type based on source and destination locations
+func determineReplicationType(sourceLocation, destinationLocation string) googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationType {
+	if sourceLocation == destinationLocation {
+		return googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeINTRAZONEREPLICATION
+	}
+
+	sourceRegion, _, _ := utils.ParseRegionAndZone(sourceLocation)
+	destRegion, _, _ := utils.ParseRegionAndZone(destinationLocation)
+
+	if sourceRegion != destRegion {
+		return googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION
+	}
+	return googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeINTERZONEREPLICATION
+}
+
 func _convertVolumeReplicationCreateParams(result replication.CreateReplicationResult) googleproxyclient.VolumeReplicationCreateInternalV1beta {
+	// Determine replication type based on source and destination locations
+	sourceLocation := result.Event.LocationID
+	destinationLocation := result.Event.DestinationLocationID
+	replicationType := determineReplicationType(sourceLocation, destinationLocation)
+
 	createReplicationParams := googleproxyclient.VolumeReplicationCreateInternalV1beta{
 		RemoteRegion:          result.Event.LocationID,
 		EndpointType:          "dst",
@@ -639,7 +659,7 @@ func _convertVolumeReplicationCreateParams(result replication.CreateReplicationR
 		Name:                  googleproxyclient.NewOptString(*result.Event.CreateReplicationParams.ResourceID),
 		Description:           googleproxyclient.NewOptString(nillable.GetString(result.Event.CreateReplicationParams.Description, "")),
 		ReplicationPolicy:     googleproxyclient.NewOptVolumeReplicationCreateInternalV1betaReplicationPolicy(googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationPolicyMirrorAllSnapshots),
-		ReplicationType:       googleproxyclient.NewOptVolumeReplicationCreateInternalV1betaReplicationType(googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION),
+		ReplicationType:       googleproxyclient.NewOptVolumeReplicationCreateInternalV1betaReplicationType(replicationType),
 		ReverseResume:         googleproxyclient.NewOptBool(false),
 		CcfeURI:               googleproxyclient.NewOptString(result.DbVolReplication.Uri),
 		CcfeRemoteURI:         googleproxyclient.NewOptString(result.DbVolReplication.RemoteUri),

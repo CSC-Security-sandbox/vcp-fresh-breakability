@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -655,6 +656,15 @@ func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggreg
 			if !p.config.EnableBidirectionalReplicationBillingMetrics {
 				if volumeReplication.ReplicationAttributes != nil && (volumeReplication.ReplicationAttributes.ReplicationType == string(models.HybridReplicationParametersReplicationTypeMIGRATION) || volumeReplication.ReplicationAttributes.ReplicationType == string(models.HybridReplicationParametersReplicationTypeONPREM)) {
 					logger.Debugf("Skipping volume replication %s (%s) - bidirectional replication type", volumeReplication.Name, volumeReplication.UUID)
+					continue
+				}
+			}
+
+			// Check if we need to skip in-region replications
+			if !p.config.EnableInRegionReplicationBillingMetrics {
+				if volumeReplication.ReplicationAttributes != nil && (volumeReplication.ReplicationAttributes.ReplicationType == string(googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeINTRAZONEREPLICATION) ||
+					volumeReplication.ReplicationAttributes.ReplicationType == string(googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeINTERZONEREPLICATION)) {
+					logger.Debugf("Skipping volume replication %s (%s) - in-region replication type", volumeReplication.Name, volumeReplication.UUID)
 					continue
 				}
 			}

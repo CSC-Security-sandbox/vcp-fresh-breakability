@@ -171,10 +171,18 @@ func (a *UpdateVolumeInReplicationActivity) GetReplicationMirrorState(ctx contex
 		return nil, errors.NewVCPError(errors.ErrDatabaseDataNotFoundError, utilErrors.NewNotFoundErr("destination replication UUID", nil))
 	}
 
-	googleProxyClient := googleproxyclient.GetGProxyClient(event.Remote.BasePath, event.Remote.JwtToken, logger)
+	projectNumber := event.Local.ProjectNumber
+	token := event.Local.JwtToken
+	basePath := event.Local.BasePath
+	if dbReplication.ReplicationAttributes.EndpointType == "src" {
+		projectNumber = event.Remote.ProjectNumber
+		token = event.Remote.JwtToken
+		basePath = event.Remote.BasePath
+	}
+	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, token, logger)
 	getMultiReplicationParams := googleproxyclient.V1betaGetMultipleReplicationsInternalParams{
-		ProjectNumber:  event.Remote.ProjectNumber,
-		LocationId:     event.Remote.Location,
+		ProjectNumber:  projectNumber,
+		LocationId:     dbReplication.ReplicationAttributes.DestinationLocation,
 		XCorrelationID: googleproxyclient.NewOptString(event.CorrelationID),
 	}
 	req := &googleproxyclient.ReplicationIDListV1beta{
