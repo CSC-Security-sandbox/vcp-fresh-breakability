@@ -1,7 +1,6 @@
 package kms_activities
 
 import (
-	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,9 +42,16 @@ func TestGetKmsConfigSDEActivity(t *testing.T) {
 			Return(mockResponse, nil)
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 		originalCreateClient := cvp.CreateClient
-		defer func() { createClient = originalCreateClient }()
+		originalGetSignedJwtToken := getSignedJwtToken
+		defer func() {
+			createClient = originalCreateClient
+			getSignedJwtToken = originalGetSignedJwtToken
+		}()
 		createClient = func(logger log.Logger, JWT string) cvpapi.Cvp {
 			return *cvpClient
+		}
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "mock-jwt-token", nil
 		}
 
 		activity := &KmsConfigActivity{SE: mockSE}
@@ -73,9 +79,16 @@ func TestGetKmsConfigSDEActivity(t *testing.T) {
 			Return(nil, errors.New("describe error"))
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 		originalCreateClient := cvp.CreateClient
-		defer func() { createClient = originalCreateClient }()
+		originalGetSignedJwtToken := getSignedJwtToken
+		defer func() {
+			createClient = originalCreateClient
+			getSignedJwtToken = originalGetSignedJwtToken
+		}()
 		createClient = func(logger log.Logger, JWT string) cvpapi.Cvp {
 			return *cvpClient
+		}
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "mock-jwt-token", nil
 		}
 		activity := &KmsConfigActivity{SE: mockSE}
 		testSuite := &testsuite.WorkflowTestSuite{}
@@ -96,9 +109,16 @@ func TestGetKmsConfigSDEActivity(t *testing.T) {
 			Return(&kms_configurations.V1betaDescribeKmsConfigurationOK{Payload: nil}, nil)
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 		originalCreateClient := cvp.CreateClient
-		defer func() { createClient = originalCreateClient }()
+		originalGetSignedJwtToken := getSignedJwtToken
+		defer func() {
+			createClient = originalCreateClient
+			getSignedJwtToken = originalGetSignedJwtToken
+		}()
 		createClient = func(logger log.Logger, JWT string) cvpapi.Cvp {
 			return *cvpClient
+		}
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "mock-jwt-token", nil
 		}
 		activity := &KmsConfigActivity{SE: mockSE}
 		testSuite := &testsuite.WorkflowTestSuite{}
@@ -108,6 +128,27 @@ func TestGetKmsConfigSDEActivity(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
+	})
+	t.Run("DescribeKmsConfigurationActivityReturnsErrorOnTokenFailure", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		params := &common.GetKmsConfigParams{UUID: "uuid",
+			LocationID: "location"}
+		originalGetSignedJwtToken := getSignedJwtToken
+		defer func() {
+			getSignedJwtToken = originalGetSignedJwtToken
+		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "", errors.New("failed to get signed token")
+		}
+		activity := &KmsConfigActivity{SE: mockSE}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.DescribeSDEKmsConfigurationActivity)
+		_, err := env.ExecuteActivity(activity.DescribeSDEKmsConfigurationActivity, params)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		assert.Contains(tt, err.Error(), "failed to get signed token")
 	})
 }
 
@@ -228,30 +269,40 @@ func TestListKmsConfigActivity(t *testing.T) {
 	})
 }
 
-func TestGetSDEKmsConfiguration_JWTTokenExtraction(t *testing.T) {
-	// Generated using AI
-	t.Run("JWTTokenFromAuthTokenContext", func(tt *testing.T) {
-		// Test when GetAuthTokenFromContext returns a token
+func TestGetSDEKmsConfiguration_JWTTokenGeneration(t *testing.T) {
+	t.Run("JWTTokenGeneratedFromProjectNumber", func(tt *testing.T) {
+		// Test that JWT token is generated using project number from params
 		mockSE := database.NewMockStorage(t)
 		mockClient := kms_configurations.NewMockClientService(t)
 		uuid := "test-uuid"
+		projectNumber := "123456789"
 		mockResponse := &kms_configurations.V1betaDescribeKmsConfigurationOK{
 			Payload: &models.KmsConfigV1beta{
 				UUID: uuid,
 			},
 		}
 		params := &common.GetKmsConfigParams{
-			UUID:       uuid,
-			LocationID: "location",
+			UUID:          uuid,
+			LocationID:    "location",
+			ProjectNumber: projectNumber,
 		}
 		mockClient.EXPECT().
 			V1betaDescribeKmsConfiguration(mock.Anything).
 			Return(mockResponse, nil)
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
+		originalGetSignedJwtToken := getSignedJwtToken
+		defer func() {
+			createClient = originalCreateClient
+			getSignedJwtToken = originalGetSignedJwtToken
+		}()
 		createClient = func(logger log.Logger, JWT string) cvpapi.Cvp {
 			return *cvpClient
+		}
+		var capturedProjectNumber string
+		getSignedJwtToken = func(pn string) (string, error) {
+			capturedProjectNumber = pn
+			return "mock-jwt-token", nil
 		}
 
 		activity := &KmsConfigActivity{SE: mockSE}
@@ -260,42 +311,6 @@ func TestGetSDEKmsConfiguration_JWTTokenExtraction(t *testing.T) {
 		env.RegisterActivity(activity.DescribeSDEKmsConfigurationActivity)
 		_, err := env.ExecuteActivity(activity.DescribeSDEKmsConfigurationActivity, params)
 		assert.NoError(tt, err)
-		// Note: JWT token extraction from context may not work the same way in test environment
-		// This test may need adjustment based on actual behavior
-	})
-
-	t.Run("JWTTokenFallbackToHeaderContext", func(tt *testing.T) {
-		// Test when GetAuthTokenFromContext returns empty and falls back to GetJWTTokenFromContext
-		_ = http.Header{} // Keep import used
-		mockSE := database.NewMockStorage(t)
-		mockClient := kms_configurations.NewMockClientService(t)
-		uuid := "test-uuid"
-		mockResponse := &kms_configurations.V1betaDescribeKmsConfigurationOK{
-			Payload: &models.KmsConfigV1beta{
-				UUID: uuid,
-			},
-		}
-		params := &common.GetKmsConfigParams{
-			UUID:       uuid,
-			LocationID: "location",
-		}
-		mockClient.EXPECT().
-			V1betaDescribeKmsConfiguration(mock.Anything).
-			Return(mockResponse, nil)
-		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, JWT string) cvpapi.Cvp {
-			return *cvpClient
-		}
-
-		activity := &KmsConfigActivity{SE: mockSE}
-		testSuite := &testsuite.WorkflowTestSuite{}
-		env := testSuite.NewTestActivityEnvironment()
-		env.RegisterActivity(activity.DescribeSDEKmsConfigurationActivity)
-		_, err := env.ExecuteActivity(activity.DescribeSDEKmsConfigurationActivity, params)
-		assert.NoError(tt, err)
-		// Note: JWT token extraction from context may not work the same way in test environment
-		// This test may need adjustment based on actual behavior
+		assert.Equal(tt, projectNumber, capturedProjectNumber, "JWT token should be generated using project number from params")
 	})
 }

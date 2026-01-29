@@ -213,9 +213,14 @@ func TestPollMigrateSdeKmsConfigActivity(t *testing.T) {
 		doneStatus := false
 		response := kms_configurations.V1betaEncryptVolumesAccepted{Payload: &cvpModels.OperationV1beta{Done: &doneStatus}}
 
+		originalGetSignedJwtToken := getSignedJwtToken
 		defer func() {
 			pollCvpOperationForWorkflow = _pollCvpOperationForWorkflow
+			getSignedJwtToken = originalGetSignedJwtToken
 		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "mock-jwt-token", nil
+		}
 		pollCvpOperationForWorkflow = func(ctx context.Context, cvpClient cvpapi.Cvp, operationParams *async.V1betaDescribeOperationParams) (*cvpModels.OperationV1beta, error) {
 			return nil, errors.New("CVP Polling is returning error to flag that polling needs to continue")
 		}
@@ -236,9 +241,14 @@ func TestPollMigrateSdeKmsConfigActivity(t *testing.T) {
 		doneStatus := false
 		response := kms_configurations.V1betaEncryptVolumesAccepted{Payload: &cvpModels.OperationV1beta{Done: &doneStatus}}
 
+		originalGetSignedJwtToken := getSignedJwtToken
 		defer func() {
 			pollCvpOperationForWorkflow = _pollCvpOperationForWorkflow
+			getSignedJwtToken = originalGetSignedJwtToken
 		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "mock-jwt-token", nil
+		}
 		pollCvpOperationForWorkflow = func(ctx context.Context, cvpClient cvpapi.Cvp, operationParams *async.V1betaDescribeOperationParams) (*cvpModels.OperationV1beta, error) {
 			return nil, nil
 		}

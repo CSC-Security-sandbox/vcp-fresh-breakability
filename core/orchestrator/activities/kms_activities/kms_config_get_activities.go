@@ -28,10 +28,14 @@ func (j *KmsConfigActivity) DescribeSDEKmsConfigurationActivity(ctx context.Cont
 
 func _getSDEKmsConfiguration(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfigV1beta, error) {
 	logger := util.GetLogger(ctx)
-	jwtToken := utils.GetAuthTokenFromContext(ctx)
-	if jwtToken == "" {
-		jwtToken = utils.GetJWTTokenFromContext(ctx)
+
+	// Generate a fresh JWT token to avoid token expiration during long-running workflows
+	jwtToken, err := getSignedJwtToken(params.ProjectNumber)
+	if err != nil {
+		logger.Errorf("Failed to get signed token for DescribeSDEKmsConfiguration: %v", err)
+		return nil, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeSignedTokenFailed, err)
 	}
+
 	cvpClient := createClient(logger, jwtToken)
 	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
 

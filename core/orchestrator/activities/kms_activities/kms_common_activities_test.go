@@ -35,6 +35,30 @@ import (
 )
 
 func TestPollKmsConfigOperationActivity(t *testing.T) {
+	t.Run("PollKmsConfigOperationActivityReturnsErrorWhenTokenGenerationFails", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.PollKmsConfigOperationActivity)
+		params := &common.PollKmsConfigParams{
+			OperationUri:  "operation-id",
+			OperationDone: false,
+			ProjectNumber: "123456789",
+		}
+
+		originalGetSignedJwtToken := getSignedJwtToken
+		defer func() {
+			getSignedJwtToken = originalGetSignedJwtToken
+		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "", errors.New("failed to get signed token")
+		}
+
+		_, err := env.ExecuteActivity(activity.PollKmsConfigOperationActivity, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to get signed token")
+	})
 	t.Run("PollKmsConfigOperationActivityReturnsErrorWhenResponseIsNil", func(tt *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
@@ -48,12 +72,17 @@ func TestPollKmsConfigOperationActivity(t *testing.T) {
 
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 		originalCreateClient := createClient
+		originalGetSignedJwtToken := getSignedJwtToken
 		defer func() {
 			createClient = originalCreateClient
+			getSignedJwtToken = originalGetSignedJwtToken
 			pollCvpOperationForWorkflow = _pollCvpOperationForWorkflow
 		}()
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
+		}
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "mock-jwt-token", nil
 		}
 
 		pollCvpOperationForWorkflow = func(ctx context.Context, cvpClient cvpapi.Cvp, operationParams *async.V1betaDescribeOperationParams) (*cvpModels.OperationV1beta, error) {
@@ -87,12 +116,17 @@ func TestPollKmsConfigOperationActivity(t *testing.T) {
 
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 		originalCreateClient := createClient
+		originalGetSignedJwtToken := getSignedJwtToken
 		defer func() {
 			createClient = originalCreateClient
+			getSignedJwtToken = originalGetSignedJwtToken
 			pollCvpOperationForWorkflow = _pollCvpOperationForWorkflow
 		}()
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
+		}
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "mock-jwt-token", nil
 		}
 
 		pollCvpOperationForWorkflow = func(ctx context.Context, cvpClient cvpapi.Cvp, operationParams *async.V1betaDescribeOperationParams) (*cvpModels.OperationV1beta, error) {
@@ -107,7 +141,40 @@ func TestPollKmsConfigOperationActivity(t *testing.T) {
 }
 
 func TestFailedKmsConfigCreateActivity(t *testing.T) {
+	t.Run("WhenTokenGenerationFails", func(tt *testing.T) {
+		originalGetSignedJwtToken := getSignedJwtToken
+		defer func() {
+			getSignedJwtToken = originalGetSignedJwtToken
+		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "", errors.New("failed to get signed token")
+		}
+
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FailedKmsConfigCreateActivity)
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:         datamodel.BaseModel{UUID: "uuid"},
+			State:             models.LifeCycleStateError,
+			StateDetails:      "failure reason",
+			CustomerProjectID: "123456789",
+			ServiceAccount:    &datamodel.ServiceAccount{},
+		}
+		_, err := env.ExecuteActivity(activity.FailedKmsConfigCreateActivity, kmsConfig, "failure reason", "location-id")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to get signed token")
+	})
 	t.Run("WhenDeleteKmsConfigFails", func(tt *testing.T) {
+		originalGetSignedJwtToken := getSignedJwtToken
+		defer func() {
+			getSignedJwtToken = originalGetSignedJwtToken
+		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "mock-jwt-token", nil
+		}
+
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
 		testSuite := &testsuite.WorkflowTestSuite{}
@@ -120,6 +187,14 @@ func TestFailedKmsConfigCreateActivity(t *testing.T) {
 		assert.Error(tt, err)
 	})
 	t.Run("WhenDeleteKmsConfigErrorNotFound", func(tt *testing.T) {
+		originalGetSignedJwtToken := getSignedJwtToken
+		defer func() {
+			getSignedJwtToken = originalGetSignedJwtToken
+		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "mock-jwt-token", nil
+		}
+
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
 		testSuite := &testsuite.WorkflowTestSuite{}
@@ -135,12 +210,17 @@ func TestFailedKmsConfigCreateActivity(t *testing.T) {
 		mockClient := kms_configurations.NewMockClientService(t)
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 		originalCreateClient := createClient
+		originalGetSignedJwtToken := getSignedJwtToken
 		defer func() {
 			createClient = originalCreateClient
+			getSignedJwtToken = originalGetSignedJwtToken
 			pollCvpOperationForWorkflow = _pollCvpOperationForWorkflow
 		}()
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
+		}
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "mock-jwt-token", nil
 		}
 
 		pollCvpOperationForWorkflow = func(ctx context.Context, cvpClient cvpapi.Cvp, operationParams *async.V1betaDescribeOperationParams) (*cvpModels.OperationV1beta, error) {
@@ -170,11 +250,16 @@ func TestFailedKmsConfigCreateActivity(t *testing.T) {
 		mockClient := kms_configurations.NewMockClientService(t)
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 		originalCreateClient := createClient
+		originalGetSignedJwtToken := getSignedJwtToken
 		defer func() {
 			createClient = originalCreateClient
+			getSignedJwtToken = originalGetSignedJwtToken
 		}()
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
+		}
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "mock-jwt-token", nil
 		}
 		mockClient.On("V1betaDeleteKmsConfiguration", mock.Anything).Return(nil, nil, errors.New("some error"))
 		mockSE := database.NewMockStorage(t)
@@ -193,11 +278,16 @@ func TestFailedKmsConfigCreateActivity(t *testing.T) {
 		mockClient := kms_configurations.NewMockClientService(t)
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 		originalCreateClient := createClient
+		originalGetSignedJwtToken := getSignedJwtToken
 		defer func() {
 			createClient = originalCreateClient
+			getSignedJwtToken = originalGetSignedJwtToken
 		}()
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
+		}
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "mock-jwt-token", nil
 		}
 		mockClient.On("V1betaDeleteKmsConfiguration", mock.Anything).Return(nil, nil, &kms_configurations.V1betaDeleteKmsConfigurationNotFound{})
 		mockSE := database.NewMockStorage(t)
@@ -1353,6 +1443,7 @@ func TestGetResponseForPollCvpOperation(t *testing.T) {
 
 	cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 	originalCreateClient := createClient
+	originalGetSignedJwtToken := getSignedJwtToken
 
 	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 		return *cvpClient
@@ -1361,11 +1452,29 @@ func TestGetResponseForPollCvpOperation(t *testing.T) {
 	responsePayloadName := "responsePayloadName"
 	projectNumber := "projectNumber"
 	locationID := "locationID"
+
+	t.Run("WhenGetSignedJwtTokenFails", func(tt *testing.T) {
+		defer func() {
+			getSignedJwtToken = originalGetSignedJwtToken
+		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "", errors.New("failed to get signed token")
+		}
+
+		payload, errPoll := GetResponseforPollCvpOperation(ctx, responsePayloadName, projectNumber, locationID)
+		assert.Error(tt, errPoll)
+		assert.Nil(tt, payload)
+		assert.Contains(tt, errPoll.Error(), "failed to get signed token")
+	})
 	t.Run("WhenPollCvpOperationForWorkflowReturnsError", func(tt *testing.T) {
 		defer func() {
 			createClient = originalCreateClient
 			pollCvpOperationForWorkflow = _pollCvpOperationForWorkflow
+			getSignedJwtToken = originalGetSignedJwtToken
 		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "mock-jwt-token", nil
+		}
 		pollCvpOperationForWorkflow = func(ctx context.Context, cvpClient cvpapi.Cvp, operationParams *async.V1betaDescribeOperationParams) (*cvpModels.OperationV1beta, error) {
 			return nil, errors.New("new error")
 		}
@@ -1378,7 +1487,11 @@ func TestGetResponseForPollCvpOperation(t *testing.T) {
 		defer func() {
 			createClient = originalCreateClient
 			pollCvpOperationForWorkflow = _pollCvpOperationForWorkflow
+			getSignedJwtToken = originalGetSignedJwtToken
 		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "mock-jwt-token", nil
+		}
 		done := true
 		response := cvpModels.OperationV1beta{
 			Name: "operationName",
