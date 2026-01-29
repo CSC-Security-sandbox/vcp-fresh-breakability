@@ -204,7 +204,7 @@ func TestPrometheusRecorder_RecordBillingMetricsSubmission(t *testing.T) {
 	timestamp := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
 	params := &MetricRecorderParams{
 		SinkType:           "billing-service",
-		ResourceType:       "volume",
+		MeasuredType:       "BACKUP_ENABLED_VOLUME_ALLOCATED_SIZE",
 		SubmittedTimeStamp: timestamp,
 		SubmittedQuantity:  100,
 	}
@@ -212,7 +212,7 @@ func TestPrometheusRecorder_RecordBillingMetricsSubmission(t *testing.T) {
 	recorder.RecordBillingMetricsSubmission(params)
 
 	expectedTimestamp := timestamp.Format(time.RFC3339)
-	gauge := billingMetricsSubmissionTotal.WithLabelValues(params.SinkType, params.ResourceType, expectedTimestamp)
+	gauge := billingMetricsSubmissionTotal.WithLabelValues(params.SinkType, params.MeasuredType, expectedTimestamp)
 	assert.Equal(t, float64(100), testutil.ToFloat64(gauge))
 }
 
@@ -234,14 +234,14 @@ func TestPrometheusRecorder_RecordBillingMetricsSubmission_UpdatesExistingValue(
 	// Second submission with same timestamp should update the gauge
 	params2 := &MetricRecorderParams{
 		SinkType:           "billing-service",
-		ResourceType:       "volume",
+		MeasuredType:       "BACKUP_ENABLED_VOLUME_ALLOCATED_SIZE",
 		SubmittedTimeStamp: timestamp,
 		SubmittedQuantity:  150,
 	}
 	recorder.RecordBillingMetricsSubmission(params2)
 
 	expectedTimestamp := timestamp.Format(time.RFC3339)
-	gauge := billingMetricsSubmissionTotal.WithLabelValues(params2.SinkType, params2.ResourceType, expectedTimestamp)
+	gauge := billingMetricsSubmissionTotal.WithLabelValues(params2.SinkType, params2.MeasuredType, expectedTimestamp)
 	assert.Equal(t, float64(150), testutil.ToFloat64(gauge))
 }
 

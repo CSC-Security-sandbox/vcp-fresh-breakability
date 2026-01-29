@@ -7,6 +7,7 @@ import (
 type MetricRecorderParams struct {
 	EndPoint           string
 	Method             string
+	MeasuredType       string
 	StatusCode         string
 	LatencyDuration    float64
 	QueueName          string
@@ -16,8 +17,8 @@ type MetricRecorderParams struct {
 	SinkType           string
 	SinkStatus         string
 	ResourceType       string
-	SubmittedQuantity  int
-	FailedQuantity     int
+	SubmittedQuantity  float64
+	FailedQuantity     float64
 	SubmittedTimeStamp time.Time
 }
 

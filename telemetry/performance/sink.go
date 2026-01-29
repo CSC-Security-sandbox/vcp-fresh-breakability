@@ -41,8 +41,8 @@ func (s *GoogleSink) processMetricsResults(results []common.MetricsResult) {
 
 func NewSink(ctx context.Context, config *common.TelemetryConfig, metricsRecorder monitoring.MetricsRecorder) *GoogleSink {
 	return &GoogleSink{
-		metricClient: *googlePusher.NewGoogleMetricsClient(ctx, config.PerformanceRootUrl, config),
-		logger:       util.GetLogger(ctx),
+		metricClient:    *googlePusher.NewGoogleMetricsClient(ctx, config.PerformanceRootUrl, config),
+		logger:          util.GetLogger(ctx),
 		metricsRecorder: metricsRecorder,
 	}
 }
@@ -247,8 +247,8 @@ func (s *GoogleSink) processAndFilterMetricsResults(results []common.MetricsResu
 	}
 	metricRecorderParams := &monitoring.MetricRecorderParams{
 		SinkType:          "performance",
-		SubmittedQuantity: len(goodResults),
-		FailedQuantity:    len(results) - len(goodResults),
+		SubmittedQuantity: float64(len(goodResults)),
+		FailedQuantity:    float64(len(results) - len(goodResults)),
 	}
 	s.metricsRecorder.RecordSinkDelivered(metricRecorderParams)
 	s.logger.Infof("%d metrics were successfully reported.", len(goodResults))

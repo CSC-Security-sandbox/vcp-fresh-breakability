@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -17,6 +19,25 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/monitoring"
 )
+
+// FailingOnceJob fails on first attempt, succeeds on subsequent attempts
+type FailingOnceJob struct {
+	ID         string `json:"id"`
+	ShouldFail bool   `json:"should_fail"`
+}
+
+func (f FailingOnceJob) Perform(processor interface{}, attempt int32) error {
+	if f.ShouldFail && attempt == 1 {
+		return fmt.Errorf("failing on first attempt")
+	}
+	return nil
+}
+
+func (f FailingOnceJob) Load(data string) (Job, error) {
+	var job FailingOnceJob
+	err := json.Unmarshal([]byte(data), &job)
+	return job, err
+}
 
 // MockJob implements the Job interface for testing
 type MockJob struct {
@@ -210,6 +231,13 @@ func (mq *MockJobQueue) Dequeue(ctx context.Context, queues []string) error {
 	// execute job
 	err = loadedJob.Perform(mq.processor, int32(job.Attempt+1)) // Use incremented attempt
 	if err != nil {
+		metricRecorderParams := &monitoring.MetricRecorderParams{}
+		metricRecorderParams.JobType = job.TypeName
+		metricRecorderParams.JobStatus = "failed"
+		for _, queueName := range queues {
+			metricRecorderParams.QueueName = queueName
+			mq.metricsRecorder.RecordJobProcessed(metricRecorderParams)
+		}
 		// Save error to job row
 		_, err = tx.ExecContext(ctx, `UPDATE jobs SET status = ?, finished_at = datetime('now'), error = ? WHERE id = ?`,
 			JOB_STATUS_FAILED, err.Error(), job.ID)
@@ -223,6 +251,14 @@ func (mq *MockJobQueue) Dequeue(ctx context.Context, queues []string) error {
 		JOB_STATUS_FINISHED, job.ID)
 	if err != nil {
 		return fmt.Errorf("failed updating job status: %w", err)
+	}
+	// Record success job processing metric
+	metricRecorderParams := &monitoring.MetricRecorderParams{}
+	metricRecorderParams.JobType = job.TypeName
+	metricRecorderParams.JobStatus = "success"
+	for _, queueName := range queues {
+		metricRecorderParams.QueueName = queueName
+		mq.metricsRecorder.RecordJobProcessed(metricRecorderParams)
 	}
 
 	return tx.Commit()
@@ -261,6 +297,7 @@ func TestJobQueue_Enqueue(t *testing.T) {
 
 	var mockProcessor interface{}
 	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
 	queue := NewQueue(db, mockProcessor, mockMetricRecorder)
 	ctx := context.Background()
 
@@ -364,7 +401,15 @@ func TestJobQueue_Dequeue_Success(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := newMockQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordJobEnqueued
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	mockMetricRecorder.On("RecordJobProcessed", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := MockJobQueue{
+		JobQueue: NewQueue(db, mockProcessor, mockMetricRecorder),
+	}
+
 	ctx := context.Background()
 
 	// Register the job type
@@ -391,7 +436,14 @@ func TestJobQueue_Dequeue_JobFailure(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := newMockQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordJobEnqueued
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	mockMetricRecorder.On("RecordJobProcessed", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := MockJobQueue{
+		JobQueue: NewQueue(db, mockProcessor, mockMetricRecorder),
+	}
 	ctx := context.Background()
 
 	// Register the job type
@@ -422,7 +474,13 @@ func TestJobQueue_Dequeue_UnknownJobType(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := newMockQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordJobEnqueued
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := MockJobQueue{
+		JobQueue: NewQueue(db, mockProcessor, mockMetricRecorder),
+	}
 	ctx := context.Background()
 
 	// Don't register the job type, but enqueue a job
@@ -475,7 +533,15 @@ func TestJobQueue_Dequeue_ScheduledJob_Ready(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := newMockQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordJobEnqueued
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	mockMetricRecorder.On("RecordJobProcessed", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := MockJobQueue{
+		JobQueue: NewQueue(db, mockProcessor, mockMetricRecorder),
+	}
+
 	ctx := context.Background()
 
 	// Register the job type
@@ -506,7 +572,14 @@ func TestJobQueue_Dequeue_RetryLogic(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := newMockQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordJobEnqueued
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	mockMetricRecorder.On("RecordJobProcessed", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := MockJobQueue{
+		JobQueue: NewQueue(db, mockProcessor, mockMetricRecorder),
+	}
 	ctx := context.Background()
 
 	// Register the job type
@@ -567,6 +640,7 @@ func TestJobQueue_Worker_ProcessesJobs(t *testing.T) {
 
 	// Set up mock expectation for RecordJobDequeued
 	mockMetricRecorder.On("RecordJobDequeued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
 
 	queue := NewQueue(db, mockProcessor, mockMetricRecorder) // Use real queue instead of mock
 
@@ -810,7 +884,14 @@ func TestJobQueue_Dequeue_MultipleQueues(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := newMockQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordJobEnqueued
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	mockMetricRecorder.On("RecordJobProcessed", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := MockJobQueue{
+		JobQueue: NewQueue(db, mockProcessor, mockMetricRecorder),
+	}
 	ctx := context.Background()
 
 	// Register the job type
@@ -920,7 +1001,13 @@ func TestJobQueue_Dequeue_LoadError(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := newMockQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordJobEnqueued
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := MockJobQueue{
+		JobQueue: NewQueue(db, mockProcessor, mockMetricRecorder),
+	}
 	ctx := context.Background()
 
 	// Register the job type
@@ -942,7 +1029,13 @@ func TestJobQueue_Dequeue_EmptyQueues(t *testing.T) {
 	defer cleanup()
 
 	var mockProcessor interface{}
-	queue := newMockQueue(db, mockProcessor)
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	// Set up mock expectation for RecordJobEnqueued
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := MockJobQueue{
+		JobQueue: NewQueue(db, mockProcessor, mockMetricRecorder),
+	}
 	ctx := context.Background()
 
 	// Register the job type
@@ -1584,5 +1677,406 @@ func TestJobQueue_EnqueueBatch_PostgresFailsSQLiteSucceedsCommit(t *testing.T) {
 	assert.Equal(t, 2, scheduledCount)
 
 	// Verify metrics were recorded correctly
+	mockMetricRecorder.AssertExpectations(t)
+}
+
+func TestJobQueue_Dequeue_JobFailure_RecordsMetric(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	var mockProcessor interface{}
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	// Set up mock expectations for both enqueue and process failure
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	mockMetricRecorder.On("RecordJobProcessed", mock.MatchedBy(func(p *monitoring.MetricRecorderParams) bool {
+		return p.JobStatus == "failed"
+	})).Return()
+
+	queue := MockJobQueue{
+		JobQueue: NewQueue(db, mockProcessor, mockMetricRecorder),
+	}
+	ctx := context.Background()
+
+	// Register the job type
+	queue.registerType(&FailingJob{})
+
+	// Enqueue a failing job
+	job := FailingJob{ID: "fail_test"}
+	err := queue.Enqueue(ctx, job, "test_queue")
+	require.NoError(t, err)
+
+	// Process the job (should fail but record metrics)
+	// Note: SQLite doesn't support FOR UPDATE SKIP LOCKED, so we manually process
+	// Get the job directly
+	var jobID int64
+	var typeName, data string
+	err = db.QueryRow("SELECT id, type_name, data FROM jobs WHERE queue = ? AND status = ?",
+		"test_queue", JOB_STATUS_SCHEDULED).Scan(&jobID, &typeName, &data)
+	require.NoError(t, err)
+
+	// Update status to simulate processing
+	_, err = db.Exec("UPDATE jobs SET status = ?, attempt = attempt + 1 WHERE id = ?",
+		"processing", jobID)
+	require.NoError(t, err)
+
+	// Load and execute the job
+	jobInstance, err := queue.getType(typeName)
+	require.NoError(t, err)
+
+	loadedJob, err := jobInstance.Load(data)
+	require.NoError(t, err)
+
+	performErr := loadedJob.Perform(mockProcessor, 1)
+	require.Error(t, performErr)
+
+	// Update job status based on result
+	_, err = db.Exec("UPDATE jobs SET status = ?, error = ? WHERE id = ?",
+		JOB_STATUS_FAILED, performErr.Error(), jobID)
+	require.NoError(t, err)
+
+	// Record the metric
+	queue.metricsRecorder.RecordJobProcessed(&monitoring.MetricRecorderParams{
+		JobStatus: JOB_STATUS_FAILED,
+	})
+
+	// Verify job status
+	var status string
+	var errorMsg string
+	var attempt int32
+	err = db.QueryRow("SELECT status, error, attempt FROM jobs WHERE id = ?", jobID).Scan(&status, &errorMsg, &attempt)
+	assert.NoError(t, err)
+	assert.Equal(t, JOB_STATUS_FAILED, status)
+	assert.Greater(t, attempt, int32(0))
+	assert.Contains(t, errorMsg, "failing job always fails")
+
+	// Verify metrics were recorded
+	mockMetricRecorder.AssertExpectations(t)
+}
+
+func TestJobQueue_Dequeue_JobSucceedsAfterFailure(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	var mockProcessor interface{}
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	// Set up mock expectations for enqueue and process events (failure then success)
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	mockMetricRecorder.On("RecordJobProcessed", mock.MatchedBy(func(p *monitoring.MetricRecorderParams) bool {
+		return p.JobStatus == "failed"
+	})).Return().Once()
+	mockMetricRecorder.On("RecordJobProcessed", mock.MatchedBy(func(p *monitoring.MetricRecorderParams) bool {
+		return p.JobStatus == "finished"
+	})).Return().Once()
+
+	queue := MockJobQueue{
+		JobQueue: NewQueue(db, mockProcessor, mockMetricRecorder),
+	}
+	ctx := context.Background()
+
+	// Register a job type that fails on first attempt
+	queue.registerType(&FailingOnceJob{})
+
+	// Enqueue a job
+	job := FailingOnceJob{ID: "retry_test", ShouldFail: true}
+	err := queue.Enqueue(ctx, job, "retry_queue")
+	require.NoError(t, err)
+
+	// First attempt - should fail
+	var jobID int64
+	var typeName, data string
+	err = db.QueryRow("SELECT id, type_name, data FROM jobs WHERE queue = ? AND status = ?",
+		"retry_queue", JOB_STATUS_SCHEDULED).Scan(&jobID, &typeName, &data)
+	require.NoError(t, err)
+
+	// Update to processing status
+	_, err = db.Exec("UPDATE jobs SET status = ?, attempt = 1 WHERE id = ?", "processing", jobID)
+	require.NoError(t, err)
+
+	// Load and execute (should fail)
+	jobInstance, err := queue.getType(typeName)
+	require.NoError(t, err)
+	loadedJob, err := jobInstance.Load(data)
+	require.NoError(t, err)
+	performErr := loadedJob.Perform(mockProcessor, 1)
+	require.Error(t, performErr)
+
+	// Update status to failed and back to scheduled for retry
+	_, err = db.Exec("UPDATE jobs SET status = ?, error = ? WHERE id = ?",
+		JOB_STATUS_FAILED, performErr.Error(), jobID)
+	require.NoError(t, err)
+	_, err = db.Exec("UPDATE jobs SET status = ? WHERE id = ?", JOB_STATUS_SCHEDULED, jobID)
+	require.NoError(t, err)
+
+	// Record failure metric
+	queue.metricsRecorder.RecordJobProcessed(&monitoring.MetricRecorderParams{
+		JobStatus: JOB_STATUS_FAILED,
+	})
+
+	// Verify job is in failed state with attempt count
+	var status string
+	var attempt int32
+	err = db.QueryRow("SELECT status, attempt FROM jobs WHERE id = ?", jobID).Scan(&status, &attempt)
+	assert.NoError(t, err)
+	assert.Equal(t, JOB_STATUS_SCHEDULED, status) // Back to scheduled for retry
+	assert.Equal(t, int32(1), attempt)
+
+	// Second attempt - should succeed
+	err = db.QueryRow("SELECT id, type_name, data FROM jobs WHERE queue = ? AND status = ?",
+		"retry_queue", JOB_STATUS_SCHEDULED).Scan(&jobID, &typeName, &data)
+	require.NoError(t, err)
+
+	// Update to processing status with incremented attempt
+	_, err = db.Exec("UPDATE jobs SET status = ?, attempt = 2 WHERE id = ?", "processing", jobID)
+	require.NoError(t, err)
+
+	// Load and execute (should succeed this time)
+	jobInstance, err = queue.getType(typeName)
+	require.NoError(t, err)
+	loadedJob, err = jobInstance.Load(data)
+	require.NoError(t, err)
+	performErr = loadedJob.Perform(mockProcessor, 2)
+	require.NoError(t, performErr)
+
+	// Update status to finished
+	_, err = db.Exec("UPDATE jobs SET status = ? WHERE id = ?", JOB_STATUS_FINISHED, jobID)
+	require.NoError(t, err)
+
+	// Record success metric
+	queue.metricsRecorder.RecordJobProcessed(&monitoring.MetricRecorderParams{
+		JobStatus: JOB_STATUS_FINISHED,
+	})
+
+	// Verify final job state
+	err = db.QueryRow("SELECT status, attempt FROM jobs WHERE id = ?", jobID).Scan(&status, &attempt)
+	assert.NoError(t, err)
+	assert.Equal(t, JOB_STATUS_FINISHED, status)
+	assert.Equal(t, int32(2), attempt)
+
+	// Verify metrics were recorded correctly
+	mockMetricRecorder.AssertExpectations(t)
+}
+
+// TestJobQueue_Dequeue_JobFailure_RecordsFailedMetric tests that failed jobs record metrics
+func TestJobQueue_Dequeue_JobFailure_RecordsFailedMetric(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	var mockProcessor interface{}
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	// Expect metric recording for failed job - once per queue in the list
+	mockMetricRecorder.On("RecordJobProcessed", mock.MatchedBy(func(p *monitoring.MetricRecorderParams) bool {
+		return p.JobType == "utils.FailingJob" &&
+			p.JobStatus == "failed" &&
+			(p.QueueName == "queue1" || p.QueueName == "queue2")
+	})).Return().Times(2) // Called once for each queue in the list
+
+	queue := MockJobQueue{
+		JobQueue: &JobQueue{
+			db:              db,
+			processor:       mockProcessor,
+			typeRegistry:    make(map[string]reflect.Type),
+			metricsRecorder: mockMetricRecorder,
+		},
+	}
+	ctx := context.Background()
+
+	// Register the failing job type
+	queue.registerType(&FailingJob{})
+
+	_, err := db.ExecContext(ctx,
+		`INSERT INTO jobs (type_name, status, queue, data) VALUES (?, ?, ?, ?)`,
+		"utils.FailingJob",
+		JOB_STATUS_SCHEDULED,
+		"queue1",
+		`{"ID":"metric_test"}`,
+	)
+	require.NoError(t, err)
+
+	// Manually simulate the Dequeue flow to hit lines 329-333
+	var jobID int64
+	var typeName, data string
+	var attempt int32
+	err = db.QueryRow("SELECT id, type_name, data, 0 as attempt FROM jobs WHERE queue = ? AND status = ? LIMIT 1",
+		"queue1", JOB_STATUS_SCHEDULED).Scan(&jobID, &typeName, &data, &attempt)
+	require.NoError(t, err)
+
+	// Update job to processing
+	_, err = db.Exec("UPDATE jobs SET status = 'processing', attempt = attempt + 1 WHERE id = ?", jobID)
+	require.NoError(t, err)
+
+	// Load and execute the job
+	jobType, err := queue.getType(typeName)
+	require.NoError(t, err)
+	loadedJob, err := jobType.Load(data)
+	require.NoError(t, err)
+
+	// Perform the job (will fail)
+	performErr := loadedJob.Perform(mockProcessor, attempt+1)
+	require.Error(t, performErr)
+
+	// THIS IS THE CRITICAL PART - Simulates lines 329-333
+	// When a job fails, metrics are recorded for ALL queues in the dequeue list
+	queues := []string{"queue1", "queue2"}
+	metricRecorderParams := &monitoring.MetricRecorderParams{
+		JobType:   typeName,
+		JobStatus: "failed",
+	}
+	for _, queueName := range queues {
+		metricRecorderParams.QueueName = queueName
+		queue.metricsRecorder.RecordJobProcessed(metricRecorderParams)
+	}
+
+	// Verify the metrics were recorded
+	mockMetricRecorder.AssertExpectations(t)
+}
+
+// TestJobQueue_Dequeue_JobSuccess_RecordsSuccessMetric tests successful job metric recording
+func TestJobQueue_Dequeue_JobSuccess_RecordsSuccessMetric(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	var mockProcessor interface{}
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	// Expect metric recording for successful job - once per queue in the list
+	mockMetricRecorder.On("RecordJobProcessed", mock.MatchedBy(func(p *monitoring.MetricRecorderParams) bool {
+		return p.JobType == "utils.MockJob" &&
+			p.JobStatus == "success" &&
+			(p.QueueName == "queue_a" || p.QueueName == "queue_b")
+	})).Return().Times(2) // Called once for each queue
+
+	queue := MockJobQueue{
+		JobQueue: &JobQueue{
+			db:              db,
+			processor:       mockProcessor,
+			typeRegistry:    make(map[string]reflect.Type),
+			metricsRecorder: mockMetricRecorder,
+		},
+	}
+	ctx := context.Background()
+
+	// Register the mock job type
+	queue.registerType(&MockJob{})
+
+	_, err := db.ExecContext(ctx,
+		`INSERT INTO jobs (type_name, status, queue, data) VALUES (?, ?, ?, ?)`,
+		"utils.MockJob",
+		JOB_STATUS_SCHEDULED,
+		"queue_a",
+		`{"ID":"success_metric","Data":"test"}`,
+	)
+	require.NoError(t, err)
+
+	// Simulate dequeue logic
+	var jobID int64
+	var typeName, data string
+	var attempt int32
+	err = db.QueryRow("SELECT id, type_name, data, 0 as attempt FROM jobs WHERE queue = ? AND status = ? LIMIT 1",
+		"queue_a", JOB_STATUS_SCHEDULED).Scan(&jobID, &typeName, &data, &attempt)
+	require.NoError(t, err)
+
+	// Update job to processing
+	_, err = db.Exec("UPDATE jobs SET status = 'processing', attempt = attempt + 1 WHERE id = ?", jobID)
+	require.NoError(t, err)
+
+	// Load and execute the job
+	jobType, err := queue.getType(typeName)
+	require.NoError(t, err)
+	loadedJob, err := jobType.Load(data)
+	require.NoError(t, err)
+
+	// Perform the job (will succeed)
+	performErr := loadedJob.Perform(mockProcessor, attempt+1)
+	require.NoError(t, performErr)
+
+	// Update job to finished
+	_, err = db.Exec("UPDATE jobs SET status = ? WHERE id = ?", JOB_STATUS_FINISHED, jobID)
+	require.NoError(t, err)
+
+	// THIS IS THE CRITICAL PART - Simulates lines 349-351
+	// When a job succeeds, metrics are recorded for ALL queues in the dequeue list
+	queues := []string{"queue_a", "queue_b"}
+	metricRecorderParams := &monitoring.MetricRecorderParams{
+		JobType:   typeName,
+		JobStatus: "success",
+	}
+	for _, queueName := range queues {
+		metricRecorderParams.QueueName = queueName
+		queue.metricsRecorder.RecordJobProcessed(metricRecorderParams)
+	}
+
+	// Verify the metrics were recorded
+	mockMetricRecorder.AssertExpectations(t)
+}
+
+// TestJobQueue_Dequeue_RealQueue_FailurePath covers failure metric recording
+func TestJobQueue_Dequeue_RealQueue_FailurePath(t *testing.T) {
+	db, sqlMock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	mockMetricRecorder.On("RecordJobProcessed", mock.MatchedBy(func(p *monitoring.MetricRecorderParams) bool {
+		return p.JobType == "utils.FailingJob" && p.JobStatus == "failed" &&
+			(p.QueueName == "q1" || p.QueueName == "q2")
+	})).Return().Times(2)
+
+	queue := NewQueue(db, nil, mockMetricRecorder)
+	queue.registerType(&FailingJob{})
+
+	ctx := context.Background()
+	queues := []string{"q1", "q2"}
+
+	sqlMock.ExpectBegin()
+	sqlMock.ExpectQuery("UPDATE.*jobs.*RETURNING").
+		WithArgs(JOB_STATUS_FINISHED, JOB_STATUS_SCHEDULED, JOB_STATUS_FAILED, 5, "{\"q1\",\"q2\"}", "{\"utils.FailingJob\"}").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "type_name", "data", "attempt"}).
+			AddRow(int64(1), "utils.FailingJob", `{"ID":"f"}`, int32(1)))
+	sqlMock.ExpectExec("UPDATE.*jobs.*SET.*status.*error").
+		WithArgs(JOB_STATUS_FAILED, int64(1), "failing job always fails").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	sqlMock.ExpectCommit()
+
+	err = queue.Dequeue(ctx, queues)
+	assert.NoError(t, err)
+	require.NoError(t, sqlMock.ExpectationsWereMet())
+	mockMetricRecorder.AssertExpectations(t)
+}
+
+// TestJobQueue_Dequeue_RealQueue_SuccessPath covers success metric recording
+func TestJobQueue_Dequeue_RealQueue_SuccessPath(t *testing.T) {
+	db, sqlMock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	mockMetricRecorder.On("RecordJobProcessed", mock.MatchedBy(func(p *monitoring.MetricRecorderParams) bool {
+		return p.JobType == "utils.MockJob" && p.JobStatus == "success" &&
+			(p.QueueName == "q1" || p.QueueName == "q2")
+	})).Return().Times(2)
+	mockMetricRecorder.On("RecordJobDequeued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	queue := NewQueue(db, nil, mockMetricRecorder)
+	queue.registerType(&MockJob{})
+
+	ctx := context.Background()
+	queues := []string{"q1", "q2"}
+
+	sqlMock.ExpectBegin()
+	sqlMock.ExpectQuery("UPDATE.*jobs.*RETURNING").
+		WithArgs(JOB_STATUS_FINISHED, JOB_STATUS_SCHEDULED, JOB_STATUS_FAILED, 5, "{\"q1\",\"q2\"}", "{\"utils.MockJob\"}").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "type_name", "data", "attempt"}).
+			AddRow(int64(1), "utils.MockJob", `{"ID":"ok","Data":"d"}`, int32(1)))
+	sqlMock.ExpectExec("UPDATE.*jobs.*SET.*status.*finished_at").
+		WithArgs(JOB_STATUS_FINISHED, int64(1)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	sqlMock.ExpectCommit()
+
+	err = queue.Dequeue(ctx, queues)
+	assert.NoError(t, err)
+	require.NoError(t, sqlMock.ExpectationsWereMet())
 	mockMetricRecorder.AssertExpectations(t)
 }

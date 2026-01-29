@@ -65,6 +65,7 @@ func Test_ReturnsAcceptedResponseForPerformanceEndpoint(t *testing.T) {
 	wg.Add(1)
 
 	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
 	queue := utils.NewQueue(telemetryStore.SQLDB(), mockVCPProc, mockMetricRecorder)
 	handler := Handler{
 		vcpDatastore:       vcpStore,
@@ -121,6 +122,8 @@ func Test_V1Performance_ContextCancel(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
 	queue := utils.NewQueue(telemetryStore.SQLDB(), mockVCPProc, mockMetricRecorder)
 
 	handler := Handler{
@@ -150,6 +153,7 @@ func Test_ReturnsAcceptedResponseForUsageEndpoint(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
 	queue := utils.NewQueue(telemetryStore.SQLDB(), mockVCPProc, mockMetricRecorder)
 
 	handler := Handler{
@@ -209,6 +213,7 @@ func Test_ReturnsAcceptedResponseForGenerateReportEndpoint(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
 	queue := utils.NewQueue(telemetryStore.SQLDB(), mockVCPProc, mockMetricRecorder)
 	handler := Handler{
 		vcpDatastore:       vcpStore,
@@ -309,6 +314,7 @@ func Test_V1GenerateReport_ContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
 	queue := utils.NewQueue(telemetryStore.SQLDB(), mockVCPProc, mockMetricRecorder)
 	handler := Handler{
 		vcpDatastore:       vcpStore,
@@ -338,6 +344,7 @@ func Test_V1Performance_WithCorrelationID(t *testing.T) {
 	wg.Add(1)
 
 	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
 	queue := utils.NewQueue(telemetryStore.SQLDB(), mockVCPProc, mockMetricRecorder)
 	handler := Handler{
 		vcpDatastore:       vcpStore,
@@ -367,6 +374,7 @@ func Test_V1Usage_WithCorrelationID(t *testing.T) {
 	wg.Add(1)
 
 	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+	mockMetricRecorder.On("RecordJobEnqueued", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
 	queue := utils.NewQueue(telemetryStore.SQLDB(), mockVCPProc, mockMetricRecorder)
 	handler := Handler{
 		vcpDatastore:       vcpStore,

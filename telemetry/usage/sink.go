@@ -219,9 +219,10 @@ func (s *GoogleUsageSink) processResponse(ctx context.Context, wg *sync.WaitGrou
 	logger.Infof("Processing usage metrics results with correlation ID: %s", correlationID)
 
 	totalFailedCount := 0
+	measuredTypesInfo := make(map[string]float64)
 	for result := range resultChan {
 		var batchFailedCount int
-		s.processMetricsResults(ctx, result, &batchFailedCount)
+		s.processMetricsResults(ctx, result, &batchFailedCount, measuredTypesInfo)
 		totalFailedCount += batchFailedCount
 	}
 
@@ -231,9 +232,19 @@ func (s *GoogleUsageSink) processResponse(ctx context.Context, wg *sync.WaitGrou
 	if failedCount != nil {
 		*failedCount = totalFailedCount
 	}
+	// Record Measured Types Info
+	for measuredType, count := range measuredTypesInfo {
+		metricRecorderParams := &monitoring.MetricRecorderParams{
+			SinkType:           "usage",
+			MeasuredType:       getMeasuredTypesWithUnits(metadata.MeasuredType(measuredType)),
+			SubmittedQuantity:  count,
+			SubmittedTimeStamp: time.Now(),
+		}
+		s.metricsRecorder.RecordBillingMetricsSubmission(metricRecorderParams)
+	}
 }
 
-func (s *GoogleUsageSink) processMetricsResults(ctx context.Context, gcpResults []common.MetricsResult, failedCount *int) {
+func (s *GoogleUsageSink) processMetricsResults(ctx context.Context, gcpResults []common.MetricsResult, failedCount *int, measuredTypesInfo map[string]float64) {
 	goodResults, errorResults, exceptionResults := common.FilterErrorResults(gcpResults)
 
 	s.logger.Infof("%d metrics were successfully reported.", len(goodResults))
@@ -242,20 +253,20 @@ func (s *GoogleUsageSink) processMetricsResults(ctx context.Context, gcpResults 
 	// Count failed records (both errors and exceptions)
 	failedRecordsCount := len(errorResults) + len(exceptionResults)
 
-	// Record metrics for monitoring
-	metricRecorderParams := &monitoring.MetricRecorderParams{
-		SinkType:          "usage",
-		SubmittedQuantity: len(goodResults),
-		FailedQuantity:    failedRecordsCount,
-	}
-	s.metricsRecorder.RecordSinkDelivered(metricRecorderParams)
-
 	// Check feature flag to determine update strategy
 	if s.config.EnableBatchUsageUpdates {
-		s.processMetricsResultsBatch(ctx, gcpResults)
+		s.processMetricsResultsBatch(ctx, gcpResults, measuredTypesInfo)
 	} else {
-		s.processMetricsResultsSingle(ctx, gcpResults)
+		s.processMetricsResultsSingle(ctx, gcpResults, measuredTypesInfo)
 	}
+
+	// Record metrics delivered to sink - track COUNT of records
+	metricRecorderParams := &monitoring.MetricRecorderParams{
+		SinkType:          "usage",
+		SubmittedQuantity: float64(len(goodResults)),
+		FailedQuantity:    float64(failedRecordsCount),
+	}
+	s.metricsRecorder.RecordSinkDelivered(metricRecorderParams)
 
 	// Set failed count if pointer is provided
 	if failedCount != nil {
@@ -264,7 +275,7 @@ func (s *GoogleUsageSink) processMetricsResults(ctx context.Context, gcpResults 
 }
 
 // processMetricsResultsSingle processes updates one by one (fallback implementation)
-func (s *GoogleUsageSink) processMetricsResultsSingle(ctx context.Context, gcpResults []common.MetricsResult) {
+func (s *GoogleUsageSink) processMetricsResultsSingle(ctx context.Context, gcpResults []common.MetricsResult, measuredTypesInfo map[string]float64) {
 	for _, result := range gcpResults {
 		billingRecord, err := result.GoogleMetric.GetAsUsageBillingMetric()
 		if err != nil {
@@ -281,6 +292,8 @@ func (s *GoogleUsageSink) processMetricsResultsSingle(ctx context.Context, gcpRe
 		if isSuccessful(result.ReportResponse) {
 			billingRecord.State = datamodel.Submitted
 			billingRecord.ErrorMessage = nil
+			// Track successful measured types
+			measuredTypesInfo[billingRecord.MeasuredType.String()] += billingRecord.Quantity
 		} else {
 			errorMessage = common.GetErrorMessage(&result)
 			billingRecord.ErrorMessage = &errorMessage
@@ -314,7 +327,7 @@ func (s *GoogleUsageSink) processMetricsResultsSingle(ctx context.Context, gcpRe
 }
 
 // processMetricsResultsBatch processes updates in batches using PostgreSQL bulk operations
-func (s *GoogleUsageSink) processMetricsResultsBatch(ctx context.Context, gcpResults []common.MetricsResult) {
+func (s *GoogleUsageSink) processMetricsResultsBatch(ctx context.Context, gcpResults []common.MetricsResult, measuredTypesInfo map[string]float64) {
 	// Collect all updates first
 	updatesBatch := make([]updateInfo, 0, len(gcpResults))
 
@@ -334,6 +347,9 @@ func (s *GoogleUsageSink) processMetricsResultsBatch(ctx context.Context, gcpRes
 		if isSuccessful(result.ReportResponse) {
 			billingRecord.State = datamodel.Submitted
 			billingRecord.ErrorMessage = nil
+
+			// Track successful measured types
+			measuredTypesInfo[billingRecord.MeasuredType.String()] += billingRecord.Quantity
 		} else {
 			errorMessage = common.GetErrorMessage(&result)
 			billingRecord.ErrorMessage = &errorMessage
@@ -512,4 +528,21 @@ func (s *GoogleUsageSink) fallbackToIndividualUpdates(ctx context.Context, batch
 
 func isSuccessful(response *common.ReportResponse) bool {
 	return response != nil && (len(response.ReportErrors) == 0)
+}
+
+func getMeasuredTypesWithUnits(measuredType metadata.MeasuredType) string {
+	switch measuredType {
+	case metadata.BackupLogicalSize:
+		return fmt.Sprintf("%s_IN_KiB", measuredType)
+	case metadata.BackupEnabledVolumeAllocatedSize:
+		return fmt.Sprintf("%s_IN_GiB-hours", measuredType)
+	case metadata.XregionReplicationTotalTransferBytes:
+		return fmt.Sprintf("%s_IN_Bytes", measuredType)
+	case metadata.CoolTierDataReadSizeRaw, metadata.CoolTierDataWriteSizeRaw:
+		return fmt.Sprintf("%s_IN_Bytes", measuredType)
+	case metadata.PoolHotTierProvisionedSize, metadata.PoolCapacityTierLogicalFootprint:
+		return fmt.Sprintf("%s_IN_MiB-hours", measuredType)
+	default:
+		return fmt.Sprintf("%s_IN_GiB-hours", measuredType)
+	}
 }

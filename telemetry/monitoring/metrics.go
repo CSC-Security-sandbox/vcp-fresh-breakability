@@ -86,7 +86,7 @@ var (
 			Name: vcpTelemetryBillingMetricsSubmittedTotal,
 			Help: "Submitted quantity and timestamp for billing metrics.",
 		},
-		[]string{"sink_type", "resource_type", "timestamp"},
+		[]string{"sink_type", "measured_type", "timestamp"},
 	)
 )
 

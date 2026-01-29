@@ -566,7 +566,10 @@ func TestGoogleUsageSink_processMetricsResults_WithGoodResults(t *testing.T) {
 
 	// This should test the processMetricsResults method (lines 141-187)
 	var failedCount int
-	sink.processMetricsResults(ctx, gcpResults, &failedCount)
+	measuredTypesInfo := make(map[string]float64)
+	sink.processMetricsResults(ctx, gcpResults, &failedCount, measuredTypesInfo)
+	// Verify measuredTypesInfo was populated
+	assert.NotEmpty(t, measuredTypesInfo)
 }
 
 // TestGoogleUsageSink_processMetricsResults_WithErrorResults tests processMetricsResults with error results
@@ -603,7 +606,8 @@ func TestGoogleUsageSink_processMetricsResults_WithErrorResults(t *testing.T) {
 
 	// This should test the processMetricsResults method with error paths
 	var failedCount int
-	sink.processMetricsResults(ctx, gcpResults, &failedCount)
+	measuredTypesInfo := make(map[string]float64)
+	sink.processMetricsResults(ctx, gcpResults, &failedCount, measuredTypesInfo)
 }
 
 // TestGoogleUsageSink_processMetricsResults_WithExceptionResults tests processMetricsResults with exception results
@@ -640,7 +644,8 @@ func TestGoogleUsageSink_processMetricsResults_WithExceptionResults(t *testing.T
 
 	// This should test the processMetricsResults method with exception paths
 	var failedCount int
-	sink.processMetricsResults(ctx, gcpResults, &failedCount)
+	measuredTypesInfo := make(map[string]float64)
+	sink.processMetricsResults(ctx, gcpResults, &failedCount, measuredTypesInfo)
 }
 
 // TestGoogleUsageSink_processMetricsResults_GetAsUsageBillingMetricError tests error in GetAsUsageBillingMetric
@@ -668,7 +673,8 @@ func TestGoogleUsageSink_processMetricsResults_GetAsUsageBillingMetricError(t *t
 
 	// This should test the error path in processMetricsResults (line 144)
 	var failedCount int
-	sink.processMetricsResults(ctx, gcpResults, &failedCount)
+	measuredTypesInfo := make(map[string]float64)
+	sink.processMetricsResults(ctx, gcpResults, &failedCount, measuredTypesInfo)
 }
 
 // TestGoogleUsageSink_isSuccessful tests the isSuccessful function
@@ -745,7 +751,8 @@ func TestGoogleUsageSink_processMetricsResults_WithErrorLogging(t *testing.T) {
 
 	// This should test the error logging paths (lines 137-138)
 	var failedCount int
-	sink.processMetricsResults(ctx, gcpResults, &failedCount)
+	measuredTypesInfo := make(map[string]float64)
+	sink.processMetricsResults(ctx, gcpResults, &failedCount, measuredTypesInfo)
 
 	ml.AssertExpectations(t)
 }
@@ -758,6 +765,7 @@ func TestGoogleUsageSink_processMetricsResults_WithSuccessfulLogging(t *testing.
 	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
 	// Set up mock expectation for RecordSinkDelivered
 	mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	mockMetricRecorder.On("RecordBillingMetricsSubmission", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
 
 	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
@@ -794,7 +802,8 @@ func TestGoogleUsageSink_processMetricsResults_WithSuccessfulLogging(t *testing.
 
 	// This should test the success logging path (line 200)
 	var failedCount int
-	sink.processMetricsResults(ctx, gcpResults, &failedCount)
+	measuredTypesInfo := make(map[string]float64)
+	sink.processMetricsResults(ctx, gcpResults, &failedCount, measuredTypesInfo)
 
 	ml.AssertExpectations(t)
 }
@@ -809,6 +818,8 @@ func TestGoogleUsageSink_processMetricsResultsBatch(t *testing.T) {
 	mockDB := createMockDB()
 	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
 
+	// Set up mock expectation for RecordSinkDelivered
+	mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
 	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
 
 	customerID := "test-customer-123"
@@ -870,7 +881,8 @@ func TestGoogleUsageSink_processMetricsResultsBatch(t *testing.T) {
 	ml.On("Warnf", mock.Anything, mock.Anything).Maybe()
 
 	// Call batch processing - this will test the logic without actual DB operations
-	sink.processMetricsResultsBatch(ctx, gcpResults)
+	measuredTypesInfo := make(map[string]float64)
+	sink.processMetricsResultsBatch(ctx, gcpResults, measuredTypesInfo)
 
 	// Verify mock expectations
 	ml.AssertExpectations(t)
@@ -1158,7 +1170,8 @@ func TestGoogleUsageSink_processMetricsResults_BatchEnabled(t *testing.T) {
 		ml.On("Infof", "%d metrics were not reported.", 0).Once()
 
 		var failedCount int
-		sink.processMetricsResults(ctx, []common.MetricsResult{}, &failedCount)
+		measuredTypesInfo := make(map[string]float64)
+		sink.processMetricsResults(ctx, []common.MetricsResult{}, &failedCount, measuredTypesInfo)
 		ml.AssertExpectations(t)
 	})
 
@@ -1177,7 +1190,118 @@ func TestGoogleUsageSink_processMetricsResults_BatchEnabled(t *testing.T) {
 		ml.On("Infof", "%d metrics were not reported.", 0).Once()
 
 		var failedCount int
-		sink.processMetricsResults(ctx, []common.MetricsResult{}, &failedCount)
+		measuredTypesInfo := make(map[string]float64)
+		sink.processMetricsResults(ctx, []common.MetricsResult{}, &failedCount, measuredTypesInfo)
 		ml.AssertExpectations(t)
 	})
+}
+
+// TestGoogleUsageSink_processResponse_RecordsBillingMetrics tests that processResponse calls RecordBillingMetricsSubmission
+func TestGoogleUsageSink_processResponse_RecordsBillingMetrics(t *testing.T) {
+	ctx := context.Background()
+	config := common.LoadConfig()
+	mockDB := createMockDB()
+	mockMetricRecorder := &monitoring.MockMetricsRecorder{}
+
+	// Set up mock expectations
+	mockMetricRecorder.On("RecordSinkDelivered", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+	mockMetricRecorder.On("RecordBillingMetricsSubmission", mock.AnythingOfType("*monitoring.MetricRecorderParams")).Return()
+
+	sink := NewSink(ctx, config, mockDB, mockMetricRecorder)
+
+	customerID := "test-customer-123"
+	resourceName := "test-resource"
+
+	// Create test metric with a specific measured type
+	googleMetric := *common.NewGoogleMetric(&datamodel.AggregatedUsage{
+		ID:               1,
+		VendorCustomerID: &customerID,
+		ResourceName:     &resourceName,
+		Quantity:         100.0,
+		State:            datamodel.Unsubmitted,
+		MeasuredType:     metadata.PoolHotTierProvisionedSize,
+	})
+
+	// Create successful results
+	gcpResults := []common.MetricsResult{
+		{
+			GoogleMetric:   googleMetric,
+			ReportResponse: &common.ReportResponse{},
+		},
+	}
+
+	// Create channel and wait group
+	resultChan := make(chan []common.MetricsResult, 1)
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	// Send results to channel
+	go func() {
+		resultChan <- gcpResults
+		close(resultChan)
+	}()
+
+	var failedCount int
+	sink.processResponse(ctx, &wg, resultChan, &failedCount)
+	wg.Wait()
+
+	// Verify RecordBillingMetricsSubmission was called
+	mockMetricRecorder.AssertCalled(t, "RecordBillingMetricsSubmission", mock.AnythingOfType("*monitoring.MetricRecorderParams"))
+}
+
+// TestGetMeasuredTypesWithUnits tests the getMeasuredTypesWithUnits function
+func TestGetMeasuredTypesWithUnits(t *testing.T) {
+	tests := []struct {
+		name         string
+		measuredType metadata.MeasuredType
+		expected     string
+	}{
+		{
+			name:         "BackupLogicalSize returns KiB suffix",
+			measuredType: metadata.BackupLogicalSize,
+			expected:     "VOLUME_BACKUP_SIZE_IN_KiB",
+		},
+		{
+			name:         "BackupEnabledVolumeAllocatedSize returns GiB-hours suffix",
+			measuredType: metadata.BackupEnabledVolumeAllocatedSize,
+			expected:     "BACKUP_ENABLED_VOLUME_ALLOCATED_SIZE_IN_GiB-hours",
+		},
+		{
+			name:         "XregionReplicationTotalTransferBytes returns bytes suffix",
+			measuredType: metadata.XregionReplicationTotalTransferBytes,
+			expected:     "XREGION_REPLICATION_TOTAL_TRANSFER_BYTES_IN_Bytes",
+		},
+		{
+			name:         "CoolTierDataReadSizeRaw returns bytes suffix",
+			measuredType: metadata.CoolTierDataReadSizeRaw,
+			expected:     "COOL_TIER_DATA_READ_SIZE_RAW_IN_Bytes",
+		},
+		{
+			name:         "CoolTierDataWriteSizeRaw returns bytes suffix",
+			measuredType: metadata.CoolTierDataWriteSizeRaw,
+			expected:     "COOL_TIER_DATA_WRITE_SIZE_RAW_IN_Bytes",
+		},
+		{
+			name:         "PoolHotTierProvisionedSize returns MiB-hours suffix",
+			measuredType: metadata.PoolHotTierProvisionedSize,
+			expected:     "POOL_HOT_TIER_PROVISIONED_SIZE_IN_MiB-hours",
+		},
+		{
+			name:         "PoolCapacityTierLogicalFootprint returns MiB-hours suffix",
+			measuredType: metadata.PoolCapacityTierLogicalFootprint,
+			expected:     "POOL_CAPACITY_TIER_LOGICAL_FOOTPRINT_IN_MiB-hours",
+		},
+		{
+			name:         "default returns GiB-hours suffix",
+			measuredType: metadata.LogicalSize,
+			expected:     "LOGICAL_SIZE_IN_GiB-hours",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getMeasuredTypesWithUnits(tt.measuredType)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }

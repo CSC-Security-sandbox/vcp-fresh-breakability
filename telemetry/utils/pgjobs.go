@@ -102,6 +102,8 @@ func (j *JobQueue) Enqueue(ctx context.Context, job Job, queue string) error {
 		j.metricsRecorder.RecordJobEnqueued(metricParams)
 		return fmt.Errorf("queue: failed inserting job: %w", err)
 	}
+	metricParams.JobStatus = "success"
+	j.metricsRecorder.RecordJobEnqueued(metricParams)
 
 	return nil
 }
@@ -323,7 +325,14 @@ func (j *JobQueue) Dequeue(ctx context.Context, queues []string) error {
 	// execute job
 	err = loadedJob.Perform(j.processor, job.Attempt)
 	if err != nil {
-		// TODO: add retry handling and save error to job row
+		// Record failed job processing metric
+		metricRecorderParams.JobType = job.TypeName
+		metricRecorderParams.JobStatus = "failed"
+		for _, queue := range queues {
+			metricRecorderParams.QueueName = queue
+			j.metricsRecorder.RecordJobProcessed(metricRecorderParams)
+		}
+
 		_, err = tx.ExecContext(ctx, `UPDATE `+JobsTableName+` SET status = $1, finished_at = clock_timestamp(), error = $3 WHERE id = $2`, JOB_STATUS_FAILED, job.ID, err.Error())
 		if err != nil {
 			return err
@@ -337,6 +346,10 @@ func (j *JobQueue) Dequeue(ctx context.Context, queues []string) error {
 	}
 	metricRecorderParams.JobType = job.TypeName
 	metricRecorderParams.JobStatus = "success"
+	for _, queue := range queues {
+		metricRecorderParams.QueueName = queue
+		j.metricsRecorder.RecordJobProcessed(metricRecorderParams)
+	}
 	j.metricsRecorder.RecordJobDequeued(metricRecorderParams)
 
 	return tx.Commit()

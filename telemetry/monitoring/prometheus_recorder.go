@@ -47,15 +47,14 @@ func (p *PrometheusRecorder) RecordJobProcessed(params *MetricRecorderParams) {
 
 func (p *PrometheusRecorder) RecordSinkDelivered(params *MetricRecorderParams) {
 	if params.FailedQuantity > 0 {
-		sinkDeliveredTotal.WithLabelValues(params.SinkType, sinkDeliveryStatusFailure).Add(float64(params.FailedQuantity))
+		sinkDeliveredTotal.WithLabelValues(params.SinkType, sinkDeliveryStatusFailure).Add(params.FailedQuantity)
 	}
 	if params.SubmittedQuantity > 0 {
-		sinkDeliveredTotal.WithLabelValues(params.SinkType, sinkDeliveryStatusSuccess).Add(float64(params.SubmittedQuantity))
+		sinkDeliveredTotal.WithLabelValues(params.SinkType, sinkDeliveryStatusSuccess).Add(params.SubmittedQuantity)
 	}
 }
 
 func (p *PrometheusRecorder) RecordBillingMetricsSubmission(params *MetricRecorderParams) {
 	submittedTimeStamp := params.SubmittedTimeStamp.Format(time.RFC3339)
-	submittedQuantity := float64(params.SubmittedQuantity)
-	billingMetricsSubmissionTotal.WithLabelValues(params.SinkType, params.ResourceType, submittedTimeStamp).Set(submittedQuantity)
+	billingMetricsSubmissionTotal.WithLabelValues(params.SinkType, params.MeasuredType, submittedTimeStamp).Set(params.SubmittedQuantity)
 }
