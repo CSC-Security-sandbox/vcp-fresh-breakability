@@ -48,7 +48,6 @@ data:
   # IAM Role to RBAC User Mapping Configuration
   IAM_ROLE_TO_USER_MAPPING_CONFIG: {{ .Values.iamRoleToUserMapping.config | quote }} # JSON format: {"ontap": "gcnvadmin", "privOntap": "admin"}
   IAM_ROLE_TO_USER_VALIDATION_ENABLED: {{ .Values.iamRoleToUserMapping.enabled | default false | quote }}
-
-  #Snaplock Configuration
   SNAPLOCK_OPERATION_ENABLED: {{ .Values.snaplockOperationEnabled | default false | quote }}
+  PRIVATE_CLI_OPERATION_ENABLED: {{ .Values.privateCliOperationEnabled | default false | quote }}
 

@@ -105,6 +105,5 @@ serviceAccountAnnotations:
 iamRoleToUserMapping:
   config: "{}" # JSON format: {"netapp.googleapisom/ontapModeAdmin": "gadmin", "netapp.googleapisom/ontapModePrivAdmin": "padmin"}
   enabled: false
-
-# Snaplock configuration
 snaplockOperationEnabled: false
+privateCliOperationEnabled: false

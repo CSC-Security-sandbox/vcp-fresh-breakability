@@ -16,7 +16,8 @@ import (
 )
 
 var (
-	snapLockOperationEnabled = env.GetBool("SNAPLOCK_OPERATION_ENABLED", false)
+	snapLockOperationEnabled   = env.GetBool("SNAPLOCK_OPERATION_ENABLED", false)
+	privateCliOperationEnabled = env.GetBool("PRIVATE_CLI_OPERATION_ENABLED", false)
 )
 
 type Handler struct {

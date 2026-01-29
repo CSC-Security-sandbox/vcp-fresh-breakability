@@ -31,7 +31,42 @@ func TestGetPrivilegeLevel(t *testing.T) {
 	})
 }
 
+func TestV1PrivateCli_OperationDisabled(t *testing.T) {
+	h := Handler{}
+	ctx := context.Background()
+	poolId := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("WhenPrivateCliOperationDisabled_ShouldReturn400", func(t *testing.T) {
+		original := privateCliOperationEnabled
+		privateCliOperationEnabled = false
+		defer func() { privateCliOperationEnabled = original }()
+
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "volume show",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+
+		require.NoError(t, err, "V1PrivateCli should not return a Go error")
+		require.NotNil(t, res, "Response should not be nil")
+
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "Expected V1PrivateCliBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code, "Code should be 400")
+		assert.Equal(t, "Private CLI operation is disabled", badReq.Message, "Message should match")
+	})
+}
+
 func TestV1PrivateCli_Validation(t *testing.T) {
+	original := privateCliOperationEnabled
+	privateCliOperationEnabled = true
+	defer func() { privateCliOperationEnabled = original }()
+
 	h := Handler{}
 	ctx := context.Background()
 	poolId := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
@@ -134,6 +169,10 @@ Available: 100GB`
 }
 
 func TestV1PrivateCli_ParseErrors(t *testing.T) {
+	original := privateCliOperationEnabled
+	privateCliOperationEnabled = true
+	defer func() { privateCliOperationEnabled = original }()
+
 	h := Handler{}
 	ctx := context.Background()
 	poolId := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
@@ -160,6 +199,10 @@ func TestV1PrivateCli_ParseErrors(t *testing.T) {
 }
 
 func TestV1PrivateCli_RuleConditions(t *testing.T) {
+	original := privateCliOperationEnabled
+	privateCliOperationEnabled = true
+	defer func() { privateCliOperationEnabled = original }()
+
 	h := Handler{}
 	ctx := context.Background()
 	poolId := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")

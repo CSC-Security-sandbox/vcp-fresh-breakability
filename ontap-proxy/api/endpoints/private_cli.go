@@ -21,6 +21,14 @@ func (h Handler) V1PrivateCli(
 ) (oasgenserver.V1PrivateCliRes, error) {
 	logger := util.GetLogger(ctx)
 
+	if !privateCliOperationEnabled {
+		logger.Debug("V1PrivateCli: operation is disabled")
+		return &oasgenserver.V1PrivateCliBadRequest{
+			Code:    400,
+			Message: "Private CLI operation is disabled",
+		}, nil
+	}
+
 	logger.InfoContext(ctx, "Processing CLI execute request",
 		"projectNumber", params.ProjectNumber,
 		"poolId", params.PoolId.String(),
