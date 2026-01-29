@@ -79,7 +79,9 @@ func TestContainsString(t *testing.T) {
 		want bool
 	}{
 		{[]string{"a", "b", "c"}, "b", true},
+		{[]string{"a", " b", "c"}, "b", true},
 		{[]string{"a", "b", "c"}, "d", false},
+		{[]string{"a", " b", "c"}, "d", false},
 	}
 
 	for _, tt := range tests {

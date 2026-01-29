@@ -156,7 +156,7 @@ func ItemsInSliceUnique(in []string) bool {
 // ContainsString checks if items in the slice match the inputted string, returns false if not
 func ContainsString(arr []string, elem string) bool {
 	for _, obj := range arr {
-		if obj == elem {
+		if strings.TrimSpace(obj) == elem {
 			return true
 		}
 	}
