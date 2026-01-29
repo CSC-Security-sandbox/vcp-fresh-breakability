@@ -648,6 +648,11 @@ func isUpdateRequired(response *vsa.VolumeResponse, params *common.UpdateVolumeP
 		}
 	}
 
+	if params.FileProperties != nil && params.FileProperties.UnixPermissions != "" && existingVolume.VolumeAttributes != nil &&
+		existingVolume.VolumeAttributes.FileProperties != nil {
+		return true
+	}
+
 	// Add checks for other fields as and when required
 	return false
 }

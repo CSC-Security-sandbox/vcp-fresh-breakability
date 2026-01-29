@@ -75,6 +75,44 @@ func TestUpdateVolumeInONTAP_Success(t *testing.T) {
 	mockProvider.AssertExpectations(t)
 }
 
+func TestUpdateVolumeInONTAP_WithUnixPermissions(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	env.RegisterActivity(activity.UpdateVolumeInONTAP)
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "uuid-123",
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 2048,
+		FileProperties: &models.FileProperties{
+			UnixPermissions: "0755",
+		},
+	}
+	node := &models.Node{}
+
+	mockProvider.On("UpdateVolume", mock.MatchedBy(func(p vsa.UpdateVolumeParams) bool {
+		return p.UnixPermissions != nil && *p.UnixPermissions == "0755" && p.Size == params.QuotaInBytes
+	})).Return(nil)
+
+	_, err := env.ExecuteActivity(activity.UpdateVolumeInONTAP, volume, params, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
 func TestUpdateVolumeInONTAPWithSnapshotPolicy_Success(t *testing.T) {
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestActivityEnvironment()

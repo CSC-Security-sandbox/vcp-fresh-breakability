@@ -71,6 +71,9 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 			return err
 		}
 	}
+	if params.FileProperties != nil && params.FileProperties.UnixPermissions != "" {
+		updateVolumeParams.UnixPermissions = &params.FileProperties.UnixPermissions
+	}
 	err = updateVolume(ctx, provider, *updateVolumeParams)
 	if err != nil {
 		logger.Errorf("Failed to update volume %s in ontap: %v", volume.Name, err)

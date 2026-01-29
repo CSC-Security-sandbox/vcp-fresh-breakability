@@ -1556,6 +1556,11 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 		res.FileProperties = &models.FileProperties{
 			JunctionPath: attributes.FileProperties.JunctionPath,
 		}
+		ensureFileProps := func() {
+			if res.FileProperties == nil {
+				res.FileProperties = &models.FileProperties{}
+			}
+		}
 		if attributes.FileProperties.ExportPolicy != nil {
 			exportRules := make([]*models.ExportRule, 0, len(attributes.FileProperties.ExportPolicy.ExportRules))
 			for _, rule := range attributes.FileProperties.ExportPolicy.ExportRules {
@@ -1582,24 +1587,30 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 					AnonUid:             rule.AnonUid,
 				})
 			}
-			res.FileProperties = &models.FileProperties{
-				ExportPolicy: &models.ExportPolicy{
-					ExportPolicyName: attributes.FileProperties.ExportPolicy.ExportPolicyName,
-					ExportRules:      exportRules,
-				},
-				JunctionPath: attributes.FileProperties.JunctionPath,
+			ensureFileProps()
+			res.FileProperties.ExportPolicy = &models.ExportPolicy{
+				ExportPolicyName: attributes.FileProperties.ExportPolicy.ExportPolicyName,
+				ExportRules:      exportRules,
+			}
+			// Preserve existing junction path if already set; otherwise set from attributes.
+			if res.FileProperties.JunctionPath == "" {
+				res.FileProperties.JunctionPath = attributes.FileProperties.JunctionPath
 			}
 		}
 		if attributes.FileProperties.Fqdn != "" {
+			ensureFileProps()
 			res.FileProperties.Fqdn = attributes.FileProperties.Fqdn
 		}
 		if attributes.FileProperties.SMBShareSettings != nil {
+			ensureFileProps()
 			res.FileProperties.SMBShareSettings = attributes.FileProperties.SMBShareSettings
 		}
 		if attributes.FileProperties.SecurityStyle != "" {
+			ensureFileProps()
 			res.FileProperties.SecurityStyle = attributes.FileProperties.SecurityStyle
 		}
 		if attributes.FileProperties.UnixPermissions != "" {
+			ensureFileProps()
 			res.FileProperties.UnixPermissions = attributes.FileProperties.UnixPermissions
 		}
 	}
@@ -2092,6 +2103,13 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			dbVolume.VolumeAttributes.FileProperties = &datamodel.FileProperties{}
 		}
 		dbVolume.VolumeAttributes.FileProperties.SMBShareSettings = params.SMBShareSettings
+	}
+
+	if params.FileProperties != nil {
+		if dbVolume.VolumeAttributes.FileProperties == nil {
+			dbVolume.VolumeAttributes.FileProperties = &datamodel.FileProperties{}
+		}
+		dbVolume.VolumeAttributes.FileProperties.UnixPermissions = params.FileProperties.UnixPermissions
 	}
 
 	dbVolume, err = updateVolumeStatus(ctx, se, dbVolume, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)

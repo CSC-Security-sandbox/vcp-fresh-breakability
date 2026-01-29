@@ -12952,6 +12952,57 @@ func TestUpdateVolume(t *testing.T) {
 		assert.NotNil(tt, volume)
 		assert.Equal(tt, "vol", volume.DisplayName)
 	})
+	t.Run("WhenUpdateVolumeSuccessWithUnixPermissions", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		utils.SetFileProtocolSupportedForTesting(true)
+		defer utils.SetFileProtocolSupportedForTesting(false)
+		originalBuildInfo := poolView.Pool.BuildInfo
+		poolView.Pool.BuildInfo = &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"}
+		defer func() { poolView.Pool.BuildInfo = originalBuildInfo }()
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{
+			AccountName:  "acc",
+			VolumeId:     "vid",
+			QuotaInBytes: int64(2 * 1024 * 1024 * 1024),
+			Name:         "vol",
+			FileProperties: &models.FileProperties{
+				UnixPermissions: "0770",
+			},
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: int64(1024 * 1024 * 1024),
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a", IsRegionalHA: false}},
+			Account: &datamodel.Account{
+				Name: "acc",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties:   &datamodel.FileProperties{},
+				IsDataProtection: false,
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: "vault-2",
+			},
+			State: "READY",
+		}
+
+		job := &datamodel.Job{WorkflowID: "wid"}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
+		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-2", mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
+		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+		volume, _, err := updateVolume(ctx, se, temporal, param, false)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		if assert.NotNil(tt, volume.FileProperties) {
+			assert.Equal(tt, "0770", volume.FileProperties.UnixPermissions)
+		}
+	})
 	t.Run("WhenUpdateVolumeSuccessWithReplication", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}

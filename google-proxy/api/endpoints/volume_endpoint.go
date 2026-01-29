@@ -1301,6 +1301,25 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		}
 		param.SMBShareSettings = getSMBShareSettings(req.SmbSettings)
 	}
+	if req.UnixPermissions.IsSet() && unixPermissionsEnabled {
+		var securityStyle string
+		var protocols []string
+		unixPermissions := req.UnixPermissions.Value
+		if dbVolume != nil && dbVolume.FileProperties != nil {
+			securityStyle = dbVolume.FileProperties.SecurityStyle
+			protocols = dbVolume.ProtocolTypes
+		}
+		err := validateUnixPermissions(protocols, unixPermissions, securityStyle)
+		if err != nil {
+			return nil, err
+		}
+		if dbVolume.FileProperties != nil && dbVolume.FileProperties.UnixPermissions == unixPermissions {
+			return nil, errors.NewUserInputValidationErr("Unix permissions are already set to the desired value")
+		}
+		param.FileProperties = &models.FileProperties{
+			UnixPermissions: unixPermissions,
+		}
+	}
 	return param, nil
 }
 

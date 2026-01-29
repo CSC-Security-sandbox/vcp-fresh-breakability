@@ -1308,6 +1308,36 @@ func TestUpdateVolume_WithMaxSizeErrorButNoMaxSizeInfo(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
+func TestUpdateVolume_SetsUnixPermissions(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	permissions := "0770"
+	params := UpdateVolumeParams{
+		UUID:            "testUUID",
+		UnixPermissions: &permissions,
+	}
+
+	mockStorage.On("VolumeModify", mock.MatchedBy(func(p *ontaprest.VolumeModifyParams) bool {
+		return p.UUID == "testUUID" && p.UnixPermissions != nil && *p.UnixPermissions == permissions
+	})).Return(true, nil, nil).Once()
+
+	err := rc.UpdateVolume(params)
+	assert.NoError(t, err)
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
 func TestUpdateVolume_WithQosPolicy(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)

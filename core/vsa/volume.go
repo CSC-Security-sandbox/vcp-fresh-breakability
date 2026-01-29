@@ -422,6 +422,10 @@ func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 		volumeModifyParams.QosPolicy = params.QosPolicyName
 	}
 
+	if params.UnixPermissions != nil {
+		volumeModifyParams.UnixPermissions = params.UnixPermissions
+	}
+
 	err = handleVolumeCloudWriteModeDisableIfProvided(client, volumeModifyParams)
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)

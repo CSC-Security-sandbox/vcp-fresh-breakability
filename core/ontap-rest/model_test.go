@@ -817,6 +817,19 @@ func TestVolumeModifyParamsToONTAP(t *testing.T) {
 		assert.Equal(tt, exportPolicy, *result.Info.Nas.ExportPolicy.Name)
 		assert.Equal(tt, &path, result.Info.Nas.Path)
 	})
+
+	t.Run("WhenUnixPermissionsSet_ThenNasUnixPermissionsIsSet", func(tt *testing.T) {
+		permissions := "0755"
+		params := &VolumeModifyParams{
+			UUID:            "uuid",
+			UnixPermissions: &permissions,
+		}
+		result := volumeModifyParamsToONTAP(params)
+		assert.NotNil(tt, result.Info.Nas)
+		if assert.NotNil(tt, result.Info.Nas.UnixPermissions) {
+			assert.Equal(tt, int64(755), *result.Info.Nas.UnixPermissions)
+		}
+	})
 }
 
 func TestVolumeUnmountParamsToONTAP(t *testing.T) {

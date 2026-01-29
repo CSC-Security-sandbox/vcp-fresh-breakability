@@ -5016,6 +5016,71 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		assert.Nil(t, param.AutoTieringPolicy)
 	})
 
+	t.Run("WhenUnixPermissionsProvided_ThenValidateAndSet", func(t *testing.T) {
+		originalUnixPermissionsEnabled := unixPermissionsEnabled
+		unixPermissionsEnabled = true
+		defer func() { unixPermissionsEnabled = originalUnixPermissionsEnabled }()
+
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			UnixPermissions: gcpgenserver.NewOptNilString("0755"),
+		}
+		dbVolume := &models.Volume{
+			ProtocolTypes: []string{utils.ProtocolNFS},
+			FileProperties: &models.FileProperties{
+				SecurityStyle:   utils.UnixSecurityStyle,
+				UnixPermissions: "0700",
+			},
+		}
+
+		param, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+		assert.NoError(t, err)
+		require.NotNil(t, param)
+		require.NotNil(t, param.FileProperties)
+		assert.Equal(t, "0755", param.FileProperties.UnixPermissions)
+	})
+
+	t.Run("WhenUnixPermissionsOnNonNFSVolume_ThenError", func(t *testing.T) {
+		originalUnixPermissionsEnabled := unixPermissionsEnabled
+		unixPermissionsEnabled = true
+		defer func() { unixPermissionsEnabled = originalUnixPermissionsEnabled }()
+
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			UnixPermissions: gcpgenserver.NewOptNilString("0755"),
+		}
+		dbVolume := &models.Volume{
+			ProtocolTypes: []string{utils.ProtocolSMB},
+			FileProperties: &models.FileProperties{
+				SecurityStyle: utils.UnixSecurityStyle,
+			},
+		}
+
+		param, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+		assert.Nil(t, param)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "only supported with NFS protocol volumes")
+	})
+
+	t.Run("WhenUnixPermissionsAlreadySet_ThenError", func(t *testing.T) {
+		originalUnixPermissionsEnabled := unixPermissionsEnabled
+		unixPermissionsEnabled = true
+		defer func() { unixPermissionsEnabled = originalUnixPermissionsEnabled }()
+
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			UnixPermissions: gcpgenserver.NewOptNilString("0700"),
+		}
+		dbVolume := &models.Volume{
+			ProtocolTypes: []string{utils.ProtocolNFS},
+			FileProperties: &models.FileProperties{
+				SecurityStyle:   utils.UnixSecurityStyle,
+				UnixPermissions: "0700",
+			},
+		}
+
+		param, err := _prepareUpdateVolumeParams(req, params, region, dbVolume)
+		assert.Nil(t, param)
+		assert.EqualError(t, err, "Unix permissions are already set to the desired value")
+	})
+
 	t.Run("WhenBackupConfigSet_WithFewFields", func(t *testing.T) {
 		origThinCloneGASupport := thinCloneGASupport
 		defer func() { thinCloneGASupport = origThinCloneGASupport }()

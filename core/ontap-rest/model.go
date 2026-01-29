@@ -1399,13 +1399,18 @@ func volumeModifyParamsToONTAP(params *VolumeModifyParams) *storage.VolumeModify
 		info.Encryption = &models.VolumeInlineEncryption{Enabled: params.EncryptionEnable}
 	}
 
-	if params.ExportPolicy != nil || params.Path != nil {
+	if params.ExportPolicy != nil || params.Path != nil || params.UnixPermissions != nil {
 		info.Nas = &models.VolumeInlineNas{}
 		if params.ExportPolicy != nil {
 			info.Nas.ExportPolicy = &models.VolumeInlineNasInlineExportPolicy{Name: params.ExportPolicy}
 		}
 		if params.Path != nil {
 			info.Nas.Path = params.Path
+		}
+		if params.UnixPermissions != nil {
+			if unixPermissions, err := strconv.Atoi(*params.UnixPermissions); err == nil {
+				info.Nas.UnixPermissions = nillable.ToPointer(int64(unixPermissions))
+			}
 		}
 	}
 

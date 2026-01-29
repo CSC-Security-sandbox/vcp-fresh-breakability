@@ -2880,6 +2880,26 @@ func TestIsUpdateRequired(t *testing.T) {
 			existingVolume: &datamodel.Volume{},
 			want:           false,
 		},
+		{
+			name: "Unix permissions change requires update",
+			response: &vsa.VolumeResponse{
+				Size: 200,
+			},
+			params: &common.UpdateVolumeParams{
+				QuotaInBytes: 200,
+				FileProperties: &models.FileProperties{
+					UnixPermissions: "0770",
+				},
+			},
+			existingVolume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					FileProperties: &datamodel.FileProperties{
+						UnixPermissions: "0755",
+					},
+				},
+			},
+			want: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -5040,8 +5060,8 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_WithKmsGrant() {
 	}, nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", nil)
 	s.env.OnActivity(updateActivity.CheckBackupVaultExistInVCP, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid"},
-		Name:      "test-backup-vault",
+		BaseModel:       datamodel.BaseModel{UUID: "test-bv-uuid"},
+		Name:            "test-backup-vault",
 		BackupVaultType: "LOCAL",
 	}, nil)
 	s.env.OnActivity(updateActivity.FindTenancyDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
