@@ -9,9 +9,9 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	temporalutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -72,9 +72,10 @@ type GenericParentWorkflowResult struct {
 
 // GenericParentWorkflow is a reusable parent workflow that orchestrates multiple child workflows
 func GenericParentWorkflow(ctx workflow.Context, config GenericParentWorkflowConfig) (*GenericParentWorkflowResult, error) {
+	requestID := temporalutils.GeneratedUUID(ctx)
 	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{
 		"workflowID": workflow.GetInfo(ctx).WorkflowExecution.ID,
-		"requestID":  utils.RandomUUID(),
+		"requestID":  requestID,
 	})
 	logger := util.GetLogger(ctx)
 
@@ -97,15 +98,6 @@ func GenericParentWorkflow(ctx workflow.Context, config GenericParentWorkflowCon
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
-	childWorkflowTimeout := config.ChildWorkflowTimeout
-	if childWorkflowTimeout == 0 {
-		childWorkflowTimeout = 10 * time.Minute
-	}
-	childWorkflowOptions := workflow.ChildWorkflowOptions{
-		WorkflowRunTimeout: childWorkflowTimeout,
-	}
-	ctx = workflow.WithChildOptions(ctx, childWorkflowOptions)
-
 	// Get total count first
 	var totalCount int
 	err = workflow.ExecuteActivity(ctx, config.GetTotalCountActivity).Get(ctx, &totalCount)
@@ -119,7 +111,12 @@ func GenericParentWorkflow(ctx workflow.Context, config GenericParentWorkflowCon
 	numChildWorkflows := (totalCount + config.BatchSize - 1) / config.BatchSize
 
 	// Create child workflows with controlled concurrency
-	childFutures := make(map[string]workflow.ChildWorkflowFuture)
+	// Store both future and expected limit for each child workflow
+	type childWorkflowInfo struct {
+		future workflow.ChildWorkflowFuture
+		limit  int
+	}
+	childFutures := make(map[string]childWorkflowInfo)
 	var allResults []*GenericChildWorkflowResult
 
 	// Start all child workflows immediately with controlled concurrency
@@ -137,28 +134,39 @@ func GenericParentWorkflow(ctx workflow.Context, config GenericParentWorkflowCon
 			limit = totalCount - offset
 		}
 
-		childWorkflowID := workflow.GetInfo(ctx).WorkflowExecution.ID + "-child-" + utils.RandomUUID()
+		childWorkflowTimeout := config.ChildWorkflowTimeout
+		if childWorkflowTimeout == 0 {
+			childWorkflowTimeout = 10 * time.Minute
+		}
+		// Using deterministic childWorkflowID based on offset and limit to ensure replay determinism
+		childWorkflowID := fmt.Sprintf("%s-child-%d-%d", workflow.GetInfo(ctx).WorkflowExecution.ID, offset, limit)
 		childCtx := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
-			WorkflowID: childWorkflowID,
+			WorkflowID:         childWorkflowID,
+			WorkflowRunTimeout: childWorkflowTimeout,
 		})
 
 		// Pass offset and limit to child workflow for chunked fetching
 		// Pass the workflow name as a string so Temporal can identify the workflow type
 		future := workflow.ExecuteChildWorkflow(childCtx, childWorkflowName, offset, limit)
-		childFutures[childWorkflowID] = future
+		childFutures[childWorkflowID] = childWorkflowInfo{
+			future: future,
+			limit:  limit,
+		}
 	}
 
 	// Wait for all child workflows to complete
-	for childWorkflowID, future := range childFutures {
+	for childWorkflowID, childInfo := range childFutures {
 		var result *GenericChildWorkflowResult
-		err = future.Get(ctx, &result)
+		err = childInfo.future.Get(ctx, &result)
 
 		if err != nil {
 			logger.Errorf("Parent workflow '%s' -> Child workflow '%s' failed. Error: %v", config.WorkflowName, childWorkflowID, err)
 			// Continue with other workflows even if one fails
 			allResults = append(allResults, &GenericChildWorkflowResult{
-				WorkflowID: childWorkflowID,
-				Error:      err.Error(),
+				WorkflowID:          childWorkflowID,
+				Error:               err.Error(),
+				TotalItemsProcessed: childInfo.limit,
+				FailedItems:         childInfo.limit,
 			})
 		} else {
 			allResults = append(allResults, result)
@@ -198,7 +206,7 @@ func GenericChildWorkflow(ctx workflow.Context, offset, limit int, config Generi
 		parentRequestID = parentCtx.ID
 	}
 	if parentRequestID == "" {
-		parentRequestID = utils.RandomUUID()
+		parentRequestID = workflow.GetInfo(ctx).WorkflowExecution.ID
 	}
 
 	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{
@@ -219,8 +227,12 @@ func GenericChildWorkflow(ctx workflow.Context, offset, limit int, config Generi
 	}
 
 	// Activity options for child workflow activities
+	activityTimeout := retryPolicy.StartToCloseTimeout
+	if config.ActivityTimeoutMinutes > 0 {
+		activityTimeout = time.Duration(config.ActivityTimeoutMinutes) * time.Minute
+	}
 	defaultActivityOptions := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: activityTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
 			MaximumAttempts:        1, // No retries by default
 			NonRetryableErrorTypes: []string{"PanicError"},
@@ -335,6 +347,7 @@ func processGenericData(ctx workflow.Context, fetchedData interface{}, config Ge
 
 	totalItems := items.Len()
 	currentIndex := 0
+	batchNumber := 0
 
 	// Process items in controlled batches to limit RPS
 	for currentIndex < totalItems {
@@ -355,7 +368,8 @@ func processGenericData(ctx workflow.Context, fetchedData interface{}, config Ge
 				dataBatch[j] = items.Index(currentIndex + j).Interface()
 			}
 			batchDataBatches = append(batchDataBatches, dataBatch)
-			logger.Infof("Child Workflow '%s'-> Batch %d with %d items (index: %d to %d)", config.WorkflowName, i+1, len(dataBatch), currentIndex, currentIndex+len(dataBatch)-1)
+			batchNumber++
+			logger.Infof("Child Workflow '%s'-> Batch %d with %d items (index: %d to %d)", config.WorkflowName, batchNumber, len(dataBatch), currentIndex, currentIndex+len(dataBatch)-1)
 
 			// Process this batch immediately
 			future := workflow.ExecuteActivity(ctx, config.ProcessBatchActivity, dataBatch)
@@ -377,6 +391,8 @@ func processGenericData(ctx workflow.Context, fetchedData interface{}, config Ge
 					allResults = append(allResults, map[string]interface{}{
 						"error":      err.Error(),
 						"batch_size": len(dataBatch),
+						"Successful": float64(0),
+						"Failed":     float64(len(dataBatch)),
 					})
 				} else {
 					allResults = append(allResults, batchResult)
