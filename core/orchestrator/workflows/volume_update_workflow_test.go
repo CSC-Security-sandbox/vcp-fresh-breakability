@@ -5237,3 +5237,170 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_WithKmsGrant() {
 	}
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
 }
+
+// Test_UpdateVolumeWorkflow_CrossRegionBackup_WithPermissionsSetup tests cross-region backup
+// permissions setup during volume update, covering lines 410-413
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_CrossRegionBackup_WithPermissionsSetup() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	backupActivity := activities.BackupActivity{SE: mockStorage}
+
+	backupRegionName := "us-east1"
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(updateActivity.GetVolumeFromONTAP)
+	s.env.RegisterActivity(updateActivity.CheckBackupVaultExistInVCP)
+	s.env.RegisterActivity(updateActivity.FindTenancyDetails)
+	s.env.RegisterActivity(updateActivity.CheckBucketResourceName)
+	s.env.RegisterActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(backupActivity.UpdateBackupMetadataIfExistsActivity)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.CheckBackupVaultExistInVCP, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
+		BaseModel:        datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		Name:             "test-backup-vault",
+		BackupVaultType:  activities.CrossRegionBackupType,
+		BackupRegionName: &backupRegionName,
+	}, nil)
+	s.env.OnActivity(updateActivity.FindTenancyDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		RegionalTenantProject: "tenant-project",
+	}, nil)
+	s.env.OnActivity(updateActivity.CheckBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{
+		BucketName:          "test-bucket",
+		ServiceAccountName:  "test-sa",
+		TenantProjectNumber: "12345",
+	}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.UpdateBackupMetadataIfExistsActivity, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "test-bv-uuid",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "test-subnet-id",
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 1000,
+		Region:       "us-west-1",
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_UpdateVolumeWorkflow_CrossRegionBackup_SetupPermissionsError tests error handling
+// during cross-region backup permissions setup
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_CrossRegionBackup_SetupPermissionsError() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	backupRegionName := "us-east1"
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(updateActivity.GetVolumeFromONTAP)
+	s.env.RegisterActivity(updateActivity.CheckBackupVaultExistInVCP)
+	s.env.RegisterActivity(updateActivity.FindTenancyDetails)
+	s.env.RegisterActivity(updateActivity.CheckBucketResourceName)
+	s.env.RegisterActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.CheckBackupVaultExistInVCP, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
+		BaseModel:        datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		Name:             "test-backup-vault",
+		BackupVaultType:  activities.CrossRegionBackupType,
+		BackupRegionName: &backupRegionName,
+	}, nil)
+	s.env.OnActivity(updateActivity.FindTenancyDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		RegionalTenantProject: "tenant-project",
+	}, nil)
+	s.env.OnActivity(updateActivity.CheckBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{
+		BucketName:          "test-bucket",
+		ServiceAccountName:  "test-sa",
+		TenantProjectNumber: "12345",
+	}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to setup cross-region permissions"))
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "test-bv-uuid",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "test-subnet-id",
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 1000,
+		Region:       "us-west-1",
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed with error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}

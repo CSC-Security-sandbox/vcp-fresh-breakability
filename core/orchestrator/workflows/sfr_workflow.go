@@ -545,6 +545,20 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 		}
 	}
 
+	// Get snapmirror relationship to check health status
+	var smRelationship *commonparams.SnapmirrorRelationship
+	err = workflow.ExecuteActivity(ctx, backupActivity.GetSnapmirror, node, smSourcePath, smDestinationPath).Get(ctx, &smRelationship)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+
+	if smRelationship.Healthy != nil && !*smRelationship.Healthy {
+		if smRelationship.UnhealthyReason != nil && len(*smRelationship.UnhealthyReason) > 0 {
+			wf.Logger.Infof("Snapmirror relationship is unhealthy. Reasons: %v", *smRelationship.UnhealthyReason)
+		}
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, vsaerrors.New("snapmirror relationship is unhealthy"))
+	}
+
 	// Wait for 60 seconds before proceeding
 	err = workflow.Sleep(ctx, 60*time.Second)
 	if err != nil {

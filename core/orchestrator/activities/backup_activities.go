@@ -629,6 +629,25 @@ func (a BackupActivity) GetSnapmirror(ctx context.Context, node *models.Node, so
 	if snapmirror.Destination != nil && snapmirror.Destination.UUID != nil {
 		resp.DestinationUUID = nillable.ToPointer(snapmirror.Destination.UUID.String())
 	}
+
+	// Populate Healthy field
+	if snapmirror.Healthy != nil {
+		resp.Healthy = nillable.ToPointer(*snapmirror.Healthy)
+	}
+
+	// Populate UnhealthyReason field by extracting messages from SnapmirrorError objects
+	if len(snapmirror.SnapmirrorRelationshipInlineUnhealthyReason) > 0 {
+		unhealthyReasons := make([]string, 0, len(snapmirror.SnapmirrorRelationshipInlineUnhealthyReason))
+		for _, errObj := range snapmirror.SnapmirrorRelationshipInlineUnhealthyReason {
+			if errObj != nil && errObj.Message != nil {
+				unhealthyReasons = append(unhealthyReasons, *errObj.Message)
+			}
+		}
+		if len(unhealthyReasons) > 0 {
+			resp.UnhealthyReason = &unhealthyReasons
+		}
+	}
+
 	activity.RecordHeartbeat(ctx, "GetSnapmirror completed")
 	return &resp, nil
 }

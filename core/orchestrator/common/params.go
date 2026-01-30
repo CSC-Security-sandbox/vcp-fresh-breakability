@@ -522,6 +522,8 @@ type CloudTarget struct {
 type SnapmirrorRelationship struct {
 	UUID            string
 	DestinationUUID *string
+	Healthy         *bool
+	UnhealthyReason *[]string
 }
 
 type GetMultipleReplicationsParams struct {

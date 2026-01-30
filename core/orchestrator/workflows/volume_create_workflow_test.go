@@ -9226,3 +9226,81 @@ func (s *UnitTestSuite) Test_updateActiveDirectoryStateToInUse_HandlesNilActiveD
 	// Verify error message contains "active Directory is nil"
 	assert.ErrorContains(s.T(), s.env.GetWorkflowError(), "active Directory is nil")
 }
+
+// Test_CreateVolumeWorkflow_CrossRegionBackup_CancellationDuringPermissionsSetup tests cancellation
+// during cross-region backup permissions setup, covering line 1139
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CrossRegionBackup_CancellationDuringPermissionsSetup() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	kmsConfigActivity := kms_activities.KmsConfigActivity{SE: mockStorage}
+
+	backupRegionName := "us-west1"
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Pool: &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{SecretID: "", Password: "password"},
+			KmsConfig:       nil,
+		},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "backup-vault-id",
+		},
+		Account: &datamodel.Account{Name: "account-1"},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(kmsConfigActivity.VerifyVsaKmsReachabilityActivity)
+	s.env.RegisterActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(volumeCreateActivity.CreateVolumeInONTAP)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeAttributesInDB)
+	s.env.RegisterActivity(volumeCreateActivity.GetHosts)
+	s.env.RegisterActivity(volumeCreateActivity.CreateIgroup)
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(volumeCreateActivity.CheckBackupVaultExistsInVCP)
+	s.env.RegisterActivity(volumeCreateActivity.FindTenancy)
+	s.env.RegisterActivity(volumeCreateActivity.CheckForBucketResourceName)
+	s.env.RegisterActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"},
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(volumeCreateActivity.CheckBackupVaultExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
+		BaseModel:        datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		Name:             "test-backup-vault",
+		BackupVaultType:  activities.CrossRegionBackupType,
+		BackupRegionName: &backupRegionName,
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.FindTenancy, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{RegionalTenantProject: "tenant-project"}, nil)
+	s.env.OnActivity(volumeCreateActivity.CheckForBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{
+		BucketName:          "test-bucket",
+		ServiceAccountName:  "test-sa",
+		TenantProjectNumber: "12345",
+	}, nil)
+
+	// Register a signal handler for cancellation that will trigger during the workflow
+	s.env.RegisterDelayedCallback(func() {
+		s.env.SignalWorkflow(CancelVolumeSignalName, "cancel-request")
+	}, time.Millisecond*100)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
+
+	// Assert workflow completed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	// The workflow should complete with a cancellation error
+	err := s.env.GetWorkflowError()
+	assert.NotNil(s.T(), err)
+}

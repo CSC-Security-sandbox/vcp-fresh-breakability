@@ -547,6 +547,20 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	// Get snapmirror relationship to check health status
+	var smRelationship *common.SnapmirrorRelationship
+	err = workflow.ExecuteActivity(ctx, backupActivities.GetSnapmirror, scheduledBackupContext.Node, scheduledBackupContext.SmSourcePath, scheduledBackupContext.SmDestinationPath).Get(ctx, &smRelationship)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+
+	if smRelationship.Healthy != nil && !*smRelationship.Healthy {
+		if smRelationship.UnhealthyReason != nil && len(*smRelationship.UnhealthyReason) > 0 {
+			wf.Logger.Infof("Snapmirror relationship is unhealthy. Reasons: %v", *smRelationship.UnhealthyReason)
+		}
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, vsaerrors.New("snapmirror relationship is unhealthy"))
+	}
+
 	backups = scheduledBackupContext.ScheduledBackupParams.Backups
 	for _, backup := range backups {
 		backup.Attributes.SnapshotName = scheduledBackupContext.SnapshotName
