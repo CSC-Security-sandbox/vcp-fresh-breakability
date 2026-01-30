@@ -14,6 +14,9 @@ POSTGRES_USER="postgres"
 POSTGRES_PASS="testpass"
 POSTGRES_SSL_MODE="disable"
 QOS_TYPE="auto"
+TOTAL_THROUGHPUT_MIBPS=1120
+TOTAL_IOPS=2400
+VLM_CONFIG_JSON=""
 
 # Colors for output
 RED='\033[0;31m'
@@ -165,6 +168,102 @@ log_debug() {
     if [[ "${DEBUG:-false}" == "true" ]]; then
         echo -e "[DEBUG] $1" >&2
     fi
+}
+
+# Escape single quotes for SQL strings
+escape_sql() {
+    printf "%s" "$1" | sed "s/'/''/g"
+}
+
+# Build a minimal VLM config with at least one HA pair
+build_vlm_config() {
+    local region="$1"
+    local deployment_name="$2"
+    local zone1="${region}-a"
+    local zone2="${region}-b"
+    local vm1_name="${VSIM1_hostname:-vsim-node-1}"
+    local vm2_name="${VSIM2_hostname:-vsim-node-2}"
+    local vm1_mgmt="${VSIM1_CLUSTER_MGMT_IP:-}"
+    local vm2_mgmt="${VSIM2_CLUSTER_MGMT_IP:-}"
+    local ilb_ip="${VSIM1_DATA_IP1:-}"
+
+    if [[ -z "$ilb_ip" ]]; then
+        log_warn "VSIM1_DATA_IP1 is empty; ilbnas LIF IP will be blank in VLM config"
+    fi
+
+    VLM_CONFIG_JSON=$(jq -c -n \
+        --arg region "$region" \
+        --arg zone1 "$zone1" \
+        --arg zone2 "$zone2" \
+        --arg deployment_id "$deployment_name" \
+        --arg svm_name "$SVM_NAME" \
+        --arg ilb_ip "$ilb_ip" \
+        --arg vm1_name "$vm1_name" \
+        --arg vm2_name "$vm2_name" \
+        --arg vm1_mgmt "$vm1_mgmt" \
+        --arg vm2_mgmt "$vm2_mgmt" \
+        '{
+            cloud: {
+                ha_pair: [
+                    {
+                        vm1: {
+                            region: $region,
+                            zone: $zone1,
+                            name: $vm1_name,
+                            host_name: $vm1_name,
+                            node_index: 0,
+                            is_mediator: false,
+                            vsa_management_ip: $vm1_mgmt
+                        },
+                        vm2: {
+                            region: $region,
+                            zone: $zone2,
+                            name: $vm2_name,
+                            host_name: $vm2_name,
+                            node_index: 1,
+                            is_mediator: false,
+                            vsa_management_ip: $vm2_mgmt
+                        },
+                        mediator: {
+                            is_mediator: true
+                        }
+                    }
+                ]
+            },
+            deployment: {
+                provider: "gcp",
+                deployment_id: $deployment_id,
+                region: $region,
+                zone: {zone1: $zone1, zone2: $zone2, mediator_zone: ""},
+                deployment_type: "non_shared_ha",
+                num_ha_pair: 1,
+                dev_flags: {enable_ilb_support: false}
+            },
+            svm: {
+                ($svm_name): {
+                    svm_name: $svm_name,
+                    svm_uuid: "",
+                    svm_lifs: {
+                        ilbnas: [
+                            {
+                                lif_name: "ilbnas0",
+                                vsa_ip_type: "ilbnas",
+                                ip: $ilb_ip,
+                                region: $region,
+                                home_node: "node0",
+                                probe_port: 0,
+                                network_config: {
+                                    subnet: "",
+                                    vpc: "",
+                                    gateway: "",
+                                    gcp_network_config: {subnet_project_id: ""}
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        }')
 }
 
 # Check if required tools are available
@@ -353,22 +452,34 @@ create_db_pool() {
 
     log_info "Creating VCP database pool"
 
+    local pool_attributes_json
+    local vlm_config_value="NULL"
+    if [[ "$QOS_TYPE" == "manual" ]]; then
+        pool_attributes_json="{\"primary_zone\": \"${region}-a\", \"secondary_zone\": \"${region}-b\", \"throughput\": ${TOTAL_THROUGHPUT_MIBPS}, \"iops\": ${TOTAL_IOPS}}"
+        build_vlm_config "$region" "$unique_deployment_name"
+        local vlm_config_escaped
+        vlm_config_escaped=$(escape_sql "$VLM_CONFIG_JSON")
+        vlm_config_value="'$vlm_config_escaped'"
+    else
+        pool_attributes_json="{\"primary_zone\": \"${region}-a\", \"secondary_zone\": \"${region}-b\", \"throughput\": 64}"
+    fi
+
     # Insert pool entry
     local pool_insert_sql="
         INSERT INTO pools (
             uuid, created_at, updated_at, name, state, state_details,
             service_level, size_in_bytes, vendor_id, network, deployment_name,
-            pool_attributes, pool_credentials, build_info, account_id, qos_type
+            pool_attributes, pool_credentials, build_info, account_id, qos_type, vlm_config
         ) VALUES (
             '$pool_uuid', '$current_time', '$current_time', '$POOL_NAME', 'READY',
             'Available for use', 'FLEX', 2199023255552,
             '/projects/$PROJECT_ID/locations/${region}-a/pools/$POOL_NAME',
             'projects/$PROJECT_ID/global/networks/cvs-test',
             '$unique_deployment_name',
-            '{\"primary_zone\": \"${region}-a\", \"secondary_zone\": \"${region}-b\", \"throughput\": 64}',
+            '$pool_attributes_json',
             '{\"password\": \"${ONTAP_PASSWORD}\", \"auth_type\": 0}',
             '{\"ontapVersion\": \"9.18.1\"}',
-            $ACCOUNT_ID, '$QOS_TYPE'
+            $ACCOUNT_ID, '$QOS_TYPE', ${vlm_config_value}
         );
     "
 
