@@ -37,6 +37,9 @@ const (
 	kibToMibDivisor                    = 1024
 	mibToKibMultiplier                 = 1024
 	mibToBytesMultiplier               = 1024 * 1024
+	// ONTAP mirror state constants
+	OntapSnapmirrored  = "snapmirrored"
+	OntapUninitialized = "uninitialized"
 )
 
 var (
@@ -116,11 +119,58 @@ func validateReplicationState(ctx context.Context, se database.Storage, volume *
 	// Check each replication
 	for _, replication := range replications {
 		if replication.ReplicationAttributes == nil {
-			continue
+			return customerrors.NewUserInputValidationErr("QuotaRule Operation is not allowed: replication attributes are missing")
 		}
 
 		if replication.HybridReplicationAttributes != nil {
 			return customerrors.NewUserInputValidationErr("QuotaRule Operation is not allowed on hybrid replication volumes")
+		}
+
+		// Check for cross-project replication: quota rule sync is not allowed
+		// Only perform this check when RemoteUri is available (source side)
+		if replication.RemoteUri != "" {
+			if volume.Account == nil {
+				logger.Error("Volume account is nil, cannot validate cross-project replication")
+				return customerrors.NewUserInputValidationErr("QuotaRule Operation is not allowed: volume account information is missing")
+			}
+
+			destProjectNumber, err := utils.ParseProjectNumberFromURI(replication.RemoteUri)
+			if err != nil {
+				logger.Error("Failed to parse destination project number from RemoteUri", "error", err, "remoteUri", replication.RemoteUri)
+				return fmt.Errorf("failed to parse destination project number: %w", err)
+			}
+
+			srcProjectNumber := volume.Account.Name
+			if destProjectNumber != srcProjectNumber {
+				logger.Error("QuotaRule sync for cross project replication is not allowed",
+					"srcProjectNumber", srcProjectNumber, "destProjectNumber", destProjectNumber)
+				return customerrors.NewUserInputValidationErr("QuotaRule sync for cross project replication is not allowed")
+			}
+		}
+
+		// Check for in-region replication: quota rule operations are not allowed
+		// Only perform check if both SourceLocation and DestinationLocation are available
+		if replication.ReplicationAttributes.SourceLocation != "" && replication.ReplicationAttributes.DestinationLocation != "" {
+			// Parse source region first - if this fails, it's fatal
+			sourceRegion, _, sourceParseErr := internalParseRegionAndZone(replication.ReplicationAttributes.SourceLocation)
+			if sourceParseErr != nil {
+				logger.Error("Failed to parse source location for in-region check", "error", sourceParseErr, "sourceLocation", replication.ReplicationAttributes.SourceLocation)
+				return coreerrors.NewVCPError(coreerrors.ErrParseSourceLocation, fmt.Errorf("failed to parse source location: %w", sourceParseErr))
+			}
+
+			// Parse destination region - if this fails, it's fatal
+			destRegion, _, destParseErr := internalParseRegionAndZone(replication.ReplicationAttributes.DestinationLocation)
+			if destParseErr != nil {
+				logger.Error("Failed to parse destination location for in-region check", "error", destParseErr, "destinationLocation", replication.ReplicationAttributes.DestinationLocation)
+				return coreerrors.NewVCPError(coreerrors.ErrParseDestinationLocation, fmt.Errorf("failed to parse destination location: %w", destParseErr))
+			}
+
+			// Both regions parsed successfully - check if they match (in-region replication)
+			if sourceRegion == destRegion {
+				logger.Error("QuotaRule Operation is not allowed on in-region replication volumes",
+					"sourceRegion", sourceRegion, "destRegion", destRegion)
+				return customerrors.NewUserInputValidationErr("QuotaRule Operation is not allowed on in-region replication volumes")
+			}
 		}
 
 		// Determine which replication to validate based on destination location
@@ -138,7 +188,13 @@ func validateReplicationState(ctx context.Context, se database.Storage, volume *
 			}
 		} else {
 			// Current location is NOT the destination - this is the source side, fetch destination replication
-			// Parse destination project number from RemoteUri
+			// Parse destination project number from RemoteUri (should be available on source side)
+			// Note: Cross-project check is already done above when RemoteUri is available
+			if replication.RemoteUri == "" {
+				logger.Error("RemoteUri is empty on source side, cannot fetch destination replication")
+				return customerrors.NewUserInputValidationErr("QuotaRule Operation is not allowed: remote URI is missing for source replication")
+			}
+
 			destProjectNumber, err := utils.ParseProjectNumberFromURI(replication.RemoteUri)
 			if err != nil {
 				logger.Error("Failed to parse destination project number from RemoteUri", "error", err, "remoteUri", replication.RemoteUri)
@@ -166,13 +222,10 @@ func validateReplicationState(ctx context.Context, se database.Storage, volume *
 				"replicationUUID", replication.ReplicationAttributes.DestinationReplicationUUID)
 
 			// Get JWT token for destination project (same project only)
-			srcProjectNumber := volume.Account.Name
-
-			// Check for cross-project replication: quota rule sync is not allowed
-			if destProjectNumber != srcProjectNumber {
-				logger.Error("QuotaRule sync for cross project replication is not allowed",
-					"srcProjectNumber", srcProjectNumber, "destProjectNumber", destProjectNumber)
-				return customerrors.NewUserInputValidationErr("QuotaRule sync for cross project replication is not allowed")
+			// Note: Cross-project check is already done above when RemoteUri is available
+			if volume.Account == nil {
+				logger.Error("Volume account is nil, cannot get signed token")
+				return customerrors.NewUserInputValidationErr("QuotaRule Operation is not allowed: volume account information is missing")
 			}
 
 			// Same project: get token for current project
@@ -207,7 +260,9 @@ func validateReplicationState(ctx context.Context, se database.Storage, volume *
 		if replication.ReplicationAttributes.DestinationLocation == locationID && destinationReplication.MirrorState != nil {
 			mirrorState := *destinationReplication.MirrorState
 			if mirrorState == string(gcpgenserver.ReplicationV1betaMirrorStateMIRRORED) ||
-				mirrorState == string(gcpgenserver.ReplicationV1betaMirrorStateUNINITIALIZED) {
+				mirrorState == string(gcpgenserver.ReplicationV1betaMirrorStateUNINITIALIZED) ||
+				mirrorState == OntapSnapmirrored ||
+				mirrorState == OntapUninitialized {
 				logger.Errorf("Destination replication is in %s state", mirrorState)
 				return customerrors.NewUserInputValidationErr(
 					fmt.Sprintf("Quota creation not allowed when destination replication is in %s state", mirrorState))
@@ -404,7 +459,7 @@ func (o *Orchestrator) ReplaceDstQuotaRulesWithSrc(ctx context.Context, req *gcp
 func _createQuotaRule(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateQuotaRulesParam) (*models.QuotaRule, string, error) {
 	logger := util.GetLogger(ctx)
 
-	_, err := getOrCreateAccount(ctx, se, params.ProjectId)
+	account, err := getOrCreateAccount(ctx, se, params.ProjectId)
 	if err != nil {
 		return nil, "", err
 	}
@@ -414,7 +469,8 @@ func _createQuotaRule(ctx context.Context, se database.Storage, temporal client.
 		return nil, "", err
 	}
 
-	volumeDataModel, err := se.GetVolume(ctx, params.VolumeUUID)
+	// Retrieve volume using both account ID and volume UUID to validate that the volume belongs to the account
+	volumeDataModel, err := se.GetVolumeWithAccountID(ctx, params.VolumeUUID, account.ID)
 	if err != nil {
 		logger.Errorf("Failed to retrieve volume: %v", err)
 		return nil, "", err
@@ -1219,8 +1275,15 @@ func _deleteQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 func _listQuotaRules(ctx context.Context, se database.Storage, params *common.ListQuotaRulesParams) ([]*models.QuotaRule, error) {
 	logger := util.GetLogger(ctx)
 
-	// Get volume to get volume ID
-	volume, err := se.GetVolume(ctx, params.VolumeID)
+	// Get account to validate volume belongs to the account
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		logger.Errorf("Failed to get account: %s. Error: %v", params.AccountName, err)
+		return nil, err
+	}
+
+	// Retrieve volume using both account ID and volume UUID to validate that the volume belongs to the account
+	volume, err := se.GetVolumeWithAccountID(ctx, params.VolumeID, account.ID)
 	if err != nil {
 		logger.Errorf("Failed to get volume: %s. Error: %v", params.VolumeID, err)
 		return nil, err

@@ -1,6 +1,9 @@
 package replicationWorkflows
 
 import (
+	"errors"
+	"strings"
+
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
@@ -13,6 +16,8 @@ import (
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 )
+
+// Note: quotaRuleSyncEnabled and isQuotaRuleFailure are defined in replication_internal_stop_workflow.go
 
 type ReplicationStopWorkflow struct {
 	workflows.BaseWorkflow
@@ -27,6 +32,7 @@ func StopReplicationWorkflow(ctx workflow.Context, params *commonparams.StopRepl
 	if err != nil {
 		return nil, err
 	}
+	logger := util.GetLogger(ctx)
 	repWf.Status = workflows.WorkflowStatusRunning
 	err = repWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
@@ -36,6 +42,20 @@ func StopReplicationWorkflow(ctx workflow.Context, params *commonparams.StopRepl
 	}
 	_, customErr := repWf.Run(ctx, event)
 	if customErr != nil {
+		// Check if this is a quota rule failure (partial success case) and quotaRuleSync is enabled
+		if quotaRuleSyncEnabled && isQuotaRuleFailure(customErr) {
+			logger.Warnf("Stop replication succeeded but quota rule sync failed on destination, marking workflow as completed")
+			repWf.Status = workflows.WorkflowStatusCompleted
+			// Use vsaerrors.NewVCPError so it's recognized as CustomError in UpdateJobStatus
+			quotaRuleErr := vsaerrors.NewVCPError(
+				vsaerrors.ErrBreakReplicationQuotaRuleFailure,
+				errors.New(models.VolumeReplicationBreakRelationshipQuotaRuleFailure),
+			)
+			err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), quotaRuleErr)
+			return nil, err
+		}
+
+		// For all other errors, mark workflow as failed
 		repWf.Status = workflows.WorkflowStatusFailed
 		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		return nil, err
@@ -128,6 +148,19 @@ func (wf *ReplicationStopWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 		err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeDestJobStop, &replicationResult).Get(ctx, nil)
 		if err != nil {
+			// Check if this is a quota rule failure from internal stop
+			// Check error message directly before conversion
+			if quotaRuleSyncEnabled && strings.Contains(err.Error(), models.VolumeReplicationBreakRelationshipQuotaRuleFailure) {
+				// Return quota-specific error to be handled specially by error handler
+				// This allows the workflow to be marked as completed (partial success) instead of failed
+				// (Same pattern as internal stop workflow)
+				return nil, workflows.ConvertToVSAError(
+					vsaerrors.NewVCPError(
+						vsaerrors.ErrBreakReplicationQuotaRuleFailure,
+						vsaerrors.New(models.VolumeReplicationBreakRelationshipQuotaRuleFailure),
+					),
+				)
+			}
 			return nil, workflows.ConvertToVSAError(err)
 		}
 	} else {

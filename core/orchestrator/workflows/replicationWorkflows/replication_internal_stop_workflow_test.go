@@ -38,6 +38,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		internalStopReplicationActivity := replicationActivities.InternalStopVolumeReplicationActivity{SE: mockStorage}
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(commonActivity.GetNode)
 		env.RegisterActivity(internalStopReplicationActivity.AbortVolumeReplication)
@@ -46,6 +47,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationStopDetails)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(quotaRuleCommonActivity.ListQuotaRuleForVolume)
 
 		volume := &datamodel.Volume{
 			Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
@@ -79,6 +81,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("GetSnapMirrorFromOntap", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return([]*datamodel.QuotaRule{}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.ExecuteWorkflow(StopInternalVolumeReplicationWorkflow, replicationDb, false)
 
@@ -265,6 +268,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.GetSnapMirrorFromOntap)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationStopDetails)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
+		env.RegisterActivity(internalStopReplicationActivity.GetReplicationFromDB)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(quotaRuleCommonActivity.ListQuotaRuleForVolume)
@@ -286,6 +290,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		}
 		destinationVolumeUUID := "destination-volume-uuid"
 		replicationDb := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
@@ -306,7 +311,8 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(nil, errors.New("failed to list quota rules"))
-		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, replicationDb).Return(nil)
+		env.OnActivity("GetReplicationFromDB", mock.Anything, "replication-uuid").Return(replicationDb, nil)
+		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, mock.Anything).Return(nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(StopInternalVolumeReplicationWorkflow, replicationDb, false)
@@ -409,6 +415,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationStopDetails)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateQuotaRulesStateToError)
+		env.RegisterActivity(internalStopReplicationActivity.GetReplicationFromDB)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(quotaRuleCommonActivity.ListQuotaRuleForVolume)
@@ -434,6 +441,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		}
 		destinationVolumeUUID := "destination-volume-uuid"
 		replicationDb := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
@@ -469,7 +477,8 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(errors.New("failed to enable RQuota"))
 		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, replicationDb).Return(nil)
+		env.OnActivity("GetReplicationFromDB", mock.Anything, "replication-uuid").Return(replicationDb, nil)
+		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, mock.Anything).Return(nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(StopInternalVolumeReplicationWorkflow, replicationDb, false)
@@ -910,6 +919,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationStopDetails)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateQuotaRulesStateToError)
+		env.RegisterActivity(internalStopReplicationActivity.GetReplicationFromDB)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(quotaRuleCommonActivity.ListQuotaRuleForVolume)
@@ -935,6 +945,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		}
 		destinationVolumeUUID := "destination-volume-uuid"
 		replicationDb := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
@@ -971,7 +982,8 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create quota rule"))
 		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, replicationDb).Return(nil)
+		env.OnActivity("GetReplicationFromDB", mock.Anything, "replication-uuid").Return(replicationDb, nil)
+		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, mock.Anything).Return(nil)
 		// ParseQuotaRuleErrors will fail to serialize, but workflow handles it gracefully
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -1097,6 +1109,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationStopDetails)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateQuotaRulesStateToError)
+		env.RegisterActivity(internalStopReplicationActivity.GetReplicationFromDB)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(quotaRuleCommonActivity.ListQuotaRuleForVolume)
@@ -1121,6 +1134,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		}
 		destinationVolumeUUID := "destination-volume-uuid"
 		replicationDb := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
@@ -1156,7 +1170,8 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(errors.New("failed to enable RQuota"))
 		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, replicationDb).Return(nil)
+		env.OnActivity("GetReplicationFromDB", mock.Anything, "replication-uuid").Return(replicationDb, nil)
+		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, mock.Anything).Return(nil)
 		// ParseQuotaRuleErrors will fail to serialize, but workflow handles it gracefully
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -1190,6 +1205,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationStopDetails)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateQuotaRulesStateToError)
+		env.RegisterActivity(internalStopReplicationActivity.GetReplicationFromDB)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(quotaRuleCommonActivity.ListQuotaRuleForVolume)
@@ -1215,6 +1231,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		}
 		destinationVolumeUUID := "destination-volume-uuid"
 		replicationDb := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
@@ -1257,7 +1274,8 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(quotaRuleResponse, nil)
 		env.OnActivity("HandleQuotaEnablementAndReinitialization", mock.Anything, mock.Anything, mock.Anything, quotaRuleResponse).Return(errors.New("failed to enable quota subsystem"))
 		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, replicationDb).Return(nil)
+		env.OnActivity("GetReplicationFromDB", mock.Anything, "replication-uuid").Return(replicationDb, nil)
+		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, mock.Anything).Return(nil)
 		// ParseQuotaRuleErrors will fail to serialize, but workflow handles it gracefully
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -1291,6 +1309,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationStopDetails)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateQuotaRulesStateToError)
+		env.RegisterActivity(internalStopReplicationActivity.GetReplicationFromDB)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(quotaRuleCommonActivity.ListQuotaRuleForVolume)
@@ -1315,6 +1334,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		}
 		destinationVolumeUUID := "destination-volume-uuid"
 		replicationDb := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{
 					ID: 1,
@@ -1351,7 +1371,8 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create quota rule"))
 		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, replicationDb).Return(nil)
+		env.OnActivity("GetReplicationFromDB", mock.Anything, "replication-uuid").Return(replicationDb, nil)
+		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, mock.Anything).Return(nil)
 		// ParseQuotaRuleErrors will fail to serialize, but workflow handles it gracefully
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -1386,6 +1407,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationStopDetails)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateQuotaRulesStateToError)
+		env.RegisterActivity(internalStopReplicationActivity.GetReplicationFromDB)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(quotaRuleActivity.ListQuotaRuleForVolume)
 		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
@@ -1449,7 +1471,8 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create quota rule"))
 		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, replicationDb).Return(nil)
+		env.OnActivity("GetReplicationFromDB", mock.Anything, "replication-uuid").Return(replicationDb, nil)
+		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(StopInternalVolumeReplicationWorkflow, replicationDb, false)
 
@@ -1484,6 +1507,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationStopDetails)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateQuotaRulesStateToError)
+		env.RegisterActivity(internalStopReplicationActivity.GetReplicationFromDB)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(quotaRuleActivity.ListQuotaRuleForVolume)
 		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
@@ -1569,7 +1593,8 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create quota rule"))
 		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, replicationDb).Return(nil)
+		env.OnActivity("GetReplicationFromDB", mock.Anything, "replication-uuid").Return(replicationDb, nil)
+		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(StopInternalVolumeReplicationWorkflow, replicationDb, false)
 
@@ -1618,6 +1643,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationStopDetails)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateQuotaRulesStateToError)
+		env.RegisterActivity(internalStopReplicationActivity.GetReplicationFromDB)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(quotaRuleActivity.ListQuotaRuleForVolume)
 		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
@@ -1692,6 +1718,96 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.AssertExpectations(tt)
 	})
 
+	// Coverage for lines 227-228: GetReplicationFromDB fails when fetching updated replication for quota error path
+	t.Run("TestStopInternalVolumeReplicationWorkflow_GetReplicationFromDB_Failure_QuotaErrorPath", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		internalStopReplicationActivity := replicationActivities.InternalStopVolumeReplicationActivity{SE: mockStorage}
+		quotaRuleActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
+		quotaRuleCreateActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(internalStopReplicationActivity.AbortVolumeReplication)
+		env.RegisterActivity(internalStopReplicationActivity.BreakVolumeReplication)
+		env.RegisterActivity(internalStopReplicationActivity.GetSnapMirrorFromOntap)
+		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationStopDetails)
+		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
+		env.RegisterActivity(internalStopReplicationActivity.UpdateQuotaRulesStateToError)
+		env.RegisterActivity(internalStopReplicationActivity.GetReplicationFromDB)
+		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
+		env.RegisterActivity(quotaRuleActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
+		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Pool: &datamodel.Pool{
+				BaseModel:       datamodel.BaseModel{ID: int64(1)},
+				PoolCredentials: &datamodel.PoolCredentials{Password: "password"},
+			},
+			Svm: &datamodel.Svm{
+				Name:       "svm_test",
+				SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID:    "volume-external-uuid",
+				BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"},
+			},
+		}
+		replicationDb := &datamodel.VolumeReplication{
+			BaseModel:             datamodel.BaseModel{UUID: "replication-uuid"},
+			Account:               &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"},
+			Volume:                volume,
+			ReplicationAttributes: &datamodel.ReplicationDetails{DestinationVolumeUUID: "dest-volume-uuid"},
+		}
+
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "quota-rule-uuid-1"},
+				Name:           "test-quota-rule",
+				QuotaType:      "tree",
+				QuotaTarget:    "target1",
+				DiskLimitInKib: 1048576,
+				AccountID:      int64(1),
+			},
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("AbortVolumeReplication", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeReplication{}, nil)
+		env.OnActivity("BreakVolumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetSnapMirrorFromOntap", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
+		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
+		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create quota rule"))
+		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
+		// Lines 227-228: GetReplicationFromDB fails - workflow Run() returns at 228, outer handler marks job ERROR
+		env.OnActivity("GetReplicationFromDB", mock.Anything, "replication-uuid").Return(nil, errors.New("failed to get replication from DB"))
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(StopInternalVolumeReplicationWorkflow, replicationDb, false)
+
+		// Coverage for lines 227-228: GetReplicationFromDB failed, so Run() returned ConvertToVSAError(err)
+		assert.True(tt, env.IsWorkflowCompleted(), "Workflow should complete when GetReplicationFromDB fails")
+		env.AssertExpectations(tt)
+	})
+
 	t.Run("TestStopInternalVolumeReplicationWorkflow_UpdateVolumeReplicationForQuotaError_Failure", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
@@ -1717,6 +1833,7 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationStopDetails)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateQuotaRulesStateToError)
+		env.RegisterActivity(internalStopReplicationActivity.GetReplicationFromDB)
 		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
 		env.RegisterActivity(quotaRuleActivity.ListQuotaRuleForVolume)
 		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
@@ -1781,13 +1898,121 @@ func TestStopInternalVolumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
 		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create quota rule"))
 		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, replicationDb).Return(errors.New("database error"))
+		env.OnActivity("GetReplicationFromDB", mock.Anything, "replication-uuid").Return(replicationDb, nil)
+		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, mock.Anything).Return(errors.New("database error"))
 		env.OnActivity("UpdateReplicationState", mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(StopInternalVolumeReplicationWorkflow, replicationDb, false)
 
 		assert.True(tt, env.IsWorkflowCompleted())
 		// Workflow completes successfully after updating job status to ERROR when UpdateVolumeReplicationForQuotaError fails
+		assert.NoError(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
+	})
+
+	t.Run("TestStopInternalVolumeReplicationWorkflow_QuotaFailure_UsesFetchedReplicationForErrorUpdate", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		internalStopReplicationActivity := replicationActivities.InternalStopVolumeReplicationActivity{SE: mockStorage}
+		quotaRuleActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
+		quotaRuleCreateActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(internalStopReplicationActivity.AbortVolumeReplication)
+		env.RegisterActivity(internalStopReplicationActivity.BreakVolumeReplication)
+		env.RegisterActivity(internalStopReplicationActivity.GetSnapMirrorFromOntap)
+		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationStopDetails)
+		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
+		env.RegisterActivity(internalStopReplicationActivity.UpdateQuotaRulesStateToError)
+		env.RegisterActivity(internalStopReplicationActivity.GetReplicationFromDB)
+		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
+		env.RegisterActivity(quotaRuleActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
+		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				}},
+			Svm: &datamodel.Svm{
+				Name: "svm_test",
+				SvmDetails: &datamodel.SvmDetails{
+					ExternalUUID: "svm-external-uuid",
+				},
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID:    "volume-external-uuid",
+				BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"},
+			},
+		}
+		replicationDb := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Volume: volume,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationVolumeUUID: "dest-volume-uuid",
+			},
+		}
+		// Updated replication as returned by GetReplicationFromDB (post UpdateVolumeReplicationStopDetails)
+		updatedReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
+			Account:   replicationDb.Account,
+			Volume:    replicationDb.Volume,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationVolumeUUID: "dest-volume-uuid",
+			},
+		}
+
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "quota-rule-uuid-1"},
+				Name:           "test-quota-rule",
+				QuotaType:      "tree",
+				QuotaTarget:    "target1",
+				DiskLimitInKib: 1048576,
+				AccountID:      int64(1),
+			},
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("AbortVolumeReplication", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeReplication{}, nil)
+		env.OnActivity("BreakVolumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetSnapMirrorFromOntap", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
+		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
+		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create quota rule"))
+		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetReplicationFromDB", mock.Anything, "replication-uuid").Return(updatedReplication, nil)
+		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, mock.MatchedBy(func(rep *datamodel.VolumeReplication) bool {
+			return rep != nil && rep.UUID == "replication-uuid"
+		})).Return(nil)
+
+		env.ExecuteWorkflow(StopInternalVolumeReplicationWorkflow, replicationDb, false)
+
+		assert.True(tt, env.IsWorkflowCompleted())
 		assert.NoError(tt, env.GetWorkflowError())
 		env.AssertExpectations(tt)
 	})
@@ -2582,6 +2807,299 @@ func TestProcessQuotaRulesPostBreakReplication(t *testing.T) {
 		err := env.GetWorkflowResult(&result)
 		assert.NoError(tt, err)
 		assert.Empty(tt, result, "No failed quota rules expected when error message contains 'not found'")
+		env.AssertExpectations(tt)
+	})
+}
+
+func TestInternalStopWorkflow_Step1to3_PartialFailureFlow(t *testing.T) {
+	// Step 1: Verify Run() returns the correct quota failure error
+	t.Run("Step1_InternalStop_Run_ReturnsQuotaFailureError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		internalStopReplicationActivity := replicationActivities.InternalStopVolumeReplicationActivity{SE: mockStorage}
+		quotaRuleActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
+		quotaRuleCreateActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(internalStopReplicationActivity.AbortVolumeReplication)
+		env.RegisterActivity(internalStopReplicationActivity.BreakVolumeReplication)
+		env.RegisterActivity(internalStopReplicationActivity.GetSnapMirrorFromOntap)
+		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationStopDetails)
+		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
+		env.RegisterActivity(internalStopReplicationActivity.UpdateQuotaRulesStateToError)
+		env.RegisterActivity(internalStopReplicationActivity.GetReplicationFromDB)
+		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
+		env.RegisterActivity(quotaRuleActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
+		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Pool: &datamodel.Pool{
+				BaseModel: datamodel.BaseModel{ID: int64(1)},
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password: "password",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "svm_test",
+				SvmDetails: &datamodel.SvmDetails{
+					ExternalUUID: "svm-external-uuid",
+				},
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID:    "volume-external-uuid",
+				BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"},
+			},
+		}
+		replicationDb := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Volume: volume,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationVolumeUUID: "dest-volume-uuid",
+			},
+		}
+
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "quota-rule-uuid-1"},
+				Name:           "test-quota-rule",
+				QuotaType:      "tree",
+				QuotaTarget:    "target1",
+				DiskLimitInKib: 1048576,
+				AccountID:      int64(1),
+			},
+		}
+
+		// Track UpdateJob calls for verification
+		var updateJobCalls []struct {
+			status       string
+			trackingID   int
+			errorDetails string
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Run(func(args mock.Arguments) {
+				status := args.Get(2).(string)
+				trackingID := args.Get(3).(int)
+				errorDetails := args.Get(4).(string)
+				updateJobCalls = append(updateJobCalls, struct {
+					status       string
+					trackingID   int
+					errorDetails string
+				}{status, trackingID, errorDetails})
+				tt.Logf("UpdateJob called: status=%s, trackingID=%d, errorDetails=%q", status, trackingID, errorDetails)
+			}).
+			Return(nil)
+
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("AbortVolumeReplication", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("BreakVolumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetSnapMirrorFromOntap", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
+		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
+		// Step 1: CreateQuotaRuleOnONTAP fails - this triggers Run() to return quota failure error
+		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(nil, errors.New("failed to create quota rule"))
+		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetReplicationFromDB", mock.Anything, "replication-uuid").Return(replicationDb, nil)
+		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, mock.Anything).Return(nil)
+
+		tt.Log("=== STEP 1-3 TEST: INTERNAL STOP PARTIAL FAILURE FLOW ===")
+		env.ExecuteWorkflow(StopInternalVolumeReplicationWorkflow, replicationDb, false)
+
+		// Step 1 & 2: Workflow completes (error handler caught quota failure)
+		assert.True(tt, env.IsWorkflowCompleted(), "Step 1 FAILED: Workflow should complete")
+		assert.NoError(tt, env.GetWorkflowError(), "Step 2 FAILED: Workflow should not return error (isQuotaRuleFailure matched)")
+
+		// Step 3: Verify job DB update
+		foundDoneWithQuotaError := false
+		for _, call := range updateJobCalls {
+			if call.status == string(coreModels.JobsStateDONE) {
+				assert.Equal(tt, vsaerrors.ErrBreakReplicationQuotaRuleFailure, call.trackingID,
+					"Step 3 FAILED: TrackingID should be ErrBreakReplicationQuotaRuleFailure (12015)")
+				assert.Contains(tt, call.errorDetails, models.VolumeReplicationBreakRelationshipQuotaRuleFailure,
+					"Step 3 FAILED: ErrorDetails should contain quota failure message")
+				foundDoneWithQuotaError = true
+				break
+			}
+		}
+		assert.True(tt, foundDoneWithQuotaError,
+			"Step 3 FAILED: Should have UpdateJob call with DONE status (partial success)")
+
+		// Verify NO ERROR state (partial success should NOT result in ERROR)
+		for _, call := range updateJobCalls {
+			if call.status == string(coreModels.JobsStateERROR) {
+				tt.Errorf("CRITICAL: Internal job should NOT be in ERROR state for partial success")
+			}
+		}
+
+		tt.Log("=== STEPS 1-3 VERIFIED SUCCESSFULLY ===")
+		env.AssertExpectations(tt)
+	})
+
+	// Step 2: Verify isQuotaRuleFailure() correctly identifies the error
+	t.Run("Step2_isQuotaRuleFailure_CorrectlyIdentifiesError", func(tt *testing.T) {
+		// Test isQuotaRuleFailure with correct tracking ID
+		quotaErr := vsaerrors.NewVCPError(
+			vsaerrors.ErrBreakReplicationQuotaRuleFailure,
+			errors.New("test quota error"),
+		)
+		assert.True(tt, isQuotaRuleFailure(quotaErr),
+			"Step 2 FAILED: isQuotaRuleFailure should return true for ErrBreakReplicationQuotaRuleFailure")
+
+		// Test with different tracking ID (should return false)
+		otherErr := vsaerrors.NewVCPError(
+			vsaerrors.ErrJobFailed,
+			errors.New("other error"),
+		)
+		assert.False(tt, isQuotaRuleFailure(otherErr),
+			"Step 2 FAILED: isQuotaRuleFailure should return false for other errors")
+
+		tt.Log("Step 2 VERIFIED: isQuotaRuleFailure correctly identifies quota failure errors")
+	})
+
+	// Step 3: Verify job table values match what internal describe expects
+	t.Run("Step3_JobTableValues_MatchInternalDescribeExpectations", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		internalStopReplicationActivity := replicationActivities.InternalStopVolumeReplicationActivity{SE: mockStorage}
+		quotaRuleActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
+		quotaRuleCreateActivity := activities.QuotaRuleCreateActivity{SE: mockStorage}
+
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(internalStopReplicationActivity.AbortVolumeReplication)
+		env.RegisterActivity(internalStopReplicationActivity.BreakVolumeReplication)
+		env.RegisterActivity(internalStopReplicationActivity.GetSnapMirrorFromOntap)
+		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationStopDetails)
+		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeToNonDPVolume)
+		env.RegisterActivity(internalStopReplicationActivity.UpdateQuotaRulesStateToError)
+		env.RegisterActivity(internalStopReplicationActivity.GetReplicationFromDB)
+		env.RegisterActivity(internalStopReplicationActivity.UpdateVolumeReplicationForQuotaError)
+		env.RegisterActivity(quotaRuleActivity.ListQuotaRuleForVolume)
+		env.RegisterActivity(quotaRuleActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleActivity.UpdateRQuotaOnSvm)
+		env.RegisterActivity(quotaRuleCreateActivity.CreateQuotaRuleOnONTAP)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Pool: &datamodel.Pool{
+				BaseModel: datamodel.BaseModel{ID: int64(1)},
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password: "password",
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "svm_test",
+				SvmDetails: &datamodel.SvmDetails{
+					ExternalUUID: "svm-external-uuid",
+				},
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID:    "volume-external-uuid",
+				BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"},
+			},
+		}
+		replicationDb := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "replication-uuid"},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			},
+			Volume: volume,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationVolumeUUID: "dest-volume-uuid",
+			},
+		}
+
+		quotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel:      datamodel.BaseModel{UUID: "quota-rule-uuid-1"},
+				Name:           "test-quota-rule",
+				QuotaType:      "tree",
+				QuotaTarget:    "target1",
+				DiskLimitInKib: 1048576,
+				AccountID:      int64(1),
+			},
+		}
+
+		// Capture exact values that would be stored in job table
+		var jobTableState struct {
+			Status       string
+			TrackingID   int
+			ErrorDetails string
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Run(func(args mock.Arguments) {
+				status := args.Get(2).(string)
+				if status == string(coreModels.JobsStateDONE) {
+					jobTableState.Status = status
+					jobTableState.TrackingID = args.Get(3).(int)
+					jobTableState.ErrorDetails = args.Get(4).(string)
+				}
+			}).
+			Return(nil)
+
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("AbortVolumeReplication", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("BreakVolumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetSnapMirrorFromOntap", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateVolumeReplicationStopDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateVolumeToNonDPVolume", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("ListQuotaRuleForVolume", mock.Anything, replicationDb).Return(quotaRules, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, mock.Anything, mock.Anything).Return(replicationDb.Volume, nil)
+		env.OnActivity("UpdateRQuotaOnSvm", mock.Anything, "svm-external-uuid", mock.Anything, true).Return(nil)
+		env.OnActivity("CreateQuotaRuleOnONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(nil, errors.New("failed to create quota rule"))
+		env.OnActivity("UpdateQuotaRulesStateToError", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetReplicationFromDB", mock.Anything, "replication-uuid").Return(replicationDb, nil)
+		env.OnActivity("UpdateVolumeReplicationForQuotaError", mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(StopInternalVolumeReplicationWorkflow, replicationDb, false)
+
+		// Verify job table has exact values that internal describe expects
+		// Internal describe checks: strings.Contains(errorDetailsStr, stopQuotaRuleError)
+		// stopQuotaRuleError = "Break operation is successful and destination volume has become RW, but post break quota rule creation operation failed"
+		assert.Equal(tt, string(coreModels.JobsStateDONE), jobTableState.Status,
+			"Step 3 FAILED: Job Status should be DONE")
+		assert.Equal(tt, vsaerrors.ErrBreakReplicationQuotaRuleFailure, jobTableState.TrackingID,
+			"Step 3 FAILED: Job TrackingID should be 12015")
+		assert.Contains(tt, jobTableState.ErrorDetails, "Break operation is successful",
+			"Step 3 FAILED: ErrorDetails must contain the stopQuotaRuleError message for internal describe to detect it")
+
+		tt.Logf("Step 3 VERIFIED: Job table state - Status=%s, TrackingID=%d, ErrorDetails contains stop quota message=%v",
+			jobTableState.Status, jobTableState.TrackingID, jobTableState.ErrorDetails != "")
 		env.AssertExpectations(tt)
 	})
 }

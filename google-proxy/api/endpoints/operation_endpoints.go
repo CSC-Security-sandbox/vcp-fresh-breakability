@@ -141,8 +141,8 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 				}
 			}
 
-			// Handle StopVolumeReplicationInternal quota rule failure
-			if job.Type == models.JobTypeStopVolumeReplicationInternal {
+			// Handle StopVolumeReplication (main) quota rule failure
+			if job.Type == models.JobTypeStopVolumeReplication {
 				if strings.Contains(errorDetailsStr, stopQuotaRuleError) {
 					metadataValue, err := json.Marshal(errorDetailsStr)
 					if err != nil {
@@ -356,6 +356,21 @@ func (h Handler) V1betaInternalDescribeOperation(ctx context.Context, params gcp
 		return baseOperation, nil
 
 	case models.JobsStateDONE:
+		// Handle StopVolumeReplicationInternal quota rule failure - return as Error so caller treats it as failure
+		errorDetailsStr := string(job.ErrorDetails)
+		if job.Type == models.JobTypeStopVolumeReplicationInternal {
+			if strings.Contains(errorDetailsStr, stopQuotaRuleError) {
+				baseOperation.Done = gcpgenserver.NewOptBool(jobFinished)
+				baseOperation.Error = gcpgenserver.OptStatusV1Beta{
+					Value: gcpgenserver.StatusV1Beta{
+						Code:    gcpgenserver.NewOptFloat64(float64(200)), // Partial success
+						Message: gcpgenserver.NewOptString(errorDetailsStr),
+					},
+					Set: true,
+				}
+				return baseOperation, nil
+			}
+		}
 		baseOperation.Done = gcpgenserver.NewOptBool(jobFinished)
 		return baseOperation, nil
 

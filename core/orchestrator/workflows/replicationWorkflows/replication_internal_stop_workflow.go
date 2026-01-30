@@ -220,8 +220,16 @@ func (wf *internalVolumeReplicationStopWorkflow) Run(ctx workflow.Context, args 
 			}
 		}
 
+		// Fetch updated replication from DB (post UpdateVolumeReplicationStopDetails) before setting error state
+		var updatedReplication *datamodel.VolumeReplication
+		err = workflow.ExecuteActivity(ctx, replicationActivity.GetReplicationFromDB, dbReplication.UUID).Get(ctx, &updatedReplication)
+		if err != nil {
+			log.Errorf("Failed to get updated replication from DB for quota error: %v", err)
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
 		// Update volume replication state to ERROR (even if listing failed or quota rule creation failed)
-		err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationForQuotaError, dbReplication).Get(ctx, nil)
+		err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationForQuotaError, updatedReplication).Get(ctx, nil)
 		if err != nil {
 			log.Errorf("Failed to update volume replication state for quota error: %v", err)
 			return nil, workflows.ConvertToVSAError(err)

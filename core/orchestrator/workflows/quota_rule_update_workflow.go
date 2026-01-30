@@ -248,12 +248,14 @@ func (wf *quotaRuleUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 					// Revert source quota rule if it was updated
 					logger.Errorf("Reverting source quota rule due to destination sync failure")
-					err = workflow.ExecuteActivity(ctx, quotaRuleActivity.RevertQuotaRulesOnSource,
+					revertErr := workflow.ExecuteActivity(ctx, quotaRuleActivity.RevertQuotaRulesOnSource,
 						quotaUUID, node, originalDiskLimitInKib).Get(ctx, nil)
-					if err != nil {
-						logger.Errorf("Failed to revert quota rule on source: %v", err)
-						return nil, ConvertToVSAError(err)
+					if revertErr != nil {
+						logger.Errorf("Failed to revert quota rule on source: %v", revertErr)
+						return nil, ConvertToVSAError(revertErr)
 					}
+					// Return original error so defer marks quota rule in error state
+					return nil, ConvertToVSAError(err)
 				}
 
 				// Update quota rule on destination via internal API
@@ -266,12 +268,14 @@ func (wf *quotaRuleUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 					// Revert source quota rule if it was updated
 					logger.Warnf("Reverting source quota rule due to destination update failure")
-					err = workflow.ExecuteActivity(ctx, quotaRuleActivity.RevertQuotaRulesOnSource,
+					revertErr := workflow.ExecuteActivity(ctx, quotaRuleActivity.RevertQuotaRulesOnSource,
 						quotaUUID, node, originalDiskLimitInKib).Get(ctx, nil)
-					if err != nil {
-						logger.Errorf("Failed to revert quota rule on source: %v", err)
-						return nil, ConvertToVSAError(err)
+					if revertErr != nil {
+						logger.Errorf("Failed to revert quota rule on source: %v", revertErr)
+						return nil, ConvertToVSAError(revertErr)
 					}
+					// Return original error so defer marks quota rule in error state
+					return nil, ConvertToVSAError(err)
 				}
 
 				// Poll for operation completion if async operation was started
@@ -285,12 +289,14 @@ func (wf *quotaRuleUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 						// Revert source quota rule if destination update failed
 						logger.Warnf("Reverting source quota rule due to destination operation failure")
-						err = workflow.ExecuteActivity(ctx, quotaRuleActivity.RevertQuotaRulesOnSource,
+						revertErr := workflow.ExecuteActivity(ctx, quotaRuleActivity.RevertQuotaRulesOnSource,
 							quotaUUID, node, originalDiskLimitInKib).Get(ctx, nil)
-						if err != nil {
-							logger.Errorf("Failed to revert quota rule on source: %v", err)
-							return nil, ConvertToVSAError(err)
+						if revertErr != nil {
+							logger.Errorf("Failed to revert quota rule on source: %v", revertErr)
+							return nil, ConvertToVSAError(revertErr)
 						}
+						// Return original error so defer marks quota rule in error state
+						return nil, ConvertToVSAError(err)
 					}
 				}
 

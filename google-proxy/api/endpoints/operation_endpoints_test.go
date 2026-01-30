@@ -1163,7 +1163,9 @@ func TestV1betaDescribeOperation_ReverseResumeVolumeReplication_QuotaRuleFailure
 	assert.Contains(t, metadataValue, errorDetails)
 }
 
-func TestV1betaDescribeOperation_StopVolumeReplicationInternal_QuotaRuleFailure(t *testing.T) {
+// TestV1betaDescribeOperation_StopVolumeReplication_QuotaRuleFailure tests that the public describe
+// handler returns Metadata for the main stop job type when it has quota failure error details.
+func TestV1betaDescribeOperation_StopVolumeReplication_QuotaRuleFailure(t *testing.T) {
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
@@ -1182,7 +1184,7 @@ func TestV1betaDescribeOperation_StopVolumeReplicationInternal_QuotaRuleFailure(
 	errorDetails := "Break operation is successful and destination volume has become RW, but post break quota rule creation operation failed"
 	job := &models.Job{
 		State:        models.JobsStateDONE,
-		Type:         models.JobTypeStopVolumeReplicationInternal,
+		Type:         models.JobTypeStopVolumeReplication, // Main stop job type (not internal)
 		ErrorDetails: []byte(errorDetails),
 		TrackingID:   0,
 	}
@@ -1209,6 +1211,49 @@ func TestV1betaDescribeOperation_StopVolumeReplicationInternal_QuotaRuleFailure(
 	err = json.Unmarshal(operationResult.Metadata.Value.AnyValue, &metadataValue)
 	assert.NoError(t, err)
 	assert.Contains(t, metadataValue, errorDetails)
+}
+
+// TestV1betaInternalDescribeOperation_StopInternal_QuotaRuleFailure tests that the internal describe
+// handler returns Error (not just Done) for internal stop job type with quota failure.
+// This allows the DescribeJob activity to treat it as a failure and propagate to main workflow.
+func TestV1betaInternalDescribeOperation_StopInternal_QuotaRuleFailure(t *testing.T) {
+	ctx := context.Background()
+	logger := &log.MockLogger{}
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+	}()
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-east4", "us-east4", nil
+	}
+
+	errorDetails := "Break operation is successful and destination volume has become RW, but post break quota rule creation operation failed"
+	job := &models.Job{
+		State:        models.JobsStateDONE,
+		Type:         models.JobTypeStopVolumeReplicationInternal,
+		ErrorDetails: []byte(errorDetails),
+		TrackingID:   0,
+	}
+	mockOrch.On("GetJob", ctx, mock.Anything).Return(job, nil)
+	handler := Handler{Orchestrator: mockOrch}
+	params := gcpgenserver.V1betaInternalDescribeOperationParams{
+		ProjectNumber: "proj",
+		LocationId:    "valid-location",
+		OperationId:   "b3b8c7e2-8c2a-4e2a-9b1a-2e4b6c8d9f0a",
+	}
+
+	result, err := handler.V1betaInternalDescribeOperation(ctx, params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.InternalOperationV1beta{}, result)
+	operationResult := result.(*gcpgenserver.InternalOperationV1beta)
+	assert.True(t, operationResult.Done.Value, "Done should be true")
+	assert.True(t, operationResult.Error.Set, "Error should be set for quota failure")
+	assert.Equal(t, float64(200), operationResult.Error.Value.Code.Value, "Code should be 200 for partial success")
+	assert.Contains(t, operationResult.Error.Value.Message.Value, errorDetails, "Error message should contain quota failure details")
 }
 
 func TestV1betaDescribeOperation_Done_NoQuotaRuleFailure(t *testing.T) {

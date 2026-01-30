@@ -891,8 +891,9 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
 
+		// Workflow fails; defer sees err != nil and marks quota rule in error state
 		assert.True(tt, env.IsWorkflowCompleted())
-		assert.NoError(tt, env.GetWorkflowError())
+		assert.Error(tt, env.GetWorkflowError())
 	})
 
 	t.Run("WhenHandleQuotaEnableDisableFails", func(tt *testing.T) {

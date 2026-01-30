@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -81,7 +82,7 @@ func TestCreateQuotaRule(t *testing.T) {
 
 		// Mock getAccountWithName to succeed
 		originalGetAccountWithName := getAccountWithName
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      accountName,
@@ -109,6 +110,11 @@ func TestCreateQuotaRule(t *testing.T) {
 		mockStore := database.NewMockStorage(tt)
 		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
 
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-project",
+		}
+
 		params := &common.CreateQuotaRulesParam{
 			ProjectId:      "test-project",
 			Name:           "quota-rule-1",
@@ -120,7 +126,7 @@ func TestCreateQuotaRule(t *testing.T) {
 		}
 
 		// Mock getAccountWithName to succeed
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      accountName,
@@ -135,7 +141,7 @@ func TestCreateQuotaRule(t *testing.T) {
 
 		defer func() { validateQuotaRuleCreateParams = originalValidateQuotaRuleCreateParams }()
 		// Mock GetVolume to fail
-		mockStore.EXPECT().GetVolume(context.Background(), params.VolumeUUID).Return(nil, errors.New("volume not found"))
+		mockStore.EXPECT().GetVolumeWithAccountID(context.Background(), params.VolumeUUID, account.ID).Return(nil, errors.New("volume not found"))
 
 		quotaRule, operationID, err := _createQuotaRule(context.Background(), mockStore, mockTemporal, params)
 
@@ -148,6 +154,11 @@ func TestCreateQuotaRule(t *testing.T) {
 	t.Run("WhenValidateVolumeTypeFails", func(tt *testing.T) {
 		mockStore := database.NewMockStorage(tt)
 		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-project",
+		}
 
 		params := &common.CreateQuotaRulesParam{
 			ProjectId:      "test-project",
@@ -169,7 +180,7 @@ func TestCreateQuotaRule(t *testing.T) {
 		}
 
 		// Mock getAccountWithName to succeed
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      accountName,
@@ -184,7 +195,7 @@ func TestCreateQuotaRule(t *testing.T) {
 
 		defer func() { validateQuotaRuleCreateParams = originalValidateQuotaRuleCreateParams }()
 		// Mock GetVolume to succeed but return a SAN volume
-		mockStore.EXPECT().GetVolume(context.Background(), params.VolumeUUID).Return(volume, nil)
+		mockStore.EXPECT().GetVolumeWithAccountID(context.Background(), params.VolumeUUID, account.ID).Return(volume, nil)
 
 		quotaRule, operationID, err := _createQuotaRule(context.Background(), mockStore, mockTemporal, params)
 
@@ -197,6 +208,11 @@ func TestCreateQuotaRule(t *testing.T) {
 	t.Run("WhenValidateReplicationStateFails", func(tt *testing.T) {
 		mockStore := database.NewMockStorage(tt)
 		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-project",
+		}
 
 		params := &common.CreateQuotaRulesParam{
 			ProjectId:      "test-project",
@@ -222,7 +238,7 @@ func TestCreateQuotaRule(t *testing.T) {
 		}
 
 		// Mock getAccountWithName to succeed
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      accountName,
@@ -237,7 +253,7 @@ func TestCreateQuotaRule(t *testing.T) {
 
 		defer func() { validateQuotaRuleCreateParams = originalValidateQuotaRuleCreateParams }()
 		// Mock GetVolume to succeed
-		mockStore.EXPECT().GetVolume(context.Background(), params.VolumeUUID).Return(volume, nil)
+		mockStore.EXPECT().GetVolumeWithAccountID(context.Background(), params.VolumeUUID, account.ID).Return(volume, nil)
 
 		// Mock ListVolumeReplications to return error
 		expectedFilter := dbutils.CreateFilterWithConditions(
@@ -257,6 +273,11 @@ func TestCreateQuotaRule(t *testing.T) {
 		mockStore := database.NewMockStorage(tt)
 		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
 
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-project",
+		}
+
 		params := &common.CreateQuotaRulesParam{
 			ProjectId:      "test-project",
 			Name:           "quota-rule-1",
@@ -281,7 +302,7 @@ func TestCreateQuotaRule(t *testing.T) {
 		}
 
 		// Mock getAccountWithName to succeed
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      accountName,
@@ -296,7 +317,7 @@ func TestCreateQuotaRule(t *testing.T) {
 
 		defer func() { validateQuotaRuleCreateParams = originalValidateQuotaRuleCreateParams }()
 		// Mock GetVolume to succeed
-		mockStore.EXPECT().GetVolume(context.Background(), params.VolumeUUID).Return(volume, nil)
+		mockStore.EXPECT().GetVolumeWithAccountID(context.Background(), params.VolumeUUID, account.ID).Return(volume, nil)
 
 		// Mock ListVolumeReplications to return empty list (no replications)
 		mockStore.EXPECT().ListVolumeReplications(context.Background(), mock.Anything, database.QueryDepthZero).
@@ -317,6 +338,11 @@ func TestCreateQuotaRule(t *testing.T) {
 	t.Run("WhenValidateQuotaRuleUniquenessFails", func(tt *testing.T) {
 		mockStore := database.NewMockStorage(tt)
 		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-project",
+		}
 
 		params := &common.CreateQuotaRulesParam{
 			ProjectId:      "test-project",
@@ -354,7 +380,7 @@ func TestCreateQuotaRule(t *testing.T) {
 		}
 
 		// Mock getAccountWithName to succeed
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      accountName,
@@ -369,7 +395,7 @@ func TestCreateQuotaRule(t *testing.T) {
 
 		defer func() { validateQuotaRuleCreateParams = originalValidateQuotaRuleCreateParams }()
 		// Mock GetVolume to succeed
-		mockStore.EXPECT().GetVolume(context.Background(), params.VolumeUUID).Return(volume, nil)
+		mockStore.EXPECT().GetVolumeWithAccountID(context.Background(), params.VolumeUUID, account.ID).Return(volume, nil)
 
 		// Mock ListVolumeReplications to return empty list
 		mockStore.EXPECT().ListVolumeReplications(context.Background(), mock.Anything, database.QueryDepthZero).
@@ -391,6 +417,11 @@ func TestCreateQuotaRule(t *testing.T) {
 	t.Run("WhenDetermineRQuotaFails", func(tt *testing.T) {
 		mockStore := database.NewMockStorage(tt)
 		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-project",
+		}
 
 		params := &common.CreateQuotaRulesParam{
 			ProjectId:      "test-project",
@@ -420,7 +451,7 @@ func TestCreateQuotaRule(t *testing.T) {
 		existingQuotaRules := []*datamodel.QuotaRule{}
 
 		// Mock getAccountWithName to succeed
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      accountName,
@@ -435,7 +466,7 @@ func TestCreateQuotaRule(t *testing.T) {
 
 		defer func() { validateQuotaRuleCreateParams = originalValidateQuotaRuleCreateParams }()
 		// Mock GetVolume to succeed
-		mockStore.EXPECT().GetVolume(context.Background(), params.VolumeUUID).Return(volume, nil)
+		mockStore.EXPECT().GetVolumeWithAccountID(context.Background(), params.VolumeUUID, account.ID).Return(volume, nil)
 
 		// Mock ListVolumeReplications to return empty list
 		mockStore.EXPECT().ListVolumeReplications(context.Background(), mock.Anything, database.QueryDepthZero).
@@ -461,6 +492,11 @@ func TestCreateQuotaRule(t *testing.T) {
 		mockStore := database.NewMockStorage(tt)
 		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
 
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-project",
+		}
+
 		params := &common.CreateQuotaRulesParam{
 			ProjectId:      "test-project",
 			Name:           "quota-rule-1",
@@ -489,7 +525,7 @@ func TestCreateQuotaRule(t *testing.T) {
 		existingQuotaRules := []*datamodel.QuotaRule{}
 
 		// Mock getAccountWithName to succeed
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{
 				BaseModel: datamodel.BaseModel{ID: 1},
 				Name:      accountName,
@@ -504,7 +540,7 @@ func TestCreateQuotaRule(t *testing.T) {
 
 		defer func() { validateQuotaRuleCreateParams = originalValidateQuotaRuleCreateParams }()
 		// Mock GetVolume to succeed
-		mockStore.EXPECT().GetVolume(context.Background(), params.VolumeUUID).Return(volume, nil)
+		mockStore.EXPECT().GetVolumeWithAccountID(context.Background(), params.VolumeUUID, account.ID).Return(volume, nil)
 
 		// Mock ListVolumeReplications to return empty list
 		mockStore.EXPECT().ListVolumeReplications(context.Background(), mock.Anything, database.QueryDepthZero).
@@ -544,6 +580,11 @@ func TestCreateQuotaRule(t *testing.T) {
 		mockStore := database.NewMockStorage(tt)
 		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
 
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-project",
+		}
+
 		params := &common.CreateQuotaRulesParam{
 			ProjectId:      "test-project",
 			Name:           "quota-rule-1",
@@ -553,11 +594,6 @@ func TestCreateQuotaRule(t *testing.T) {
 			QuotaTarget:    "1000",
 			LocationId:     "us-central1",
 			Description:    "Test quota rule",
-		}
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			Name:      "test-project",
 		}
 
 		volume := &datamodel.Volume{
@@ -597,7 +633,7 @@ func TestCreateQuotaRule(t *testing.T) {
 
 		// Mock getAccountWithName to succeed
 		originalGetAccountWithName := getAccountWithName
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
 
@@ -610,7 +646,7 @@ func TestCreateQuotaRule(t *testing.T) {
 
 		defer func() { validateQuotaRuleCreateParams = originalValidateQuotaRuleCreateParams }()
 		// Mock GetVolume to succeed
-		mockStore.EXPECT().GetVolume(context.Background(), params.VolumeUUID).Return(volume, nil)
+		mockStore.EXPECT().GetVolumeWithAccountID(context.Background(), params.VolumeUUID, account.ID).Return(volume, nil)
 
 		// Mock ListVolumeReplications to return empty list (no replications)
 		expectedFilter := dbutils.CreateFilterWithConditions(
@@ -1485,7 +1521,9 @@ func TestValidateReplicationState(t *testing.T) {
 			Return(replications, nil)
 
 		err := validateReplicationState(context.Background(), mockStore, volume, "us-central1")
-		assert.NoError(tt, err)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "replication attributes are missing")
 	})
 
 	t.Run("WhenCurrentLocationMatchesDestinationLocation", func(tt *testing.T) {
@@ -1495,12 +1533,23 @@ func TestValidateReplicationState(t *testing.T) {
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
 		}
 
+		internalParseRegionAndZone = func(locationID string) (string, string, error) {
+			if locationID == "us-east1" {
+				return "us-east1", "", nil
+			}
+			if locationID == "us-central1-a" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
+		}
+
 		replications := []*datamodel.VolumeReplication{
 			{
 				State:              models.LifeCycleStateAvailable,
 				MirrorState:        nillable.ToPointer("Snapmirrored"),
 				RelationshipStatus: nillable.ToPointer("Healthy"),
 				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-east1",
 					DestinationLocation: locationID,
 				},
 			},
@@ -1520,6 +1569,16 @@ func TestValidateReplicationState(t *testing.T) {
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
 		}
 
+		internalParseRegionAndZone = func(locationID string) (string, string, error) {
+			if locationID == "us-east1" {
+				return "us-east1", "", nil
+			}
+			if locationID == "us-central1-a" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
+		}
+
 		mirrorState := "MIRRORED"
 		replications := []*datamodel.VolumeReplication{
 			{
@@ -1527,6 +1586,7 @@ func TestValidateReplicationState(t *testing.T) {
 				MirrorState:        &mirrorState,
 				RelationshipStatus: nillable.ToPointer("Healthy"),
 				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-east1",
 					DestinationLocation: locationID,
 				},
 			},
@@ -1548,6 +1608,16 @@ func TestValidateReplicationState(t *testing.T) {
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
 		}
 
+		internalParseRegionAndZone = func(locationID string) (string, string, error) {
+			if locationID == "us-east1" {
+				return "us-east1", "", nil
+			}
+			if locationID == "us-central1-a" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
+		}
+
 		mirrorState := "UNINITIALIZED"
 		replications := []*datamodel.VolumeReplication{
 			{
@@ -1555,6 +1625,7 @@ func TestValidateReplicationState(t *testing.T) {
 				MirrorState:        &mirrorState,
 				RelationshipStatus: nillable.ToPointer("Healthy"),
 				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-east1",
 					DestinationLocation: locationID,
 				},
 			},
@@ -1567,6 +1638,84 @@ func TestValidateReplicationState(t *testing.T) {
 		assert.Error(tt, err)
 		assert.True(tt, errors.IsUserInputValidationErr(err))
 		assert.Contains(tt, err.Error(), "UNINITIALIZED")
+	})
+
+	t.Run("WhenCurrentLocationMatchesDestinationLocationAndMirrorStateIssnapmirrored", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		locationID := "us-central1-a"
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
+		}
+
+		internalParseRegionAndZone = func(locationID string) (string, string, error) {
+			if locationID == "us-east1" {
+				return "us-east1", "", nil
+			}
+			if locationID == "us-central1-a" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
+		}
+
+		mirrorState := OntapSnapmirrored
+		replications := []*datamodel.VolumeReplication{
+			{
+				State:              models.LifeCycleStateAvailable,
+				MirrorState:        &mirrorState,
+				RelationshipStatus: nillable.ToPointer("Healthy"),
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-east1",
+					DestinationLocation: locationID,
+				},
+			},
+		}
+
+		mockStore.EXPECT().ListVolumeReplications(context.Background(), mock.Anything, database.QueryDepthZero).
+			Return(replications, nil)
+
+		err := validateReplicationState(context.Background(), mockStore, volume, locationID)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), OntapSnapmirrored)
+	})
+
+	t.Run("WhenCurrentLocationMatchesDestinationLocationAndMirrorStateIsuninitialized", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		locationID := "us-central1-a"
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
+		}
+
+		internalParseRegionAndZone = func(locationID string) (string, string, error) {
+			if locationID == "us-east1" {
+				return "us-east1", "", nil
+			}
+			if locationID == "us-central1-a" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
+		}
+
+		mirrorState := OntapUninitialized
+		replications := []*datamodel.VolumeReplication{
+			{
+				State:              models.LifeCycleStateAvailable,
+				MirrorState:        &mirrorState,
+				RelationshipStatus: nillable.ToPointer("Healthy"),
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-east1",
+					DestinationLocation: locationID,
+				},
+			},
+		}
+
+		mockStore.EXPECT().ListVolumeReplications(context.Background(), mock.Anything, database.QueryDepthZero).
+			Return(replications, nil)
+
+		err := validateReplicationState(context.Background(), mockStore, volume, locationID)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), OntapUninitialized)
 	})
 
 	t.Run("WhenParseProjectNumberFromURIFails", func(tt *testing.T) {
@@ -1583,6 +1732,7 @@ func TestValidateReplicationState(t *testing.T) {
 			{
 				RemoteUri: "invalid-uri",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
 					DestinationLocation: "us-east1-a",
 				},
 			},
@@ -1612,17 +1762,24 @@ func TestValidateReplicationState(t *testing.T) {
 		}()
 
 		utils.ParseProjectNumberFromURI = func(uri string) (string, error) {
-			return "123456789", nil
+			return "test-project", nil // Same project to pass cross-project check
 		}
 
 		internalParseRegionAndZone = func(locationID string) (string, string, error) {
-			return "", "", errors.New("failed to parse location")
+			if locationID == "us-central1" {
+				return "us-central1", "", nil
+			}
+			if locationID == "invalid-location" {
+				return "", "", fmt.Errorf("failed to parse location")
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
 		}
 
 		replications := []*datamodel.VolumeReplication{
 			{
-				RemoteUri: "https://test.com/projects/123456789/locations/us-east1",
+				RemoteUri: "https://test.com/projects/test-project/locations/us-east1",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
 					DestinationLocation: "invalid-location",
 				},
 			},
@@ -1652,11 +1809,17 @@ func TestValidateReplicationState(t *testing.T) {
 		}()
 
 		utils.ParseProjectNumberFromURI = func(uri string) (string, error) {
-			return "123456789", nil
+			return "test-project", nil // Same project to pass cross-project check
 		}
 
 		internalParseRegionAndZone = func(locationID string) (string, string, error) {
-			return "us-east1", "us-east1-a", nil
+			if locationID == "us-central1" {
+				return "us-central1", "", nil
+			}
+			if locationID == "us-east1-a" {
+				return "us-east1", "us-east1-a", nil
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
 		}
 
 		internalUtilGetPairedRegionURI = func(region string) (string, error) {
@@ -1665,8 +1828,9 @@ func TestValidateReplicationState(t *testing.T) {
 
 		replications := []*datamodel.VolumeReplication{
 			{
-				RemoteUri: "https://test.com/projects/123456789/locations/us-east1",
+				RemoteUri: "https://test.com/projects/test-project/locations/us-east1",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
 					DestinationLocation: "us-east1-a",
 				},
 			},
@@ -1700,18 +1864,11 @@ func TestValidateReplicationState(t *testing.T) {
 			return "987654321", nil // Different project number
 		}
 
-		internalParseRegionAndZone = func(locationID string) (string, string, error) {
-			return "us-east1", "us-east1-a", nil
-		}
-
-		internalUtilGetPairedRegionURI = func(region string) (string, error) {
-			return "https://us-east1.test.com", nil
-		}
-
 		replications := []*datamodel.VolumeReplication{
 			{
 				RemoteUri: "https://test.com/projects/987654321/locations/us-east1",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
 					DestinationLocation: "us-east1-a",
 				},
 			},
@@ -1746,7 +1903,13 @@ func TestValidateReplicationState(t *testing.T) {
 		}
 
 		internalParseRegionAndZone = func(locationID string) (string, string, error) {
-			return "us-east1", "us-east1-a", nil
+			if locationID == "us-central1" {
+				return "us-central1", "", nil
+			}
+			if locationID == "us-east1-a" {
+				return "us-east1", "us-east1-a", nil
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
 		}
 
 		internalUtilGetPairedRegionURI = func(region string) (string, error) {
@@ -1761,6 +1924,7 @@ func TestValidateReplicationState(t *testing.T) {
 			{
 				RemoteUri: "https://test.com/projects/123456789/locations/us-east1",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
 					DestinationLocation: "us-east1-a",
 				},
 			},
@@ -1794,7 +1958,13 @@ func TestValidateReplicationState(t *testing.T) {
 		}
 
 		internalParseRegionAndZone = func(locationID string) (string, string, error) {
-			return "us-east1", "us-east1-a", nil
+			if locationID == "us-central1" {
+				return "us-central1", "", nil
+			}
+			if locationID == "us-east1-a" {
+				return "us-east1", "us-east1-a", nil
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
 		}
 
 		internalUtilGetPairedRegionURI = func(region string) (string, error) {
@@ -1813,6 +1983,7 @@ func TestValidateReplicationState(t *testing.T) {
 			{
 				RemoteUri: "https://test.com/projects/123456789/locations/us-east1",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "us-central1",
 					DestinationLocation:        "us-east1-a",
 					DestinationReplicationUUID: "replication-uuid-123",
 				},
@@ -1847,7 +2018,13 @@ func TestValidateReplicationState(t *testing.T) {
 		}
 
 		internalParseRegionAndZone = func(locationID string) (string, string, error) {
-			return "us-east1", "us-east1-a", nil
+			if locationID == "us-central1" {
+				return "us-central1", "", nil
+			}
+			if locationID == "us-east1-a" {
+				return "us-east1", "us-east1-a", nil
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
 		}
 
 		internalUtilGetPairedRegionURI = func(region string) (string, error) {
@@ -1868,6 +2045,7 @@ func TestValidateReplicationState(t *testing.T) {
 			{
 				RemoteUri: "https://test.com/projects/123456789/locations/us-east1",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "us-central1",
 					DestinationLocation:        "us-east1-a",
 					DestinationReplicationUUID: "replication-uuid-123",
 				},
@@ -1903,7 +2081,13 @@ func TestValidateReplicationState(t *testing.T) {
 		}
 
 		internalParseRegionAndZone = func(locationID string) (string, string, error) {
-			return "us-east1", "us-east1-a", nil
+			if locationID == "us-central1" {
+				return "us-central1", "", nil
+			}
+			if locationID == "us-east1-a" {
+				return "us-east1", "us-east1-a", nil
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
 		}
 
 		internalUtilGetPairedRegionURI = func(region string) (string, error) {
@@ -1924,6 +2108,7 @@ func TestValidateReplicationState(t *testing.T) {
 			{
 				RemoteUri: "https://test.com/projects/123456789/locations/us-east1",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "us-central1",
 					DestinationLocation:        "us-east1-a",
 					DestinationReplicationUUID: "replication-uuid-123",
 				},
@@ -1959,7 +2144,13 @@ func TestValidateReplicationState(t *testing.T) {
 		}
 
 		internalParseRegionAndZone = func(locationID string) (string, string, error) {
-			return "us-east1", "us-east1-a", nil
+			if locationID == "us-central1" {
+				return "us-central1", "", nil
+			}
+			if locationID == "us-east1-a" {
+				return "us-east1", "us-east1-a", nil
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
 		}
 
 		internalUtilGetPairedRegionURI = func(region string) (string, error) {
@@ -1980,6 +2171,7 @@ func TestValidateReplicationState(t *testing.T) {
 			{
 				RemoteUri: "https://test.com/projects/123456789/locations/us-east1",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "us-central1",
 					DestinationLocation:        "us-east1-a",
 					DestinationReplicationUUID: "replication-uuid-123",
 				},
@@ -1993,6 +2185,376 @@ func TestValidateReplicationState(t *testing.T) {
 		assert.Error(tt, err)
 		assert.True(tt, errors.IsUserInputValidationErr(err))
 		assert.Contains(tt, err.Error(), "Quota update not allowed on destination volume when in active replication")
+	})
+
+	t.Run("WhenCrossProjectReplicationWithRemoteUri", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-project-123",
+			},
+		}
+
+		originalParseProjectNumberFromURI := utils.ParseProjectNumberFromURI
+		defer func() {
+			utils.ParseProjectNumberFromURI = originalParseProjectNumberFromURI
+		}()
+
+		utils.ParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "different-project-456", nil // Different project number
+		}
+
+		internalParseRegionAndZone = func(locationID string) (string, string, error) {
+			if locationID == "us-central1" {
+				return "us-central1", "", nil
+			}
+			if locationID == "us-east1-a" {
+				return "us-east1", "us-east1-a", nil
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
+		}
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				RemoteUri: "https://test.com/projects/different-project-456/locations/us-east1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
+					DestinationLocation: "us-east1-a",
+				},
+			},
+		}
+
+		mockStore.EXPECT().ListVolumeReplications(context.Background(), mock.Anything, database.QueryDepthZero).
+			Return(replications, nil)
+
+		err := validateReplicationState(context.Background(), mockStore, volume, "us-central1-a")
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "cross project replication")
+	})
+
+	t.Run("WhenCrossProjectReplicationWithoutRemoteUri", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		locationID := "us-central1-a"
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-project",
+			},
+		}
+
+		internalParseRegionAndZone = func(locationID string) (string, string, error) {
+			if locationID == "us-east1" {
+				return "us-east1", "", nil
+			}
+			if locationID == "us-central1-a" {
+				return "us-central1", "us-central1-a", nil
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
+		}
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				RemoteUri: "", // Empty RemoteUri - destination side
+				State:     models.LifeCycleStateAvailable,
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-east1",
+					DestinationLocation: locationID,
+				},
+			},
+		}
+
+		mockStore.EXPECT().ListVolumeReplications(context.Background(), mock.Anything, database.QueryDepthZero).
+			Return(replications, nil)
+
+		err := validateReplicationState(context.Background(), mockStore, volume, locationID)
+		// Should pass because cross-project check is skipped when RemoteUri is empty
+		// But will fail on mirror state check if mirror state is set
+		// For this test, we don't set mirror state, so it should pass
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenInRegionReplication", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-project",
+			},
+		}
+
+		internalParseRegionAndZone = func(locationID string) (string, string, error) {
+			// Both locations are in the same region
+			if locationID == "us-central1" || locationID == "us-central1-a" {
+				return "us-central1", "", nil
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
+		}
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
+					DestinationLocation: "us-central1-a",
+				},
+			},
+		}
+
+		mockStore.EXPECT().ListVolumeReplications(context.Background(), mock.Anything, database.QueryDepthZero).
+			Return(replications, nil)
+
+		err := validateReplicationState(context.Background(), mockStore, volume, "us-central1-a")
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "in-region replication")
+	})
+
+	t.Run("WhenInRegionReplicationWithSourceParseError", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
+		}
+
+		internalParseRegionAndZone = func(locationID string) (string, string, error) {
+			if locationID == "invalid-source-location" {
+				return "", "", fmt.Errorf("failed to parse source location")
+			}
+			if locationID == "us-east1-a" {
+				return "us-east1", "us-east1-a", nil
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
+		}
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "invalid-source-location",
+					DestinationLocation: "us-east1-a",
+				},
+			},
+		}
+
+		mockStore.EXPECT().ListVolumeReplications(context.Background(), mock.Anything, database.QueryDepthZero).
+			Return(replications, nil)
+
+		err := validateReplicationState(context.Background(), mockStore, volume, "us-central1-a")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Failed to parse source location")
+	})
+
+	t.Run("WhenInRegionReplicationWithDestParseError", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
+		}
+
+		internalParseRegionAndZone = func(locationID string) (string, string, error) {
+			if locationID == "us-central1" {
+				return "us-central1", "", nil
+			}
+			if locationID == "invalid-dest-location" {
+				return "", "", fmt.Errorf("failed to parse destination location")
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
+		}
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
+					DestinationLocation: "invalid-dest-location",
+				},
+			},
+		}
+
+		mockStore.EXPECT().ListVolumeReplications(context.Background(), mock.Anything, database.QueryDepthZero).
+			Return(replications, nil)
+
+		err := validateReplicationState(context.Background(), mockStore, volume, "us-central1-a")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Failed to parse destination location")
+	})
+
+	t.Run("WhenCrossRegionReplicationAllowed", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-project",
+			},
+		}
+
+		originalParseProjectNumberFromURI := utils.ParseProjectNumberFromURI
+		defer func() {
+			utils.ParseProjectNumberFromURI = originalParseProjectNumberFromURI
+		}()
+
+		utils.ParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "test-project", nil // Same project
+		}
+
+		internalParseRegionAndZone = func(locationID string) (string, string, error) {
+			if locationID == "us-central1" {
+				return "us-central1", "", nil
+			}
+			if locationID == "us-east1-a" {
+				return "us-east1", "us-east1-a", nil
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
+		}
+
+		internalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "https://us-east1.test.com", nil
+		}
+
+		internalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "test-token", nil
+		}
+
+		getDestinationReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*models.VolumeReplication, error) {
+			return &models.VolumeReplication{
+				State: models.LifeCycleStateAvailable,
+			}, nil
+		}
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				RemoteUri: "https://test.com/projects/test-project/locations/us-east1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "us-central1",
+					DestinationLocation:        "us-east1-a",
+					DestinationReplicationUUID: "replication-uuid-123",
+				},
+			},
+		}
+
+		mockStore.EXPECT().ListVolumeReplications(context.Background(), mock.Anything, database.QueryDepthZero).
+			Return(replications, nil)
+
+		err := validateReplicationState(context.Background(), mockStore, volume, "us-central1-a")
+		// Cross-region replication (different regions) should be allowed
+		assert.NoError(tt, err)
+	})
+
+	// Coverage for lines 133-134: volume.Account == nil when replication.RemoteUri != ""
+	t.Run("WhenVolumeAccountIsNilWithRemoteUriSet", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
+			Account:   nil, // nil account - triggers lines 133-134
+		}
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				RemoteUri: "https://test.com/projects/987654321/locations/us-east1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
+					DestinationLocation: "us-east1-a",
+				},
+			},
+		}
+
+		mockStore.EXPECT().ListVolumeReplications(context.Background(), mock.Anything, database.QueryDepthZero).
+			Return(replications, nil)
+
+		err := validateReplicationState(context.Background(), mockStore, volume, "us-central1-a")
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "volume account information is missing")
+	})
+
+	// Coverage for lines 194-195: source side (DestinationLocation != locationID) but RemoteUri == ""
+	t.Run("WhenSourceSideRemoteUriEmpty", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
+		}
+
+		internalParseRegionAndZone = func(locationID string) (string, string, error) {
+			if locationID == "us-central1" || locationID == "us-central1-a" {
+				return "us-central1", "", nil
+			}
+			if locationID == "us-east1-a" {
+				return "us-east1", "us-east1-a", nil
+			}
+			return "", "", fmt.Errorf("unexpected location: %s", locationID)
+		}
+
+		// Current location is us-central1-a (source); destination is us-east1-a. RemoteUri is empty.
+		replications := []*datamodel.VolumeReplication{
+			{
+				RemoteUri: "", // empty - triggers lines 194-195
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:      "us-central1",
+					DestinationLocation: "us-east1-a",
+				},
+			},
+		}
+
+		mockStore.EXPECT().ListVolumeReplications(context.Background(), mock.Anything, database.QueryDepthZero).
+			Return(replications, nil)
+
+		err := validateReplicationState(context.Background(), mockStore, volume, "us-central1-a")
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "remote URI is missing for source replication")
+	})
+}
+
+func Test_listQuotaRules(t *testing.T) {
+	// Coverage for lines 1279-1282: getAccountWithName fails
+	t.Run("WhenGetAccountWithNameFails", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		params := &common.ListQuotaRulesParams{
+			AccountName: "test-account",
+			VolumeID:    "volume-uuid-1",
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("failed to get account")
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		result, err := _listQuotaRules(context.Background(), mockStore, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "failed to get account")
+	})
+
+	// Coverage for line 1286: GetVolumeWithAccountID fails
+	t.Run("WhenGetVolumeWithAccountIDFails", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		params := &common.ListQuotaRulesParams{
+			AccountName: "test-account",
+			VolumeID:    "volume-uuid-1",
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-account",
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStore.EXPECT().GetVolumeWithAccountID(context.Background(), params.VolumeID, account.ID).
+			Return(nil, errors.New("volume not found"))
+
+		result, err := _listQuotaRules(context.Background(), mockStore, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "volume not found")
 	})
 }
 
@@ -2101,6 +2663,11 @@ func TestCreateQuotaRuleErrorPaths(t *testing.T) {
 		mockStore := database.NewMockStorage(tt)
 		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
 
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-project",
+		}
+
 		params := &common.CreateQuotaRulesParam{
 			ProjectId:      "test-project",
 			Name:           "quota-rule-1",
@@ -2109,11 +2676,6 @@ func TestCreateQuotaRuleErrorPaths(t *testing.T) {
 			DiskLimitInMib: 100,
 			QuotaTarget:    "1000",
 			LocationId:     "us-central1",
-		}
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			Name:      "test-project",
 		}
 
 		volume := &datamodel.Volume{
@@ -2142,7 +2704,7 @@ func TestCreateQuotaRuleErrorPaths(t *testing.T) {
 		}
 
 		defer func() { validateQuotaRuleCreateParams = originalValidateQuotaRuleCreateParams }()
-		mockStore.EXPECT().GetVolume(context.Background(), params.VolumeUUID).Return(volume, nil)
+		mockStore.EXPECT().GetVolumeWithAccountID(context.Background(), params.VolumeUUID, account.ID).Return(volume, nil)
 		mockStore.EXPECT().ListVolumeReplications(context.Background(), mock.Anything, database.QueryDepthZero).
 			Return([]*datamodel.VolumeReplication{}, nil)
 		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
@@ -2165,6 +2727,11 @@ func TestCreateQuotaRuleErrorPaths(t *testing.T) {
 		mockStore := database.NewMockStorage(tt)
 		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
 
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-project",
+		}
+
 		params := &common.CreateQuotaRulesParam{
 			ProjectId:      "test-project",
 			Name:           "quota-rule-1",
@@ -2173,11 +2740,6 @@ func TestCreateQuotaRuleErrorPaths(t *testing.T) {
 			DiskLimitInMib: 100,
 			QuotaTarget:    "1000",
 			LocationId:     "us-central1",
-		}
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			Name:      "test-project",
 		}
 
 		volume := &datamodel.Volume{
@@ -2214,7 +2776,7 @@ func TestCreateQuotaRuleErrorPaths(t *testing.T) {
 		}
 
 		defer func() { validateQuotaRuleCreateParams = originalValidateQuotaRuleCreateParams }()
-		mockStore.EXPECT().GetVolume(context.Background(), params.VolumeUUID).Return(volume, nil)
+		mockStore.EXPECT().GetVolumeWithAccountID(context.Background(), params.VolumeUUID, account.ID).Return(volume, nil)
 		mockStore.EXPECT().ListVolumeReplications(context.Background(), mock.Anything, database.QueryDepthZero).
 			Return([]*datamodel.VolumeReplication{}, nil)
 		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
@@ -2806,8 +3368,7 @@ func TestCreateQuotaRuleInternal(t *testing.T) {
 
 		defer func() { validateQuotaRuleCreateParams = originalValidateQuotaRuleCreateParams }()
 		mockStore.EXPECT().GetVolume(context.Background(), params.VolumeUUID).Return(volume, nil)
-		mockStore.EXPECT().ListVolumeReplications(context.Background(), mock.Anything, database.QueryDepthZero).
-			Return([]*datamodel.VolumeReplication{}, nil)
+		// Note: _createQuotaRuleInternal skips replication validation, so no ListVolumeReplications call
 		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
 			Return(existingQuotaRules, nil)
 		mockStore.EXPECT().GetQuotaRuleCountBySvmID(context.Background(), volume.SvmID).
@@ -2821,11 +3382,11 @@ func TestCreateQuotaRuleInternal(t *testing.T) {
 		mockStore.EXPECT().DeleteQuotaRule(context.Background(), createdQuotaRule.UUID).
 			Return(nil, errors.New("failed to delete quota rule"))
 
-		quotaRule, operationID, err := _createQuotaRule(context.Background(), mockStore, mockTemporal, params)
+		quotaRule, job, err := _createQuotaRuleInternal(context.Background(), mockStore, mockTemporal, params)
 
 		assert.Error(tt, err)
 		assert.Nil(tt, quotaRule)
-		assert.Empty(tt, operationID)
+		assert.Nil(tt, job)
 		assert.Contains(tt, err.Error(), "failed to create job")
 		// The defer function should have logged the DeleteQuotaRule error but not fail the test
 	})

@@ -446,8 +446,9 @@ func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}
 				}
 			}
 		} else {
-			// Other failure - return error (revert will be handled by defer)
+			// Other failure - set err so defer marks quota rule in error state; revert will be handled by defer
 			logger.Errorf("Quota delete failed with unexpected error: %s", deleteQuotaRuleResp.Message)
+			err = customerrors.NewUserInputValidationErr(deleteQuotaRuleResp.Message)
 			return nil, ConvertToVSAError(err)
 		}
 	}

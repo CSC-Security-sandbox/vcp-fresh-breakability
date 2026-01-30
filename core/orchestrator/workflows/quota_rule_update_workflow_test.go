@@ -707,9 +707,9 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 
 		env.ExecuteWorkflow(UpdateQuotaRuleWorkflow, params, quotaRule)
 
-		// Workflow completes successfully even if destination update fails (it reverts source)
+		// After revert succeeds, workflow returns original error so defer marks quota rule in error state
 		assert.True(tt, env.IsWorkflowCompleted())
-		assert.NoError(tt, env.GetWorkflowError())
+		assert.Error(tt, env.GetWorkflowError())
 	})
 
 	t.Run("WhenUpdateQuotaRuleStateFails", func(tt *testing.T) {
@@ -1289,6 +1289,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.RegisterActivity(quotaRuleCommonActivity.VerifyReplicationState)
 		env.RegisterActivity(quotaRuleCommonActivity.GetSignedDstTokenForQuotaRule)
 		env.RegisterActivity(quotaRuleCommonActivity.GetMatchingQuotaRuleOnDestination)
+		env.RegisterActivity(quotaRuleActivity.UpdateQuotaRuleOnDestination)
 		env.RegisterActivity(quotaRuleActivity.RevertQuotaRulesOnSource)
 		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
@@ -1325,6 +1326,8 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		jwtToken := "test-jwt-token"
 		env.OnActivity("GetSignedDstTokenForQuotaRule", mock.Anything, "987654321").Return(&jwtToken, nil)
 		env.OnActivity("GetMatchingQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", "us-west1-a", "987654321", quotaRule.Name, &jwtToken).Return(emptyStringPtr, nil) // Returns empty string
+		// Empty destination ID causes UpdateQuotaRuleOnDestination to fail; workflow reverts and returns error so defer marks quota rule in error state
+		env.OnActivity("UpdateQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", "", int64(200*1024*1024), "us-west1-a", "987654321", &jwtToken).Return(nil, errors.New("destination quota rule id is empty"))
 		env.OnActivity("RevertQuotaRulesOnSource", mock.Anything, "quota-uuid-123", mock.Anything, quotaRule.DiskLimitInKib).Return(nil)
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -1337,9 +1340,9 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 
 		env.ExecuteWorkflow(UpdateQuotaRuleWorkflow, params, quotaRule)
 
-		// When destination quota rule ID is empty, workflow reverts source and completes successfully
+		// When destination quota rule ID is empty, UpdateQuotaRuleOnDestination fails; workflow reverts source and returns error (defer marks quota rule in error state)
 		assert.True(tt, env.IsWorkflowCompleted())
-		assert.NoError(tt, env.GetWorkflowError())
+		assert.Error(tt, env.GetWorkflowError())
 	})
 
 	t.Run("WhenQuotaUpdateWorkflowSucceedsWithNoReplicationSync", func(tt *testing.T) {
