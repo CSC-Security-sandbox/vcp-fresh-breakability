@@ -16,6 +16,8 @@ import (
 const (
 	// ErrMsgVolumeMaxSizeExceeded is the error message pattern returned by ONTAP when volume size exceeds maximum
 	ErrMsgVolumeMaxSizeExceeded = "failed because the resulting volume size is greater than the maximum size"
+	// ErrMsgVolumeSizeTooSmall is the error message pattern returned by ONTAP when volume size is too small to hold current data
+	ErrMsgVolumeSizeTooSmall = "Selected volume size is too small to hold the current volume data"
 )
 
 var (
@@ -468,6 +470,26 @@ func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 				return vsaerrors.NewVCPError(vsaerrors.ErrVolumeExceedsMaximumSize,
 					errors.NewUserInputValidationErr(sanitizedError))
 			}
+		}
+		// Check for volume size too small error
+		if strings.Contains(err.Error(), ErrMsgVolumeSizeTooSmall) {
+			// Extract the minimum required size from the error message if available
+			minSizeStart := strings.Index(err.Error(), "New volume size must be at least ")
+			var sanitizedError string
+			if minSizeStart >= 0 {
+				// Extract the minimum size requirement
+				minSizeEnd := strings.Index(err.Error()[minSizeStart:], " to hold")
+				if minSizeEnd > 0 {
+					minSizeStr := err.Error()[minSizeStart : minSizeStart+minSizeEnd]
+					sanitizedError = fmt.Sprintf("Selected volume size is too small to hold the current volume data. %s", minSizeStr)
+				} else {
+					sanitizedError = "Selected volume size is too small to hold the current volume data. Please increase the volume size."
+				}
+			} else {
+				sanitizedError = "Selected volume size is too small to hold the current volume data. Please increase the volume size."
+			}
+			return vsaerrors.NewVCPError(vsaerrors.ErrVolumeSizeTooSmall,
+				errors.NewUserInputValidationErr(sanitizedError))
 		}
 		return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 	}

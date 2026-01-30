@@ -383,6 +383,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "5017": {
+    "description": "Volume size too small to hold current data",
+    "message": "Selected volume size is too small to hold the current volume data. Please increase the volume size.",
+    "retriable": false,
+    "http_code": 400
+  },
   "6020": {
     "description": "IAM client Not Found",
     "message": "IAM client Not Found",

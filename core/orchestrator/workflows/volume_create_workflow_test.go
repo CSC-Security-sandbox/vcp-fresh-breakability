@@ -536,6 +536,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshotWithThinCloneTy
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, AvailableSpace: 10}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "hg1", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1"}}}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -549,6 +550,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshotWithThinCloneTy
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, AvailableSpace: 10}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAutoTieringPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// This activity should NOT be called for THIN clone type
 	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("InitiateSplitForVolume should not be called for THIN clone type"))
@@ -5329,6 +5331,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshot_UsesUpdateLunN
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, AvailableSpace: 10}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "hg1", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1"}}}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// UpdateLunName must be used; CreateLun must not be used
@@ -5346,6 +5349,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshot_UsesUpdateLunN
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, AvailableSpace: 10}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAutoTieringPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -5357,6 +5361,54 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshot_UsesUpdateLunN
 	assert.Nil(s.T(), err)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshot_UpdateVolumeAutoTieringPolicyInONTAP_Error() {
+	// Test error path when UpdateVolumeAutoTieringPolicyInONTAP fails (line 1001)
+	// Arrange
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Account: &datamodel.Account{Name: "account-1"},
+		Pool: &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{Password: "password"},
+		},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+		Name:             "test-volume",
+	}
+
+	// Snapshot parameters to trigger isRestoreSnapshot=true
+	snapshot := &datamodel.Snapshot{BaseModel: datamodel.BaseModel{ID: 123, UUID: "snap-uuid"}}
+	params := &common.CreateVolumeParams{AccountName: "account-1", SnapshotID: "snap-uuid", Snapshot: snapshot}
+
+	// Mocks for activities used in the full workflow
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, AvailableSpace: 10}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "hg1", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1"}}}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, AvailableSpace: 10}, nil)
+	// This should fail to trigger the error path at line 1001
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAutoTieringPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update auto tiering policy"))
+	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Act
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
+
+	// Assert
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	err := s.env.GetWorkflowError()
+	assert.NotNil(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "failed to update auto tiering policy for clone volume")
 }
 
 func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateVolumeStateInDBError() {

@@ -1738,6 +1738,113 @@ func TestUpdateVolume_SetsUnixPermissions(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
+func TestUpdateVolume_WithVolumeSizeTooSmallError(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	params := UpdateVolumeParams{
+		UUID:               "testUUID",
+		Size:               100 * 1024 * 1024, // 100MB - too small
+		SnapshotPolicyName: "testSnapshot",
+	}
+
+	// Test with ONTAP error message that includes minimum size requirement
+	ontapErrorMsg := "Selected volume size is too small to hold the current volume data. New volume size must be at least 500GB (536870912000B) to hold the current volume data"
+	mockStorage.On("VolumeModify", mock.Anything).Return(false, nil, errors.New(ontapErrorMsg)).Once()
+
+	err := rc.UpdateVolume(params)
+
+	assert.Error(t, err)
+	customErr, ok := err.(*vsaerrors.CustomError)
+	assert.True(t, ok, "Error should be of type *vsaerrors.CustomError")
+	assert.Equal(t, vsaerrors.ErrVolumeSizeTooSmall, customErr.TrackingID)
+	assert.Contains(t, err.Error(), "Selected volume size is too small to hold the current volume data")
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestUpdateVolume_WithVolumeSizeTooSmallErrorButNoMinSizeInfo(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	params := UpdateVolumeParams{
+		UUID:               "testUUID",
+		Size:               100 * 1024 * 1024, // 100MB - too small
+		SnapshotPolicyName: "testSnapshot",
+	}
+
+	// Test with ONTAP error message that mentions size too small but doesn't include the specific size info
+	ontapErrorMsg := "Selected volume size is too small to hold the current volume data"
+	mockStorage.On("VolumeModify", mock.Anything).Return(false, nil, errors.New(ontapErrorMsg)).Once()
+
+	err := rc.UpdateVolume(params)
+
+	assert.Error(t, err)
+	customErr, ok := err.(*vsaerrors.CustomError)
+	assert.True(t, ok, "Error should be of type *vsaerrors.CustomError")
+	assert.Equal(t, vsaerrors.ErrVolumeSizeTooSmall, customErr.TrackingID)
+	assert.Contains(t, err.Error(), "Selected volume size is too small to hold the current volume data")
+	assert.Contains(t, err.Error(), "Please increase the volume size")
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestUpdateVolume_WithVolumeSizeTooSmallErrorWithPartialMinSizeInfo(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	params := UpdateVolumeParams{
+		UUID:               "testUUID",
+		Size:               100 * 1024 * 1024, // 100MB - too small
+		SnapshotPolicyName: "testSnapshot",
+	}
+
+	// Test with ONTAP error message that has "New volume size must be at least" but no " to hold" delimiter
+	ontapErrorMsg := "Selected volume size is too small to hold the current volume data. New volume size must be at least 500GB"
+	mockStorage.On("VolumeModify", mock.Anything).Return(false, nil, errors.New(ontapErrorMsg)).Once()
+
+	err := rc.UpdateVolume(params)
+
+	assert.Error(t, err)
+	customErr, ok := err.(*vsaerrors.CustomError)
+	assert.True(t, ok, "Error should be of type *vsaerrors.CustomError")
+	assert.Equal(t, vsaerrors.ErrVolumeSizeTooSmall, customErr.TrackingID)
+	assert.Contains(t, err.Error(), "Selected volume size is too small to hold the current volume data")
+	assert.Contains(t, err.Error(), "Please increase the volume size")
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
 func TestUpdateVolume_WithQosPolicy(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)

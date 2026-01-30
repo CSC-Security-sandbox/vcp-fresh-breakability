@@ -114,6 +114,7 @@ const (
 	ErrOntapAggregateCountMismatch     = 5014
 	ErrOfflineAggregateError           = 5015
 	ErrDNSServerUnreachable            = 5016
+	ErrVolumeSizeTooSmall              = 5017
 
 	ErrIamClientNotFoundError      = 6020
 	ErrFailedToParseProjectNumber  = 6021

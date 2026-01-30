@@ -90,6 +90,7 @@ waitForTemporalEnabled: false
 metricsDbCleanupEnabled: false
 volumeRefreshIntervalMinutes: "5"
 thinCloneGASupport: false
+validateCloneATPolicyMatchParent: false
 enableCloneInfoRefresh: true
 maxThinClonesPerPool: 100
 enableAutoPoolScaling: true

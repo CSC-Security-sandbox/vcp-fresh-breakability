@@ -108,6 +108,7 @@ data:
   METRICS_DB_CLEANUP_ENABLED: "{{ index .Values "metricsDbCleanupEnabled" }}"
   VOLUME_REFRESH_INTERVAL_MINUTES: "{{ index .Values "volumeRefreshIntervalMinutes" }}"
   THIN_CLONE_GA_SUPPORT: "{{ index .Values "thinCloneGASupport" }}"
+  VALIDATE_CLONE_AT_POLICY_MATCH_PARENT: "{{ index .Values "validateCloneATPolicyMatchParent" }}"
   ENABLE_CLONE_INFO_REFRESH: "{{ index .Values "enableCloneInfoRefresh" }}"
   MAX_THIN_CLONES_PER_POOL: "{{ index .Values "maxThinClonesPerPool" }}"
   ENABLE_AUTO_POOL_SCALING: "{{ index .Values "enableAutoPoolScaling" }}"

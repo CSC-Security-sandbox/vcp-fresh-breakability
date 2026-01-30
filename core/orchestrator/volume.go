@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
+	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -45,6 +46,7 @@ var (
 	volumeRefreshIntervalMinutes         = env.GetInt("VOLUME_REFRESH_INTERVAL_MINUTES", 5)
 	maxThinClonesPerPool                 = env.GetInt64("MAX_THIN_CLONES_PER_POOL", 100)
 	thinCloneGASupport                   = env.GetBool("THIN_CLONE_GA_SUPPORT", false)
+	validateCloneATPolicyMatchParent     = env.GetBool("VALIDATE_CLONE_AT_POLICY_MATCH_PARENT", false)
 	minQuotaInBytesVolume                = utils.MinQuotaInBytesVolumeForVolume
 	maxQuotaInBytesVolume                = utils.MaxQuotaInBytesVolumeForVolume
 	createVolume                         = _createVolume
@@ -268,20 +270,43 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 				return nil, "", customerrors.NewUserInputValidationErr("Snapshot volume protocol type does not match requested volume protocol type. Please use the correct snapshot and retry again.")
 			}
 		}
-		if dbSnapshot.State != models.LifeCycleStateREADY {
+		if dbSnapshot != nil && dbSnapshot.State != models.LifeCycleStateREADY {
 			logger.Error("Parent snapshot is not in a valid state for volume creation", "snapshot_state", dbSnapshot.State)
 			return nil, "", customerrors.NewUserInputValidationErr("Parent snapshot is not in a valid state for volume creation. Please wait for the snapshot to be ready and retry again.")
 		}
 
-		if dbSnapshot.Volume != nil {
+		if dbSnapshot != nil && dbSnapshot.Volume != nil {
 			parentVolumeUUID = dbSnapshot.Volume.UUID
 		}
 
-		if dbSnapshot.Volume != nil && dbSnapshot.Volume.LargeVolumeAttributes != nil && dbSnapshot.Volume.LargeVolumeAttributes.LargeVolumeConstituentCount != nil {
+		if dbSnapshot != nil && dbSnapshot.Volume != nil && dbSnapshot.Volume.LargeVolumeAttributes != nil && dbSnapshot.Volume.LargeVolumeAttributes.LargeVolumeConstituentCount != nil {
 			params.LargeVolumeConstituentCount = *dbSnapshot.Volume.LargeVolumeAttributes.LargeVolumeConstituentCount
 		}
 		params.Snapshot = dbSnapshot
-		clonesSharedBytes = uint64(dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes)
+		if dbSnapshot != nil && dbSnapshot.SnapshotAttributes != nil {
+			clonesSharedBytes = uint64(dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes)
+		}
+
+		// Validate auto tiering policy compatibility between parent and clone
+		// If parent volume has "all" tiering policy (cloud write enabled) and clone tries to use "auto" policy,
+		// ONTAP will reject it. Validate this upfront before creating the workflow.
+		if dbSnapshot != nil && dbSnapshot.Volume != nil && dbSnapshot.Volume.AutoTieringPolicy != nil &&
+			dbSnapshot.Volume.AutoTieringPolicy.TieringPolicy == ontapModels.VolumeInlineTieringPolicyAll {
+			// Parent has "all" tiering policy (cloud write enabled)
+			if params.AutoTieringPolicy != nil && params.AutoTieringPolicy.AutoTieringEnabled && params.AutoTieringPolicy.TieringPolicy == ontapModels.VolumeInlineTieringPolicyAuto {
+				logger.Error("Cannot create clone with 'auto' tiering policy when parent volume has 'all' tiering policy (cloud write enabled)", "parent_volume_uuid", dbSnapshot.Volume.UUID, "clone_tiering_policy", params.AutoTieringPolicy.TieringPolicy)
+				return nil, "", customerrors.NewUserInputValidationErr("Only the 'all' tiering policy is allowed for this clone volume because the parent volume has cloud write mode enabled. Please use 'all' tiering policy for this clone.")
+			}
+		}
+
+		// Validate clone AT policy matches parent volume AT policy if flag is enabled
+		if validateCloneATPolicyMatchParent && dbSnapshot != nil && dbSnapshot.Volume != nil {
+			parentVolume := dbSnapshot.Volume
+			if err := validateCloneATPolicyMatchParentVolume(parentVolume, params.AutoTieringPolicy); err != nil {
+				logger.Error("Clone volume auto tiering policy does not match parent volume", "parent_volume_uuid", parentVolume.UUID, "error", err)
+				return nil, "", err
+			}
+		}
 	}
 	dbPool := database.ConvertPoolViewToPool(pool)
 	ldapEnabled := false
@@ -3068,6 +3093,94 @@ func _validateSplitCloneVolumeParams(ctx context.Context, volume *datamodel.Volu
 	if pool.QuotaInBytes+volume.ClonesSharedBytes > uint64(pool.SizeInBytes) {
 		logger.Errorf("Insufficient space in pool %s to split the clone volume %s", pool.Name, volume.Name)
 		return customerrors.NewUserInputValidationErr("insufficient space in pool to split the clone volume, please free up space and try again")
+	}
+
+	return nil
+}
+
+// validateCloneATPolicyMatchParentVolume validates that the clone volume's auto tiering policy matches the parent volume's policy
+func validateCloneATPolicyMatchParentVolume(parentVolume *datamodel.Volume, cloneATPolicy *common.AutoTieringPolicy) error {
+	parentATEnabled := parentVolume.AutoTieringEnabled
+	parentHasATPolicy := parentVolume.AutoTieringPolicy != nil || parentATEnabled
+	
+	// If parent has no AT policy set (no policy and not enabled), clone can also have nil AT policy
+	if !parentHasATPolicy && cloneATPolicy == nil {
+		return nil
+	}
+	
+	// If parent has no AT policy set, clone cannot set AT policy (must match parent's nil policy)
+	if !parentHasATPolicy && cloneATPolicy != nil {
+		return customerrors.NewUserInputValidationErr(
+			"clone volume auto tiering policy cannot be different from parent volume: auto tiering policy must not be set for clone volume to match parent volume (parent volume has no auto tiering policy set)")
+	}
+	
+	// If parent has AT policy set (even if paused/disabled), clone must explicitly set AT policy to match
+	if parentHasATPolicy && cloneATPolicy == nil {
+		// If parent has paused AT policy (policy exists but disabled), use specific message
+		if parentVolume.AutoTieringPolicy != nil && !parentATEnabled {
+			return customerrors.NewUserInputValidationErr(
+				"clone volume auto tiering policy cannot be different from parent volume: auto tiering policy must be explicitly set to match parent volume (auto tiering policy is paused for parent volume)")
+		}
+		return customerrors.NewUserInputValidationErr(
+			fmt.Sprintf("clone volume auto tiering policy cannot be different from parent volume: auto tiering policy must be explicitly set to match parent volume (auto tiering is %s for parent volume)",
+				map[bool]string{true: "enabled", false: "disabled"}[parentATEnabled]))
+	}
+	
+	cloneATEnabled := cloneATPolicy.AutoTieringEnabled
+
+	// If one is enabled and the other is disabled, they don't match
+	if cloneATEnabled != parentATEnabled {
+		return customerrors.NewUserInputValidationErr(
+			fmt.Sprintf("clone volume auto tiering policy cannot be different from parent volume: auto tiering must be %s for clone volume to match parent volume",
+				map[bool]string{true: "enabled", false: "disabled"}[parentATEnabled]))
+	}
+
+	// If both are disabled, validation passes (clone explicitly set AT to disabled to match parent)
+	if !cloneATEnabled && !parentATEnabled {
+		return nil
+	}
+
+	// Both are enabled, compare the policies
+	// Note: cloneATPolicy is already validated to be non-nil above
+	if parentVolume.AutoTieringPolicy == nil {
+		return customerrors.NewUserInputValidationErr("clone volume auto tiering policy cannot be different from parent volume: parent volume has auto tiering enabled but no policy details")
+	}
+
+	// Compare tiering policy
+	if cloneATPolicy.TieringPolicy != parentVolume.AutoTieringPolicy.TieringPolicy {
+		return customerrors.NewUserInputValidationErr(
+			fmt.Sprintf("clone volume auto tiering policy cannot be different from parent volume: tiering policy must be %s to match parent volume",
+				parentVolume.AutoTieringPolicy.TieringPolicy))
+	}
+
+	// Compare retrieval policy
+	if cloneATPolicy.RetrievalPolicy != parentVolume.AutoTieringPolicy.RetrievalPolicy {
+		return customerrors.NewUserInputValidationErr(
+			fmt.Sprintf("clone volume auto tiering policy cannot be different from parent volume: retrieval policy must be %s to match parent volume",
+				parentVolume.AutoTieringPolicy.RetrievalPolicy))
+	}
+
+	// Compare cooling threshold days
+	if cloneATPolicy.CoolingThresholdDays != parentVolume.AutoTieringPolicy.CoolingThresholdDays {
+		return customerrors.NewUserInputValidationErr(
+			fmt.Sprintf("clone volume auto tiering policy cannot be different from parent volume: cooling threshold days must be %d to match parent volume",
+				parentVolume.AutoTieringPolicy.CoolingThresholdDays))
+	}
+
+	// Compare cloud write mode enabled (handle nil pointers)
+	cloneCloudWriteMode := nillable.GetBool(cloneATPolicy.CloudWriteModeEnabled, false)
+	parentCloudWriteMode := nillable.GetBool(parentVolume.AutoTieringPolicy.CloudWriteModeEnabled, false)
+	if cloneCloudWriteMode != parentCloudWriteMode {
+		return customerrors.NewUserInputValidationErr(
+			fmt.Sprintf("clone volume auto tiering policy cannot be different from parent volume: cloud write mode must be %v to match parent volume",
+				parentCloudWriteMode))
+	}
+
+	// Compare hot tier bypass mode enabled
+	if cloneATPolicy.HotTierBypassModeEnabled != parentVolume.AutoTieringPolicy.HotTierBypassModeEnabled {
+		return customerrors.NewUserInputValidationErr(
+			fmt.Sprintf("clone volume auto tiering policy cannot be different from parent volume: hot tier bypass mode must be %v to match parent volume",
+				parentVolume.AutoTieringPolicy.HotTierBypassModeEnabled))
 	}
 
 	return nil

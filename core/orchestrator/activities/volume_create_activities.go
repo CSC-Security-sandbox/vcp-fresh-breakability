@@ -261,6 +261,74 @@ func CreateAutoTieringParams(ctx context.Context, se database.Storage, params *v
 	return params.TieringPolicy, nil
 }
 
+// UpdateVolumeAutoTieringPolicyInONTAP updates the auto tiering policy for a volume in ONTAP
+// This is used after clone creation since ONTAP doesn't accept auto tiering policy during clone creation
+// It also handles the case where AT is disabled for the clone - explicitly sets it to "none" to prevent
+// ONTAP from inheriting the parent volume's AT policy
+func (a VolumeCreateActivity) UpdateVolumeAutoTieringPolicyInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+	activity.RecordHeartbeat(ctx, "Starting UpdateVolumeAutoTieringPolicyInONTAP activity")
+
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	updateVolumeParams := &vsa.UpdateVolumeParams{
+		UUID: volume.VolumeAttributes.ExternalUUID,
+	}
+
+	updateVolumeParams.TieringPolicy = &vsa.TieringPolicy{}
+
+	// If auto tiering is not enabled or policy is nil, explicitly disable it in ONTAP
+	// This prevents ONTAP from inheriting the parent volume's AT policy
+	if !volume.AutoTieringEnabled || volume.AutoTieringPolicy == nil {
+		logger.Debugf("Auto tiering is disabled or policy is nil for clone volume %s, explicitly disabling AT in ONTAP", volume.Name)
+		updateVolumeParams.TieringPolicy.CoolAccessTieringPolicy = ontapModels.VolumeInlineTieringPolicyNone
+		updateVolumeParams.TieringPolicy.CloudWriteModeEnabled = nillable.GetBoolPtr(false)
+	} else {
+		// Auto tiering is enabled, set the policy
+		// Check if pool auto-tiering is paused (similar logic to CreateAutoTieringParams)
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					TieringStatus: datamodel.TieringStatusResumed,
+				},
+			},
+		}
+		if volume.AutoTieringPolicy.TieringPolicy == ontapModels.VolumeInlineTieringPolicyAll {
+			var poolErr error
+			pool, poolErr = se.GetPool(ctx, volume.Pool.UUID, volume.AccountID)
+			if poolErr != nil {
+				return vsaerrors.WrapAsTemporalApplicationError(poolErr)
+			}
+		}
+
+		shouldSetTieringPolicy := pool.AutoTieringConfig.TieringStatus != datamodel.TieringStatusPaused && pool.AutoTieringConfig.TieringStatus != datamodel.TieringStatusPartiallyPaused
+
+		if shouldSetTieringPolicy {
+			updateVolumeParams.TieringPolicy.CoolAccessTieringPolicy = nillable.GetString(&volume.AutoTieringPolicy.TieringPolicy, utils.FetchTieringPolicyAsPerVolumeType(!utils.IsSanProtocols(volume.VolumeAttributes.Protocols)))
+			updateVolumeParams.TieringPolicy.CoolAccessRetrievalPolicy = nillable.GetString(&volume.AutoTieringPolicy.RetrievalPolicy, ontapModels.VolumeCloudRetrievalPolicyDefault)
+			updateVolumeParams.TieringPolicy.CloudWriteModeEnabled = volume.AutoTieringPolicy.CloudWriteModeEnabled
+			updateVolumeParams.TieringPolicy.CoolnessPeriod = int64(volume.AutoTieringPolicy.CoolingThresholdDays)
+		} else {
+			updateVolumeParams.TieringPolicy.CoolAccessTieringPolicy = ontapModels.VolumeInlineTieringPolicyNone
+			updateVolumeParams.TieringPolicy.CloudWriteModeEnabled = nillable.GetBoolPtr(false)
+		}
+	}
+
+	err = provider.UpdateVolume(*updateVolumeParams)
+	if err != nil {
+		logger.Errorf("Failed to update auto tiering policy for volume %s in ONTAP: %v", volume.Name, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	logger.Debugf("Auto tiering policy updated successfully for volume %s in ONTAP", volume.Name)
+
+	activity.RecordHeartbeat(ctx, "Finished UpdateVolumeAutoTieringPolicyInONTAP activity")
+	return nil
+}
+
 func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamodel.Volume, node *models.Node, restoreVolCreateResponse *vsa.VolumeResponse) (*vsa.LunResponse, error) {
 	activity.RecordHeartbeat(ctx, "Initializing LUN name update")
 	logger := util.GetLogger(ctx)

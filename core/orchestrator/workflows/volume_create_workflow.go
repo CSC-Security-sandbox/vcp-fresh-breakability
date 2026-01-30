@@ -995,6 +995,17 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
+
+		// Update auto tiering policy after clone creation
+		// ONTAP doesn't accept auto tiering policy during clone creation, so we update it after creation
+		// This also handles the case where AT is disabled - we explicitly set it to "none" to prevent
+		// ONTAP from inheriting the parent volume's AT policy
+		log.Debugf("Updating auto tiering policy for clone volume %s after creation", dbVolume.Name)
+		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeAutoTieringPolicyInONTAP, &dbVolume, &node).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(fmt.Errorf("failed to update auto tiering policy for clone volume: %w", err))
+		}
+		log.Debugf("Successfully updated auto tiering policy for clone volume %s", dbVolume.Name)
 	}
 
 	var hostGroups []*datamodel.HostGroup

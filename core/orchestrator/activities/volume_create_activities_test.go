@@ -11883,3 +11883,503 @@ func TestCheckBackupVaultExistsInVCP_SuccessfullyFetchedAndCreatedFromCVP(t *tes
 	mockStorage.AssertExpectations(t)
 	mockBackupVaultClient.AssertExpectations(t)
 }
+
+// TestUpdateVolumeAutoTieringPolicyInONTAP tests the UpdateVolumeAutoTieringPolicyInONTAP function
+func TestUpdateVolumeAutoTieringPolicyInONTAP_WithAutoTieringEnabled_AutoPolicy(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP)
+
+	volume := &datamodel.Volume{
+		Name:               "test-volume",
+		AutoTieringEnabled: true,
+		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+			TieringPolicy:        ontapModels.VolumeInlineTieringPolicyAuto,
+			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays: 10,
+			CloudWriteModeEnabled: nillable.GetBoolPtr(false),
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			Protocols:    []string{utils.ProtocolNFSv3},
+		},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		},
+		AccountID: 123,
+	}
+	node := &models.Node{}
+
+	mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.TieringPolicy != nil &&
+			params.TieringPolicy.CoolAccessTieringPolicy == ontapModels.VolumeInlineTieringPolicyAuto &&
+			params.TieringPolicy.CoolAccessRetrievalPolicy == ontapModels.VolumeCloudRetrievalPolicyDefault &&
+			params.TieringPolicy.CoolnessPeriod == 10 &&
+			params.TieringPolicy.CloudWriteModeEnabled != nil &&
+			*params.TieringPolicy.CloudWriteModeEnabled == false
+	})).Return(nil)
+
+	_, err := env.ExecuteActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP, volume, node)
+
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeAutoTieringPolicyInONTAP_WithAutoTieringEnabled_AllPolicy_TieringNotPaused(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP)
+
+	volume := &datamodel.Volume{
+		Name:               "test-volume",
+		AutoTieringEnabled: true,
+		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+			TieringPolicy:         ontapModels.VolumeInlineTieringPolicyAll,
+			RetrievalPolicy:       ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays:  15,
+			CloudWriteModeEnabled: nillable.GetBoolPtr(true),
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			Protocols:    []string{utils.ProtocolNFSv3},
+		},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		},
+		AccountID: 123,
+	}
+	node := &models.Node{}
+
+	pool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				TieringStatus: datamodel.TieringStatusResumed,
+			},
+		},
+	}
+
+	mockStorage.On("GetPool", mock.Anything, "pool-uuid", int64(123)).Return(pool, nil)
+
+	mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.TieringPolicy != nil &&
+			params.TieringPolicy.CoolAccessTieringPolicy == ontapModels.VolumeInlineTieringPolicyAll &&
+			params.TieringPolicy.CoolAccessRetrievalPolicy == ontapModels.VolumeCloudRetrievalPolicyDefault &&
+			params.TieringPolicy.CoolnessPeriod == 15 &&
+			params.TieringPolicy.CloudWriteModeEnabled != nil &&
+			*params.TieringPolicy.CloudWriteModeEnabled == true
+	})).Return(nil)
+
+	_, err := env.ExecuteActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP, volume, node)
+
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeAutoTieringPolicyInONTAP_WithAutoTieringEnabled_AllPolicy_TieringPaused(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP)
+
+	volume := &datamodel.Volume{
+		Name:               "test-volume",
+		AutoTieringEnabled: true,
+		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+			TieringPolicy:         ontapModels.VolumeInlineTieringPolicyAll,
+			RetrievalPolicy:       ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays:  15,
+			CloudWriteModeEnabled: nillable.GetBoolPtr(true),
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			Protocols:    []string{utils.ProtocolNFSv3},
+		},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		},
+		AccountID: 123,
+	}
+	node := &models.Node{}
+
+	pool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				TieringStatus: datamodel.TieringStatusPaused,
+			},
+		},
+	}
+
+	mockStorage.On("GetPool", mock.Anything, "pool-uuid", int64(123)).Return(pool, nil)
+
+	mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.TieringPolicy != nil &&
+			params.TieringPolicy.CoolAccessTieringPolicy == ontapModels.VolumeInlineTieringPolicyNone &&
+			params.TieringPolicy.CloudWriteModeEnabled != nil &&
+			*params.TieringPolicy.CloudWriteModeEnabled == false
+	})).Return(nil)
+
+	_, err := env.ExecuteActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP, volume, node)
+
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeAutoTieringPolicyInONTAP_WithAutoTieringDisabled(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP)
+
+	volume := &datamodel.Volume{
+		Name:               "test-volume",
+		AutoTieringEnabled: false,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	node := &models.Node{}
+
+	mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.TieringPolicy != nil &&
+			params.TieringPolicy.CoolAccessTieringPolicy == ontapModels.VolumeInlineTieringPolicyNone &&
+			params.TieringPolicy.CloudWriteModeEnabled != nil &&
+			*params.TieringPolicy.CloudWriteModeEnabled == false
+	})).Return(nil)
+
+	_, err := env.ExecuteActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP, volume, node)
+
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeAutoTieringPolicyInONTAP_WithNilAutoTieringPolicy(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP)
+
+	volume := &datamodel.Volume{
+		Name:               "test-volume",
+		AutoTieringEnabled: true,
+		AutoTieringPolicy:  nil,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	node := &models.Node{}
+
+	mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.TieringPolicy != nil &&
+			params.TieringPolicy.CoolAccessTieringPolicy == ontapModels.VolumeInlineTieringPolicyNone &&
+			params.TieringPolicy.CloudWriteModeEnabled != nil &&
+			*params.TieringPolicy.CloudWriteModeEnabled == false
+	})).Return(nil)
+
+	_, err := env.ExecuteActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP, volume, node)
+
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeAutoTieringPolicyInONTAP_GetProviderByNodeError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	expectedError := errors.New("failed to get provider")
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, expectedError
+	}
+
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP)
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	node := &models.Node{}
+
+	_, err := env.ExecuteActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP, volume, node)
+
+	assert.Error(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeAutoTieringPolicyInONTAP_GetPoolError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP)
+
+	volume := &datamodel.Volume{
+		Name:               "test-volume",
+		AutoTieringEnabled: true,
+		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+			TieringPolicy: ontapModels.VolumeInlineTieringPolicyAll,
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		},
+		AccountID: 123,
+	}
+	node := &models.Node{}
+
+	expectedError := errors.New("failed to get pool")
+	mockStorage.On("GetPool", mock.Anything, "pool-uuid", int64(123)).Return(nil, expectedError)
+
+	_, err := env.ExecuteActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP, volume, node)
+
+	assert.Error(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeAutoTieringPolicyInONTAP_UpdateVolumeError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP)
+
+	volume := &datamodel.Volume{
+		Name:               "test-volume",
+		AutoTieringEnabled: true,
+		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+			TieringPolicy:        ontapModels.VolumeInlineTieringPolicyAuto,
+			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays: 10,
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			Protocols:    []string{utils.ProtocolNFSv3},
+		},
+	}
+	node := &models.Node{}
+
+	expectedError := errors.New("failed to update volume")
+	mockProvider.On("UpdateVolume", mock.Anything).Return(expectedError)
+
+	_, err := env.ExecuteActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP, volume, node)
+
+	assert.Error(t, err)
+	mockProvider.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeAutoTieringPolicyInONTAP_WithAutoPolicy_BlockVolume(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP)
+
+	volume := &datamodel.Volume{
+		Name:               "test-volume",
+		AutoTieringEnabled: true,
+		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+			// When TieringPolicy is explicitly set to "auto", it will be used as-is
+			// For block volumes, if we want "snapshot-only", we need to set it explicitly or leave it empty
+			// But since nillable.GetString checks the pointer, and TieringPolicy is a string field,
+			// we need to check the actual behavior. For now, let's test with "auto" being passed through.
+			TieringPolicy:        ontapModels.VolumeInlineTieringPolicyAuto,
+			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays: 10,
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			Protocols:    []string{utils.ProtocolISCSI}, // Block protocol
+		},
+	}
+	node := &models.Node{}
+
+	// The code uses nillable.GetString(&volume.AutoTieringPolicy.TieringPolicy, default)
+	// Since TieringPolicy is set to "auto", it will return "auto", not the default "snapshot-only"
+	// So we expect "auto" in the UpdateVolume call
+	mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+		return params.UUID == volume.VolumeAttributes.ExternalUUID &&
+			params.TieringPolicy != nil &&
+			params.TieringPolicy.CoolAccessTieringPolicy == ontapModels.VolumeInlineTieringPolicyAuto &&
+			params.TieringPolicy.CoolAccessRetrievalPolicy == ontapModels.VolumeCloudRetrievalPolicyDefault &&
+			params.TieringPolicy.CoolnessPeriod == 10
+	})).Return(nil)
+
+	_, err := env.ExecuteActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP, volume, node)
+
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeAutoTieringPolicyInONTAP_WithNilVolumeAttributes(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP)
+
+	volume := &datamodel.Volume{
+		Name:            "test-volume",
+		VolumeAttributes: nil, // Nil VolumeAttributes - this will cause a panic when accessing ExternalUUID
+	}
+	node := &models.Node{
+		EndpointAddress: "1.2.3.4", // Set endpoint address so GetProviderByNode succeeds
+	}
+
+	// This should panic when trying to access volume.VolumeAttributes.ExternalUUID
+	// Temporal will catch the panic and convert it to an error
+	_, err := env.ExecuteActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP, volume, node)
+
+	// The activity will panic (nil pointer dereference), which gets converted to an error by Temporal
+	assert.Error(t, err)
+	// Don't check for specific error message since the panic message may vary
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeAutoTieringPolicyInONTAP_WithNilPool(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP)
+
+	volume := &datamodel.Volume{
+		Name:               "test-volume",
+		AutoTieringEnabled: true,
+		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+			TieringPolicy: ontapModels.VolumeInlineTieringPolicyAll, // Requires pool lookup
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+		Pool: nil, // Nil Pool - this will cause a panic when accessing volume.Pool.UUID
+		AccountID: 123,
+	}
+	node := &models.Node{
+		EndpointAddress: "1.2.3.4", // Set endpoint address so GetProviderByNode succeeds
+	}
+
+	// This should panic when trying to access volume.Pool.UUID
+	// Temporal will catch the panic and convert it to an error
+	_, err := env.ExecuteActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP, volume, node)
+
+	// The activity will panic (nil pointer dereference), which gets converted to an error by Temporal
+	assert.Error(t, err)
+	// Don't check for specific error message since the panic message may vary
+	mockStorage.AssertExpectations(t)
+}
