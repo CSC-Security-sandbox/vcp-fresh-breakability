@@ -1,0 +1,12 @@
+{
+  "VERSION": "9.18.1X26",
+  "IMAGE_NAME": "x-9-18-1x26",
+  "SIG_FILE_PATH": "gs://cot-releases-public/GCNV_released_bundle/9.18.1X26-internal/GCNV/9.18.1X26/IMAGE_SIG_TGZ",
+  "SOURCE_IMAGE_PROJECT": "gcnv-staging-images",
+  "SOURCE_PROJECT": "gcnv-staging-images",
+  "SOURCE_BUCKET": "gcnv-staging-images-bucket",
+  "DESTINATION_PROJECT": "gcnv-prod-images",
+  "DESTINATION_BUCKET": "gcnv-prod-images-bucket",
+  "STORAGE_LOCATION": "us",
+  "GUEST_OS_FEATURES": "UEFI_COMPATIBLE,GVNIC"
+}

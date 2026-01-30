@@ -1,0 +1,13 @@
+{
+  "VERSION": "9.18.1X26",
+  "IMAGE_NAME": "x-9-18-1x26",
+  "SIG_FILE_PATH": "gs://cot-releases-public/GCNV_released_bundle/9.18.1X26-internal/GCNV/9.18.1X26/IMAGE_SIG_TGZ",
+  "SOURCE_IMAGE_PROJECT": "sssbu-seclab",
+  "SOURCE_PROJECT": "gcnv-vsa-prod",
+  "SOURCE_BUCKET": "vsa-compute-images",
+  "DESTINATION_PROJECT": "gcnv-autopush-images",
+  "DESTINATION_BUCKET": "gcnv-autopush-images-bucket",
+  "STORAGE_LOCATION": "us",
+  "GUEST_OS_FEATURES": "UEFI_COMPATIBLE,GVNIC"
+}
+
