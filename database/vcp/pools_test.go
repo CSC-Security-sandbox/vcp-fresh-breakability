@@ -4069,6 +4069,174 @@ func TestListPoolsForMetrics(t *testing.T) {
 		require.NotNil(tt, noTieringResult)
 		assert.False(tt, noTieringResult.AllowAutoTiering, "AllowAutoTiering should be false for non-tiering pool")
 	})
+
+	t.Run("ReturnsQuotaInBytesFromPoolViews", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		// Create a pool
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: 1, UUID: "pool-with-volumes-uuid"},
+			Name:           "pool_with_volumes",
+			SizeInBytes:    10000000,
+			AccountID:      account.ID,
+			DeploymentName: "deployment-quota",
+			PoolAttributes: &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+		err = store.db.Create(pool).Error()
+		require.NoError(tt, err)
+
+		// Create an SVM for the volumes
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(svm).Error()
+		require.NoError(tt, err)
+
+		// Create volumes for the pool
+		volume1 := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "volume-1-uuid"},
+			Name:              "volume_1",
+			SizeInBytes:       1000000,
+			ClonesSharedBytes: 0,
+			AccountID:         account.ID,
+			PoolID:            pool.ID,
+			SvmID:             svm.ID,
+		}
+		volume2 := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "volume-2-uuid"},
+			Name:              "volume_2",
+			SizeInBytes:       2000000,
+			ClonesSharedBytes: 500000, // Has some shared clone bytes
+			AccountID:         account.ID,
+			PoolID:            pool.ID,
+			SvmID:             svm.ID,
+		}
+		err = store.db.Create(volume1).Error()
+		require.NoError(tt, err)
+		err = store.db.Create(volume2).Error()
+		require.NoError(tt, err)
+
+		results, err := store.ListPoolsForMetrics(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+
+		// QuotaInBytes should be sum of (size_in_bytes - clones_shared_bytes) for all volumes
+		// = (1000000 - 0) + (2000000 - 500000) = 1000000 + 1500000 = 2500000
+		expectedQuota := uint64(2500000)
+		assert.Equal(tt, expectedQuota, results[0].QuotaInBytes, "QuotaInBytes should equal sum of volume sizes minus clones_shared_bytes")
+	})
+
+	t.Run("ReturnsZeroQuotaInBytesForPoolWithNoVolumes", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		// Create a pool without volumes
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "empty-pool-uuid"},
+			Name:           "empty_pool",
+			SizeInBytes:    5000000,
+			AccountID:      account.ID,
+			DeploymentName: "deployment-empty",
+			PoolAttributes: &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+		err = store.db.Create(pool).Error()
+		require.NoError(tt, err)
+
+		results, err := store.ListPoolsForMetrics(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+		assert.Equal(tt, uint64(0), results[0].QuotaInBytes, "QuotaInBytes should be 0 for pool with no volumes")
+	})
+
+	t.Run("ExcludesDeletedVolumesFromQuotaCalculation", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		// Create a pool
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: 1, UUID: "pool-deleted-vol-uuid"},
+			Name:           "pool_with_deleted_volume",
+			SizeInBytes:    10000000,
+			AccountID:      account.ID,
+			DeploymentName: "deployment-deleted",
+			PoolAttributes: &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+		err = store.db.Create(pool).Error()
+		require.NoError(tt, err)
+
+		// Create an SVM
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(svm).Error()
+		require.NoError(tt, err)
+
+		// Create an active volume
+		activeVolume := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "active-volume-uuid"},
+			Name:              "active_volume",
+			SizeInBytes:       1000000,
+			ClonesSharedBytes: 0,
+			AccountID:         account.ID,
+			PoolID:            pool.ID,
+			SvmID:             svm.ID,
+		}
+		err = store.db.Create(activeVolume).Error()
+		require.NoError(tt, err)
+
+		// Create a deleted volume (should not be counted)
+		deletedTime := time.Now().Add(-1 * time.Hour)
+		deletedVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "deleted-volume-uuid",
+				DeletedAt: &gorm.DeletedAt{Time: deletedTime, Valid: true},
+			},
+			Name:              "deleted_volume",
+			SizeInBytes:       3000000, // This should NOT be included
+			ClonesSharedBytes: 0,
+			AccountID:         account.ID,
+			PoolID:            pool.ID,
+			SvmID:             svm.ID,
+		}
+		err = store.db.GORM().Create(deletedVolume).Error
+		require.NoError(tt, err)
+
+		results, err := store.ListPoolsForMetrics(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+
+		// Only the active volume should be counted
+		expectedQuota := uint64(1000000)
+		assert.Equal(tt, expectedQuota, results[0].QuotaInBytes, "QuotaInBytes should exclude deleted volumes")
+	})
 }
 
 // TestGetBlockOnlyPoolIDs_BlockOnlyPool verifies that a pool with only ISCSI volumes is identified

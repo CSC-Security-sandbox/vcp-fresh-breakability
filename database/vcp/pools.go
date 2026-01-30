@@ -659,8 +659,8 @@ type PoolMetricsData struct {
 	PoolAttributes    *datamodel.PoolAttributes    `gorm:"column:pool_attributes;type:jsonb"`
 	AllowAutoTiering  bool                         `gorm:"column:allow_auto_tiering"`
 	AutoTieringConfig *datamodel.AutoTieringConfig `gorm:"column:auto_tiering_config;type:jsonb"`
-	// QuotaInBytes mirrors the original ListPools behavior (always 0 in PoolView)
-	QuotaInBytes uint64 `gorm:"-"`
+	// QuotaInBytes is fetched from pool_views via JOIN (sum of volume sizes minus clones_shared_bytes)
+	QuotaInBytes uint64 `gorm:"column:quota_in_bytes"`
 }
 
 // GetAccountName returns the account name from PoolAttributes
@@ -767,7 +767,8 @@ func _getPoolsByKmsConfigID(db *gorm.DB, kmsConfigID int64) ([]*datamodel.Pool, 
 
 // ListPoolsForMetrics retrieves pools with only the fields required for metrics collection.
 // This is an optimized query that selects only required columns from the pools table.
-// Account name is extracted from pool_attributes JSONB column (no JOIN needed).
+// Account name is extracted from pool_attributes JSONB column.
+// QuotaInBytes is fetched via JOIN with pool_views (sum of volume sizes minus clones_shared_bytes).
 // This significantly reduces data transfer compared to ListPools which fetches all fields and preloads related entities.
 func (d *DataStoreRepository) ListPoolsForMetrics(ctx context.Context) ([]*PoolMetricsData, error) {
 	logger := util.GetLogger(ctx)
@@ -777,19 +778,21 @@ func (d *DataStoreRepository) ListPoolsForMetrics(ctx context.Context) ([]*PoolM
 
 	var results []*PoolMetricsData
 
-	// Select only the required columns from pools table
-	err := db.Table("pools").
+	// Select required columns from pools table and quota_in_bytes from pool_views
+	err := db.Table("pools p").
 		Select(`
-			id,
-			uuid,
-			name,
-			size_in_bytes,
-			deployment_name,
-			pool_attributes,
-			allow_auto_tiering,
-			auto_tiering_config
+			p.id,
+			p.uuid,
+			p.name,
+			p.size_in_bytes,
+			p.deployment_name,
+			p.pool_attributes,
+			p.allow_auto_tiering,
+			p.auto_tiering_config,
+			pv.quota_in_bytes
 		`).
-		Where("deleted_at IS NULL").
+		Joins("INNER JOIN pool_views pv ON pv.uuid = p.uuid").
+		Where("p.deleted_at IS NULL").
 		Find(&results).Error
 
 	if err != nil {
