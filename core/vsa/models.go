@@ -341,6 +341,7 @@ type CreateVolumeParams struct {
 	Style               *string // Volume style, e.g., "flexvol", "flexgroup"
 	TieringSupported    *bool
 	SecurityStyle       *string
+	QosPolicy           *string // Optional: QoS policy name to assign to the volume
 	UnixPermissions     *string
 }
 

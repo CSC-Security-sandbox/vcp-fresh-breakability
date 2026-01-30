@@ -99,6 +99,8 @@ type (
 		// ListVolumesForResourceData returns only the fields needed for aggregator resource data, optimized for telemetry with pagination.
 		ListVolumesForResourceData(ctx context.Context, startTime, endTime time.Time, pagination *dbutils.Pagination) ([]*VolumeResourceData, error)
 		GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error)
+		GetVolumesByVolumePerformanceGroupID(ctx context.Context, vpgID int64) ([]*datamodel.Volume, error)
+		DereferenceVPGFromDeletedVolumes(ctx context.Context, vpgID int64) error
 		GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error)
 		GetFlexCacheVolumeCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error)
 		GetMultipleVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error)
@@ -386,7 +388,9 @@ type (
 		CreateVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) (*datamodel.VolumePerformanceGroup, error)
 		UpdateVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error
 		DeleteVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error
+		HardDeleteVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error
 		GetVolumePerformanceGroupByUUID(ctx context.Context, uuid string) (*datamodel.VolumePerformanceGroup, error)
+		GetVolumePerformanceGroupByID(ctx context.Context, id int64) (*datamodel.VolumePerformanceGroup, error)
 		ListVolumePerformanceGroupsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.VolumePerformanceGroup, error)
 
 		// Expert Mode Volume operations

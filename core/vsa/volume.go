@@ -45,6 +45,9 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 		JunctionPath:                   params.JunctionPath,
 		TieringSupported:               params.TieringSupported,
 	}
+	if params.QosPolicy != nil {
+		volumeCreateParams.QosPolicy = *params.QosPolicy
+	}
 	if params.SecurityStyle != nil && *params.SecurityStyle != "" {
 		volumeCreateParams.SecurityStyle = *params.SecurityStyle
 	}

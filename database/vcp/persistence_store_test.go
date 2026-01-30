@@ -6923,6 +6923,10 @@ func TestPersistenceStore_ListVolumesForTelemetryMetrics(t *testing.T) {
 		}
 	}()
 
+	if store.DB().Dialector.Name() == "sqlite" {
+		t.Skip("sqlite does not accept '//' comments in SELECT projections")
+	}
+
 	ctx := context.Background()
 
 	// Create test account, pool and volume
@@ -6973,6 +6977,79 @@ func TestPersistenceStore_ListVolumesForTelemetryMetrics(t *testing.T) {
 	assert.NotNil(t, results)
 	assert.Len(t, results, 1)
 	assert.Equal(t, "test_volume", results[0].Name)
+}
+
+func TestPersistenceStore_VpgWrapperMethods(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	require.NoError(t, ClearInMemoryDB(store.DB()))
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-wrapper"}, Name: "acct-wrapper"}
+	require.NoError(t, store.DB().Create(account).Error)
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-wrapper"}, Name: "pool-wrapper", AccountID: account.ID, Account: account}
+	require.NoError(t, store.DB().Create(pool).Error)
+
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel: datamodel.BaseModel{UUID: "vpg-wrapper"},
+		PoolID:    pool.ID,
+		Name:      "vpg-wrapper",
+		IsShared:  true,
+		IsAutoGen: true,
+	}
+	require.NoError(t, store.DB().Create(vpg).Error)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-wrapper"},
+		Name:      "vol-wrapper",
+		PoolID:    pool.ID,
+		AccountID: account.ID,
+		VolumePerformanceGroupID: sql.NullInt64{
+			Int64: vpg.ID,
+			Valid: true,
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			AccountName:    "acct-wrapper",
+			DeploymentName: "deployment-wrapper",
+			Protocols:      []string{"NFS"},
+		},
+	}
+	require.NoError(t, store.DB().Create(volume).Error)
+
+	gotVpg, err := store.GetVolumePerformanceGroupByID(ctx, vpg.ID)
+	require.NoError(t, err)
+	assert.Equal(t, vpg.UUID, gotVpg.UUID)
+
+	volumes, err := store.GetVolumesByVolumePerformanceGroupID(ctx, vpg.ID)
+	require.NoError(t, err)
+	require.Len(t, volumes, 1)
+	assert.Equal(t, volume.UUID, volumes[0].UUID)
+
+	require.NoError(t, store.DB().Unscoped().
+		Model(&datamodel.Volume{}).
+		Where("id = ?", volume.ID).
+		Update("deleted_at", time.Now()).
+		Error)
+
+	err = store.DereferenceVPGFromDeletedVolumes(ctx, vpg.ID)
+	require.NoError(t, err)
+
+	var updated datamodel.Volume
+	require.NoError(t, store.DB().Unscoped().Where("id = ?", volume.ID).First(&updated).Error)
+	assert.False(t, updated.VolumePerformanceGroupID.Valid)
+
+	err = store.HardDeleteVolumePerformanceGroup(ctx, vpg)
+	require.NoError(t, err)
+
+	_, err = store.GetVolumePerformanceGroupByID(ctx, vpg.ID)
+	assert.Error(t, err)
 }
 
 // Tests for ListAccountsForTelemetry delegate method

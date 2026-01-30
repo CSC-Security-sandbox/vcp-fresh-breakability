@@ -49,6 +49,16 @@ func (s *VolumeUpdateTestSuite) SetupTest() {
 	// Register all activities that might be used across tests
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupActivity := activities.BackupActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	// Register UpdateBackupMetadataIfExistsActivity - called by workflow at the end
+	s.env.RegisterActivity(backupActivity.UpdateBackupMetadataIfExistsActivity)
+	s.env.OnActivity(backupActivity.UpdateBackupMetadataIfExistsActivity, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// Register UpdateVolumeStateInDB - called by workflow in error handling
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
@@ -4681,7 +4691,11 @@ func TestUpdateSMBShareSettings_WorkflowIntegration(t *testing.T) {
 
 		_, err := env.ExecuteActivity(activity.UpdateSMBShareSettings, volume, params, node)
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "not found")
+		
+		// The error is wrapped by Temporal (ActivityError -> ApplicationError -> NotFoundErr)
+		// but the error message "share not found" is preserved in the chain
+		// Check the error message contains "not found" which works even with Temporal wrapping
+		assert.Contains(tt, err.Error(), "not found", "Expected error to contain 'not found', got: %v", err)
 	})
 }
 
@@ -5192,7 +5206,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_WithKmsGrant() {
 		ServiceAccountName:  "test-sa",
 		TenantProjectNumber: "123456789",
 	}, nil)
-	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(updateActivity.UpdateBucketDetailsOfBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
 		BaseModel: datamodel.BaseModel{UUID: "test-remote-bv-uuid"},

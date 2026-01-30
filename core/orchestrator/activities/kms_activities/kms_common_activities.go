@@ -49,7 +49,6 @@ const (
 	ErrTypeKmsConfigNotFound               = "KmsConfigNotFound"
 	ErrTypeKmsConfigNotReachableVsaCluster = "KmsConfigNotReachableVsaCluster"
 	ErrTypeDNSExists                       = "DNSEntryExists"
-	ErrTypeSignedTokenFailed               = "SignedTokenFailed"
 	RetryTimeOutForGetCryptoKey            = 30 * time.Second
 	RetryIntervalForGetCryptoKey           = 5 * time.Second
 	GcpKmsConfigHealthError                = "specified key <key_name> in <key_ring> does not exist or service permissions are incorrect"
@@ -85,14 +84,15 @@ func (j *KmsConfigActivity) PollKmsConfigOperationActivity(ctx context.Context, 
 	activity.RecordHeartbeat(ctx, "Starting PollKmsConfigOperationActivity")
 	defer activity.RecordHeartbeat(ctx, "Finished PollKmsConfigOperationActivity")
 	logger := util.GetLogger(ctx)
-
-	// Generate a fresh JWT token to avoid token expiration during long-running workflows
-	jwtToken, err := getSignedJwtToken(params.ProjectNumber)
-	if err != nil {
-		logger.Errorf("Failed to get signed token for PollKmsConfigOperationActivity: %v", err)
-		return temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeSignedTokenFailed, err)
+	jwtToken := utils.GetAuthTokenFromContext(ctx)
+	if jwtToken == "" {
+		var err error
+		jwtToken, err = getSignedJwtToken(params.ProjectNumber)
+		if err != nil {
+			logger.Errorf("Failed to get signed token for PollKmsConfigOperationActivity: %v", err)
+			return err
+		}
 	}
-
 	cvpClient := createClient(logger, jwtToken)
 
 	// Check if the operation is done
@@ -115,14 +115,15 @@ func (j *KmsConfigActivity) PollKmsConfigOperationActivity(ctx context.Context, 
 
 func GetResponseforPollCvpOperation(ctx context.Context, responsePayloadName string, projectNumber string, locationID string) (*cvpClientModels.OperationV1beta, error) {
 	logger := util.GetLogger(ctx)
-
-	// Generate a fresh JWT token for each poll to avoid token expiration during long-running operations
-	jwtToken, err := getSignedJwtToken(projectNumber)
-	if err != nil {
-		logger.Errorf("Failed to get signed token for SDE CMEK migration polling operation: %v", err)
-		return nil, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeSignedTokenFailed, err)
+	jwtToken := utils.GetAuthTokenFromContext(ctx)
+	if jwtToken == "" {
+		var err error
+		jwtToken, err = getSignedJwtToken(projectNumber)
+		if err != nil {
+			logger.Errorf("Failed to get signed token for SDE CMEK migration polling operation: %v", err)
+			return nil, err
+		}
 	}
-
 	cvpClient := createClient(logger, jwtToken)
 
 	operationUUID := utils.GetOperationUUID(responsePayloadName)
@@ -235,18 +236,19 @@ func (j *KmsConfigActivity) FailedKmsConfigCreateActivity(ctx context.Context, k
 
 func _failedKmsConfigCreateActivity(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig, errMsg, location string) error {
 	logger := util.GetLogger(ctx)
-
-	// Generate a fresh JWT token to avoid token expiration during long-running workflows
-	jwtToken, err := getSignedJwtToken(kmsConfig.CustomerProjectID)
-	if err != nil {
-		logger.Errorf("Failed to get signed token for FailedKmsConfigCreateActivity: %v", err)
-		return temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeSignedTokenFailed, err)
+	jwtToken := utils.GetAuthTokenFromContext(ctx)
+	if jwtToken == "" {
+		var err error
+		jwtToken, err = getSignedJwtToken(kmsConfig.CustomerProjectID)
+		if err != nil {
+			logger.Errorf("Failed to get signed token for FailedKmsConfigCreateActivity: %v", err)
+			return err
+		}
 	}
-
 	cvpClient := createClient(logger, jwtToken)
 
 	activity.RecordHeartbeat(ctx, "Cleaning up failed KMS configuration")
-	_, err = se.DeleteKmsConfig(ctx, kmsConfig.UUID, models.LifeCycleStateDeleted, errMsg)
+	_, err := se.DeleteKmsConfig(ctx, kmsConfig.UUID, models.LifeCycleStateDeleted, errMsg)
 	if err != nil {
 		return err
 	}

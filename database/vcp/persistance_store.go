@@ -648,6 +648,14 @@ func (s *PersistenceStore) GetVolumesByPoolID(ctx context.Context, poolID int64)
 	return s.dataStore.GetVolumesByPoolID(ctx, poolID)
 }
 
+func (s *PersistenceStore) GetVolumesByVolumePerformanceGroupID(ctx context.Context, vpgID int64) ([]*datamodel.Volume, error) {
+	return s.dataStore.GetVolumesByVolumePerformanceGroupID(ctx, vpgID)
+}
+
+func (s *PersistenceStore) DereferenceVPGFromDeletedVolumes(ctx context.Context, vpgID int64) error {
+	return s.dataStore.DereferenceVPGFromDeletedVolumes(ctx, vpgID)
+}
+
 func (s *PersistenceStore) GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error) {
 	return s.dataStore.GetVolumeCountByPoolID(ctx, poolID)
 }
@@ -1519,8 +1527,16 @@ func (s *PersistenceStore) DeleteVolumePerformanceGroup(ctx context.Context, vpg
 	return s.dataStore.DeleteVolumePerformanceGroup(ctx, vpg)
 }
 
+func (s *PersistenceStore) HardDeleteVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error {
+	return s.dataStore.HardDeleteVolumePerformanceGroup(ctx, vpg)
+}
+
 func (s *PersistenceStore) GetVolumePerformanceGroupByUUID(ctx context.Context, uuid string) (*datamodel.VolumePerformanceGroup, error) {
 	return s.dataStore.GetVolumePerformanceGroupByUUID(ctx, uuid)
+}
+
+func (s *PersistenceStore) GetVolumePerformanceGroupByID(ctx context.Context, id int64) (*datamodel.VolumePerformanceGroup, error) {
+	return s.dataStore.GetVolumePerformanceGroupByID(ctx, id)
 }
 
 func (s *PersistenceStore) ListVolumePerformanceGroupsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.VolumePerformanceGroup, error) {

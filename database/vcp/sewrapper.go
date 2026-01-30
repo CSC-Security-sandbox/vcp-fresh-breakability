@@ -914,6 +914,37 @@ func (re *retryEngine) GetVolumesByPoolID(ctx context.Context, poolID int64) ([]
 	return var0, err
 }
 
+func (re *retryEngine) GetVolumesByVolumePerformanceGroupID(ctx context.Context, vpgID int64) ([]*datamodel.Volume, error) {
+	var var0 []*datamodel.Volume
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetVolumesByVolumePerformanceGroupID(ctx, vpgID)
+		if err != nil {
+			re.logError("GetVolumesByVolumePerformanceGroupID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) DereferenceVPGFromDeletedVolumes(ctx context.Context, vpgID int64) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.DereferenceVPGFromDeletedVolumes(ctx, vpgID)
+		if err != nil {
+			re.logError("DereferenceVPGFromDeletedVolumes", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
 func (re *retryEngine) GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error) {
 	var var0 int64
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -4783,6 +4814,21 @@ func (re *retryEngine) DeleteVolumePerformanceGroup(ctx context.Context, vpg *da
 	return err
 }
 
+func (re *retryEngine) HardDeleteVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.HardDeleteVolumePerformanceGroup(ctx, vpg)
+		if err != nil {
+			re.logError("HardDeleteVolumePerformanceGroup", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
 func (re *retryEngine) GetVolumePerformanceGroupByUUID(ctx context.Context, uuid string) (*datamodel.VolumePerformanceGroup, error) {
 	var var0 *datamodel.VolumePerformanceGroup
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -4790,6 +4836,22 @@ func (re *retryEngine) GetVolumePerformanceGroupByUUID(ctx context.Context, uuid
 		var0, err = re.dataStore.GetVolumePerformanceGroupByUUID(ctx, uuid)
 		if err != nil {
 			re.logError("GetVolumePerformanceGroupByUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetVolumePerformanceGroupByID(ctx context.Context, id int64) (*datamodel.VolumePerformanceGroup, error) {
+	var var0 *datamodel.VolumePerformanceGroup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetVolumePerformanceGroupByID(ctx, id)
+		if err != nil {
+			re.logError("GetVolumePerformanceGroupByID", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

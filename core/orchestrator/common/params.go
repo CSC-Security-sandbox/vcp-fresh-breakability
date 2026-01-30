@@ -124,6 +124,10 @@ type CreateVolumeParams struct {
 	SnapshotDirectory           bool
 	KerberosEnabled             bool
 	HybridReplicationParameters *models.HybridReplicationParameters
+	ThroughputMibps             *int64
+	Iops                        *int64
+	VolumePerformanceGroupID    *string
+	// Note: Iops is not supported for create requests; it is derived from ThroughputMibps if enableInferredIops is true.
 }
 
 type SnapmirrorRelationshipParams struct {
@@ -187,6 +191,9 @@ type UpdateVolumeParams struct {
 	SMBShareSettings            []string
 	LargeCapacity               *bool
 	LargeVolumeConstituentCount *int32
+	ThroughputMibps             *int64
+	Iops                        *int64
+	VolumePerformanceGroupId    *string
 }
 
 type CreateLunMapParams struct {

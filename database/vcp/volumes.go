@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -431,12 +432,41 @@ func _deleteVolume(db *gorm.DB, volumeUUID string) (*datamodel.Volume, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// If volume has a VPG, dereference it before deleting the volume
+	// This prevents foreign key constraint issues when cleaning up the VPG later
+	needsVPGDereference := false
+	if volume.VolumePerformanceGroupID.Valid {
+		vpg, vpgErr := getVolumePerformanceGroupByID(db, volume.VolumePerformanceGroupID.Int64)
+		if vpgErr == nil && vpg != nil {
+			needsVPGDereference = true
+		}
+	}
+
+	// Prepare updates map
+	updates := map[string]interface{}{
+		"deleted_at":    &gorm.DeletedAt{Time: time.Now(), Valid: true},
+		"state":         models.LifeCycleStateDeleted,
+		"state_details": "",
+	}
+
+	// If VPG needs to be dereferenced, include it in the updates
+	// GORM's Updates with nil will set the field to NULL
+	if needsVPGDereference {
+		updates["volume_performance_group_id"] = nil
+	}
+
+	err = db.Model(&datamodel.Volume{}).Where("id = ?", volume.ID).Updates(updates).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Update the in-memory struct to reflect the changes
 	volume.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
 	volume.State = models.LifeCycleStateDeleted
 	volume.StateDetails = ""
-	err = db.Save(volume).Error
-	if err != nil {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataDeleteError, fmt.Errorf("failed to delete volume %s: %w", volumeUUID, err))
+	if needsVPGDereference {
+		volume.VolumePerformanceGroupID = sql.NullInt64{Valid: false}
 	}
 
 	return volume, nil
@@ -520,12 +550,60 @@ func (d *DataStoreRepository) GetVolumesByPoolID(ctx context.Context, poolID int
 		Preload("Pool.ActiveDirectory").
 		Preload("Svm").
 		Preload("Pool.KmsConfig").
+		Preload("VolumePerformanceGroup").
 		Where("pool_id = ?", poolID).
 		Find(&volumes).Error
 	if err != nil {
 		return nil, err
 	}
 	return volumes, nil
+}
+
+func (d *DataStoreRepository) GetVolumesByVolumePerformanceGroupID(ctx context.Context, vpgID int64) ([]*datamodel.Volume, error) {
+	var volumes []*datamodel.Volume
+	err := d.db.GORM().WithContext(ctx).
+		Preload("Account").
+		Preload("Pool").
+		Preload("Pool.ActiveDirectory").
+		Preload("Svm").
+		Preload("Pool.KmsConfig").
+		Preload("VolumePerformanceGroup").
+		Where("volume_performance_group_id = ?", vpgID).
+		Where("deleted_at IS NULL").
+		Find(&volumes).Error
+	if err != nil {
+		return nil, err
+	}
+	return volumes, nil
+}
+
+// DereferenceVPGFromDeletedVolumes sets volume_performance_group_id to NULL for all deleted volumes
+// that reference the given VPG. This prevents foreign key constraint violations when deleting the VPG.
+func (d *DataStoreRepository) DereferenceVPGFromDeletedVolumes(ctx context.Context, vpgID int64) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	// Update all deleted volumes that reference this VPG to set volume_performance_group_id = NULL
+	result := tx.Unscoped().
+		Model(&datamodel.Volume{}).
+		Where("volume_performance_group_id = ?", vpgID).
+		Where("deleted_at IS NOT NULL").
+		Update("volume_performance_group_id", nil)
+
+	if result.Error != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, result.Error)
+	}
+
+	if result.RowsAffected > 0 {
+		logger.Debug("Dereferenced VPG from deleted volumes", "vpg_id", vpgID, "volumes_updated", result.RowsAffected)
+	}
+
+	return nil
 }
 
 func (d *DataStoreRepository) GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error) {

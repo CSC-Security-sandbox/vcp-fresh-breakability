@@ -49,8 +49,9 @@ var (
 	MinQuotaInBytesLargeVolume      = env.GetUint64("MIN_QUOTA_IN_BYTES_LARGE_VOLUME", 48*minCVSizeInBytes) // 4.69 TiB
 	MaxQuotaInBytesLargeVolume      = env.GetUint64("MAX_QUOTA_IN_BYTES_LARGE_VOLUME", 20*PiBInBytes)       // 20 PiB
 	MinSizeGranularity              = env.GetUint64("MIN_SIZE_GRANULARITY", 1*GiBInBytes)                   // 1 GiB
-	MinCustomThroughput             = env.GetUint64("MIN_CUSTOM_THROUGHPUT", 64)                            // 64 MiBps
-	MaxCustomThroughput             = env.GetUint64("MAX_CUSTOM_THROUGHPUT", 5120)                          // 5120 MiBps
+	MinCustomThroughput             = env.GetUint64("MIN_CUSTOM_THROUGHPUT", 64)                            // 64 MiBps (for pools)
+	MinVolumeThroughput              = env.GetUint64("MIN_VOLUME_THROUGHPUT", 1)                             // 1 MiBps (for volumes in manual pools)
+	MaxCustomThroughput              = env.GetUint64("MAX_CUSTOM_THROUGHPUT", 5120)                          // 5120 MiBps
 	MinCustomIops                   = env.GetUint64("MIN_CUSTOM_IOPS", 1024)                                // 1024 IOPS
 	MaxCustomIops                   = env.GetUint64("MAX_CUSTOM_IOPS", 160000)                              // 160000 IOPS
 	IopsPerMiBps                    = env.GetUint64("IOPS_PER_MIBPS", 16)                                   // 16 IOPS per MiBps (for auto-calculation)
@@ -123,6 +124,14 @@ const (
 	ImmutableBackupVaultErrMsg = "Immutable backup vaults are not supported for this region"
 	BackupTypeMANUAL           = "MANUAL"
 	BackupTypeSCHEDULED        = "SCHEDULED"
+	// Pool QosType validation errors
+	ErrMsgPoolAutoQosTypeCannotSpecifyThroughput = "Pool has auto QoS type. Cannot specify throughputMibps. Volumes inherit QoS from the pool."
+	ErrMsgPoolAutoQosTypeCannotSpecifyIops       = "Pool has auto QoS type. Cannot specify iops. Volumes inherit QoS from the pool."
+	ErrMsgPoolAutoQosTypeCannotSpecifyVpgId     = "Pool has auto QoS type. Cannot specify volumePerformanceGroupId. Volumes inherit QoS from the pool."
+	ErrMsgPoolManualQosTypeRequiresThroughput    = "Pool has manual QoS type. throughputMibps must be provided."
+	ErrMsgMqosNotEnabledThroughput               = "Manual QoS (MQOS) is not enabled. throughputMibps parameter is not supported."
+	ErrMsgMqosNotEnabledIops                     = "Manual QoS (MQOS) is not enabled. iops parameter is not supported."
+	ErrMsgMqosNotEnabledVpgId                    = "Manual QoS (MQOS) is not enabled. volumePerformanceGroupId parameter is not supported."
 	// ActiveDirectoryGroupBuiltInBackupOperators defines the name of the built-in backup operators group
 	ActiveDirectoryGroupBuiltInBackupOperators = `BUILTIN\Backup Operators`
 
@@ -1468,11 +1477,11 @@ func ExtractSnapshotNameFromCVPBackup(backup *cvpModels.BackupV1beta, backupName
 		}
 	}
 
-	if backup.BackupType == BackupTypeMANUAL {
+	if backup.BackupType == "MANUAL" {
 		return backupName
 	}
 
-	if backup.BackupType == BackupTypeSCHEDULED {
+	if backup.BackupType == "SCHEDULED" {
 		return GetONTAPSnapshotNameFromCBSDisplaySnapshotName(backupName)
 	}
 

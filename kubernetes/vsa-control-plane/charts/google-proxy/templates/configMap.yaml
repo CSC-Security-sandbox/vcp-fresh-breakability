@@ -137,6 +137,7 @@ data:
   READINESS_PROBE_FAILURE_THRESHOLD: "{{ index .Values "readinessProbe" "failureThreshold" }}"
   READINESS_PROBE_PERIOD_SECONDS: "{{ index .Values "readinessProbe" "periodSeconds" }}"
   ENABLE_MQOS: "{{ index .Values "enableMqos" }}"
+  ENABLE_INFERRED_IOPS: "{{ index .Values "enableInferredIops" }}"
   ENABLE_VPG_ENDPOINTS: "{{ index .Values "enableVpgEndpoints" }}"
   EXPORT_POLICY_RULES_LIMIT: "{{ index .Values "exportPolicyRulesLimit" }}"
   config.yaml: |

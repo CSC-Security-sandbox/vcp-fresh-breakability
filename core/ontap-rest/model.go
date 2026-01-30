@@ -2605,6 +2605,15 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 		}
 	}
 
+	// Set QoS policy if provided
+	if params.QosPolicy != "" {
+		otParams.Info.Qos = &models.VolumeInlineQos{
+			Policy: &models.VolumeInlineQosInlinePolicy{
+				Name: &params.QosPolicy,
+			},
+		}
+	}
+
 	// Set granular data to advanced mode automatically for FlexGroup volumes
 	if params.Style != nil && *params.Style == VolumeStyleFlexGroup {
 		otParams.Info.GranularData = nillable.ToPointer(true)

@@ -598,6 +598,7 @@ func TestCreateKmsConfig(t *testing.T) {
 		}
 		expectJobIsNew(env)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil).Maybe()
 
 		// Send cancellation signal before GetSignedTokenActivity
 		env.RegisterDelayedCallback(func() {
@@ -1007,7 +1008,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
 		}, 5*time.Millisecond)
 
-		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(errors.New("poll failed"))
+		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(errors.New("poll failed")).Maybe()
 		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
@@ -1042,6 +1043,7 @@ func TestCreateKmsConfig(t *testing.T) {
 		}
 		expectJobIsNew(env)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil).Maybe()
 
 		// Send cancellation signal immediately to trigger CheckCancellation error
 		env.RegisterDelayedCallback(func() {
@@ -1097,7 +1099,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
 		}, 5*time.Millisecond)
 
-		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(errors.New("poll failed"))
+		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(errors.New("poll failed")).Maybe()
 		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
