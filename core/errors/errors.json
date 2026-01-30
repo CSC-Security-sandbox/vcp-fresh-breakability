@@ -791,6 +791,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "7013": {
+    "description": "Parent volume not found when creating volume from snapshot",
+    "message": "Error creating volume - Cannot create volume from snapshot: parent volume does not exist",
+    "retriable": false,
+    "http_code": 400
+  },
   "6100": {
     "description": "Replication Schedule Unspecified",
     "message": "Replication schedule must be specified",

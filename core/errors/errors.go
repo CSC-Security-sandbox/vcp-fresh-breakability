@@ -140,6 +140,7 @@ const (
 	ErrCreateSnapshotConflict             = 7010
 	ErrNestedCloneLimitExceeded           = 7011
 	ErrSnapshotNotAllowedForVolume        = 7012
+	ErrParentVolumeNotFound               = 7013
 
 	// CMEK Error Codes
 	ErrDescribingSDEJob                            = 6057

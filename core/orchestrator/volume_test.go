@@ -6484,6 +6484,124 @@ func TestCreateVolume(t *testing.T) {
 		assert.Equal(tt, volume.LifeCycleState, "CREATING")
 		assert.Equal(tt, volume.LifeCycleStateDetails, "Creation in progress")
 	})
+	t.Run("WhenParentVolumeIsInDeletingState", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool", // Valid pool VendorID format
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+			APIAccessMode: common.DEFAULTMode,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Region:       "test_region",
+			Name:         "test_pool",
+			Zone:         "us-west1-a",
+			VendorID:     "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
+			QuotaInBytes: minQuotaInBytesPool,
+			Protocols:    []string{"ISCSI"},
+			Description:  "Some description",
+			DisplayName:  "Some display name",
+			PoolID:       "test-pool-uuid",
+			SnapshotID:   "test-snapshot-id",
+		}
+
+		// Create parent volume in DELETING state
+		parentVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "test-parent-volume-uuid"},
+			Name:        "test-parent-volume",
+			AccountID:   account.ID,
+			PoolID:      pool.ID,
+			SizeInBytes: 107374182400,
+			State:       models.LifeCycleStateDeleting,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"ISCSI"},
+			},
+		}
+		err = store.DB().Create(parentVolume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create parent volume: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-id"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+			VolumeID:  parentVolume.ID,
+			Volume:    parentVolume,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				LogicalSizeUsedInBytes: 1000,
+			},
+		}
+
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		newVolume, _, err := createVolume(ctx, store, temporal, params)
+		assert.Nil(tt, newVolume, "Expected nil volume")
+		assert.ErrorContains(tt, err, "Parent volume is in deleting state and cannot be used for volume creation")
+	})
 }
 
 func Test_createVolume_WithSnapshotPolicy(t *testing.T) {
@@ -27894,12 +28012,12 @@ func Test_createVolume_AutoTieringPolicyValidation(t *testing.T) {
 
 	t.Run("Should reject clone with auto policy when parent has all policy", func(tt *testing.T) {
 		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Name:          "clone-volume",
-			QuotaInBytes:  100 * 1024 * 1024 * 1024,
-			Protocols:     []string{"NFS"},
-			PoolID:        pool.UUID,
-			Zone:          "us-west1-a", // Match pool's primary zone to avoid zone validation error
+			AccountName:  "test_account",
+			Name:         "clone-volume",
+			QuotaInBytes: 100 * 1024 * 1024 * 1024,
+			Protocols:    []string{"NFS"},
+			PoolID:       pool.UUID,
+			Zone:         "us-west1-a", // Match pool's primary zone to avoid zone validation error
 			SnapshotID:   snapshot.UUID,
 			AutoTieringPolicy: &common.AutoTieringPolicy{
 				AutoTieringEnabled: true,
@@ -27927,11 +28045,11 @@ func Test_createVolume_AutoTieringPolicyValidation(t *testing.T) {
 
 	t.Run("Should allow clone with all policy when parent has all policy", func(tt *testing.T) {
 		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Name:          "clone-volume-all",
-			QuotaInBytes:  100 * 1024 * 1024 * 1024,
-			Protocols:     []string{"NFS"},
-			PoolID:        pool.UUID,
+			AccountName:  "test_account",
+			Name:         "clone-volume-all",
+			QuotaInBytes: 100 * 1024 * 1024 * 1024,
+			Protocols:    []string{"NFS"},
+			PoolID:       pool.UUID,
 			SnapshotID:   snapshot.UUID,
 			AutoTieringPolicy: &common.AutoTieringPolicy{
 				AutoTieringEnabled: true,
@@ -27995,11 +28113,11 @@ func Test_createVolume_AutoTieringPolicyValidation(t *testing.T) {
 		}
 
 		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Name:          "clone-volume-auto",
-			QuotaInBytes:  100 * 1024 * 1024 * 1024,
-			Protocols:     []string{"NFS"},
-			PoolID:        pool.UUID,
+			AccountName:  "test_account",
+			Name:         "clone-volume-auto",
+			QuotaInBytes: 100 * 1024 * 1024 * 1024,
+			Protocols:    []string{"NFS"},
+			PoolID:       pool.UUID,
 			SnapshotID:   snapshotAuto.UUID,
 			AutoTieringPolicy: &common.AutoTieringPolicy{
 				AutoTieringEnabled: true,
@@ -28028,11 +28146,11 @@ func Test_createVolume_AutoTieringPolicyValidation(t *testing.T) {
 
 	t.Run("Should allow clone without AT policy when parent has all policy", func(tt *testing.T) {
 		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Name:          "clone-volume-no-at",
-			QuotaInBytes:  100 * 1024 * 1024 * 1024,
-			Protocols:     []string{"NFS"},
-			PoolID:        pool.UUID,
+			AccountName:  "test_account",
+			Name:         "clone-volume-no-at",
+			QuotaInBytes: 100 * 1024 * 1024 * 1024,
+			Protocols:    []string{"NFS"},
+			PoolID:       pool.UUID,
 			SnapshotID:   snapshot.UUID,
 			AutoTieringPolicy: &common.AutoTieringPolicy{
 				AutoTieringEnabled: false,
@@ -28238,17 +28356,17 @@ func Test_validateCloneATPolicyMatchParentVolume(t *testing.T) {
 		parentVolume := &datamodel.Volume{
 			AutoTieringEnabled: true,
 			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
-				TieringPolicy:        models2.VolumeInlineTieringPolicyAuto,
-				RetrievalPolicy:      models2.VolumeCloudRetrievalPolicyDefault,
-				CoolingThresholdDays: 10,
+				TieringPolicy:         models2.VolumeInlineTieringPolicyAuto,
+				RetrievalPolicy:       models2.VolumeCloudRetrievalPolicyDefault,
+				CoolingThresholdDays:  10,
 				CloudWriteModeEnabled: &cloudWriteEnabled,
 			},
 		}
 		cloneATPolicy := &common.AutoTieringPolicy{
-			AutoTieringEnabled:   true,
-			TieringPolicy:        models2.VolumeInlineTieringPolicyAuto,
-			RetrievalPolicy:      models2.VolumeCloudRetrievalPolicyDefault,
-			CoolingThresholdDays: 10,
+			AutoTieringEnabled:    true,
+			TieringPolicy:         models2.VolumeInlineTieringPolicyAuto,
+			RetrievalPolicy:       models2.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays:  10,
 			CloudWriteModeEnabled: &cloudWriteDisabled,
 		}
 
@@ -28270,9 +28388,9 @@ func Test_validateCloneATPolicyMatchParentVolume(t *testing.T) {
 			},
 		}
 		cloneATPolicy := &common.AutoTieringPolicy{
-			AutoTieringEnabled:      true,
-			TieringPolicy:           models2.VolumeInlineTieringPolicyAuto,
-			RetrievalPolicy:         models2.VolumeCloudRetrievalPolicyDefault,
+			AutoTieringEnabled:       true,
+			TieringPolicy:            models2.VolumeInlineTieringPolicyAuto,
+			RetrievalPolicy:          models2.VolumeCloudRetrievalPolicyDefault,
 			CoolingThresholdDays:     10,
 			CloudWriteModeEnabled:    &cloudWriteEnabled,
 			HotTierBypassModeEnabled: false,
@@ -28296,9 +28414,9 @@ func Test_validateCloneATPolicyMatchParentVolume(t *testing.T) {
 			},
 		}
 		cloneATPolicy := &common.AutoTieringPolicy{
-			AutoTieringEnabled:      true,
-			TieringPolicy:           models2.VolumeInlineTieringPolicyAuto,
-			RetrievalPolicy:         models2.VolumeCloudRetrievalPolicyDefault,
+			AutoTieringEnabled:       true,
+			TieringPolicy:            models2.VolumeInlineTieringPolicyAuto,
+			RetrievalPolicy:          models2.VolumeCloudRetrievalPolicyDefault,
 			CoolingThresholdDays:     10,
 			CloudWriteModeEnabled:    &cloudWriteEnabled,
 			HotTierBypassModeEnabled: true,
@@ -28389,12 +28507,12 @@ func Test_createVolume_WithSnapshot_validateCloneATPolicyMatchParent(t *testing.
 
 	// Create parent volume with AT policy enabled
 	parentVolume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "parent-volume-uuid"},
-		Name:      "parent-volume",
-		AccountID: account.ID,
-		PoolID:    pool.ID,
-		SvmID:     svm.ID,
-		State:     models.LifeCycleStateREADY,
+		BaseModel:          datamodel.BaseModel{UUID: "parent-volume-uuid"},
+		Name:               "parent-volume",
+		AccountID:          account.ID,
+		PoolID:             pool.ID,
+		SvmID:              svm.ID,
+		State:              models.LifeCycleStateREADY,
 		AutoTieringEnabled: true,
 		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
 			TieringPolicy: models2.VolumeInlineTieringPolicyAuto,
@@ -28424,13 +28542,13 @@ func Test_createVolume_WithSnapshot_validateCloneATPolicyMatchParent(t *testing.
 
 	t.Run("Should reject clone with mismatched AT policy when flag is enabled", func(tt *testing.T) {
 		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Name:          "clone-volume-mismatch",
-			QuotaInBytes:  100 * 1024 * 1024 * 1024,
-			Protocols:     []string{"NFS"},
-			PoolID:        pool.UUID,
-			Zone:          "us-west1-a",
-			SnapshotID:    snapshot.UUID,
+			AccountName:  "test_account",
+			Name:         "clone-volume-mismatch",
+			QuotaInBytes: 100 * 1024 * 1024 * 1024,
+			Protocols:    []string{"NFS"},
+			PoolID:       pool.UUID,
+			Zone:         "us-west1-a",
+			SnapshotID:   snapshot.UUID,
 			AutoTieringPolicy: &common.AutoTieringPolicy{
 				AutoTieringEnabled: false, // Mismatch: parent has enabled, clone has disabled
 			},
@@ -28482,13 +28600,13 @@ func Test_createVolume_WithSnapshot_validateCloneATPolicyMatchParent(t *testing.
 		// This test explicitly covers lines 300-303 by ensuring the validation is called
 		// and the error is returned from _createVolume
 		params := &common.CreateVolumeParams{
-			AccountName:   "test_account",
-			Name:          "clone-volume-nil-policy",
-			QuotaInBytes:  100 * 1024 * 1024 * 1024,
-			Protocols:     []string{"NFS"},
-			PoolID:        pool.UUID,
-			Zone:          "us-west1-a",
-			SnapshotID:    snapshot.UUID,
+			AccountName:       "test_account",
+			Name:              "clone-volume-nil-policy",
+			QuotaInBytes:      100 * 1024 * 1024 * 1024,
+			Protocols:         []string{"NFS"},
+			PoolID:            pool.UUID,
+			Zone:              "us-west1-a",
+			SnapshotID:        snapshot.UUID,
 			AutoTieringPolicy: nil, // Clone has nil policy, parent has enabled
 		}
 

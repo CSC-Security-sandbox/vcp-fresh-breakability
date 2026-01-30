@@ -262,6 +262,11 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 				logger.Error("Replication (snapmirror) snapshot is not eligible for volume creation", "snapshot_id", dbSnapshot.UUID, "snapshot_name", dbSnapshot.Name)
 				return nil, "", customerrors.NewUserInputValidationErr("Snapshot is not eligible for volume creation. Snapshots created for backup, data protection, replication, or clone volumes are not supported.")
 			}
+			// Block if parent volume is in DELETING state
+			if dbSnapshot.Volume != nil && dbSnapshot.Volume.State == models.LifeCycleStateDeleting {
+				logger.Error("Parent volume is in deleting state and cannot be used for volume creation", "snapshot_id", dbSnapshot.UUID, "volume_id", dbSnapshot.Volume.UUID, "volume_state", dbSnapshot.Volume.State)
+				return nil, "", customerrors.NewUserInputValidationErr("Parent volume is in deleting state and cannot be used for volume creation")
+			}
 		}
 
 		if params.Protocols != nil && dbSnapshot != nil && dbSnapshot.Volume != nil && dbSnapshot.Volume.VolumeAttributes != nil && dbSnapshot.Volume.VolumeAttributes.Protocols != nil {
@@ -3102,18 +3107,18 @@ func _validateSplitCloneVolumeParams(ctx context.Context, volume *datamodel.Volu
 func validateCloneATPolicyMatchParentVolume(parentVolume *datamodel.Volume, cloneATPolicy *common.AutoTieringPolicy) error {
 	parentATEnabled := parentVolume.AutoTieringEnabled
 	parentHasATPolicy := parentVolume.AutoTieringPolicy != nil || parentATEnabled
-	
+
 	// If parent has no AT policy set (no policy and not enabled), clone can also have nil AT policy
 	if !parentHasATPolicy && cloneATPolicy == nil {
 		return nil
 	}
-	
+
 	// If parent has no AT policy set, clone cannot set AT policy (must match parent's nil policy)
 	if !parentHasATPolicy && cloneATPolicy != nil {
 		return customerrors.NewUserInputValidationErr(
 			"clone volume auto tiering policy cannot be different from parent volume: auto tiering policy must not be set for clone volume to match parent volume (parent volume has no auto tiering policy set)")
 	}
-	
+
 	// If parent has AT policy set (even if paused/disabled), clone must explicitly set AT policy to match
 	if parentHasATPolicy && cloneATPolicy == nil {
 		// If parent has paused AT policy (policy exists but disabled), use specific message
@@ -3125,7 +3130,7 @@ func validateCloneATPolicyMatchParentVolume(parentVolume *datamodel.Volume, clon
 			fmt.Sprintf("clone volume auto tiering policy cannot be different from parent volume: auto tiering policy must be explicitly set to match parent volume (auto tiering is %s for parent volume)",
 				map[bool]string{true: "enabled", false: "disabled"}[parentATEnabled]))
 	}
-	
+
 	cloneATEnabled := cloneATPolicy.AutoTieringEnabled
 
 	// If one is enabled and the other is disabled, they don't match

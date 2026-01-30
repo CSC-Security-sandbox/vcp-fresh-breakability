@@ -79,6 +79,11 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 		if strings.Contains(err.Error(), "Maximum clone hierarchy") {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrNestedCloneLimitExceeded, err))
 		}
+		// Check for parent volume not found error when restoring from snapshot
+		// ONTAP error format: "Volume \"parentvol2\" in SVM \"svm-name\" does not exist."
+		if strings.Contains(err.Error(), "Volume") && strings.Contains(err.Error(), "does not exist") && params.RestoreFromSnapshot != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrParentVolumeNotFound, errors.NewUserInputValidationErr("Cannot create volume from snapshot: parent volume does not exist. Please verify that the parent volume is available and try again.")))
+		}
 		return nil, err
 	}
 

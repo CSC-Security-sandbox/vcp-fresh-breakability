@@ -419,6 +419,95 @@ func TestCreateVolume_MaximumCloneHierarchyError(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
+func TestCreateVolume_ParentVolumeNotFoundError(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	volumeName := "testVolume"
+	params := CreateVolumeParams{
+		VolumeName: volumeName,
+		SvmName:    "testSVM",
+		Aggregates: []string{"testAggregate"},
+		Size:       int64(1024),
+		VolumeType: "rw",
+		RestoreFromSnapshot: &RestoreFromSnapshotParams{
+			ParentVolumeExternalUUID: "parent-vol-uuid",
+			ParentVolumeName:         "parentvol2",
+			SnapshotUUID:             "snapshot-uuid",
+			SnapshotName:             "snapshot-name",
+			ParentVolumeSvmName:      "gcnv-96a69cb72228dbd-svm-01",
+		},
+	}
+
+	// ONTAP error format: "Volume \"parentvol2\" in SVM \"gcnv-96a69cb72228dbd-svm-01\" does not exist."
+	mockStorage.On("VolumeCreate", mock.Anything).Return(nil, nil, errors.New("Volume \"parentvol2\" in SVM \"gcnv-96a69cb72228dbd-svm-01\" does not exist."))
+
+	resp, err := rc.CreateVolume(params)
+
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+	// Verify that the error is wrapped as a TemporalApplicationError with ErrParentVolumeNotFound
+	// Extract the CustomError from the TemporalApplicationError
+	customErr := vsaerrors.ExtractCustomError(err)
+	require.NotNil(t, customErr, "Expected CustomError to be extracted from TemporalApplicationError")
+	assert.Equal(t, vsaerrors.ErrParentVolumeNotFound, customErr.TrackingID)
+	// Verify the error message contains the expected user-friendly message
+	assert.Contains(t, err.Error(), "Cannot create volume from snapshot: parent volume does not exist")
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestCreateVolume_ParentVolumeNotFoundError_WithoutRestoreFromSnapshot(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	volumeName := "testVolume"
+	params := CreateVolumeParams{
+		VolumeName: volumeName,
+		SvmName:    "testSVM",
+		Aggregates: []string{"testAggregate"},
+		Size:       int64(1024),
+		VolumeType: "rw",
+		// RestoreFromSnapshot is nil - should not trigger the error wrapping
+	}
+
+	// Even if ONTAP returns "Volume does not exist" error, it should not be wrapped
+	// as ErrParentVolumeNotFound if RestoreFromSnapshot is nil
+	mockStorage.On("VolumeCreate", mock.Anything).Return(nil, nil, errors.New("Volume \"somevol\" in SVM \"testSVM\" does not exist."))
+
+	resp, err := rc.CreateVolume(params)
+
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+	// Verify that the error is NOT wrapped as ErrParentVolumeNotFound
+	customErr := vsaerrors.ExtractCustomError(err)
+	if customErr != nil {
+		assert.NotEqual(t, vsaerrors.ErrParentVolumeNotFound, customErr.TrackingID, "Error should not be wrapped as ErrParentVolumeNotFound when RestoreFromSnapshot is nil")
+	}
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
 func TestCreateVolume_ErrorOnNilResponse(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)
