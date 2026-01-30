@@ -73,10 +73,10 @@ func (a *UpdateVolumeInReplicationActivity) GetReplicationFromDBVolume(ctx conte
 		event.Remote.VolumeUUID = repldb.ReplicationAttributes.DestinationVolumeUUID
 		event.Remote.PoolUUID = repldb.ReplicationAttributes.DestinationPoolUUID
 	} else {
-		event.Local.ProjectNumber = remoteProject
+		event.Local.ProjectNumber = params.AccountName
 		event.Local.Region = remoteRegion
 		event.Local.Location = repldb.ReplicationAttributes.DestinationLocation
-		event.Remote.ProjectNumber = params.AccountName
+		event.Remote.ProjectNumber = remoteProject
 		event.Remote.Region = localRegion
 		event.Remote.Location = repldb.ReplicationAttributes.SourceLocation
 		event.Remote.VolumeUUID = repldb.ReplicationAttributes.SourceVolumeUUID

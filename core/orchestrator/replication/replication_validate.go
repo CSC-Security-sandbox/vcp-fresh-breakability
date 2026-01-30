@@ -904,6 +904,11 @@ func _verifyDstReplicationResume(ctx context.Context, event *ResumeReplicationEv
 		return srcReplication, nil
 	}
 
+	if replication.HybridReplicationAttributes != nil && replication.HybridReplicationAttributes.Status != coreModels.HybridReplicationStatusPeered {
+		logger.Error("Hybrid Replication needs to be in peered state before resuming")
+		return nil, utilErrors.NewUserInputValidationErr("Hybrid Replication needs to be in peered state before resuming")
+	}
+
 	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
 	if err != nil || dstReplication == nil {
 		logger.Error("getReplication error", "error", err)
@@ -1427,7 +1432,7 @@ func _verifyDstReplicationStop(ctx context.Context, event *StopReplicationEvent)
 		return srcReplication, nil
 	}
 
-	if replication.ReplicationAttributes.DestinationReplicationUUID == uuid.Nil.String() && replication.HybridReplicationAttributes.Status != coreModels.HybridReplicationStatusPeered {
+	if replication.HybridReplicationAttributes != nil && replication.HybridReplicationAttributes.Status != coreModels.HybridReplicationStatusPeered {
 		logger.Error("Hybrid Replication needs to be in peered state before stopping")
 		return nil, utilErrors.NewUserInputValidationErr("Hybrid Replication needs to be in peered state before stopping")
 	}
@@ -1471,6 +1476,12 @@ func _verifyDstReplicationReverse(ctx context.Context, event *ReverseReplication
 		}
 		return srcReplication, nil
 	}
+
+	if replication.HybridReplicationAttributes != nil && replication.HybridReplicationAttributes.Status != coreModels.HybridReplicationStatusPeered {
+		logger.Error("Hybrid Replication needs to be in peered state before reversing")
+		return nil, utilErrors.NewUserInputValidationErr("Hybrid Replication needs to be in peered state before reversing")
+	}
+
 	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
 	if err != nil || dstReplication == nil {
 		logger.Error("getReplication error", "error", err)

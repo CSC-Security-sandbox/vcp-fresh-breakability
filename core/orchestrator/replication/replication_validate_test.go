@@ -3736,6 +3736,33 @@ func TestVerifyDstReplicationResume(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Equal(tt, dstReplication, resp)
 	})
+	t.Run("WhenHybridReplicationAttributesSet_AndStatusNotPeered_ReturnsError", func(tt *testing.T) {
+		ctx := context.Background()
+		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+		status := coreModels.HybridReplicationStatusPendingSVMPeer
+		eventWithHybridNotPeered := &ResumeReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				DstBasePath:              "dstPath",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation:        "us-east1",
+						DestinationReplicationUUID: "dstUUID",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &migrationType,
+						Status:                status,
+					},
+				},
+			},
+		}
+		expectedError := errors.NewUserInputValidationErr("Hybrid Replication needs to be in peered state before resuming")
+		resp, err := _verifyDstReplicationResume(ctx, eventWithHybridNotPeered)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, expectedError, err)
+	})
 	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndDestinationReplicationUUIDIsNil_AndStatusIsNotExternalManaged", func(tt *testing.T) {
 		ctx := context.Background()
 		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
@@ -3875,7 +3902,7 @@ func TestVerifyDstReplicationResume(t *testing.T) {
 					ReplicationAttributes: &datamodel.ReplicationDetails{
 						SourceLocation:             "srcLocation",
 						SourceReplicationUUID:      "srcUUID",
-						DestinationLocation:        "",
+						DestinationLocation:        remoteRegionCustomer,
 						DestinationReplicationUUID: "destUUID",
 					},
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
@@ -3911,7 +3938,7 @@ func TestVerifyDstReplicationResume(t *testing.T) {
 					ReplicationAttributes: &datamodel.ReplicationDetails{
 						SourceLocation:             "srcLocation",
 						SourceReplicationUUID:      "srcUUID",
-						DestinationLocation:        "",
+						DestinationLocation:        remoteRegionCustomer,
 						DestinationReplicationUUID: "destUUID",
 					},
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
@@ -5131,6 +5158,33 @@ func TestVerifyDstReplicationStop(t *testing.T) {
 		assert.Nil(tt, replication)
 		assert.Contains(tt, err.Error(), "Replication relationship status is in transferring state")
 	})
+	t.Run("WhenHybridReplicationAttributesSet_AndStatusNotPeered_ReturnsError", func(tt *testing.T) {
+		ctx := context.Background()
+		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+		status := coreModels.HybridReplicationStatusPendingSVMPeer
+		eventWithHybridNotPeered := &StopReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				DstBasePath:              "dstPath",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation:        "us-east1",
+						DestinationReplicationUUID: "dstUUID",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &migrationType,
+						Status:                status,
+					},
+				},
+			},
+		}
+		expectedError := errors.NewUserInputValidationErr("Hybrid Replication needs to be in peered state before stopping")
+		resp, err := _verifyDstReplicationStop(ctx, eventWithHybridNotPeered)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, expectedError, err)
+	})
 	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndDestinationReplicationUUIDIsNil_AndStatusIsNotExternalManaged", func(tt *testing.T) {
 		ctx := context.Background()
 		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
@@ -5270,7 +5324,7 @@ func TestVerifyDstReplicationStop(t *testing.T) {
 					ReplicationAttributes: &datamodel.ReplicationDetails{
 						SourceLocation:             "srcLocation",
 						SourceReplicationUUID:      "srcUUID",
-						DestinationLocation:        "",
+						DestinationLocation:        remoteRegionCustomer,
 						DestinationReplicationUUID: "destUUID",
 					},
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
@@ -5330,7 +5384,7 @@ func TestVerifyDstReplicationStop(t *testing.T) {
 					ReplicationAttributes: &datamodel.ReplicationDetails{
 						SourceLocation:             "srcLocation",
 						SourceReplicationUUID:      "srcUUID",
-						DestinationLocation:        "",
+						DestinationLocation:        remoteRegionCustomer,
 						DestinationReplicationUUID: "destUUID",
 					},
 					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
@@ -6211,6 +6265,33 @@ func Test_verifyDstReplicationReverse(t *testing.T) {
 		},
 	}
 
+	t.Run("WhenHybridReplicationAttributesSet_AndStatusNotPeered_ReturnsError", func(tt *testing.T) {
+		ctx := context.Background()
+		migrationType := string(coreModels.HybridReplicationParametersReplicationTypeMIGRATION)
+		status := coreModels.HybridReplicationStatusPendingSVMPeer
+		eventWithHybridNotPeered := &ReverseReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				DstBasePath:              "dstPath",
+				DestinationProjectNumber: "dest-proj",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation:        "us-east1",
+						DestinationReplicationUUID: "dest-repl-uuid",
+					},
+					HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+						HybridReplicationType: &migrationType,
+						Status:                status,
+					},
+				},
+			},
+		}
+		expectedError := errors.NewUserInputValidationErr("Hybrid Replication needs to be in peered state before reversing")
+		resp, err := _verifyDstReplicationReverse(ctx, eventWithHybridNotPeered)
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, expectedError, err)
+	})
 	t.Run("WhenIsSrcForHybridReplicationReturnsTrue_AndDestinationReplicationUUIDIsNil_AndStatusIsNotExternalManaged", func(tt *testing.T) {
 		ctx := context.Background()
 		reverseType := string(coreModels.HybridReplicationParametersReplicationTypeREVERSE)
