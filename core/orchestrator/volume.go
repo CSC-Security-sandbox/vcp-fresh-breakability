@@ -2239,7 +2239,9 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 	// Greater than 0 means the value was provided in the request
 	if params.QuotaInBytes > 0 {
 		if params.QuotaInBytes < volume.SizeInBytes {
-			return customerrors.NewUserInputValidationErr("volume size cannot be reduced")
+			if volume.VolumeAttributes != nil && len(volume.VolumeAttributes.Protocols) > 0 && utils.IsSANProtocol(volume.VolumeAttributes.Protocols[0]) {
+				return customerrors.NewUserInputValidationErr("volume size cannot be reduced")
+			}
 		}
 		// Calculate the size increase
 		sizeIncrease := params.QuotaInBytes - volume.SizeInBytes

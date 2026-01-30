@@ -12817,7 +12817,7 @@ func TestUpdateVolume(t *testing.T) {
 		assert.Nil(tt, volume)
 	})
 
-	t.Run("WhenValidateUpdateVolumeParamsFails", func(tt *testing.T) {
+	t.Run("WhenValidateUpdateVolumeParamsFailsForLUNVolume", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(1024 * 1024 * 1024)}
@@ -12825,6 +12825,9 @@ func TestUpdateVolume(t *testing.T) {
 			SizeInBytes: int64(2 * 1024 * 1024 * 1024),
 			State:       "READY",
 			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{utils.ProtocolISCSI}, // SAN protocol (LUN)
+			},
 		}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
@@ -14319,12 +14322,70 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		assert.Contains(tt, err.Error(), "An update operation is already in progress for this volume")
 	})
 
-	t.Run("FailsIfQuotaReduced", func(tt *testing.T) {
-		volume := &datamodel.Volume{State: "READY", SizeInBytes: int64(2 * 1024 * 1024 * 1024)}
+	t.Run("FailsIfQuotaReducedForLUNVolume", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(2 * 1024 * 1024 * 1024),
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{utils.ProtocolISCSI}, // SAN protocol (LUN)
+			},
+		}
 		params := &common.UpdateVolumeParams{QuotaInBytes: int64(1024 * 1024 * 1024)}
 		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "volume size cannot be reduced")
+	})
+
+	t.Run("AllowsQuotaReductionForNFSVolume", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(2 * 1024 * 1024 * 1024),
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{utils.ProtocolNFS}, // File protocol
+			},
+		}
+		params := &common.UpdateVolumeParams{QuotaInBytes: int64(1024 * 1024 * 1024)}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.NoError(tt, err) // Should allow size reduction for file volumes
+	})
+
+	t.Run("AllowsQuotaReductionForSMBVolume", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(2 * 1024 * 1024 * 1024),
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{utils.ProtocolSMB}, // File protocol
+			},
+		}
+		params := &common.UpdateVolumeParams{QuotaInBytes: int64(1024 * 1024 * 1024)}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.NoError(tt, err) // Should allow size reduction for file volumes
+	})
+
+	t.Run("AllowsQuotaReductionForNFSv3Volume", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(2 * 1024 * 1024 * 1024),
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{utils.ProtocolNFSv3}, // File protocol
+			},
+		}
+		params := &common.UpdateVolumeParams{QuotaInBytes: int64(1024 * 1024 * 1024)}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.NoError(tt, err) // Should allow size reduction for file volumes
+	})
+
+	t.Run("AllowsQuotaReductionForNFSv4Volume", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(2 * 1024 * 1024 * 1024),
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{utils.ProtocolNFSv4}, // File protocol
+			},
+		}
+		params := &common.UpdateVolumeParams{QuotaInBytes: int64(1024 * 1024 * 1024)}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.NoError(tt, err) // Should allow size reduction for file volumes
 	})
 
 	t.Run("FailsIfLargeVolumeConstituentCountProvided", func(tt *testing.T) {
@@ -14803,15 +14864,18 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		assert.NoError(tt, err)
 	})
 
-	t.Run("FailsWhenReducingVolumeSize", func(tt *testing.T) {
+	t.Run("FailsWhenReducingVolumeSizeForLUNVolume", func(tt *testing.T) {
 		ctx := context.Background()
 		se := &database.MockStorage{}
 
-		// Create a volume with current size of 200 GiB
+		// Create a LUN volume with current size of 200 GiB
 		currentVolumeSize := int64(200 * 1024 * 1024 * 1024) // 200 GiB
 		volume := &datamodel.Volume{
 			State:       "READY",
 			SizeInBytes: currentVolumeSize,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{utils.ProtocolISCSI}, // SAN protocol (LUN)
+			},
 		}
 
 		pool := &datamodel.PoolView{
@@ -14833,6 +14897,40 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "volume size cannot be reduced")
+	})
+
+	t.Run("AllowsReducingVolumeSizeForNASVolume", func(tt *testing.T) {
+		ctx := context.Background()
+		se := &database.MockStorage{}
+
+		// Create an NFS volume with current size of 200 GiB
+		currentVolumeSize := int64(200 * 1024 * 1024 * 1024) // 200 GiB
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: currentVolumeSize,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{utils.ProtocolNFS}, // File protocol
+			},
+		}
+
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				SizeInBytes: int64(1000 * 1024 * 1024 * 1024),
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+			QuotaInBytes: uint64(500 * 1024 * 1024 * 1024),
+		}
+
+		// Request to reduce volume to 100 GiB (reduction)
+		newVolumeSize := int64(100 * 1024 * 1024 * 1024) // 100 GiB < 200 GiB current
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: newVolumeSize,
+		}
+
+		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
+		assert.NoError(tt, err) // Should allow size reduction for NFS volumes
 	})
 
 	t.Run("PassesWhenQuotaInBytesIsZeroOrNotProvided", func(tt *testing.T) {
