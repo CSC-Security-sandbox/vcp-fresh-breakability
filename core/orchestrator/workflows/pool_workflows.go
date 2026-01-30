@@ -724,7 +724,7 @@ func _syncPoolZIZSDetailsWorkflow(ctx workflow.Context, dbPool *datamodel.Pool, 
 
 		// Create child workflow context for SyncPoolZIZSDetailsWorkflow
 		syncPoolZIZSCtx := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
-			WorkflowID:            fmt.Sprintf("sync-pool-zizs-%s-%s", dbPool.UUID, uuid.New().String()),
+			WorkflowID:            fmt.Sprintf("sync-pool-zizs-%s-%d", dbPool.UUID, dbPool.AccountID),
 			TaskQueue:             workflowengine.BackgroundTaskQueue,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 			ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_ABANDON, // Continue running even if parent closes

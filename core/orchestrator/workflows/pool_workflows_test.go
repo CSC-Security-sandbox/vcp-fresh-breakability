@@ -46,6 +46,49 @@ func setEnableSyncPoolZIZSTrue() func() {
 	}
 }
 
+func TestSyncPoolZIZSDetailsWorkflow_UsesAccountIDInWorkflowID(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	dbPool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:      "test-pool",
+		AccountID: 12345,
+		VendorID:  "test-vendor",
+	}
+
+	var capturedWorkflowID string
+	env.OnWorkflow(SyncPoolComplianceForPoolWorkflow, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		ctx := args.Get(0).(workflow.Context)
+		capturedWorkflowID = workflow.GetInfo(ctx).WorkflowExecution.ID
+	})
+
+	env.RegisterWorkflow(testSyncPoolZIZSDetailsWorkflow)
+	env.ExecuteWorkflow(testSyncPoolZIZSDetailsWorkflow, dbPool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+
+	expectedWorkflowID := fmt.Sprintf("sync-pool-zizs-%s-%d", dbPool.UUID, dbPool.AccountID)
+	assert.Equal(t, expectedWorkflowID, capturedWorkflowID)
+	env.AssertExpectations(t)
+}
+
+func testSyncPoolZIZSDetailsWorkflow(ctx workflow.Context, dbPool *datamodel.Pool) error {
+	wf := &createPoolWorkflow{
+		BaseWorkflow: BaseWorkflow{
+			Logger: log.NewLogger(),
+		},
+	}
+
+	_syncPoolZIZSDetailsWorkflow(ctx, dbPool, wf)
+	return nil
+}
+
 func TestCreatePoolWorkflow(t *testing.T) {
 	// Set enableSyncPoolZIZS to true for this test
 	cleanup := setEnableSyncPoolZIZSTrue()
@@ -8172,11 +8215,11 @@ func (m mockEncVal) HasValue() bool {
 func TestSubnetActivity_GetTenancyDetails_Success(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestActivityEnvironment()
-	
+
 	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
 	subnetActivity := &SubnetActivity{}
 	env.RegisterActivity(subnetActivity)
-	
+
 	origFetchTemporalClient := fetchTemporalClient
 	fetchTemporalClient = func(ctx context.Context) client.Client {
 		return mockTemp
@@ -8197,7 +8240,7 @@ func TestSubnetActivity_GetTenancyDetails_Success(t *testing.T) {
 
 	result, err := env.ExecuteActivity(subnetActivity.GetTenancyDetails, "test-workflow-id")
 	assert.NoError(t, err)
-	
+
 	var tenancyInfo *common.TenancyInfo
 	err = result.Get(&tenancyInfo)
 	assert.NoError(t, err)
@@ -8207,11 +8250,11 @@ func TestSubnetActivity_GetTenancyDetails_Success(t *testing.T) {
 func TestSubnetActivity_GetTenancyDetails_QueryWorkflowError(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestActivityEnvironment()
-	
+
 	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
 	subnetActivity := &SubnetActivity{}
 	env.RegisterActivity(subnetActivity)
-	
+
 	origFetchTemporalClient := fetchTemporalClient
 	fetchTemporalClient = func(ctx context.Context) client.Client {
 		return mockTemp
@@ -8227,11 +8270,11 @@ func TestSubnetActivity_GetTenancyDetails_QueryWorkflowError(t *testing.T) {
 func TestSubnetActivity_GetTenancyDetails_EncodingError(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestActivityEnvironment()
-	
+
 	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
 	subnetActivity := &SubnetActivity{}
 	env.RegisterActivity(subnetActivity)
-	
+
 	origFetchTemporalClient := fetchTemporalClient
 	fetchTemporalClient = func(ctx context.Context) client.Client {
 		return mockTemp
@@ -8247,11 +8290,11 @@ func TestSubnetActivity_GetTenancyDetails_EncodingError(t *testing.T) {
 func TestSubnetActivity_GetTenancyDetails_WorkflowStatusNil(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestActivityEnvironment()
-	
+
 	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
 	subnetActivity := &SubnetActivity{}
 	env.RegisterActivity(subnetActivity)
-	
+
 	origFetchTemporalClient := fetchTemporalClient
 	fetchTemporalClient = func(ctx context.Context) client.Client {
 		return mockTemp
@@ -8267,11 +8310,11 @@ func TestSubnetActivity_GetTenancyDetails_WorkflowStatusNil(t *testing.T) {
 func TestSubnetActivity_GetTenancyDetails_WorkflowStatusNotCompleted(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestActivityEnvironment()
-	
+
 	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
 	subnetActivity := &SubnetActivity{}
 	env.RegisterActivity(subnetActivity)
-	
+
 	origFetchTemporalClient := fetchTemporalClient
 	fetchTemporalClient = func(ctx context.Context) client.Client {
 		return mockTemp
@@ -8291,11 +8334,11 @@ func TestSubnetActivity_GetTenancyDetails_WorkflowStatusNotCompleted(t *testing.
 func TestSubnetActivity_GetTenancyDetails_ResultNilError(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestActivityEnvironment()
-	
+
 	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
 	subnetActivity := &SubnetActivity{}
 	env.RegisterActivity(subnetActivity)
-	
+
 	origFetchTemporalClient := fetchTemporalClient
 	fetchTemporalClient = func(ctx context.Context) client.Client {
 		return mockTemp
