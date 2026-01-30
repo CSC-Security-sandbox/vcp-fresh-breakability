@@ -31,6 +31,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+          clean: true
 
       - name: Set up Go
         uses: actions/setup-go@v3
@@ -98,26 +101,31 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Install vsacictl
-        uses: ./.github/actions/install-vsacictl
         with:
-          cache-key: ${{ needs.setup-vsacictl.outputs.cache-key }}
+          token: ${{ secrets.GHVSA_PAT }}
 
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
           go-version-file: go.mod
 
-      - name: Fetch token
-        uses: actions/create-github-app-token@v1
-        id: token
+      - name: Configure Git identity
+        run: |
+          USERNAME=${{ github.actor }}
+          echo "Fetching email for $USERNAME"
+          EMAIL=$(curl -s -H "Authorization: token ${{ secrets.GHVSA_PAT }}" https://api.github.com/users/$USERNAME | jq -r '.email')
+          if [ "$EMAIL" == "null" ]; then
+            EMAIL="$USERNAME@users.noreply.github.com"
+          fi
+          echo "Using email: $EMAIL"
+          echo "Using username: $USERNAME"
+          git config --global user.email "$EMAIL"
+          git config --global user.name "$USERNAME"
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
         with:
-          owner: ${{ github.repository_owner }}
-          app-id: ${{ secrets.VCP_CI_GH_APP_ID }}
-          private-key: ${{ secrets.VCP_CI_GH_PRIVATE_KEY }}
-          repositories: |
-            vsa-control-plane
+          cache-key: ${{ needs.setup-vsacictl.outputs.cache-key }}
 
       - name: Fetch new tag
         id: fetch_new_tag

@@ -395,7 +395,31 @@ jobs:
 
       - name: Create a release
         if: ${{ inputs.create_release }}
-        run: gh release create -R https://github.com/${{ github.repository }} --generate-notes ${{ inputs.pre_release && '--prerelease' || '' }} ${{ inputs.tag }} --target ${{inputs.pr_base_branch}}
+        run: |
+          # Check if release already exists
+          if gh release view "${{ inputs.tag }}" -R https://github.com/${{ github.repository }} &>/dev/null; then
+            echo "Release ${{ inputs.tag }} already exists (created by concurrent build)"
+            echo "Skipping release creation"
+            exit 0
+          fi
+
+          # Try to create the release
+          if gh release create -R https://github.com/${{ github.repository }} \
+              --generate-notes \
+              ${{ inputs.pre_release && '--prerelease' || '' }} \
+              "${{ inputs.tag }}" \
+              --target "${{ inputs.pr_base_branch }}"; then
+            echo "Successfully created release ${{ inputs.tag }}"
+          else
+            # Double-check if it exists now (race condition)
+            if gh release view "${{ inputs.tag }}" -R https://github.com/${{ github.repository }} &>/dev/null; then
+              echo "Release ${{ inputs.tag }} was created by concurrent build"
+              exit 0
+            else
+              echo "Failed to create release"
+              exit 1
+            fi
+          fi
         env:
           GH_TOKEN: ${{ secrets.GHVSA_PAT }}
           GITHUB_REPOSITORY: ${{ github.event.repository.name }}
