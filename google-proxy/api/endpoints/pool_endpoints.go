@@ -41,7 +41,6 @@ const (
 	HTTP_BAD_REQUEST_CODE = 400
 	maxRuneCount          = 63
 	maxByteCount          = 128
-	QosTypeAuto           = "auto"
 )
 
 func resolvePerformanceParams(reqThroughput gcpgenserver.OptNilFloat64, reqIops gcpgenserver.OptNilFloat64) (throughput int64, iops *int64) {
@@ -616,15 +615,36 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 	// This ensures that customers only changing throughput don't lose their higher IOPS
 	// while maintaining the minimum IOPS requirement for the new throughput level.
 	// Always validate and calculate IOPS - handles all cases including validation
-	calculatedIops, validateErr2 := validateThroughputAndIopsForUpdate(ctx, req.TotalThroughputMibps, req.TotalIops, existingPool)
-	if validateErr2 != nil {
-		return &gcpgenserver.V1betaUpdatePoolBadRequest{
-			Code:    HTTP_BAD_REQUEST_CODE,
-			Message: validateErr2.Message,
-		}, nil
+	calculatedIops := calculateIopsForUpdate(ctx, req.TotalThroughputMibps, req.TotalIops, existingPool)
+
+	// Validate if user is updating throughput/qos (either TotalThroughputMibps or TotalIops is set)
+	// This blocks QoS reductions below what's utilized by child volumes
+	if existingPool.QosType == utils.QosTypeManual && (req.TotalThroughputMibps.IsSet() || req.TotalIops.IsSet()) {
+		// Use requested throughput if set, otherwise use existing pool throughput
+		var throughputToValidate float64
+		if req.TotalThroughputMibps.IsSet() {
+			throughputToValidate = req.TotalThroughputMibps.Value
+		} else {
+			if existingPool.CustomPerformanceParams != nil {
+				throughputToValidate = float64(existingPool.CustomPerformanceParams.Throughput)
+			} else {
+				throughputToValidate = float64(existingPool.TotalThroughputMibps)
+			}
+		}
+
+		validateErr2 := validateUpdateThroughputAndIopsAboveUtilized(
+			ctx,
+			throughputToValidate,
+			float64(calculatedIops),
+			existingPool)
+		if validateErr2 != nil {
+			return &gcpgenserver.V1betaUpdatePoolBadRequest{
+				Code:    http.StatusBadRequest,
+				Message: validateErr2.Error(),
+			}, nil
+		}
 	}
-	iopsValue := calculatedIops
-	param.TotalIops = &iopsValue
+	param.TotalIops = &calculatedIops
 
 	if req.Description.IsSet() {
 		param.Description = req.Description.Value
@@ -1208,16 +1228,21 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 	return nil
 }
 
-// validateThroughputAndIopsForUpdate validates throughput and IOPS for pool updates
+// calculateIopsForUpdate calculates IOPS for pool updates
 // It ensures IOPS meets minimum requirements for both new and existing throughput
-func validateThroughputAndIopsForUpdate(ctx context.Context, throughput gcpgenserver.OptNilFloat64, iops gcpgenserver.OptNilFloat64, existingPool *models.Pool) (int64, *gcpgenserver.Error) {
+func calculateIopsForUpdate(ctx context.Context, throughput gcpgenserver.OptNilFloat64, iops gcpgenserver.OptNilFloat64, existingPool *models.Pool) int64 {
 	// Case 1: IOPS explicitly provided - validate against throughput requirements
 	if iops.IsSet() {
 		// Return as it is since the calculation is done in the orchestrator
-		return int64(iops.Value), nil
+		return int64(iops.Value)
 	} else if throughput.IsSet() {
 		// Case 2: Only throughput is provided - smart IOPS calculation
-		currentIops := existingPool.CustomPerformanceParams.Iops
+		var currentIops int64
+		if existingPool.CustomPerformanceParams != nil {
+			currentIops = existingPool.CustomPerformanceParams.Iops
+		} else {
+			currentIops = existingPool.TotalIops
+		}
 		newThroughput := int64(throughput.Value)
 		minimumIopsInt := newThroughput * 16
 
@@ -1230,16 +1255,36 @@ func validateThroughputAndIopsForUpdate(ctx context.Context, throughput gcpgense
 		if currentIops > minimumIopsInt {
 			// Current IOPS is already above minimum, keep it as is
 			logger.Info("Keeping current IOPS (above minimum)", "finalIops", currentIops)
-			return currentIops, nil
+			return currentIops
 		} else {
 			// Current IOPS is below minimum, increase to minimum
 			logger.Info("Increasing IOPS to minimum", "finalIops", minimumIopsInt)
-			return minimumIopsInt, nil
+			return minimumIopsInt
 		}
 	} else {
 		// Case 3: Neither throughput nor IOPS provided - use existing IOPS
-		return existingPool.CustomPerformanceParams.Iops, nil
+		if existingPool.CustomPerformanceParams != nil {
+			return existingPool.CustomPerformanceParams.Iops
+		}
+		return existingPool.TotalIops
 	}
+}
+
+// validateUpdateThroughputAndIopsAboveUtilized validates that the requested throughput and IOPS are at least the existing pool's usage (utilized by volumes in the pool)
+func validateUpdateThroughputAndIopsAboveUtilized(ctx context.Context, throughput float64, iops float64, existingPool *models.Pool) error {
+	if throughput < existingPool.UtilizedThroughputMibps {
+		return errors.NewUserInputValidationErr(fmt.Sprintf(
+			"Requested throughput (%.0f MiBps) must be >= current pool utilization (%.0f MiBps).",
+			throughput, existingPool.UtilizedThroughputMibps,
+		))
+	}
+	if iops < float64(existingPool.UtilizedIops) {
+		return errors.NewUserInputValidationErr(fmt.Sprintf(
+			"Requested IOPS (%.0f) must be >= current pool utilization (%.0f IOPS).",
+			iops, float64(existingPool.UtilizedIops),
+		))
+	}
+	return nil
 }
 
 // validateLabels will loop through the label map and validate labels according to Google requirements

@@ -18557,7 +18557,7 @@ func (s *PoolInternalV1beta) encodeFields(e *jx.Encoder) {
 	}
 	{
 		if s.AvailableIops.Set {
-			e.FieldStart("AvailableIops")
+			e.FieldStart("availableIops")
 			s.AvailableIops.Encode(e)
 		}
 	}
@@ -18659,7 +18659,7 @@ var jsonFieldsNameOfPoolInternalV1beta = [47]string{
 	34: "assetLocationMetadata",
 	35: "customPerformanceEnabled",
 	36: "totalIops",
-	37: "AvailableIops",
+	37: "availableIops",
 	38: "type",
 	39: "unified",
 	40: "unifiedPool",
@@ -19057,7 +19057,7 @@ func (s *PoolInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"totalIops\"")
 			}
-		case "AvailableIops":
+		case "availableIops":
 			if err := func() error {
 				s.AvailableIops.Reset()
 				if err := s.AvailableIops.Decode(d); err != nil {
@@ -19065,7 +19065,7 @@ func (s *PoolInternalV1beta) Decode(d *jx.Decoder) error {
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"AvailableIops\"")
+				return errors.Wrap(err, "decode field \"availableIops\"")
 			}
 		case "type":
 			if err := func() error {
@@ -20137,7 +20137,7 @@ func (s *PoolV1beta) encodeFields(e *jx.Encoder) {
 	}
 	{
 		if s.AvailableIops.Set {
-			e.FieldStart("AvailableIops")
+			e.FieldStart("availableIops")
 			s.AvailableIops.Encode(e)
 		}
 	}
@@ -20223,7 +20223,7 @@ var jsonFieldsNameOfPoolV1beta = [45]string{
 	34: "assetLocationMetadata",
 	35: "customPerformanceEnabled",
 	36: "totalIops",
-	37: "AvailableIops",
+	37: "availableIops",
 	38: "type",
 	39: "unified",
 	40: "unifiedPool",
@@ -20619,7 +20619,7 @@ func (s *PoolV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"totalIops\"")
 			}
-		case "AvailableIops":
+		case "availableIops":
 			if err := func() error {
 				s.AvailableIops.Reset()
 				if err := s.AvailableIops.Decode(d); err != nil {
@@ -20627,7 +20627,7 @@ func (s *PoolV1beta) Decode(d *jx.Decoder) error {
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"AvailableIops\"")
+				return errors.Wrap(err, "decode field \"availableIops\"")
 			}
 		case "type":
 			if err := func() error {

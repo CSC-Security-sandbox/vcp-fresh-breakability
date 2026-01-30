@@ -3306,6 +3306,71 @@ func TestCreateVolume(t *testing.T) {
 		assert.Contains(tt, err.Error(), "Pool attributes are required")
 	})
 
+	t.Run("WhenPoolAttributesIsNil", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			APIAccessMode:  common.DEFAULTMode,
+			VendorID:       "/projects/project123/locations/us-west1-a/pools/test-pool",
+			PoolAttributes: nil,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:       "test_account",
+			Region:            "test_region",
+			Name:              "test_volume",
+			Zone:              "us-west1-a",
+			VendorID:          "/projects/project123/locations/us-west1-a/volumes/test-volume",
+			QuotaInBytes:      minQuotaInBytesPool,
+			Protocols:         []string{"NFS"},
+			Description:       "Some description",
+			DisplayName:       "Some display name",
+			SnapshotDirectory: true,
+			PoolID:            "test-pool-uuid",
+		}
+
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getOrCreateAccount = originalGetOrCreateAccount
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		volume, _, err := createVolume(ctx, store, temporal, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, volume)
+		assert.Contains(tt, err.Error(), "Pool attributes are required")
+	})
+
 	t.Run("WhenValidateCreateVolumeParamFails", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewLogger()

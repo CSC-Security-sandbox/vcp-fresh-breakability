@@ -14368,7 +14368,7 @@ type PoolInternalV1beta struct {
 	// The total iops set for a pool.
 	TotalIops OptNilFloat64 `json:"totalIops"`
 	// The available iops for the pool.
-	AvailableIops OptNilFloat64 `json:"AvailableIops"`
+	AvailableIops OptNilFloat64 `json:"availableIops"`
 	// The type of storage pool. STORAGE_POOL_TYPE_UNSPECIFIED is the default value and should not be
 	// used. STANDARD represents the classic/legacy storage pool. UNIFIED represents the VSA-based
 	// storage pool.
@@ -15458,7 +15458,7 @@ type PoolV1beta struct {
 	// The total iops set for a pool.
 	TotalIops OptNilFloat64 `json:"totalIops"`
 	// The available iops for the pool.
-	AvailableIops OptNilFloat64 `json:"AvailableIops"`
+	AvailableIops OptNilFloat64 `json:"availableIops"`
 	// The type of storage pool. STORAGE_POOL_TYPE_UNSPECIFIED is the default value and should not be
 	// used. STANDARD represents the classic/legacy storage pool. UNIFIED represents the VSA-based
 	// storage pool.

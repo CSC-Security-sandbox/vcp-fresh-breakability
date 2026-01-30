@@ -5563,9 +5563,9 @@ func TestConvertToPoolV1Beta_DeletedAtHandling(t *testing.T) {
 	})
 }
 
-// TestValidateThroughputAndIopsForUpdate tests the validateThroughputAndIopsForUpdate function
+// TestCalculateIopsForUpdate tests the calculateIopsForUpdate function
 // which is used for pool updates and covers the missing coverage scenarios
-func TestValidateThroughputAndIopsForUpdate(t *testing.T) {
+func TestCalculateIopsForUpdate(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a mock existing pool for testing
@@ -5581,8 +5581,7 @@ func TestValidateThroughputAndIopsForUpdate(t *testing.T) {
 			throughput := gcpgenserver.OptNilFloat64{Value: 256, Set: true}
 			iops := gcpgenserver.OptNilFloat64{Value: 5000, Set: true}
 
-			result, err := validateThroughputAndIopsForUpdate(ctx, throughput, iops, existingPool)
-			assert.Nil(ttt, err)
+			result := calculateIopsForUpdate(ctx, throughput, iops, existingPool)
 			assert.Equal(ttt, int64(5000), result)
 		})
 
@@ -5591,8 +5590,7 @@ func TestValidateThroughputAndIopsForUpdate(t *testing.T) {
 			iops := gcpgenserver.OptNilFloat64{Value: 1000, Set: true} // 1000 < 256*16 = 4096
 
 			// Function doesn't validate - it just returns the provided IOPS value
-			result, err := validateThroughputAndIopsForUpdate(ctx, throughput, iops, existingPool)
-			assert.Nil(ttt, err)
+			result := calculateIopsForUpdate(ctx, throughput, iops, existingPool)
 			assert.Equal(ttt, int64(1000), result)
 		})
 
@@ -5601,8 +5599,7 @@ func TestValidateThroughputAndIopsForUpdate(t *testing.T) {
 			iops := gcpgenserver.OptNilFloat64{Value: 200000, Set: true} // 200000 > 160000
 
 			// Function doesn't validate - it just returns the provided IOPS value
-			result, err := validateThroughputAndIopsForUpdate(ctx, throughput, iops, existingPool)
-			assert.Nil(ttt, err)
+			result := calculateIopsForUpdate(ctx, throughput, iops, existingPool)
 			assert.Equal(ttt, int64(200000), result)
 		})
 	})
@@ -5614,8 +5611,7 @@ func TestValidateThroughputAndIopsForUpdate(t *testing.T) {
 
 			// Current IOPS (2048) is below new minimum (256*16 = 4096)
 			// Should increase to minimum
-			result, err := validateThroughputAndIopsForUpdate(ctx, throughput, iops, existingPool)
-			assert.Nil(ttt, err)
+			result := calculateIopsForUpdate(ctx, throughput, iops, existingPool)
 			assert.Equal(ttt, int64(4096), result) // Should increase to minimum
 		})
 
@@ -5631,8 +5627,7 @@ func TestValidateThroughputAndIopsForUpdate(t *testing.T) {
 			throughput := gcpgenserver.OptNilFloat64{Value: 256, Set: true}
 			iops := gcpgenserver.OptNilFloat64{} // Not set
 
-			result, err := validateThroughputAndIopsForUpdate(ctx, throughput, iops, lowIopsPool)
-			assert.Nil(ttt, err)
+			result := calculateIopsForUpdate(ctx, throughput, iops, lowIopsPool)
 			assert.Equal(ttt, int64(4096), result) // Should increase to minimum
 		})
 
@@ -5648,8 +5643,8 @@ func TestValidateThroughputAndIopsForUpdate(t *testing.T) {
 			throughput := gcpgenserver.OptNilFloat64{Value: 256, Set: true}
 			iops := gcpgenserver.OptNilFloat64{} // Not set
 
-			result, err := validateThroughputAndIopsForUpdate(ctx, throughput, iops, highIopsPool)
-			assert.Nil(ttt, err)
+			result := calculateIopsForUpdate(ctx, throughput, iops, highIopsPool)
+
 			assert.Equal(ttt, int64(10000), result) // Should keep current IOPS
 		})
 	})
@@ -5658,8 +5653,7 @@ func TestValidateThroughputAndIopsForUpdate(t *testing.T) {
 		throughput := gcpgenserver.OptNilFloat64{} // Not set
 		iops := gcpgenserver.OptNilFloat64{}       // Not set
 
-		result, err := validateThroughputAndIopsForUpdate(ctx, throughput, iops, existingPool)
-		assert.Nil(ttt, err)
+		result := calculateIopsForUpdate(ctx, throughput, iops, existingPool)
 		assert.Equal(ttt, int64(2048), result) // Should use existing IOPS
 	})
 
@@ -5669,8 +5663,7 @@ func TestValidateThroughputAndIopsForUpdate(t *testing.T) {
 			iops := gcpgenserver.OptNilFloat64{} // Not set
 
 			// Should calculate minimum IOPS based on throughput
-			result, err := validateThroughputAndIopsForUpdate(ctx, throughput, iops, existingPool)
-			assert.Nil(ttt, err)
+			result := calculateIopsForUpdate(ctx, throughput, iops, existingPool)
 			assert.Equal(ttt, int64(8192), result) // 512 * 16 = 8192
 		})
 
@@ -5679,21 +5672,146 @@ func TestValidateThroughputAndIopsForUpdate(t *testing.T) {
 			iops := gcpgenserver.OptNilFloat64{} // Not set
 
 			// Minimum IOPS for 100 MiBps is 1600, but current IOPS (2048) is higher
-			result, err := validateThroughputAndIopsForUpdate(ctx, throughput, iops, existingPool)
-			assert.Nil(ttt, err)
+			result := calculateIopsForUpdate(ctx, throughput, iops, existingPool)
 			assert.Equal(ttt, int64(2048), result) // Should keep current IOPS
+		})
+	})
+
+	// This should not occur within VCP as the CustomPerformanceParams is always set, but it feels safer to check for it just in case.
+	t.Run("CustomPerformanceParamsNil", func(tt *testing.T) {
+		poolWithoutCustomPerf := &models.Pool{
+			CustomPerformanceParams: nil,
+			TotalIops:               5000, // Use TotalIops as fallback
+		}
+
+		t.Run("IOPSExplicitlyProvided", func(ttt *testing.T) {
+			throughput := gcpgenserver.OptNilFloat64{Value: 256, Set: true}
+			iops := gcpgenserver.OptNilFloat64{Value: 8000, Set: true}
+
+			// Should return provided IOPS regardless of CustomPerformanceParams
+			result := calculateIopsForUpdate(ctx, throughput, iops, poolWithoutCustomPerf)
+			assert.Equal(ttt, int64(8000), result)
+		})
+
+		t.Run("OnlyThroughputProvided", func(ttt *testing.T) {
+			throughput := gcpgenserver.OptNilFloat64{Value: 256, Set: true}
+			iops := gcpgenserver.OptNilFloat64{}
+
+			// Should use TotalIops (5000) and compare with minimum (256*16 = 4096)
+			// Since 5000 > 4096, should keep TotalIops
+			result := calculateIopsForUpdate(ctx, throughput, iops, poolWithoutCustomPerf)
+			assert.Equal(ttt, int64(5000), result)
+		})
+
+		t.Run("OnlyThroughputProvidedWithLowTotalIops", func(ttt *testing.T) {
+			poolWithLowIops := &models.Pool{
+				CustomPerformanceParams: nil,
+				TotalIops:               2000, // Below minimum for 256 MiBps (4096)
+			}
+			throughput := gcpgenserver.OptNilFloat64{Value: 256, Set: true}
+			iops := gcpgenserver.OptNilFloat64{}
+
+			// Should increase to minimum (4096) since TotalIops (2000) < minimum (4096)
+			result := calculateIopsForUpdate(ctx, throughput, iops, poolWithLowIops)
+			assert.Equal(ttt, int64(4096), result)
+		})
+
+		t.Run("NeitherProvided", func(ttt *testing.T) {
+			throughput := gcpgenserver.OptNilFloat64{}
+			iops := gcpgenserver.OptNilFloat64{}
+
+			// Should use TotalIops when CustomPerformanceParams is nil
+			result := calculateIopsForUpdate(ctx, throughput, iops, poolWithoutCustomPerf)
+			assert.Equal(ttt, int64(5000), result)
 		})
 	})
 }
 
+func TestValidateUpdateThroughputAndIopsAboveUtilized(t *testing.T) {
+	ctx := context.Background()
+
+	pool := &models.Pool{
+		QosType: utils.QosTypeManual,
+		CustomPerformanceParams: &models.CustomPerformanceParams{
+			Throughput: 128,
+			Iops:       2048,
+		},
+		UtilizedThroughputMibps: 100,
+		UtilizedIops:            1600,
+	}
+
+	t.Run("validThroughputAndIops_Increase", func(tt *testing.T) {
+		throughput := float64(256)
+		iops := float64(4096)
+
+		err := validateUpdateThroughputAndIopsAboveUtilized(ctx, throughput, iops, pool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("validThroughputAndIops_Decrease", func(tt *testing.T) {
+		throughput := float64(125)
+		iops := float64(2000)
+
+		err := validateUpdateThroughputAndIopsAboveUtilized(ctx, throughput, iops, pool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("validThroughputAndIops_ExactDecrease", func(tt *testing.T) {
+		throughput := float64(100)
+		iops := float64(1600)
+
+		err := validateUpdateThroughputAndIopsAboveUtilized(ctx, throughput, iops, pool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("validThroughputAndIops_DecreaseToMinimum", func(tt *testing.T) {
+		minQosPool := &models.Pool{
+			QosType: utils.QosTypeManual,
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 64,
+				Iops:       1024,
+			},
+			UtilizedThroughputMibps: 32,
+			UtilizedIops:            512,
+		}
+
+		throughput := float64(64)
+		iops := float64(1024)
+
+		err := validateUpdateThroughputAndIopsAboveUtilized(ctx, throughput, iops, minQosPool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("invalidThroughputAndIops_DecreaseThroughputBelowUtilized", func(tt *testing.T) {
+		throughput := float64(50)
+		iops := float64(1600)
+
+		err := validateUpdateThroughputAndIopsAboveUtilized(ctx, throughput, iops, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Requested throughput (50 MiBps) must be >= current pool utilization (100 MiBps).")
+		var userInputErr *errors.UserInputValidationErr
+		assert.ErrorAs(tt, err, &userInputErr)
+	})
+
+	t.Run("invalidThroughputAndIops_DecreaseIopsBelowUtilized", func(tt *testing.T) {
+		throughput := float64(100)
+		iops := float64(800)
+
+		err := validateUpdateThroughputAndIopsAboveUtilized(ctx, throughput, iops, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Requested IOPS (800) must be >= current pool utilization (1600 IOPS).")
+		var userInputErr *errors.UserInputValidationErr
+		assert.ErrorAs(tt, err, &userInputErr)
+	})
+}
+
 // TestV1betaUpdatePool_ThroughputOnlyUpdate tests the scenario where only throughput is updated
-// This covers the missing coverage for line 523 and smart IOPS calculation
 func TestV1betaUpdatePool_ThroughputOnlyUpdate(t *testing.T) {
 	// Save original parseAndValidateRegionAndZone function and restore at end of test.
 	originalParseAndValidate := parseAndValidateRegionAndZone
 	defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
 
-	t.Run("ThroughputOnlyUpdate", func(tt *testing.T) {
+	t.Run("ThroughputOnlyUpdate_ValidIncrease", func(tt *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
@@ -5741,6 +5859,172 @@ func TestV1betaUpdatePool_ThroughputOnlyUpdate(t *testing.T) {
 		req := &gcpgenserver.PoolUpdateV1beta{
 			TotalThroughputMibps: gcpgenserver.NewOptNilFloat64(256), // 256 MiBps
 			// TotalIops not set - should trigger smart IOPS calculation
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		expectedOpName := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "op-123")
+		assert.Equal(tt, expectedOpName, op.Name.Value)
+	})
+}
+
+func TestV1betaUpdatePool_ManualQos_IopsOnlyUpdate(t *testing.T) {
+	// Save original parseAndValidateRegionAndZone function and restore at end of test.
+	originalParseAndValidate := parseAndValidateRegionAndZone
+	defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
+
+	t.Run("IopsOnlyUpdate_ValidIncrease", func(tt *testing.T) {
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		// Pool with manual QoS and utilized values
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			QosType: utils.QosTypeManual,
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 128,
+				Iops:       2048,
+			},
+			UtilizedThroughputMibps: 100,
+			UtilizedIops:            1600,
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}, nil)
+
+		// Set orchestrator to return success when UpdatePool is called.
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
+			Return(&models.Pool{
+				BaseModel: models.BaseModel{
+					UUID: "updated-pool-uuid",
+				},
+				CustomPerformanceParams: &models.CustomPerformanceParams{
+					Throughput: 256,
+					Iops:       4096,
+				},
+				PoolAttributes: &models.PoolAttributes{
+					PrimaryZone: "us-east4-a",
+				},
+			}, "op-123", nil)
+
+		params := gcpgenserver.V1betaUpdatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-id",
+		}
+		req := &gcpgenserver.PoolUpdateV1beta{
+			TotalIops: gcpgenserver.NewOptNilFloat64(4096), // Increase IOPS above utilized (1600)
+			// TotalThroughputMibps not set
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		expectedOpName := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "op-123")
+		assert.Equal(tt, expectedOpName, op.Name.Value)
+	})
+
+	t.Run("IopsOnlyUpdate_InvalidDecreaseBelowUtilized", func(tt *testing.T) {
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		// Pool with manual QoS and utilized values
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			QosType: utils.QosTypeManual,
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 128,
+				Iops:       2048,
+			},
+			UtilizedThroughputMibps: 100,
+			UtilizedIops:            1600, // Pool has 1600 IOPS utilized
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}, nil)
+
+		params := gcpgenserver.V1betaUpdatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-id",
+		}
+		req := &gcpgenserver.PoolUpdateV1beta{
+			TotalIops: gcpgenserver.NewOptNilFloat64(800), // Below utilized (1600)
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		badRequest, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		assert.True(tt, ok, "Expected BadRequest response")
+		assert.Contains(tt, badRequest.Message, "Requested IOPS (800) must be >= current pool utilization (1600 IOPS)")
+	})
+
+	t.Run("IopsOnlyUpdate_ValidDecreaseAboveUtilized", func(tt *testing.T) {
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		// Pool with manual QoS and utilized values
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			QosType: utils.QosTypeManual,
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 128,
+				Iops:       2048,
+			},
+			UtilizedThroughputMibps: 100,
+			UtilizedIops:            1600,
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}, nil)
+
+		// Set orchestrator to return success when UpdatePool is called.
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
+			Return(&models.Pool{
+				BaseModel: models.BaseModel{
+					UUID: "updated-pool-uuid",
+				},
+				CustomPerformanceParams: &models.CustomPerformanceParams{
+					Throughput: 128,
+					Iops:       1800,
+				},
+				PoolAttributes: &models.PoolAttributes{
+					PrimaryZone: "us-east4-a",
+				},
+			}, "op-123", nil)
+
+		params := gcpgenserver.V1betaUpdatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-id",
+		}
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			TotalIops: gcpgenserver.NewOptNilFloat64(1800), // Above utilized (1600)
 		}
 
 		handler := Handler{Orchestrator: mockOrchestrator}

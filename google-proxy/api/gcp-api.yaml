@@ -9143,8 +9143,8 @@ components:
           format: double
           nullable: true
           example: 1600.0
-        AvailableIops:
-          title: AvailableIops
+        availableIops:
+          title: availableIops
           type: number
           description: The available iops for the pool.
           format: double

@@ -6419,7 +6419,7 @@ func (s *PoolInternalV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "AvailableIops",
+			Name:  "availableIops",
 			Error: err,
 		})
 	}
@@ -7093,7 +7093,7 @@ func (s *PoolV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "AvailableIops",
+			Name:  "availableIops",
 			Error: err,
 		})
 	}
