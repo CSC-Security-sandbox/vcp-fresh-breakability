@@ -602,7 +602,31 @@ func rulesEqual(currentRule *datamodel.ExportRule, updateRule *models.ExportRule
 		currentRule.Kerberos5iReadWrite == updateRule.Kerberos5iReadWrite &&
 		currentRule.Kerberos5pReadOnly == updateRule.Kerberos5pReadOnly &&
 		currentRule.Kerberos5pReadWrite == updateRule.Kerberos5pReadWrite &&
-		currentRule.Superuser == updateRule.Superuser
+		currentRule.Superuser == updateRule.Superuser &&
+		ptrBoolEqual(currentRule.AllSquash, updateRule.AllSquash) &&
+		ptrInt64Equal(currentRule.AnonUid, updateRule.AnonUid)
+}
+
+// ptrBoolEqual returns true if both pointers are nil or both point to the same bool value.
+func ptrBoolEqual(currentRule, update *bool) bool {
+	if currentRule == nil && update == nil {
+		return true
+	}
+	if currentRule == nil || update == nil {
+		return false
+	}
+	return *currentRule == *update
+}
+
+// ptrInt64Equal returns true if both pointers are nil or both point to the same int64 value.
+func ptrInt64Equal(currentValue, updateValue *int64) bool {
+	if currentValue == nil && updateValue == nil {
+		return true
+	}
+	if currentValue == nil || updateValue == nil {
+		return false
+	}
+	return *currentValue == *updateValue
 }
 
 func populateSnapshotPolicyFromParams(params *models.SnapshotPolicy) *datamodel.SnapshotPolicy {
@@ -854,6 +878,8 @@ func getUpdatedExportPolicy(updatePolicy *models.ExportPolicy) *datamodel.Export
 			Kerberos5pReadOnly:  rule.Kerberos5pReadOnly,
 			Kerberos5pReadWrite: rule.Kerberos5pReadWrite,
 			Superuser:           rule.Superuser,
+			AllSquash:           rule.AllSquash,
+			AnonUid:             rule.AnonUid,
 		}
 		exportPolicy.ExportRules = append(exportPolicy.ExportRules, dataRule)
 	}

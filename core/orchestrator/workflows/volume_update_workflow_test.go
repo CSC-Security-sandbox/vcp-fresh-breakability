@@ -3591,6 +3591,27 @@ func TestIsExportPolicyRulesUpdateRequired(t *testing.T) {
 		result := isExportPolicyRulesUpdateRequired(currentPolicy, updatePolicy)
 		assert.True(t, result)
 	})
+
+	t.Run("WhenOnlyAllSquashOrAnonUidDiffers_ShouldReturnTrue", func(t *testing.T) {
+		// Current: hasRootAccess (Superuser true), no allSquash/anonUid
+		currentPolicy := &datamodel.ExportPolicy{
+			ExportPolicyName: "test-policy",
+			ExportRules: []*datamodel.ExportRule{
+				{AllowedClients: "0.0.0.0/0", AccessType: "rw", NFSv3: true, Superuser: true},
+			},
+		}
+		// Update: user switches to allSquash true, anonUid 0 (root squash)
+		allSquashTrue := true
+		anonUid0 := int64(0)
+		updatePolicy := &models.ExportPolicy{
+			ExportPolicyName: "test-policy",
+			ExportRules: []*models.ExportRule{
+				{AllowedClients: "0.0.0.0/0", AccessType: "rw", NFSv3: true, Superuser: false, AllSquash: &allSquashTrue, AnonUid: &anonUid0},
+			},
+		}
+		result := isExportPolicyRulesUpdateRequired(currentPolicy, updatePolicy)
+		assert.True(t, result, "update should be required when only AllSquash/AnonUid change so ONTAP update is not skipped")
+	})
 }
 
 func TestRulesEqual(t *testing.T) {
@@ -3746,6 +3767,65 @@ func TestRulesEqual(t *testing.T) {
 		result := rulesEqual(currentRule, updateRule)
 		assert.False(t, result)
 	})
+
+	t.Run("WhenAllSquashDiffers_ShouldReturnFalse", func(t *testing.T) {
+		allSquashTrue := true
+		allSquashFalse := false
+		currentRule := &datamodel.ExportRule{AllowedClients: "0.0.0.0/0", AllSquash: &allSquashTrue}
+		updateRule := &models.ExportRule{AllowedClients: "0.0.0.0/0", AllSquash: &allSquashFalse}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenAllSquashNilVsSet_ShouldReturnFalse", func(t *testing.T) {
+		allSquashTrue := true
+		currentRule := &datamodel.ExportRule{AllowedClients: "0.0.0.0/0"}
+		updateRule := &models.ExportRule{AllowedClients: "0.0.0.0/0", AllSquash: &allSquashTrue}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenAnonUidDiffers_ShouldReturnFalse", func(t *testing.T) {
+		anonUid0 := int64(0)
+		anonUid65534 := int64(65534)
+		currentRule := &datamodel.ExportRule{AllowedClients: "0.0.0.0/0", AnonUid: &anonUid0}
+		updateRule := &models.ExportRule{AllowedClients: "0.0.0.0/0", AnonUid: &anonUid65534}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenAnonUidNilVsSet_ShouldReturnFalse", func(t *testing.T) {
+		anonUid0 := int64(0)
+		currentRule := &datamodel.ExportRule{AllowedClients: "0.0.0.0/0"}
+		updateRule := &models.ExportRule{AllowedClients: "0.0.0.0/0", AnonUid: &anonUid0}
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result)
+	})
+
+	t.Run("WhenAllSquashAndAnonUidMatch_ShouldReturnTrue", func(t *testing.T) {
+		allSquashTrue := true
+		anonUid0 := int64(0)
+		currentRule := &datamodel.ExportRule{AllowedClients: "0.0.0.0/0", AllSquash: &allSquashTrue, AnonUid: &anonUid0}
+		updateRule := &models.ExportRule{AllowedClients: "0.0.0.0/0", AllSquash: &allSquashTrue, AnonUid: &anonUid0}
+		result := rulesEqual(currentRule, updateRule)
+		assert.True(t, result)
+	})
+
+	t.Run("WhenAllSquashSetVsNilInUpdate_ShouldReturnFalse", func(t *testing.T) {
+		allSquashFalse := false
+		currentRule := &datamodel.ExportRule{AllowedClients: "0.0.0.0/0", AllSquash: &allSquashFalse}
+		updateRule := &models.ExportRule{AllowedClients: "0.0.0.0/0"} // request omitted AllSquash
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result, "nil vs set is different full state; update required")
+	})
+
+	t.Run("WhenAnonUidSetVsNilInUpdate_ShouldReturnFalse", func(t *testing.T) {
+		anonUid0 := int64(0)
+		currentRule := &datamodel.ExportRule{AllowedClients: "0.0.0.0/0", AnonUid: &anonUid0}
+		updateRule := &models.ExportRule{AllowedClients: "0.0.0.0/0"} // request omitted AnonUid
+		result := rulesEqual(currentRule, updateRule)
+		assert.False(t, result, "nil vs set is different full state; update required")
+	})
 }
 
 func TestGetUpdatedExportPolicy(t *testing.T) {
@@ -3897,6 +3977,33 @@ func TestGetUpdatedExportPolicy(t *testing.T) {
 		assert.True(t, rule.Kerberos5pReadOnly)
 		assert.True(t, rule.Kerberos5pReadWrite)
 		assert.True(t, rule.Superuser)
+	})
+
+	t.Run("WhenUpdatePolicyHasAllSquashAndAnonUid_ShouldPreserveThem", func(t *testing.T) {
+		allSquashVal := true
+		anonUidVal := int64(0)
+		updatePolicy := &models.ExportPolicy{
+			ExportPolicyName: "test-policy",
+			ExportRules: []*models.ExportRule{
+				{
+					AllowedClients: "0.0.0.0/0",
+					AccessType:     "rw",
+					NFSv3:          true,
+					Index:          1,
+					AllSquash:      &allSquashVal,
+					AnonUid:        &anonUidVal,
+				},
+			},
+		}
+		result := getUpdatedExportPolicy(updatePolicy)
+
+		assert.NotNil(t, result)
+		assert.Equal(t, 1, len(result.ExportRules))
+		rule := result.ExportRules[0]
+		assert.NotNil(t, rule.AllSquash, "AllSquash should be preserved")
+		assert.True(t, *rule.AllSquash)
+		assert.NotNil(t, rule.AnonUid, "AnonUid should be preserved")
+		assert.Equal(t, int64(0), *rule.AnonUid)
 	})
 }
 
