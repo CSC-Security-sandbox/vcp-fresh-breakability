@@ -311,6 +311,9 @@ func (a VolumeCreateActivity) UpdateVolumeAutoTieringPolicyInONTAP(ctx context.C
 			updateVolumeParams.TieringPolicy.CoolAccessTieringPolicy = nillable.GetString(&volume.AutoTieringPolicy.TieringPolicy, utils.FetchTieringPolicyAsPerVolumeType(!utils.IsSanProtocols(volume.VolumeAttributes.Protocols)))
 			updateVolumeParams.TieringPolicy.CoolAccessRetrievalPolicy = nillable.GetString(&volume.AutoTieringPolicy.RetrievalPolicy, ontapModels.VolumeCloudRetrievalPolicyDefault)
 			updateVolumeParams.TieringPolicy.CloudWriteModeEnabled = volume.AutoTieringPolicy.CloudWriteModeEnabled
+			if updateVolumeParams.TieringPolicy.CloudWriteModeEnabled == nil && !utils.IsSanProtocols(volume.VolumeAttributes.Protocols) {
+				updateVolumeParams.TieringPolicy.CloudWriteModeEnabled = nillable.GetBoolPtr(false)
+			}
 			updateVolumeParams.TieringPolicy.CoolnessPeriod = int64(volume.AutoTieringPolicy.CoolingThresholdDays)
 		} else {
 			updateVolumeParams.TieringPolicy.CoolAccessTieringPolicy = ontapModels.VolumeInlineTieringPolicyNone

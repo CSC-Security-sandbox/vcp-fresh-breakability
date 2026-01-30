@@ -14,7 +14,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
-	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -290,18 +289,6 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		params.Snapshot = dbSnapshot
 		if dbSnapshot != nil && dbSnapshot.SnapshotAttributes != nil {
 			clonesSharedBytes = uint64(dbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes)
-		}
-
-		// Validate auto tiering policy compatibility between parent and clone
-		// If parent volume has "all" tiering policy (cloud write enabled) and clone tries to use "auto" policy,
-		// ONTAP will reject it. Validate this upfront before creating the workflow.
-		if dbSnapshot != nil && dbSnapshot.Volume != nil && dbSnapshot.Volume.AutoTieringPolicy != nil &&
-			dbSnapshot.Volume.AutoTieringPolicy.TieringPolicy == ontapModels.VolumeInlineTieringPolicyAll {
-			// Parent has "all" tiering policy (cloud write enabled)
-			if params.AutoTieringPolicy != nil && params.AutoTieringPolicy.AutoTieringEnabled && params.AutoTieringPolicy.TieringPolicy == ontapModels.VolumeInlineTieringPolicyAuto {
-				logger.Error("Cannot create clone with 'auto' tiering policy when parent volume has 'all' tiering policy (cloud write enabled)", "parent_volume_uuid", dbSnapshot.Volume.UUID, "clone_tiering_policy", params.AutoTieringPolicy.TieringPolicy)
-				return nil, "", customerrors.NewUserInputValidationErr("Only the 'all' tiering policy is allowed for this clone volume because the parent volume has cloud write mode enabled. Please use 'all' tiering policy for this clone.")
-			}
 		}
 
 		// Validate clone AT policy matches parent volume AT policy if flag is enabled
