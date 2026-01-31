@@ -1209,19 +1209,6 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			return nil, ConvertToVSAError(err)
 		}
 
-		// TODO: Optimize this to avoid running for each volume call.
-		// This is currently unoptimized and runs for every volume operation.
-		// Consider optimizing to run once per pool or caching the results.
-		if backupVault.BackupVaultType == activities.CrossRegionBackupType && backupVault.BackupRegionName != nil && *backupVault.BackupRegionName != "" {
-			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
-				return nil, cancelErr
-			}
-			err = workflow.ExecuteActivity(ctx, volumeActivity.SetupCrossRegionBackupPermissionsActivity, backupVault, &dbVolume.Pool, &bucketDetails).Get(ctx, nil)
-			if err != nil {
-				return nil, ConvertToVSAError(err)
-			}
-		}
-
 		if bucketDetails.BucketName == "" && bucketDetails.ServiceAccountName == "" && bucketDetails.TenantProjectNumber == "" {
 			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 				return nil, cancelErr
@@ -1273,6 +1260,19 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, cancelErr
 			}
 			err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateRemoteBackupVaultWithBucketDetails, &dbVolume, backupVault, RemoteBV, &bucketDetails).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+		}
+
+		// TODO: Optimize this to avoid running for each volume call.
+		// This is currently unoptimized and runs for every volume operation.
+		// Consider optimizing to run once per pool or caching the results.
+		if backupVault.BackupVaultType == activities.CrossRegionBackupType && backupVault.BackupRegionName != nil && *backupVault.BackupRegionName != "" {
+			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+				return nil, cancelErr
+			}
+			err = workflow.ExecuteActivity(ctx, volumeActivity.SetupCrossRegionBackupPermissionsActivity, backupVault, &dbVolume.Pool, &bucketDetails).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}

@@ -28,6 +28,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
 	"gorm.io/gorm"
 )
@@ -1158,7 +1159,7 @@ func TestGetSnapmirror(t *testing.T) {
 		}
 		sourcePath := "source-path"
 		destinationPath := "destination-path"
-		mockProvider.On("SnapmirrorRelationshipGet", destinationPath, sourcePath).Return(nil, utilerrors.NewNotFoundErr("snapmirror relationship not found for destination: "+destinationPath+" and source: "+sourcePath, nil))
+		mockProvider.On("SnapmirrorRelationshipGet", destinationPath, sourcePath).Return(nil, errors.New("failed to get snapmirror relationship"))
 		_, err := env.ExecuteActivity(activity.GetSnapmirror, &models.Node{}, sourcePath, destinationPath)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "failed to get snapmirror relationship")
@@ -1179,6 +1180,32 @@ func TestGetSnapmirror(t *testing.T) {
 		_, err := env.ExecuteActivity(activity.GetSnapmirror, &models.Node{}, sourcePath, destinationPath)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "provider error")
+	})
+	t.Run("onNotFoundError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		sourcePath := "source-path"
+		destinationPath := "destination-path"
+		notFoundErr := utilerrors.NewNotFoundErr("snapmirror relationship not found for destination: "+destinationPath+" and source: "+sourcePath, nil)
+		mockProvider.On("SnapmirrorRelationshipGet", destinationPath, sourcePath).Return(nil, notFoundErr)
+		_, err := env.ExecuteActivity(activity.GetSnapmirror, &models.Node{}, sourcePath, destinationPath)
+		assert.NotNil(t, err)
+		// Verify it's wrapped as NonRetryableTemporalApplicationError with ErrResourceNotFound
+		var applicationError *temporal.ApplicationError
+		assert.True(t, errors.As(err, &applicationError))
+		// WrapAsNonRetryableTemporalApplicationError creates non-retryable errors for NotFound
+		assert.True(t, applicationError.NonRetryable())
+		assert.Equal(t, "CustomError", applicationError.Type())
+		mockProvider.AssertExpectations(t)
 	})
 }
 

@@ -407,17 +407,6 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			return nil, ConvertToVSAError(err)
 		}
 
-		// TODO: Optimize this to avoid running for each volume call.
-		// This is currently unoptimized and runs for every volume operation.
-		// Consider optimizing to run once per pool or caching the results.
-		if backupVault.BackupVaultType == activities.CrossRegionBackupType && backupVault.BackupRegionName != nil && *backupVault.BackupRegionName != "" {
-			volumeCreateActivity := &activities.VolumeCreateActivity{}
-			err = workflow.ExecuteActivity(ctx, volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity, backupVault, &volume.Pool, &bucketDetails).Get(ctx, nil)
-			if err != nil {
-				return nil, ConvertToVSAError(err)
-			}
-		}
-
 		if bucketDetails.BucketName == "" && bucketDetails.ServiceAccountName == "" && bucketDetails.TenantProjectNumber == "" {
 			resourceName := &common.ResourceNames{}
 			err = workflow.ExecuteActivity(ctx, updateActivity.GenerateResourceNamesForBackupVault, &volume, &tenancyDetails, params.Region).Get(ctx, &resourceName)
@@ -454,6 +443,17 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			}
 
 			err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateRemoteBackupVaultWithBucketDetails, &volume, backupVault, RemoteBV, &bucketDetails).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+		}
+
+		// TODO: Optimize this to avoid running for each volume call.
+		// This is currently unoptimized and runs for every volume operation.
+		// Consider optimizing to run once per pool or caching the results.
+		if backupVault.BackupVaultType == activities.CrossRegionBackupType && backupVault.BackupRegionName != nil && *backupVault.BackupRegionName != "" {
+			volumeCreateActivity := &activities.VolumeCreateActivity{}
+			err = workflow.ExecuteActivity(ctx, volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity, backupVault, &volume.Pool, &bucketDetails).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}

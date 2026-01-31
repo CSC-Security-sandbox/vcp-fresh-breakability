@@ -206,6 +206,7 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 	info := workflow.GetInfo(ctx)
 	isContinuation := info.ContinuedExecutionRunID != ""
 
+	var smSourcePath, smDestinationPath string
 	if isContinuation {
 		wf.Logger.Info("Resuming backup workflow from continuation",
 			"workflowID", wf.ID,
@@ -251,7 +252,6 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 		backupActivitiesContext.ObjStoreName = objStoreName
 
 		objStore := &common.CloudTarget{}
-		var smDestinationPath string
 		err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathActivity, backupActivitiesContext.BackupWorkflowInit.Volume).Get(ctx, &smDestinationPath)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
@@ -261,10 +261,9 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 			err = vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, vsaerrors.New("could not find snapshot name in backup attributes"))
 			return nil, ConvertToVSAError(err)
 		}
-		var smSourcePath string
 		smSourcePath = fmt.Sprintf("%s:/objstore/%s", objStoreName, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotName)
-		log.Debugf("\nsmDestinationPath: %v", smDestinationPath)
-		log.Debugf("\nsmSourcePath: %v", smSourcePath)
+		log.Debugf("smDestinationPath: %v", smDestinationPath)
+		log.Debugf("smSourcePath: %v", smSourcePath)
 
 		snapmirrorRelationship := &common.SnapmirrorRelationship{}
 		SnapmirrorRelationshipParams := &common.SnapmirrorRelationshipParams{
@@ -307,15 +306,20 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
-
+	
 	// Get snapmirror relationship to check health status
 	var smRelationship *common.SnapmirrorRelationship
-	err = workflow.ExecuteActivity(ctx, backupActivity.GetSnapmirror, backupActivitiesContext.Node, backupActivitiesContext.SmSourcePath, backupActivitiesContext.SmDestinationPath).Get(ctx, &smRelationship)
+	err = workflow.ExecuteActivity(ctx, backupActivity.GetSnapmirror, backupActivitiesContext.Node, smSourcePath, smDestinationPath).Get(ctx, &smRelationship)
 	if err != nil {
-		return nil, ConvertToVSAError(err)
+		customErr := ConvertToVSAError(err)
+		if customErr != nil && customErr.TrackingID == vsaerrors.ErrResourceNotFound {
+			wf.Logger.Infof("Restore snapmirror relationship not found after transfer completion")
+		} else {
+			return nil, customErr
+		}
 	}
 
-	if smRelationship.Healthy != nil && !*smRelationship.Healthy {
+	if smRelationship != nil && smRelationship.Healthy != nil && !*smRelationship.Healthy {
 		if smRelationship.UnhealthyReason != nil && len(*smRelationship.UnhealthyReason) > 0 {
 			wf.Logger.Infof("Snapmirror relationship is unhealthy. Reasons: %v", *smRelationship.UnhealthyReason)
 		}

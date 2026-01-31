@@ -549,10 +549,15 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 	var smRelationship *commonparams.SnapmirrorRelationship
 	err = workflow.ExecuteActivity(ctx, backupActivity.GetSnapmirror, node, smSourcePath, smDestinationPath).Get(ctx, &smRelationship)
 	if err != nil {
-		return nil, ConvertToVSAError(err)
+		customErr := ConvertToVSAError(err)
+		if customErr != nil && customErr.TrackingID == vsaerrors.ErrResourceNotFound {
+			wf.Logger.Infof("Restore snapmirror relationship not found after transfer completion")
+		} else {
+			return nil, customErr
+		}
 	}
 
-	if smRelationship.Healthy != nil && !*smRelationship.Healthy {
+	if smRelationship != nil && smRelationship.Healthy != nil && !*smRelationship.Healthy {
 		if smRelationship.UnhealthyReason != nil && len(*smRelationship.UnhealthyReason) > 0 {
 			wf.Logger.Infof("Snapmirror relationship is unhealthy. Reasons: %v", *smRelationship.UnhealthyReason)
 		}

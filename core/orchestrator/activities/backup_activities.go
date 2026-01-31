@@ -622,7 +622,11 @@ func (a BackupActivity) GetSnapmirror(ctx context.Context, node *models.Node, so
 	}
 	snapmirror, err := provider.SnapmirrorRelationshipGet(destinationPath, sourcePath)
 	if err != nil {
-		return nil, errors.New("failed to get snapmirror relationship: " + err.Error())
+		if errors.IsNotFoundErr(err) {
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, err))
+		}
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	resp := commonparams.SnapmirrorRelationship{UUID: snapmirror.UUID.String()}
