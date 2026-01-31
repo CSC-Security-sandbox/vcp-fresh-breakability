@@ -766,10 +766,8 @@ func _getPoolsByKmsConfigID(db *gorm.DB, kmsConfigID int64) ([]*datamodel.Pool, 
 }
 
 // ListPoolsForMetrics retrieves pools with only the fields required for metrics collection.
-// This is an optimized query that selects only required columns from the pools table.
+// This is an optimized query that selects only required columns directly from pool_views.
 // Account name is extracted from pool_attributes JSONB column.
-// QuotaInBytes is fetched via JOIN with pool_views (sum of volume sizes minus clones_shared_bytes).
-// This significantly reduces data transfer compared to ListPools which fetches all fields and preloads related entities.
 func (d *DataStoreRepository) ListPoolsForMetrics(ctx context.Context) ([]*PoolMetricsData, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debug("ListPoolsForMetrics: Starting optimized pool metrics query")
@@ -778,21 +776,20 @@ func (d *DataStoreRepository) ListPoolsForMetrics(ctx context.Context) ([]*PoolM
 
 	var results []*PoolMetricsData
 
-	// Select required columns from pools table and quota_in_bytes from pool_views
-	err := db.Table("pools p").
+	// Select required columns directly from pool_views
+	err := db.Table("pool_views").
 		Select(`
-			p.id,
-			p.uuid,
-			p.name,
-			p.size_in_bytes,
-			p.deployment_name,
-			p.pool_attributes,
-			p.allow_auto_tiering,
-			p.auto_tiering_config,
-			pv.quota_in_bytes
+			id,
+			uuid,
+			name,
+			size_in_bytes,
+			deployment_name,
+			pool_attributes,
+			allow_auto_tiering,
+			auto_tiering_config,
+			quota_in_bytes
 		`).
-		Joins("INNER JOIN pool_views pv ON pv.uuid = p.uuid").
-		Where("p.deleted_at IS NULL").
+		Where("deleted_at IS NULL").
 		Find(&results).Error
 
 	if err != nil {

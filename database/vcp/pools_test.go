@@ -4237,6 +4237,211 @@ func TestListPoolsForMetrics(t *testing.T) {
 		expectedQuota := uint64(1000000)
 		assert.Equal(tt, expectedQuota, results[0].QuotaInBytes, "QuotaInBytes should exclude deleted volumes")
 	})
+
+	t.Run("ReturnsZeroQuotaWhenClonesSharedBytesExceedsSizeInBytes", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+		// Create a pool
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: 1, UUID: "pool-negative-quota-uuid"},
+			Name:           "pool_negative_quota",
+			SizeInBytes:    10000000,
+			AccountID:      account.ID,
+			DeploymentName: "deployment-negative",
+			PoolAttributes: &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+		err = store.db.Create(pool).Error()
+		require.NoError(tt, err)
+
+		// Create an SVM
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(svm).Error()
+		require.NoError(tt, err)
+
+		// Create a volume where clones_shared_bytes exceeds size_in_bytes
+		// This edge case should result in quota_in_bytes = 0 (not negative)
+		volumeWithExcessShared := &datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "volume-excess-shared-uuid"},
+			Name:              "volume_excess_shared",
+			SizeInBytes:       1000000,
+			ClonesSharedBytes: 2000000, // Exceeds size_in_bytes
+			AccountID:         account.ID,
+			PoolID:            pool.ID,
+			SvmID:             svm.ID,
+		}
+		err = store.db.Create(volumeWithExcessShared).Error()
+		require.NoError(tt, err)
+
+		results, err := store.ListPoolsForMetrics(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+
+		// QuotaInBytes should be 0 (not negative) due to max(0, sum(...)) in the view
+		assert.Equal(tt, uint64(0), results[0].QuotaInBytes, "QuotaInBytes should be 0 when clones_shared_bytes exceeds size_in_bytes")
+	})
+
+	t.Run("WorksWithManualQoSPoolAndVolumePerformanceGroup", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		// Create a pool with manual QoS type
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: 1, UUID: "manual-qos-pool-uuid"},
+			Name:           "manual_qos_pool",
+			SizeInBytes:    10000000,
+			AccountID:      account.ID,
+			DeploymentName: "deployment-manual-qos",
+			QosType:        "manual",
+			PoolAttributes: &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+		err = store.db.Create(pool).Error()
+		require.NoError(tt, err)
+
+		// Create a VolumePerformanceGroup
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+			Name:            "test_vpg",
+			PoolID:          pool.ID,
+			IsShared:        false,
+			ThroughputMibps: 100,
+			Iops:            1000,
+		}
+		err = store.db.Create(vpg).Error()
+		require.NoError(tt, err)
+
+		// Create an SVM
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(svm).Error()
+		require.NoError(tt, err)
+
+		// Create a volume linked to the VPG
+		volume := &datamodel.Volume{
+			BaseModel:                datamodel.BaseModel{UUID: "volume-with-vpg-uuid"},
+			Name:                     "volume_with_vpg",
+			SizeInBytes:              5000000,
+			ClonesSharedBytes:        0,
+			AccountID:                account.ID,
+			PoolID:                   pool.ID,
+			SvmID:                    svm.ID,
+			VolumePerformanceGroupID: sql.NullInt64{Int64: vpg.ID, Valid: true},
+		}
+		err = store.db.Create(volume).Error()
+		require.NoError(tt, err)
+
+		results, err := store.ListPoolsForMetrics(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+
+		// Verify the pool is returned with correct quota
+		assert.Equal(tt, "manual-qos-pool-uuid", results[0].UUID)
+		assert.Equal(tt, uint64(5000000), results[0].QuotaInBytes, "QuotaInBytes should be calculated correctly for manual QoS pool")
+	})
+
+	t.Run("WorksWithSharedVolumePerformanceGroup", func(tt *testing.T) {
+		store := setup(tt)
+		ctx := context.Background()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.db.Create(account).Error()
+		require.NoError(tt, err)
+
+		// Create a pool with manual QoS type
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: 1, UUID: "shared-vpg-pool-uuid"},
+			Name:           "shared_vpg_pool",
+			SizeInBytes:    20000000,
+			AccountID:      account.ID,
+			DeploymentName: "deployment-shared-vpg",
+			QosType:        "manual",
+			PoolAttributes: &datamodel.PoolAttributes{AccountName: "test_account"},
+		}
+		err = store.db.Create(pool).Error()
+		require.NoError(tt, err)
+
+		// Create a shared VolumePerformanceGroup
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "shared-vpg-uuid"},
+			Name:            "shared_vpg",
+			PoolID:          pool.ID,
+			IsShared:        true,
+			ThroughputMibps: 200,
+			Iops:            2000,
+		}
+		err = store.db.Create(vpg).Error()
+		require.NoError(tt, err)
+
+		// Create an SVM
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(svm).Error()
+		require.NoError(tt, err)
+
+		// Create multiple volumes linked to the shared VPG
+		volume1 := &datamodel.Volume{
+			BaseModel:                datamodel.BaseModel{UUID: "volume-shared-vpg-1-uuid"},
+			Name:                     "volume_shared_vpg_1",
+			SizeInBytes:              3000000,
+			ClonesSharedBytes:        0,
+			AccountID:                account.ID,
+			PoolID:                   pool.ID,
+			SvmID:                    svm.ID,
+			VolumePerformanceGroupID: sql.NullInt64{Int64: vpg.ID, Valid: true},
+		}
+		volume2 := &datamodel.Volume{
+			BaseModel:                datamodel.BaseModel{UUID: "volume-shared-vpg-2-uuid"},
+			Name:                     "volume_shared_vpg_2",
+			SizeInBytes:              4000000,
+			ClonesSharedBytes:        500000,
+			AccountID:                account.ID,
+			PoolID:                   pool.ID,
+			SvmID:                    svm.ID,
+			VolumePerformanceGroupID: sql.NullInt64{Int64: vpg.ID, Valid: true},
+		}
+		err = store.db.Create(volume1).Error()
+		require.NoError(tt, err)
+		err = store.db.Create(volume2).Error()
+		require.NoError(tt, err)
+
+		results, err := store.ListPoolsForMetrics(ctx)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+
+		// Verify the pool is returned with correct quota
+		// QuotaInBytes = (3000000 - 0) + (4000000 - 500000) = 6500000
+		assert.Equal(tt, "shared-vpg-pool-uuid", results[0].UUID)
+		assert.Equal(tt, uint64(6500000), results[0].QuotaInBytes, "QuotaInBytes should be calculated correctly for pool with shared VPG")
+	})
 }
 
 // TestGetBlockOnlyPoolIDs_BlockOnlyPool verifies that a pool with only ISCSI volumes is identified
