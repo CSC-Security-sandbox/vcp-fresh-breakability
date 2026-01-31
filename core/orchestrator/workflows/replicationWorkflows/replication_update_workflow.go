@@ -1,6 +1,8 @@
 package replicationWorkflows
 
 import (
+	"time"
+
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
@@ -73,10 +75,10 @@ func (wf *ReplicationUpdateWorkflow) Run(ctx workflow.Context, args ...interface
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(workflows.StartToCloseTimeoutForReplicationActivities) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
-			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			BackoffCoefficient:     workflows.BackoffCoefficientForReplicationActivities,
 			MaximumInterval:        retryPolicy.MaximumInterval,
 			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
 			NonRetryableErrorTypes: []string{"NonRetryableErr", "PanicError"},

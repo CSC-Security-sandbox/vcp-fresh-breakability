@@ -2,6 +2,8 @@ package replicationWorkflows
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -77,10 +79,10 @@ func (wf *internalVolumeReplicationUpdateWorkflow) Run(ctx workflow.Context, arg
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(workflows.StartToCloseTimeoutForReplicationActivities) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
-			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			BackoffCoefficient:     workflows.BackoffCoefficientForReplicationActivities,
 			MaximumInterval:        retryPolicy.MaximumInterval,
 			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
 			NonRetryableErrorTypes: []string{"PanicError"},
@@ -98,8 +100,8 @@ func (wf *internalVolumeReplicationUpdateWorkflow) Run(ctx workflow.Context, arg
 		return nil, workflows.ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("pool credentials not found for pool %d", replication.Volume.PoolID)))
 	}
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
-		Nodes:          dbNodes,
-		DeploymentName: replication.Volume.Pool.DeploymentName,
+		Nodes:            dbNodes,
+		DeploymentName:   replication.Volume.Pool.DeploymentName,
 		OntapCredentials: replication.Volume.Pool.PoolCredentials,
 	})
 

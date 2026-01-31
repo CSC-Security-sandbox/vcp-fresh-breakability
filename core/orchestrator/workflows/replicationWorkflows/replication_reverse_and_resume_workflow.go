@@ -2,6 +2,7 @@ package replicationWorkflows
 
 import (
 	"errors"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -108,10 +109,10 @@ func (wf *ReverseReplicationWorkflow) Run(ctx workflow.Context, args ...interfac
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(workflows.StartToCloseTimeoutForReplicationActivities) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
-			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			BackoffCoefficient:     workflows.BackoffCoefficientForReplicationActivities,
 			MaximumInterval:        retryPolicy.MaximumInterval,
 			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
 			NonRetryableErrorTypes: []string{"NonRetryableErr", "PanicError"},
@@ -160,7 +161,7 @@ func (wf *ReverseReplicationWorkflow) Run(ctx workflow.Context, args ...interfac
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.DescribeRemoteJobOnSrc, &reverseResult).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeRemoteJobOnSrc, &reverseResult).Get(ctx, nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
