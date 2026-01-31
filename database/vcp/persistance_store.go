@@ -1543,6 +1543,10 @@ func (s *PersistenceStore) ListVolumePerformanceGroupsByPoolID(ctx context.Conte
 	return s.dataStore.ListVolumePerformanceGroupsByPoolID(ctx, poolID)
 }
 
+func (s *PersistenceStore) GetVolumeCountByVolumePerformanceGroupID(ctx context.Context, vpgID int64) (int64, error) {
+	return s.dataStore.GetVolumeCountByVolumePerformanceGroupID(ctx, vpgID)
+}
+
 func (s *PersistenceStore) GetActivePrepopulateJobs(ctx context.Context) ([]*datamodel.Job, error) {
 	return s.dataStore.GetActivePrepopulateJobs(ctx)
 }

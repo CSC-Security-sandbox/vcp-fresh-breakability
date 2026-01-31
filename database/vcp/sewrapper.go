@@ -741,21 +741,6 @@ func (re *retryEngine) UpdateVolumeFields(ctx context.Context, volumeUUID string
 	return err
 }
 
-func (re *retryEngine) UpdateExpertModeVolumeFields(ctx context.Context, volumeUUID string, updates map[string]interface{}) error {
-	err := retry.Do(func(attempt int) (bool, error) {
-		var err error
-		err = re.dataStore.UpdateExpertModeVolumeFields(ctx, volumeUUID, updates)
-		if err != nil {
-			re.logError("UpdateExpertModeVolumeFields", err)
-			if !dbutils.IsTransientErr(err) {
-				return false, err
-			}
-		}
-		return true, err
-	})
-	return err
-}
-
 func (re *retryEngine) BatchUpdateVolumeFields(ctx context.Context, updates []datamodel.VolumeFieldUpdate) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
@@ -4877,6 +4862,22 @@ func (re *retryEngine) ListVolumePerformanceGroupsByPoolID(ctx context.Context, 
 	return var0, err
 }
 
+func (re *retryEngine) GetVolumeCountByVolumePerformanceGroupID(ctx context.Context, vpgID int64) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetVolumeCountByVolumePerformanceGroupID(ctx, vpgID)
+		if err != nil {
+			re.logError("GetVolumeCountByVolumePerformanceGroupID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) CreateExpertModeVolume(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) (*datamodel.ExpertModeVolumes, error) {
 	var var0 *datamodel.ExpertModeVolumes
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -4987,6 +4988,21 @@ func (re *retryEngine) UpdateExpertModeVolume(ctx context.Context, expertModeVol
 		return true, err
 	})
 	return var0, err
+}
+
+func (re *retryEngine) UpdateExpertModeVolumeFields(ctx context.Context, volumeUUID string, updates map[string]interface{}) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateExpertModeVolumeFields(ctx, volumeUUID, updates)
+		if err != nil {
+			re.logError("UpdateExpertModeVolumeFields", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
 }
 
 func (re *retryEngine) DeleteExpertModeVolume(ctx context.Context, volumeUUID string) error {

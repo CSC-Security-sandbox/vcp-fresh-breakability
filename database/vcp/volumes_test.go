@@ -5880,3 +5880,187 @@ func TestDeleteVolume_DereferencesVPG(t *testing.T) {
 		assert.False(t, deleted.VolumePerformanceGroupID.Valid, "VPG should be dereferenced even if not auto-generated")
 	})
 }
+
+func TestGetVolumeCountByVolumePerformanceGroupID(t *testing.T) {
+	newStore := func(tt *testing.T) *DataStoreRepository {
+		tt.Helper()
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "setup db failed")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "clear db failed")
+		return store
+	}
+
+	createAccountAndPool := func(tt *testing.T, store *DataStoreRepository) (*datamodel.Account, *datamodel.Pool) {
+		tt.Helper()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
+			Name:      "acct-vpg-count",
+		}
+		assert.NoError(tt, store.db.Create(account).Error(), "create account failed")
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()},
+			Name:      "pool-vpg-count",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		assert.NoError(tt, store.db.Create(pool).Error(), "create pool failed")
+		return account, pool
+	}
+
+	createVPG := func(tt *testing.T, store *DataStoreRepository, pool *datamodel.Pool, name string) *datamodel.VolumePerformanceGroup {
+		tt.Helper()
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:       datamodel.BaseModel{UUID: utils.RandomUUID()},
+			Name:            name,
+			PoolID:          pool.ID,
+			Pool:            pool,
+			ThroughputMibps: 100,
+			Iops:            1000,
+			IsShared:        false,
+		}
+		created, err := store.CreateVolumePerformanceGroup(context.Background(), vpg)
+		assert.NoError(tt, err, "create VPG failed")
+		return created
+	}
+
+	createVolumeWithVPG := func(tt *testing.T, store *DataStoreRepository, account *datamodel.Account, pool *datamodel.Pool, name string, vpgID int64) {
+		tt.Helper()
+		vol := &datamodel.Volume{
+			BaseModel:                datamodel.BaseModel{UUID: utils.RandomUUID()},
+			Name:                     name,
+			AccountID:                account.ID,
+			Account:                  account,
+			PoolID:                   pool.ID,
+			Pool:                     pool,
+			State:                    models.LifeCycleStateREADY,
+			VolumePerformanceGroupID: sql.NullInt64{Int64: vpgID, Valid: true},
+		}
+		assert.NoError(tt, store.db.Create(vol).Error(), "create volume failed")
+	}
+
+	t.Run("WhenVolumesExistForVPGID", func(tt *testing.T) {
+		store := newStore(tt)
+		account, pool := createAccountAndPool(tt, store)
+
+		vpgA := createVPG(tt, store, pool, "vpg-a")
+		vpgB := createVPG(tt, store, pool, "vpg-b")
+
+		createVolumeWithVPG(tt, store, account, pool, "vol-a1", vpgA.ID)
+		createVolumeWithVPG(tt, store, account, pool, "vol-a2", vpgA.ID)
+		createVolumeWithVPG(tt, store, account, pool, "vol-b1", vpgB.ID)
+
+		count, err := store.GetVolumeCountByVolumePerformanceGroupID(context.Background(), vpgA.ID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(2), count, "Expected 2 volumes for vpgA")
+
+		count, err = store.GetVolumeCountByVolumePerformanceGroupID(context.Background(), vpgB.ID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(1), count, "Expected 1 volume for vpgB")
+	})
+
+	t.Run("WhenNoVolumesExistForVPGID", func(tt *testing.T) {
+		store := newStore(tt)
+		account, pool := createAccountAndPool(tt, store)
+
+		vpgA := createVPG(tt, store, pool, "vpg-a")
+		vpgB := createVPG(tt, store, pool, "vpg-b")
+
+		// Create volumes for vpgA only
+		createVolumeWithVPG(tt, store, account, pool, "vol-a1", vpgA.ID)
+
+		// Query for vpgB which has no volumes
+		count, err := store.GetVolumeCountByVolumePerformanceGroupID(context.Background(), vpgB.ID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), count, "Expected 0 volumes for vpgB")
+	})
+
+	t.Run("WhenVPGIDDoesNotExist", func(tt *testing.T) {
+		store := newStore(tt)
+		_, _ = createAccountAndPool(tt, store)
+
+		// Query for non-existent VPG ID
+		count, err := store.GetVolumeCountByVolumePerformanceGroupID(context.Background(), 99999)
+		assert.NoError(tt, err, "Should not error for non-existent VPG ID")
+		assert.Equal(tt, int64(0), count, "Expected 0 volumes for non-existent VPG ID")
+	})
+
+	t.Run("WhenVolumesAreSoftDeleted", func(tt *testing.T) {
+		store := newStore(tt)
+		account, pool := createAccountAndPool(tt, store)
+
+		vpgA := createVPG(tt, store, pool, "vpg-a")
+
+		vol1 := &datamodel.Volume{
+			BaseModel:                datamodel.BaseModel{UUID: utils.RandomUUID()},
+			Name:                     "vol-a1",
+			AccountID:                account.ID,
+			Account:                  account,
+			PoolID:                   pool.ID,
+			Pool:                     pool,
+			State:                    models.LifeCycleStateREADY,
+			VolumePerformanceGroupID: sql.NullInt64{Int64: vpgA.ID, Valid: true},
+		}
+		assert.NoError(tt, store.db.Create(vol1).Error(), "create volume 1 failed")
+
+		vol2 := &datamodel.Volume{
+			BaseModel:                datamodel.BaseModel{UUID: utils.RandomUUID()},
+			Name:                     "vol-a2",
+			AccountID:                account.ID,
+			Account:                  account,
+			PoolID:                   pool.ID,
+			Pool:                     pool,
+			State:                    models.LifeCycleStateREADY,
+			VolumePerformanceGroupID: sql.NullInt64{Int64: vpgA.ID, Valid: true},
+		}
+		assert.NoError(tt, store.db.Create(vol2).Error(), "create volume 2 failed")
+
+		count, err := store.GetVolumeCountByVolumePerformanceGroupID(context.Background(), vpgA.ID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(2), count, "Expected 2 volumes before soft delete")
+
+		err = store.db.Delete(vol1).Error()
+		assert.NoError(tt, err, "soft delete volume failed")
+
+		count, err = store.GetVolumeCountByVolumePerformanceGroupID(context.Background(), vpgA.ID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(1), count, "Expected 1 volume after soft delete (deleted_at IS NULL filter)")
+	})
+
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Close the database to simulate an error
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		err = sqlDB.Close()
+		if err != nil {
+			return
+		}
+
+		count, err := store.GetVolumeCountByVolumePerformanceGroupID(context.Background(), 1)
+		assert.Error(tt, err, "Expected error when database is closed")
+		assert.Equal(tt, int64(0), count, "Expected count to be 0 when error occurs")
+	})
+
+	t.Run("WhenZeroVolumesExist", func(tt *testing.T) {
+		store := newStore(tt)
+		_, pool := createAccountAndPool(tt, store)
+
+		vpgA := createVPG(tt, store, pool, "vpg-a")
+
+		// Don't create any volumes, just query
+		count, err := store.GetVolumeCountByVolumePerformanceGroupID(context.Background(), vpgA.ID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), count, "Expected 0 volumes for VPG with no volumes")
+	})
+}

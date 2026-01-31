@@ -2222,7 +2222,7 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_CancellationHandlingEr
 	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	// Make GetCreateJobByResourceUUID return error to trigger warning log (line 223)
-	s.env.OnActivity(poolActivity.GetCreateJobByResourceUUID, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get create job"))
+	s.env.OnActivity(poolActivity.GetCreateJobByResourceUUID, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get create job"))
 
 	// Execute workflow with volume in CREATING state to trigger cancellation handling (lines 221, 223)
 	volume := &datamodel.Volume{
@@ -2859,7 +2859,7 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_NFSWithLDAP_UpdatesAct
 	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
 	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil).Maybe()
 	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
-	
+
 	// DetermineIfVolumeIsLastFilesVolume returns true (this is the last files volume)
 	s.env.OnActivity(deleteActivity.DetermineIfVolumeIsLastFilesVolume, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
 	s.env.OnActivity(deleteActivity.DeleteLDAPConfiguration, mock.Anything, mock.Anything, mock.Anything).Return(nil)

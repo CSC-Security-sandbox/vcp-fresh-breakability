@@ -29,12 +29,13 @@ import (
 )
 
 var (
-	regionalPoolEnabled        = env.GetBool("REGIONAL_SUPPORT_ENABLED", false)
-	minCustomThroughput        = utils.MinCustomThroughput
-	getAndSyncKmsConfigForPool = _getAndSyncKmsConfigForPool
-	enableLdap                 = env.GetBool("ENABLE_LDAP", false)
-	blockUpdatePooltoATPool    = env.GetBool("BLOCK_UPDATE_POOL_TO_AT_POOL", true)
-	enableMqos                 = env.GetBool("ENABLE_MQOS", false)
+	regionalPoolEnabled                    = env.GetBool("REGIONAL_SUPPORT_ENABLED", false)
+	minCustomThroughput                    = utils.MinCustomThroughput
+	getAndSyncKmsConfigForPool             = _getAndSyncKmsConfigForPool
+	enableLdap                             = env.GetBool("ENABLE_LDAP", false)
+	blockUpdatePooltoATPool                = env.GetBool("BLOCK_UPDATE_POOL_TO_AT_POOL", true)
+	enableMqos                             = env.GetBool("ENABLE_MQOS", false)
+	enableVolumePerformanceGroupAssignment = env.GetBool("ENABLE_VOLUME_PERFORMANCE_GROUP_ASSIGNMENT", false)
 )
 
 const (

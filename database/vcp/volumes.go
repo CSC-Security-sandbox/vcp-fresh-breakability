@@ -348,11 +348,11 @@ func (d *DataStoreRepository) BatchUpdateVolumeTieringFields(ctx context.Context
 			paramCounter += 3
 		}
 
-		sql := fmt.Sprintf(`UPDATE volumes 
-			SET hot_tier_size_gib = tmp.hot_tier_size_gib, 
-			    cold_tier_size_gib = tmp.cold_tier_size_gib, 
-			    updated_at = NOW() 
-			FROM (VALUES %s) AS tmp(uuid, hot_tier_size_gib, cold_tier_size_gib) 
+		sql := fmt.Sprintf(`UPDATE volumes
+			SET hot_tier_size_gib = tmp.hot_tier_size_gib,
+			    cold_tier_size_gib = tmp.cold_tier_size_gib,
+			    updated_at = NOW()
+			FROM (VALUES %s) AS tmp(uuid, hot_tier_size_gib, cold_tier_size_gib)
 			WHERE volumes.uuid::text = tmp.uuid::text`,
 			strings.Join(placeholders, ", "))
 
@@ -609,6 +609,17 @@ func (d *DataStoreRepository) DereferenceVPGFromDeletedVolumes(ctx context.Conte
 func (d *DataStoreRepository) GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error) {
 	var count int64
 	err := d.db.GORM().WithContext(ctx).Model(&datamodel.Volume{}).Where("pool_id = ?", poolID).Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (d *DataStoreRepository) GetVolumeCountByVolumePerformanceGroupID(ctx context.Context, vpgID int64) (int64, error) {
+	var count int64
+	err := d.db.GORM().WithContext(ctx).Model(&datamodel.Volume{}).
+		Where("volume_performance_group_id = ?", vpgID).
+		Where("deleted_at IS NULL").Count(&count).Error
 	if err != nil {
 		return 0, err
 	}

@@ -11106,6 +11106,63 @@ func (_c *MockDataStore_GetVolumeCountByPoolID_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// GetVolumeCountByVolumePerformanceGroupID provides a mock function with given fields: ctx, vpgID
+func (_m *MockDataStore) GetVolumeCountByVolumePerformanceGroupID(ctx context.Context, vpgID int64) (int64, error) {
+	ret := _m.Called(ctx, vpgID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumeCountByVolumePerformanceGroupID")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (int64, error)); ok {
+		return rf(ctx, vpgID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) int64); ok {
+		r0 = rf(ctx, vpgID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, vpgID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetVolumeCountByVolumePerformanceGroupID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeCountByVolumePerformanceGroupID'
+type MockDataStore_GetVolumeCountByVolumePerformanceGroupID_Call struct {
+	*mock.Call
+}
+
+// GetVolumeCountByVolumePerformanceGroupID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - vpgID int64
+func (_e *MockDataStore_Expecter) GetVolumeCountByVolumePerformanceGroupID(ctx interface{}, vpgID interface{}) *MockDataStore_GetVolumeCountByVolumePerformanceGroupID_Call {
+	return &MockDataStore_GetVolumeCountByVolumePerformanceGroupID_Call{Call: _e.mock.On("GetVolumeCountByVolumePerformanceGroupID", ctx, vpgID)}
+}
+
+func (_c *MockDataStore_GetVolumeCountByVolumePerformanceGroupID_Call) Run(run func(ctx context.Context, vpgID int64)) *MockDataStore_GetVolumeCountByVolumePerformanceGroupID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetVolumeCountByVolumePerformanceGroupID_Call) Return(_a0 int64, _a1 error) *MockDataStore_GetVolumeCountByVolumePerformanceGroupID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetVolumeCountByVolumePerformanceGroupID_Call) RunAndReturn(run func(context.Context, int64) (int64, error)) *MockDataStore_GetVolumeCountByVolumePerformanceGroupID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVolumeLatestBackupMap provides a mock function with given fields: ctx
 func (_m *MockDataStore) GetVolumeLatestBackupMap(ctx context.Context) (map[int64]*datamodel.VolumeLatestBackup, error) {
 	ret := _m.Called(ctx)

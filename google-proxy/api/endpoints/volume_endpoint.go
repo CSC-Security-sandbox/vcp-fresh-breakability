@@ -1331,6 +1331,40 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		}
 	}
 
+	hasThroughput := req.ThroughputMibps.IsSet()
+	hasIops := req.Iops.IsSet()
+	hasVpg := req.VolumePerformanceGroupId.IsSet()
+
+	if hasThroughput || hasIops || hasVpg {
+		if !enableMqos {
+			return nil, errors.NewUserInputValidationErr("MQOS is not enabled")
+		}
+
+		if hasVpg {
+			if !enableVolumePerformanceGroupAssignment {
+				return nil, errors.NewUserInputValidationErr("Volume performance group assignment is not enabled")
+			}
+			if hasThroughput || hasIops {
+				return nil, errors.NewUserInputValidationErr("Only (throughputMibps + iops), or volumePerformanceGroupId can be set at a time")
+			}
+			param.VolumePerformanceGroupId = nillable.ToPointer(req.VolumePerformanceGroupId.Value)
+		} else {
+			// If volumePerformanceGroupId is not set, then throughputMibps must be set, and iops can only be null if enableInferredIops is true
+			if !hasThroughput || (!enableInferredIops && hasThroughput && !hasIops) {
+				return nil, errors.NewUserInputValidationErr("throughputMibps and iops must be set together")
+			}
+			if hasThroughput {
+				param.ThroughputMibps = nillable.ToPointer(req.ThroughputMibps.Value)
+			}
+			if hasIops {
+				if enableInferredIops {
+					return nil, errors.NewUserInputValidationErr("iops must not be set when enableInferredIops is true")
+				}
+				param.Iops = nillable.ToPointer(req.Iops.Value)
+			}
+		}
+	}
+
 	if len(req.SmbSettings) > 0 {
 		if dbVolume != nil && !utils.IsSMBProtocols(dbVolume.ProtocolTypes) {
 			return nil, errors.NewUserInputValidationErr("Cannot change SMB share settings for NFS volume or Block Volume")
@@ -3096,7 +3130,7 @@ func (h Handler) V1betaRestoreBackupFiles(ctx context.Context, req *gcpgenserver
 	if params.VolumeId == "" {
 		return &gcpgenserver.V1betaRestoreBackupFilesBadRequest{
 			Code:    400,
-			Message: fmt.Sprintf("Volume ID cannot be empty"),
+			Message: "Volume ID cannot be empty",
 		}, nil
 	}
 
