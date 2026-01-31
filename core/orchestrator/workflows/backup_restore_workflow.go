@@ -229,7 +229,6 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
-		rollbackManager.AddActivity(activities.VolumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject, backupActivitiesContext.BackupWorkflowInit.Volume.Pool, backupActivitiesContext.BackupWorkflowInit.Backup)
 
 		var dbNodes []*datamodel.Node
 		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &backupActivitiesContext.BackupWorkflowInit.Volume.Pool.ID).Get(ctx, &dbNodes)
@@ -306,7 +305,7 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
-	
+
 	// Get snapmirror relationship to check health status
 	var smRelationship *common.SnapmirrorRelationship
 	err = workflow.ExecuteActivity(ctx, backupActivity.GetSnapmirror, backupActivitiesContext.Node, smSourcePath, smDestinationPath).Get(ctx, &smRelationship)

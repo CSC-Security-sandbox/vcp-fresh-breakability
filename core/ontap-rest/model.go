@@ -3524,7 +3524,7 @@ func snapmirrorRelationshipListParamsToONTAP(params *SnapmirrorRelationshipListP
 	otParams.SetSourcePath(&params.SourcePath)
 	// This checks if the DestinationPath is a cloud object store path.
 	if strings.Contains(params.DestinationPath, ":/objstore/") {
-		otParams.WithFields([]string{"destination.uuid"})
+		otParams.WithFields([]string{"destination.uuid", "healthy", "unhealthy_reason.code", "unhealthy_reason.message"})
 	}
 	return otParams
 }

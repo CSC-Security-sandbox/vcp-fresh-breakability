@@ -456,6 +456,12 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
+
+			// Wait for service account to be ready
+			err = workflowSleep(ctx, time.Second*90)
+			if err != nil {
+				log.Errorf("Failed to sleep after cross-region backup permissions are created: %v", err)
+			}
 		}
 	}
 

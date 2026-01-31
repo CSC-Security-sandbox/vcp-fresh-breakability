@@ -34,6 +34,7 @@ var (
 	volumeHeartbeatTimeoutSec      = env.GetUint64("VOLUME_ACTIVITIES_HEARTBEAT_TIMEOUT_SEC", 300)
 	dbHeartbeatTimeoutSec          = env.GetUint64("DATABASE_HEARTBEAT_TIMEOUT_SEC", 10)
 	enableKerberos                 = env.GetBool("ENABLE_KERBEROS", false)
+	workflowSleep                  = workflow.Sleep // Variable for testing
 )
 
 // getVolumeStartToCloseTimeout returns the appropriate start-to-close timeout based on volume characteristics.
@@ -1200,6 +1201,12 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			err = workflow.ExecuteActivity(ctx, volumeActivity.SetupCrossRegionBackupPermissionsActivity, backupVault, &dbVolume.Pool, &bucketDetails).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
+			}
+
+			// Wait for service account to be ready
+			err = workflowSleep(ctx, time.Second*90)
+			if err != nil {
+				log.Errorf("Failed to sleep after cross-region backup permissions are created: %v", err)
 			}
 		}
 	}

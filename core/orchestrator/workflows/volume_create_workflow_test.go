@@ -8710,6 +8710,100 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_PostWorkflowSlice_Cancellation
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 }
 
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CrossRegionBackup_SleepError() {
+	// Test error handling when workflow.Sleep fails after SetupCrossRegionBackupPermissionsActivity
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	backupRegionName := "us-east1"
+	volume := &datamodel.Volume{
+		Account:   &datamodel.Account{Name: "project-123"},
+		AccountID: 1,
+		Pool: &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{Password: "password"},
+		},
+		Svm: &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"},
+			Protocols:       []string{utils.ProtocolISCSI},
+			VendorSubnetID:  "subnet-123",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "backup-vault-123",
+		},
+		SizeInBytes: 100,
+	}
+
+	// Register activities that are not already registered in SetupTest()
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails)
+
+	// Register SyncBucketDetails activity instance
+	syncBackupZiZsActivity := backgroundactivities.SyncBackupZiZsActivity{SE: mockStorage}
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, Size: 200, AvailableSpace: 150}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
+
+	// Mock SyncBucketDetails activity (called by syncBucketDetailsWithGCP)
+	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{
+		BucketName:          "test-bucket",
+		TenantProjectNumber: "123456789",
+	}, nil)
+
+	// Mock child workflows
+	s.env.OnWorkflow("PreBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
+
+	// Mock backup vault activities for cross-region backup
+	backupVault := &datamodel.BackupVault{
+		BackupVaultType:  activities.CrossRegionBackupType,
+		BackupRegionName: &backupRegionName,
+	}
+	s.env.OnActivity(volumeCreateActivity.CheckBackupVaultExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+	s.env.OnActivity(volumeCreateActivity.FindTenancy, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{RegionalTenantProject: "tenant-project"}, nil)
+	s.env.OnActivity(volumeCreateActivity.CheckForBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{
+		BucketName:          "test-bucket",
+		TenantProjectNumber: "123456789",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.GenerateResourceNames, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.ResourceNames{}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateBucket, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.BucketDetails{
+		BucketName:          "test-bucket",
+		TenantProjectNumber: "123456789",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Mock SetupCrossRegionBackupPermissionsActivity to succeed
+	s.env.OnActivity(volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Override workflowSleep to return error - this tests the error handling at line 1207-1209
+	origWorkflowSleep := workflowSleep
+	workflowSleep = func(ctx workflow.Context, d time.Duration) error {
+		return errors.New("failed to sleep after cross-region backup permissions are created")
+	}
+	defer func() { workflowSleep = origWorkflowSleep }()
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{AccountName: "project-123", Region: "us-central1"}, volume)
+
+	// Assert workflow completed successfully despite sleep error
+	// The error is logged but doesn't stop workflow execution
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
 // TestGetVolumeStartToCloseTimeout tests the getVolumeStartToCloseTimeout function
 // which returns the appropriate timeout based on volume characteristics.
 func TestGetVolumeStartToCloseTimeout(t *testing.T) {
