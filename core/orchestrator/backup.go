@@ -794,7 +794,7 @@ func _validateBackupDeleteParams(ctx context.Context, se database.Storage, param
 				backupCreationDate := backup.CreatedAt
 				retExpiryDate := backupCreationDate.AddDate(0, 0, int(minRet))
 
-				if backup.Type == common.BackupTypeSCHEDULED {
+				if backup.Type == utils.BackupTypeSCHEDULED {
 					if backup.ScheduleTag != nil && ((isDailyRetEnabled && *backup.ScheduleTag == common.ScheduleTagDaily) ||
 						(isWeeklyRetEnabled && *backup.ScheduleTag == common.ScheduleTagWeekly) ||
 						(isMonthlyRetEnabled && *backup.ScheduleTag == common.ScheduleTagMonthly)) {
@@ -802,7 +802,7 @@ func _validateBackupDeleteParams(ctx context.Context, se database.Storage, param
 							return customerrors.NewUserInputValidationErr("Cannot delete backup before minimum retention period")
 						}
 					}
-				} else if backup.Type == common.BackupTypeMANUAL {
+				} else if backup.Type == utils.BackupTypeMANUAL {
 					if isAdhocRetEnabled {
 						if time.Now().Before(retExpiryDate) {
 							return customerrors.NewUserInputValidationErr("Cannot delete backup before minimum retention period")

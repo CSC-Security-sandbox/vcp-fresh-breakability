@@ -6,26 +6,18 @@ app: {{ .Chart.Name | quote }}
 {{- end -}}
 
 {{- define "imageRegistryFullPath" -}}
-{{- $global := .Values.global | default dict -}}
-{{- $primaryRegistryPath := (get $global "primaryImageRegistryPath") | default "" -}}
-{{- $primaryRegistry := (get $global "primaryImageRegistry") | default "" -}}
-{{- $chartPrimaryRegistry := (get $global "chartPrimaryImageRegistry") | default "" -}}
-{{- if eq $primaryRegistryPath "" }}
-{{ $chartPrimaryRegistry | default $primaryRegistry }}
+{{- if eq .Values.global.primaryImageRegistryPath "" }}
+{{ .Values.global.chartPrimaryImageRegistry | default .Values.global.primaryImageRegistry }}
 {{- else }}
-{{ $chartPrimaryRegistry | default $primaryRegistry }}/{{ $primaryRegistryPath }}
+{{ .Values.global.chartPrimaryImageRegistry | default .Values.global.primaryImageRegistry }}/{{ .Values.global.primaryImageRegistryPath }}
 {{- end -}}
 {{- end -}}
 
 {{- define "secondImageRegistryFullPath" -}}
-{{- $global := .Values.global | default dict -}}
-{{- $secondaryRegistry := (get $global "secondaryImageRegistry") | default "" -}}
-{{- $secondaryRegistryPath := (get $global "secondaryImageRegistryPath") | default "" -}}
-{{- $chartSecondaryRegistry := (get $global "chartSecondaryImageRegistry") | default "" -}}
-{{- if and ( ne $secondaryRegistry "" ) ( eq $secondaryRegistryPath "" ) }}
-{{ $chartSecondaryRegistry | default $secondaryRegistry }}
-{{- else if and ( ne $secondaryRegistry "" ) ( ne $secondaryRegistryPath "" ) }}
-{{ $chartSecondaryRegistry | default $secondaryRegistry }}/{{ $secondaryRegistryPath }}
+{{- if and ( ne .Values.global.secondaryImageRegistry "" ) ( eq .Values.global.secondaryImageRegistryPath "" ) }}
+{{ .Values.global.chartSecondaryImageRegistry | default .Values.global.secondaryImageRegistry }}
+{{- else if and ( ne .Values.global.secondaryImageRegistry "" ) ( ne .Values.global.secondaryImageRegistryPath "" ) }}
+{{ .Values.global.chartSecondaryImageRegistry | default .Values.global.secondaryImageRegistry }}/{{ .Values.global.secondaryImageRegistryPath }}
 {{- end -}}
 {{- end -}}
 
@@ -43,9 +35,7 @@ Helper function to get the final URL of the image to be used in the deployment.
 {{- $imageDigest := $imageConfig.digest -}}
 {{- $isSecondary := index $args "secondary" -}}
 {{- $registry := ternary (include "secondImageRegistryFullPath" $context) (include "imageRegistryFullPath" $context) $isSecondary -}}
-{{- $global := $context.Values.global | default dict -}}
-{{- $useTags := (get $global "useTags") | default false -}}
-{{- if $useTags -}}
+{{- if $context.Values.global.useTags -}}
 {{- $finaltag := toString $imageTag | default (toString $context.Chart.Version) -}}
 {{- printf "%s/%s:%s" $registry $imageName $finaltag -}}
 {{- else -}}

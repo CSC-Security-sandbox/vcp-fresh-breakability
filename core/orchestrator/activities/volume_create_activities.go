@@ -29,7 +29,6 @@ import (
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -216,44 +215,6 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 		}
 	}
 
-	// Handle QoS policy assignment if volume has a VPG (only if MQOS is enabled)
-	enableMqos := env.GetBool("ENABLE_MQOS", false)
-	logger.Debug("QoS policy assignment check",
-		"enable_mqos", enableMqos,
-		"volume_id", volume.UUID,
-		"vpg_id_valid", volume.VolumePerformanceGroupID.Valid,
-		"vpg_id", volume.VolumePerformanceGroupID.Int64)
-
-	if enableMqos && volume.VolumePerformanceGroupID.Valid {
-		activity.RecordHeartbeat(ctx, "Getting QoS policy for volume performance group")
-
-		vpg := volume.VolumePerformanceGroup
-		if vpg == nil {
-			logger.Error("Volume has VPG ID but VPG relationship is nil - this should not be possible with foreign key constraints", "volume_id", volume.UUID, "vpg_id", volume.VolumePerformanceGroupID.Int64)
-			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume performance group relationship is nil for volume %s with VPG ID %d", volume.UUID, volume.VolumePerformanceGroupID.Int64))
-		}
-
-		// QoS policy should already be created at VPG creation time
-		// If it's missing, return an error (should not happen in normal flow)
-		if vpg.OntapQosPolicyID == "" {
-			logger.Error("VPG missing OntapQosPolicyID - QoS policy should have been created at VPG creation time", "vpg_id", vpg.UUID)
-			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("QoS policy not found for VPG %s - should have been created at VPG creation time", vpg.UUID))
-		}
-
-		// Use the existing QoS policy name
-		qosPolicyName := vpg.OntapQosPolicyID
-		logger.Info("Assigning QoS policy to volume", "volume_id", volume.UUID, "vpg_id", vpg.UUID, "qos_policy", qosPolicyName)
-
-		// Set QoS policy for volume creation
-		params.QosPolicy = &qosPolicyName
-	} else {
-		if !enableMqos {
-			logger.Debug("Skipping QoS policy assignment: ENABLE_MQOS feature flag is disabled", "volume_id", volume.UUID)
-		} else if !volume.VolumePerformanceGroupID.Valid {
-			logger.Debug("Skipping QoS policy assignment: volume does not have a valid VPG ID", "volume_id", volume.UUID)
-		}
-	}
-
 	activity.RecordHeartbeat(ctx, "Starting volume creation in ONTAP")
 	res, err := provider.CreateVolume(params)
 
@@ -420,16 +381,9 @@ func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamod
 func (a VolumeCreateActivity) CreateExportPolicyInOntap(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, "Starting CreateExportPolicyInOntap activity")
-	if volume.VolumeAttributes == nil || volume.VolumeAttributes.FileProperties == nil {
+	if volume.VolumeAttributes.FileProperties == nil {
 		logger.Info("Skipping export policy creation for non-file volume")
 		return nil
-	}
-	if volume.Svm == nil {
-		svm, err := a.SE.GetSvmForPoolID(ctx, volume.PoolID)
-		if err != nil {
-			return vsaerrors.WrapAsTemporalApplicationError(err)
-		}
-		volume.Svm = svm
 	}
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {

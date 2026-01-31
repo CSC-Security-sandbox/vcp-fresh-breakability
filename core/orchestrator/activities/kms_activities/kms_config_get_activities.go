@@ -30,7 +30,11 @@ func _getSDEKmsConfiguration(ctx context.Context, params *common.GetKmsConfigPar
 	logger := util.GetLogger(ctx)
 
 	// Generate a fresh JWT token to avoid token expiration during long-running workflows
-	jwtToken := utils.GetAuthTokenFromContext(ctx)
+	jwtToken, err := getSignedJwtToken(params.ProjectNumber)
+	if err != nil {
+		logger.Errorf("Failed to get signed token for DescribeSDEKmsConfiguration: %v", err)
+		return nil, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeSignedTokenFailed, err)
+	}
 
 	cvpClient := createClient(logger, jwtToken)
 	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)

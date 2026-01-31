@@ -1005,24 +1005,6 @@ func TestVolumeCreateParamsToONTAP(t *testing.T) {
 		assert.Equal(tt, params.TieringPolicy.MinCoolingDays, *result.Info.Tiering.MinCoolingDays)
 		assert.Equal(tt, params.TieringPolicy.CloudRetrievalPolicy, *result.Info.CloudRetrievalPolicy)
 	})
-
-	t.Run("WhenQosPolicyIsSet_ThenQosIsPopulated", func(tt *testing.T) {
-		params := &VolumeCreateParams{
-			Name:      "vol1",
-			Type:      "rw",
-			Size:      1024,
-			Svm:       "svm1",
-			Aggregates: []string{"aggr1"},
-			QosPolicy: "qos-policy-1",
-		}
-		result := volumeCreateParamsToONTAP(params)
-		assert.NotNil(tt, result)
-		assert.NotNil(tt, result.Info)
-		assert.NotNil(tt, result.Info.Qos)
-		assert.NotNil(tt, result.Info.Qos.Policy)
-		assert.NotNil(tt, result.Info.Qos.Policy.Name)
-		assert.Equal(tt, "qos-policy-1", *result.Info.Qos.Policy.Name)
-	})
 }
 
 func TestVolumeCreateParamsToONTAPWithSecurityStyle(t *testing.T) {

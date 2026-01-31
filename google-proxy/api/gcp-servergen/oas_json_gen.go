@@ -68581,27 +68581,9 @@ func (s *VolumeUpdateV1beta) encodeFields(e *jx.Encoder) {
 			s.LargeVolumeConstituentCount.Encode(e)
 		}
 	}
-	{
-		if s.ThroughputMibps.Set {
-			e.FieldStart("throughputMibps")
-			s.ThroughputMibps.Encode(e)
-		}
-	}
-	{
-		if s.Iops.Set {
-			e.FieldStart("iops")
-			s.Iops.Encode(e)
-		}
-	}
-	{
-		if s.VolumePerformanceGroupId.Set {
-			e.FieldStart("volumePerformanceGroupId")
-			s.VolumePerformanceGroupId.Encode(e)
-		}
-	}
 }
 
-var jsonFieldsNameOfVolumeUpdateV1beta = [23]string{
+var jsonFieldsNameOfVolumeUpdateV1beta = [20]string{
 	0:  "quotaInBytes",
 	1:  "snapReserve",
 	2:  "snapshotDirectory",
@@ -68622,9 +68604,6 @@ var jsonFieldsNameOfVolumeUpdateV1beta = [23]string{
 	17: "cacheParameters",
 	18: "largeCapacity",
 	19: "largeVolumeConstituentCount",
-	20: "throughputMibps",
-	21: "iops",
-	22: "volumePerformanceGroupId",
 }
 
 // Decode decodes VolumeUpdateV1beta from json.
@@ -68846,36 +68825,6 @@ func (s *VolumeUpdateV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"largeVolumeConstituentCount\"")
-			}
-		case "throughputMibps":
-			if err := func() error {
-				s.ThroughputMibps.Reset()
-				if err := s.ThroughputMibps.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"throughputMibps\"")
-			}
-		case "iops":
-			if err := func() error {
-				s.Iops.Reset()
-				if err := s.Iops.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"iops\"")
-			}
-		case "volumePerformanceGroupId":
-			if err := func() error {
-				s.VolumePerformanceGroupId.Reset()
-				if err := s.VolumePerformanceGroupId.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"volumePerformanceGroupId\"")
 			}
 		default:
 			return d.Skip()

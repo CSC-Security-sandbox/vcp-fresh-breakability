@@ -1425,7 +1425,7 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 			backup := &datamodel.Backup{
 				BaseModel:   datamodel.BaseModel{UUID: "testBackupUUID", CreatedAt: backupCreatedTime},
 				VolumeUUID:  "volumeUUID1",
-				Type:        common.BackupTypeSCHEDULED,
+				Type:        utils.BackupTypeSCHEDULED,
 				ScheduleTag: &scheduleTag,
 				BackupVault: &datamodel.BackupVault{
 					BackupVaultType: "IN_REGION",
@@ -1467,7 +1467,7 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 			backup := &datamodel.Backup{
 				BaseModel:   datamodel.BaseModel{UUID: "testBackupUUID", CreatedAt: backupCreatedTime},
 				VolumeUUID:  "volumeUUID1",
-				Type:        common.BackupTypeSCHEDULED,
+				Type:        utils.BackupTypeSCHEDULED,
 				ScheduleTag: &scheduleTag,
 				BackupVault: &datamodel.BackupVault{
 					BackupVaultType: "IN_REGION",
@@ -1508,7 +1508,7 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 			backup := &datamodel.Backup{
 				BaseModel:   datamodel.BaseModel{UUID: "testBackupUUID", CreatedAt: backupCreatedTime},
 				VolumeUUID:  "volumeUUID1",
-				Type:        common.BackupTypeSCHEDULED,
+				Type:        utils.BackupTypeSCHEDULED,
 				ScheduleTag: &scheduleTag,
 				BackupVault: &datamodel.BackupVault{
 					BackupVaultType: "IN_REGION",
@@ -1548,7 +1548,7 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 			backup := &datamodel.Backup{
 				BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID", CreatedAt: backupCreatedTime},
 				VolumeUUID: "volumeUUID1",
-				Type:       common.BackupTypeMANUAL,
+				Type:       utils.BackupTypeMANUAL,
 				BackupVault: &datamodel.BackupVault{
 					BackupVaultType: "IN_REGION",
 				},
@@ -1646,7 +1646,7 @@ func TestValidateBackupDeleteParams_ImmutabilityChecks(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
 			VolumeUUID: "volumeUUID1",
-			Type:       common.BackupTypeSCHEDULED,
+			Type:       utils.BackupTypeSCHEDULED,
 			Name:       "daily-backup-20230101",
 			BackupVault: &datamodel.BackupVault{
 				BackupVaultType: "IN_REGION",

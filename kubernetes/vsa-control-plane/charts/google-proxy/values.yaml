@@ -121,10 +121,7 @@ enableSmbCaShare: true
 enableMultiAd: true
 maxNumberOfAdPerAccount: 5
 enableMqos: false
-enableInferredIops: true
 enableVpgEndpoints: false
-enableInferredIops: true
-enableVolumePerformanceGroupAssignment: false
 exportPolicyRulesLimit: 20
 autoPoolScalingLimits:
   c3-standard-4-lssd:
@@ -156,7 +153,7 @@ images:
 resources:
   limits:
     cpu: "1"
-    memory: 1Gi
+    memory: 1Gi 
   requests:
     cpu: 250m
     memory: 150Mi

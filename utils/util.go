@@ -124,14 +124,6 @@ const (
 	ImmutableBackupVaultErrMsg = "Immutable backup vaults are not supported for this region"
 	BackupTypeMANUAL           = "MANUAL"
 	BackupTypeSCHEDULED        = "SCHEDULED"
-	// Pool QosType validation errors
-	ErrMsgPoolAutoQosTypeCannotSpecifyThroughput = "Pool has auto QoS type. Cannot specify throughputMibps. Volumes inherit QoS from the pool."
-	ErrMsgPoolAutoQosTypeCannotSpecifyIops       = "Pool has auto QoS type. Cannot specify iops. Volumes inherit QoS from the pool."
-	ErrMsgPoolAutoQosTypeCannotSpecifyVpgId      = "Pool has auto QoS type. Cannot specify volumePerformanceGroupId. Volumes inherit QoS from the pool."
-	ErrMsgPoolManualQosTypeRequiresThroughput    = "Pool has manual QoS type. throughputMibps must be provided."
-	ErrMsgMqosNotEnabledThroughput               = "Manual QoS (MQOS) is not enabled. throughputMibps parameter is not supported."
-	ErrMsgMqosNotEnabledIops                     = "Manual QoS (MQOS) is not enabled. iops parameter is not supported."
-	ErrMsgMqosNotEnabledVpgId                    = "Manual QoS (MQOS) is not enabled. volumePerformanceGroupId parameter is not supported."
 	// ActiveDirectoryGroupBuiltInBackupOperators defines the name of the built-in backup operators group
 	ActiveDirectoryGroupBuiltInBackupOperators = `BUILTIN\Backup Operators`
 
@@ -1477,11 +1469,11 @@ func ExtractSnapshotNameFromCVPBackup(backup *cvpModels.BackupV1beta, backupName
 		}
 	}
 
-	if backup.BackupType == "MANUAL" {
+	if backup.BackupType == BackupTypeMANUAL {
 		return backupName
 	}
 
-	if backup.BackupType == "SCHEDULED" {
+	if backup.BackupType == BackupTypeSCHEDULED {
 		return GetONTAPSnapshotNameFromCBSDisplaySnapshotName(backupName)
 	}
 

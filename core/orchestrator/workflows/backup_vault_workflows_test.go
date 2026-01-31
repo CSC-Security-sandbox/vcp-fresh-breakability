@@ -355,16 +355,10 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_SignedTokenError() {
 	// Register activities
 	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
-	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
-	s.env.RegisterActivity(backupvaultDeleteActivity.DeleteBackupVaultBuckets)
 	s.env.RegisterActivity(backupvaultDeleteActivity.DeleteBackupVaultInSDE)
 	s.env.RegisterActivity(backupvaultDeleteActivity.DeleteBackupVaultInVCP)
-	s.env.RegisterActivity(backupvaultDeleteActivity.UpdateBackupVaultStateInCaseOfError)
 
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get signed JWT token"))
-	s.env.OnActivity(backupvaultDeleteActivity.DeleteBackupVaultBuckets, mock.Anything, mock.Anything).Return(nil).Maybe()
-	s.env.OnActivity(backupvaultDeleteActivity.DeleteBackupVaultInVCP, mock.Anything, mock.Anything).Return(nil, errors.New("failed to delete backup vault in VCP")).Maybe()
-	s.env.OnActivity(backupvaultDeleteActivity.DeleteBackupVaultInSDE, mock.Anything, mock.Anything).Return(nil, errors.New("failed to delete backup vault in SDE")).Maybe()
 	s.env.OnActivity(backupvaultDeleteActivity.UpdateBackupVaultStateInCaseOfError, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	// Execute workflow
@@ -1635,7 +1629,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_CRB_HydrationFailure() {
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultCmekInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Fail the final hydration to the source-region VCP backup vault. This is
 	// best-effort and should not cause the workflow to fail.
-	s.env.OnActivity(backupVaultActivity.UpdateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to hydrate source-region vault"))
+	s.env.OnActivity(backupVaultActivity.UpdateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to hydrate source-region vault"))
 
 	s.env.ExecuteWorkflow(RotateCmekBackupsWorkflow, params, backupVault, primaryKeyVersion)
 

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
@@ -29,20 +28,9 @@ func (d *DataStoreRepository) DeleteVolumePerformanceGroup(ctx context.Context, 
 	return deleteVolumePerformanceGroup(d.db.GORM().WithContext(ctx), vpg)
 }
 
-// HardDeleteVolumePerformanceGroup permanently deletes a volume performance group row from the database.
-// This should only be used for auto-generated VPGs that need to be completely removed.
-func (d *DataStoreRepository) HardDeleteVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error {
-	return hardDeleteVolumePerformanceGroup(d.db.GORM().WithContext(ctx), vpg)
-}
-
 // GetVolumePerformanceGroupByUUID retrieves a volume performance group row by its row UUID.
 func (d *DataStoreRepository) GetVolumePerformanceGroupByUUID(ctx context.Context, uuid string) (*datamodel.VolumePerformanceGroup, error) {
 	return getVolumePerformanceGroupByUUID(d.db.GORM().WithContext(ctx), uuid)
-}
-
-// GetVolumePerformanceGroupByID retrieves a volume performance group row by its database ID.
-func (d *DataStoreRepository) GetVolumePerformanceGroupByID(ctx context.Context, id int64) (*datamodel.VolumePerformanceGroup, error) {
-	return getVolumePerformanceGroupByID(d.db.GORM().WithContext(ctx), id)
 }
 
 // ListVolumePerformanceGroupsByPoolID retrieves all volume performance group rows for a given pool ID.
@@ -50,7 +38,7 @@ func (d *DataStoreRepository) ListVolumePerformanceGroupsByPoolID(ctx context.Co
 	return listVolumePerformanceGroupsByPoolID(d.db.GORM().WithContext(ctx), poolID)
 }
 
-// Returns the volume performance group. Respects soft deletes (deleted_at filter).
+// Returns the volume performance group. deleted_at field does not need to be considered VPGs are not a soft delete.
 func getVolumePerformanceGroupByUUID(db *gorm.DB, uuid string) (*datamodel.VolumePerformanceGroup, error) {
 	vpg := &datamodel.VolumePerformanceGroup{}
 	err := db.Where("uuid = ?", uuid).First(vpg).Error
@@ -63,20 +51,7 @@ func getVolumePerformanceGroupByUUID(db *gorm.DB, uuid string) (*datamodel.Volum
 	return vpg, nil
 }
 
-// Returns the volume performance group by ID. Respects soft deletes (deleted_at filter).
-func getVolumePerformanceGroupByID(db *gorm.DB, id int64) (*datamodel.VolumePerformanceGroup, error) {
-	vpg := &datamodel.VolumePerformanceGroup{}
-	err := db.Where("id = ?", id).First(vpg).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.NewNotFoundErr("volume performance group", nil)
-		}
-		return nil, err
-	}
-	return vpg, nil
-}
-
-// Returns the volume performance groups. Respects soft deletes (deleted_at filter).
+// Returns the volume performance groups. deleted_at field does not need to be considered VPGs are not a soft delete.
 func listVolumePerformanceGroupsByPoolID(db *gorm.DB, poolID int64) ([]*datamodel.VolumePerformanceGroup, error) {
 	var vpgs []*datamodel.VolumePerformanceGroup
 	if err := db.Where("pool_id = ?", poolID).Find(&vpgs).Error; err != nil {
@@ -86,17 +61,6 @@ func listVolumePerformanceGroupsByPoolID(db *gorm.DB, poolID int64) ([]*datamode
 }
 
 func createVolumePerformanceGroup(db *gorm.DB, vpg *datamodel.VolumePerformanceGroup) (*datamodel.VolumePerformanceGroup, error) {
-	// Generate UUID if empty (following the pattern from pools.go)
-	if vpg.UUID == "" {
-		vpg.UUID = utils.RandomUUID()
-	}
-
-	// Set timestamps
-	now := time.Now()
-	vpg.CreatedAt = now
-	vpg.UpdatedAt = now
-
-	// Attempt to create the VPG
 	if err := db.Create(vpg).Error; err != nil {
 		return nil, err
 	}
@@ -132,18 +96,6 @@ func updateVolumePerformanceGroup(db *gorm.DB, ctx context.Context, vpg *datamod
 
 func deleteVolumePerformanceGroup(db *gorm.DB, vpg *datamodel.VolumePerformanceGroup) error {
 	res := db.Delete(vpg)
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return customerrors.NewNotFoundErr("volume performance group", nil)
-	}
-	return nil
-}
-
-func hardDeleteVolumePerformanceGroup(db *gorm.DB, vpg *datamodel.VolumePerformanceGroup) error {
-	// Use Unscoped() to perform a hard delete (permanently remove from database)
-	res := db.Unscoped().Delete(vpg)
 	if res.Error != nil {
 		return res.Error
 	}

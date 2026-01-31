@@ -10137,31 +10137,6 @@ components:
           format: int32
           nullable: true
           example: 24
-        throughputMibps:
-          title: throughputMibps
-          type: integer
-          format: int64
-          description: Throughput in MiB/s. Only set if parent pool is qosType ='manual', iops is set, and volumePerformanceGroupId is not set.
-          minimum: 1
-          example: 200
-          nullable: true
-        iops:
-          title: iops
-          type: integer
-          format: int64
-          description: Io Operations Per Second limit. Only set if parent pool is qosType ='manual', throughputMibps is set, and volumePerformanceGroupId is not set.
-          minimum: 1
-          example: 20
-          nullable: true
-        volumePerformanceGroupId:
-          title: volumePerformanceGroupId
-          type: string
-          description: UUID v4 used to identify the performance group.  Only set if parent pool is qosType ='manual', and neither throughputMibps nor iops are set.
-          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
-          maxLength: 36
-          minLength: 36
-          example: 9760acf5-4638-11e7-9bdb-020073ca7773
-          nullable: true
     SnapshotPolicy_v1beta:
       title: SnapshotPolicy
       type: object
