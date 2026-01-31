@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 )
 
 const (
@@ -21,19 +20,20 @@ const (
 
 // VLMWorkflowName is the name of the workflow
 const (
-	CreateVSAClusterDeploymentWorkflowName  = "vlm.CreateVSAClusterDeploymentWorkflow"
-	CreateVSASVMWorkflowName                = "vlm.CreateVSASVMWorkflow"
-	ModifyVSASVMWorkflowName                = "vlm.ModifyVSASVMWorkflow"
-	DeleteVSAClusterDeploymentWorkflowName  = "vlm.DeleteVSAClusterDeploymentWorkflow"
-	UpdateVSAClusterDeploymentWorkflowName  = "vlm.UpdateVSAClusterDeploymentWorkflow"
-	UpgradeVSAClusterDeploymentWorkflowName = "vlm.UpgradeVSAClusterDeploymentWorkflow"
-	ClusterPowerCycleWorkflowName           = "vlm.ClusterPowerCycle"
-	ClusterHealthCheckWorkflowName          = "vlm.ClusterHealthCheck"
-	GetClusterZiZsDetailsWorkflowName       = "vlm.GetClusterZiZsDetails"
-	UpdateVSAMediatorWorkflowName           = "vlm.UpdateVSAMediatorWorkflow"
-	CreateVSAExpertModeUserWorkflowName     = "vlm.CreateVSAExpertModeUserWorkflow"
-	UpdateLicenseWorkflowName               = "vlm.UpdateLicenseWorkflow"
-	ASUPTriggerWaitWorkflowName             = "vlm.ASUPTriggerWaitWorkflow"
+	CreateVSAClusterDeploymentWorkflowName     = "vlm.CreateVSAClusterDeploymentWorkflow"
+	CreateVSASVMWorkflowName                   = "vlm.CreateVSASVMWorkflow"
+	ModifyVSASVMWorkflowName                   = "vlm.ModifyVSASVMWorkflow"
+	DeleteVSAClusterDeploymentWorkflowName     = "vlm.DeleteVSAClusterDeploymentWorkflow"
+	UpdateVSAClusterDeploymentWorkflowName     = "vlm.UpdateVSAClusterDeploymentWorkflow"
+	UpgradeVSAClusterDeploymentWorkflowName    = "vlm.UpgradeVSAClusterDeploymentWorkflow"
+	PreUpgradeVSAClusterDeploymentWorkflowName = "vlm.PreUpgradeVSAClusterDeploymentWorkflow"
+	ClusterPowerCycleWorkflowName              = "vlm.ClusterPowerCycle"
+	ClusterHealthCheckWorkflowName             = "vlm.ClusterHealthCheck"
+	GetClusterZiZsDetailsWorkflowName          = "vlm.GetClusterZiZsDetails"
+	UpdateVSAMediatorWorkflowName              = "vlm.UpdateVSAMediatorWorkflow"
+	CreateVSAExpertModeUserWorkflowName        = "vlm.CreateVSAExpertModeUserWorkflow"
+	UpdateLicenseWorkflowName                  = "vlm.UpdateLicenseWorkflow"
+	ASUPTriggerWaitWorkflowName                = "vlm.ASUPTriggerWaitWorkflow"
 
 	GCP_DISK_PD_SSD              = "pd-ssd"
 	GCP_DISK_HDB                 = "hyperdisk-balanced"
@@ -63,19 +63,20 @@ const (
 
 // TODO: Need to revisit these values for Multi HA configurations
 var WorkflowExecutionTimeoutMap map[string]time.Duration = map[string]time.Duration{
-	"DefaultWorkflowExecutionTimeout":       temporal.GetWorkflowGlobalTimeout(),
-	CreateVSAClusterDeploymentWorkflowName:  time.Duration(env.GetInt("VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES", 30)) * time.Minute,
-	CreateVSASVMWorkflowName:                time.Duration(env.GetInt("VLM_CREATE_VSA_SVM_WF_TIMEOUT_MINUTES", 15)) * time.Minute,
-	ModifyVSASVMWorkflowName:                15 * time.Minute,
-	DeleteVSAClusterDeploymentWorkflowName:  time.Duration(env.GetInt("VLM_DELETE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES", 20)) * time.Minute,
-	UpdateVSAClusterDeploymentWorkflowName:  time.Duration(env.GetInt("VLM_UPDATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES", 120)) * time.Minute,
-	UpgradeVSAClusterDeploymentWorkflowName: 300 * time.Minute,
-	ClusterPowerCycleWorkflowName:           time.Duration(env.GetInt("VLM_CLUSTER_POWER_OP_WF_TIMEOUT_MINUTES", 40)) * time.Minute,
-	ClusterHealthCheckWorkflowName:          time.Duration(env.GetInt("VLM_VALIDATE_CLUSTER_HEALTH_WF_TIMEOUT_MINUTES", 15)) * time.Minute,
-	GetClusterZiZsDetailsWorkflowName:       time.Duration(env.GetInt("VLM_GET_CLUSTER_ZIZS_DETAILS_WF_TIMEOUT_MINUTES", 10)) * time.Minute,
-	UpdateVSAMediatorWorkflowName:           time.Duration(env.GetInt("VLM_UPDATE_VSA_MEDIATOR_WF_TIMEOUT_MINUTES", 30)) * time.Minute,
-	UpdateLicenseWorkflowName:               10 * time.Minute,
-	CreateVSAExpertModeUserWorkflowName:     time.Duration(env.GetInt("VLM_CREATE_VSA_EXPERT_MODE_USER_WF_TIMEOUT_MINUTES", 10)) * time.Minute,
+	"DefaultWorkflowExecutionTimeout":          10 * time.Minute,
+	CreateVSAClusterDeploymentWorkflowName:     30 * time.Minute,
+	CreateVSASVMWorkflowName:                   15 * time.Minute,
+	ModifyVSASVMWorkflowName:                   15 * time.Minute,
+	DeleteVSAClusterDeploymentWorkflowName:     20 * time.Minute,
+	UpdateVSAClusterDeploymentWorkflowName:     120 * time.Minute,
+	UpgradeVSAClusterDeploymentWorkflowName:    300 * time.Minute,
+	PreUpgradeVSAClusterDeploymentWorkflowName: 120 * time.Minute,
+	ClusterPowerCycleWorkflowName:              40 * time.Minute,
+	ClusterHealthCheckWorkflowName:             15 * time.Minute,
+	GetClusterZiZsDetailsWorkflowName:          10 * time.Minute,
+	UpdateVSAMediatorWorkflowName:              30 * time.Minute,
+	UpdateLicenseWorkflowName:                  10 * time.Minute,
+	CreateVSAExpertModeUserWorkflowName:        time.Duration(env.GetInt("VLM_CREATE_VSA_EXPERT_MODE_USER_WF_TIMEOUT_MINUTES", 10)) * time.Minute,
 }
 
 type VLMConfig struct {
@@ -137,20 +138,32 @@ type DeploymentConfig struct {
 }
 
 type DevFlags struct {
-	ExtIPForNodeMgmt      bool `json:"ext_ip_for_node_mgmt"`     // External IP for node management
-	DisableDataNicTier1   bool `json:"disable_data_nic_tier1"`   // Disable Tier 1 for data NIC
-	EnablePremiumTierData bool `json:"enable_premium_tier_data"` // Enable Premium Tier for data NIC
-	DisableGVNIC          bool
-	EnableNfsV3Support    bool `json:"enable_nfs_v3_support"` // Enable NFS v3 support
-	EnableIlbSupport      bool `json:"enable_ilb_support"`    // Enable ILB support
+	ExtIPForNodeMgmt              bool `json:"ext_ip_for_node_mgmt"`     // External IP for node management
+	DisableDataNicTier1           bool `json:"disable_data_nic_tier1"`   // Disable Tier 1 for data NIC
+	EnablePremiumTierData         bool `json:"enable_premium_tier_data"` // Enable Premium Tier for data NIC
+	DisableGVNIC                  bool
+	EnableNfsV3Support            bool `json:"enable_nfs_v3_support"`             // Enable NFS v3 support
+	EnableIlbSupport              bool `json:"enable_ilb_support"`                // Enable ILB support
+	DisableBootDiskSnapshotPolicy bool `json:"disable_boot_disk_snapshot_policy"` // Disable boot disk snapshot policy creation and attachment (default: false/enabled)
+}
+
+type SnapshotConfig struct {
+	PolicyName    string `json:"policy_name,omitempty"`    // Name of the snapshot policy
+	RetentionDays int32  `json:"retention_days,omitempty"` // Number of days to retain snapshots (default: 7)
+}
+
+type SnapshotConfigList struct {
+	BootDiskConfig SnapshotConfig `json:"boot_disk_config,omitempty"` // Snapshot configuration for boot disks
+	//MrootDiskConfig SnapshotConfig `json:"mroot_disk_config,omitempty"` // TODO: Snapshot configuration for mroot disks (future use)
 }
 
 type GCPConfig struct {
-	ProjectID              string `json:"project_id"`                // GCP project ID
-	ImageProjectID         string `json:"image_project_id"`          // Image project ID for GCP        `json:"gcp_image_config"`      // GCP image configuration
-	MediatorImageProjectID string `json:"mediator_image_project_id"` // Mediator image project ID for GCP
-	ServiceAccountEmail    string `json:"service_account_email"`     // Service account email for GCP
-	BucketName             string `json:"bucket_name"`               // GCP bucket name for storing data
+	ProjectID              string             `json:"project_id"`                // GCP project ID
+	ImageProjectID         string             `json:"image_project_id"`          // Image project ID for GCP        `json:"gcp_image_config"`      // GCP image configuration
+	MediatorImageProjectID string             `json:"mediator_image_project_id"` // Mediator image project ID for GCP
+	ServiceAccountEmail    string             `json:"service_account_email"`     // Service account email for GCP
+	BucketName             string             `json:"bucket_name"`               // GCP bucket name for storing data
+	SnapshotConfigList     SnapshotConfigList `json:"snapshot_config_list"`      // Snapshot configuration container for different disk types
 }
 
 type GCPNetworkConfig struct {
@@ -369,16 +382,17 @@ type ModifySVMResponse struct {
 }
 
 type UpdateVSAClusterDeploymentRequest struct {
-	VLMConfig         VLMConfig          `json:"vlm_config"`          // VLM configuration
-	NumHAPair         int                `json:"num_ha_pair"`         // Number of HA pairs to be created
-	SPConfig          SPConfig           `json:"spconfig"`            //Storagepool specific configuration
-	OntapCredentials  OntapCredentials   `json:"ontap_credentials"`   // ONTAP credentials for the VSA cluster
-	NewInstanceType   string             `json:"new_instance_type"`   // Instance type for the storage pool
-	OntapUpgrade      OntapUpgradeConfig `json:"ontap_upgrade"`       // ONTAP upgrade configuration
-	HAPairIndices     []int              `json:"ha_pair_indices"`     // Selected HA pair indices for targeted operations
-	ITCRecovery       bool               `json:"itc_recovery"`        // Flag to indicate if this is a recovery operation (ITC)
-	BucketName        string             `json:"bucket_name"`         // GCP Bucket Name
-	AutoTierThreshold int64              `json:"auto_tier_threshold"` // Auto tiering threshold percentage (0-100)
+	VLMConfig                VLMConfig          `json:"vlm_config"`                   // VLM configuration
+	NumHAPair                int                `json:"num_ha_pair"`                  // Number of HA pairs to be created
+	SPConfig                 SPConfig           `json:"spconfig"`                     //Storagepool specific configuration
+	OntapCredentials         OntapCredentials   `json:"ontap_credentials"`            // ONTAP credentials for the VSA cluster
+	NewInstanceType          string             `json:"new_instance_type"`            // Instance type for the storage pool
+	OntapUpgrade             OntapUpgradeConfig `json:"ontap_upgrade"`                // ONTAP upgrade configuration
+	HAPairIndices            []int              `json:"ha_pair_indices"`              // Selected HA pair indices for targeted operations
+	ITCRecovery              bool               `json:"itc_recovery"`                 // Flag to indicate if this is a recovery operation (ITC)
+	BucketName               string             `json:"bucket_name"`                  // GCP Bucket Name
+	AutoTierThreshold        int64              `json:"auto_tier_threshold"`          // Auto tiering threshold percentage (0-100)
+	AllowHAPairLimitOverride bool               `json:"allow_ha_pair_limit_override"` // Allow selected callers (e.g. CLI) to bypass HA pair selection limit
 }
 
 type UpdateMediatorRequest struct {
@@ -396,6 +410,7 @@ type OntapUpgradeConfig struct {
 	SkipOntapImageVersionMatch     bool   `json:"skip_ontap_image_version_match"`     // Skip Image version match for upgrade
 	OntapUpgradeTargetImageVersion string `json:"ontap_upgrade_target_image_version"` // Image version for upgrade
 	OntapUpgradeImagePath          string `json:"ontap_upgrade_image_path"`           // Image path for upgrade
+	RunPreUpgrade                  bool   `json:"run_preupgrade"`                     // Run pre-upgrade workflow before upgrade
 }
 
 type MediatorUpdateConfig struct {

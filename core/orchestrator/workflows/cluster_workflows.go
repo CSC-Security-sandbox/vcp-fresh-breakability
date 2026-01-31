@@ -234,6 +234,7 @@ func prepareClusterUpgradeRequestActivity(ctx workflow.Context, upgradeRequest *
 		OntapUpgradeTargetImageVersion: params.TargetVersion,
 		OntapUpgradeImagePath:          signedURL,
 		SkipOntapImageVersionMatch:     env.SkipOntapImageVersionMatch,
+		RunPreUpgrade:                  true,
 	}
 	upgradeRequest.OntapCredentials = credentials
 	return nil

@@ -124,10 +124,10 @@ var (
     maxNodesPerGroup                                     = env.GetInt("MAX_NODES_PER_GROUP", 200)
     enableMetrics                                        = env.GetBool("ENABLE_METRICS", false)
     enableUniqueSerialNumberGeneration                   = env.GetBool("ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION", false)
-    vsaImageName                                         = env.GetString("VSA_IMAGE_NAME", "x-9-18-1x32")
-    mediatorImage                                        = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-18-1x32")    
-    vsaFilesImageName                                    = env.GetString("VSA_FILES_IMAGE_NAME", "x-9-18-1x32")
-	filesMediatorImage                                   = env.GetString("VSA_FILES_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-18-1x32")
+    vsaImageName                                         = env.GetString("VSA_IMAGE_NAME", "x-9-18-1")
+    mediatorImage                                        = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-18-1")    
+    vsaFilesImageName                                    = env.GetString("VSA_FILES_IMAGE_NAME", "x-9-18-1")
+	filesMediatorImage                                   = env.GetString("VSA_FILES_MEDIATOR_IMAGE_NAME", "cvo-mediator-x-9-18-1")
     waitTimeForGCPOperationInSec                         = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)
     disableVsaCleanupOnVLMFailure                        = env.GetBool("DISABLE_VSA_CLEANUP_ON_VLM_FAILURE", false)
     enableAutoVolOfflineCronForGCPKMS                    = env.GetBool("ENABLE_AUTO_VOL_OFFLINE_CRON_FOR_GCP_KMS", true)
@@ -225,9 +225,9 @@ The delete workflow conditionally skips cleanup for resources that haven't been 
 ### VSA Instance Configuration
 
 **Image Configuration**:
-- **VSA Image**: `x-9-18-1x32` (default)
-- **VSA Files Image**: `x-9-18-1x32` (default)
-- **Mediator Image**: `cvo-mediator-x-9-18-1x32` (default)
+- **VSA Image**: `x-9-18-1` (default)
+- **VSA Files Image**: `x-9-18-1` (default)
+- **Mediator Image**: `cvo-mediator-x-9-18-1` (default)
 
 **Instance Settings**:
 - **Max Nodes Per Group**: 200 (configurable)

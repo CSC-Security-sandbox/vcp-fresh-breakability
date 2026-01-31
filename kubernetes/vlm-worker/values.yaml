@@ -51,10 +51,10 @@ ontapVersionVlmImageMappings:
     vlmImageDigest: "sha256:0b0a7f4063ba4e848af6f5d43c120c830ab1bcadf4f13e11710a3f15f066bf27"
     secondary: true
     pullPolicy: IfNotPresent
-  - ontapVersion: "9.18.1X32"
+  - ontapVersion: "9.18.1"
     vlmImageName: "vlm-worker"
-    vlmImageTag: "R9.18.1x_7951314"
-    vlmImageDigest: "sha256:f4986c135ca11bab7111792544686bdc5e20e9bcd5d405a14b7cf9b1b3fd90ea"
+    vlmImageTag: "R9.18.1x_7958468"
+    vlmImageDigest: "sha256:aea87152975cad263f3077d4489e2f78059113938c79b9eef5c63fa1726b43fc"
     secondary: true
     pullPolicy: IfNotPresent
 
@@ -76,6 +76,7 @@ workerConfig:
   vsaVlmEncryptionKey: "" # Should be the same as in the vcp-worker values.yaml.
   gceMetadataHost: ""
   enableGlobalGcpClients: "true"
+  useVmReservations: "true"
 
 #Enabling or Disabling Secret Manager for Microservice Secrets
 secretManagerEnabled: false

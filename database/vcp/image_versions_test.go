@@ -15,8 +15,8 @@ import (
 const (
 	testOntapVersion = "9.17.1P2"
 	testVSAImagePath = "gcr.io/vsa-image:9.17.1p2"
-	testVSAName      = "x-9-18-1x32"
-	testMediatorName = "cvo-mediator-x-9-18-1x32"
+	testVSAName      = "x-9-18-1"
+	testMediatorName = "cvo-mediator-x-9-18-1"
 )
 
 func TestDataStoreRepository_CreateImageVersion(t *testing.T) {
