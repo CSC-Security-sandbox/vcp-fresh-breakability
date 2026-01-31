@@ -40,6 +40,7 @@ import (
 
 var (
 	minCVSizeInBytes                     = env.GetUint64("MIN_CONSTITUENT_VOLUME_SIZE_BYTES", 100*bytesPerGB)
+	maxCVSizeInBytes                     = env.GetUint64("MAX_CONSTITUENT_VOLUME_SIZE_BYTES", 300*utils.TiBInBytes)
 	numOfLvHAPairs                       = env.GetInt64("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 6)
 	defaultConstituentsPerAggregate      = env.GetInt64("DEFAULT_CONSTITUENTS_PER_AGGREGATE", 8)
 	isActivePassive                      = env.GetBool("NON_LINEAR_SCALING_ACTIVE_PASSIVE", true)
@@ -1327,7 +1328,18 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			return customerrors.NewUserInputValidationErr("BlockDevices are not supported for large capacity volumes")
 		}
 
+		maxLVVolSize := utils.MaxLvHotTierCapacity
+		// For AT enabled volume, max volume size is 20 PiB, otherwise 2.48 PiB
+		if params.AutoTieringPolicy != nil && params.AutoTieringPolicy.AutoTieringEnabled {
+			maxLVVolSize = utils.MaxQuotaInBytesLargeVolume
+		}
+		minLVVolSize := utils.MinQuotaInBytesLargeVolume
+
+		var cvSizeInBytes uint64
+		var cvCount int64
 		if params.LargeVolumeConstituentCount > 0 {
+			minLVVolSize = utils.MinQuotaInBytesLargeVolumeWithCV
+
 			// validate large volume constituent count is not prime
 			if params.LargeVolumeConstituentCount >= int32(minPrimeNumberConfigAllowed) && isPrime(int(params.LargeVolumeConstituentCount)) {
 				return customerrors.NewUserInputValidationErr(fmt.Sprintf("Constituent volume count with %d is not supported", params.LargeVolumeConstituentCount))
@@ -1351,17 +1363,29 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			}
 
 			// validate that each constituent volume size is at least 100 GB
-			cvSizeInBytes := params.QuotaInBytes / uint64(params.LargeVolumeConstituentCount)
-			if cvSizeInBytes < minCVSizeInBytes {
-				return customerrors.NewUserInputValidationErr(fmt.Sprintf("Constituent volume size cannot be less than %s. Current CV size is %s with %d constituent volumes",
-					utils.FmtUint64Bytes(minCVSizeInBytes), utils.FmtUint64Bytes(cvSizeInBytes), params.LargeVolumeConstituentCount))
-			}
+			cvSizeInBytes = params.QuotaInBytes / uint64(params.LargeVolumeConstituentCount)
+			cvCount = int64(params.LargeVolumeConstituentCount)
+		} else {
+			// For default CVs params.LargeCapacity is 0, we need to validate if params.QuotaInBytes/ uint64(defaultConstituentCount) >= minCVSizeInBytes
+			// Set default constituent count: 8 CVs per aggregate × 6 aggregates = 48 CVs
+			cvCount = numOfLvHAPairs * defaultConstituentsPerAggregate
+			// validate that each constituent volume size is at least 100 GB
+			cvSizeInBytes = params.QuotaInBytes / uint64(cvCount)
 		}
 
-		if params.QuotaInBytes < utils.MinQuotaInBytesLargeVolume || params.QuotaInBytes > utils.MaxQuotaInBytesLargeVolume {
+		if cvSizeInBytes < minCVSizeInBytes {
+			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Constituent volume size cannot be less than %s. Current CV size is %s with %d constituent volumes",
+				utils.FmtUint64Bytes(minCVSizeInBytes), utils.FmtUint64Bytes(cvSizeInBytes), cvCount))
+		}
+		if cvSizeInBytes > maxCVSizeInBytes {
+			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Constituent volume size cannot be more than %s. Current CV size is %s with %d constituent volumes",
+				utils.FmtUint64Bytes(maxCVSizeInBytes), utils.FmtUint64Bytes(cvSizeInBytes), cvCount))
+		}
+
+		if params.QuotaInBytes < minLVVolSize || params.QuotaInBytes > maxLVVolSize {
 			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %s. Must be between %s and %s.",
-				utils.FmtUint64Bytes(params.QuotaInBytes), utils.FmtUint64Bytes(utils.MinQuotaInBytesLargeVolume),
-				utils.FmtUint64Bytes(utils.MaxQuotaInBytesLargeVolume)))
+				utils.FmtUint64Bytes(params.QuotaInBytes), utils.FmtUint64Bytes(minLVVolSize),
+				utils.FmtUint64Bytes(maxLVVolSize)))
 		}
 	}
 
@@ -2507,10 +2531,29 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 
 		// Large capacity quota validation
 		if pool.LargeCapacity {
-			if uint64(params.QuotaInBytes) < utils.MinQuotaInBytesLargeVolume || uint64(params.QuotaInBytes) > utils.MaxQuotaInBytesLargeVolume {
+			maxLVVolSize := utils.MaxLvHotTierCapacity
+			// For auto tiering enabled pool and volume, max size is 20 PiB
+			if (params.AutoTieringPolicy != nil && params.AutoTieringPolicy.AutoTieringEnabled) || (volume.AutoTieringEnabled) {
+				maxLVVolSize = utils.MaxQuotaInBytesLargeVolume
+			}
+			if uint64(params.QuotaInBytes) < utils.MinQuotaInBytesLargeVolumeWithCV || uint64(params.QuotaInBytes) > maxLVVolSize {
 				return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %s. Must be between %s and %s.",
-					utils.FmtUint64Bytes(uint64(params.QuotaInBytes)), utils.FmtUint64Bytes(utils.MinQuotaInBytesLargeVolume),
+					utils.FmtUint64Bytes(uint64(params.QuotaInBytes)), utils.FmtUint64Bytes(utils.MinQuotaInBytesLargeVolumeWithCV),
 					utils.FmtUint64Bytes(utils.MaxQuotaInBytesLargeVolume)))
+			}
+
+			// Validate CV size doesn't exceed 300 TiB for update flow
+			var cvSizeInBytes uint64
+			var cvCount int64
+			if volume.LargeVolumeAttributes != nil && volume.LargeVolumeAttributes.LargeVolumeConstituentCount != nil {
+				// Use existing CV count from volume
+				cvCount = int64(*volume.LargeVolumeAttributes.LargeVolumeConstituentCount)
+				cvSizeInBytes = uint64(params.QuotaInBytes) / uint64(cvCount)
+			}
+
+			if cvSizeInBytes > maxCVSizeInBytes {
+				return customerrors.NewUserInputValidationErr(fmt.Sprintf("Constituent volume size cannot be more than %s. Current CV size is %s with %d constituent volumes",
+					utils.FmtUint64Bytes(maxCVSizeInBytes), utils.FmtUint64Bytes(cvSizeInBytes), cvCount))
 			}
 		} else {
 			if uint64(params.QuotaInBytes) < minQuotaInBytesVolume || uint64(params.QuotaInBytes) > maxQuotaInBytesVolume {

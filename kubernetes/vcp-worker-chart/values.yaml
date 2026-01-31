@@ -224,7 +224,7 @@ workerConfig:
   dataSubnetCidrBlockLv: 26
   minLvPoolCoolTierCapacity: "6597069766656"
   maxLvPoolCapacity: "22517998136852476"
-  maxLvHotTierPoolCapacity: "2814749767106560"
+  maxLvHotTierPoolCapacity: "2792232327315456"
   minLvThroughput: 64
   maxLvThroughput: 60000
   minHotTierSize: "1099511627776"

@@ -242,7 +242,7 @@ vmrs:
         ontap_perf:
           iops: 90831
           throughput_in_mibs: 1497
-          capacity_in_gib: 426000
+          capacity_in_gib: 436224 # Recommended 426 TiB
         disk_perf:
           iops: 160000
           throughput_in_mibs: 2400
@@ -266,7 +266,7 @@ vmrs:
           # Throughput: 5120 (what we want to allow over the entire cluster made up of large VMs) / 0.7 = 7314.xy
           iops: 230000             # Target: 160,000 IOPS (230000 * 0.7)
           throughput_in_mibs: 7500 # Target: 5,120 MiB/s (7500 * 0.7)  
-          capacity_in_gib: 426000
+          capacity_in_gib: 436224  # Recommended 426 TiB
         disk_perf:
           iops: 160000             # GCP absolute maximum
           throughput_in_mibs: 4800 # GCP absolute maximum

@@ -92,3 +92,5 @@ spec:
               value: "6"
             - name: MIN_CONSTITUENT_VOLUME_SIZE_BYTES
               value: "107374182400"
+            - name: MAX_CONSTITUENT_VOLUME_SIZE_BYTES
+              value: "329853488332800"

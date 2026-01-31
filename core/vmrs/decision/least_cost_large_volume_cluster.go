@@ -19,10 +19,8 @@ const (
 )
 
 var (
-	LVHaPair                  = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 6)
-	IsActivePassive           = env.GetBool("NON_LINEAR_SCALING_ACTIVE_PASSIVE", true)
-	MaxLvHotTierCapacity      = env.GetInt64("MAX_LV_HOT_TIER_POOL_CAPACITY", 2814749767106560)
-	maxLvHotTierCapacityInGiB = MaxLvHotTierCapacity / 1073741824
+	LVHaPair        = env.GetInt("NUMBER_OF_HA_PAIRS_LARGE_CAPACITY", 6)
+	IsActivePassive = env.GetBool("NON_LINEAR_SCALING_ACTIVE_PASSIVE", true)
 )
 
 // LeastCostLargeVolumeClusterDecisionMaker implements the DecisionMaker interface for large volume (FlexGroup) clusters.
@@ -90,7 +88,7 @@ func (d *LeastCostLargeVolumeClusterDecisionMaker) FindOptimalVMs(config *vmrs.V
 	scaledCustomerReq := vmrs.CustomerRequestedPerformance{
 		DesiredIOPS:             scaledIOPSPerHaPair,
 		DesiredThroughputInMiBs: scaledThroughputPerHaPair,
-		DesiredCapacityInGiB:    min64(customerRequest.DesiredCapacityInGiB, maxLvHotTierCapacityInGiB),
+		DesiredCapacityInGiB:    customerRequest.DesiredCapacityInGiB,
 	}
 
 	vmType, err := d.findOptimalVMTypeForCluster(scaledCustomerReq, requiredHAPairs)
@@ -105,7 +103,7 @@ func (d *LeastCostLargeVolumeClusterDecisionMaker) FindOptimalVMs(config *vmrs.V
 	limits := vmrs.CustomerRequestedPerformance{
 		DesiredIOPS:             min64(scaledWithOverheads.DesiredIOPS, int64(math.Ceil(float64(vmType.DiskLimits.IOPS)*config.HyperscalerPerfLimits.MaxDiskOverprovisioningFactors.IOPS))*int64(numNodes)),
 		DesiredThroughputInMiBs: min64(scaledWithOverheads.DesiredThroughputInMiBs, int64(math.Ceil(float64(vmType.DiskLimits.ThroughputInMiBs)*config.HyperscalerPerfLimits.MaxDiskOverprovisioningFactors.Throughput))*int64(numNodes)),
-		DesiredCapacityInGiB:    min64(scaledWithOverheads.DesiredCapacityInGiB, maxLvHotTierCapacityInGiB),
+		DesiredCapacityInGiB:    scaledWithOverheads.DesiredCapacityInGiB,
 	}
 
 	return &vmrs.Decision{ChosenVMs: layout.VMTypes, StoragePoolRequirements: limits, ClusterMetadata: layout.ClusterMetadata}, nil

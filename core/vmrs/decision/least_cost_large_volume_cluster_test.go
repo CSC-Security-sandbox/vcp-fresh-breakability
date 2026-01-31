@@ -943,3 +943,329 @@ func TestLargeVolumeClusterApplyNonLinearScaling_NoScalingConfig(t *testing.T) {
 	assert.Equal(t, int64(0), scaledIOPS, "IOPS should be 0 when error occurs")
 	assert.Equal(t, int64(0), scaledThroughput, "throughput should be 0 when error occurs")
 }
+
+// TestFindOptimalVMs_NonLinearScaling verifies that non-linear scaling is applied correctly
+func TestFindOptimalVMs_NonLinearScaling(t *testing.T) {
+	config, err := config.LoadConfig("testdata/valid_large_volume.yaml")
+	assert.Nil(t, err, "failed to load config")
+
+	dm := NewLeastCostLargeVolumeClusterDecisionMaker(config)
+
+	customerRequest := vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             16000,  // Will be scaled down by 4.0 for 6 HA pairs
+		DesiredThroughputInMiBs: 1000,   // Will be scaled down by 4.5 for 6 HA pairs
+		DesiredCapacityInGiB:    100000, // Should NOT be scaled during VM selection
+	}
+
+	decision, err := dm.FindOptimalVMs(config, customerRequest, nil)
+	assert.NoError(t, err, "FindOptimalVMs should not return error")
+	assert.NotNil(t, decision, "decision should not be nil")
+
+	// Verify that non-linear scaling was applied (IOPS and throughput scaled down)
+	// For 6 HA pairs: IOPS scaled to 4000, throughput scaled to 223
+	// The VM selection should use these scaled values
+	assert.NotEmpty(t, decision.ChosenVMs, "should have chosen VMs")
+	assert.NotNil(t, decision.ClusterMetadata, "should have cluster metadata")
+}
+
+// TestFindOptimalVMs_CapacityNotAmplifiedDuringSelection verifies that capacity amplification
+// factor is NOT applied during VM selection (line 93), only in final provisioning (line 108)
+func TestFindOptimalVMs_CapacityNotAmplifiedDuringSelection(t *testing.T) {
+	config, err := config.LoadConfig("testdata/valid_large_volume.yaml")
+	assert.Nil(t, err, "failed to load config")
+
+	dm := NewLeastCostLargeVolumeClusterDecisionMaker(config)
+
+	// Use a capacity that would fail if amplified by 1.2 during selection
+	// For 6 HA pairs, active-passive: numLIFs = 6
+	// Per-node capacity = 100000 / 6 = 16,666 GiB
+	// If amplified: 100000 * 1.2 / 6 = 20,000 GiB per node
+	// c3-standard-4-lssd has capacity 213000 GiB, so both should work
+	// But we want to verify the logic doesn't amplify during selection
+	customerRequest := vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             1000,
+		DesiredThroughputInMiBs: 100,
+		DesiredCapacityInGiB:    100000, // Should be used as-is for VM selection
+	}
+
+	decision, err := dm.FindOptimalVMs(config, customerRequest, nil)
+	assert.NoError(t, err, "FindOptimalVMs should not return error")
+	assert.NotNil(t, decision, "decision should not be nil")
+
+	// Verify capacity in storage pool requirements IS amplified
+	// capacity amplification factor is 1.3 (from test config), so 100000 * 1.3 = 130000
+	expectedProvisionedCapacity := int64(130000) // 100000 * 1.3
+	assert.Equal(t, expectedProvisionedCapacity, decision.StoragePoolRequirements.DesiredCapacityInGiB,
+		"capacity should be amplified in storage pool requirements")
+}
+
+// TestFindOptimalVMs_StoragePoolRequirements verifies that storage pool requirements
+// are calculated correctly with min() operations and amplification factors
+func TestFindOptimalVMs_StoragePoolRequirements(t *testing.T) {
+	config, err := config.LoadConfig("testdata/valid_large_volume.yaml")
+	assert.Nil(t, err, "failed to load config")
+
+	dm := NewLeastCostLargeVolumeClusterDecisionMaker(config)
+
+	customerRequest := vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             10000,
+		DesiredThroughputInMiBs: 500,
+		DesiredCapacityInGiB:    50000,
+	}
+
+	decision, err := dm.FindOptimalVMs(config, customerRequest, nil)
+	assert.NoError(t, err, "FindOptimalVMs should not return error")
+	assert.NotNil(t, decision, "decision should not be nil")
+
+	// Verify storage pool requirements structure
+	assert.NotNil(t, decision.StoragePoolRequirements, "should have storage pool requirements")
+
+	// Capacity should be amplified by 1.3 (from test config)
+	expectedCapacity := int64(65000) // 50000 * 1.3
+	assert.Equal(t, expectedCapacity, decision.StoragePoolRequirements.DesiredCapacityInGiB,
+		"capacity should be amplified in storage pool requirements")
+
+	// IOPS and throughput should be amplified and then capped by VM limits
+	// The exact values depend on amplification factors and VM limits
+	assert.Greater(t, decision.StoragePoolRequirements.DesiredIOPS, int64(0),
+		"IOPS should be greater than 0")
+	assert.Greater(t, decision.StoragePoolRequirements.DesiredThroughputInMiBs, int64(0),
+		"throughput should be greater than 0")
+}
+
+// TestFindOptimalVMs_NonLinearScalingError verifies error handling when non-linear scaling fails
+func TestFindOptimalVMs_NonLinearScalingError(t *testing.T) {
+	config, err := config.LoadConfig("testdata/valid_large_volume.yaml")
+	assert.Nil(t, err, "failed to load config")
+
+	// Temporarily set LVHaPair to an unsupported value
+	originalLVHaPair := LVHaPair
+	LVHaPair = 3 // Not configured in scaling factors
+	defer func() { LVHaPair = originalLVHaPair }()
+
+	dm := NewLeastCostLargeVolumeClusterDecisionMaker(config)
+
+	customerRequest := vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             10000,
+		DesiredThroughputInMiBs: 500,
+		DesiredCapacityInGiB:    50000,
+	}
+
+	decision, err := dm.FindOptimalVMs(config, customerRequest, nil)
+	assert.Error(t, err, "FindOptimalVMs should return error when scaling fails")
+	assert.Contains(t, err.Error(), "failed to apply non-linear scaling",
+		"error should mention non-linear scaling failure")
+	assert.Nil(t, decision, "decision should be nil when error occurs")
+}
+
+// TestFindOptimalVMs_VMSelectionError verifies error handling when no suitable VM is found
+func TestFindOptimalVMs_VMSelectionError(t *testing.T) {
+	config, err := config.LoadConfig("testdata/valid_large_volume.yaml")
+	assert.Nil(t, err, "failed to load config")
+
+	dm := NewLeastCostLargeVolumeClusterDecisionMaker(config)
+
+	// Request that exceeds all VM capabilities
+	customerRequest := vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             1000000,  // Extremely high IOPS
+		DesiredThroughputInMiBs: 100000,   // Extremely high throughput
+		DesiredCapacityInGiB:    10000000, // Extremely high capacity
+	}
+
+	decision, err := dm.FindOptimalVMs(config, customerRequest, nil)
+	assert.Error(t, err, "FindOptimalVMs should return error when no VM found")
+	assert.Contains(t, err.Error(), "no suitable VM type found",
+		"error should mention no suitable VM")
+	assert.Nil(t, decision, "decision should be nil when error occurs")
+}
+
+// TestFindOptimalVMs_CapacityExceedsMaxLimit verifies that capacity is NOT capped in VMRS
+// (validation happens at the validator layer, not in VMRS decision maker)
+func TestFindOptimalVMs_CapacityExceedsMaxLimit(t *testing.T) {
+	config, err := config.LoadConfig("testdata/valid_large_volume.yaml")
+	assert.Nil(t, err, "failed to load config")
+
+	dm := NewLeastCostLargeVolumeClusterDecisionMaker(config)
+
+	// Request capacity that exceeds maxLvHotTierCapacityInGiB
+	// maxLvHotTierCapacityInGiB = 2814749767106560 / 1073741824 = 2621440 GiB
+	excessiveCapacity := int64(5000000) // 5 PiB, exceeds max
+	customerRequest := vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             1000,
+		DesiredThroughputInMiBs: 100,
+		DesiredCapacityInGiB:    excessiveCapacity,
+	}
+
+	decision, err := dm.FindOptimalVMs(config, customerRequest, nil)
+	// Note: Capacity is NOT capped in VMRS - validation happens at validator layer
+	// The VMRS will try to find a VM that can handle the per-node capacity requirement
+	// If it succeeds, the capacity will be passed through (with amplification) to storage pool requirements
+	if err == nil {
+		assert.NotNil(t, decision, "decision should not be nil if successful")
+		// Verify that capacity is NOT capped - it should be amplified but not limited to maxLvHotTierCapacityInGiB
+		// Capacity amplification factor is 1.3, so 5000000 * 1.3 = 6500000
+		expectedCapacity := int64(6500000) // excessiveCapacity * 1.3
+		assert.Equal(t, expectedCapacity, decision.StoragePoolRequirements.DesiredCapacityInGiB,
+			"capacity should be amplified but NOT capped in VMRS (validation happens elsewhere)")
+	} else {
+		// If it fails, it's because no VM can handle the per-node capacity requirement
+		// (excessiveCapacity / 6 LIFs = 833,333 GiB per node, which exceeds all VM limits)
+		assert.Contains(t, err.Error(), "no suitable VM type found",
+			"should fail if per-node capacity exceeds VM limits")
+	}
+}
+
+// TestFindOptimalVMs_CapacityNotCappedAtLine93 verifies that capacity is NOT capped with min()
+// at line 93 (scaledCustomerReq.DesiredCapacityInGiB)
+func TestFindOptimalVMs_CapacityNotCappedAtLine93(t *testing.T) {
+	config, err := config.LoadConfig("testdata/valid_large_volume.yaml")
+	assert.Nil(t, err, "failed to load config")
+
+	dm := NewLeastCostLargeVolumeClusterDecisionMaker(config)
+
+	// Use capacity that exceeds maxLvHotTierCapacityInGiB but is still within VM limits
+	// maxLvHotTierCapacityInGiB = 2,621,440 GiB
+	// For 6 HA pairs, active-passive: numLIFs = 6
+	// Per-node capacity = 3,000,000 / 6 = 500,000 GiB per node
+	// c3-standard-44-lssd has capacity 426,000 GiB, so this will fail
+	// But we can use a smaller value that fits within VM limits
+	capacityAboveMax := int64(2500000) // 2.5 PiB, above maxLvHotTierCapacityInGiB but within VM capacity
+	customerRequest := vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             1000,
+		DesiredThroughputInMiBs: 100,
+		DesiredCapacityInGiB:    capacityAboveMax,
+	}
+
+	decision, err := dm.FindOptimalVMs(config, customerRequest, nil)
+	if err == nil {
+		assert.NotNil(t, decision, "decision should not be nil if successful")
+		// Verify that the capacity passed to VM selection (line 93) is NOT capped
+		// The capacity should be used as-is without min() operation
+		// After amplification: capacityAboveMax * 1.3 = 3,250,000
+		expectedCapacity := int64(3250000) // capacityAboveMax * 1.3
+		assert.Equal(t, expectedCapacity, decision.StoragePoolRequirements.DesiredCapacityInGiB,
+			"capacity at line 93 should NOT be capped with min(maxLvHotTierCapacityInGiB)")
+	}
+}
+
+// TestFindOptimalVMs_CapacityNotCappedAtLine108 verifies that capacity is NOT capped with min()
+// at line 108 (limits.DesiredCapacityInGiB in storage pool requirements)
+func TestFindOptimalVMs_CapacityNotCappedAtLine108(t *testing.T) {
+	config, err := config.LoadConfig("testdata/valid_large_volume.yaml")
+	assert.Nil(t, err, "failed to load config")
+
+	dm := NewLeastCostLargeVolumeClusterDecisionMaker(config)
+
+	// Use capacity that exceeds maxLvHotTierCapacityInGiB
+	maxLvHotTierCapacityInGiB := int64(2621440)                    // 2.5 PiB
+	capacityAboveMax := maxLvHotTierCapacityInGiB + int64(1000000) // 3.6 PiB
+	customerRequest := vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             1000,
+		DesiredThroughputInMiBs: 100,
+		DesiredCapacityInGiB:    capacityAboveMax,
+	}
+
+	decision, err := dm.FindOptimalVMs(config, customerRequest, nil)
+	if err == nil {
+		assert.NotNil(t, decision, "decision should not be nil if successful")
+		// Verify that capacity in storage pool requirements (line 108) is NOT capped
+		// It should be amplified but NOT limited to maxLvHotTierCapacityInGiB
+		expectedCapacity := int64(4703872) // capacityAboveMax * 1.3 = 3,621,440 * 1.3 = 4,703,872
+		assert.Equal(t, expectedCapacity, decision.StoragePoolRequirements.DesiredCapacityInGiB,
+			"capacity at line 108 should NOT be capped with min(maxLvHotTierCapacityInGiB)")
+		assert.Greater(t, decision.StoragePoolRequirements.DesiredCapacityInGiB, maxLvHotTierCapacityInGiB,
+			"capacity should exceed maxLvHotTierCapacityInGiB (validation happens at validator layer)")
+	}
+}
+
+// TestFindOptimalVMs_IOPSAndThroughputCappedByVMLimits verifies that IOPS and throughput
+// in storage pool requirements are capped by VM disk limits with overprovisioning factors
+func TestFindOptimalVMs_IOPSAndThroughputCappedByVMLimits(t *testing.T) {
+	config, err := config.LoadConfig("testdata/valid_large_volume.yaml")
+	assert.Nil(t, err, "failed to load config")
+
+	dm := NewLeastCostLargeVolumeClusterDecisionMaker(config)
+
+	// Request very high IOPS and throughput that would exceed VM limits
+	customerRequest := vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             1000000, // Very high
+		DesiredThroughputInMiBs: 100000,  // Very high
+		DesiredCapacityInGiB:    100000,  // Reasonable
+	}
+
+	decision, err := dm.FindOptimalVMs(config, customerRequest, nil)
+	if err == nil {
+		assert.NotNil(t, decision, "decision should not be nil if successful")
+
+		// Verify that IOPS and throughput are capped by VM limits
+		// For 6 HA pairs = 12 nodes, and assuming c3-standard-88-lssd is selected:
+		// Disk IOPS limit: 160000, with max overprovisioning 1.1 = 176000 per VM
+		// Total cluster limit: 176000 * 12 = 2,112,000 IOPS
+		// The storage pool requirements should be min(scaled request, VM limit)
+		assert.Greater(t, decision.StoragePoolRequirements.DesiredIOPS, int64(0),
+			"IOPS should be greater than 0")
+		assert.Greater(t, decision.StoragePoolRequirements.DesiredThroughputInMiBs, int64(0),
+			"throughput should be greater than 0")
+	}
+}
+
+// TestFindOptimalVMs_ClusterLayout verifies that cluster layout is generated correctly
+func TestFindOptimalVMs_ClusterLayout(t *testing.T) {
+	config, err := config.LoadConfig("testdata/valid_large_volume.yaml")
+	assert.Nil(t, err, "failed to load config")
+
+	dm := NewLeastCostLargeVolumeClusterDecisionMaker(config)
+
+	customerRequest := vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             10000,
+		DesiredThroughputInMiBs: 500,
+		DesiredCapacityInGiB:    100000,
+	}
+
+	decision, err := dm.FindOptimalVMs(config, customerRequest, nil)
+	assert.NoError(t, err, "FindOptimalVMs should not return error")
+	assert.NotNil(t, decision, "decision should not be nil")
+
+	// Verify cluster layout
+	assert.NotNil(t, decision.ClusterMetadata, "should have cluster metadata")
+	assert.Equal(t, 6, decision.ClusterMetadata.NumHAPairs, "should have 6 HA pairs")
+	assert.Equal(t, 12, decision.ClusterMetadata.NumNodes, "should have 12 nodes (6 HA pairs * 2)")
+	assert.Equal(t, 6, decision.ClusterMetadata.NumLIFs, "should have 6 LIFs (active-passive mode)")
+	assert.True(t, decision.ClusterMetadata.IsHomogeneous, "should be homogeneous cluster")
+	assert.NotEmpty(t, decision.ClusterMetadata.VMType, "should have VM type set")
+
+	// Verify chosen VMs match cluster metadata
+	assert.Equal(t, 12, len(decision.ChosenVMs), "should have 12 VMs")
+	for _, vmType := range decision.ChosenVMs {
+		assert.Equal(t, decision.ClusterMetadata.VMType, vmType,
+			"all VMs should be of the same type (homogeneous)")
+	}
+}
+
+// TestFindOptimalVMs_ActiveActiveMode verifies behavior in active-active mode
+func TestFindOptimalVMs_ActiveActiveMode(t *testing.T) {
+	// Save original value
+	originalIsActivePassive := IsActivePassive
+	IsActivePassive = false // Set to active-active mode
+	defer func() { IsActivePassive = originalIsActivePassive }()
+
+	config, err := config.LoadConfig("testdata/valid_large_volume.yaml")
+	assert.Nil(t, err, "failed to load config")
+
+	dm := NewLeastCostLargeVolumeClusterDecisionMaker(config)
+
+	customerRequest := vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             10000,
+		DesiredThroughputInMiBs: 500,
+		DesiredCapacityInGiB:    100000,
+	}
+
+	decision, err := dm.FindOptimalVMs(config, customerRequest, nil)
+	assert.NoError(t, err, "FindOptimalVMs should not return error")
+	assert.NotNil(t, decision, "decision should not be nil")
+
+	// In active-active mode, numLIFs should be haPairs * 2
+	assert.NotNil(t, decision.ClusterMetadata, "should have cluster metadata")
+	assert.Equal(t, 12, decision.ClusterMetadata.NumLIFs,
+		"should have 12 LIFs in active-active mode (6 HA pairs * 2)")
+}

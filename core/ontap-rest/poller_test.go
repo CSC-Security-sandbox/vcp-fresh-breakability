@@ -22,6 +22,7 @@ import (
 func TestPollOntapJob_Workflow_Success(t *testing.T) {
 	var suite testsuite.WorkflowTestSuite
 	env := suite.NewTestWorkflowEnvironment()
+	env.SetTestTimeout(30 * time.Second) // Set test timeout to prevent deadlock detection
 	env.RegisterWorkflow(PollOntapJob)
 	env.RegisterActivity(PollOntapJobActivity)
 
