@@ -2293,8 +2293,11 @@ func TestPrepareClusterUpgradeRequestActivity(t *testing.T) {
 	// Mock the activity to return a signed URL
 	env.OnActivity(commonActivity.GenerateVSASignedURLActivity, mock.Anything, mock.Anything).Return("https://signed-url.example.com", nil)
 
+	// Use a channel to capture the upgrade request values for verification
+	var capturedRequest *vlm.UpdateVSAClusterDeploymentRequest
+
 	// Test workflow that calls prepareClusterUpgradeRequestActivity
-	testWorkflow := func(ctx workflow.Context) error {
+	testWorkflow := func(ctx workflow.Context) (*vlm.UpdateVSAClusterDeploymentRequest, error) {
 		// Set up activity options like the actual workflow does
 		ao := workflow.ActivityOptions{
 			StartToCloseTimeout: 30 * time.Second,
@@ -2311,15 +2314,42 @@ func TestPrepareClusterUpgradeRequestActivity(t *testing.T) {
 			TargetVersion: "9.17.1",
 		}
 		pool := &datamodel.Pool{}
-		currentVlmConfig := vlm.VLMConfig{}
-		credentials := vlm.OntapCredentials{}
+		currentVlmConfig := vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID: "test-deployment-id",
+			},
+		}
+		credentials := vlm.OntapCredentials{
+			AdminPassword: "test-password",
+		}
 
-		return prepareClusterUpgradeRequestActivity(ctx, upgradeRequest, params, pool, currentVlmConfig, credentials)
+		err := prepareClusterUpgradeRequestActivity(ctx, upgradeRequest, params, pool, currentVlmConfig, credentials)
+		return upgradeRequest, err
 	}
 
 	env.ExecuteWorkflow(testWorkflow)
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
+
+	// Get the result and verify the request fields
+	err := env.GetWorkflowResult(&capturedRequest)
+	assert.NoError(t, err)
+	assert.NotNil(t, capturedRequest)
+
+	// Verify VLMConfig is set
+	assert.Equal(t, "test-deployment-id", capturedRequest.VLMConfig.Deployment.DeploymentID)
+
+	// Verify OntapUpgrade config is set correctly
+	assert.Equal(t, "9.17.1", capturedRequest.OntapUpgrade.OntapUpgradeTargetImageVersion)
+	assert.Equal(t, "https://signed-url.example.com", capturedRequest.OntapUpgrade.OntapUpgradeImagePath)
+	assert.True(t, capturedRequest.OntapUpgrade.RunPreUpgrade)
+
+	// Verify credentials are set
+	assert.Equal(t, "test-password", capturedRequest.OntapCredentials.AdminPassword)
+
+	// Verify AutoTierThreshold is set to -1 to signal VLM to skip threshold update
+	// This is critical to prevent failures when object store doesn't exist
+	assert.Equal(t, int64(-1), capturedRequest.AutoTierThreshold, "AutoTierThreshold should be -1 to signal VLM to skip threshold update")
 }
 
 // TestUpgradePhase tests the upgradePhase function

@@ -1891,6 +1891,10 @@ func prepareUpdateVSAClusterDeploymentRequest(updateVSAClusterDeploymentRequest 
 	}
 	// Set bucket name for auto-tiering attachment (used when enabling auto-tiering on expert mode pools)
 	updateVSAClusterDeploymentRequest.BucketName = bucketName
+	// Set AutoTierThreshold to -1 to signal VLM to skip auto-tiering threshold update.
+	// This is a workaround until VLM properly handles the case where object store doesn't exist.
+	// Valid threshold values are 0-100, so -1 is used as a sentinel value meaning "do not update".
+	updateVSAClusterDeploymentRequest.AutoTierThreshold = -1
 	// Note: HAPairIndices should be set by the caller based on the update sequence
 }
 

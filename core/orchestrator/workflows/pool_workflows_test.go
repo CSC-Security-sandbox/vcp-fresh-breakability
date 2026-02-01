@@ -17164,3 +17164,132 @@ func TestGetPoolAttributesAccountName(t *testing.T) {
 		assert.Equal(tt, "test-account-name", result)
 	})
 }
+
+// TestPrepareUpdateVSAClusterDeploymentRequest tests the prepareUpdateVSAClusterDeploymentRequest function
+func TestPrepareUpdateVSAClusterDeploymentRequest(t *testing.T) {
+	t.Run("SetsAutoTierThresholdToNegativeOne", func(tt *testing.T) {
+		// This test verifies that AutoTierThreshold is set to -1 as a sentinel value
+		// to signal VLM to skip auto-tiering threshold update. This is needed because
+		// VLM would otherwise try to update the threshold even when the object store
+		// doesn't exist (e.g., for pools with AllowAutoTiering=false).
+		currentVlmConfig := vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID:    "test-deployment",
+				VSAInstanceType: "n1-standard-4",
+				NumHAPair:       1,
+				SPConfig: vlm.SPConfig{
+					Size:       "1024",
+					IOps:       1000,
+					Throughput: 64,
+				},
+			},
+		}
+
+		newVlmConfig := vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID:    "test-deployment",
+				VSAInstanceType: "n1-standard-4",
+				NumHAPair:       1,
+				SPConfig: vlm.SPConfig{
+					Size:       "2048",
+					IOps:       2000,
+					Throughput: 128,
+				},
+			},
+		}
+
+		credentials := vlm.OntapCredentials{
+			AdminPassword: "test-password",
+		}
+
+		req := &vlm.UpdateVSAClusterDeploymentRequest{}
+		prepareUpdateVSAClusterDeploymentRequest(req, currentVlmConfig, newVlmConfig, credentials, "")
+
+		// Verify AutoTierThreshold is set to -1
+		assert.Equal(tt, int64(-1), req.AutoTierThreshold, "AutoTierThreshold should be -1 to signal VLM to skip threshold update")
+	})
+
+	t.Run("SetsAllFieldsCorrectly", func(tt *testing.T) {
+		currentVlmConfig := vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID:    "test-deployment",
+				VSAInstanceType: "n1-standard-4",
+				NumHAPair:       1,
+				SPConfig: vlm.SPConfig{
+					Size:       "1024",
+					IOps:       1000,
+					Throughput: 64,
+				},
+			},
+		}
+
+		newVlmConfig := vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID:    "test-deployment",
+				VSAInstanceType: "n1-standard-8", // Different instance type
+				NumHAPair:       2,
+				SPConfig: vlm.SPConfig{
+					Size:       "2048",
+					IOps:       2000,
+					Throughput: 128,
+				},
+			},
+		}
+
+		credentials := vlm.OntapCredentials{
+			AdminPassword: "test-password",
+		}
+
+		bucketName := "test-bucket"
+
+		req := &vlm.UpdateVSAClusterDeploymentRequest{}
+		prepareUpdateVSAClusterDeploymentRequest(req, currentVlmConfig, newVlmConfig, credentials, bucketName)
+
+		// Verify all fields are set correctly
+		assert.Equal(tt, currentVlmConfig, req.VLMConfig, "VLMConfig should be set to currentVlmConfig")
+		assert.Equal(tt, newVlmConfig.Deployment.NumHAPair, req.NumHAPair, "NumHAPair should be set from newVlmConfig")
+		assert.Equal(tt, newVlmConfig.Deployment.SPConfig, req.SPConfig, "SPConfig should be set from newVlmConfig")
+		assert.Equal(tt, credentials, req.OntapCredentials, "OntapCredentials should be set")
+		assert.Equal(tt, "n1-standard-8", req.NewInstanceType, "NewInstanceType should be set when instance type changes")
+		assert.Equal(tt, bucketName, req.BucketName, "BucketName should be set")
+		assert.Equal(tt, int64(-1), req.AutoTierThreshold, "AutoTierThreshold should be -1")
+	})
+
+	t.Run("DoesNotSetNewInstanceTypeWhenUnchanged", func(tt *testing.T) {
+		currentVlmConfig := vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID:    "test-deployment",
+				VSAInstanceType: "n1-standard-4",
+			},
+		}
+
+		newVlmConfig := vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID:    "test-deployment",
+				VSAInstanceType: "n1-standard-4", // Same instance type
+			},
+		}
+
+		credentials := vlm.OntapCredentials{}
+
+		req := &vlm.UpdateVSAClusterDeploymentRequest{}
+		prepareUpdateVSAClusterDeploymentRequest(req, currentVlmConfig, newVlmConfig, credentials, "")
+
+		// Verify NewInstanceType is NOT set when instance type is unchanged
+		assert.Equal(tt, "", req.NewInstanceType, "NewInstanceType should be empty when instance type is unchanged")
+		// But AutoTierThreshold should still be -1
+		assert.Equal(tt, int64(-1), req.AutoTierThreshold, "AutoTierThreshold should still be -1")
+	})
+
+	t.Run("SetsEmptyBucketNameWhenNotProvided", func(tt *testing.T) {
+		currentVlmConfig := vlm.VLMConfig{}
+		newVlmConfig := vlm.VLMConfig{}
+		credentials := vlm.OntapCredentials{}
+
+		req := &vlm.UpdateVSAClusterDeploymentRequest{}
+		prepareUpdateVSAClusterDeploymentRequest(req, currentVlmConfig, newVlmConfig, credentials, "")
+
+		assert.Equal(tt, "", req.BucketName, "BucketName should be empty when not provided")
+		assert.Equal(tt, int64(-1), req.AutoTierThreshold, "AutoTierThreshold should be -1 even when bucket is empty")
+	})
+}
