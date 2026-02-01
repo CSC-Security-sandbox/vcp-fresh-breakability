@@ -1,7 +1,7 @@
 {
-  "VERSION": "9.18.1X26",
-  "IMAGE_NAME": "cvo-mediator-x-9-18-1x26",
-  "SIG_FILE_PATH": "gs://cot-releases-public/GCNV_released_bundle/9.18.1X26-internal/Mediator/9.18.1X26/IMAGE_SIG_TGZ",
+  "VERSION": "9.18.1",
+  "IMAGE_NAME": "cvo-mediator-x-9-18-1",
+  "SIG_FILE_PATH": "gs://cot-releases-public/GCNV_released_bundle/R9.18.1-RC/Mediator/9.18.1/IMAGE_SIG_TGZ",
   "SOURCE_IMAGE_PROJECT": "sssbu-seclab",
   "SOURCE_PROJECT": "gcnv-vsa-prod",
   "SOURCE_BUCKET": "vsa-compute-images",

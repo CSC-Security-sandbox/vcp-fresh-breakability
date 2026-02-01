@@ -848,6 +848,7 @@ jobs:
           DEST_BUCKET="${{ needs.parse-version-file.outputs.destination_bucket }}"
           IMAGE_TYPE_PATH="${{ needs.parse-version-file.outputs.image_type_path }}"
           IMAGE_NAME="${{ needs.parse-version-file.outputs.image_name }}"
+          IMAGE_TYPE="${{ needs.parse-version-file.outputs.image_type }}"
           IMAGE_URI="gs://$DEST_BUCKET/$IMAGE_TYPE_PATH/$IMAGE_NAME.tar.gz"
           SIG_FILE_NAME="IMAGE_SIG_TGZ"
           SIG_FILE_URI="gs://$DEST_BUCKET/$IMAGE_TYPE_PATH/$SIG_FILE_NAME"
@@ -951,7 +952,12 @@ jobs:
           
           # Step 6: Verify digest signature
           echo "🔐 Step 6: Verifying digest signature..."
-          VERIFY_RESULT=$(openssl dgst -verify vsa_public_key.pem -keyform PEM -sha256 -signature "$SIG_FILE" -binary disk.raw 2>&1)
+          # For mediator, verify against disk_raw.dig; for others, verify against disk.raw
+          if [ "$IMAGE_TYPE" = "mediator" ]; then
+            VERIFY_RESULT=$(openssl dgst -verify vsa_public_key.pem -keyform PEM -sha256 -signature "$SIG_FILE" disk_raw.dig 2>&1)
+          else
+            VERIFY_RESULT=$(openssl dgst -verify vsa_public_key.pem -keyform PEM -sha256 -signature "$SIG_FILE" -binary disk.raw 2>&1)
+          fi
           VERIFY_EXIT_CODE=$?
           
           if [ $VERIFY_EXIT_CODE -ne 0 ]; then
