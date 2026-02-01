@@ -201,7 +201,7 @@ func (s *ExpertModeVolumeV1) Validate() error {
 			MaxLengthSet: false,
 			Email:        false,
 			Hostname:     false,
-			Regex:        regexMap["^[a-zA-Z_][a-zA-Z0-9_-]{0,202}$"],
+			Regex:        regexMap["^([a-zA-Z][a-zA-Z0-9_-]{0,201})?$"],
 		}).Validate(string(s.VolumeName)); err != nil {
 			return errors.Wrap(err, "string")
 		}

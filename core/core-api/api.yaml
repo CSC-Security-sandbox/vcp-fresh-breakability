@@ -2417,7 +2417,7 @@ components:
           title: volumeName
           type: string
           description: Volume name
-          pattern: "^[a-zA-Z_][a-zA-Z0-9_-]{0,202}$"
+          pattern: "^([a-zA-Z][a-zA-Z0-9_-]{0,201})?$"
           example: "my-volume"
         volumeUUID:
           title: volumeUUID
