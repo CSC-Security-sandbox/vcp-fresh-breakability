@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/sde"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/activity"
@@ -72,6 +73,13 @@ func (a *KmsConfigActivity) DeleteKmsConfig(ctx context.Context, kmsConfig *data
 	activity.RecordHeartbeat(ctx, "Deleting KMS configuration from database")
 	_, err := se.DeleteKmsConfig(ctx, params.KmsConfigID, models.LifeCycleStateDeleted, models.LifeCycleStateDeletedDetails)
 	if err != nil {
+		// Idempotent delete: When a CREATE workflow is cancelled and rolled back, it may delete the KMS config record before the DELETE
+		// workflow runs. In this case, the record won't exist in the database, but the delete operation should still succeed since the
+		// end state (record deleted) is achieved. This prevents the DELETE job from failing with errors when racing with CREATE cancellation rollback.
+		if errors.IsNotFoundErr(err) {
+			logger.Info("KMS config already deleted, treating as success", "kms_config_uuid", params.KmsConfigID)
+			return nil
+		}
 		return err
 	}
 	logger.Debug("KmsConfig:%s deleted successfully in the db", kmsConfig.Name)

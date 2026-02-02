@@ -176,16 +176,6 @@ func TestUpdateKmsConfigState_Error(t *testing.T) {
 			stateDetails: "System error occurred",
 			dbError:      "invalid state transition",
 		},
-		{
-			name: "KmsConfigNotFound",
-			kmsConfig: &datamodel.KmsConfig{
-				BaseModel: datamodel.BaseModel{UUID: "non-existent-uuid"},
-				Name:      "test-kms",
-			},
-			state:        models.LifeCycleStateCreated,
-			stateDetails: models.LifeCycleStateCreatedDetails,
-			dbError:      "kms config not found",
-		},
 	}
 
 	for _, tt := range tests {
@@ -208,6 +198,30 @@ func TestUpdateKmsConfigState_Error(t *testing.T) {
 			mockStorage.AssertExpectations(t)
 		})
 	}
+}
+
+func TestUpdateKmsConfigState_NotFoundReturnsSuccess(t *testing.T) {
+	// Test idempotent behavior when KMS config is already deleted
+	mockStorage := database.NewMockStorage(t)
+	activity := KmsConfigActivity{SE: mockStorage}
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.UpdateKmsConfigState)
+
+	kmsConfig := &datamodel.KmsConfig{
+		BaseModel: datamodel.BaseModel{UUID: "non-existent-uuid"},
+		Name:      "test-kms",
+	}
+
+	// Return NotFoundErr to simulate already deleted record
+	mockStorage.On("UpdateKmsConfigState", mock.Anything, kmsConfig.UUID, models.LifeCycleStateError, "error details").Return(nil, errors.NewNotFoundErr("KMS Configuration", nil))
+
+	// Act
+	_, err := env.ExecuteActivity(activity.UpdateKmsConfigState, kmsConfig, models.LifeCycleStateError, "error details")
+
+	// Assert - Should succeed (idempotent)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
 }
 
 func TestUpdateKmsConfig_Standalone_Success(t *testing.T) {

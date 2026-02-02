@@ -2,10 +2,12 @@ package kms_activities
 
 import (
 	"context"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/activity"
 )
@@ -45,6 +47,13 @@ func (a *KmsConfigActivity) UpdateKmsConfigState(ctx context.Context, kmsConfig 
 	activity.RecordHeartbeat(ctx, "Updating KMS configuration state to %s", state)
 	_, err := se.UpdateKmsConfigState(ctx, kmsConfig.UUID, state, stateDetails)
 	if err != nil {
+		// When a CREATE workflow is cancelled and rolled back, the KMS config record may be deleted before the DELETE workflow
+		// attempts to update its state. Since the record no longer exists, there's nothing to update, and this should not
+		// cause the workflow to fail. The desired end state (resource cleaned up) is achieved regardless of whether the state update succeeds.
+		if errors.IsNotFoundErr(err) {
+			logger.Info("KMS config not found, skipping state update", "kms_config_uuid", kmsConfig.UUID)
+			return nil
+		}
 		return err
 	}
 	logger.Debug("KmsConfig state:%s update successfully in the db", kmsConfig.Name)

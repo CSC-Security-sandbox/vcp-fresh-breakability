@@ -108,6 +108,30 @@ func TestDeleteKmsConfig_Error(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
+func TestDeleteKmsConfig_NotFoundReturnsSuccess(t *testing.T) {
+	// Arrange - Test idempotent delete behavior when record is already deleted
+	mockStorage := database.NewMockStorage(t)
+	activity := KmsConfigActivity{SE: mockStorage}
+	kms := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, Name: "test-kms", KeyName: "key1"}
+
+	params := &common.DeleteKmsConfigParams{
+		KmsConfigID: "uuid",
+	}
+	// Return NotFoundErr to simulate already deleted record
+	mockStorage.On("DeleteKmsConfig", mock.Anything, "uuid", models.LifeCycleStateDeleted, models.LifeCycleStateDeletedDetails).Return(nil, errors.NewNotFoundErr("KMS Configuration", nil))
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.DeleteKmsConfig)
+
+	// Act
+	_, err := env.ExecuteActivity(activity.DeleteKmsConfig, kms, params)
+
+	// Assert - Should succeed (idempotent)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
 func TestDeleteKmsConfigState_Success(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
