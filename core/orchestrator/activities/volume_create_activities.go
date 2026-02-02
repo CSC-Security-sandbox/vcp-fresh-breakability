@@ -557,6 +557,36 @@ func LunGet(ctx context.Context, lunName, volumeName, svmName string, provider v
 	return lun, nil
 }
 
+func (a VolumeCreateActivity) GetOntapClusterHealth(ctx context.Context, node *models.Node) (*bool, error) {
+	logger := util.GetLogger(ctx)
+	isOntapClusterHealthy := new(bool)
+	*isOntapClusterHealthy = false
+
+	activity.RecordHeartbeat(ctx, "Getting ONTAP provider")
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return isOntapClusterHealthy, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	ontapProvider, ok := provider.(*vsa.OntapRestProvider)
+	if !ok {
+		return isOntapClusterHealthy, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("provider is not OntapRestProvider"))
+	}
+
+	activity.RecordHeartbeat(ctx, "Getting ONTAP version to check cluster connectivity")
+	_, err = ontapProvider.GetONTAPVersion()
+	if err != nil {
+		logger.Errorf("Failed to get ONTAP version: %v", err)
+		retriesExhaustedMsg := "Retries exhausted when attempting to reach the storage server"
+		if errors.IsTimeoutErr(err) || strings.Contains(err.Error(), retriesExhaustedMsg) {
+			return isOntapClusterHealthy, nil
+		}
+		return isOntapClusterHealthy, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	*isOntapClusterHealthy = true
+	return isOntapClusterHealthy, nil
+}
+
 func (a VolumeCreateActivity) CreateLunMap(ctx context.Context, volume *datamodel.Volume, params *common.CreateLunMapParams, node *models.Node) error {
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, "Starting CreateLunMap activity")
@@ -667,6 +697,15 @@ func (a VolumeCreateActivity) GetVolumesByPoolID(ctx context.Context, poolID int
 	}
 
 	return volumes, err
+}
+
+func (a VolumeCreateActivity) GetVolumeByVolumeID(ctx context.Context, volumeID string) (*datamodel.Volume, error) {
+	se := a.SE
+	dbVolume, err := se.DescribeVolume(ctx, volumeID)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return dbVolume, nil
 }
 
 func _findTenancy(gcpService hyperscaler.GoogleServices, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*common.TenancyInfo, error) {

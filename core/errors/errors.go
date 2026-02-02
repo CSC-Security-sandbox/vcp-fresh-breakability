@@ -115,6 +115,8 @@ const (
 	ErrOfflineAggregateError           = 5015
 	ErrDNSServerUnreachable            = 5016
 	ErrVolumeSizeTooSmall              = 5017
+	ErrOntapClusterHealthCheckFailed   = 5018
+	ErrOntapClusterNotAvailable        = 5019
 
 	ErrIamClientNotFoundError      = 6020
 	ErrFailedToParseProjectNumber  = 6021
@@ -293,6 +295,7 @@ const (
 	ErrValidateSourceStoragePoolState                                                        = 6222
 	ErrValidateSourceStoragePoolStateDegraded                                                = 6223
 	ErrValidateDestinationStoragePoolStateDegraded                                           = 6224
+	ErrUpdateVolume                                                                          = 6225
 
 	ErrKMSRotate                        = 8001
 	ErrServiceAccountNotFound           = 8002

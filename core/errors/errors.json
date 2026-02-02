@@ -389,6 +389,18 @@
     "retriable": false,
     "http_code": 400
   },
+  "5018": {
+    "description": "ONTAP cluster health check failed.",
+    "message": "ONTAP cluster health check failed.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "5019": {
+    "description": "ONTAP cluster not available.",
+    "message": "ONTAP cluster is not available. Cluster is down.",
+    "retriable": false,
+    "http_code": 503
+  },
   "6020": {
     "description": "IAM client Not Found",
     "message": "IAM client Not Found",
@@ -1540,6 +1552,12 @@
     "message": "Destination pool is in degraded state, please try after some time",
     "retriable": false,
     "http_code": 409
+  },
+  "6225": {
+    "description": "Update Volume Error",
+    "message": "Failed to update volume",
+    "retriable": false,
+    "http_code": 500
   },
   "8001": {
     "description": "Kms key rotation failure",

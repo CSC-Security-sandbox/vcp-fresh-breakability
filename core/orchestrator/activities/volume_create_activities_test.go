@@ -1221,6 +1221,125 @@ func TestCreateLunMap_Failure(t *testing.T) {
 	mockProvider.AssertExpectations(t)
 }
 
+func TestGetOntapClusterHealth_Success(t *testing.T) {
+	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	ctx := context.Background()
+	mockClusterClient := new(ontap_rest.MockClusterClient)
+	mockRESTClient := new(ontap_rest.MockRESTClient)
+
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	// Set up test hooks to mock the REST client
+	testHooks := vsa.TestHooks{
+		GetOntapClient: func(params ontap_rest.RESTClientParams) (ontap_rest.RESTClient, error) {
+			return mockRESTClient, nil
+		},
+	}
+	cleanupHooks := vsa.SetTestHooks(testHooks)
+	defer cleanupHooks()
+
+	mockRESTClient.On("Cluster").Return(mockClusterClient)
+
+	ontapVersion := "9.10.1"
+	mockClusterClient.On("GetONTAPVersion").Return(&ontapVersion, nil)
+
+	// Create OntapRestProvider - it will use the test hooks
+	ontapProvider := &vsa.OntapRestProvider{
+		Logger: util.GetLogger(ctx),
+	}
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return ontapProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{
+		SE: database.NewMockStorage(t),
+	}
+	env.RegisterActivity(activity.GetOntapClusterHealth)
+
+	node := &models.Node{
+		EndpointAddress: "127.0.0.1",
+	}
+
+	// Act
+	encodedValue, err := env.ExecuteActivity(activity.GetOntapClusterHealth, node)
+
+	// Assert
+	assert.NoError(t, err)
+	var isHealthy bool
+	err = encodedValue.Get(&isHealthy)
+	assert.NoError(t, err)
+	assert.Equal(t, true, isHealthy)
+	mockClusterClient.AssertExpectations(t)
+	mockRESTClient.AssertExpectations(t)
+}
+
+func TestGetOntapClusterHealth_GetProviderByNodeFails(t *testing.T) {
+	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	expectedError := errors.New("failed to get provider")
+
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, expectedError
+	}
+
+	activity := activities.VolumeCreateActivity{
+		SE: database.NewMockStorage(t),
+	}
+	env.RegisterActivity(activity.GetOntapClusterHealth)
+
+	node := &models.Node{
+		EndpointAddress: "127.0.0.1",
+	}
+
+	// Act
+	_, err := env.ExecuteActivity(activity.GetOntapClusterHealth, node)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), expectedError.Error())
+}
+
+func TestGetOntapClusterHealth_ProviderNotOntapRestProvider(t *testing.T) {
+	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockProvider := new(vsa.MockProvider)
+
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{
+		SE: database.NewMockStorage(t),
+	}
+	env.RegisterActivity(activity.GetOntapClusterHealth)
+
+	node := &models.Node{
+		EndpointAddress: "127.0.0.1",
+	}
+
+	// Act
+	_, err := env.ExecuteActivity(activity.GetOntapClusterHealth, node)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "provider is not OntapRestProvider")
+}
+
 func TestUpdateVolumeDetails_Success(t *testing.T) {
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestActivityEnvironment()
@@ -4308,6 +4427,42 @@ func TestGetVolumesByPoolID(t *testing.T) {
 		_, err := env.ExecuteActivity(activity.GetVolumesByPoolID, poolID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "get volumes ran into error")
+	})
+}
+
+func TestGetVolumeByVolumeID(t *testing.T) {
+	t.Run("WhenGetVolumeByVolumeIdReturnsVolume", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.VolumeCreateActivity{SE: mockSE}
+		env.RegisterActivity(activity.GetVolumeByVolumeID)
+
+		volumeID := "test-id"
+		volume := &datamodel.Volume{BaseModel: datamodel.BaseModel{ID: int64(1)}}
+
+		mockSE.On("DescribeVolume", mock.Anything, volumeID).Return(volume, nil)
+		val, err := env.ExecuteActivity(activity.GetVolumeByVolumeID, volumeID)
+		assert.NoError(t, err)
+		var result *datamodel.Volume
+		_ = val.Get(&result)
+		assert.Equal(t, volume, result)
+	})
+	t.Run("WhenGetVolumeByVolumeIdReturnsError", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.VolumeCreateActivity{SE: mockSE}
+		env.RegisterActivity(activity.GetVolumeByVolumeID)
+
+		volumeID := "test-id"
+
+		mockSE.On("DescribeVolume", mock.Anything, volumeID).Return(nil, vsaerrors.WrapAsTemporalApplicationError(errors.New("describe volume ran into error")))
+		_, err := env.ExecuteActivity(activity.GetVolumeByVolumeID, volumeID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "describe volume ran into error")
 	})
 }
 
@@ -11684,9 +11839,9 @@ func TestUpdateVolumeAutoTieringPolicyInONTAP_WithAutoTieringEnabled_AutoPolicy(
 		Name:               "test-volume",
 		AutoTieringEnabled: true,
 		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
-			TieringPolicy:        ontapModels.VolumeInlineTieringPolicyAuto,
-			RetrievalPolicy:      ontapModels.VolumeCloudRetrievalPolicyDefault,
-			CoolingThresholdDays: 10,
+			TieringPolicy:         ontapModels.VolumeInlineTieringPolicyAuto,
+			RetrievalPolicy:       ontapModels.VolumeCloudRetrievalPolicyDefault,
+			CoolingThresholdDays:  10,
 			CloudWriteModeEnabled: nillable.GetBoolPtr(false),
 		},
 		VolumeAttributes: &datamodel.VolumeAttributes{
@@ -12104,7 +12259,7 @@ func TestUpdateVolumeAutoTieringPolicyInONTAP_WithNilVolumeAttributes(t *testing
 	env.RegisterActivity(activity.UpdateVolumeAutoTieringPolicyInONTAP)
 
 	volume := &datamodel.Volume{
-		Name:            "test-volume",
+		Name:             "test-volume",
 		VolumeAttributes: nil, // Nil VolumeAttributes - this will cause a panic when accessing ExternalUUID
 	}
 	node := &models.Node{
@@ -12146,7 +12301,7 @@ func TestUpdateVolumeAutoTieringPolicyInONTAP_WithNilPool(t *testing.T) {
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "test-external-uuid",
 		},
-		Pool: nil, // Nil Pool - this will cause a panic when accessing volume.Pool.UUID
+		Pool:      nil, // Nil Pool - this will cause a panic when accessing volume.Pool.UUID
 		AccountID: 123,
 	}
 	node := &models.Node{

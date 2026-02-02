@@ -231,6 +231,24 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 
 	log := util.GetLogger(ctx)
 
+	var isOntapClusterHealthy *bool
+	err = workflow.ExecuteActivity(ctx, volumeActivity.GetOntapClusterHealth, node).Get(ctx, &isOntapClusterHealthy)
+	if err != nil {
+		log.Errorf("failed to check ONTAP cluster health: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrOntapClusterHealthCheckFailed, fmt.Errorf("failed to check ONTAP cluster health")))
+	}
+
+	if !*isOntapClusterHealthy {
+		// Update volume state in DB to DELETED when the ONTAP Health check fails
+		err := workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeStateInDB, dbVolume.UUID, models.LifeCycleStateDeleted, models.LifeCycleStateDeletedDetails).Get(ctx, nil)
+		if err != nil {
+			log.Errorf("Failed to update volume state in DB to Deleted: %v", err)
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrUpdateVolume, fmt.Errorf("failed to update volume state in DB to Deleted")))
+		}
+		log.Errorf("ONTAP cluster is not available. Cluster is down.")
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrOntapClusterNotAvailable, fmt.Errorf("ONTAP cluster is down")))
+	}
+
 	// Check if NAS LIF needs to be configured
 	poolActivity := &activities.PoolActivity{}
 	var vlmConfig *vlm.VLMConfig
@@ -783,12 +801,20 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	defer func() {
 		common.ExecuteDeferredCleanup(ctx, cancellationHandler, rollbackManager, err, log, "volume", dbVolume.UUID,
 			func(disconnectedCtx workflow.Context) error {
-				// Update volume state in DB before rollback
-				err2 := workflow.ExecuteActivity(disconnectedCtx, volumeActivity.UpdateVolumeStateInDB, dbVolume.UUID, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails).Get(disconnectedCtx, nil)
-				if err2 != nil {
-					log.Errorf("Failed to update volume state in DB to error: %v", err2)
+				var volume *datamodel.Volume
+				err := workflow.ExecuteActivity(disconnectedCtx, volumeActivity.GetVolumeByVolumeID, dbVolume.UUID).Get(disconnectedCtx, &volume)
+				if err != nil {
+					log.Errorf("Failed to describe volume %s with error: %v", dbVolume.UUID, err)
 				}
-				return err2
+				// Update volume state in DB before rollback
+				if volume != nil && volume.State != models.LifeCycleStateDeleted {
+					err2 := workflow.ExecuteActivity(disconnectedCtx, volumeActivity.UpdateVolumeStateInDB, dbVolume.UUID, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails).Get(disconnectedCtx, nil)
+					if err2 != nil {
+						log.Errorf("Failed to update volume state in DB to error: %v", err2)
+						return err2
+					}
+				}
+				return nil
 			},
 			nil, // onCancellationCallback
 			nil) // shouldRollbackOnError
