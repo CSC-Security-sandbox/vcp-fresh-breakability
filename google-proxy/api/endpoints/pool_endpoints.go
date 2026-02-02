@@ -4,13 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"strings"
-	"time"
-
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/pools"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
@@ -26,6 +23,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"net/http"
+	"strings"
+	"time"
 )
 
 var (
@@ -168,6 +168,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		EnableHotTierAutoResize: req.EnableHotTierAutoResize.Value,
 		CustomPerformanceParams: &commonparams.CustomPerformanceParams{ThroughputMibps: totalThroughput, Enabled: req.CustomPerformanceEnabled.Value, Iops: totalIops},
 		LargeCapacity:           req.LargeCapacity.Value,
+		XCorrelationID:          params.XCorrelationID.Value,
 	}
 
 	if string(req.Mode.Value) == string(gcpgenserver.PoolV1betaModeMODEUNSPECIFIED) || string(req.Mode.Value) == string(gcpgenserver.PoolV1betaModeDEFAULT) {
@@ -177,10 +178,11 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 	}
 
 	// Set AD related params
-	adConfig, adErrResp := getAndSyncAdConfigForPool(ctx, req, createPoolParams, h.Orchestrator)
+	adConfig, ifADExistsInVCP, adErrResp := getAndSyncAdConfigForPool(ctx, req, createPoolParams, h.Orchestrator)
 	if adErrResp != nil {
 		return adErrResp, nil
 	}
+	createPoolParams.ADExistsInVCP = ifADExistsInVCP
 	if adConfig != nil {
 		createPoolParams.ActiveDirectoryId = adConfig.UUID
 		createPoolParams.ActiveDirectory = adConfig
@@ -1366,10 +1368,11 @@ func _getAndSyncKmsConfigForPool(ctx context.Context, req *gcpgenserver.PoolV1be
 	return kmsConfig, nil
 }
 
-func getAndSyncAdConfigForPool(ctx context.Context, req *gcpgenserver.PoolV1beta, params *commonparams.CreatePoolParams, orchestrator orchestrator.OrchestratorFactory) (*models.ActiveDirectory, gcpgenserver.V1betaCreatePoolRes) {
+func getAndSyncAdConfigForPool(ctx context.Context, req *gcpgenserver.PoolV1beta, params *commonparams.CreatePoolParams, orchestrator orchestrator.OrchestratorFactory) (*models.ActiveDirectory, bool, gcpgenserver.V1betaCreatePoolRes) {
 	log := util.GetLogger(ctx)
+	ifADExistsInVCP := false
 	if req.ActiveDirectoryConfigId.Value == "" {
-		return nil, nil
+		return nil, ifADExistsInVCP, nil
 	}
 
 	getADParams := &commonparams.GetADParams{
@@ -1381,19 +1384,172 @@ func getAndSyncAdConfigForPool(ctx context.Context, req *gcpgenserver.PoolV1beta
 	adConfig, err := orchestrator.GetADConfig(ctx, getADParams)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
-			log.Debugf("Active Directory config with ID %s not found in VCP, trying SDE", req.ActiveDirectoryConfigId.Value)
+			log.Warnf("Active Directory config with ID %s not found in VCP, trying CVP", req.ActiveDirectoryConfigId.Value)
 
-			// ToDo: implement SDE AD config fetch and sync logic here
+			// Try to fetch AD from CVP if CVP_HOST is set
+			if cvp.CVP_HOST != "" && !utils.CreateCommonResourcesInVCP {
+				cvpAd, cvpErr := getActiveDirectoryFromCVP(ctx, req.ActiveDirectoryConfigId.Value, params.AccountName, params.Region, params.XCorrelationID)
+				if cvpErr != nil {
+					log.Errorf("Failed to fetch Active Directory from CVP: %v", cvpErr)
+					return nil, ifADExistsInVCP, &gcpgenserver.V1betaCreatePoolBadRequest{
+						Code:    http.StatusBadRequest,
+						Message: fmt.Sprintf("Active Directory Config with ID %s not found", req.ActiveDirectoryConfigId.Value),
+					}
+				}
+				if cvpAd != nil {
+					log.Infof("Active Directory found in CVP, syncing to VCP", "adUUID", req.ActiveDirectoryConfigId.Value)
+					// Convert CVP AD to models.ActiveDirectory and return
+					adConfig = convertCVPActiveDirectoryToModel(cvpAd)
+					return adConfig, ifADExistsInVCP, nil
+				}
+			}
 
-			return nil, &gcpgenserver.V1betaCreatePoolBadRequest{
+			return nil, ifADExistsInVCP, &gcpgenserver.V1betaCreatePoolBadRequest{
 				Code:    http.StatusBadRequest,
 				Message: fmt.Sprintf("Active Directory Config with ID %s not found", req.ActiveDirectoryConfigId.Value),
 			}
 		}
-		return nil, &gcpgenserver.V1betaCreatePoolInternalServerError{
+		return nil, ifADExistsInVCP, &gcpgenserver.V1betaCreatePoolInternalServerError{
 			Code:    http.StatusInternalServerError,
 			Message: err.Error(),
 		}
 	}
-	return adConfig, nil
+	ifADExistsInVCP = true
+	return adConfig, ifADExistsInVCP, nil
+}
+
+// getActiveDirectoryFromCVP retrieves Active Directory from CVP
+func getActiveDirectoryFromCVP(ctx context.Context, adConfigID, projectNumber, locationID, XCorrelationID string) (*cvpmodels.ActiveDirectoryV1beta, error) {
+	logger := util.GetLogger(ctx)
+
+	// Get JWT token from context
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	if jwtToken == "" {
+		logger.Warn("JWT token not found in context for CVP AD lookup", "adConfigID", adConfigID)
+		// Continue without JWT token - CVP client might handle this
+	}
+
+	// Create CVP client
+	cvpClient := createClient(logger, jwtToken)
+
+	// Describe the Active Directory from CVP
+	describeADParams := &active_directories.V1betaDescribeActiveDirectoryParams{
+		Context:           ctx,
+		ActiveDirectoryID: adConfigID,
+		ProjectNumber:     projectNumber,
+		LocationID:        locationID,
+		XCorrelationID:    &XCorrelationID,
+	}
+
+	adResp, err := cvpClient.ActiveDirectories.V1betaDescribeActiveDirectory(describeADParams)
+	if err != nil {
+		logger.Error("Failed to describe Active Directory from CVP", "adConfigID", adConfigID, "error", err)
+		return nil, fmt.Errorf("failed to describe Active Directory from CVP: %w", err)
+	}
+
+	if adResp == nil || adResp.Payload == nil {
+		logger.Error("Empty response from CVP describe Active Directory", "adConfigID", adConfigID)
+		return nil, fmt.Errorf("empty response from CVP describe Active Directory")
+	}
+
+	return adResp.Payload, nil
+}
+
+// convertCVPActiveDirectoryToModel converts CVP ActiveDirectoryV1beta to models.ActiveDirectory
+func convertCVPActiveDirectoryToModel(cvpAd *cvpmodels.ActiveDirectoryV1beta) *models.ActiveDirectory {
+	ad := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{
+			UUID: cvpAd.ActiveDirectoryID,
+		},
+	}
+
+	if cvpAd.ResourceID != nil {
+		ad.AdName = *cvpAd.ResourceID
+	}
+	if cvpAd.Username != nil {
+		ad.Username = *cvpAd.Username
+	}
+	if cvpAd.Domain != nil {
+		ad.Domain = *cvpAd.Domain
+	}
+	if cvpAd.DNS != nil {
+		ad.DNS = *cvpAd.DNS
+	}
+	if cvpAd.NetBIOS != nil {
+		ad.NetBIOS = *cvpAd.NetBIOS
+	}
+
+	// Convert state
+	switch cvpAd.ActiveDirectoryState {
+	case cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateREADY:
+		ad.State = models.LifeCycleStateREADY
+		ad.StateDetails = models.LifeCycleStateReadyDetails
+	case cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateCREATING:
+		ad.State = models.LifeCycleStateCreating
+		ad.StateDetails = models.LifeCycleStateCreatingDetails
+	case cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateUPDATING:
+		ad.State = models.LifeCycleStateUpdating
+		ad.StateDetails = models.LifeCycleStateUpdatingDetails
+	case cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateINUSE:
+		ad.State = models.LifeCycleStateInUse
+		ad.StateDetails = models.LifeCycleStateInUseDetails
+	case cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateDELETING:
+		ad.State = models.LifeCycleStateDeleting
+		ad.StateDetails = models.LifeCycleStateDeletingDetails
+	case cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateERROR:
+		ad.State = models.LifeCycleStateError
+		ad.StateDetails = models.LifeCycleStateError
+	default:
+		ad.State = models.LifeCycleStateREADY
+		ad.StateDetails = models.LifeCycleStateReadyDetails
+	}
+
+	if cvpAd.ActiveDirectoryStateDetails != "" {
+		ad.StateDetails = cvpAd.ActiveDirectoryStateDetails
+	}
+
+	// Convert attributes
+	adAttributes := &models.ActiveDirectoryAttributes{}
+	if cvpAd.OrganizationalUnit != nil {
+		adAttributes.OrganizationalUnit = *cvpAd.OrganizationalUnit
+	}
+	if cvpAd.Site != nil {
+		adAttributes.Site = *cvpAd.Site
+	}
+	if cvpAd.KdcIP != "" {
+		adAttributes.KdcIP = cvpAd.KdcIP
+	}
+	if cvpAd.KdcHostname != "" {
+		adAttributes.KdcHostname = cvpAd.KdcHostname
+	}
+	if cvpAd.AesEncryption != nil {
+		adAttributes.AesEncryption = *cvpAd.AesEncryption
+	}
+	if cvpAd.EncryptDCConnections != nil {
+		adAttributes.EncryptDCConnections = *cvpAd.EncryptDCConnections
+	}
+	if cvpAd.LdapSigning != nil {
+		adAttributes.LdapSigning = *cvpAd.LdapSigning
+	}
+	if cvpAd.AllowLocalNFSUsersWithLdap != nil {
+		adAttributes.AllowLocalNFSUsersWithLdap = *cvpAd.AllowLocalNFSUsersWithLdap
+	}
+	if cvpAd.Description != nil {
+		adAttributes.Description = *cvpAd.Description
+	}
+
+	// Convert user groups
+	if len(cvpAd.BackupOperators) > 0 {
+		adAttributes.BackupOperators = cvpAd.BackupOperators
+	}
+	if len(cvpAd.SecurityOperators) > 0 {
+		adAttributes.SecurityOperators = cvpAd.SecurityOperators
+	}
+	if len(cvpAd.Administrators) > 0 {
+		adAttributes.Administrators = cvpAd.Administrators
+	}
+
+	ad.ActiveDirectoryAttributes = adAttributes
+
+	return ad
 }

@@ -5266,6 +5266,79 @@ paths:
           description: Unexpected error
           schema:
             $ref: '#/definitions/Error'
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/storage/activeDirectory/password:
+    post:
+      operationId: v1beta_pushActiveDirectoryPassword
+      summary: Push Active Directory password
+      description: Pushes Active Directory password to the secret manager
+      tags:
+        - internal-active-directories
+      parameters:
+        - $ref: '#/parameters/projectNumberPathParameter'
+        - $ref: '#/parameters/locationIdPathParameter'
+        - $ref: '#/parameters/xCorrelationIdHeader'
+        - name: body
+          in: body
+          required: true
+          description: The required parameters to push Active Directory password to secret manager.
+          schema:
+            $ref: '#/definitions/ActiveDirectoryPassword_v1beta'
+      responses:
+        '201':
+          description: Push Active Directory Password to secret manager
+          schema:
+            $ref: '#/definitions/Operation_v1beta'
+          examples:
+            application/json:
+              done: true
+              name: /v1beta/projects/123456789/locations/some-location1/operations/00000000-0000-0000-0000-000000000000
+              response:
+                DNS: 101.102.103.104
+                activeDirectoryId: 9fbf76ef-9964-07d1-5f57-0e8f867e0367
+                activeDirectoryState: READY
+                activeDirectoryStateDetails: Credentials saved and available for use
+                administrators:
+                  - batman
+                  - clarkkent
+                aesEncryption: false
+                allowLocalNFSUsersWithLdap: false
+                backupOperators:
+                  - batman
+                  - clarkkent
+                createdAt: '2024-01-26T16:08:38.841Z'
+                domain: krypton.com
+                encryptDCConnections: false
+                ldapSigning: false
+                netBIOS: cvserver
+                site: Default-First-Site-Name
+                kdcIP: 101.102.103.104
+                kdcHostname: 2BOVAEKB44B
+                organizationalUnit: CN=Computers
+                password: '******************'
+                resourceId: my-active-directory
+                securityOperators:
+                  - batman
+                updatedAt: '2024-01-26T16:08:38.841Z'
+                username: superman
+                description: My active directory description
+        '400':
+          $ref: '#/responses/StandardError-400'
+        '401':
+          $ref: '#/responses/StandardError-401'
+        '403':
+          $ref: '#/responses/StandardError-403'
+        '409':
+          $ref: '#/responses/StandardError-409'
+        '422':
+          $ref: '#/responses/StandardError-422'
+        '429':
+          $ref: '#/responses/StandardError-429'
+        '500':
+          $ref: '#/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          schema:
+            $ref: '#/definitions/Error'
   /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots:
     get:
       operationId: v1beta_listSnapshots
@@ -8702,6 +8775,26 @@ definitions:
         example: My active directory description
         x-nullable: true
         maxLength: 2048
+  ActiveDirectoryPassword_v1beta:
+    type: object
+    title: ActiveDirectoryPassword
+    properties:
+      activeDirectoryId:
+        title: activeDirectoryId
+        type: string
+        readOnly: true
+        description: UUID v4 used to identify the Active Directory credentials
+        pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+        maxLength: 36
+        minLength: 36
+        example: 9760acf5-4638-11e7-9bdb-020073ca7773
+      secretName:
+        title: secretName
+        type: string
+        description: Secret name in Secret Manager where the password is stored
+        minLength: 1
+        maxLength: 255
+        example: gcnv-54e824c166fab5b
   ActiveDirectoryUpdate_v1beta:
     type: object
     title: ActiveDirectoryUpdate

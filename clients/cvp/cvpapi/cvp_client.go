@@ -18,6 +18,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/batch"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/feature_flags"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/health"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/internal_active_directories"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/migration_internal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/pools"
@@ -82,6 +83,7 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *Cvp {
 	cli.Batch = batch.New(transport, formats)
 	cli.FeatureFlags = feature_flags.New(transport, formats)
 	cli.Health = health.New(transport, formats)
+	cli.InternalActiveDirectories = internal_active_directories.New(transport, formats)
 	cli.KmsConfigurations = kms_configurations.New(transport, formats)
 	cli.MigrationInternal = migration_internal.New(transport, formats)
 	cli.Pools = pools.New(transport, formats)
@@ -154,6 +156,8 @@ type Cvp struct {
 
 	Health health.ClientService
 
+	InternalActiveDirectories internal_active_directories.ClientService
+
 	KmsConfigurations kms_configurations.ClientService
 
 	MigrationInternal migration_internal.ClientService
@@ -192,6 +196,7 @@ func (c *Cvp) SetTransport(transport runtime.ClientTransport) {
 	c.Batch.SetTransport(transport)
 	c.FeatureFlags.SetTransport(transport)
 	c.Health.SetTransport(transport)
+	c.InternalActiveDirectories.SetTransport(transport)
 	c.KmsConfigurations.SetTransport(transport)
 	c.MigrationInternal.SetTransport(transport)
 	c.Pools.SetTransport(transport)

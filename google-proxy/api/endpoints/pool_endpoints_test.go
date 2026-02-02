@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/pools"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -7203,7 +7204,7 @@ func TestGetAndSyncAdConfigForPool(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 
-		adConfig, errResp := getAndSyncAdConfigForPool(context.Background(), req, params, mockOrchestrator)
+		adConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req, params, mockOrchestrator)
 
 		assert.Nil(tt, adConfig)
 		assert.Nil(tt, errResp)
@@ -7231,7 +7232,7 @@ func TestGetAndSyncAdConfigForPool(t *testing.T) {
 			return getParams.UUID == "ad-config-uuid" && getParams.AccountName == "test-project"
 		})).Return(adConfig, nil)
 
-		resultAdConfig, errResp := getAndSyncAdConfigForPool(context.Background(), req, params, mockOrchestrator)
+		resultAdConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req, params, mockOrchestrator)
 
 		assert.Nil(tt, errResp)
 		assert.NotNil(tt, resultAdConfig)
@@ -7252,7 +7253,7 @@ func TestGetAndSyncAdConfigForPool(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("Active Directory", nil))
 
-		adConfig, errResp := getAndSyncAdConfigForPool(context.Background(), req, params, mockOrchestrator)
+		adConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req, params, mockOrchestrator)
 
 		assert.Nil(tt, adConfig)
 		assert.NotNil(tt, errResp)
@@ -7275,7 +7276,7 @@ func TestGetAndSyncAdConfigForPool(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(nil, stderrors.New("database error"))
 
-		adConfig, errResp := getAndSyncAdConfigForPool(context.Background(), req, params, mockOrchestrator)
+		adConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req, params, mockOrchestrator)
 
 		assert.Nil(tt, adConfig)
 		assert.NotNil(tt, errResp)
@@ -7284,6 +7285,289 @@ func TestGetAndSyncAdConfigForPool(t *testing.T) {
 		assert.Equal(tt, float64(http.StatusInternalServerError), internalError.Code)
 		assert.Equal(tt, "database error", internalError.Message)
 	})
+
+	t.Run("WhenActiveDirectoryFetchedFromCVPSuccessfully", func(tt *testing.T) {
+		originalCVPHost := cvp.CVP_HOST
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		cvp.SetCVPHost("http://cvp-host")
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
+
+		resourceID := "res-id"
+		username := "user"
+		domain := "example.com"
+		dns := "1.1.1.1"
+		netbios := "NETBIOS"
+		orgUnit := "OU=Test"
+		site := "site"
+		aesEnc := true
+		encryptDC := true
+		ldapSigning := true
+		allowLocal := true
+		description := "desc"
+		kdcIP := "10.0.0.1"
+		kdcHostname := "kdc.example.com"
+
+		mockActiveDirectories := active_directories.NewMockClientService(tt)
+		mockCvpAD := &cvpmodels.ActiveDirectoryV1beta{
+			ActiveDirectoryID:           "ad-config-uuid",
+			ResourceID:                  &resourceID,
+			Username:                    &username,
+			Domain:                      &domain,
+			DNS:                         &dns,
+			NetBIOS:                     &netbios,
+			ActiveDirectoryState:        cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateREADY,
+			ActiveDirectoryStateDetails: "custom-details",
+			OrganizationalUnit:          &orgUnit,
+			Site:                        &site,
+			KdcIP:                       kdcIP,
+			KdcHostname:                 kdcHostname,
+			AesEncryption:               &aesEnc,
+			EncryptDCConnections:        &encryptDC,
+			LdapSigning:                 &ldapSigning,
+			AllowLocalNFSUsersWithLdap:  &allowLocal,
+			Description:                 &description,
+			BackupOperators:             []string{"backup"},
+			SecurityOperators:           []string{"security"},
+			Administrators:              []string{"admin"},
+		}
+
+		mockActiveDirectories.EXPECT().
+			V1betaDescribeActiveDirectory(mock.Anything).
+			Return(&active_directories.V1betaDescribeActiveDirectoryOK{Payload: mockCvpAD}, nil)
+
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{ActiveDirectories: mockActiveDirectories}
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			ActiveDirectoryConfigId: gcpgenserver.NewOptNilString("ad-config-uuid"),
+		}
+		params := &commonparams.CreatePoolParams{
+			AccountName: "test-project",
+			Region:      "us-central1",
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("Active Directory", nil))
+
+		adConfig, existsInVCP, errResp := getAndSyncAdConfigForPool(context.Background(), req, params, mockOrchestrator)
+
+		assert.Nil(tt, errResp)
+		assert.False(tt, existsInVCP)
+		assert.NotNil(tt, adConfig)
+		assert.Equal(tt, "ad-config-uuid", adConfig.UUID)
+		assert.Equal(tt, resourceID, adConfig.AdName)
+		assert.Equal(tt, username, adConfig.Username)
+		assert.Equal(tt, domain, adConfig.Domain)
+		assert.Equal(tt, dns, adConfig.DNS)
+		assert.Equal(tt, netbios, adConfig.NetBIOS)
+		assert.Equal(tt, models.LifeCycleStateREADY, adConfig.State)
+		assert.Equal(tt, "custom-details", adConfig.StateDetails)
+		assert.NotNil(tt, adConfig.ActiveDirectoryAttributes)
+		assert.Equal(tt, orgUnit, adConfig.ActiveDirectoryAttributes.OrganizationalUnit)
+		assert.Equal(tt, site, adConfig.ActiveDirectoryAttributes.Site)
+		assert.Equal(tt, kdcIP, adConfig.ActiveDirectoryAttributes.KdcIP)
+		assert.Equal(tt, kdcHostname, adConfig.ActiveDirectoryAttributes.KdcHostname)
+		assert.Equal(tt, aesEnc, adConfig.ActiveDirectoryAttributes.AesEncryption)
+		assert.Equal(tt, encryptDC, adConfig.ActiveDirectoryAttributes.EncryptDCConnections)
+		assert.Equal(tt, ldapSigning, adConfig.ActiveDirectoryAttributes.LdapSigning)
+		assert.Equal(tt, allowLocal, adConfig.ActiveDirectoryAttributes.AllowLocalNFSUsersWithLdap)
+		assert.Equal(tt, description, adConfig.ActiveDirectoryAttributes.Description)
+		assert.Equal(tt, []string{"backup"}, adConfig.ActiveDirectoryAttributes.BackupOperators)
+		assert.Equal(tt, []string{"security"}, adConfig.ActiveDirectoryAttributes.SecurityOperators)
+		assert.Equal(tt, []string{"admin"}, adConfig.ActiveDirectoryAttributes.Administrators)
+	})
+
+	t.Run("WhenActiveDirectoryFetchFromCVPFails", func(tt *testing.T) {
+		originalCVPHost := cvp.CVP_HOST
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		cvp.SetCVPHost("http://cvp-host")
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalCVPHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
+
+		mockActiveDirectories := active_directories.NewMockClientService(tt)
+		mockActiveDirectories.EXPECT().
+			V1betaDescribeActiveDirectory(mock.Anything).
+			Return(nil, fmt.Errorf("cvp unavailable"))
+
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{ActiveDirectories: mockActiveDirectories}
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			ActiveDirectoryConfigId: gcpgenserver.NewOptNilString("ad-config-uuid"),
+		}
+		params := &commonparams.CreatePoolParams{
+			AccountName: "test-project",
+			Region:      "us-central1",
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("Active Directory", nil))
+
+		adConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req, params, mockOrchestrator)
+
+		assert.Nil(tt, adConfig)
+		assert.NotNil(tt, errResp)
+		badRequest, ok := errResp.(*gcpgenserver.V1betaCreatePoolBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(http.StatusBadRequest), badRequest.Code)
+		assert.Contains(tt, badRequest.Message, "Active Directory Config with ID ad-config-uuid not found")
+	})
+}
+
+func TestGetActiveDirectoryFromCVP(t *testing.T) {
+	t.Run("ReturnsActiveDirectoryWhenFound", func(tt *testing.T) {
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+
+		mockActiveDirectories := active_directories.NewMockClientService(tt)
+		payload := &cvpmodels.ActiveDirectoryV1beta{
+			ActiveDirectoryID: "ad-config-uuid",
+		}
+		mockActiveDirectories.EXPECT().
+			V1betaDescribeActiveDirectory(mock.Anything).
+			Return(&active_directories.V1betaDescribeActiveDirectoryOK{Payload: payload}, nil)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{ActiveDirectories: mockActiveDirectories}
+		}
+
+		ad, err := getActiveDirectoryFromCVP(context.Background(), "ad-config-uuid", "project", "location", "x-correlation-id")
+		assert.NoError(tt, err)
+		assert.Equal(tt, payload, ad)
+	})
+
+	t.Run("ReturnsErrorWhenDescribeFails", func(tt *testing.T) {
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+
+		mockActiveDirectories := active_directories.NewMockClientService(tt)
+		mockActiveDirectories.EXPECT().
+			V1betaDescribeActiveDirectory(mock.Anything).
+			Return(nil, fmt.Errorf("describe failed"))
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{ActiveDirectories: mockActiveDirectories}
+		}
+
+		ad, err := getActiveDirectoryFromCVP(context.Background(), "ad-config-uuid", "project", "location", "x-correlation-id")
+		assert.Nil(tt, ad)
+		assert.Error(tt, err)
+	})
+
+	t.Run("ReturnsErrorWhenPayloadIsEmpty", func(tt *testing.T) {
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+
+		mockActiveDirectories := active_directories.NewMockClientService(tt)
+		mockActiveDirectories.EXPECT().
+			V1betaDescribeActiveDirectory(mock.Anything).
+			Return(&active_directories.V1betaDescribeActiveDirectoryOK{Payload: nil}, nil)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{ActiveDirectories: mockActiveDirectories}
+		}
+
+		ad, err := getActiveDirectoryFromCVP(context.Background(), "ad-config-uuid", "project", "location", "x-correlation-id")
+		assert.Nil(tt, ad)
+		assert.Error(tt, err)
+	})
+}
+
+func TestConvertCVPActiveDirectoryToModel(t *testing.T) {
+	resourceID := "res-id"
+	username := "user"
+	domain := "example.com"
+	dns := "1.1.1.1"
+	netbios := "NETBIOS"
+	orgUnit := "OU=Test"
+	site := "site"
+	aesEnc := true
+	encryptDC := true
+	ldapSigning := true
+	allowLocal := true
+	description := "desc"
+	kdcIP := "10.0.0.1"
+	kdcHostname := "kdc.example.com"
+
+	tests := []struct {
+		name           string
+		state          string
+		expectedState  string
+		expectedDetail string
+	}{
+		{"ReadyState", cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateREADY, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails},
+		{"CreatingState", cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateCREATING, models.LifeCycleStateCreating, models.LifeCycleStateCreatingDetails},
+		{"UpdatingState", cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateUPDATING, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails},
+		{"InUseState", cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateINUSE, models.LifeCycleStateInUse, models.LifeCycleStateInUseDetails},
+		{"DeletingState", cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateDELETING, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails},
+		{"ErrorState", cvpmodels.ActiveDirectoryV1betaActiveDirectoryStateERROR, models.LifeCycleStateError, models.LifeCycleStateError},
+		{"UnknownStateDefaultsToReady", "", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails},
+	}
+
+	for _, tc := range tests {
+		tt := tc
+		t.Run(tt.name, func(t *testing.T) {
+			cvpAd := &cvpmodels.ActiveDirectoryV1beta{
+				ActiveDirectoryID:           "ad-config-uuid",
+				ResourceID:                  &resourceID,
+				Username:                    &username,
+				Domain:                      &domain,
+				DNS:                         &dns,
+				NetBIOS:                     &netbios,
+				ActiveDirectoryState:        tt.state,
+				ActiveDirectoryStateDetails: "custom-details",
+				OrganizationalUnit:          &orgUnit,
+				Site:                        &site,
+				KdcIP:                       kdcIP,
+				KdcHostname:                 kdcHostname,
+				AesEncryption:               &aesEnc,
+				EncryptDCConnections:        &encryptDC,
+				LdapSigning:                 &ldapSigning,
+				AllowLocalNFSUsersWithLdap:  &allowLocal,
+				Description:                 &description,
+				BackupOperators:             []string{"backup"},
+				SecurityOperators:           []string{"security"},
+				Administrators:              []string{"admin"},
+			}
+
+			ad := convertCVPActiveDirectoryToModel(cvpAd)
+
+			assert.Equal(t, "ad-config-uuid", ad.UUID)
+			assert.Equal(t, resourceID, ad.AdName)
+			assert.Equal(t, username, ad.Username)
+			assert.Equal(t, domain, ad.Domain)
+			assert.Equal(t, dns, ad.DNS)
+			assert.Equal(t, netbios, ad.NetBIOS)
+			assert.Equal(t, tt.expectedState, ad.State)
+			assert.Equal(t, "custom-details", ad.StateDetails)
+			assert.NotNil(t, ad.ActiveDirectoryAttributes)
+			assert.Equal(t, orgUnit, ad.ActiveDirectoryAttributes.OrganizationalUnit)
+			assert.Equal(t, site, ad.ActiveDirectoryAttributes.Site)
+			assert.Equal(t, kdcIP, ad.ActiveDirectoryAttributes.KdcIP)
+			assert.Equal(t, kdcHostname, ad.ActiveDirectoryAttributes.KdcHostname)
+			assert.Equal(t, aesEnc, ad.ActiveDirectoryAttributes.AesEncryption)
+			assert.Equal(t, encryptDC, ad.ActiveDirectoryAttributes.EncryptDCConnections)
+			assert.Equal(t, ldapSigning, ad.ActiveDirectoryAttributes.LdapSigning)
+			assert.Equal(t, allowLocal, ad.ActiveDirectoryAttributes.AllowLocalNFSUsersWithLdap)
+			assert.Equal(t, description, ad.ActiveDirectoryAttributes.Description)
+			assert.Equal(t, []string{"backup"}, ad.ActiveDirectoryAttributes.BackupOperators)
+			assert.Equal(t, []string{"security"}, ad.ActiveDirectoryAttributes.SecurityOperators)
+			assert.Equal(t, []string{"admin"}, ad.ActiveDirectoryAttributes.Administrators)
+		})
+	}
 }
 
 func TestConvertToPoolV1Beta_WithActiveDirectoryFields(t *testing.T) {

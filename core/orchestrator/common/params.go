@@ -50,6 +50,8 @@ type CreatePoolParams struct {
 	ActiveDirectory         *models.ActiveDirectory
 	LdapEnabled             bool
 	Mode                    string
+	XCorrelationID          string
+	ADExistsInVCP           bool
 }
 
 // CustomPerformanceParams is used to specify the custom performance parameters for a pool

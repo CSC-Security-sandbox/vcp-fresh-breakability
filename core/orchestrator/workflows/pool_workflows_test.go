@@ -13,11 +13,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -123,6 +125,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
 
 	// Mock child workflow activities
 	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()
@@ -132,6 +135,9 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	params := &common.CreatePoolParams{
 		Name:                    "test-pool",
 		AccountName:             "test-account",
+		ActiveDirectoryId:       "ad-id",
+		ADExistsInVCP:           false,
+		ActiveDirectory:         &models.ActiveDirectory{AdName: "ad-name"},
 		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
 		Region:                  "test-region",
 		PrimaryZone:             "test-zone",
@@ -240,6 +246,10 @@ func TestCreatePoolWorkflow(t *testing.T) {
 			input.MaxNodesPerGroup == 200 &&
 			input.TenantProjectID == "test-project"
 	})).Return(nil)
+	env.OnActivity("PushActiveDirectoryPasswordActivity", mock.Anything, mock.Anything).Return(&cvpModels.OperationV1beta{Name: "op"}, nil).Maybe()
+	env.OnActivity("PollPushPasswordOperationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("CreateActiveDirectoryInVCPActivity", mock.Anything, mock.Anything).Return(&datamodel.ActiveDirectory{BaseModel: datamodel.BaseModel{ID: 1}}, nil).Maybe()
+	env.OnActivity("UpdatePoolActiveDirectoryIDActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 

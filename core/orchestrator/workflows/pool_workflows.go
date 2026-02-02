@@ -13,9 +13,11 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	active_directory_activities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
+	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
@@ -664,6 +666,13 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
+	}
+	// Sync Active Directory from CVP to VCP if AD exists in CVP but not in VCP
+	if params.ActiveDirectoryId != "" && !params.ADExistsInVCP {
+		err = syncActiveDirectoryInVcp(ctx, params, dbPool)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
 	}
 	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.CreatedPool, dbPool, &createSVMResponse.VLMConfig).Get(dbHbCtx, nil)
 	if err != nil {
@@ -2433,4 +2442,97 @@ func getPoolAttributesAccountName(poolAttributes *datamodel.PoolAttributes) stri
 		return ""
 	}
 	return poolAttributes.AccountName
+}
+
+// syncActiveDirectoryInVcp syncs Active Directory from CVP to VCP when AD exists in CVP but not in VCP
+func syncActiveDirectoryInVcp(ctx workflow.Context, params *common.CreatePoolParams, pool *datamodel.Pool) error {
+	logger := util.GetLogger(ctx)
+	logger.Infof("Syncing Active Directory from CVP to VCP for pool: %s, AD ID: %s", pool.Name, params.ActiveDirectoryId)
+
+	if params.ActiveDirectory == nil {
+		return vsaerrors.New("ActiveDirectory is nil, cannot sync")
+	}
+
+	retryPolicy, err := PopulateRetryPolicyParams(params.LargeCapacity)
+	if err != nil {
+		return ConvertToVSAError(err)
+	}
+
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError", "NonRetryableErr"},
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	adSyncActivity := &active_directory_activities.ActiveDirectorySyncActivity{}
+
+	// Prepare sync parameters
+	syncParams := &active_directory_activities.SyncActiveDirectoryParams{
+		ActiveDirectoryID: params.ActiveDirectoryId,
+		AccountName:       params.AccountName,
+		LocationID:        params.Region,
+		XCorrelationID:    params.XCorrelationID,
+		PoolUUID:          pool.UUID,
+		ActiveDirectory:   params.ActiveDirectory,
+	}
+
+	// Step 1: Call CVP API V1betaPushActiveDirectoryPassword
+	var pushPasswordResult *cvpModels.OperationV1beta
+	err = workflow.ExecuteActivity(ctx, adSyncActivity.PushActiveDirectoryPasswordActivity, syncParams).Get(ctx, &pushPasswordResult)
+	if err != nil {
+		logger.Errorf("Failed to push Active Directory password to CVP: %v", err)
+		return ConvertToVSAError(err)
+	}
+
+	// Step 2: Poll for job to complete
+	if pushPasswordResult != nil {
+		// Prepare polling options
+		pollingOptions := workflow.ActivityOptions{
+			StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+			RetryPolicy: &temporal.RetryPolicy{
+				InitialInterval:        retryPolicy.InitialInterval,
+				BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+				MaximumInterval:        retryPolicy.MaximumInterval,
+				MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+				NonRetryableErrorTypes: []string{"NonRetryableError", "PanicError"},
+			},
+		}
+		pollingCtx := workflow.WithActivityOptions(ctx, pollingOptions)
+
+		// Poll the push password operation until completion
+		err = workflow.ExecuteActivity(pollingCtx, adSyncActivity.PollPushPasswordOperationActivity, syncParams, pushPasswordResult).Get(pollingCtx, nil)
+		if err != nil {
+			logger.Errorf("Failed to poll push password operation: %v", err)
+			return ConvertToVSAError(err)
+		}
+		logger.Info("Push password operation completed successfully")
+	}
+
+	// Step 3: Create ActiveDirectory entry in VCP
+	var createdAD *datamodel.ActiveDirectory
+	err = workflow.ExecuteActivity(ctx, adSyncActivity.CreateActiveDirectoryInVCPActivity, syncParams).Get(ctx, &createdAD)
+	if err != nil {
+		logger.Errorf("Failed to create Active Directory in VCP: %v", err)
+		return ConvertToVSAError(err)
+	}
+
+	if createdAD == nil {
+		return vsaerrors.New("Created ActiveDirectory is nil")
+	}
+
+	// Step 4: Update pool table's activedirectoryID with newly created AD Int ID
+	err = workflow.ExecuteActivity(ctx, adSyncActivity.UpdatePoolActiveDirectoryIDActivity, syncParams, createdAD.ID).Get(ctx, nil)
+	if err != nil {
+		logger.Errorf("Failed to update pool ActiveDirectory ID: %v", err)
+		return ConvertToVSAError(err)
+	}
+
+	logger.Infof("Successfully synced Active Directory from CVP to VCP for pool: %s", pool.Name)
+	return nil
 }
