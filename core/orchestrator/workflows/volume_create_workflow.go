@@ -835,25 +835,50 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 			return nil, cancelErr
 		}
-		// Fetch backup vault, backup, and bucket details from CVP/SDE
-		var backupMetadata *activities.BackupRestoreMetadata
-		err = workflow.ExecuteActivity(ctx, volumeActivity.FetchBackupMetadataForRestore, dbVolume, &dbVolume.Pool, createVolumeParams.BackupPath, region).Get(ctx, &backupMetadata)
+		// FetchBackupVaultMetadataForRestore activity fetches backup vault metadata for restore
+		err = workflow.ExecuteActivity(ctx, volumeActivity.FetchBackupVaultMetadataForRestore, createVolumeParams.BackupPath, dbVolume, region).Get(ctx, &backupVault)
 		if err != nil {
-			log.Errorf("Failed to fetch backup metadata from CVP/SDE: %v", err)
+			log.Errorf("Failed to fetch backup vault metadata for restore: %v", err)
 			return nil, ConvertToVSAError(err)
 		}
 
-		if backupMetadata == nil {
-			log.Error("Backup metadata is nil after fetching from CVP/SDE")
+		if backupVault == nil {
+			return nil, ConvertToVSAError(fmt.Errorf("failed to fetch backup vault metadata: received nil response"))
+		}
+
+		// FetchBackupMetadataForRestore activity fetches backup metadata for restore
+		err = workflow.ExecuteActivity(ctx, volumeActivity.FetchBackupMetadataForRestore, createVolumeParams.BackupPath, backupVault, &dbVolume.Pool, dbVolume).Get(ctx, &backup)
+		if err != nil {
+			log.Errorf("Failed to fetch backup metadata for restore: %v", err)
+			return nil, ConvertToVSAError(err)
+		}
+
+		if backup == nil {
 			return nil, ConvertToVSAError(fmt.Errorf("failed to fetch backup metadata: received nil response"))
 		}
 
-		// Use fetched metadata
-		backupVault = backupMetadata.BackupVault
-		backup = backupMetadata.Backup
+		log.Infof("Successfully fetched backup metadata: backup='%s'", backup.Name)
 
-		log.Infof("Successfully fetched backup metadata from CVP/SDE: vault='%s', backup='%s'",
-			backupVault.Name, backup.Name)
+		// Validate backup is in available or ready state before proceeding with restore
+		// SDE backups use READY state, VCP backups use AVAILABLE state
+		log.Infof("Validating backup state for restore: backup='%s', state='%s'", backup.Name, backup.State)
+		if backup.State != models.LifeCycleStateAvailable && backup.State != models.LifeCycleStateREADY {
+			err = fmt.Errorf("cannot restore from backup '%s' which is not in available or ready state (current state: %s)",
+				backup.Name, backup.State)
+			log.Errorf("Backup state validation failed: %v", err)
+			return nil, ConvertToVSAError(err)
+		}
+
+		// FetchBucketMetadataForRestore activity fetches bucket metadata and returns updated vault
+		err = workflow.ExecuteActivity(ctx, volumeActivity.FetchBucketMetadataForRestore, backup, backupVault).Get(ctx, &backupVault)
+		if err != nil {
+			log.Errorf("Failed to fetch bucket metadata for restore: %v", err)
+			return nil, ConvertToVSAError(err)
+		}
+
+		// Update backup.BackupVault to reference the updated backupVault with populated bucket details
+		backup.BackupVault = backupVault
+		log.Info("Backup with all required metadata fetched successfully", "backup", backup, "backupVault", backupVault)
 
 		// Validate volume size against backup size
 		dbVolume.VolumeAttributes.RestoredBackupID = backup.UUID

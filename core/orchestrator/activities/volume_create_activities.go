@@ -1625,43 +1625,35 @@ func getBackupVaultFromCVPByName(ctx context.Context, backupVaultName string, re
 	// For cross-region: match by DestinationBackupVault (cross_region_backup_vault_name)
 	// For same-region: match by ResourceID (name)
 	for _, bv := range vaults.Payload.BackupVaults {
-		if bv == nil {
-			continue
-		}
-
-		var matched bool
-		var matchField string
+		var found bool
 
 		if isCrossRegion {
 			// when backup path has source vault name
 			if bv.SourceBackupVault != nil {
 				sourceVaultPath := *bv.SourceBackupVault
 				if vaultInfo, err := parseBackupVaultPath(sourceVaultPath); err == nil && vaultInfo.vaultName == backupVaultName {
-					matched = true
-					matchField = "SourceBackupVault"
+					found = true
 					logger.Infof("Cross-region match: extracted '%s' from source vault path '%s'", vaultInfo.vaultName, sourceVaultPath)
 				}
 			}
 
 			// when backup path has destination vault name
-			if !matched && bv.DestinationBackupVault != nil {
+			if !found && bv.DestinationBackupVault != nil {
 				destVaultPath := *bv.DestinationBackupVault
 				if vaultInfo, err := parseBackupVaultPath(destVaultPath); err == nil && vaultInfo.vaultName == backupVaultName {
-					matched = true
-					matchField = "DestinationBackupVault"
+					found = true
 					logger.Infof("Cross-region match: extracted '%s' from destination vault path '%s'", vaultInfo.vaultName, destVaultPath)
 				}
 			}
 		} else {
 			if bv.ResourceID != nil && *bv.ResourceID == backupVaultName {
-				matched = true
-				matchField = "ResourceID"
+				found = true
 			}
 		}
 
-		if matched {
-			logger.Infof("Found backup vault '%s' (matched by %s) with ID '%s' in CVP region '%s'",
-				backupVaultName, matchField, bv.BackupVaultID, region)
+		if found {
+			logger.Infof("Found backup vault '%s' with ID '%s' in CVP region '%s'",
+				backupVaultName, bv.BackupVaultID, region)
 
 			bvModel, err := ConvertToBackupVaultDataModel(bv, region)
 			if err != nil {
@@ -1790,7 +1782,7 @@ func FetchBackupFromCVP(ctx context.Context, backupName string, backupVault *dat
 	protocols, err := fetchVolumeProtocolsFromCVP(ctx, b.VolumeID, region, account, cvpClient, xCorrelationID)
 	if err != nil {
 		// Log warning but don't fail - protocols might not be available if volume is not found
-		// Implement the logic for fetching the volume from both the region, current implementaion only supports fetching from the same region.
+		// Implement the logic for fetching the volume from both the region, current implementation only supports fetching from the same region.
 		logger.Warnf("Failed to fetch protocols for volume '%s' from backup '%s': %v. Protocol compatibility validation will be skipped.", b.VolumeID, backupName, err)
 	} else if len(protocols) > 0 {
 		backup.Attributes.Protocols = protocols
@@ -1890,10 +1882,71 @@ func _getBucket(ctx context.Context, bucketName string, gcpService hyperscaler.G
 	return gcpService.GetBucket(ctx, bucketName)
 }
 
-// FetchBackupMetadataForRestore fetches backup vault, backup, and bucket details from CVP/SDE if not in VCP
-// This activity is used during volume creation when restoring from an SDE/CVP backup
-func (a VolumeCreateActivity) FetchBackupMetadataForRestore(ctx context.Context, volume *datamodel.Volume, pool *datamodel.Pool, backupPath string, region string) (*BackupRestoreMetadata, error) {
-	return _fetchBackupMetadataForRestore(ctx, a.SE, volume, pool, backupPath, region)
+// FetchBackupVaultMetadataForRestore fetches backup vault metadata from VCP DB or CVP
+func (a VolumeCreateActivity) FetchBackupVaultMetadataForRestore(ctx context.Context, backupPath string, volume *datamodel.Volume, region string) (*datamodel.BackupVault, error) {
+	logger := util.GetLogger(ctx)
+
+	// Parse and validate backup path
+	pathInfo, err := parseBackupPath(backupPath)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Debugf("Fetching backup vault metadata for restore: vault='%s', region='%s'", pathInfo.vaultName, pathInfo.region)
+
+	// Fetch backup vault (VCP DB or CVP)
+	backupVault, err := fetchBackupVaultOrFallbackToCVP(ctx, a.SE, pathInfo, region, volume)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Infof("Successfully fetched backup vault metadata: vault='%s'", backupVault.Name)
+	return backupVault, nil
+}
+
+// FetchBackupMetadataForRestore fetches backup metadata from VCP DB or CVP
+func (a VolumeCreateActivity) FetchBackupMetadataForRestore(ctx context.Context, backupPath string, backupVault *datamodel.BackupVault, pool *datamodel.Pool, volume *datamodel.Volume) (*datamodel.Backup, error) {
+	logger := util.GetLogger(ctx)
+
+	// Parse and validate backup path
+	pathInfo, err := parseBackupPath(backupPath)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Infof("Fetching backup metadata for restore: backup='%s'", pathInfo.backupName)
+
+	// Fetch backup (VCP DB or CVP)
+	backup, err := fetchBackupOrFallbackToCVP(ctx, a.SE, pathInfo.backupName, backupVault, pool, volume)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Infof("Successfully fetched backup metadata: backup='%s'", backup.Name)
+	return backup, nil
+}
+
+// FetchBucketMetadataForRestore fetches bucket details for the backup from GCS if needed
+func (a VolumeCreateActivity) FetchBucketMetadataForRestore(ctx context.Context, backup *datamodel.Backup, backupVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+	logger := util.GetLogger(ctx)
+	bucketName := backup.Attributes.BucketName
+	logger.Infof("Fetching bucket metadata for restore: bucket='%s'", bucketName)
+
+	// Ensure bucket details exist in backup vault (may trigger GCS API call)
+	if err := EnsureBucketDetailsExist(ctx, backupVault, bucketName); err != nil {
+		return nil, err
+	}
+
+	// Extract the bucket details
+	bucketDetails := extractBucketDetailsForBackup(backup, backupVault)
+	if bucketDetails == nil {
+		return nil, fmt.Errorf("failed to extract bucket details for bucket '%s'", bucketName)
+	}
+
+	logger.Infof("Successfully fetched bucket metadata: bucket='%s', tenant_project='%s', vault has %d buckets",
+		bucketDetails.BucketName, bucketDetails.TenantProjectNumber, len(backupVault.BucketDetails))
+
+	return backupVault, nil
 }
 
 // backupPathInfo holds parsed components from a backup path
@@ -1907,47 +1960,6 @@ type backupPathInfo struct {
 type backupVaultPathInfo struct {
 	vaultName string
 	fullPath  string
-}
-
-func _fetchBackupMetadataForRestore(ctx context.Context, se database.Storage, volume *datamodel.Volume, pool *datamodel.Pool, backupPath string, region string) (*BackupRestoreMetadata, error) {
-	logger := util.GetLogger(ctx)
-
-	// Parse and validate backup path
-	pathInfo, err := parseBackupPath(backupPath)
-	if err != nil {
-		return nil, err
-	}
-
-	logger.Infof("Fetching backup metadata: vault='%s', backup='%s', region='%s'",
-		pathInfo.vaultName, pathInfo.backupName, pathInfo.region)
-
-	// Step 1: Fetch backup vault (VCP DB or CVP)
-	backupVault, err := fetchBackupVaultOrFallbackToCVP(ctx, se, pathInfo, region, pool, volume)
-	if err != nil {
-		return nil, err
-	}
-
-	// Step 2: Fetch backup (VCP DB or CVP)
-	backup, err := fetchBackupOrFallbackToCVP(ctx, se, pathInfo.backupName, backupVault, pool, volume)
-	if err != nil {
-		return nil, err
-	}
-
-	// Step 3: Extract bucket details for return
-	bucketDetails := extractBucketDetailsForBackup(backup, backupVault)
-
-	bucketName := ""
-	if bucketDetails != nil {
-		bucketName = bucketDetails.BucketName
-	}
-	logger.Infof("Successfully fetched backup metadata: vault='%s', backup='%s', bucket='%s'",
-		backupVault.Name, backup.Name, bucketName)
-
-	return &BackupRestoreMetadata{
-		BackupVault:   backupVault,
-		Backup:        backup,
-		BucketDetails: bucketDetails,
-	}, nil
 }
 
 // ============================================================================
@@ -1971,11 +1983,11 @@ func parseBackupPath(backupPath string) (*backupPathInfo, error) {
 	components := strings.Split(backupPath, "/")
 
 	// Ensure there are enough components to avoid out of range errors
-	if len(components) < MaxBackupPathComponents {
-		return nil, errors.NewUserInputValidationErr("Backup path is not in correct format")
+	if len(components) != MaxBackupPathComponents {
+		return nil, errors.NewUserInputValidationErr("Backup path is not in correct format - expected format: projects/{project}/locations/{location}/backupVaults/{vaultName}/backups/{backupName}")
 	}
 
-	// Normalize all path keywords to ensure correct Google Cloud format
+	// Normalize all path keywords to ensure the correct Google Cloud format
 	// Accept any casing variant but normalize to the standard format
 	components[ProjectsKeyIndex] = "projects"
 	components[LocationsKeyIndex] = "locations"
@@ -2005,11 +2017,11 @@ func parseBackupVaultPath(vaultPath string) (*backupVaultPathInfo, error) {
 	components := strings.Split(vaultPath, "/")
 
 	// Ensure there are enough components
-	if len(components) < MinBackupVaultPathComponents {
+	if len(components) != MinBackupVaultPathComponents {
 		return nil, fmt.Errorf("backup vault path is not in correct format")
 	}
 
-	// Normalize all path keywords to ensure correct Google Cloud format
+	// Normalize all path keywords to ensure the correct Google Cloud format
 	// Accept any casing variant but normalize to the standard format
 	components[ProjectsKeyIndex] = "projects"
 	components[LocationsKeyIndex] = "locations"
@@ -2085,27 +2097,24 @@ func EnsureBucketDetailsExist(ctx context.Context, backupVault *datamodel.Backup
 }
 
 // fetchBackupVaultOrFallbackToCVP fetches a backup vault from VCP database or CVP
-func fetchBackupVaultOrFallbackToCVP(ctx context.Context, se database.Storage, pathInfo *backupPathInfo,
-	volumeRegion string, pool *datamodel.Pool, volume *datamodel.Volume) (*datamodel.BackupVault, error) {
+func fetchBackupVaultOrFallbackToCVP(ctx context.Context, se database.Storage, pathInfo *backupPathInfo, volumeRegion string, volume *datamodel.Volume) (*datamodel.BackupVault, error) {
 	logger := util.GetLogger(ctx)
 	var backupVault *datamodel.BackupVault
 	var err error
 
-	// Try to get from VCP database first
+	// Try to get from a VCP database first
 	if pathInfo.region != volumeRegion {
-		// Cross-region backup restoration
-		logger.Infof("Cross-region backup restoration: vault region='%s', volume region='%s'",
-			pathInfo.region, volumeRegion)
+		logger.Debugf("Checking for CRB BV in VCP DB using cross-region backupVault path extracted from backupPath: %s", pathInfo.backupVaultFullPath)
 		backupVault, err = se.GetBackupVaultByCrossRegionBackupVaultName(ctx, pathInfo.backupVaultFullPath, volume.AccountID)
 	} else {
-		// Same-region backup restoration
+		logger.Debugf("Checking for BV in VCP DB using vault name: %s", pathInfo.vaultName)
 		backupVault, err = se.GetBackupVaultByNameAndOwnerID(ctx, pathInfo.vaultName, fmt.Sprintf("%d", volume.AccountID))
 	}
 
 	// If not found in VCP, fetch from CVP
 	if errors.IsNotFoundErr(err) {
 		logger.Infof("Backup vault '%s' not found in VCP, fetching from CVP", pathInfo.vaultName)
-		return fetchBackupVaultFromCVP(ctx, pathInfo, volumeRegion, pool, volume)
+		return fetchBackupVaultFromCVP(ctx, pathInfo, volumeRegion, volume)
 	}
 
 	if err != nil {
@@ -2120,8 +2129,7 @@ func fetchBackupVaultOrFallbackToCVP(ctx context.Context, se database.Storage, p
 }
 
 // fetchBackupVaultFromCVP fetches a backup vault from CVP and prepares it for use
-func fetchBackupVaultFromCVP(ctx context.Context, pathInfo *backupPathInfo, volumeRegion string,
-	pool *datamodel.Pool, volume *datamodel.Volume) (*datamodel.BackupVault, error) {
+func fetchBackupVaultFromCVP(ctx context.Context, pathInfo *backupPathInfo, volumeRegion string, volume *datamodel.Volume) (*datamodel.BackupVault, error) {
 	logger := util.GetLogger(ctx)
 
 	// Determine if this is a cross-region restoration
@@ -2149,7 +2157,7 @@ func fetchBackupOrFallbackToCVP(ctx context.Context, se database.Storage, backup
 
 	if err == nil {
 		// Found in VCP - ensure bucket details exist
-		if err := ensureBackupHasBucketDetails(ctx, backup, backupVault); err != nil {
+		if err := ensureBackupHasBucketDetails(backup); err != nil {
 			return nil, err
 		}
 		return backup, nil
@@ -2164,29 +2172,14 @@ func fetchBackupOrFallbackToCVP(ctx context.Context, se database.Storage, backup
 	return nil, err
 }
 
-// ensureBackupHasBucketDetails ensures a backup has valid bucket details in its backup vault
-func ensureBackupHasBucketDetails(ctx context.Context, backup *datamodel.Backup, backupVault *datamodel.BackupVault) error {
-	logger := util.GetLogger(ctx)
-
+// ensureBackupHasBucketDetails ensures the backup has a bucket name set in its attribute
+func ensureBackupHasBucketDetails(backup *datamodel.Backup) error {
 	if backup.BackupVault == nil {
 		return fmt.Errorf("backup vault not loaded for backup '%s'", backup.Name)
 	}
-
 	if backup.Attributes == nil || backup.Attributes.BucketName == "" {
 		return fmt.Errorf("bucket name not found in backup attributes for backup '%s'", backup.Name)
 	}
-
-	// Ensure bucket details exist for the backup's bucket
-	if err := EnsureBucketDetailsExist(ctx, backup.BackupVault, backup.Attributes.BucketName); err != nil {
-		return err
-	}
-
-	// Also update the passed backupVault reference
-	if err := EnsureBucketDetailsExist(ctx, backupVault, backup.Attributes.BucketName); err != nil {
-		return err
-	}
-
-	logger.Infof("Backup '%s' has valid bucket details", backup.Name)
 	return nil
 }
 
@@ -2200,13 +2193,9 @@ func fetchAndConvertBackupFromCVP(ctx context.Context, backupName string, backup
 		return nil, fmt.Errorf("failed to fetch backup '%s' from CVP: %w", backupName, err)
 	}
 
-	// Ensure bucket details exist in backup vault
+	// Validate that backup has bucket information
 	if backup.Attributes == nil || backup.Attributes.BucketName == "" {
 		return nil, fmt.Errorf("bucket name is empty in CVP backup, cannot determine tenant project")
-	}
-
-	if err := EnsureBucketDetailsExist(ctx, backupVault, backup.Attributes.BucketName); err != nil {
-		return nil, err
 	}
 
 	logger.Infof("Successfully fetched and converted CVP backup '%s' to VCP model (not persisted)", backupName)

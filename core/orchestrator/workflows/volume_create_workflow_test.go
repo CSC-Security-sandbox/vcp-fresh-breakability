@@ -6694,12 +6694,6 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SDEBackupRestore_FetchMetadata
 		},
 	}
 
-	backupMetadata := &activities.BackupRestoreMetadata{
-		BackupVault:   backupVault,
-		Backup:        backup,
-		BucketDetails: backupVault.BucketDetails[0],
-	}
-
 	params := &common.CreateVolumeParams{
 		AccountName: "test-account",
 		Name:        "test-volume",
@@ -6708,6 +6702,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SDEBackupRestore_FetchMetadata
 	}
 
 	// Register activities
+	s.env.RegisterActivity(volumeActivity.FetchBackupVaultMetadataForRestore)
 	s.env.RegisterActivity(volumeActivity.FetchBackupMetadataForRestore)
 	s.env.RegisterActivity(volumeActivity.CreateSnapshotPolicyInONTAP)
 	s.env.RegisterActivity(volumeActivity.GetHosts)
@@ -6716,7 +6711,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SDEBackupRestore_FetchMetadata
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
-	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupMetadata, nil)
+	s.env.OnActivity(volumeActivity.FetchBackupVaultMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil)
 
 	// Mock remaining activities with errors to stop workflow (we just want to test metadata fetch)
 	s.env.OnActivity(volumeActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("stop workflow"))
@@ -6761,15 +6757,23 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SDEBackupRestore_FetchMetadata
 	}
 
 	// Register activities
+	s.env.RegisterActivity(volumeActivity.FetchBackupVaultMetadataForRestore)
 	s.env.RegisterActivity(volumeActivity.FetchBackupMetadataForRestore)
 	s.env.RegisterActivity(volumeActivity.UpdateVolumeStateInDB)
 	s.env.RegisterActivity(volumeActivity.GetHosts)
+
+	// Create mock backup vault for FetchBackupVaultMetadataForRestore
+	mockBackupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+		Name:      "my-vault",
+	}
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(volumeActivity.FetchBackupVaultMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockBackupVault, nil)
 	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to fetch backup metadata"))
 	s.env.OnActivity(volumeActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -6820,16 +6824,11 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SDEBackupRestore_VolumeTooSmal
 		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid-123"},
 		Name:        "my-backup",
 		SizeInBytes: 10737418240, // 10GB - larger than volume
+		State:       models.LifeCycleStateAvailable,
 		BackupVault: backupVault,
 		Attributes: &datamodel.BackupAttributes{
 			BucketName: "test-bucket",
 		},
-	}
-
-	backupMetadata := &activities.BackupRestoreMetadata{
-		BackupVault:   backupVault,
-		Backup:        backup,
-		BucketDetails: backupVault.BucketDetails[0],
 	}
 
 	params := &common.CreateVolumeParams{
@@ -6840,7 +6839,9 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SDEBackupRestore_VolumeTooSmal
 	}
 
 	// Register activities
+	s.env.RegisterActivity(volumeActivity.FetchBackupVaultMetadataForRestore)
 	s.env.RegisterActivity(volumeActivity.FetchBackupMetadataForRestore)
+	s.env.RegisterActivity(volumeActivity.FetchBucketMetadataForRestore)
 	s.env.RegisterActivity(volumeActivity.UpdateVolumeStateInDB)
 	s.env.RegisterActivity(volumeActivity.GetHosts)
 
@@ -6849,7 +6850,9 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SDEBackupRestore_VolumeTooSmal
 	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
-	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupMetadata, nil)
+	s.env.OnActivity(volumeActivity.FetchBackupVaultMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil)
+	s.env.OnActivity(volumeActivity.FetchBucketMetadataForRestore, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
 	s.env.OnActivity(volumeActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow with nil backup vault and backup
@@ -6904,12 +6907,6 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SDEBackupRestore_CrossRegion()
 		},
 	}
 
-	backupMetadata := &activities.BackupRestoreMetadata{
-		BackupVault:   backupVault,
-		Backup:        backup,
-		BucketDetails: backupVault.BucketDetails[0],
-	}
-
 	params := &common.CreateVolumeParams{
 		AccountName: "test-account",
 		Name:        "test-volume",
@@ -6918,6 +6915,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SDEBackupRestore_CrossRegion()
 	}
 
 	// Register activities
+	s.env.RegisterActivity(volumeActivity.FetchBackupVaultMetadataForRestore)
 	s.env.RegisterActivity(volumeActivity.FetchBackupMetadataForRestore)
 	s.env.RegisterActivity(volumeActivity.CreateSnapshotPolicyInONTAP)
 	s.env.RegisterActivity(volumeActivity.UpdateVolumeStateInDB)
@@ -6927,7 +6925,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SDEBackupRestore_CrossRegion()
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
-	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupMetadata, nil)
+	s.env.OnActivity(volumeActivity.FetchBackupVaultMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil)
 	s.env.OnActivity(volumeActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("stop workflow"))
 	s.env.OnActivity(volumeActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -7025,15 +7024,23 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SDEBackupRestore_NilBackupMeta
 	}
 
 	// Register activities
+	s.env.RegisterActivity(volumeActivity.FetchBackupVaultMetadataForRestore)
 	s.env.RegisterActivity(volumeActivity.FetchBackupMetadataForRestore)
 	s.env.RegisterActivity(volumeActivity.UpdateVolumeStateInDB)
 	s.env.RegisterActivity(volumeActivity.GetHosts)
+
+	// Create mock backup vault for FetchBackupVaultMetadataForRestore
+	mockBackupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+		Name:      "my-vault",
+	}
 
 	// Mock activities - return nil backupMetadata without error (covers lines 659-660)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(volumeActivity.FetchBackupVaultMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockBackupVault, nil)
 	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil) // nil metadata, no error
 	s.env.OnActivity(volumeActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -7095,12 +7102,6 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolumeRestoreCompatibilit
 		},
 	}
 
-	backupMetadata := &activities.BackupRestoreMetadata{
-		BackupVault:   backupVault,
-		Backup:        backup,
-		BucketDetails: backupVault.BucketDetails[0],
-	}
-
 	params := &common.CreateVolumeParams{
 		AccountName:                 "test-account",
 		Name:                        "test-volume",
@@ -7111,6 +7112,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolumeRestoreCompatibilit
 	}
 
 	// Register activities
+	s.env.RegisterActivity(volumeActivity.FetchBackupVaultMetadataForRestore)
 	s.env.RegisterActivity(volumeActivity.FetchBackupMetadataForRestore)
 	s.env.RegisterActivity(volumeActivity.CreateSnapshotPolicyInONTAP)
 	s.env.RegisterActivity(volumeActivity.UpdateVolumeStateInDB)
@@ -7121,7 +7123,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolumeRestoreCompatibilit
 	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
-	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupMetadata, nil)
+	s.env.OnActivity(volumeActivity.FetchBackupVaultMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil)
 	s.env.OnActivity(volumeActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("stop workflow"))
 	s.env.OnActivity(volumeActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -7175,18 +7178,13 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolumeRestoreCompatibilit
 		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid-123"},
 		Name:        "my-backup",
 		SizeInBytes: 1073741824, // 1GB
+		State:       models.LifeCycleStateAvailable,
 		BackupVault: backupVault,
 		Attributes: &datamodel.BackupAttributes{
 			BucketName:               "test-bucket",
 			OntapVolumeStyle:         "flexgroup",
 			ConstituentCountOfBackup: 4, // Backup has 4 constituents
 		},
-	}
-
-	backupMetadata := &activities.BackupRestoreMetadata{
-		BackupVault:   backupVault,
-		Backup:        backup,
-		BucketDetails: backupVault.BucketDetails[0],
 	}
 
 	// Create params with mismatched constituent count (8 vs 4)
@@ -7200,16 +7198,26 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolumeRestoreCompatibilit
 	}
 
 	// Register activities
+	s.env.RegisterActivity(volumeActivity.FetchBackupVaultMetadataForRestore)
 	s.env.RegisterActivity(volumeActivity.FetchBackupMetadataForRestore)
+	s.env.RegisterActivity(volumeActivity.FetchBucketMetadataForRestore)
 	s.env.RegisterActivity(volumeActivity.UpdateVolumeStateInDB)
 	s.env.RegisterActivity(volumeActivity.GetHosts)
+
+	// Create mock backup vault for FetchBackupVaultMetadataForRestore
+	mockBackupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+		Name:      "my-vault",
+	}
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
-	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupMetadata, nil)
+	s.env.OnActivity(volumeActivity.FetchBackupVaultMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockBackupVault, nil)
+	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil)
+	s.env.OnActivity(volumeActivity.FetchBucketMetadataForRestore, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
 	s.env.OnActivity(volumeActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
@@ -7264,17 +7272,12 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolumeRestoreCompatibilit
 		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid-123"},
 		Name:        "my-backup",
 		SizeInBytes: 1073741824, // 1GB
+		State:       models.LifeCycleStateAvailable,
 		BackupVault: backupVault,
 		Attributes: &datamodel.BackupAttributes{
 			BucketName:       "test-bucket",
 			OntapVolumeStyle: "flexvol", // Not flexgroup - incompatible with large capacity
 		},
-	}
-
-	backupMetadata := &activities.BackupRestoreMetadata{
-		BackupVault:   backupVault,
-		Backup:        backup,
-		BucketDetails: backupVault.BucketDetails[0],
 	}
 
 	// Create params with large capacity
@@ -7287,16 +7290,26 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolumeRestoreCompatibilit
 	}
 
 	// Register activities
+	s.env.RegisterActivity(volumeActivity.FetchBackupVaultMetadataForRestore)
 	s.env.RegisterActivity(volumeActivity.FetchBackupMetadataForRestore)
+	s.env.RegisterActivity(volumeActivity.FetchBucketMetadataForRestore)
 	s.env.RegisterActivity(volumeActivity.UpdateVolumeStateInDB)
 	s.env.RegisterActivity(volumeActivity.GetHosts)
+
+	// Create mock backup vault for FetchBackupVaultMetadataForRestore
+	mockBackupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+		Name:      "my-vault",
+	}
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
-	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupMetadata, nil)
+	s.env.OnActivity(volumeActivity.FetchBackupVaultMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockBackupVault, nil)
+	s.env.OnActivity(volumeActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil)
+	s.env.OnActivity(volumeActivity.FetchBucketMetadataForRestore, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
 	s.env.OnActivity(volumeActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
@@ -8588,7 +8601,9 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreFromBackup_Cancellation
 	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
 	s.env.RegisterActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
+	s.env.RegisterActivity(volumeCreateActivity.FetchBackupVaultMetadataForRestore)
 	s.env.RegisterActivity(volumeCreateActivity.FetchBackupMetadataForRestore)
+	s.env.RegisterActivity(volumeCreateActivity.FetchBucketMetadataForRestore)
 	s.env.RegisterActivity(volumeCreateActivity.GetAggregatesFromOntap)
 	s.env.RegisterActivity(volumeCreateActivity.LunSizeUpdateValidation)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit)
@@ -8606,22 +8621,23 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreFromBackup_Cancellation
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("token", nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeCreateActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&activities.BackupRestoreMetadata{
-		BackupVault: &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{UUID: "backup-vault-uuid"},
-			Name:      "test-backup-vault",
-		},
-		Backup: &datamodel.Backup{
-			BaseModel:   datamodel.BaseModel{UUID: "backup-uuid"},
-			Name:        "test-backup",
-			SizeInBytes: volume.SizeInBytes / 2, // Set backup size to be smaller than volume size
-			Attributes: &datamodel.BackupAttributes{
-				Protocols:                volume.VolumeAttributes.Protocols,
-				OntapVolumeStyle:         "flexgroup",
-				ConstituentCountOfBackup: int32(4),
-			},
+	mockBackupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		Name:      "test-backup-vault",
+	}
+	s.env.OnActivity(volumeCreateActivity.FetchBackupVaultMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockBackupVault, nil)
+	s.env.OnActivity(volumeCreateActivity.FetchBackupMetadataForRestore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.Backup{
+		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid"},
+		Name:        "test-backup",
+		State:       models.LifeCycleStateAvailable,
+		SizeInBytes: volume.SizeInBytes / 2, // Set backup size to be smaller than volume size
+		Attributes: &datamodel.BackupAttributes{
+			Protocols:                volume.VolumeAttributes.Protocols,
+			OntapVolumeStyle:         "flexgroup",
+			ConstituentCountOfBackup: int32(4),
 		},
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.FetchBucketMetadataForRestore, mock.Anything, mock.Anything, mock.Anything).Return(mockBackupVault, nil)
 	s.env.OnActivity(volumeCreateActivity.GetAggregatesFromOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&models.AggregateDistributionResult{}, nil)
 	s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)

@@ -9101,7 +9101,6 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup"
-		region := "us-central1"
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{ID: 1},
@@ -9131,19 +9130,18 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 		}
 
 		// Mock the storage calls
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "my-vault", "1").Return(backupVault, nil)
+		// Note: GetBackupVaultByNameAndOwnerID is NOT called because backupVault is passed as a parameter
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "my-backup", int64(1)).Return(backup, nil)
 
 		// Act
-		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, region)
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
 
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.NotNil(t, result.BackupVault)
-		assert.NotNil(t, result.Backup)
 		assert.Equal(t, "my-vault", result.BackupVault.Name)
-		assert.Equal(t, "my-backup", result.Backup.Name)
+		assert.Equal(t, "my-backup", result.Name)
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -9154,7 +9152,6 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 
 		// Invalid backup path - missing components
 		backupPath := "projects/123456/locations/us-central1"
-		region := "us-central1"
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{ID: 1},
@@ -9166,8 +9163,13 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 			VendorID: "gcp-us-central1-a",
 		}
 
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid-123"},
+			Name:      "my-vault",
+		}
+
 		// Act
-		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, region)
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
 
 		// Assert
 		assert.Error(t, err)
@@ -9182,7 +9184,6 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 
 		// Backup is in us-east1, but volume is being created in us-west1
 		backupPath := "projects/123456/locations/us-east1/backupVaults/my-vault/backups/my-backup"
-		volumeRegion := "us-west1"
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{ID: 1},
@@ -9211,19 +9212,18 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 			},
 		}
 
-		// Cross-region backup uses full path
-		backupVaultFullPath := "projects/123456/locations/us-east1/backupVaults/my-vault"
-		mockStorage.On("GetBackupVaultByCrossRegionBackupVaultName", mock.Anything, backupVaultFullPath, int64(1)).Return(backupVault, nil)
+		// Mock the storage calls
+		// Note: GetBackupVaultByCrossRegionBackupVaultName is NOT called because backupVault is passed as a parameter
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "my-backup", int64(1)).Return(backup, nil)
 
 		// Act
-		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, volumeRegion)
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
 
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.NotNil(t, result.BackupVault)
-		assert.NotNil(t, result.Backup)
+		assert.Equal(t, "my-backup", result.Name)
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -9233,51 +9233,6 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup"
-		region := "us-central1"
-
-		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			Account:   &datamodel.Account{Name: "123456"},
-			AccountID: 1,
-		}
-
-		pool := &datamodel.Pool{
-			VendorID: "/projects/123456/locations/us-central1/pools/pool1",
-		}
-
-		// Backup vault not found in VCP
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "my-vault", "1").Return(nil, utilErrors.NewNotFoundErr("Backup vault", nil))
-
-		// Mock CVP client to return an error when fetching backup vault
-		mockBackupVaultClient := backup_vault.NewMockClientService(t)
-		cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
-		originalCreateClient := activities.CvpCreateClient
-		defer func() { activities.CvpCreateClient = originalCreateClient }()
-		activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-
-		// CVP fallback fails with an error
-		mockBackupVaultClient.On("V1betaListBackupVaults", mock.Anything).Return(nil, fmt.Errorf("CVP connection error"))
-
-		// Act
-		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, region)
-
-		// Assert
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "CVP connection error")
-		mockStorage.AssertExpectations(t)
-		mockBackupVaultClient.AssertExpectations(t)
-	})
-
-	t.Run("Error_BackupNotFoundInVCP_CVPFallbackFails", func(t *testing.T) {
-		// Arrange
-		mockStorage := database.NewMockStorage(t)
-		activity := activities.VolumeCreateActivity{SE: mockStorage}
-
-		backupPath := "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup"
-		region := "us-central1"
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{ID: 1},
@@ -9294,8 +9249,56 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 			Name:      "my-vault",
 		}
 
-		// Backup vault found, but backup not found
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "my-vault", "1").Return(backupVault, nil)
+		// Backup not found in VCP - test CVP fallback failure
+		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "my-backup", int64(1)).Return(nil, utilErrors.NewNotFoundErr("Backup", nil))
+
+		// Mock CVP client to return an error when fetching backup
+		mockBackupsClient := backups.NewMockClientService(t)
+		cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient}
+		originalCreateClient := activities.CvpCreateClient
+		defer func() { activities.CvpCreateClient = originalCreateClient }()
+		activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// CVP fallback fails with an error
+		mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(nil, fmt.Errorf("CVP connection error"))
+
+		// Act
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "CVP connection error")
+		mockStorage.AssertExpectations(t)
+		mockBackupsClient.AssertExpectations(t)
+	})
+
+	t.Run("Error_BackupNotFoundInVCP_CVPFallbackFails", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+
+		backupPath := "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup"
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Account:   &datamodel.Account{Name: "123456"},
+			AccountID: 1,
+		}
+
+		pool := &datamodel.Pool{
+			VendorID: "/projects/123456/locations/us-central1/pools/pool1",
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid-123"},
+			Name:      "my-vault",
+		}
+
+		// Backup not found in VCP
+		// Note: GetBackupVaultByNameAndOwnerID is NOT called because backupVault is passed as a parameter
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "my-backup", int64(1)).Return(nil, utilErrors.NewNotFoundErr("Backup", nil))
 
 		// Mock CVP client to return an error when fetching backup
@@ -9311,7 +9314,7 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 		mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(nil, fmt.Errorf("CVP backup fetch error"))
 
 		// Act
-		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, region)
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
 
 		// Assert
 		assert.Error(t, err)
@@ -9327,7 +9330,6 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup"
-		region := "us-central1"
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{ID: 1},
@@ -9354,18 +9356,16 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "my-vault", "1").Return(backupVault, nil)
+		// Note: GetBackupVaultByNameAndOwnerID is NOT called because backupVault is passed as a parameter
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "my-backup", int64(1)).Return(backup, nil)
 
-		// Note: This test will fail at GCS bucket fetch since we don't have real GCS
-		// In a real scenario, we'd mock the GCS service
-
 		// Act
-		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, region)
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
 
-		// Assert - expecting error from GCS call (no mock for GCS service)
-		assert.Error(t, err)
-		assert.Nil(t, result)
+		// Assert - should succeed because backup is found and bucket details validation happens in ensureBackupHasBucketDetails
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "my-backup", result.Name)
 		mockStorage.AssertExpectations(t)
 	})
 }
@@ -9502,32 +9502,57 @@ func TestFetchBackupMetadataForRestore_ErrorCases(t *testing.T) {
 		}
 		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
 
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid-123"},
+			Name:      "test-vault",
+		}
+
+		// Mock backup fetch to return an error
 		expectedError := errors.New("database error")
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(nil, expectedError)
+		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(nil, expectedError)
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "database error")
 		mockStorage.AssertExpectations(t)
 	})
 
-	t.Run("Error_NilBackupVault", func(t *testing.T) {
-		// This test covers line 1845
+	t.Run("Error_NilBackup", func(t *testing.T) {
+		// Test when backup is not found and returns nil
 		mockStorage := database.NewMockStorage(t)
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{ID: 1},
 			AccountID: 1,
+			Account:   &datamodel.Account{Name: "123456"},
 		}
-		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
+		pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
 
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(nil, nil)
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid-123"},
+			Name:      "test-vault",
+		}
+
+		// Mock backup not found in VCP
+		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(nil, utilErrors.NewNotFoundErr("Backup", nil))
+
+		// Mock CVP client to also return not found
+		mockBackupsClient := backups.NewMockClientService(t)
+		cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient}
+		originalCreateClient := activities.CvpCreateClient
+		defer func() { activities.CvpCreateClient = originalCreateClient }()
+		activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(nil, fmt.Errorf("backup not found in CVP"))
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -9535,7 +9560,7 @@ func TestFetchBackupMetadataForRestore_ErrorCases(t *testing.T) {
 	})
 
 	t.Run("Error_BackupNonNotFoundError", func(t *testing.T) {
-		// This test covers line 1901
+		// Test when backup fetch returns a non-NotFound error (e.g., database error)
 		mockStorage := database.NewMockStorage(t)
 		backupVault := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{ID: 1},
@@ -9548,20 +9573,21 @@ func TestFetchBackupMetadataForRestore_ErrorCases(t *testing.T) {
 		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
 
 		expectedError := errors.New("database error")
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(backupVault, nil)
+		// Note: GetBackupVaultByNameAndOwnerID is NOT called because backupVault is passed as a parameter
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(nil, expectedError)
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "database error")
 		mockStorage.AssertExpectations(t)
 	})
 
 	t.Run("Error_NilBackupVaultInBackup", func(t *testing.T) {
-		// This test covers line 1909
+		// Test when backup has nil BackupVault
 		mockStorage := database.NewMockStorage(t)
 		backupVaultFromDB := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{ID: 1},
@@ -9581,12 +9607,12 @@ func TestFetchBackupMetadataForRestore_ErrorCases(t *testing.T) {
 		}
 		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
 
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(backupVaultFromDB, nil)
+		// Note: GetBackupVaultByNameAndOwnerID is NOT called because backupVault is passed as a parameter
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(backupFromDB, nil)
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVaultFromDB, pool, volume)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -9617,12 +9643,12 @@ func TestFetchBackupMetadataForRestore_ErrorCases(t *testing.T) {
 		}
 		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
 
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(backupVaultFromDB, nil)
+		// Note: GetBackupVaultByNameAndOwnerID is NOT called because backupVault is passed as a parameter
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(backupFromDB, nil)
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVaultFromDB, pool, volume)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -9631,20 +9657,20 @@ func TestFetchBackupMetadataForRestore_ErrorCases(t *testing.T) {
 	})
 
 	t.Run("Success_FallbackToFirstBucket", func(t *testing.T) {
-		// This test covers line 1970
+		// Test when backup has a bucket name that exists in backup vault's bucket details
 		mockStorage := database.NewMockStorage(t)
 		backupVaultFromDB := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{ID: 1},
 			BucketDetails: datamodel.BucketDetailsArray{
-				{BucketName: "bucket1"},
-				{BucketName: "bucket2"},
+				{BucketName: "bucket1", TenantProjectNumber: "111111"},
+				{BucketName: "bucket2", TenantProjectNumber: "222222"},
 			},
 		}
 		backupFromDB := &datamodel.Backup{
 			Name:        "test-backup",
 			BackupVault: backupVaultFromDB,
 			Attributes: &datamodel.BackupAttributes{
-				BucketName: "nonexistent-bucket",
+				BucketName: "bucket1", // Use existing bucket
 			},
 		}
 
@@ -9655,36 +9681,16 @@ func TestFetchBackupMetadataForRestore_ErrorCases(t *testing.T) {
 		}
 		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
 
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(backupVaultFromDB, nil)
+		// Note: GetBackupVaultByNameAndOwnerID is NOT called because backupVault is passed as a parameter
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(backupFromDB, nil)
-
-		// Replace GetGCPService and GetBucket to return our mocked functions
-		originalGetGCPService := hyperscaler2.GetGCPService
-		originalGetBucket := activities.GetBucket
-		defer func() {
-			hyperscaler2.GetGCPService = originalGetGCPService
-			activities.GetBucket = originalGetBucket
-		}()
-
-		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return &google.GcpServices{}, nil
-		}
-
-		activities.GetBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (*hyperscaler.BucketDetails, error) {
-			return &hyperscaler.BucketDetails{
-				Name:          bucketName,
-				ProjectNumber: "999999999",
-				SatisfiesPzi:  false,
-				SatisfiesPzs:  false,
-			}, nil
-		}
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVaultFromDB, pool, volume)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
+		assert.Equal(t, "test-backup", result.Name)
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -9710,37 +9716,19 @@ func TestFetchBackupMetadataForRestore_ErrorCases(t *testing.T) {
 		}
 		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
 
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(backupVaultFromDB, nil)
+		// Note: GetBackupVaultByNameAndOwnerID is NOT called because backupVault is passed as a parameter
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(backupFromDB, nil)
-
-		// Replace GetGCPService and GetBucket to return our mocked functions
-		originalGetGCPService := hyperscaler2.GetGCPService
-		originalGetBucket := activities.GetBucket
-		defer func() {
-			hyperscaler2.GetGCPService = originalGetGCPService
-			activities.GetBucket = originalGetBucket
-		}()
-
-		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return &google.GcpServices{}, nil
-		}
-
-		activities.GetBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (*hyperscaler.BucketDetails, error) {
-			return &hyperscaler.BucketDetails{
-				Name:          bucketName,
-				ProjectNumber: "999999999",
-				SatisfiesPzi:  false,
-				SatisfiesPzs:  false,
-			}, nil
-		}
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVaultFromDB, pool, volume)
 
-		// Should succeed but bucket details will be nil
+		// Should succeed - FetchBackupMetadataForRestore only validates that bucket name exists in attributes
+		// Actual bucket details fetching is done by FetchBucketMetadataForRestore activity
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
+		assert.Equal(t, "test-backup", result.Name)
+		assert.Equal(t, "test-bucket", result.Attributes.BucketName)
 		mockStorage.AssertExpectations(t)
 	})
 }
@@ -9845,7 +9833,6 @@ func TestEnsureBucketDetailsExist_NilBucketDetails(t *testing.T) {
 // These tests cover missing lines: 1957, 1970
 func TestExtractBucketDetailsForBackup_EdgeCases(t *testing.T) {
 	t.Run("NilBucketDetails", func(t *testing.T) {
-		// This test covers line 1957
 		backupVault := &datamodel.BackupVault{
 			BaseModel:     datamodel.BaseModel{ID: 1},
 			BucketDetails: nil,
@@ -9857,15 +9844,12 @@ func TestExtractBucketDetailsForBackup_EdgeCases(t *testing.T) {
 				BucketName: "test-bucket",
 			},
 		}
-		// Ensure backupVault ID is set correctly for the mock
 		backupVault.ID = 1
 
-		// Test indirectly through FetchBackupMetadataForRestore
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
 		ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
 
-		// Mock GCP service and GetBucket to handle bucket fetch
 		originalGetGCPService := hyperscaler2.GetGCPService
 		originalGetBucket := activities.GetBucket
 		defer func() {
@@ -9877,7 +9861,6 @@ func TestExtractBucketDetailsForBackup_EdgeCases(t *testing.T) {
 			return &google.GcpServices{}, nil
 		}
 
-		// Mock GetBucket to return valid bucket details
 		activities.GetBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (*hyperscaler.BucketDetails, error) {
 			return &hyperscaler.BucketDetails{
 				Name:          bucketName,
@@ -9888,54 +9871,71 @@ func TestExtractBucketDetailsForBackup_EdgeCases(t *testing.T) {
 		}
 
 		mockStorage := database.NewMockStorage(t)
-		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			AccountID: 1,
-			Account:   &datamodel.Account{Name: "123456"},
-		}
-		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
-
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(backupVault, nil)
-		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(backup, nil)
-
-		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
+		result, err := activity.FetchBucketMetadataForRestore(ctx, backup, backupVault)
 
-		// Should succeed - bucket details will be populated from GCS
-		// extractBucketDetailsForBackup will return the bucket details that match the backup's bucket name
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		// After fetching from GCS, bucket details should be populated in backupVault
-		// and extractBucketDetailsForBackup should return the matching bucket details
-		assert.NotNil(t, result.BucketDetails, "Bucket details should be populated after fetching from GCS")
-		assert.Equal(t, "test-bucket", result.BucketDetails.BucketName)
-		assert.Equal(t, "123456789", result.BucketDetails.TenantProjectNumber)
+		assert.NotNil(t, result.BucketDetails)
+		assert.Equal(t, 1, len(result.BucketDetails))
+		assert.Equal(t, "test-bucket", result.BucketDetails[0].BucketName)
+		assert.Equal(t, "123456789", result.BucketDetails[0].TenantProjectNumber)
 		mockStorage.AssertExpectations(t)
 	})
 
-	t.Run("FallbackToFirstBucket", func(t *testing.T) {
-		// This test covers line 1970
+	t.Run("BucketAlreadyExists", func(t *testing.T) {
 		backup := &datamodel.Backup{
 			Name: "test-backup",
 			BackupVault: &datamodel.BackupVault{
 				BaseModel: datamodel.BaseModel{ID: 1},
 			},
 			Attributes: &datamodel.BackupAttributes{
-				BucketName: "nonexistent-bucket",
+				BucketName: "bucket1",
 			},
 		}
 		backupVault := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{ID: 1},
 			BucketDetails: datamodel.BucketDetailsArray{
-				{BucketName: "bucket1"},
-				{BucketName: "bucket2"},
+				{BucketName: "bucket1", TenantProjectNumber: "111111"},
+				{BucketName: "bucket2", TenantProjectNumber: "222222"},
 			},
 		}
 
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
 		ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
+
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		result, err := activity.FetchBucketMetadataForRestore(ctx, backup, backupVault)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 2, len(result.BucketDetails))
+		assert.Equal(t, "bucket1", result.BucketDetails[0].BucketName)
+		assert.Equal(t, "111111", result.BucketDetails[0].TenantProjectNumber)
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+func TestEnsureBackupHasBucketDetails_ErrorCases(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
+	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
+
+	t.Run("Error_BackupMissingBucketName", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			Name: "test-backup",
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{ID: 1},
+			},
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "",
+			},
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		}
 
 		mockStorage := database.NewMockStorage(t)
 		volume := &datamodel.Volume{
@@ -9945,56 +9945,22 @@ func TestExtractBucketDetailsForBackup_EdgeCases(t *testing.T) {
 		}
 		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
 
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(backupVault, nil)
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(backup, nil)
-
-		originalGetGCPService := hyperscaler2.GetGCPService
-		originalGetBucket := activities.GetBucket
-		defer func() {
-			hyperscaler2.GetGCPService = originalGetGCPService
-			activities.GetBucket = originalGetBucket
-		}()
-
-		activities.GetBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (*hyperscaler.BucketDetails, error) {
-			return &hyperscaler.BucketDetails{
-				Name:          bucketName,
-				ProjectNumber: "999999999",
-				SatisfiesPzi:  false,
-				SatisfiesPzs:  false,
-			}, nil
-		}
-
-		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return &google.GcpServices{}, nil
-		}
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
 
-		// Should succeed and fallback to first bucket (bucket1) since nonexistent-bucket is not in BucketDetails
-		// but will be added after fetching from GCS, so extractBucketDetailsForBackup will find it
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.NotNil(t, result.BucketDetails)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "bucket name not found in backup attributes")
 		mockStorage.AssertExpectations(t)
 	})
-}
 
-// TestEnsureBackupHasBucketDetails_ErrorCases tests ensureBackupHasBucketDetails error case
-// This test covers missing line: 1923
-func TestEnsureBackupHasBucketDetails_ErrorCases(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	t.Run("Error_EnsureBucketDetailsExistFailsOnBackupVault", func(t *testing.T) {
-		// This test covers line 1923 - second call to EnsureBucketDetailsExist fails
+	t.Run("Error_BackupVaultNotLoaded", func(t *testing.T) {
 		backup := &datamodel.Backup{
-			Name: "test-backup",
-			BackupVault: &datamodel.BackupVault{
-				BaseModel: datamodel.BaseModel{ID: 1},
-			},
+			Name:        "test-backup",
+			BackupVault: nil,
 			Attributes: &datamodel.BackupAttributes{
 				BucketName: "test-bucket",
 			},
@@ -10011,48 +9977,15 @@ func TestEnsureBackupHasBucketDetails_ErrorCases(t *testing.T) {
 		}
 		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
 
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(backupVault, nil)
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(backup, nil)
-
-		// Mock GCP service and GetBucket to fail on second call (for backupVault parameter)
-		// First call succeeds (for backup.BackupVault), second call fails (for backupVault)
-		callCount := 0
-		originalGetGCPService := hyperscaler2.GetGCPService
-		originalGetBucket := activities.GetBucket
-		defer func() {
-			hyperscaler2.GetGCPService = originalGetGCPService
-			activities.GetBucket = originalGetBucket
-		}()
-
-		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return &google.GcpServices{}, nil
-		}
-
-		// Mock GetBucket - first call succeeds, second call fails
-		activities.GetBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (*hyperscaler.BucketDetails, error) {
-			callCount++
-			if callCount == 1 {
-				// First call succeeds
-				return &hyperscaler.BucketDetails{
-					Name:          bucketName,
-					ProjectNumber: "123456789",
-					SatisfiesPzi:  false,
-					SatisfiesPzs:  false,
-				}, nil
-			} else {
-				// Second call fails
-				return nil, fmt.Errorf("internal server error")
-			}
-		}
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
 
-		// Should fail on second EnsureBucketDetailsExist call (line 1923)
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "failed to fetch bucket details from GCS")
+		assert.Contains(t, err.Error(), "backup vault not loaded")
 		mockStorage.AssertExpectations(t)
 	})
 }
@@ -10162,42 +10095,16 @@ func TestExtractBucketDetailsForBackup_Fallback(t *testing.T) {
 		}
 		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
 
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(backupVault, nil)
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(backup, nil)
-
-		// Mock GCP service and GetBucket for fetching bucket details from GCS
-		originalGetGCPService := hyperscaler2.GetGCPService
-		originalGetBucket := activities.GetBucket
-		defer func() {
-			hyperscaler2.GetGCPService = originalGetGCPService
-			activities.GetBucket = originalGetBucket
-		}()
-
-		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return &google.GcpServices{}, nil
-		}
-
-		// Mock GetBucket to return valid bucket details
-		activities.GetBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (*hyperscaler.BucketDetails, error) {
-			return &hyperscaler.BucketDetails{
-				Name:          bucketName,
-				ProjectNumber: "999999999",
-				SatisfiesPzi:  false,
-				SatisfiesPzs:  false,
-			}, nil
-		}
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
 
-		// Should succeed - bucket will be fetched from GCS and added to backup vault,
-		// then extractBucketDetailsForBackup will find it and return it (not fallback)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		assert.NotNil(t, result.BucketDetails)
-		// After fetching from GCS, the bucket will be added, so extractBucketDetailsForBackup will find it
-		assert.Equal(t, "nonexistent-bucket", result.BucketDetails.BucketName)
+		assert.Equal(t, "nonexistent-bucket", result.Attributes.BucketName)
+		assert.Equal(t, 2, len(backupVault.BucketDetails))
 		mockStorage.AssertExpectations(t)
 	})
 }
@@ -10241,31 +10148,22 @@ func TestEnsureBucketDetailsExist_EmptyBucketDetails(t *testing.T) {
 	})
 }
 
-// TestFetchBackupVaultFromCVP tests fetchBackupVaultFromCVP function
-// This test covers missing lines: 1864, 1868-1870, 1873-1874, 1876
-// Note: fetchBackupVaultFromCVP is private, so we test it indirectly through FetchBackupMetadataForRestore
 func TestFetchBackupVaultFromCVP(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
 	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
 
 	t.Run("Success_SameRegion_UsesPoolRegion", func(t *testing.T) {
-		// This test covers lines 1864, 1868-1870, 1873-1874, 1876
-		// When same region, it uses pool's region (line 1864)
-		// Then calls getBackupVaultFromCVPByName (line 1868)
-		// Sets AccountID (line 1873) and logs success (line 1874, 1876)
 		mockStorage := database.NewMockStorage(t)
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{ID: 1},
 			AccountID: 1,
 			Account:   &datamodel.Account{Name: "123456"},
 		}
-		pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
 
-		// Return NotFoundErr to trigger CVP fetch
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(nil, utilErrors.NewNotFoundErr("Backup vault", nil)).Once()
+		vaultName := "test-vault"
+		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(nil, utilErrors.NewNotFoundErr("Backup vault", &vaultName)).Once()
 
-		// Mock CVP client to return an error (simulating CVP failure)
 		mockBackupVaultClient := backup_vault.NewMockClientService(t)
 		cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
 		originalCreateClient := activities.CvpCreateClient
@@ -10274,14 +10172,12 @@ func TestFetchBackupVaultFromCVP(t *testing.T) {
 			return *cvpClient
 		}
 
-		// CVP returns error to test error handling path
 		mockBackupVaultClient.On("V1betaListBackupVaults", mock.Anything).Return(nil, fmt.Errorf("CVP fetch error"))
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
+		result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, "us-central1")
 
-		// Should get an error from CVP fallback
 		assert.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "CVP fetch error")
@@ -10501,16 +10397,6 @@ func TestEnsureBackupHasBucketDetails_ErrorPath(t *testing.T) {
 	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
 	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
 
-	originalGetGCPService := hyperscaler2.GetGCPService
-	defer func() {
-		hyperscaler2.GetGCPService = originalGetGCPService
-	}()
-
-	// Mock GCP service to fail when fetching bucket details
-	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-		return nil, fmt.Errorf("failed to get GCP service")
-	}
-
 	backupVault := &datamodel.BackupVault{
 		BaseModel: datamodel.BaseModel{ID: 1},
 	}
@@ -10522,7 +10408,6 @@ func TestEnsureBackupHasBucketDetails_ErrorPath(t *testing.T) {
 		},
 	}
 
-	// Test indirectly through FetchBackupMetadataForRestore
 	mockStorage := database.NewMockStorage(t)
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{ID: 1},
@@ -10531,17 +10416,16 @@ func TestEnsureBackupHasBucketDetails_ErrorPath(t *testing.T) {
 	}
 	pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
 
-	mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(backupVault, nil)
 	mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(backup, nil)
 
 	backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	result, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
+	result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
 
-	// This should fail at line 1923 when EnsureBucketDetailsExist is called
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "failed to fetch bucket details from GCS")
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "test-backup", result.Name)
+	assert.Equal(t, "test-bucket", result.Attributes.BucketName)
 	mockStorage.AssertExpectations(t)
 }
 
@@ -10553,22 +10437,13 @@ func TestEnsureBackupHasBucketDetails_ErrorPath(t *testing.T) {
 // 3. Fail if GCS fetch fails (never reaches extractBucketDetailsForBackup)
 // The fallback is defensive code for edge cases not reachable through this flow.
 
-// TestGetBackupVaultFromCVPByName_Success tests successful retrieval of backup vault from CVP
-// This test covers lines: 1481, 1484-1486, 1488, 1492, 1509, 1513-1515, 1518-1520, 1523
 func TestGetBackupVaultFromCVPByName_Success(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
 	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
 
-	// Setup mock CVP client
 	mockBackupVaultClient := backup_vault.NewMockClientService(t)
-	mockBackupsClient := backups.NewMockClientService(t)
-	mockVolumesClient := volumes.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{
-		BackupVault: mockBackupVaultClient,
-		Backups:     mockBackupsClient,
-		Volumes:     mockVolumesClient,
-	}
+	cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
 
 	originalCreateClient := activities.CvpCreateClient
 	defer func() { activities.CvpCreateClient = originalCreateClient }()
@@ -10595,68 +10470,26 @@ func TestGetBackupVaultFromCVPByName_Success(t *testing.T) {
 		AccountID: 1,
 		Account:   &datamodel.Account{Name: "123456"},
 	}
-	pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
 
-	// Prepare for FetchBackupMetadataForRestore call - backup vault not found in VCP, fallback to CVP
 	mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, vaultName, "1").Return(nil, utilErrors.NewNotFoundErr("BackupVault", &vaultName))
-
-	// After fetching vault from CVP, the code tries to fetch backup from VCP - mock that to fail
-	backupName := "test-backup"
-	mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, backupName, int64(0)).Return(nil, utilErrors.NewNotFoundErr("Backup", &backupName))
-
-	// Mock the Backups client to return a backup when FetchBackupFromCVP is called
-	backupID := "backup-uuid-123"
-	bucketName := "test-bucket"
-	volumeID := "volume-uuid-123"
-
-	// Mock V1betaListVolumes call for protocol fetching (will be called during FetchBackupFromCVP)
-	// Return a volume with protocols
-	mockVolumesClient.On("V1betaListVolumes", mock.Anything).Return(&volumes.V1betaListVolumesOK{
-		Payload: &volumes.V1betaListVolumesOKBody{
-			Volumes: []*cvpModels.VolumeV1beta{
-				{
-					VolumeID:  volumeID,
-					Protocols: []cvpModels.ProtocolsV1beta{cvpModels.ProtocolsV1betaNFSV3},
-				},
-			},
-		},
-	}, nil)
-	mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(&backups.V1betaListBackupsOK{
-		Payload: &backups.V1betaListBackupsOKBody{
-			Backups: []*cvpModels.BackupV1beta{
-				{
-					BackupID:         backupID,
-					BucketName:       bucketName,
-					VolumeID:         volumeID,
-					Created:          strfmt.DateTime(time.Now().UTC()),
-					State:            "Available",
-					BackupType:       "adhoc",
-					Description:      nillable.ToPointer("test backup"),
-					VolumeUsageBytes: nillable.ToPointer(int64(1000)),
-				},
-			},
-		},
-	}, nil)
 
 	backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	_, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
+	result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, "us-central1")
 
-	// The test validates that getBackupVaultFromCVPByName is called and the CVP mock was invoked correctly
-	// We expect an error since we haven't mocked the full flow, but the key assertion is that CVP was called
-	assert.Error(t, err)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, vaultName, result.Name)
+	assert.Equal(t, vaultUUID, result.UUID)
+	mockStorage.AssertExpectations(t)
 	mockBackupVaultClient.AssertExpectations(t)
-	mockBackupsClient.AssertExpectations(t)
 }
 
-// TestGetBackupVaultFromCVPByName_CVPError tests CVP client error
-// This test covers lines: 1499-1501
 func TestGetBackupVaultFromCVPByName_CVPError(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
 	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
 
-	// Setup mock CVP client to return error
 	mockBackupVaultClient := backup_vault.NewMockClientService(t)
 	cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
 
@@ -10674,30 +10507,26 @@ func TestGetBackupVaultFromCVPByName_CVPError(t *testing.T) {
 		AccountID: 1,
 		Account:   &datamodel.Account{Name: "123456"},
 	}
-	pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
 
-	// Backup vault not found in VCP, fallback to CVP which returns error
 	vaultName := "test-vault"
 	mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(nil, utilErrors.NewNotFoundErr("BackupVault", &vaultName))
 
 	backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	_, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
+	result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, "us-central1")
 
-	// This validates lines 1499-1501 - CVP error is returned
 	assert.Error(t, err)
+	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "CVP connection error")
+	mockStorage.AssertExpectations(t)
 	mockBackupVaultClient.AssertExpectations(t)
 }
 
-// TestGetBackupVaultFromCVPByName_NilPayload tests nil payload from CVP
-// This test covers lines: 1504-1506
 func TestGetBackupVaultFromCVPByName_NilPayload(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
 	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
 
-	// Setup mock CVP client to return nil payload
 	mockBackupVaultClient := backup_vault.NewMockClientService(t)
 	cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
 
@@ -10717,29 +10546,26 @@ func TestGetBackupVaultFromCVPByName_NilPayload(t *testing.T) {
 		AccountID: 1,
 		Account:   &datamodel.Account{Name: "123456"},
 	}
-	pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
 
 	vaultName := "test-vault"
 	mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(nil, utilErrors.NewNotFoundErr("BackupVault", &vaultName))
 
 	backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	_, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
+	result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, "us-central1")
 
-	// This validates lines 1504-1506 - nil payload error
 	assert.Error(t, err)
+	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "Backup vault")
+	mockStorage.AssertExpectations(t)
 	mockBackupVaultClient.AssertExpectations(t)
 }
 
-// TestGetBackupVaultFromCVPByName_VaultNotFound tests backup vault not found in CVP
-// This test covers lines: 1528-1529
 func TestGetBackupVaultFromCVPByName_VaultNotFound(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
 	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
 
-	// Setup mock CVP client to return empty list
 	mockBackupVaultClient := backup_vault.NewMockClientService(t)
 	cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
 
@@ -10766,18 +10592,18 @@ func TestGetBackupVaultFromCVPByName_VaultNotFound(t *testing.T) {
 		AccountID: 1,
 		Account:   &datamodel.Account{Name: "123456"},
 	}
-	pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
 
 	vaultName := "test-vault"
 	mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(nil, utilErrors.NewNotFoundErr("BackupVault", &vaultName))
 
 	backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	_, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
+	result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, "us-central1")
 
-	// This validates lines 1528-1529 - vault not found in CVP list
 	assert.Error(t, err)
+	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "Backup vault")
+	mockStorage.AssertExpectations(t)
 	mockBackupVaultClient.AssertExpectations(t)
 }
 
@@ -11184,7 +11010,7 @@ func TestExtractBucketDetailsForBackup_FallbackToFirst(t *testing.T) {
 }
 
 // TestFetchAndConvertBackupFromCVP_EmptyBucketAttributes tests empty bucket attributes error
-// This test covers lines: 1942-1943
+// This test covers the case where CVP returns a backup with empty bucket name
 func TestFetchAndConvertBackupFromCVP_EmptyBucketAttributes(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
@@ -11199,7 +11025,7 @@ func TestFetchAndConvertBackupFromCVP_EmptyBucketAttributes(t *testing.T) {
 		return *cvpClient
 	}
 
-	// Return backup with empty bucket - FetchBackupFromCVP will fail at 1592-1595
+	// Return backup with empty bucket - FetchBackupFromCVP will fail
 	mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(&backups.V1betaListBackupsOK{
 		Payload: &backups.V1betaListBackupsOKBody{
 			Backups: []*cvpModels.BackupV1beta{
@@ -11227,36 +11053,27 @@ func TestFetchAndConvertBackupFromCVP_EmptyBucketAttributes(t *testing.T) {
 	}
 
 	// Setup mock for indirect test through FetchBackupMetadataForRestore
-	mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(backupVault, nil)
 	backupName := "test-backup"
 	mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(nil, utilErrors.NewNotFoundErr("Backup", &backupName))
 
 	backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	_, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-central1")
+	_, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
 
-	// This validates lines 1942-1943 indirectly through the CVP fallback
+	// This validates that CVP returns error for empty bucket name
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "empty bucket name")
+	mockStorage.AssertExpectations(t)
 	mockBackupsClient.AssertExpectations(t)
 }
 
-// TestFetchBackupVaultOrFallbackToCVP_CrossRegion tests cross-region backup vault fetch
-// This test covers lines: 1864, 1868-1870, 1873-1874, 1876
 func TestFetchBackupVaultOrFallbackToCVP_CrossRegion(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
 	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
 
-	// Setup mock CVP client
 	mockBackupVaultClient := backup_vault.NewMockClientService(t)
-	mockBackupsClient := backups.NewMockClientService(t)
-	mockVolumesClient := volumes.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{
-		BackupVault: mockBackupVaultClient,
-		Backups:     mockBackupsClient,
-		Volumes:     mockVolumesClient,
-	}
+	cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
 
 	originalCreateClient := activities.CvpCreateClient
 	defer func() { activities.CvpCreateClient = originalCreateClient }()
@@ -11266,11 +11083,9 @@ func TestFetchBackupVaultOrFallbackToCVP_CrossRegion(t *testing.T) {
 
 	vaultName := "test-vault"
 	vaultUUID := "12345678-1234-1234-1234-123456789012"
-	// For cross-region restore: backup path has source vault name (us-central1)
-	// but pool is in destination region (us-west1)
-	// CVP is queried in pool's region and returns vaults with SourceBackupVault pointing to source
 	sourceBackupVaultPath := "projects/123456/locations/us-central1/backupVaults/test-vault"
 	destBackupVaultPath := "projects/123456/locations/us-west1/backupVaults/test-vault-destination-1234"
+
 	mockBackupVaultClient.On("V1betaListBackupVaults", mock.Anything).Return(&backup_vault.V1betaListBackupVaultsOK{
 		Payload: &backup_vault.V1betaListBackupVaultsOKBody{
 			BackupVaults: []*cvpModels.BackupVaultV1beta{
@@ -11290,55 +11105,19 @@ func TestFetchBackupVaultOrFallbackToCVP_CrossRegion(t *testing.T) {
 		AccountID: 1,
 		Account:   &datamodel.Account{Name: "123456"},
 	}
-	// Cross-region: pool is in us-west1, but backup path is in us-central1
-	pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-west1/pools/pool1"}
 
-	// Backup vault not found in VCP, fallback to CVP
-	// For cross-region, the code calls GetBackupVaultByCrossRegionBackupVaultName
 	backupVaultFullPath := "projects/123456/locations/us-central1/backupVaults/test-vault"
 	mockStorage.On("GetBackupVaultByCrossRegionBackupVaultName", mock.Anything, backupVaultFullPath, int64(1)).Return(nil, utilErrors.NewNotFoundErr("BackupVault", &vaultName))
 
-	// After fetching vault from CVP, the code tries to fetch backup from VCP - mock that to fail
-	backupName := "test-backup"
-	mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, backupName, int64(0)).Return(nil, utilErrors.NewNotFoundErr("Backup", &backupName))
-
-	// Mock the Backups client to return a backup
-	mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(&backups.V1betaListBackupsOK{
-		Payload: &backups.V1betaListBackupsOKBody{
-			Backups: []*cvpModels.BackupV1beta{
-				{
-					BackupID:     "backup-uuid-123",
-					BucketName:   "test-bucket",
-					SourceVolume: "source-volume",
-					VolumeID:     "volume-uuid-123",
-					State:        "READY",
-				},
-			},
-		},
-	}, nil)
-
-	// Mock V1betaListVolumes call for protocol fetching - return a volume with protocols
-	mockVolumesClient.On("V1betaListVolumes", mock.Anything).Return(&volumes.V1betaListVolumesOK{
-		Payload: &volumes.V1betaListVolumesOKBody{
-			Volumes: []*cvpModels.VolumeV1beta{
-				{
-					VolumeID:  "volume-uuid-123",
-					Protocols: []cvpModels.ProtocolsV1beta{cvpModels.ProtocolsV1betaNFSV3},
-				},
-			},
-		},
-	}, nil)
-
-	// Cross-region backup path
 	backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	_, err := activity.FetchBackupMetadataForRestore(ctx, volume, pool, backupPath, "us-west1")
+	result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, "us-west1")
 
-	// This validates lines 1864, 1868-1870, 1873-1874, 1876
-	// The vault is fetched from CVP using the path's region (us-central1)
-	assert.Error(t, err) // Will fail at ensureBucketDetailsExist stage, but CVP vault and backup calls were made
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, vaultUUID, result.UUID)
+	mockStorage.AssertExpectations(t)
 	mockBackupVaultClient.AssertExpectations(t)
-	mockBackupsClient.AssertExpectations(t)
 }
 
 // TestEnsureBucketDetailsExist_BucketAlreadyExists tests when bucket already exists in vault
