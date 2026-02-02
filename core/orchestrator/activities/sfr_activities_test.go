@@ -603,3 +603,86 @@ func TestSnapmirrorTransferWithFiles(t *testing.T) {
 		mockProvider.AssertExpectations(t)
 	})
 }
+
+func TestValidateAndDeduplicateFileList(t *testing.T) {
+	tests := []struct {
+		name                string
+		fileList            []string
+		expectedUniqueFiles []string
+		expectError         bool
+	}{
+		{
+			name:                "Empty file list",
+			fileList:            []string{},
+			expectedUniqueFiles: []string{},
+			expectError:         false,
+		},
+		{
+			name:                "No duplicates",
+			fileList:            []string{"file1.txt", "file2.txt", "file3.txt"},
+			expectedUniqueFiles: []string{"file1.txt", "file2.txt", "file3.txt"},
+			expectError:         false,
+		},
+		{
+			name:                "With duplicates",
+			fileList:            []string{"file1.txt", "file2.txt", "file1.txt", "file3.txt"},
+			expectedUniqueFiles: []string{"file1.txt", "file2.txt", "file3.txt"},
+			expectError:         false,
+		},
+		{
+			name:                "Multiple duplicates of same file",
+			fileList:            []string{"file1.txt", "file1.txt", "file1.txt", "file2.txt"},
+			expectedUniqueFiles: []string{"file1.txt", "file2.txt"},
+			expectError:         false,
+		},
+		{
+			name:                "All files are duplicates",
+			fileList:            []string{"file1.txt", "file1.txt", "file1.txt"},
+			expectedUniqueFiles: []string{"file1.txt"},
+			expectError:         false,
+		},
+		{
+			name:                "Multiple different duplicates",
+			fileList:            []string{"file1.txt", "file2.txt", "file1.txt", "file3.txt", "file2.txt", "file4.txt"},
+			expectedUniqueFiles: []string{"file1.txt", "file2.txt", "file3.txt", "file4.txt"},
+			expectError:         false,
+		},
+		{
+			name:                "Single file",
+			fileList:            []string{"file1.txt"},
+			expectedUniqueFiles: []string{"file1.txt"},
+			expectError:         false,
+		},
+		{
+			name:                "Files with paths",
+			fileList:            []string{"/path/to/file1.txt", "/path/to/file2.txt", "/path/to/file1.txt", "path2/to/file1.txt"},
+			expectedUniqueFiles: []string{"/path/to/file1.txt", "/path/to/file2.txt", "path2/to/file1.txt"},
+			expectError:         false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange
+			var ts testsuite.WorkflowTestSuite
+			env := ts.NewTestActivityEnvironment()
+
+			activity := activities.SFRActivity{}
+			env.RegisterActivity(&activity)
+
+			// Act
+			encodedValue, err := env.ExecuteActivity(activity.ValidateAndDeduplicateFileList, tt.fileList)
+
+			// Assert
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				var result []string
+				err = encodedValue.Get(&result)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedUniqueFiles, result, "Unique files mismatch")
+			}
+		})
+	}
+}

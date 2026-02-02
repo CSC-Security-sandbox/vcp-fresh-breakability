@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"go.temporal.io/sdk/activity"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -13,6 +12,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 )
 
 type SFRActivity struct {
@@ -98,4 +98,25 @@ func (a SFRActivity) PopulateSfrMetadataActivity(ctx context.Context, fileInodeS
 
 	logger.Infof("Successfully created SfrMetadata: fileCount=%d, totalSize=%d bytes for volume %s, backup %s", fileCount, totalSize, volume.UUID, backup.UUID)
 	return nil
+}
+
+// ValidateAndDeduplicateFileList validates and removes duplicate files from a file list
+func (a SFRActivity) ValidateAndDeduplicateFileList(ctx context.Context, fileList []string) ([]string, error) {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "ValidateAndDeduplicateFileList started")
+
+	seen := make(map[string]bool)
+	uniqueFiles := make([]string, 0, len(fileList))
+
+	for _, file := range fileList {
+		if !seen[file] {
+			seen[file] = true
+			uniqueFiles = append(uniqueFiles, file)
+		}
+	}
+
+	logger.Infof("Processing %d unique files, removed %d duplicate(s)", len(uniqueFiles), len(fileList)-len(uniqueFiles))
+
+	activity.RecordHeartbeat(ctx, "ValidateAndDeduplicateFileList completed")
+	return uniqueFiles, nil
 }

@@ -1,6 +1,7 @@
 package workflows
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -26,6 +27,32 @@ type RestoreFilesFromBackupWorkflowStruct struct {
 var (
 	sfrWorkflowHeartbeatTimeoutSec = env.GetUint64("SFR_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 600)
 )
+
+// ontapErrorMapping defines the error code and user message for a matched pattern
+type ontapErrorMapping struct {
+	ErrorCode   int
+	UserMessage string
+}
+
+// snapmirrorErrorPatternMap maps error patterns to their corresponding error codes and messages
+// Using a map provides O(1) lookup for exact matches and better organization
+var snapmirrorErrorPatternMap = map[string]ontapErrorMapping{
+	"Incomplete path to file": {
+		ErrorCode:   vsaerrors.ErrBadRequest,
+		UserMessage: "Incorrect destination path",
+	},
+}
+
+// matchErrorPattern checks if the error message contains any known patterns
+// and returns the appropriate VSA error, or nil if no match is found
+func matchErrorPattern(errMsg string, patternMap map[string]ontapErrorMapping) *vsaerrors.CustomError {
+	for pattern, mapping := range patternMap {
+		if strings.Contains(errMsg, pattern) {
+			return vsaerrors.NewVCPError(mapping.ErrorCode, errors.New(mapping.UserMessage))
+		}
+	}
+	return nil
+}
 
 // Enforcing the WorkflowInterface on RestoreFilesFromBackupWorkflowStruct
 var _ WorkflowInterface = &RestoreFilesFromBackupWorkflowStruct{}
@@ -144,6 +171,17 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	// Validate and remove duplicate files from SourceFileList
+	var uniqueFiles []string
+	err = workflow.ExecuteActivity(ctx, sfrActivity.ValidateAndDeduplicateFileList, params.SourceFileList).Get(ctx, &uniqueFiles)
+	if err != nil {
+		return nil, ConvertToVSAError(fmt.Errorf("failed to validate and deduplicate file list: %w", err))
+	}
+
+	// Update params with deduplicated file list
+	params.SourceFileList = uniqueFiles
+	log.Infof("Restoring %d unique files after deduplication", len(params.SourceFileList))
 
 	// Increment restore count to indicate that a volume restoration is in-progress for the backup
 	err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupRestoreCount,
@@ -559,9 +597,15 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 
 	if smRelationship != nil && smRelationship.Healthy != nil && !*smRelationship.Healthy {
 		if smRelationship.UnhealthyReason != nil && len(*smRelationship.UnhealthyReason) > 0 {
-			wf.Logger.Infof("Snapmirror relationship is unhealthy. Reasons: %v", *smRelationship.UnhealthyReason)
+			errMsg := fmt.Sprintf("snapmirror relationship is unhealthy. Reasons: %v", *smRelationship.UnhealthyReason)
+			log.Errorf(errMsg)
+
+			// Check if error matches any known patterns and return appropriate error code
+			if matchedErr := matchErrorPattern(errMsg, snapmirrorErrorPatternMap); matchedErr != nil {
+				return nil, matchedErr
+			}
+			return nil, ConvertToVSAError(fmt.Errorf("%s", errMsg))
 		}
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, vsaerrors.New("snapmirror relationship is unhealthy"))
 	}
 
 	// Wait for 60 seconds before proceeding

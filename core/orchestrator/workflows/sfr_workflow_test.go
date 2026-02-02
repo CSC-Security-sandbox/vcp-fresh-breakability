@@ -5712,4 +5712,647 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// Verify the error is related to cancellation/context cancellation
 		assert.Contains(t, env.GetWorkflowError().Error(), "canceled")
 	})
+	t.Run("DuplicateFilesInSourceFileList", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		mockStorage.On("UpdateJobState", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		// Test with duplicate files in SourceFileList
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:     "test-account",
+			SourceFileList:  []string{"/file1.txt", "/file2.txt", "/file1.txt", "/file3.txt", "/file2.txt", "/file1.txt"},
+			RestoreFilePath: "/restore_dir",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{
+					BucketName:          "test-bucket",
+					ServiceAccountName:  "sa-test",
+					VendorSubnetID:      "subnet-12345",
+					TenantProjectNumber: "123456789",
+				},
+			},
+			Account: account,
+		}
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:          "test-backup",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
+				SnapshotName: "snapshot-name",
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Name:      "test-volume",
+			AccountID: 1,
+			Account:   account,
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "deployment-name",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "secret-id",
+					CertificateID: "cert-id",
+				},
+			},
+			PoolID: 1,
+		}
+
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("123456", nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{
+			Email: "test-sa@project.iam.gserviceaccount.com",
+		}, nil)
+		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(&common.HmacKeys{
+			AccessKey: "access-key",
+			SecretKey: "secret-key",
+		}, nil)
+		env.OnActivity("DeployADCCloudRunService", mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
+			OperationName: "operations/deploy-operation-123",
+			Status:        "RUNNING",
+		}, nil)
+		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://test-service.run.app", nil)
+
+		// Mock GetFileInodeNumbers and verify it receives deduplicated file list
+		var actualFileList []string
+		env.OnActivity("GetFileInodeNumbers", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Run(func(args mock.Arguments) {
+				// Capture the file list passed to GetFileInodeNumbers (4th argument)
+				if fileList, ok := args.Get(3).([]string); ok {
+					actualFileList = fileList
+				}
+			}).
+			Return(map[string]*activities.FileInodeAndSize{
+				"/file1.txt": {Inode: "12345", Size: 1024},
+				"/file2.txt": {Inode: "12346", Size: 2048},
+				"/file3.txt": {Inode: "12347", Size: 3072},
+			}, nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "node-uuid"},
+				Name:      "node-1",
+			},
+		}, nil)
+		env.OnActivity("GenerateObjectStoreNameForRestore", mock.Anything, mock.Anything, mock.Anything).Return("obj-store-name", nil)
+		env.OnActivity("GetBucketDetailsFromBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{
+			BucketName:          "test-bucket",
+			TenantProjectNumber: "123456789",
+		}, nil)
+		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("/source/path", nil)
+		env.OnActivity("GetOrCreateObjectStore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.CloudTarget{
+			UUID: "obj-store-uuid",
+		}, nil)
+		env.OnActivity("SnapmirrorGetOrCreate", mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{
+			UUID: "snapmirror-uuid",
+		}, nil)
+		env.OnActivity("DeleteSnapmirror", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil).Maybe()
+		env.OnActivity("SnapmirrorTransferWithFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSnapmirrorTransferStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
+
+		healthy := true
+		env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{
+			UUID:    "snapmirror-uuid",
+			Healthy: &healthy,
+		}, nil)
+
+		env.OnActivity("DeleteRestoreObjectStore", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
+			OperationName: "operations/cleanup-operation-123",
+			Status:        "RUNNING",
+		}, nil)
+		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+
+		// Verify that duplicates were removed by checking the file list passed to GetFileInodeNumbers
+		// Original list had 6 files ([/file1.txt, /file2.txt, /file1.txt, /file3.txt, /file2.txt, /file1.txt])
+		// After deduplication, only 3 unique files should be processed ([/file1.txt, /file2.txt, /file3.txt])
+		assert.Equal(t, 3, len(actualFileList), "Expected GetFileInodeNumbers to be called with 3 unique files")
+		assert.Contains(t, actualFileList, "/file1.txt")
+		assert.Contains(t, actualFileList, "/file2.txt")
+		assert.Contains(t, actualFileList, "/file3.txt")
+
+		env.AssertExpectations(t)
+	})
+
+	t.Run("GetSnapmirrorHealthCheck_UnhealthyWithReasons", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		mockStorage.On("UpdateJobState", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:     "test-account",
+			SourceFileList:  []string{"/file1.txt"},
+			RestoreFilePath: "/restore_dir",
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{
+					BucketName:          "test-bucket",
+					ServiceAccountName:  "sa-test",
+					VendorSubnetID:      "subnet-12345",
+					TenantProjectNumber: "123456789",
+				},
+			},
+			Account: account,
+		}
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:          "test-backup",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
+				SnapshotName: "snapshot-name",
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Name:      "test-volume",
+			AccountID: 1,
+			Account:   account,
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "deployment-name",
+			},
+			PoolID: 1,
+		}
+
+		// Mock activities up to GetSnapmirror
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("123456", nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{
+			Email: "test-sa@project.iam.gserviceaccount.com",
+		}, nil)
+		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(&common.HmacKeys{
+			AccessKey: "access-key",
+			SecretKey: "secret-key",
+		}, nil)
+		env.OnActivity("DeployADCCloudRunService", mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
+			OperationName: "operations/deploy-operation-123",
+			Status:        "RUNNING",
+		}, nil)
+		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://test-service.run.app", nil)
+		env.OnActivity("GetFileInodeNumbers", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string]*activities.FileInodeAndSize{
+			"/file1.txt": {Inode: "12345", Size: 1024},
+		}, nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+			{BaseModel: datamodel.BaseModel{UUID: "node-uuid"}, Name: "node-1"},
+		}, nil)
+		env.OnActivity("GenerateObjectStoreNameForRestore", mock.Anything, mock.Anything, mock.Anything).Return("obj-store-name", nil)
+		env.OnActivity("GetBucketDetailsFromBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{
+			BucketName:          "test-bucket",
+			TenantProjectNumber: "123456789",
+		}, nil)
+		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("/source/path", nil)
+		env.OnActivity("GetOrCreateObjectStore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.CloudTarget{
+			UUID: "obj-store-uuid",
+		}, nil)
+		env.OnActivity("SnapmirrorGetOrCreate", mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{
+			UUID: "snapmirror-uuid",
+		}, nil)
+		env.OnActivity("SnapmirrorTransferWithFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSnapmirrorTransferStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
+
+		// Mock GetSnapmirror to return an UNHEALTHY relationship WITH reasons
+		healthy := false
+		reasons := []string{"Destination volume is offline", "Transfer failed"}
+		env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{
+			UUID:            "snapmirror-uuid",
+			Healthy:         &healthy,
+			UnhealthyReason: &reasons,
+		}, nil)
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+
+		// Verify workflow failed with unhealthy error
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.Contains(t, env.GetWorkflowError().Error(), "snapmirror relationship is unhealthy")
+		assert.Contains(t, env.GetWorkflowError().Error(), "Destination volume is offline")
+		assert.Contains(t, env.GetWorkflowError().Error(), "Transfer failed")
+	})
+
+	t.Run("GetSnapmirrorHealthCheck_UnhealthyWithoutReasons", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		mockStorage.On("UpdateJobState", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:     "test-account",
+			SourceFileList:  []string{"/file1.txt"},
+			RestoreFilePath: "/restore_dir",
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{
+					BucketName:          "test-bucket",
+					ServiceAccountName:  "sa-test",
+					VendorSubnetID:      "subnet-12345",
+					TenantProjectNumber: "123456789",
+				},
+			},
+			Account: account,
+		}
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:          "test-backup",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
+				SnapshotName: "snapshot-name",
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Name:      "test-volume",
+			AccountID: 1,
+			Account:   account,
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "deployment-name",
+			},
+			PoolID: 1,
+		}
+
+		// Mock activities up to GetSnapmirror
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("123456", nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{
+			Email: "test-sa@project.iam.gserviceaccount.com",
+		}, nil)
+		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(&common.HmacKeys{
+			AccessKey: "access-key",
+			SecretKey: "secret-key",
+		}, nil)
+		env.OnActivity("DeployADCCloudRunService", mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
+			OperationName: "operations/deploy-operation-123",
+			Status:        "RUNNING",
+		}, nil)
+		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://test-service.run.app", nil)
+		env.OnActivity("GetFileInodeNumbers", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string]*activities.FileInodeAndSize{
+			"/file1.txt": {Inode: "12345", Size: 1024},
+		}, nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+			{BaseModel: datamodel.BaseModel{UUID: "node-uuid"}, Name: "node-1"},
+		}, nil)
+		env.OnActivity("GenerateObjectStoreNameForRestore", mock.Anything, mock.Anything, mock.Anything).Return("obj-store-name", nil)
+		env.OnActivity("GetBucketDetailsFromBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{
+			BucketName:          "test-bucket",
+			TenantProjectNumber: "123456789",
+		}, nil)
+		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("/source/path", nil)
+		env.OnActivity("GetOrCreateObjectStore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.CloudTarget{
+			UUID: "obj-store-uuid",
+		}, nil)
+		env.OnActivity("SnapmirrorGetOrCreate", mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{
+			UUID: "snapmirror-uuid",
+		}, nil)
+		env.OnActivity("SnapmirrorTransferWithFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSnapmirrorTransferStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
+
+		// Mock GetSnapmirror to return an UNHEALTHY relationship WITHOUT reasons
+		healthy := false
+		env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{
+			UUID:    "snapmirror-uuid",
+			Healthy: &healthy,
+		}, nil)
+
+		// Mock remaining activities since workflow will continue without error when no reasons provided
+		env.OnActivity("ValidateAndDeduplicateFileList", mock.Anything, mock.Anything).Return([]string{"/file1.txt"}, nil)
+		env.OnActivity("DeleteRestoreObjectStore", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{
+			JobUUID: "job-uuid",
+		}, nil)
+		env.OnActivity("GetOntapJob", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{
+			State: "success",
+		}, nil)
+		env.OnActivity("CleanupADCCloudRunService", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
+			OperationName: "operations/cleanup-operation-123",
+			Status:        "DONE",
+		}, nil)
+		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+
+		// Verify workflow completes successfully when unhealthy without reasons (no default error message)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+	})
+	t.Run("GetSnapmirrorHealthCheck_UnhealthyWithIncompletePathError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		mockStorage.On("UpdateJobState", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:     "test-account",
+			SourceFileList:  []string{"/file1.txt"},
+			RestoreFilePath: "/restore_dir",
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{
+					BucketName:          "test-bucket",
+					ServiceAccountName:  "sa-test",
+					VendorSubnetID:      "subnet-12345",
+					TenantProjectNumber: "123456789",
+				},
+			},
+			Account: account,
+		}
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:          "test-backup",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
+				SnapshotName: "snapshot-name",
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Name:      "test-volume",
+			AccountID: 1,
+			Account:   account,
+			Pool: &datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1},
+				DeploymentName: "deployment-name",
+			},
+			PoolID: 1,
+		}
+
+		// Mock all activities up to GetSnapmirror
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("123456", nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{
+			Email: "test-sa@project.iam.gserviceaccount.com",
+		}, nil)
+		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(&common.HmacKeys{
+			AccessKey: "access-key",
+			SecretKey: "secret-key",
+		}, nil)
+		env.OnActivity("DeployADCCloudRunService", mock.Anything, mock.Anything).Return(&hyperscaler.CloudRunOperationResponse{
+			OperationName: "operations/deploy-operation-123",
+			Status:        "RUNNING",
+		}, nil)
+		env.OnActivity("CheckOperationStatus", mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("GetADCServiceURL", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("https://test-service.run.app", nil)
+		env.OnActivity("GetFileInodeNumbers", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string]*activities.FileInodeAndSize{
+			"/file1.txt": {Inode: "12345", Size: 1024},
+		}, nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+			{BaseModel: datamodel.BaseModel{UUID: "node-uuid"}, Name: "node-1"},
+		}, nil)
+		env.OnActivity("GenerateObjectStoreNameForRestore", mock.Anything, mock.Anything, mock.Anything).Return("obj-store-name", nil)
+		env.OnActivity("GetBucketDetailsFromBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{
+			BucketName:          "test-bucket",
+			TenantProjectNumber: "123456789",
+		}, nil)
+		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("/source/path", nil)
+		env.OnActivity("GetOrCreateObjectStore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.CloudTarget{
+			UUID: "obj-store-uuid",
+		}, nil)
+		env.OnActivity("SnapmirrorGetOrCreate", mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{
+			UUID: "snapmirror-uuid",
+		}, nil)
+		env.OnActivity("SnapmirrorTransferWithFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSnapmirrorTransferStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
+		env.OnActivity("ValidateAndDeduplicateFileList", mock.Anything, mock.Anything).Return([]string{"/file1.txt"}, nil)
+
+		// Mock GetSnapmirror to return unhealthy with "Incomplete path to file" error
+		// This should trigger the pattern matching and return a 400 Bad Request error
+		healthy := false
+		reasons := []string{"Incomplete path to file \"/tmp/22.txt\" on destination volume"}
+		env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{
+			UUID:            "snapmirror-uuid",
+			Healthy:         &healthy,
+			UnhealthyReason: &reasons,
+		}, nil)
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+
+		// Verify workflow failed with Bad Request error (400), not Internal Server Error (500)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		// The error should contain "Bad Request" from the pattern matching
+		assert.Contains(t, env.GetWorkflowError().Error(), "Bad Request")
+	})
+}
+
+func TestMatchErrorPattern(t *testing.T) {
+	t.Run("MatchingPattern_ReturnsCorrectError", func(t *testing.T) {
+		// Arrange
+		patternMap := map[string]ontapErrorMapping{
+			"Incomplete path to file": {
+				ErrorCode:   vsaerrors.ErrBadRequest,
+				UserMessage: "Incorrect destination path",
+			},
+		}
+		errMsg := "snapmirror relationship is unhealthy. Reasons: [Incomplete path to file \"/tmp/22.txt\" on destination volume]"
+
+		// Act
+		result := matchErrorPattern(errMsg, patternMap)
+
+		// Assert
+		assert.NotNil(t, result)
+		assert.Equal(t, vsaerrors.ErrBadRequest, result.TrackingID)
+		assert.Equal(t, "Bad Request", result.Message) // From errors.json
+		assert.NotNil(t, result.OriginalErr)
+		assert.Equal(t, "Incorrect destination path", result.OriginalErr.Error())
+
+		// Verify HTTP code 400
+		hasHttpCode, httpCode := result.GetHttpCode()
+		assert.True(t, hasHttpCode)
+		assert.Equal(t, 400, httpCode)
+	})
+
+	t.Run("NonMatchingPattern_ReturnsNil", func(t *testing.T) {
+		// Arrange
+		patternMap := map[string]ontapErrorMapping{
+			"Incomplete path to file": {
+				ErrorCode:   vsaerrors.ErrBadRequest,
+				UserMessage: "Incorrect destination path",
+			},
+		}
+		errMsg := "snapmirror relationship is unhealthy. Reasons: [Some other error]"
+
+		// Act
+		result := matchErrorPattern(errMsg, patternMap)
+
+		// Assert
+		assert.Nil(t, result)
+	})
+
+	t.Run("EmptyOrNilPatternMap_ReturnsNil", func(t *testing.T) {
+		// Test with nil map
+		var nilMap map[string]ontapErrorMapping
+		result := matchErrorPattern("some error", nilMap)
+		assert.Nil(t, result)
+
+		// Test with empty map
+		emptyMap := map[string]ontapErrorMapping{}
+		result = matchErrorPattern("some error", emptyMap)
+		assert.Nil(t, result)
+	})
 }
