@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -2518,126 +2517,6 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 		assert.Nil(t, runResult)
 		env.AssertExpectations(t)
 	})
-}
-
-// TestActiveDirectoryCreateWorkflow_Run_CancellationError tests line 128: when CheckCancellation returns an error
-func TestActiveDirectoryCreateWorkflow_Run_CancellationError(t *testing.T) {
-	var ts testsuite.WorkflowTestSuite
-	env := ts.NewTestWorkflowEnvironment()
-	mockStorage := database.NewMockStorage(t)
-	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-	mockHeader := &commonpb.Header{
-		Fields: map[string]*commonpb.Payload{
-			"logger": encodedValue,
-		},
-	}
-	env.SetHeader(mockHeader)
-	adCreateActivity := active_directory_activities.ActiveDirectoryCreateActivity{SE: mockStorage}
-	env.RegisterActivity(adCreateActivity.CreateVcpActiveDirectory)
-	env.RegisterActivity(adCreateActivity.RollbackActiveDirectory)
-
-	originalHost := cvp.CVP_HOST
-	cvp.CVP_HOST = ""
-	defer func() { cvp.CVP_HOST = originalHost }()
-
-	params := &common.CreateActiveDirectoryParams{
-		AccountId:  "123",
-		ResourceId: "test-ad",
-	}
-	adRecord := &datamodel.ActiveDirectory{
-		BaseModel: datamodel.BaseModel{
-			UUID: "test-uuid-cancel",
-		},
-		AccountId: 123,
-	}
-
-	// Mock CreateVcpActiveDirectory to succeed so cancellation check happens
-	env.OnActivity(adCreateActivity.CreateVcpActiveDirectory, mock.Anything, params, adRecord).Return(nil).Maybe()
-	env.OnActivity(adCreateActivity.RollbackActiveDirectory, mock.Anything, adRecord).Return(nil).Maybe()
-
-	// Send cancellation signal immediately to trigger CheckCancellation error at first check (line 149)
-	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(CancelActiveDirectorySignalName, "cancel data")
-	}, 0*time.Millisecond)
-
-	var runResult interface{}
-	var runErr *vsaerrors.CustomError
-	env.ExecuteWorkflow(func(ctx workflow.Context) error {
-		wf := &ActiveDirectoryCreateWorkflow{}
-		runResult, runErr = wf.Run(ctx, params, adRecord)
-		if runErr != nil {
-			return runErr
-		}
-		return nil
-	})
-
-	assert.True(t, env.IsWorkflowCompleted())
-	workflowErr := env.GetWorkflowError()
-	assert.Error(t, workflowErr)
-	if workflowErr != nil {
-		assert.Contains(t, workflowErr.Error(), "active directory creation cancelled by delete request")
-	}
-	assert.NotNil(t, runErr)
-	assert.Nil(t, runResult)
-}
-
-// TestActiveDirectoryCreateWorkflow_Run_CancellationDuringExecution tests lines 138-139: when workflow is cancelled during execution
-func TestActiveDirectoryCreateWorkflow_Run_CancellationDuringExecution(t *testing.T) {
-	var ts testsuite.WorkflowTestSuite
-	env := ts.NewTestWorkflowEnvironment()
-	mockStorage := database.NewMockStorage(t)
-
-	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-	mockHeader := &commonpb.Header{
-		Fields: map[string]*commonpb.Payload{
-			"logger": encodedValue,
-		},
-	}
-	env.SetHeader(mockHeader)
-	adCreateActivity := active_directory_activities.ActiveDirectoryCreateActivity{SE: mockStorage}
-	env.RegisterActivity(adCreateActivity.CreateVcpActiveDirectory)
-	env.RegisterActivity(adCreateActivity.RollbackActiveDirectory)
-
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	env.RegisterActivity(commonActivity.UpdateJobStatus)
-
-	params := &common.CreateActiveDirectoryParams{
-		AccountId:          "123",
-		ResourceId:         "test-ad",
-		Domain:             "test.example.com",
-		DNS:                "8.8.8.8",
-		NetBIOS:            "TESTNETBIOS",
-		OrganizationalUnit: "OU=test",
-		Username:           "admin",
-		Password:           "password123",
-	}
-	adRecord := &datamodel.ActiveDirectory{
-		BaseModel: datamodel.BaseModel{
-			UUID: "test-ad-uuid-cancel-during",
-		},
-		AccountId: 123,
-	}
-
-	originalHost := cvp.CVP_HOST
-	cvp.CVP_HOST = ""
-	defer func() { cvp.CVP_HOST = originalHost }()
-
-	// Send cancellation signal after activity starts
-	env.RegisterDelayedCallback(func() {
-		env.SignalWorkflow(CancelActiveDirectorySignalName, "cancel data")
-	}, 10*time.Millisecond)
-
-	env.OnActivity(adCreateActivity.CreateVcpActiveDirectory, mock.Anything, params, adRecord).Return(vsaerrors.New("activity error"))
-	env.OnActivity(adCreateActivity.RollbackActiveDirectory, mock.Anything, adRecord).Return(nil)
-	env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
-
-	env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adRecord)
-
-	assert.True(t, env.IsWorkflowCompleted())
-	assert.Error(t, env.GetWorkflowError())
-	env.AssertExpectations(t)
 }
 
 // TestActiveDirectoryDeleteWorkflow_Run_CancellationHandlingError tests line 288: when HandleCancellationInDeleteWorkflow returns an error

@@ -115,22 +115,14 @@ func (wf *ActiveDirectoryCreateWorkflow) Run(ctx workflow.Context, args ...inter
 	adRecord := args[1].(*datamodel.ActiveDirectory)
 
 	rollbackManager := common.NewRollbackManager()
-	cancellationHandler := common.NewWorkflowCancellationHandler(ctx, CancelActiveDirectorySignalName, adRecord.UUID, "active directory")
-
 	rollbackManager.AddActivity(activeDirectoryActivity.RollbackActiveDirectory, adRecord)
 	defer func() {
-		common.ExecuteDeferredCleanup(ctx, cancellationHandler, rollbackManager, err, logger, "active directory", adRecord.UUID,
-			nil, // updateErrorState
-			nil, // onCancellationCallback
-			func(disconnectedCtx workflow.Context, err error) bool {
-				// Trigger the rollback only if there was an error, and we are not in SDE mode
-				return err != nil && (cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP)
-			})
+		// Trigger the rollback only if there was an error, and we are not in SDE mode
+		if err != nil && (cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP) {
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		}
 	}()
-
-	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
-		return nil, cancelErr
-	}
 
 	if cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP {
 		logger.Info("CVP_HOST environment variable is not set, creating AD in VCP")
