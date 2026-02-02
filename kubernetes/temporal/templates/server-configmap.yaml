@@ -1,6 +1,5 @@
 {{- if .Values.server.enabled -}}
 {{- $server := .Values.server -}}
-{{- $elasticsearch := .Values.elasticsearch -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -19,15 +18,6 @@ data:
       numHistoryShards: {{ $server.config.numHistoryShards }}
       datastores:
         default:
-          {{- if eq (include "temporal.persistence.driver" (list $ "default")) "cassandra" }}
-          cassandra:
-            hosts: "{{ include "temporal.persistence.cassandra.hosts" (list $ "default") }}"
-            port: {{ include "temporal.persistence.cassandra.port" (list $ "default") }}
-            password: {{ `{{ .Env.TEMPORAL_STORE_PASSWORD | quote }}` }}
-            {{- with (omit $server.config.persistence.default.cassandra "hosts" "port" "password" "existingSecret") }}
-              {{- toYaml . | nindent 12 }}
-            {{- end }}
-          {{- else if eq (include "temporal.persistence.driver" (list $ "default")) "sql" }}
           sql:
             pluginName: "{{ include "temporal.persistence.sql.driver" (list $ "default") }}"
             driverName: "{{ include "temporal.persistence.sql.driver" (list $ "default") }}"
@@ -43,7 +33,6 @@ data:
             {{- with $sqlConfig }}
               {{- toYaml . | nindent 12 }}
             {{- end }}
-          {{- end }}
           {{- with $server.config.persistence.default.faultInjection}}
           faultInjection:
             {{- toYaml . | nindent 12 }}
@@ -52,22 +41,6 @@ data:
           {{- toYaml . | nindent 8 }}
         {{- end }}
         visibility:
-        {{- if or $elasticsearch.enabled $elasticsearch.external }}
-          elasticsearch:
-            version: "{{ $elasticsearch.version }}"
-            url:
-                scheme: "{{ $elasticsearch.scheme }}"
-                host: "{{ $elasticsearch.host }}:{{ $elasticsearch.port }}"
-            username: "{{ $elasticsearch.username }}"
-            password: {{ `{{ .Env.TEMPORAL_VISIBILITY_STORE_PASSWORD  | quote }}` }}
-            logLevel: "{{ $elasticsearch.logLevel }}"
-            indices:
-                visibility: "{{ $elasticsearch.visibilityIndex }}"
-            {{- with $elasticsearch.tls }}
-            tls:
-              {{- toYaml . | nindent 16 }}
-            {{- end }}
-        {{- else if eq (include "temporal.persistence.driver" (list $ "visibility")) "sql" }}
           sql:
             pluginName: "{{ include "temporal.persistence.sql.driver" (list $ "visibility") }}"
             driverName: "{{ include "temporal.persistence.sql.driver" (list $ "visibility") }}"
@@ -83,7 +56,6 @@ data:
             {{- with $sqlConfig }}
               {{- toYaml . | nindent 12 }}
             {{- end }}
-        {{- end }}
 
     global:
       membership:
