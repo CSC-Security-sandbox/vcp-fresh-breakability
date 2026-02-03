@@ -123,7 +123,7 @@ func (a ActiveDirectoryCreateActivity) CreateSdeActiveDirectory(ctx context.Cont
 		XCorrelationID: &params.XCorrelationId,
 		Body:           body,
 	}
-	jwtToken := utils.GetCVPJWTFromContext(ctx)
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := CvpClient(logger, jwtToken)
 	created, err := cvpClient.ActiveDirectories.V1betaCreateActiveDirectory(createParams)
 	if err != nil {

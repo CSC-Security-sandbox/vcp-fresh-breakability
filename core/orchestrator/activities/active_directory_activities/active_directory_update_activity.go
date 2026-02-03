@@ -3,6 +3,7 @@ package active_directory_activities
 import (
 	"context"
 	"fmt"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
@@ -163,7 +164,7 @@ func (a ActiveDirectoryUpdateActivity) PollSdeUpdateActivity(ctx context.Context
 	}
 
 	logger.Debugf("Polling async operation: %s", result.Name)
-	jwtToken := utils.GetCVPJWTFromContext(ctx)
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := CvpClient(logger, jwtToken)
 
 	// Extract the operation UUID
@@ -312,7 +313,7 @@ func (a ActiveDirectoryUpdateActivity) UpdateSdeActiveDirectory(ctx context.Cont
 		Body:              body,
 	}
 
-	jwtToken := utils.GetCVPJWTFromContext(ctx)
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := CvpClient(logger, jwtToken)
 	sdeResponse, err := cvpClient.ActiveDirectories.V1betaUpdateActiveDirectory(updateParams)
 	if err != nil {

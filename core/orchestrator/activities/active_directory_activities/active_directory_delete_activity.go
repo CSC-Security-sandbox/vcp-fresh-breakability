@@ -140,7 +140,7 @@ func (a ActiveDirectoryDeleteActivity) DeleteSdeActiveDirectory(ctx context.Cont
 	logger := util.GetLogger(ctx)
 	logger.Debug("Starting DeleteSdeActiveDirectory activity")
 
-	jwtToken := utils.GetCVPJWTFromContext(ctx)
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
 
 	// Create CVP client
 	cvpClient := cvp.CreateClient(logger, jwtToken)
