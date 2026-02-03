@@ -8,7 +8,6 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -25,6 +24,8 @@ const (
 	ScheduleTagMonthly      = "monthly"
 	ONTAPMode               = "ONTAP"
 	DEFAULTMode             = "DEFAULT"
+	BackupTypeMANUAL        = "MANUAL"
+	BackupTypeSCHEDULED     = "SCHEDULED"
 )
 
 var (
@@ -106,7 +107,7 @@ func CheckIfBackupIsImmutable(backup *datamodel.Backup) bool {
 	}
 
 	switch backup.Type {
-	case utils.BackupTypeSCHEDULED:
+	case BackupTypeSCHEDULED:
 		// Check if schedule tag is nil
 		if backup.ScheduleTag == nil {
 			return true // Default to immutable when schedule tag is nil
@@ -120,7 +121,7 @@ func CheckIfBackupIsImmutable(backup *datamodel.Backup) bool {
 			break
 		}
 		return true
-	case utils.BackupTypeMANUAL:
+	case BackupTypeMANUAL:
 		if backup.BackupVault.ImmutableAttributes.IsAdhocBackupImmutable {
 			return true
 		}

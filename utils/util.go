@@ -41,15 +41,15 @@ import (
 var (
 	localRegion                      = env.GetString("LOCAL_REGION", "local")
 	PairedRegions                    = env.GetString("VCP_PAIRED_REGIONS", "")
-	MinQuotaInBytesPool              = env.GetUint64("MIN_QUOTA_IN_BYTES_POOL", 1*TiBInBytes)                  // 1 TiB
-	MaxQuotaInBytesPool              = env.GetUint64("MAX_QUOTA_IN_BYTES_POOL", 425*TiBInBytes)                // 425 TiB
-	MinQuotaInBytesVolumeForVolume   = env.GetUint64("MIN_QUOTA_IN_BYTES_VOLUME", 1073741824)                  // 1 GiB
-	MaxQuotaInBytesVolumeForVolume   = env.GetUint64("MAX_QUOTA_IN_BYTES_VOLUME", 140737488355328)             // 128 TiB
+	MinQuotaInBytesPool              = env.GetUint64("MIN_QUOTA_IN_BYTES_POOL", 1*TiBInBytes)      // 1 TiB
+	MaxQuotaInBytesPool              = env.GetUint64("MAX_QUOTA_IN_BYTES_POOL", 425*TiBInBytes)    // 425 TiB
+	MinQuotaInBytesVolumeForVolume   = env.GetUint64("MIN_QUOTA_IN_BYTES_VOLUME", 1073741824)      // 1 GiB
+	MaxQuotaInBytesVolumeForVolume   = env.GetUint64("MAX_QUOTA_IN_BYTES_VOLUME", 140737488355328) // 128 TiB
 	MinQuotaInBytesLargeVolume       = env.GetUint64("MIN_QUOTA_IN_BYTES_LARGE_VOLUME", 5277655813325)         // 4.8 TiB
 	MinQuotaInBytesLargeVolumeWithCV = env.GetUint64("MIN_QUOTA_IN_BYTES_LARGE_VOLUME_WITH_CV", 2638827906662) // 2.4 TiB
 	MaxQuotaInBytesLargeVolume       = env.GetUint64("MAX_QUOTA_IN_BYTES_LARGE_VOLUME", 20*PiBInBytes)         // 20 PiB
 	MinSizeGranularity               = env.GetUint64("MIN_SIZE_GRANULARITY", 1*GiBInBytes)                     // 1 GiB
-	MinCustomThroughput              = env.GetUint64("MIN_CUSTOM_THROUGHPUT", 64)                              // 64 MiBps
+	MinCustomThroughput              = env.GetUint64("MIN_CUSTOM_THROUGHPUT", 64)                              // 64 MiBps (for pools)
 	MinVolumeThroughput              = env.GetUint64("MIN_VOLUME_THROUGHPUT", 1)                               // 1 MiBps (for volumes in manual pools)
 	MaxCustomThroughput              = env.GetUint64("MAX_CUSTOM_THROUGHPUT", 5120)                            // 5120 MiBps
 	MinCustomIops                    = env.GetUint64("MIN_CUSTOM_IOPS", 1024)                                  // 1024 IOPS
@@ -125,6 +125,14 @@ const (
 	ImmutableBackupVaultErrMsg = "Immutable backup vaults are not supported for this region"
 	BackupTypeMANUAL           = "MANUAL"
 	BackupTypeSCHEDULED        = "SCHEDULED"
+	// Pool QosType validation errors
+	ErrMsgPoolAutoQosTypeCannotSpecifyThroughput = "Pool has auto QoS type. Cannot specify throughputMibps. Volumes inherit QoS from the pool."
+	ErrMsgPoolAutoQosTypeCannotSpecifyIops       = "Pool has auto QoS type. Cannot specify iops. Volumes inherit QoS from the pool."
+	ErrMsgPoolAutoQosTypeCannotSpecifyVpgId     = "Pool has auto QoS type. Cannot specify volumePerformanceGroupId. Volumes inherit QoS from the pool."
+	ErrMsgPoolManualQosTypeRequiresThroughput    = "Pool has manual QoS type. throughputMibps must be provided."
+	ErrMsgMqosNotEnabledThroughput               = "Manual QoS (MQOS) is not enabled. throughputMibps parameter is not supported."
+	ErrMsgMqosNotEnabledIops                     = "Manual QoS (MQOS) is not enabled. iops parameter is not supported."
+	ErrMsgMqosNotEnabledVpgId                    = "Manual QoS (MQOS) is not enabled. volumePerformanceGroupId parameter is not supported."
 	// ActiveDirectoryGroupBuiltInBackupOperators defines the name of the built-in backup operators group
 	ActiveDirectoryGroupBuiltInBackupOperators = `BUILTIN\Backup Operators`
 
@@ -1470,11 +1478,11 @@ func ExtractSnapshotNameFromCVPBackup(backup *cvpModels.BackupV1beta, backupName
 		}
 	}
 
-	if backup.BackupType == BackupTypeMANUAL {
+	if backup.BackupType == "MANUAL" {
 		return backupName
 	}
 
-	if backup.BackupType == BackupTypeSCHEDULED {
+	if backup.BackupType == "SCHEDULED" {
 		return GetONTAPSnapshotNameFromCBSDisplaySnapshotName(backupName)
 	}
 

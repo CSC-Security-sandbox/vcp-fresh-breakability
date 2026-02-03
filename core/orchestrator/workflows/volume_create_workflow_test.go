@@ -42,6 +42,7 @@ type UnitTestSuite struct {
 	commonActivity       *activities.CommonActivities
 	kmsConfigActivity    *kms_activities.KmsConfigActivity
 	volumeCreateActivity *activities.VolumeCreateActivity
+	vpgActivity          *activities.VolumePerformanceGroupActivity
 }
 
 func (s *UnitTestSuite) SetupTest() {
@@ -74,11 +75,16 @@ func (s *UnitTestSuite) SetupTest() {
 	backupActivity := activities.BackupActivity{SE: mockStorage}
 	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
 	kmsConfigActivity := kms_activities.KmsConfigActivity{SE: mockStorage}
+	poolActivity := activities.PoolActivity{SE: mockStorage}
 
 	// Store activities in struct for use in tests
 	s.commonActivity = &commonActivity
 	s.kmsConfigActivity = &kmsConfigActivity
 	s.volumeCreateActivity = &volumeCreateActivity
+	
+	// Create and store VPG activity for use in tests
+	vpgActivity := activities.VolumePerformanceGroupActivity{SE: mockStorage}
+	s.vpgActivity = &vpgActivity
 
 	// Register common activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
@@ -98,7 +104,12 @@ func (s *UnitTestSuite) SetupTest() {
 	s.env.RegisterActivity(volumeCreateActivity.InitiateSplitForVolume)
 	s.env.RegisterActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP)
 	s.env.RegisterActivity(volumeCreateActivity.CreateVolumeInONTAP)
+	s.env.RegisterActivity(volumeCreateActivity.GetOntapClusterHealth)
+	s.env.RegisterActivity(volumeCreateActivity.CreateVolume) // Register CreateVolume activity for DB creation
+	s.env.RegisterActivity(volumeCreateActivity.GetVolumeByVolumeID)
 	s.env.RegisterActivity(volumeCreateActivity.GetHosts)
+	// Default DB call used by GetHosts (san volumes)
+	mockStorage.On("GetMultipleHostGroups", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil).Maybe()
 	s.env.RegisterActivity(volumeCreateActivity.CreateIgroup)
 	s.env.RegisterActivity(volumeCreateActivity.CreateLun)
 	s.env.RegisterActivity(volumeCreateActivity.CreateLunMap)
@@ -121,6 +132,7 @@ func (s *UnitTestSuite) SetupTest() {
 	// Register volume delete activities
 	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolumeInONTAP)
 	s.env.RegisterActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolume)
 
 	// Register backup activities
 	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
@@ -138,13 +150,30 @@ func (s *UnitTestSuite) SetupTest() {
 	s.env.RegisterActivity(kmsConfigActivity.GrantRoleActivity)
 	s.env.RegisterActivity(kmsConfigActivity.VerifyVsaKmsReachabilityActivity)
 
+	// Register pool activities (needed for cancellation handling in deferred cleanup)
+	s.env.RegisterActivity(poolActivity.GetCreateJobByResourceUUID)
+	s.env.OnActivity(poolActivity.GetCreateJobByResourceUUID, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("not found")).Maybe()
+
+	// Register VPG activities (needed when throughputMibps is provided)
+	// Use the stored activity reference so tests can override mocks using the same function reference
+	// Note: We don't set default mocks here with .Maybe() because tests that use these activities
+	// need to explicitly set up their own mocks. The .Maybe() was causing precedence issues.
+	s.env.RegisterActivity(s.vpgActivity.CreateQoSPolicyInONTAP)
+	s.env.RegisterActivity(s.vpgActivity.CreateVPGInDB)
+
 	// Set default mock responses for commonly used activities
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
 		State:     string(models.JobsStateNEW),
 	}, nil).Maybe()
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+	s.env.OnActivity(volumeCreateActivity.GetVolumeByVolumeID, mock.Anything, mock.Anything).Return(CreateTestVolume(), nil).Maybe()
+	// CreateVolume - tests should provide their own mocks
+	// Note: The default mock here is minimal - individual tests must provide CreateVolume mocks
+	// that return volumes with all necessary fields (Pool, Account, Svm, VolumeAttributes, etc.)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -207,6 +236,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Success() {
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnActivity("GetVolumeByVolumeID", mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -236,6 +267,100 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Success() {
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 }
 
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_WithThroughputMibps_CreatesVPG() {
+	originalEnableLdap := enableLdap
+	enableLdap = false
+	defer func() { enableLdap = originalEnableLdap }()
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+	poolActivity := activities.PoolActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Account: &datamodel.Account{Name: "account-1"},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+	}
+
+	throughput := int64(200)
+	iops := int64(3200)
+	params := &common.CreateVolumeParams{
+		ThroughputMibps: &throughput,
+		Iops:            &iops,
+		Protocols:       []string{utils.ProtocolISCSI},
+		BlockProperties: &common.BlockPropertiesRequest{OSType: "LINUX"},
+	}
+
+	createdVpg := &datamodel.VolumePerformanceGroup{
+		BaseModel:        datamodel.BaseModel{ID: 10, UUID: "vpg-uuid"},
+		ThroughputMibps:  throughput,
+		Iops:             iops,
+		OntapQosPolicyID: "qos-policy",
+	}
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnActivity("GetVolumeByVolumeID", mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(&vsa.ActiveDirectory{
+		UUID:   "ad-uuid",
+		Status: models.LifeCycleStateInUse,
+	}, nil).Maybe()
+	s.env.OnActivity("GetActiveDirectoryForPool", mock.Anything, mock.Anything).Return(&vsa.ActiveDirectory{
+		UUID:   "ad-uuid",
+		Status: models.LifeCycleStateInUse,
+	}, nil).Maybe()
+	s.env.RegisterActivity(adActivity.UpdateActiveDirectoryState)
+	s.env.OnActivity(adActivity.UpdateActiveDirectoryState, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity("UpdateActiveDirectoryState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// Override VPG activity mocks from SetupTest
+	// Use the EXACT same function reference from SetupTest (stored in s.vpgActivity)
+	// This ensures Temporal matches the mock correctly since it uses function pointers
+	// Our mocks without .Maybe() should take precedence over SetupTest's .Maybe() mocks
+	s.env.OnActivity(s.vpgActivity.CreateQoSPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("qos-policy", nil)
+	s.env.OnActivity(s.vpgActivity.CreateVPGInDB, mock.Anything, mock.Anything).Return(createdVpg, nil)
+	s.env.OnActivity(volumeDeleteActivity.CleanupAutoGeneratedVPG, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(poolActivity.GetCreateJobByResourceUUID, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("not found")).Maybe()
+
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_WhenVerifyKmsConfigReachabilityFails() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -260,6 +385,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_WhenVerifyKmsConfigReachabilit
 
 	// Only need job status updates + the KMS reachability gate to fail fast.
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(kmsConfigActivity.GetKmsConfigActivity, mock.Anything, "kms-config-uuid").Return(volume.Pool.KmsConfig, nil)
 	s.env.OnActivity(kmsConfigActivity.CreateVSAKmsConfigSAKeyActivity, mock.Anything, mock.Anything).Return(volume.Pool.KmsConfig, nil)
 	s.env.OnActivity(kmsConfigActivity.GrantRoleActivity, mock.Anything, mock.Anything).Return(nil)
@@ -297,6 +424,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolume_Success() {
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -352,6 +480,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolumeWithConstituentCoun
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.GetAggregatesFromOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -409,6 +538,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_LargeVolume_Failure() {
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	// Create a CustomError first, then wrap it as non-retryable
 	customErr := vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, errors.New("failed to get aggregates from ONTAP"))
 	s.env.OnActivity(volumeCreateActivity.GetAggregatesFromOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(customErr))
@@ -473,6 +603,8 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_Failure() {
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnActivity("GetVolumeByVolumeID", mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
@@ -535,6 +667,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshotWithThinCloneTy
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, AvailableSpace: 10}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "hg1", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1"}}}}, nil)
@@ -592,16 +725,17 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Failure_UpdateVolumeDetails() 
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
 		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+	s.env.OnActivity("CreateLun", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name:         "lun_test",
 			ExternalUUID: "lun-uuid",
 		},
 		SerialNumber: "6c5738423724595454686164",
 	}, nil)
-	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity("CreateLunMap", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(
 		errors.New("failed to update volume details"))
 
@@ -749,6 +883,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CheckBackupVaultExistsInVCPErr
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
 		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
@@ -805,6 +940,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_GetBackupPolicyError() {
 		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
@@ -861,6 +997,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBackupPolicyFetchedFromS
 		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
@@ -919,6 +1056,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBackupPolicyScheduleErro
 		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
@@ -985,6 +1123,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_PauseBackupPolicyScheduleError
 		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
@@ -1058,6 +1197,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBackupPolicyInVCPSucceed
 		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
@@ -1118,6 +1258,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CheckForBucketResourceNameErro
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
 		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
@@ -1175,6 +1316,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_GenerateResourceNamesError() {
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
 		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
@@ -1235,6 +1377,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBucketError() {
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
 		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
@@ -1295,6 +1438,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateBackupVaultWithBucketDet
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
 		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
@@ -1359,6 +1503,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CheckOrCreateRemoteBackupVault
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
 		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
@@ -1424,6 +1569,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_InitiateSplitForVolumeError() 
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
 		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
@@ -1503,6 +1649,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateSnapshotPolicyInONTAP() 
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
 		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27"}},
 	}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
@@ -1555,6 +1702,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateSnapshotPolicyInONTAP() 
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
 		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27"}},
 	}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
@@ -1630,7 +1778,7 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_Success() {
 	s.env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(vlmConfig, nil)
 	// Mock HasNasLifInVLMConfig to return true since vlmConfig has NAS LIF configured
 	s.env.OnActivity(poolActivity.HasNasLifInVLMConfig, mock.Anything, mock.Anything).Return(true, nil)
-	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeCreateActivity := s.volumeCreateActivity
 	s.env.RegisterActivity(volumeCreateActivity.CreateExportPolicyInOntap)
 	s.env.OnActivity(volumeCreateActivity.CreateExportPolicyInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.GetOntapClusterHealth, mock.Anything, mock.Anything).Return(isOntapClusterHealthy, nil)
@@ -1750,7 +1898,7 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_OntapClusterDown() {
 	s.env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(vlmConfig, nil)
 	// Mock HasNasLifInVLMConfig to return true since vlmConfig has NAS LIF configured
 	s.env.OnActivity(poolActivity.HasNasLifInVLMConfig, mock.Anything, mock.Anything).Return(true, nil)
-	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeCreateActivity := s.volumeCreateActivity
 	s.env.RegisterActivity(volumeCreateActivity.CreateExportPolicyInOntap)
 	s.env.OnActivity(volumeCreateActivity.CreateExportPolicyInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.RegisterActivity(volumeCreateActivity.GetOntapClusterHealth)
@@ -2549,8 +2697,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateLunNameError() {
 
 func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_CreateLunError() {
 	// Test PostBlockVolumeWorkflow when CreateLun fails (not restore from backup)
-	mockStorage := database.NewMockStorage(s.T())
-	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeCreateActivity := s.volumeCreateActivity
 
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
@@ -2579,7 +2726,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_CreateLunError() {
 	// Mock activities
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("create lun error"))
+	s.env.OnActivity("CreateLun", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("create lun error"))
 	// Execute the workflow
 	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, restoreVolumeCreateResponse)
 
@@ -2591,8 +2738,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_CreateLunError() {
 
 func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_CreateLunMapError() {
 	// Test PostBlockVolumeWorkflow when CreateLunMap fails
-	mockStorage := database.NewMockStorage(s.T())
-	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeCreateActivity := s.volumeCreateActivity
 
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
@@ -2622,14 +2768,14 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_CreateLunMapError() {
 	// Mock activities
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+	s.env.OnActivity("CreateLun", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name:         "lun_test",
 			ExternalUUID: "lun-uuid",
 		},
 		SerialNumber: "6c5738423724595454686164",
 	}, nil)
-	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("create lun map error"))
+	s.env.OnActivity("CreateLunMap", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("create lun map error"))
 	// Execute the workflow
 	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, nil, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot, restoreVolumeCreateResponse)
 
@@ -3402,9 +3548,8 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_PopulateRetryPolicyError() {
 
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_DualProtocol_FileVolume_Success() {
 	mockStorage := database.NewMockStorage(s.T())
-	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	commonActivity := s.commonActivity
+	volumeCreateActivity := s.volumeCreateActivity
 	isOntapClusterHealthy := new(bool)
 	*isOntapClusterHealthy = true
 
@@ -3512,6 +3657,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_DualProtocol_FileVolume_Succes
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateExportPolicyInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name:         "nfs_volume_test",
@@ -3519,20 +3665,28 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_DualProtocol_FileVolume_Succes
 		},
 		AvailableSpace: 1000000,
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.ConfigureLdap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.GetOntapClusterHealth, mock.Anything, mock.Anything).Return(isOntapClusterHealthy, nil)
 	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil)
-	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(activeDirectory, nil)
-	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+	s.env.OnActivity("GetActiveDirectoryForPool", mock.Anything, mock.Anything).Return(activeDirectory, nil)
+	s.env.OnActivity("CreateOrModifyADDNS", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity("GetOrCreateCifsService", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
 		&active_directory_activities.GetOrCreateCifsServiceResult{
 			FQDN:      expectedFQDN,
 			NeedsDDNS: false,
 		}, nil)
-	s.env.OnActivity(adActivity.CreateJunctionPathForCifsShare,
+	s.env.OnActivity("CreateJunctionPathForCifsShare",
 		mock.Anything,
 		mock.Anything,
 		svmName,
@@ -3555,8 +3709,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_DualProtocol_FileVolume_Succes
 
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_Success() {
 	mockStorage := database.NewMockStorage(s.T())
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	commonActivity := s.commonActivity
+	volumeCreateActivity := s.volumeCreateActivity
 	isOntapClusterHealthy := new(bool)
 	*isOntapClusterHealthy = true
 
@@ -3640,6 +3794,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_Success() {
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateExportPolicyInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name:         "nfs_volume_test",
@@ -3647,6 +3802,14 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_Success() {
 		},
 		AvailableSpace: 1000000,
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -3767,8 +3930,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_CreateExportPol
 
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBackupVault_Success() {
 	mockStorage := database.NewMockStorage(s.T())
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	commonActivity := s.commonActivity
+	volumeCreateActivity := s.volumeCreateActivity
 	isOntapClusterHealthy := new(bool)
 	*isOntapClusterHealthy = true
 
@@ -3860,6 +4023,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBackupVault
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateExportPolicyInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name:         "nfs_backup_volume_test",
@@ -3867,6 +4031,14 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBackupVault
 		},
 		AvailableSpace: 2000000,
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.GetOntapClusterHealth, mock.Anything, mock.Anything).Return(isOntapClusterHealthy, nil)
@@ -3906,8 +4078,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBackupVault
 
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_MultipleExportRules_Success() {
 	mockStorage := database.NewMockStorage(s.T())
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	commonActivity := s.commonActivity
+	volumeCreateActivity := s.volumeCreateActivity
 	isOntapClusterHealthy := new(bool)
 	*isOntapClusterHealthy = true
 
@@ -4006,6 +4178,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_MultipleExportR
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateExportPolicyInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name:         "nfs_multi_rule_volume_test",
@@ -4013,6 +4186,14 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_MultipleExportR
 		},
 		AvailableSpace: 3000000,
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4215,6 +4396,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_CreateVolumeInO
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateExportPolicyInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create volume in ONTAP"))
 	s.env.OnActivity(volumeCreateActivity.GetOntapClusterHealth, mock.Anything, mock.Anything).Return(isOntapClusterHealthy, nil)
 
@@ -4232,8 +4414,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_CreateVolumeInO
 
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBucketCreation_Success() {
 	mockStorage := database.NewMockStorage(s.T())
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	commonActivity := s.commonActivity
+	volumeCreateActivity := s.volumeCreateActivity
 	isOntapClusterHealthy := new(bool)
 	*isOntapClusterHealthy = true
 
@@ -4323,6 +4505,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBucketCreat
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateExportPolicyInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name:         "nfs_new_bucket_volume_test",
@@ -4330,6 +4513,14 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBucketCreat
 		},
 		AvailableSpace: 4000000,
 	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.ConfigureLdap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4428,6 +4619,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Setup_QueryHandlerError() {
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27"}}}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4491,6 +4683,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SetupWorkflowSuccess() {
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27"}}}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4541,6 +4734,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NoDataProtectionSuccess() {
 		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27"}},
 	}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
@@ -4599,7 +4793,16 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_IsDataProtectionTrue_SkipsGetH
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// CreateLun should be called but will skip LUN creation internally when IsDataProtection is true
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
@@ -4830,6 +5033,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateJobStatusDoneError() {
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4938,8 +5142,7 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_InvalidPhaseFile() {
 }
 
 func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_WithBlockDevices_Success() {
-	mockStorage := database.NewMockStorage(s.T())
-	volumeActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeActivity := s.volumeCreateActivity
 
 	// Register activities
 	s.env.RegisterActivity(volumeActivity.GetHosts)
@@ -5030,8 +5233,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_WithBlockDevices_Success() 
 }
 
 func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_WithBlockProperties_Success() {
-	mockStorage := database.NewMockStorage(s.T())
-	volumeActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeActivity := s.volumeCreateActivity
 
 	// Register activities
 	s.env.RegisterActivity(volumeActivity.GetHosts)
@@ -5278,6 +5480,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateVolumeInONTAPError() {
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create volume in ONTAP"))
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -5313,6 +5516,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NoSnapshotPolicy() {
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -5386,6 +5590,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_PostChildWorkflowError() {
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get hosts"))
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -5482,6 +5687,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshot_UsesUpdateLunN
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, AvailableSpace: 10}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "hg1", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1"}}}}, nil)
@@ -5543,6 +5749,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshot_UpdateVolumeAu
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, AvailableSpace: 10}, nil)
+	// Mock CreateVolume activity (called at line 1004 in workflow during restore snapshot flow)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "hg1", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1"}}}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -5565,8 +5773,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshot_UpdateVolumeAu
 
 func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateVolumeStateInDBError() {
 	// Test PostBlockVolumeWorkflow when UpdateVolumeStateInDB fails in the defer function
-	mockStorage := database.NewMockStorage(s.T())
-	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeCreateActivity := s.volumeCreateActivity
 
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
@@ -5596,7 +5803,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateVolumeStateInDBError(
 	// Mock activities - CreateLun fails to trigger the defer function
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("create lun error"))
+	s.env.OnActivity("CreateLun", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("create lun error"))
 
 	// Mock UpdateVolumeStateInDB to fail in the defer function
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update volume state in DB to error"))
@@ -5613,8 +5820,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateVolumeStateInDBError(
 func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateVolumeStateInDBErrorInDefer() {
 	// Test PostBlockVolumeWorkflow when UpdateVolumeStateInDB fails in the defer function
 	// This specifically covers the log.Errorf line 126
-	mockStorage := database.NewMockStorage(s.T())
-	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeCreateActivity := s.volumeCreateActivity
 
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
@@ -5642,7 +5848,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateVolumeStateInDBErrorI
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Mock CreateLun to fail to trigger the defer function
-	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("create lun error"))
+	s.env.OnActivity("CreateLun", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("create lun error"))
 
 	// Mock UpdateVolumeStateInDB to fail in the defer function to trigger the log.Errorf line
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update volume state in DB to error"))
@@ -5657,7 +5863,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateVolumeStateInDBErrorI
 }
 
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RollbackManagerAddActivityCoverage() {
-	// Test to cover line 365: rollbackManager.AddActivity for DeleteVolumeInONTAP
+	// Test to cover line 1027: rollbackManager.AddActivity for DeleteVolumeInONTAP
 	// This tests the successful path where CreateVolumeInONTAP succeeds
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -5678,6 +5884,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RollbackManagerAddActivityCove
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, AvailableSpace: 10}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "hg1", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1"}}}}, nil)
@@ -5730,6 +5937,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CoverageForMissingLines() {
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, Size: 200, AvailableSpace: 150}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "hg1", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1"}}}}, nil)
@@ -5810,6 +6018,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_BackupVaultWithEmptyBucketDeta
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, Size: 200, AvailableSpace: 150}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "hg1", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1"}}}}, nil)
@@ -5899,6 +6108,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_WithSplitVolumeAndChildWorkflo
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, Size: 200, AvailableSpace: 150}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "hg1", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1"}}}}, nil)
@@ -6013,6 +6223,7 @@ func (s *UnitTestSuite) TestCreateVolumeWorkflow_CVCountUpdate() {
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			ExternalUUID: "ontap-uuid",
@@ -6221,6 +6432,7 @@ func (s *UnitTestSuite) Test_UpdateRemoteBackupVaultDetailsInVCP_Success() {
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, Size: 200, AvailableSpace: 150}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "hg1", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1"}}}}, nil)
@@ -6317,6 +6529,7 @@ func (s *UnitTestSuite) Test_UpdateRemoteBackupVaultDetailsInVCP_Error() {
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, Size: 200, AvailableSpace: 150}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "hg1", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1"}}}}, nil)
@@ -6398,6 +6611,7 @@ func (s *UnitTestSuite) Test_UpdateRemoteBackupVaultDetailsInVCP_NotTriggered_No
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, Size: 200, AvailableSpace: 150}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "hg1", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1"}}}}, nil)
@@ -7646,6 +7860,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationCheckErrorConversi
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil).Maybe()
 	s.env.OnActivity(s.volumeCreateActivity.GetAggregatesFromOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&models.AggregateDistributionResult{}, nil).Maybe()
 	s.env.OnActivity(s.volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(s.volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil).Maybe()
 	s.env.OnActivity(s.volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "ext-uuid"}}, nil).Maybe()
 	s.env.OnActivity(s.volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil).Maybe()
 	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -7763,6 +7978,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationBeforeGetAggregate
 	}).Return(&models.AggregateDistributionResult{}, nil)
 	// Activities after GetAggregatesFromOntap may not be called if cancellation is detected
 	s.env.OnActivity(s.volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(s.volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil).Maybe()
 	s.env.OnActivity(s.volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "ext-uuid"}}, nil).Maybe()
 	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(s.volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil).Maybe()
@@ -7810,6 +8026,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationAfterPreWorkflow()
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	// Activities after CreateSnapshotPolicyInONTAP may not be called if cancellation is detected
+	s.env.OnActivity(s.volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil).Maybe()
 	s.env.OnActivity(s.volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "ext-uuid"}}, nil).Maybe()
 	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(s.volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil).Maybe()
@@ -7858,6 +8075,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationAfterCreateSnapsho
 		s.env.SignalWorkflow(CancelVolumeSignalName, "cancel data")
 	}).Return(nil)
 	// Activities after CreateSnapshotPolicyInONTAP may not be called if cancellation is detected
+	s.env.OnActivity(s.volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil).Maybe()
 	s.env.OnActivity(s.volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "ext-uuid"}}, nil).Maybe()
 	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(s.volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil).Maybe()
@@ -7945,6 +8163,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationBeforePostWorkflow
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(s.volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(s.volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "ext-uuid"}}, nil)
 	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Send cancellation signal immediately after CreateIgroup completes, before post-workflow (covers line 987)
@@ -7996,6 +8215,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationBeforeBackupPolicy
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(s.volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(s.volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "ext-uuid"}}, nil)
 	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Send cancellation signal immediately after CreateIgroup completes, before backup policy check (covers line 1109)
@@ -8046,6 +8266,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationBeforeUpdateVolume
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(s.volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(s.volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "ext-uuid"}}, nil)
 	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Activities after UpdateVolumeAttributesInDB may not be called if cancellation is detected
@@ -8087,6 +8308,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateVolumeStateInDBErrorInDe
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(s.volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	// Make CreateVolumeInONTAP fail to trigger defer error path
 	s.env.OnActivity(s.volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("create volume error"))
 	// UpdateVolumeStateInDB should fail in defer (line 810)
@@ -8282,6 +8504,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationBeforeRestoreWorkf
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(s.volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(s.volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "ext-uuid"}}, nil)
 	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil)
@@ -8327,6 +8550,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_MultiplePostWorkflows() {
 	}, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(s.volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(s.volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "ext-uuid"}}, nil)
 	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(s.volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -8488,9 +8712,8 @@ func TestVerifyBackupRestoreCompatibilityForVolumes(t *testing.T) {
 // Note: This test requires ENABLE_KERBEROS environment variable to be set to true to actually execute the Kerberos path
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_KerberosChildWorkflow() {
 	mockStorage := database.NewMockStorage(s.T())
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
-	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+	commonActivity := s.commonActivity
+	volumeCreateActivity := s.volumeCreateActivity
 
 	volume := CreateTestVolume()
 	volume.VolumeAttributes = &datamodel.VolumeAttributes{
@@ -8529,7 +8752,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_KerberosChildWorkflow() {
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(commonActivity.GetNode)
 	s.env.RegisterActivity(commonActivity.GetSVM)
-	s.env.RegisterActivity(adActivity.GetActiveDirectoryForPool)
+	s.env.RegisterActivity(active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}.GetActiveDirectoryForPool)
 	s.env.RegisterActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP)
 	s.env.RegisterActivity(volumeCreateActivity.CreateVolumeInONTAP)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeAttributesInDB)
@@ -8545,11 +8768,20 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_KerberosChildWorkflow() {
 			ExternalUUID: "svm-external-uuid",
 		},
 	}, nil)
-	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(&vsa.ActiveDirectory{
+	s.env.OnActivity("GetActiveDirectoryForPool", mock.Anything, mock.Anything).Return(&vsa.ActiveDirectory{
 		Domain: "test.domain",
 	}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
+	s.env.OnActivity("CreateLun", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity("CreateLunMap", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -8627,6 +8859,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationChecks() {
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
 	s.env.RegisterActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.RegisterActivity(volumeCreateActivity.CheckBackupVaultExistsInVCP)
 	s.env.RegisterActivity(volumeCreateActivity.FindTenancy)
@@ -8753,8 +8986,10 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreFromBackup_Cancellation
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(commonActivity.GetNode)
 	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(volumeCreateActivity.CreateVolume)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
 	s.env.RegisterActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.RegisterActivity(volumeCreateActivity.FetchBackupVaultMetadataForRestore)
 	s.env.RegisterActivity(volumeCreateActivity.FetchBackupMetadataForRestore)
@@ -8821,8 +9056,8 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreFromBackup_Cancellation
 // Test_CreateVolumeWorkflow_PostWorkflowSlice_CancellationChecks covers cancellation checks in post workflow slice execution
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_PostWorkflowSlice_CancellationChecks() {
 	mockStorage := database.NewMockStorage(s.T())
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	commonActivity := s.commonActivity
+	volumeCreateActivity := s.volumeCreateActivity
 
 	volume := CreateTestVolume()
 	volume.VolumeAttributes = &datamodel.VolumeAttributes{
@@ -8854,7 +9089,16 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_PostWorkflowSlice_Cancellation
 	// Activities are already registered in SetupTest, no need to register again
 
 	// Mock CreateVolumeInONTAP activity
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
+	s.env.OnActivity("CreateLun", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity("CreateLunMap", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)

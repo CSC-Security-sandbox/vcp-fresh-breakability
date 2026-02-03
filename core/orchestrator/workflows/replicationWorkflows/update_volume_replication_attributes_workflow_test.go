@@ -57,7 +57,7 @@ func TestUpdateVolumeReplicationAttributesWorkflow(t *testing.T) {
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSnapmirrorDetailsFromOntap", mock.Anything, mock.Anything).Return(&replication.UpdateVolumeReplicationAttributesResult{Event: event}, nil)
 		env.OnActivity("UpdateDstVolumeReplication", mock.Anything, mock.Anything).Return(&replication.UpdateVolumeReplicationAttributesResult{Event: event}, nil)
-		env.OnActivity("UpdateVolumeTypeActivity", mock.Anything, mock.Anything).Return(&replication.UpdateVolumeReplicationAttributesResult{Event: event}, nil)
+		env.OnActivity("UpdateVolumeTypeActivity", mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(UpdateVolumeReplicationAttributesWorkflow, params, event)
 
@@ -100,7 +100,7 @@ func TestUpdateVolumeReplicationAttributesWorkflow(t *testing.T) {
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateSrcVolumeReplication", mock.Anything, mock.Anything).Return(&replication.UpdateVolumeReplicationAttributesResult{Event: event}, nil)
-		env.OnActivity("UpdateVolumeTypeActivity", mock.Anything, mock.Anything).Return(&replication.UpdateVolumeReplicationAttributesResult{Event: event}, nil)
+		env.OnActivity("UpdateVolumeTypeActivity", mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(UpdateVolumeReplicationAttributesWorkflow, params, event)
 

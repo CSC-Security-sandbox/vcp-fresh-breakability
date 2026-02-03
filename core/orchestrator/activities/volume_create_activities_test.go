@@ -2,8 +2,10 @@ package activities_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -559,6 +561,108 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 	})
 }
 
+func TestCreateVolumeInONTAP_WithVPG_AssignsQosPolicy(t *testing.T) {
+	originalEnableMqos, hasEnableMqos := os.LookupEnv("ENABLE_MQOS")
+	_ = os.Setenv("ENABLE_MQOS", "true")
+	defer func() {
+		if hasEnableMqos {
+			_ = os.Setenv("ENABLE_MQOS", originalEnableMqos)
+		} else {
+			_ = os.Unsetenv("ENABLE_MQOS")
+		}
+	}()
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.CreateVolumeInONTAP)
+
+	qosPolicy := "qos-policy-1"
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:      "test-volume",
+		Svm:       &datamodel.Svm{Name: "test-svm"},
+		Account:   &datamodel.Account{Name: "test-account"},
+		Pool:      &datamodel.Pool{PoolAttributes: &datamodel.PoolAttributes{}},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection:  false,
+			SnapshotDirectory: true,
+		},
+		VolumePerformanceGroupID: sql.NullInt64{Int64: 42, Valid: true},
+		VolumePerformanceGroup: &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "vpg-uuid"},
+			OntapQosPolicyID: qosPolicy,
+		},
+	}
+	node := &models.Node{}
+	expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}}
+
+	mockProvider.On("CreateVolume", mock.MatchedBy(func(params vsa.CreateVolumeParams) bool {
+		return params.QosPolicy != nil && *params.QosPolicy == qosPolicy
+	})).Return(expectedResponse, nil)
+
+	val, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
+	assert.NoError(t, err)
+	var result *vsa.VolumeResponse
+	_ = val.Get(&result)
+	assert.Equal(t, expectedResponse, result)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateVolumeInONTAP_WithVPGMissing_ReturnsError(t *testing.T) {
+	originalEnableMqos, hasEnableMqos := os.LookupEnv("ENABLE_MQOS")
+	_ = os.Setenv("ENABLE_MQOS", "true")
+	defer func() {
+		if hasEnableMqos {
+			_ = os.Setenv("ENABLE_MQOS", originalEnableMqos)
+		} else {
+			_ = os.Unsetenv("ENABLE_MQOS")
+		}
+	}()
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.CreateVolumeInONTAP)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:      "test-volume",
+		Svm:       &datamodel.Svm{Name: "test-svm"},
+		Account:   &datamodel.Account{Name: "test-account"},
+		Pool:      &datamodel.Pool{PoolAttributes: &datamodel.PoolAttributes{}},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection:  false,
+			SnapshotDirectory: true,
+		},
+		VolumePerformanceGroupID: sql.NullInt64{Int64: 42, Valid: true},
+		// VolumePerformanceGroup is nil - this should not happen with foreign key constraints
+	}
+	node := &models.Node{}
+
+	_, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "volume performance group relationship is nil")
+}
+
 func TestCreateVolumeInONTAP_Success_AlreadyCreated(t *testing.T) {
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestActivityEnvironment()
@@ -640,6 +744,450 @@ func TestCreateVolumeInONTAP_Failure(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), expectedError.Error())
 	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateVolumeInONTAP_WithQoSPolicy_VPGLoaded(t *testing.T) {
+	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	originalValue := os.Getenv("ENABLE_MQOS")
+	defer func() {
+		if originalValue != "" {
+			_ = os.Setenv("ENABLE_MQOS", originalValue)
+		} else {
+			_ = os.Unsetenv("ENABLE_MQOS")
+		}
+	}()
+	_ = os.Setenv("ENABLE_MQOS", "true")
+
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.CreateVolumeInONTAP)
+
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel:        datamodel.BaseModel{UUID: "vpg-uuid"},
+		OntapQosPolicyID: "qos-policy-uuid",
+	}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:      "test-volume",
+		Svm:       &datamodel.Svm{Name: "test-svm"},
+		Account:   &datamodel.Account{Name: "test-account"},
+		VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true},
+		VolumePerformanceGroup:     vpg,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: false,
+		},
+	}
+	node := &models.Node{}
+	expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024}
+
+	mockProvider.On("CreateVolume", mock.MatchedBy(func(params vsa.CreateVolumeParams) bool {
+		return params.QosPolicy != nil && *params.QosPolicy == "qos-policy-uuid"
+	})).Return(expectedResponse, nil)
+
+	// Act
+	val, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
+
+	// Assert
+	assert.NoError(t, err)
+	var result *vsa.VolumeResponse
+	_ = val.Get(&result)
+	assert.Equal(t, expectedResponse, result)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateVolumeInONTAP_WithQoSPolicy_VPGNil_ReturnsError(t *testing.T) {
+	// This test verifies that if VPG ID is set but VPG relationship is nil,
+	// we return an error (this should not happen with foreign key constraints)
+	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	originalValue := os.Getenv("ENABLE_MQOS")
+	defer func() {
+		if originalValue != "" {
+			_ = os.Setenv("ENABLE_MQOS", originalValue)
+		} else {
+			_ = os.Unsetenv("ENABLE_MQOS")
+		}
+	}()
+	_ = os.Setenv("ENABLE_MQOS", "true")
+
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.CreateVolumeInONTAP)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:      "test-volume",
+		Svm:       &datamodel.Svm{Name: "test-svm"},
+		Account:   &datamodel.Account{Name: "test-account"},
+		VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true},
+		VolumePerformanceGroup:     nil, // VPG is nil - this should not happen with foreign key constraints
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: false,
+		},
+	}
+	node := &models.Node{}
+
+	// Act
+	_, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "volume performance group relationship is nil")
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateVolumeInONTAP_WithQoSPolicy_VPGNil_ReloadError(t *testing.T) {
+	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	originalValue := os.Getenv("ENABLE_MQOS")
+	defer func() {
+		if originalValue != "" {
+			_ = os.Setenv("ENABLE_MQOS", originalValue)
+		} else {
+			_ = os.Unsetenv("ENABLE_MQOS")
+		}
+	}()
+	_ = os.Setenv("ENABLE_MQOS", "true")
+
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.CreateVolumeInONTAP)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:      "test-volume",
+		Svm:       &datamodel.Svm{Name: "test-svm"},
+		Account:   &datamodel.Account{Name: "test-account"},
+		VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true},
+		VolumePerformanceGroup:     nil, // VPG is nil - this should not happen with foreign key constraints
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: false,
+		},
+	}
+	node := &models.Node{}
+
+	// Act
+	_, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "volume performance group relationship is nil")
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateVolumeInONTAP_WithQoSPolicy_VPGNil_ReloadedVolumeHasNilVPG(t *testing.T) {
+	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	originalValue := os.Getenv("ENABLE_MQOS")
+	defer func() {
+		if originalValue != "" {
+			_ = os.Setenv("ENABLE_MQOS", originalValue)
+		} else {
+			_ = os.Unsetenv("ENABLE_MQOS")
+		}
+	}()
+	_ = os.Setenv("ENABLE_MQOS", "true")
+
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.CreateVolumeInONTAP)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:      "test-volume",
+		Svm:       &datamodel.Svm{Name: "test-svm"},
+		Account:   &datamodel.Account{Name: "test-account"},
+		VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true},
+		VolumePerformanceGroup:     nil, // VPG is nil - this should not happen with foreign key constraints
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: false,
+		},
+	}
+	node := &models.Node{}
+
+	// Act
+	_, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "volume performance group relationship is nil")
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateVolumeInONTAP_WithQoSPolicy_EmptyOntapQosPolicyID(t *testing.T) {
+	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	originalValue := os.Getenv("ENABLE_MQOS")
+	defer func() {
+		if originalValue != "" {
+			_ = os.Setenv("ENABLE_MQOS", originalValue)
+		} else {
+			_ = os.Unsetenv("ENABLE_MQOS")
+		}
+	}()
+	_ = os.Setenv("ENABLE_MQOS", "true")
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.CreateVolumeInONTAP)
+
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel:        datamodel.BaseModel{UUID: "vpg-uuid"},
+		OntapQosPolicyID: "", // Empty QoS policy ID
+	}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:      "test-volume",
+		Svm:       &datamodel.Svm{Name: "test-svm"},
+		Account:   &datamodel.Account{Name: "test-account"},
+		VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true},
+		VolumePerformanceGroup:     vpg,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: false,
+		},
+	}
+	node := &models.Node{}
+
+	// Act
+	_, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
+
+	// Assert
+	assert.Error(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCreateVolumeInONTAP_WithoutQoSPolicy_EnableMQOSDisabled(t *testing.T) {
+	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	originalValue := os.Getenv("ENABLE_MQOS")
+	defer func() {
+		if originalValue != "" {
+			_ = os.Setenv("ENABLE_MQOS", originalValue)
+		} else {
+			_ = os.Unsetenv("ENABLE_MQOS")
+		}
+	}()
+	_ = os.Unsetenv("ENABLE_MQOS") // MQOS disabled
+
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.CreateVolumeInONTAP)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:      "test-volume",
+		Svm:       &datamodel.Svm{Name: "test-svm"},
+		Account:   &datamodel.Account{Name: "test-account"},
+		VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: false,
+		},
+	}
+	node := &models.Node{}
+	expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024}
+
+	mockProvider.On("CreateVolume", mock.MatchedBy(func(params vsa.CreateVolumeParams) bool {
+		return params.QosPolicy == nil // QoS policy should not be set
+	})).Return(expectedResponse, nil)
+
+	// Act
+	val, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
+
+	// Assert
+	assert.NoError(t, err)
+	var result *vsa.VolumeResponse
+	_ = val.Get(&result)
+	assert.Equal(t, expectedResponse, result)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateVolumeInONTAP_WithoutQoSPolicy_InvalidVPGID(t *testing.T) {
+	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	originalValue := os.Getenv("ENABLE_MQOS")
+	defer func() {
+		if originalValue != "" {
+			_ = os.Setenv("ENABLE_MQOS", originalValue)
+		} else {
+			_ = os.Unsetenv("ENABLE_MQOS")
+		}
+	}()
+	_ = os.Setenv("ENABLE_MQOS", "true")
+
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.CreateVolumeInONTAP)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:      "test-volume",
+		Svm:       &datamodel.Svm{Name: "test-svm"},
+		Account:   &datamodel.Account{Name: "test-account"},
+		VolumePerformanceGroupID: sql.NullInt64{Valid: false}, // Invalid VPG ID
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: false,
+		},
+	}
+	node := &models.Node{}
+	expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024}
+
+	mockProvider.On("CreateVolume", mock.MatchedBy(func(params vsa.CreateVolumeParams) bool {
+		return params.QosPolicy == nil // QoS policy should not be set
+	})).Return(expectedResponse, nil)
+
+	// Act
+	val, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
+
+	// Assert
+	assert.NoError(t, err)
+	var result *vsa.VolumeResponse
+	_ = val.Get(&result)
+	assert.Equal(t, expectedResponse, result)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateExportPolicyInOntap_VolumeSvmNil(t *testing.T) {
+	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.CreateExportPolicyInOntap)
+
+	svm := &datamodel.Svm{Name: "test-svm"}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:      "test-volume",
+		Svm:       nil, // SVM is nil, needs to be fetched
+		PoolID:    1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "test-export-policy",
+				},
+			},
+		},
+	}
+	node := &models.Node{}
+
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
+	mockProvider.On("CreateExportPolicy", mock.Anything).Return(nil)
+
+	// Act
+	_, err := env.ExecuteActivity(activity.CreateExportPolicyInOntap, volume, node)
+
+	// Assert
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateExportPolicyInOntap_VolumeSvmNil_GetSvmError(t *testing.T) {
+	// Arrange
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(activity.CreateExportPolicyInOntap)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:      "test-volume",
+		Svm:       nil, // SVM is nil, needs to be fetched
+		PoolID:    1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "test-export-policy",
+				},
+			},
+		},
+	}
+	node := &models.Node{}
+	expectedError := errors.New("failed to get SVM")
+
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(nil, expectedError)
+
+	// Act
+	_, err := env.ExecuteActivity(activity.CreateExportPolicyInOntap, volume, node)
+
+	// Assert
+	assert.Error(t, err)
+	mockStorage.AssertExpectations(t)
 }
 
 func TestCreateIgroup_Success(t *testing.T) {

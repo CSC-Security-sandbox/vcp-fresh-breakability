@@ -432,13 +432,8 @@ func TestInMemoTasksProcessor_Run(t *testing.T) {
 			ctx := imtpCtx.(*IMTPContext)
 
 			unitFunc := func(ctx context.Context, inputs ...interface{}) (interface{}, error) {
-				// Check task context timeout instead of sleeping
-				select {
-				case <-ctx.Done():
-					return nil, ctx.Err()
-				case <-time.After(time.Millisecond * 100):
-					return "should not complete", nil
-				}
+				<-ctx.Done()
+				return nil, ctx.Err()
 			}
 
 			ctx.RunUnit(unitFunc, UnitOptions{Timeout: time.Second * 5}, inputs...)
@@ -452,7 +447,7 @@ func TestInMemoTasksProcessor_Run(t *testing.T) {
 
 		assert.Len(t, results, 1)
 		assert.Equal(t, "task_1", results[0].TaskID)
-		assert.Error(t, results[0].Err)
+		require.Error(t, results[0].Err)
 		assert.Contains(t, results[0].Err.Error(), "task timeout exceeded")
 	})
 

@@ -791,9 +791,9 @@ func TestCreateKmsConfig(t *testing.T) {
 		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
 		expectJobIsNew(env)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
-		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+	env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil).Maybe()
+	env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil).Maybe()
 
 		// Send cancellation signal before UpdateKmsConfigAttributesActivity
 		env.RegisterDelayedCallback(func() {

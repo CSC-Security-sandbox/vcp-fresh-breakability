@@ -169,6 +169,80 @@ func TestGetVolumePerformanceGroup(t *testing.T) {
 	})
 }
 
+func TestGetVolumePerformanceGroupByID(t *testing.T) {
+	t.Run("WhenVPGExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-vpg-id"}, Name: "acct-vpg-id"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg-id"}, Name: "pool-vpg-id", AccountID: account.ID, Account: account}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-id"},
+			PoolID:           pool.ID,
+			Name:             "vpg-id",
+			IsShared:         true,
+			IsAutoGen:        false,
+			ThroughputMibps:  64,
+			Iops:             1000,
+			OntapQosPolicyID: "ontap-qos-policy-uuid-id",
+		}
+		assert.NoError(tt, store.db.Create(vpg).Error())
+
+		got, err := store.GetVolumePerformanceGroupByID(context.Background(), vpg.ID)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, got)
+		assert.Equal(tt, vpg.UUID, got.UUID)
+	})
+
+	t.Run("WhenVPGMissing", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		_, err = store.GetVolumePerformanceGroupByID(context.Background(), 9999)
+		assert.Error(tt, err)
+	})
+}
+
+func TestHardDeleteVolumePerformanceGroup(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	assert.NoError(t, ClearInMemoryDB(store.db.GORM()))
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-vpg-hard"}, Name: "acct-vpg-hard"}
+	assert.NoError(t, store.db.Create(account).Error())
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg-hard"}, Name: "pool-vpg-hard", AccountID: account.ID, Account: account}
+	assert.NoError(t, store.db.Create(pool).Error())
+
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-hard"},
+		PoolID:           pool.ID,
+		Name:             "vpg-hard",
+		IsShared:         true,
+		IsAutoGen:        true,
+		ThroughputMibps:  64,
+		Iops:             1000,
+		OntapQosPolicyID: "ontap-qos-policy-uuid-hard",
+	}
+	assert.NoError(t, store.db.Create(vpg).Error())
+
+	err = store.HardDeleteVolumePerformanceGroup(context.Background(), vpg)
+	assert.NoError(t, err)
+
+	_, err = store.GetVolumePerformanceGroupByID(context.Background(), vpg.ID)
+	assert.Error(t, err)
+}
+
 func TestListVolumePerformanceGroups(t *testing.T) {
 	t.Run("WhenVPGsExistForPool", func(tt *testing.T) {
 		db, err := SetupTestDB()

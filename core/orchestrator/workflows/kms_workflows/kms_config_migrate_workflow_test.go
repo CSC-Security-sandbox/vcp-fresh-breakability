@@ -23,11 +23,25 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+func newTestVsaKmsConfig(uuid string) datamodel.KmsConfig {
+	return datamodel.KmsConfig{
+		BaseModel: datamodel.BaseModel{UUID: uuid},
+		AccountID: 1,
+		State:     models.LifeCycleStateREADY,
+		KmsAttributes: &datamodel.KmsAttributes{
+			SdeServiceAccountEmail: "sde-sa@account",
+		},
+	}
+}
+
 func TestMigrateKmsConfigWorkflow(t *testing.T) {
 	params := &common.MigrateKmsConfigParams{
 		Name:          "test-pool",
 		AccountName:   "test-account",
 		ProjectNumber: "123456789",
+		UUID:          "vsa-kms-uuid",
+		SdeUUID:       "sde-kms-uuid",
+		LocationID:    "us-east4",
 	}
 	t.Run("WhenUpdateJobReturnsError", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
@@ -391,7 +405,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 				"logParam": encodedValue,
 			},
 		}
-		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
+		vsaKmsConfig := newTestVsaKmsConfig(params.UUID)
 		env.SetHeader(mockHeader)
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
@@ -429,7 +443,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 				"logParam": encodedValue,
 			},
 		}
-		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
+		vsaKmsConfig := newTestVsaKmsConfig(params.UUID)
 		env.SetHeader(mockHeader)
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
@@ -474,7 +488,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		defer func() {
 			env2.AuthType = origAuthType
 		}()
-		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
+		vsaKmsConfig := newTestVsaKmsConfig(params.UUID)
 		env.SetHeader(mockHeader)
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
@@ -521,7 +535,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 				"logParam": encodedValue,
 			},
 		}
-		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
+		vsaKmsConfig := newTestVsaKmsConfig(params.UUID)
 		env.SetHeader(mockHeader)
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
@@ -574,7 +588,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 				"logParam": encodedValue,
 			},
 		}
-		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
+		vsaKmsConfig := newTestVsaKmsConfig(params.UUID)
 		env.SetHeader(mockHeader)
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
@@ -627,7 +641,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 				"logParam": encodedValue,
 			},
 		}
-		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
+		vsaKmsConfig := newTestVsaKmsConfig(params.UUID)
 		env.SetHeader(mockHeader)
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
@@ -684,7 +698,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 				"logParam": encodedValue,
 			},
 		}
-		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
+		vsaKmsConfig := newTestVsaKmsConfig(params.UUID)
 		env.SetHeader(mockHeader)
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
@@ -741,7 +755,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 				"logParam": encodedValue,
 			},
 		}
-		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
+		vsaKmsConfig := newTestVsaKmsConfig(params.UUID)
 		env.SetHeader(mockHeader)
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
@@ -799,7 +813,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 				"logParam": encodedValue,
 			},
 		}
-		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
+		vsaKmsConfig := newTestVsaKmsConfig(params.UUID)
 		env.SetHeader(mockHeader)
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
@@ -858,7 +872,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 				"logParam": encodedValue,
 			},
 		}
-		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
+		vsaKmsConfig := newTestVsaKmsConfig(params.UUID)
 		env.SetHeader(mockHeader)
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
@@ -917,7 +931,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 				"logParam": encodedValue,
 			},
 		}
-		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
+		vsaKmsConfig := newTestVsaKmsConfig(params.UUID)
 		env.SetHeader(mockHeader)
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
@@ -977,7 +991,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 				"logParam": encodedValue,
 			},
 		}
-		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
+		vsaKmsConfig := newTestVsaKmsConfig(params.UUID)
 		env.SetHeader(mockHeader)
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
@@ -1037,7 +1051,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 				"logParam": encodedValue,
 			},
 		}
-		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
+		vsaKmsConfig := newTestVsaKmsConfig(params.UUID)
 		env.SetHeader(mockHeader)
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
@@ -1100,7 +1114,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 				"logParam": encodedValue,
 			},
 		}
-		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
+		vsaKmsConfig := newTestVsaKmsConfig(params.UUID)
 		env.SetHeader(mockHeader)
 		origAuthType := env2.AuthType
 		env2.AuthType = env2.USERNAME_PWD_SEC_MGR

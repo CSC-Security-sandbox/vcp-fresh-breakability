@@ -26767,6 +26767,15 @@ type VolumeUpdateV1beta struct {
 	LargeCapacity OptNilBool `json:"largeCapacity"`
 	// The count of number of constituent volumes for the large volume.
 	LargeVolumeConstituentCount OptNilInt32 `json:"largeVolumeConstituentCount"`
+	// Throughput in MiB/s. Only set if parent pool is qosType ='manual', iops is set, and
+	// volumePerformanceGroupId is not set.
+	ThroughputMibps OptNilInt64 `json:"throughputMibps"`
+	// Io Operations Per Second limit. Only set if parent pool is qosType ='manual', throughputMibps is
+	// set, and volumePerformanceGroupId is not set.
+	Iops OptNilInt64 `json:"iops"`
+	// UUID v4 used to identify the performance group.  Only set if parent pool is qosType ='manual', and
+	// neither throughputMibps nor iops are set.
+	VolumePerformanceGroupId OptNilString `json:"volumePerformanceGroupId"`
 }
 
 // GetQuotaInBytes returns the value of QuotaInBytes.
@@ -26869,6 +26878,21 @@ func (s *VolumeUpdateV1beta) GetLargeVolumeConstituentCount() OptNilInt32 {
 	return s.LargeVolumeConstituentCount
 }
 
+// GetThroughputMibps returns the value of ThroughputMibps.
+func (s *VolumeUpdateV1beta) GetThroughputMibps() OptNilInt64 {
+	return s.ThroughputMibps
+}
+
+// GetIops returns the value of Iops.
+func (s *VolumeUpdateV1beta) GetIops() OptNilInt64 {
+	return s.Iops
+}
+
+// GetVolumePerformanceGroupId returns the value of VolumePerformanceGroupId.
+func (s *VolumeUpdateV1beta) GetVolumePerformanceGroupId() OptNilString {
+	return s.VolumePerformanceGroupId
+}
+
 // SetQuotaInBytes sets the value of QuotaInBytes.
 func (s *VolumeUpdateV1beta) SetQuotaInBytes(val OptNilFloat64) {
 	s.QuotaInBytes = val
@@ -26967,6 +26991,21 @@ func (s *VolumeUpdateV1beta) SetLargeCapacity(val OptNilBool) {
 // SetLargeVolumeConstituentCount sets the value of LargeVolumeConstituentCount.
 func (s *VolumeUpdateV1beta) SetLargeVolumeConstituentCount(val OptNilInt32) {
 	s.LargeVolumeConstituentCount = val
+}
+
+// SetThroughputMibps sets the value of ThroughputMibps.
+func (s *VolumeUpdateV1beta) SetThroughputMibps(val OptNilInt64) {
+	s.ThroughputMibps = val
+}
+
+// SetIops sets the value of Iops.
+func (s *VolumeUpdateV1beta) SetIops(val OptNilInt64) {
+	s.Iops = val
+}
+
+// SetVolumePerformanceGroupId sets the value of VolumePerformanceGroupId.
+func (s *VolumeUpdateV1beta) SetVolumePerformanceGroupId(val OptNilString) {
+	s.VolumePerformanceGroupId = val
 }
 
 // JSON dictionary of resource labels to allow linking of billing labels to a volume.

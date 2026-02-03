@@ -140,9 +140,11 @@ data:
   MAX_NUMBER_OF_AD_PER_ACCOUNT: "{{ index .Values "maxNumberOfAdPerAccount" }}"
   READINESS_PROBE_FAILURE_THRESHOLD: "{{ index .Values "readinessProbe" "failureThreshold" }}"
   READINESS_PROBE_PERIOD_SECONDS: "{{ index .Values "readinessProbe" "periodSeconds" }}"
-  ENABLE_MQOS: "{{ index .Values "enableMqos" }}"
-  ENABLE_VPG_ENDPOINTS: "{{ index .Values "enableVpgEndpoints" }}"
   EXPORT_POLICY_RULES_LIMIT: "{{ index .Values "exportPolicyRulesLimit" }}"
+  ENABLE_MQOS: "{{ index .Values "enableMqos" }}"
+  ENABLE_INFERRED_IOPS: "{{ index .Values "enableInferredIops" | default true }}"
+  ENABLE_VPG_ENDPOINTS: "{{ index .Values "enableVpgEndpoints" }}"
+  ENABLE_VOLUME_PERFORMANCE_GROUP_ASSIGNMENT: "{{ index .Values "enableVolumePerformanceGroupAssignment" }}"
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
     DB_NAME: {{ index .Values "database" "name"  }}

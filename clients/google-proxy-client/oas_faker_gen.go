@@ -15645,6 +15645,21 @@ func (s *VolumeUpdateV1beta) SetFake() {
 			s.LargeVolumeConstituentCount.SetFake()
 		}
 	}
+	{
+		{
+			s.ThroughputMibps.SetFake()
+		}
+	}
+	{
+		{
+			s.Iops.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumePerformanceGroupId.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

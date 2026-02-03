@@ -20,6 +20,10 @@ import (
 )
 
 func TestPollOntapJob_Workflow_Success(t *testing.T) {
+	origWait := wait
+	wait = 10 * time.Millisecond
+	defer func() { wait = origWait }()
+
 	var suite testsuite.WorkflowTestSuite
 	env := suite.NewTestWorkflowEnvironment()
 	env.SetTestTimeout(30 * time.Second) // Set test timeout to prevent deadlock detection
@@ -39,6 +43,10 @@ func TestPollOntapJob_Workflow_Success(t *testing.T) {
 }
 
 func TestPollOntapJob_Workflow_Error(t *testing.T) {
+	origWait := wait
+	wait = 10 * time.Millisecond
+	defer func() { wait = origWait }()
+
 	var suite testsuite.WorkflowTestSuite
 	env := suite.NewTestWorkflowEnvironment()
 	env.RegisterWorkflow(PollOntapJob)
@@ -57,6 +65,10 @@ func TestPollOntapJob_Workflow_Error(t *testing.T) {
 }
 
 func TestPollOntapJob_Workflow_Timeout(t *testing.T) {
+	origWait := wait
+	wait = 10 * time.Millisecond
+	defer func() { wait = origWait }()
+
 	var suite testsuite.WorkflowTestSuite
 	env := suite.NewTestWorkflowEnvironment()
 	env.RegisterWorkflow(PollOntapJob)
@@ -76,6 +88,10 @@ func TestPollOntapJob_Workflow_Timeout(t *testing.T) {
 }
 
 func TestPollOntapJob_Workflow_NewOntapRestClient_Error(t *testing.T) {
+	origWait := wait
+	wait = 10 * time.Millisecond
+	defer func() { wait = origWait }()
+
 	var suite testsuite.WorkflowTestSuite
 	env := suite.NewTestWorkflowEnvironment()
 	env.RegisterWorkflow(PollOntapJob)
@@ -100,6 +116,10 @@ func TestPollOntapJob_Workflow_NewOntapRestClient_Error(t *testing.T) {
 }
 
 func TestPollOntapJob_Workflow_JobFail(t *testing.T) {
+	origWait := wait
+	wait = 10 * time.Millisecond
+	defer func() { wait = origWait }()
+
 	var suite testsuite.WorkflowTestSuite
 	env := suite.NewTestWorkflowEnvironment()
 	env.RegisterWorkflow(PollOntapJob)
@@ -118,6 +138,10 @@ func TestPollOntapJob_Workflow_JobFail(t *testing.T) {
 }
 
 func TestPollOntapJob_Workflow_OverrideTimeout(t *testing.T) {
+	origWait := wait
+	wait = 10 * time.Millisecond
+	defer func() { wait = origWait }()
+
 	var suite testsuite.WorkflowTestSuite
 	env := suite.NewTestWorkflowEnvironment()
 	env.RegisterWorkflow(PollOntapJob)
@@ -142,6 +166,10 @@ func TestPollOntapJob_Workflow_OverrideTimeout(t *testing.T) {
 }
 
 func TestPollOntapJob_Workflow_WorkflowSleepError(t *testing.T) {
+	origWait := wait
+	wait = 10 * time.Millisecond
+	defer func() { wait = origWait }()
+
 	var suite testsuite.WorkflowTestSuite
 	env := suite.NewTestWorkflowEnvironment()
 	env.RegisterWorkflow(PollOntapJob)

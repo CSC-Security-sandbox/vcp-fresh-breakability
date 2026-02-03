@@ -55,6 +55,7 @@ var (
 	unixPermissionsEnabled            = env.GetBool("ENABLE_UNIX_PERMISSIONS", true)
 	smbCaShareEnabled                 = env.GetBool("SMB_CA_SHARE_ENABLED", false)
 	exportRulesLimit                  = env.GetInt("EXPORT_POLICY_RULES_LIMIT", 20)
+	enableInferredIops                = env.GetBool("ENABLE_INFERRED_IOPS", true)
 )
 
 const (
@@ -126,6 +127,7 @@ func convertModelsToVCPVolumes(volumes []*models.Volume) []gcpgenserver.VolumeV1
 func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams) (gcpgenserver.V1betaCreateVolumeRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
 	if req.HybridReplicationParameters.IsSet() && !hybridReplicationEnabled {
 		return &gcpgenserver.V1betaCreateVolumeBadRequest{
 			Code:    http.StatusBadRequest,
@@ -432,6 +434,52 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			return nil, errors.NewUserInputValidationErr(err.Error())
 		}
 		param.Labels = jsonbLabels
+	}
+
+	hasThroughput := req.Volume.ThroughputMibps.IsSet()
+	hasIops := req.Volume.Iops.IsSet()
+
+	// Check MQOS feature flag for each parameter separately to provide specific error messages
+	if !enableMqos {
+		if hasThroughput {
+			return nil, errors.NewUserInputValidationErr(utils.ErrMsgMqosNotEnabledThroughput)
+		}
+		if hasIops {
+			return nil, errors.NewUserInputValidationErr(utils.ErrMsgMqosNotEnabledIops)
+		}
+	}
+
+	// Early pool QosType validation - fail fast before orchestrator processing
+	// Auto pools reject throughputMibps and iops (regardless of feature flag)
+	if pool != nil && pool.QosType == utils.QosTypeAuto {
+		if hasThroughput {
+			return nil, errors.NewUserInputValidationErr(utils.ErrMsgPoolAutoQosTypeCannotSpecifyThroughput)
+		}
+		if hasIops {
+			return nil, errors.NewUserInputValidationErr(utils.ErrMsgPoolAutoQosTypeCannotSpecifyIops)
+		}
+	}
+
+	// Manual pools require throughputMibps when MQOS is enabled
+	if pool != nil && pool.QosType == utils.QosTypeManual && enableMqos && !hasThroughput {
+		return nil, errors.NewUserInputValidationErr(utils.ErrMsgPoolManualQosTypeRequiresThroughput)
+	}
+
+	if hasIops {
+		return nil, errors.NewUserInputValidationErr("iops is not supported for volume creation. Use throughputMibps to set QoS.")
+	}
+
+	// Fast-fail validation: When MQOS is enabled and inferred IOPS is disabled,
+	// require IOPS to be provided explicitly when throughputMibps is specified.
+	if enableMqos && !enableInferredIops && hasThroughput && !hasIops {
+		return nil, errors.NewUserInputValidationErr("IOPS inference is disabled. IOPS must be provided explicitly when throughputMibps is specified.")
+	}
+
+	// Extract QoS parameters: throughputMibps (existing field in API spec)
+	// Note: iops is always calculated from throughputMibps server-side when inferred IOPS is enabled
+	if hasThroughput {
+		throughputValue := int64(req.Volume.ThroughputMibps.Value)
+		param.ThroughputMibps = &throughputValue
 	}
 
 	smbProtocolRequested := hasSMBProtocol(req.Volume.GetProtocols())
@@ -1279,6 +1327,40 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 				if prePopulate.Recursion.IsSet() {
 					param.CacheParameters.CacheConfig.CachePrePopulate.Recursion = &prePopulate.Recursion.Value
 				}
+			}
+		}
+	}
+
+	hasThroughput := req.ThroughputMibps.IsSet()
+	hasIops := req.Iops.IsSet()
+	hasVpg := req.VolumePerformanceGroupId.IsSet()
+
+	if hasThroughput || hasIops || hasVpg {
+		if !enableMqos {
+			return nil, errors.NewUserInputValidationErr("MQOS is not enabled")
+		}
+
+		if hasVpg {
+			if !enableVolumePerformanceGroupAssignment {
+				return nil, errors.NewUserInputValidationErr("Volume performance group assignment is not enabled")
+			}
+			if hasThroughput || hasIops {
+				return nil, errors.NewUserInputValidationErr("Only (throughputMibps + iops), or volumePerformanceGroupId can be set at a time")
+			}
+			param.VolumePerformanceGroupId = nillable.ToPointer(req.VolumePerformanceGroupId.Value)
+		} else {
+			// If volumePerformanceGroupId is not set, then throughputMibps must be set, and iops can only be null if enableInferredIops is true
+			if !hasThroughput || (!enableInferredIops && hasThroughput && !hasIops) {
+				return nil, errors.NewUserInputValidationErr("throughputMibps and iops must be set together")
+			}
+			if hasThroughput {
+				param.ThroughputMibps = nillable.ToPointer(req.ThroughputMibps.Value)
+			}
+			if hasIops {
+				if enableInferredIops {
+					return nil, errors.NewUserInputValidationErr("iops must not be set when enableInferredIops is true")
+				}
+				param.Iops = nillable.ToPointer(req.Iops.Value)
 			}
 		}
 	}
@@ -3052,7 +3134,7 @@ func (h Handler) V1betaRestoreBackupFiles(ctx context.Context, req *gcpgenserver
 	if params.VolumeId == "" {
 		return &gcpgenserver.V1betaRestoreBackupFilesBadRequest{
 			Code:    400,
-			Message: fmt.Sprintf("Volume ID cannot be empty"),
+			Message: "Volume ID cannot be empty",
 		}, nil
 	}
 
