@@ -9684,6 +9684,9 @@ func TestGetProjectNumberForRegion(t *testing.T) {
 		replication := &datamodel.VolumeReplication{
 			Uri:       "projects/123456789/locations/us-central1/volumes/vol1/replications/repl1",
 			RemoteUri: "projects/987654321/locations/us-east1/volumes/vol2/replications/repl2",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: database.VolumeReplicationEndpointTypeDestination,
+			},
 		}
 
 		// Mock the utilsParseProjectNumberFromURI function
@@ -9707,6 +9710,9 @@ func TestGetProjectNumberForRegion(t *testing.T) {
 		replication := &datamodel.VolumeReplication{
 			Uri:       "projects/123456789/locations/us-central1/volumes/vol1/replications/repl1",
 			RemoteUri: "projects/987654321/locations/us-east1/volumes/vol2/replications/repl2",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: database.VolumeReplicationEndpointTypeSource,
+			},
 		}
 
 		// Mock the utilsParseProjectNumberFromURI function
@@ -9730,6 +9736,9 @@ func TestGetProjectNumberForRegion(t *testing.T) {
 		replication := &datamodel.VolumeReplication{
 			Uri:       "projects/123456789/locations/us-central1/volumes/vol1/replications/repl1",
 			RemoteUri: "projects/987654321/locations/us-east1/volumes/vol2/replications/repl2",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: database.VolumeReplicationEndpointTypeSource,
+			},
 		}
 
 		// Mock the utilsParseProjectNumberFromURI function
@@ -9753,6 +9762,9 @@ func TestGetProjectNumberForRegion(t *testing.T) {
 		replication := &datamodel.VolumeReplication{
 			Uri:       "projects/123456789/locations/us-central1/volumes/vol1/replications/repl1",
 			RemoteUri: "projects/987654321/locations/us-east1/volumes/vol2/replications/repl2",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: database.VolumeReplicationEndpointTypeDestination,
+			},
 		}
 
 		// Mock the utilsParseProjectNumberFromURI function to return error
@@ -9774,6 +9786,9 @@ func TestGetProjectNumberForRegion(t *testing.T) {
 		replication := &datamodel.VolumeReplication{
 			Uri:       "projects/123456789/locations/us-central1/volumes/vol1/replications/repl1",
 			RemoteUri: "projects/987654321/locations/us-east1/volumes/vol2/replications/repl2",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: database.VolumeReplicationEndpointTypeSource,
+			},
 		}
 
 		// Mock the utilsParseProjectNumberFromURI function
@@ -9792,6 +9807,199 @@ func TestGetProjectNumberForRegion(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.Equal(tt, "987654321", projectNumber) // Should return project from RemoteUri
+	})
+
+	t.Run("WhenHybridReplicationAttributesIsNotNil", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			Uri:       "projects/111222333/locations/us-central1/volumes/vol1/replications/repl1",
+			RemoteUri: "projects/987654321/locations/us-east1/volumes/vol2/replications/repl2",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: database.VolumeReplicationEndpointTypeSource,
+			},
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Description: "hybrid replication",
+			},
+		}
+
+		// Mock the utilsParseProjectNumberFromURI function
+		originalUtilsParseProjectNumberFromURI := utilsParseProjectNumberFromURI
+		defer func() { utilsParseProjectNumberFromURI = originalUtilsParseProjectNumberFromURI }()
+
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			if strings.Contains(uri, "111222333") {
+				return "111222333", nil
+			}
+			return "987654321", nil
+		}
+
+		projectNumber, err := _getProjectNumberForRegion(replication, "us-central1")
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "111222333", projectNumber) // Should return project from Uri regardless of EndpointType
+	})
+
+	t.Run("WhenHybridReplicationAttributesIsNotNilAndParsingFails", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			Uri:       "projects/111222333/locations/us-central1/volumes/vol1/replications/repl1",
+			RemoteUri: "projects/987654321/locations/us-east1/volumes/vol2/replications/repl2",
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Description: "hybrid replication",
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: database.VolumeReplicationEndpointTypeSource,
+			},
+		}
+
+		// Mock the utilsParseProjectNumberFromURI function to return error
+		originalUtilsParseProjectNumberFromURI := utilsParseProjectNumberFromURI
+		defer func() { utilsParseProjectNumberFromURI = originalUtilsParseProjectNumberFromURI }()
+
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "", errors.New("invalid URI format")
+		}
+
+		projectNumber, err := _getProjectNumberForRegion(replication, "us-central1")
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "", projectNumber)
+		assert.Equal(tt, "invalid URI format", err.Error())
+	})
+
+	t.Run("WhenEndpointTypeSourceAndRemoteUriParsingFails", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			Uri:       "projects/111222333/locations/us-central1/volumes/vol1/replications/repl1",
+			RemoteUri: "projects/987654321/locations/us-east1/volumes/vol2/replications/repl2",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: database.VolumeReplicationEndpointTypeSource,
+			},
+		}
+
+		// Mock the utilsParseProjectNumberFromURI function to return error for RemoteUri
+		originalUtilsParseProjectNumberFromURI := utilsParseProjectNumberFromURI
+		defer func() { utilsParseProjectNumberFromURI = originalUtilsParseProjectNumberFromURI }()
+
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			if strings.Contains(uri, "987654321") { // RemoteUri
+				return "", errors.New("remote URI parsing failed")
+			}
+			return "111222333", nil // Uri
+		}
+
+		projectNumber, err := _getProjectNumberForRegion(replication, "us-east1")
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "", projectNumber)
+		assert.Equal(tt, "remote URI parsing failed", err.Error())
+	})
+
+	t.Run("WhenEndpointTypeDestinationAndUriParsingFails", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			Uri:       "projects/111222333/locations/us-central1/volumes/vol1/replications/repl1",
+			RemoteUri: "projects/987654321/locations/us-east1/volumes/vol2/replications/repl2",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: database.VolumeReplicationEndpointTypeDestination,
+			},
+		}
+
+		// Mock the utilsParseProjectNumberFromURI function to return error for Uri
+		originalUtilsParseProjectNumberFromURI := utilsParseProjectNumberFromURI
+		defer func() { utilsParseProjectNumberFromURI = originalUtilsParseProjectNumberFromURI }()
+
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			if strings.Contains(uri, "111222333") { // Uri
+				return "", errors.New("URI parsing failed")
+			}
+			return "987654321", nil // RemoteUri
+		}
+
+		projectNumber, err := _getProjectNumberForRegion(replication, "us-central1")
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "", projectNumber)
+		assert.Equal(tt, "URI parsing failed", err.Error())
+	})
+
+	t.Run("WhenEndpointTypeIsUnknownValue", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			Uri:       "projects/111222333/locations/us-central1/volumes/vol1/replications/repl1",
+			RemoteUri: "projects/987654321/locations/us-east1/volumes/vol2/replications/repl2",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: "unknown", // Unknown endpoint type
+			},
+		}
+
+		// Mock the utilsParseProjectNumberFromURI function
+		originalUtilsParseProjectNumberFromURI := utilsParseProjectNumberFromURI
+		defer func() { utilsParseProjectNumberFromURI = originalUtilsParseProjectNumberFromURI }()
+
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			if strings.Contains(uri, "111222333") {
+				return "111222333", nil
+			}
+			return "987654321", nil
+		}
+
+		projectNumber, err := _getProjectNumberForRegion(replication, "us-central1")
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "111222333", projectNumber) // Should fall through to else branch and use Uri
+	})
+
+	t.Run("WhenBothUriAndRemoteUriAreEmpty", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			Uri:       "",
+			RemoteUri: "",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: database.VolumeReplicationEndpointTypeDestination,
+			},
+		}
+
+		// Mock the utilsParseProjectNumberFromURI function to handle empty URI
+		originalUtilsParseProjectNumberFromURI := utilsParseProjectNumberFromURI
+		defer func() { utilsParseProjectNumberFromURI = originalUtilsParseProjectNumberFromURI }()
+
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			if uri == "" {
+				return "", errors.New("empty URI provided")
+			}
+			return "123456789", nil
+		}
+
+		projectNumber, err := _getProjectNumberForRegion(replication, "us-central1")
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "", projectNumber)
+		assert.Equal(tt, "empty URI provided", err.Error())
+	})
+
+	t.Run("WhenHybridReplicationWithEmptyUri", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			Uri:       "",
+			RemoteUri: "projects/987654321/locations/us-east1/volumes/vol2/replications/repl2",
+			HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{
+				Description: "hybrid replication",
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: database.VolumeReplicationEndpointTypeSource,
+			},
+		}
+
+		// Mock the utilsParseProjectNumberFromURI function to handle empty URI
+		originalUtilsParseProjectNumberFromURI := utilsParseProjectNumberFromURI
+		defer func() { utilsParseProjectNumberFromURI = originalUtilsParseProjectNumberFromURI }()
+
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			if uri == "" {
+				return "", errors.New("hybrid replication URI is empty")
+			}
+			return "987654321", nil
+		}
+
+		projectNumber, err := _getProjectNumberForRegion(replication, "us-central1")
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "", projectNumber)
+		assert.Equal(tt, "hybrid replication URI is empty", err.Error())
 	})
 }
 

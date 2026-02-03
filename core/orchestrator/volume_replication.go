@@ -1141,10 +1141,14 @@ func _googleProxyInternalGetMultipleReplications(ctx context.Context, basePath, 
 }
 
 func _getProjectNumberForRegion(replication *datamodel.VolumeReplication, region string) (string, error) {
-	if strings.Contains(replication.Uri, region) {
+	if replication.HybridReplicationAttributes != nil {
 		return utilsParseProjectNumberFromURI(replication.Uri)
 	}
-	return utilsParseProjectNumberFromURI(replication.RemoteUri)
+	if replication.ReplicationAttributes.EndpointType == database.VolumeReplicationEndpointTypeSource {
+		return utilsParseProjectNumberFromURI(replication.RemoteUri)
+	} else {
+		return utilsParseProjectNumberFromURI(replication.Uri)
+	}
 }
 
 func (o *Orchestrator) ReleaseVolumeReplication(ctx context.Context, replicationUUID string) (*models.VolumeReplication, *datamodel.Job, error) {
