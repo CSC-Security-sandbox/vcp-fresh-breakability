@@ -3055,9 +3055,9 @@ func (_c *MockOrchestratorFactory_GetAccount_Call) RunAndReturn(run func(context
 	return _c
 }
 
-// GetActiveDirectory provides a mock function with given fields: ctx, activeDirectoryUUID
-func (_m *MockOrchestratorFactory) GetActiveDirectory(ctx context.Context, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
-	ret := _m.Called(ctx, activeDirectoryUUID)
+// GetActiveDirectory provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) GetActiveDirectory(ctx context.Context, params *common.GetADParams) (*models.ActiveDirectory, error) {
+	ret := _m.Called(ctx, params)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetActiveDirectory")
@@ -3065,19 +3065,19 @@ func (_m *MockOrchestratorFactory) GetActiveDirectory(ctx context.Context, activ
 
 	var r0 *models.ActiveDirectory
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (*models.ActiveDirectory, error)); ok {
-		return rf(ctx, activeDirectoryUUID)
+	if rf, ok := ret.Get(0).(func(context.Context, *common.GetADParams) (*models.ActiveDirectory, error)); ok {
+		return rf(ctx, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) *models.ActiveDirectory); ok {
-		r0 = rf(ctx, activeDirectoryUUID)
+	if rf, ok := ret.Get(0).(func(context.Context, *common.GetADParams) *models.ActiveDirectory); ok {
+		r0 = rf(ctx, params)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*models.ActiveDirectory)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, activeDirectoryUUID)
+	if rf, ok := ret.Get(1).(func(context.Context, *common.GetADParams) error); ok {
+		r1 = rf(ctx, params)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -3092,14 +3092,14 @@ type MockOrchestratorFactory_GetActiveDirectory_Call struct {
 
 // GetActiveDirectory is a helper method to define mock.On call
 //   - ctx context.Context
-//   - activeDirectoryUUID string
-func (_e *MockOrchestratorFactory_Expecter) GetActiveDirectory(ctx interface{}, activeDirectoryUUID interface{}) *MockOrchestratorFactory_GetActiveDirectory_Call {
-	return &MockOrchestratorFactory_GetActiveDirectory_Call{Call: _e.mock.On("GetActiveDirectory", ctx, activeDirectoryUUID)}
+//   - params *common.GetADParams
+func (_e *MockOrchestratorFactory_Expecter) GetActiveDirectory(ctx interface{}, params interface{}) *MockOrchestratorFactory_GetActiveDirectory_Call {
+	return &MockOrchestratorFactory_GetActiveDirectory_Call{Call: _e.mock.On("GetActiveDirectory", ctx, params)}
 }
 
-func (_c *MockOrchestratorFactory_GetActiveDirectory_Call) Run(run func(ctx context.Context, activeDirectoryUUID string)) *MockOrchestratorFactory_GetActiveDirectory_Call {
+func (_c *MockOrchestratorFactory_GetActiveDirectory_Call) Run(run func(ctx context.Context, params *common.GetADParams)) *MockOrchestratorFactory_GetActiveDirectory_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
+		run(args[0].(context.Context), args[1].(*common.GetADParams))
 	})
 	return _c
 }
@@ -3109,7 +3109,7 @@ func (_c *MockOrchestratorFactory_GetActiveDirectory_Call) Return(_a0 *models.Ac
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_GetActiveDirectory_Call) RunAndReturn(run func(context.Context, string) (*models.ActiveDirectory, error)) *MockOrchestratorFactory_GetActiveDirectory_Call {
+func (_c *MockOrchestratorFactory_GetActiveDirectory_Call) RunAndReturn(run func(context.Context, *common.GetADParams) (*models.ActiveDirectory, error)) *MockOrchestratorFactory_GetActiveDirectory_Call {
 	_c.Call.Return(run)
 	return _c
 }

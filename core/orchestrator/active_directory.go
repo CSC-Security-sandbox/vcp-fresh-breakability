@@ -8,15 +8,18 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	adHelper "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	customValidators "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/validator"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -29,6 +32,8 @@ var (
 	createActiveDirectory        = _createActiveDirectory
 	updateActiveDirectory        = _updateActiveDirectory
 	getActiveDirectory           = _getActiveDirectory
+	getActiveDirectoryVcp        = _getActiveDirectoryVCP
+	getActiveDirectorySde        = _getActiveDirectorySDE
 	listActiveDirectories        = _listActiveDirectories
 	getMultipleActiveDirectories = _getMultipleActiveDirectories
 	deleteActiveDirectory        = _deleteActiveDirectory
@@ -147,8 +152,8 @@ func _createActiveDirectory(
 	return convertActiveDirectoryParamsToModel(params), createdJob.UUID, nil
 }
 
-// _getActiveDirectory retrieves an Active Directory resource by UUID from the database.
-func _getActiveDirectory(
+// _getActiveDirectoryVCP retrieves an Active Directory resource by UUID from the VCP database.
+func _getActiveDirectoryVCP(
 	ctx context.Context,
 	se database.Storage,
 	activeDirectoryUUID string,
@@ -169,6 +174,85 @@ func _getActiveDirectory(
 
 	// Convert datamodel to model
 	return convertDatastoreActiveDirectoryToModel(ad), nil
+}
+
+// _getActiveDirectorySDE retrieves an Active Directory resource by UUID from SDE
+func _getActiveDirectorySDE(
+	ctx context.Context,
+	params *common.GetADParams,
+) (*models.ActiveDirectory, error) {
+	logger := util.GetLogger(ctx)
+
+	if params.CorrelationID == "" {
+		logger.Warn("XCorrelationID not set in DescribeActiveDirectoryParams")
+		return nil, customerrors.New("unknown error during the describe active directory")
+	}
+
+	pathParams := &active_directories.V1betaDescribeActiveDirectoryParams{
+		LocationID:        params.LocationID,
+		ProjectNumber:     params.ProjectNumber,
+		XCorrelationID:    &params.CorrelationID,
+		ActiveDirectoryID: params.UUID,
+	}
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := cvp.CreateClient(logger, jwtToken)
+	resp, err := cvpClient.ActiveDirectories.V1betaDescribeActiveDirectory(pathParams)
+
+	if err != nil {
+		switch e := err.(type) {
+		case *active_directories.V1betaDescribeActiveDirectoryNotFound:
+			return nil, customerrors.NewNotFoundErr("ActiveDirectory", &params.UUID)
+		case *active_directories.V1betaDescribeActiveDirectoryBadRequest:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			return nil, customerrors.NewBadRequestErr(msg)
+		case *active_directories.V1betaDescribeActiveDirectoryDefault:
+			return nil, err
+		default:
+			return nil, err
+		}
+	}
+	if resp == nil || resp.Payload == nil {
+		return nil, customerrors.New("unknown error during the describe active directory")
+	}
+
+	adModel := adHelper.ConvertCVPActiveDirectoryV1BetaToModel(resp.Payload)
+	return adModel, nil
+}
+
+func _getActiveDirectory(
+	ctx context.Context,
+	params *common.GetADParams,
+	se database.Storage,
+) (*models.ActiveDirectory, error) {
+	logger := util.GetLogger(ctx)
+	// If SDE is disabled or common resources are created in VCP, get AD from VCP only
+	if cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP {
+		ad, err := getActiveDirectoryVcp(ctx, se, params.UUID)
+		if err != nil {
+			return nil, err
+		}
+		return ad, nil
+	}
+	// Get AD from SDE (for state information)
+	sdeAdModel, err := getActiveDirectorySde(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	// Get AD from VCP (for configuration data)
+	vcpAd, vcpErr := getActiveDirectoryVcp(ctx, se, params.UUID)
+	if vcpErr != nil {
+		// If VCP AD not found, just return SDE AD
+		if customerrors.IsNotFoundErr(vcpErr) {
+			logger.Infof("AD %s not found in VCP, returning AD from SDE", params.UUID)
+			return sdeAdModel, nil
+		}
+		return nil, vcpErr
+	}
+	// Compare states and select the higher priority state
+	adHelper.CompareADStateHierarchy(sdeAdModel, vcpAd)
+
+	// Return VCP model with merged state
+	return sdeAdModel, nil
 }
 
 // convertDatastoreActiveDirectoryToModel converts datamodel.ActiveDirectory to models.ActiveDirectory
@@ -260,13 +344,9 @@ func _listActiveDirectories(
 // GetActiveDirectory is the public orchestrator method for retrieving an Active Directory resource by UUID.
 func (o *Orchestrator) GetActiveDirectory(
 	ctx context.Context,
-	activeDirectoryUUID string,
+	params *common.GetADParams,
 ) (*models.ActiveDirectory, error) {
-	ad, err := getActiveDirectory(ctx, o.storage, activeDirectoryUUID)
-	if err != nil {
-		return nil, err
-	}
-	return ad, nil
+	return getActiveDirectory(ctx, params, o.storage)
 }
 
 // _getMultipleActiveDirectories retrieves multiple Active Directory resources by UUIDs.
@@ -449,7 +529,12 @@ func _updateActiveDirectory(
 		return nil, "", err
 	}
 
-	ad, err := getActiveDirectory(ctx, se, params.ActiveDirectoryId)
+	describeParams, err := adHelper.ConvertUpdateParamsToDescribeParams(params, account.Name)
+	if err != nil {
+		return nil, "", err
+	}
+
+	ad, err := getActiveDirectory(ctx, describeParams, se)
 	if err != nil {
 		return nil, "", err
 	}

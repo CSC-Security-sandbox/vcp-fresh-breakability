@@ -143,7 +143,7 @@ type OrchestratorFactory interface {
 	CreateImageVersion(ctx context.Context, ontapVersion, vsaImagePath, vsaName, mediatorName string, isActive bool) (*datamodel.ImageVersion, error)
 	DeleteImageVersion(ctx context.Context, ontapVersion string) error
 
-	GetActiveDirectory(ctx context.Context, activeDirectoryUUID string) (*models.ActiveDirectory, error)
+	GetActiveDirectory(ctx context.Context, params *commonparams.GetADParams) (*models.ActiveDirectory, error)
 	ListActiveDirectories(ctx context.Context, accountName string) ([]*models.ActiveDirectory, error)
 	GetMultipleActiveDirectories(ctx context.Context, uuids []string) ([]*models.ActiveDirectory, error)
 	GetADConfig(ctx context.Context, params *commonparams.GetADParams) (*models.ActiveDirectory, error)

@@ -793,6 +793,7 @@ type GetADParams struct {
 	LocationID    string
 	ProjectNumber string
 	ResourceID    string
+	CorrelationID string
 }
 
 type RestoreFilesFromBackupParams struct {

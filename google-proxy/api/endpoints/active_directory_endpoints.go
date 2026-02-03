@@ -15,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	vcpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	orchestratorHelper "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/helper"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -25,16 +26,7 @@ import (
 )
 
 var (
-	createClient              = cvp.CreateClient
-	getActiveDirectoryFromVCP = _getActiveDirectoryFromVCP
-	// Define the state hierarchy once, in priority order (highest to lowest)
-	activeDirectoryStateHierarchy = []gcpgenserver.ActiveDirectoryV1betaActiveDirectoryState{
-		gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateUPDATING,
-		gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR,
-		gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateINUSE,
-		gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY,
-		// Add more states here in priority order as needed
-	}
+	createClient = cvp.CreateClient
 )
 
 // PasswordMask defines the mask used when logging out a password
@@ -129,7 +121,7 @@ func convertToActiveDirectoryV1Beta(
 		Domain:                      ad.Domain,
 		DNS:                         ad.DNS,
 		NetBIOS:                     ad.NetBIOS,
-		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(mapActiveDirectoryState(ad.State)),
+		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(orchestratorHelper.StringToActiveDirectoryState(ad.State)),
 		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(ad.StateDetails),
 		CreatedAt:                   gcpgenserver.NewOptDateTime(ad.CreatedAt),
 		UpdatedAt:                   gcpgenserver.NewOptDateTime(ad.UpdatedAt),
@@ -229,9 +221,9 @@ func convertOrchestratorActiveDirectoryToV1Beta(ad *vcpModels.ActiveDirectory) g
 
 // encodeActiveDirectoryV1 encodes an ActiveDirectoryV1beta struct to JSON.
 func encodeActiveDirectoryV1(
-	pool *gcpgenserver.ActiveDirectoryV1beta,
+	ad *gcpgenserver.ActiveDirectoryV1beta,
 ) (jx.Raw, error) {
-	data, err := json.Marshal(pool)
+	data, err := json.Marshal(ad)
 	if err != nil {
 		return nil, err
 	}
@@ -291,111 +283,37 @@ func (h Handler) V1betaDeleteActiveDirectory(ctx context.Context, params gcpgens
 func (h Handler) V1betaDescribeActiveDirectory(ctx context.Context, params gcpgenserver.V1betaDescribeActiveDirectoryParams) (r gcpgenserver.V1betaDescribeActiveDirectoryRes, err error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	var adV1BetaModel *gcpgenserver.ActiveDirectoryV1beta
-	if cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP {
-		adV1BetaModel, err = getActiveDirectoryFromVCP(ctx, h, params.ActiveDirectoryId)
-		if err != nil {
-			if errors.IsNotFoundErr(err) {
-				return &gcpgenserver.V1betaDescribeActiveDirectoryNotFound{
-					Code:    http.StatusNotFound,
-					Message: err.Error(),
-				}, nil
-			}
-			logger.Errorf("Error getting active directory from VCP when cvp is not present with error: %v", err)
-			return &gcpgenserver.V1betaDescribeActiveDirectoryInternalServerError{
-				Code:    http.StatusInternalServerError,
-				Message: "internal error during the describe active directory",
-			}, nil
-		}
-	} else {
-		pathParams := &active_directories.V1betaDescribeActiveDirectoryParams{
-			LocationID:        params.LocationId,
-			ProjectNumber:     params.ProjectNumber,
-			XCorrelationID:    &params.XCorrelationID.Value,
-			ActiveDirectoryID: params.ActiveDirectoryId,
-		}
-		jwtToken := utils.GetJWTTokenFromContext(ctx)
-		cvpClient := createClient(logger, jwtToken)
-		resp, err := cvpClient.ActiveDirectories.V1betaDescribeActiveDirectory(pathParams)
-		if err != nil {
-			switch e := err.(type) {
-			case *active_directories.V1betaDescribeActiveDirectoryUnprocessableEntity:
-				msg := nillable.GetString(&e.Payload.Message, "")
-				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-				return &gcpgenserver.V1betaDescribeActiveDirectoryUnprocessableEntity{
-					Code:    code,
-					Message: msg,
-				}, nil
-			case *active_directories.V1betaDescribeActiveDirectoryNotFound:
-				msg := nillable.GetString(&e.Payload.Message, "")
-				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-				return &gcpgenserver.V1betaDescribeActiveDirectoryNotFound{
-					Code:    code,
-					Message: msg,
-				}, nil
-			case *active_directories.V1betaDescribeActiveDirectoryBadRequest:
-				msg := nillable.GetString(&e.Payload.Message, "")
-				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-				return &gcpgenserver.V1betaDescribeActiveDirectoryBadRequest{
-					Code:    code,
-					Message: msg,
-				}, nil
-			case *active_directories.V1betaDescribeActiveDirectoryUnauthorized:
-				msg := nillable.GetString(&e.Payload.Message, "")
-				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-				return &gcpgenserver.V1betaDescribeActiveDirectoryUnauthorized{
-					Code:    code,
-					Message: msg,
-				}, nil
 
-			case *active_directories.V1betaDescribeActiveDirectoryForbidden:
-				msg := nillable.GetString(&e.Payload.Message, "")
-				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-				return &gcpgenserver.V1betaDescribeActiveDirectoryForbidden{
-					Code:    code,
-					Message: msg,
-				}, nil
-
-			case *active_directories.V1betaDescribeActiveDirectoryTooManyRequests:
-				msg := nillable.GetString(&e.Payload.Message, "")
-				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-				return &gcpgenserver.V1betaDescribeActiveDirectoryTooManyRequests{
-					Code:    code,
-					Message: msg,
-				}, nil
-			case *active_directories.V1betaDescribeActiveDirectoryDefault:
-				return &gcpgenserver.V1betaDescribeActiveDirectoryInternalServerError{
-					Code:    500,
-					Message: err.Error(),
-				}, nil
-			}
-		}
-		if resp == nil || resp.Payload == nil {
-			return &gcpgenserver.V1betaDescribeActiveDirectoryInternalServerError{
-				Code:    500,
-				Message: "unknown error during the describe active directory",
-			}, nil
-		}
-		// Converting CVP model to gcpgenserver.ActiveDirectoryV1beta
-		cvpADV1BetaModel := convertToADV1Beta(resp.Payload)
-		adV1BetaModel = &cvpADV1BetaModel
-		// Compare AD state hierarchy
-		vcpAd, vcpErr := getActiveDirectoryFromVCP(ctx, h, params.ActiveDirectoryId)
-		if vcpErr != nil {
-			// If the AD is not found in VCP, return the AD from CVP.
-			if errors.IsNotFoundErr(vcpErr) {
-				logger.Infof("AD %s not found in VCP, returning AD from CVP", params.ActiveDirectoryId)
-				return adV1BetaModel, nil
-			}
-			logger.Errorf("Error getting active directory from VCP when cvp is present with error: %v", vcpErr)
-			return &gcpgenserver.V1betaDescribeActiveDirectoryInternalServerError{
-				Code:    500,
-				Message: "internal error during the describe active directory",
-			}, nil
-		}
-		compareADStateHierarchy(adV1BetaModel, vcpAd)
+	adParams := &common.GetADParams{
+		ProjectNumber: params.ProjectNumber,
+		LocationID:    params.LocationId,
+		CorrelationID: params.XCorrelationID.Or(""),
+		UUID:          params.ActiveDirectoryId,
 	}
-	return adV1BetaModel, nil
+	activeDirectory, err := h.Orchestrator.GetActiveDirectory(ctx, adParams)
+
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaDescribeActiveDirectoryNotFound{
+				Code:    http.StatusNotFound,
+				Message: err.Error(),
+			}, nil
+		}
+		if errors.IsBadRequestErr(err) {
+			return &gcpgenserver.V1betaDescribeActiveDirectoryBadRequest{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Errorf("Error getting active directory from VCP/SDE with error: %v", err)
+		return &gcpgenserver.V1betaDescribeActiveDirectoryInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: "internal error during the describe active directory",
+		}, nil
+	}
+
+	adV1BetaModel := convertOrchestratorActiveDirectoryToV1Beta(activeDirectory)
+	return &adV1BetaModel, nil
 }
 
 func (h Handler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *gcpgenserver.ActiveDirectoryIdListV1beta, params gcpgenserver.V1betaGetMultipleActiveDirectoriesParams) (r gcpgenserver.V1betaGetMultipleActiveDirectoriesRes, _ error) {
@@ -530,7 +448,6 @@ func (h Handler) V1betaUpdateActiveDirectory(ctx context.Context, req *gcpgenser
 	}
 
 	param := convertToUpdateParamsForValidation(req, params)
-
 	ad, jobUUID, err := h.Orchestrator.UpdateActiveDirectory(ctx, param)
 
 	if err != nil {
@@ -690,43 +607,14 @@ func convertToADV1Beta(ad *models.ActiveDirectoryV1beta) gcpgenserver.ActiveDire
 	return adResponse
 }
 
-func mapActiveDirectoryState(state string) gcpgenserver.ActiveDirectoryV1betaActiveDirectoryState {
-	switch state {
-	case "CREATING":
-		return gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateCREATING
-	case "READY":
-		return gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY
-	case "DELETING":
-		return gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateDELETING
-	case "ERROR":
-		return gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR
-	case "UPDATING":
-		return gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateUPDATING
-	default:
-		return gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED
-	}
-}
-
-// _getActiveDirectoryFromVCP fetches an active directory by its ID using the orchestrator and converts it to V1Beta format.
-func _getActiveDirectoryFromVCP(ctx context.Context, h Handler, activeDirectoryId string) (*gcpgenserver.ActiveDirectoryV1beta, error) {
-	logger := util.GetLogger(ctx)
-	ad, err := h.Orchestrator.GetActiveDirectory(ctx, activeDirectoryId)
-	if err != nil {
-		logger.Errorf("Error getting active directory from orchestrator for vcp with error: %v", err)
-		return nil, err
-	}
-	vcpAd := convertOrchestratorActiveDirectoryToV1Beta(ad)
-	return &vcpAd, nil
-}
-
 // compareADStateHierarchy evaluates and updates the primary Active Directory state based on the hierarchy of two input AD states.
-// It prioritizes states according to activeDirectoryStateHierarchy (e.g., "UPDATING" > "ERROR" > "INUSE").
+// It prioritizes states according to ActiveDirectoryStateHierarchy (e.g., "UPDATING" > "ERROR" > "INUSE").
 func compareADStateHierarchy(sdeAD, vcpAD *gcpgenserver.ActiveDirectoryV1beta) {
 	sdeState := sdeAD.ActiveDirectoryState.Value
 	vcpState := vcpAD.ActiveDirectoryState.Value
 
-	sdePriority := getStatePriority(sdeState)
-	vcpPriority := getStatePriority(vcpState)
+	sdePriority := orchestratorHelper.GetStatePriority(sdeState)
+	vcpPriority := orchestratorHelper.GetStatePriority(vcpState)
 
 	// Select the state with higher priority (lower index)
 	var selectedState gcpgenserver.ActiveDirectoryV1betaActiveDirectoryState
@@ -748,17 +636,6 @@ func compareADStateHierarchy(sdeAD, vcpAD *gcpgenserver.ActiveDirectoryV1beta) {
 	}
 
 	sdeAD.ActiveDirectoryState = gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(selectedState)
-}
-
-// getStatePriority returns the priority index of a state (lower index = higher priority)
-// Returns -1 if state is not in the hierarchy
-func getStatePriority(state gcpgenserver.ActiveDirectoryV1betaActiveDirectoryState) int {
-	for i, hierarchyState := range activeDirectoryStateHierarchy {
-		if state == hierarchyState {
-			return i
-		}
-	}
-	return -1 // State not found in hierarchy
 }
 
 // convertToUpdateParamsForValidation converts the request and params to UpdateActiveDirectoryParams for validation purpose

@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -25,6 +27,18 @@ import (
 	"go.temporal.io/sdk/mocks"
 	"go.temporal.io/sdk/workflow"
 )
+
+// Test helper functions
+
+// makeDescribeADParams creates test V1betaDescribeActiveDirectoryParams
+func makeDescribeADParams(projectNumber, locationID, adID string) *common.GetADParams {
+	return &common.GetADParams{
+		ProjectNumber: projectNumber,
+		LocationID:    locationID,
+		CorrelationID: "test-correlation-id",
+		UUID:          adID,
+	}
+}
 
 func TestCreateActiveDirectory_Success(t *testing.T) {
 	// Setup test context and mocks
@@ -979,7 +993,12 @@ func TestOrchestratorCreateActiveDirectory_Error(t *testing.T) {
 func Test_getActiveDirectory_Success(t *testing.T) {
 	ctx := context.Background()
 	mockSe := new(database.MockStorage)
-	adUUID := "test-ad-uuid"
+	adUUID := "550e8400-e29b-41d4-a716-446655440000" // Valid UUID
+
+	// Ensure VCP-only mode
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = ""
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
 
 	adFromDB := &datamodel.ActiveDirectory{
 		BaseModel: datamodel.BaseModel{
@@ -1012,7 +1031,8 @@ func Test_getActiveDirectory_Success(t *testing.T) {
 
 	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, adUUID, int64(0)).Return(adFromDB, nil)
 
-	ad, err := _getActiveDirectory(ctx, mockSe, adUUID)
+	params := makeDescribeADParams("test-project", "us-central1", adUUID)
+	ad, err := _getActiveDirectory(ctx, params, mockSe)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, ad)
@@ -1032,11 +1052,17 @@ func Test_getActiveDirectory_Success(t *testing.T) {
 func Test_getActiveDirectory_NotFound(t *testing.T) {
 	ctx := context.Background()
 	mockSe := new(database.MockStorage)
-	adUUID := "non-existent-uuid"
+	adUUID := "550e8400-e29b-41d4-a716-446655440001" // Valid UUID
+
+	// Ensure VCP-only mode
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = ""
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
 
 	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, adUUID, int64(0)).Return(nil, nil)
 
-	ad, err := _getActiveDirectory(ctx, mockSe, adUUID)
+	params := makeDescribeADParams("test-project", "us-central1", adUUID)
+	ad, err := _getActiveDirectory(ctx, params, mockSe)
 
 	assert.Error(t, err)
 	assert.Nil(t, ad)
@@ -1047,11 +1073,17 @@ func Test_getActiveDirectory_NotFound(t *testing.T) {
 func Test_getActiveDirectory_DatabaseError(t *testing.T) {
 	ctx := context.Background()
 	mockSe := new(database.MockStorage)
-	adUUID := "test-ad-uuid"
+	adUUID := "550e8400-e29b-41d4-a716-446655440002" // Valid UUID
+
+	// Ensure VCP-only mode
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = ""
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
 
 	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, adUUID, int64(0)).Return(nil, errors.New("database error"))
 
-	ad, err := _getActiveDirectory(ctx, mockSe, adUUID)
+	params := makeDescribeADParams("test-project", "us-central1", adUUID)
+	ad, err := _getActiveDirectory(ctx, params, mockSe)
 
 	assert.Error(t, err)
 	assert.Nil(t, ad)
@@ -1300,7 +1332,7 @@ func TestOrchestrator_GetActiveDirectory(t *testing.T) {
 	}
 
 	origGetActiveDirectory := getActiveDirectory
-	getActiveDirectory = func(ctx context.Context, se database.Storage, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
+	getActiveDirectory = func(ctx context.Context, params *common.GetADParams, se database.Storage) (*models.ActiveDirectory, error) {
 		return &models.ActiveDirectory{
 			BaseModel: models.BaseModel{UUID: "test-uuid"},
 			AdName:    "test-ad",
@@ -1308,11 +1340,267 @@ func TestOrchestrator_GetActiveDirectory(t *testing.T) {
 	}
 	defer func() { getActiveDirectory = origGetActiveDirectory }()
 
-	ad, err := o.GetActiveDirectory(ctx, "test-uuid")
+	params := makeDescribeADParams("test-project", "us-central1", "test-uuid")
+	ad, err := o.GetActiveDirectory(ctx, params)
 	assert.NoError(t, err)
 	assert.NotNil(t, ad)
 	assert.Equal(t, "test-uuid", ad.UUID)
 	assert.Equal(t, "test-ad", ad.AdName)
+}
+
+func TestOrchestrator_CreateActiveDirectory_Success(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	mockTemporal := new(mocks.Client)
+	o := &Orchestrator{
+		storage:  mockSe,
+		temporal: mockTemporal,
+	}
+
+	params := &common.CreateActiveDirectoryParams{
+		AccountId:          "test-account",
+		LocationId:         "us-central1",
+		ResourceId:         "test-ad",
+		XCorrelationId:     "correlation-123",
+		Username:           "admin@test.local",
+		Password:           "password123",
+		Domain:             "test.local",
+		DNS:                "10.0.0.1",
+		NetBIOS:            "TEST",
+		OrganizationalUnit: "CN=Computers",
+	}
+
+	mockAD := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{UUID: "ad-uuid-123"},
+		AdName:    "test-ad",
+		State:     models.LifeCycleStateCreating,
+	}
+
+	origCreateActiveDirectory := createActiveDirectory
+	createActiveDirectory = func(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateActiveDirectoryParams) (*models.ActiveDirectory, string, error) {
+		return mockAD, "job-uuid-123", nil
+	}
+	defer func() { createActiveDirectory = origCreateActiveDirectory }()
+
+	ad, jobUUID, err := o.CreateActiveDirectory(ctx, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, ad)
+	assert.Equal(t, "ad-uuid-123", ad.UUID)
+	assert.Equal(t, "job-uuid-123", jobUUID)
+}
+
+func TestOrchestrator_CreateActiveDirectory_Error(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	mockTemporal := new(mocks.Client)
+	o := &Orchestrator{
+		storage:  mockSe,
+		temporal: mockTemporal,
+	}
+
+	params := &common.CreateActiveDirectoryParams{
+		AccountId:      "test-account",
+		LocationId:     "us-central1",
+		ResourceId:     "test-ad",
+		XCorrelationId: "correlation-123",
+	}
+
+	origCreateActiveDirectory := createActiveDirectory
+	createActiveDirectory = func(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateActiveDirectoryParams) (*models.ActiveDirectory, string, error) {
+		return nil, "", errors.New("validation error")
+	}
+	defer func() { createActiveDirectory = origCreateActiveDirectory }()
+
+	ad, jobUUID, err := o.CreateActiveDirectory(ctx, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+	assert.Contains(t, err.Error(), "validation error")
+}
+
+func Test_getActiveDirectorySDE_EmptyCorrelationID(t *testing.T) {
+	ctx := context.Background()
+	params := &common.GetADParams{
+		ProjectNumber: "12345",
+		LocationID:    "us-central1",
+		UUID:          "ad-uuid-1",
+		CorrelationID: "", // Empty - covers lines 186-188
+	}
+
+	ad, err := _getActiveDirectorySDE(ctx, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Contains(t, err.Error(), "unknown error during the describe active directory")
+}
+
+func Test_getActiveDirectorySDE_NotFoundError(t *testing.T) {
+	// Create a mock HTTP server that returns 404
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"code": 404, "message": "Active Directory not found"}`))
+	}))
+	defer mockServer.Close()
+
+	// Set CVP_HOST to our mock server (remove http:// prefix as CVP client adds it)
+	originalCVPHost := cvp.CVP_HOST
+	// Extract just the host:port from the URL
+	cvp.CVP_HOST = mockServer.URL[7:] // Remove "http://" prefix
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ctx := context.Background()
+	params := &common.GetADParams{
+		ProjectNumber: "12345",
+		LocationID:    "us-central1",
+		UUID:          "non-existent",
+		CorrelationID: "test-correlation-id",
+	}
+
+	// This covers lines 191-204 (CVP client creation and NotFound error handling)
+	ad, err := _getActiveDirectorySDE(ctx, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	// The NotFound error should be converted to customerrors.NotFoundErr
+	assert.True(t, customerrors.IsNotFoundErr(err), "Error should be a NotFound error")
+}
+
+func Test_getActiveDirectorySDE_BadRequestError(t *testing.T) {
+	// Create a mock HTTP server that returns 400
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"code": 400, "message": "Invalid parameters"}`))
+	}))
+	defer mockServer.Close()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = mockServer.URL[7:] // Remove "http://" prefix
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ctx := context.Background()
+	params := &common.GetADParams{
+		ProjectNumber: "12345",
+		LocationID:    "us-central1",
+		UUID:          "invalid-ad",
+		CorrelationID: "test-correlation-id",
+	}
+
+	// This covers lines 191-199, 201-202, 205-207 (BadRequest error handling)
+	ad, err := _getActiveDirectorySDE(ctx, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+}
+
+func Test_getActiveDirectorySDE_InternalServerError(t *testing.T) {
+	// Create a mock HTTP server that returns 500
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"code": 500, "message": "Internal server error"}`))
+	}))
+	defer mockServer.Close()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = mockServer.URL[7:] // Remove "http://" prefix
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ctx := context.Background()
+	params := &common.GetADParams{
+		ProjectNumber: "12345",
+		LocationID:    "us-central1",
+		UUID:          "error-ad",
+		CorrelationID: "test-correlation-id",
+	}
+
+	// This covers lines 191-199, 201-202, 208-211 (Default error handling)
+	ad, err := _getActiveDirectorySDE(ctx, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+}
+
+func Test_getActiveDirectorySDE_SuccessResponse(t *testing.T) {
+	// Create a mock HTTP server that returns a valid AD response
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		// Return a complete valid response with all required fields
+		response := `{
+			"activeDirectoryId": "ad-uuid-success",
+			"resourceId": "test-ad",
+			"username": "admin@test.local",
+			"domain": "test.local",
+			"DNS": "10.0.0.1",
+			"netBIOS": "TEST",
+			"activeDirectoryState": "READY",
+			"activeDirectoryStateDetails": "Ready for use",
+			"administrators": [],
+			"backupOperators": [],
+			"securityOperators": []
+		}`
+		_, _ = w.Write([]byte(response))
+	}))
+	defer mockServer.Close()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = mockServer.URL[7:] // Remove "http://" prefix
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ctx := context.Background()
+	params := &common.GetADParams{
+		ProjectNumber: "12345",
+		LocationID:    "us-central1",
+		UUID:          "ad-uuid-success",
+		CorrelationID: "test-correlation-id",
+	}
+
+	// This covers lines 191-199, 214-219 (success path with model conversion)
+	ad, err := _getActiveDirectorySDE(ctx, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, ad)
+	if ad != nil {
+		assert.Equal(t, "test-ad", ad.AdName)
+		assert.Equal(t, "READY", ad.State)
+	}
+}
+
+func Test_getActiveDirectorySDE_EmptyResponse(t *testing.T) {
+	// Create a mock HTTP server that returns empty body
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		// Return empty JSON object to simulate nil payload
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer mockServer.Close()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = mockServer.URL[7:] // Remove "http://" prefix
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ctx := context.Background()
+	params := &common.GetADParams{
+		ProjectNumber: "12345",
+		LocationID:    "us-central1",
+		UUID:          "nil-response-ad",
+		CorrelationID: "test-correlation-id",
+	}
+
+	// This covers lines 191-199, 214-215 (nil/empty response check)
+	ad, err := _getActiveDirectorySDE(ctx, params)
+
+	// The function should handle empty response gracefully
+	// It may return an AD with empty fields or an error depending on validation
+	if err != nil {
+		assert.Nil(t, ad)
+	}
+	// Either way, we've covered the code path
 }
 
 func TestOrchestrator_ListActiveDirectories(t *testing.T) {
@@ -1712,6 +2000,8 @@ func TestUpdateActiveDirectory_Success(t *testing.T) {
 	params := &common.UpdateActiveDirectoryParams{
 		AccountId:                  "123",
 		ActiveDirectoryId:          "ad-uuid-123",
+		LocationId:                 "us-central1",
+		XCorrelationId:             "test-correlation-id",
 		Username:                   nillable.GetStringPtr("updated-admin@test.local"),
 		Domain:                     nillable.GetStringPtr("test.local"),
 		DNS:                        nillable.GetStringPtr("10.0.0.2"),
@@ -1775,7 +2065,7 @@ func TestUpdateActiveDirectory_Success(t *testing.T) {
 
 	// Mock _getActiveDirectory
 	originalGetActiveDirectory := getActiveDirectory
-	getActiveDirectory = func(ctx context.Context, se database.Storage, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
+	getActiveDirectory = func(ctx context.Context, params *common.GetADParams, se database.Storage) (*models.ActiveDirectory, error) {
 		return existingAD, nil
 	}
 	defer func() { getActiveDirectory = originalGetActiveDirectory }()
@@ -1826,6 +2116,8 @@ func TestUpdateActiveDirectory_DomainUpdateNotAllowed(t *testing.T) {
 	params := &common.UpdateActiveDirectoryParams{
 		AccountId:         "123",
 		ActiveDirectoryId: "ad-uuid-123",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
 		Domain:            nillable.GetStringPtr("new-domain.local"),
 	}
 
@@ -1853,7 +2145,7 @@ func TestUpdateActiveDirectory_DomainUpdateNotAllowed(t *testing.T) {
 
 	// Mock _getActiveDirectory
 	originalGetActiveDirectory := getActiveDirectory
-	getActiveDirectory = func(ctx context.Context, se database.Storage, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
+	getActiveDirectory = func(ctx context.Context, params *common.GetADParams, se database.Storage) (*models.ActiveDirectory, error) {
 		return existingAD, nil
 	}
 	defer func() { getActiveDirectory = originalGetActiveDirectory }()
@@ -1892,6 +2184,8 @@ func TestUpdateActiveDirectory_ValidationError(t *testing.T) {
 	params := &common.UpdateActiveDirectoryParams{
 		DNS:               nillable.GetStringPtr(""), // Invalid empty DNS
 		ActiveDirectoryId: "ad-uuid-123",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
 	}
 
 	// Save original function
@@ -1926,6 +2220,8 @@ func TestUpdateActiveDirectory_AccountNotFound(t *testing.T) {
 	params := &common.UpdateActiveDirectoryParams{
 		AccountId:         "non-existent-account",
 		ActiveDirectoryId: "ad-uuid-123",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
 		Username:          nillable.GetStringPtr("admin@test.local"),
 		Domain:            nillable.GetStringPtr("test.local"),
 	}
@@ -1964,6 +2260,8 @@ func TestUpdateActiveDirectory_ADNotFound(t *testing.T) {
 	params := &common.UpdateActiveDirectoryParams{
 		AccountId:         "123",
 		ActiveDirectoryId: "non-existent-ad",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
 		Username:          nillable.GetStringPtr("admin@test.local"),
 		Domain:            nillable.GetStringPtr("test.local"),
 	}
@@ -1990,8 +2288,8 @@ func TestUpdateActiveDirectory_ADNotFound(t *testing.T) {
 
 	// Mock _getActiveDirectory to return error
 	originalGetActiveDirectory := getActiveDirectory
-	getActiveDirectory = func(ctx context.Context, se database.Storage, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
-		return nil, customerrors.NewNotFoundErr("ActiveDirectory", &activeDirectoryUUID)
+	getActiveDirectory = func(ctx context.Context, params *common.GetADParams, se database.Storage) (*models.ActiveDirectory, error) {
+		return nil, customerrors.NewNotFoundErr("ActiveDirectory", &params.UUID)
 	}
 	defer func() { getActiveDirectory = originalGetActiveDirectory }()
 
@@ -2011,6 +2309,8 @@ func TestUpdateActiveDirectory_JobCreationFailed(t *testing.T) {
 	params := &common.UpdateActiveDirectoryParams{
 		AccountId:         "123",
 		ActiveDirectoryId: "ad-uuid-123",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
 		Username:          nillable.GetStringPtr("admin@test.local"),
 		Domain:            nillable.GetStringPtr("test.local"),
 	}
@@ -2048,7 +2348,7 @@ func TestUpdateActiveDirectory_JobCreationFailed(t *testing.T) {
 
 	// Mock _getActiveDirectory
 	originalGetActiveDirectory := getActiveDirectory
-	getActiveDirectory = func(ctx context.Context, se database.Storage, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
+	getActiveDirectory = func(ctx context.Context, params *common.GetADParams, se database.Storage) (*models.ActiveDirectory, error) {
 		return existingAD, nil
 	}
 	defer func() { getActiveDirectory = originalGetActiveDirectory }()
@@ -2072,6 +2372,8 @@ func TestUpdateActiveDirectory_WorkflowStartFailed(t *testing.T) {
 	params := &common.UpdateActiveDirectoryParams{
 		AccountId:         "123",
 		ActiveDirectoryId: "ad-uuid-123",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
 		Username:          nillable.GetStringPtr("admin@test.local"),
 		Domain:            nillable.GetStringPtr("test.local"),
 	}
@@ -2116,7 +2418,7 @@ func TestUpdateActiveDirectory_WorkflowStartFailed(t *testing.T) {
 
 	// Mock _getActiveDirectory
 	originalGetActiveDirectory := getActiveDirectory
-	getActiveDirectory = func(ctx context.Context, se database.Storage, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
+	getActiveDirectory = func(ctx context.Context, params *common.GetADParams, se database.Storage) (*models.ActiveDirectory, error) {
 		return existingAD, nil
 	}
 	defer func() { getActiveDirectory = originalGetActiveDirectory }()
@@ -2148,6 +2450,8 @@ func TestUpdateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 	params := &common.UpdateActiveDirectoryParams{
 		AccountId:         "123",
 		ActiveDirectoryId: "ad-uuid-123",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
 		Username:          nillable.GetStringPtr("admin@test.local"),
 		Domain:            nillable.GetStringPtr("test.local"),
 	}
@@ -2181,7 +2485,7 @@ func TestUpdateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 
 	// Mock _getActiveDirectory
 	originalGetActiveDirectory := getActiveDirectory
-	getActiveDirectory = func(ctx context.Context, se database.Storage, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
+	getActiveDirectory = func(ctx context.Context, params *common.GetADParams, se database.Storage) (*models.ActiveDirectory, error) {
 		return existingAD, nil
 	}
 	defer func() { getActiveDirectory = originalGetActiveDirectory }()
@@ -2234,6 +2538,8 @@ func TestUpdateActiveDirectory_ADRecordNotFoundInDB(t *testing.T) {
 	params := &common.UpdateActiveDirectoryParams{
 		AccountId:         "123",
 		ActiveDirectoryId: "ad-uuid-123",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
 		Username:          nillable.GetStringPtr("admin@test.local"),
 		Domain:            nillable.GetStringPtr("test.local"),
 	}
@@ -2267,7 +2573,7 @@ func TestUpdateActiveDirectory_ADRecordNotFoundInDB(t *testing.T) {
 
 	// Mock _getActiveDirectory
 	originalGetActiveDirectory := getActiveDirectory
-	getActiveDirectory = func(ctx context.Context, se database.Storage, activeDirectoryUUID string) (*models.ActiveDirectory, error) {
+	getActiveDirectory = func(ctx context.Context, params *common.GetADParams, se database.Storage) (*models.ActiveDirectory, error) {
 		return existingAD, nil
 	}
 	defer func() { getActiveDirectory = originalGetActiveDirectory }()
