@@ -1,6 +1,7 @@
 package kms_activities
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -312,5 +313,52 @@ func TestGetSDEKmsConfiguration_JWTTokenGeneration(t *testing.T) {
 		_, err := env.ExecuteActivity(activity.DescribeSDEKmsConfigurationActivity, params)
 		assert.NoError(tt, err)
 		assert.Equal(tt, projectNumber, capturedProjectNumber, "JWT token should be generated using project number from params")
+	})
+}
+
+// TestGetSDEKmsConfiguration_NonActivityContext verifies that _getSDEKmsConfiguration can be called
+// from a non-activity context (e.g., HTTP handlers) without panicking.
+// Before the fix (VSCP-4440), this test would have panicked due to activity.RecordHeartbeat
+// being called outside of a Temporal activity context.
+func TestGetSDEKmsConfiguration_NonActivityContext(t *testing.T) {
+	t.Run("DoesNotPanicWhenCalledFromNonActivityContext", func(tt *testing.T) {
+		mockClient := kms_configurations.NewMockClientService(t)
+		uuid := "test-uuid"
+		mockResponse := &kms_configurations.V1betaDescribeKmsConfigurationOK{
+			Payload: &models.KmsConfigV1beta{
+				UUID: uuid,
+			},
+		}
+		params := &common.GetKmsConfigParams{
+			UUID:          uuid,
+			LocationID:    "us-central1",
+			ProjectNumber: "123456789",
+		}
+		mockClient.EXPECT().
+			V1betaDescribeKmsConfiguration(mock.Anything).
+			Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+
+		originalCreateClient := createClient
+		originalGetSignedJwtToken := getSignedJwtToken
+		defer func() {
+			createClient = originalCreateClient
+			getSignedJwtToken = originalGetSignedJwtToken
+		}()
+		createClient = func(logger log.Logger, JWT string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "mock-jwt-token", nil
+		}
+
+		// Call helper directly with context.Background() - NO activity context
+		// This simulates how it's called from HTTP handlers
+		assert.NotPanics(tt, func() {
+			result, err := _getSDEKmsConfiguration(context.Background(), params)
+			assert.NoError(tt, err)
+			assert.NotNil(tt, result)
+			assert.Equal(tt, uuid, result.UUID)
+		})
 	})
 }

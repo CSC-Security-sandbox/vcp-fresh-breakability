@@ -45,7 +45,6 @@ func _getSDEKmsConfiguration(ctx context.Context, params *common.GetKmsConfigPar
 	describeKmsConfigParams.LocationID = params.LocationID
 	describeKmsConfigParams.ProjectNumber = params.ProjectNumber
 
-	activity.RecordHeartbeat(ctx, "Retrieving KMS configuration from SDE")
 	sdeKmsConfigResponse, err := cvpClient.KmsConfigurations.V1betaDescribeKmsConfiguration(describeKmsConfigParams)
 	if err != nil {
 		return nil, errors2.WrapAsTemporalApplicationError(errors2.NewVCPError(errors2.ErrKmsConfigNotFound, err))

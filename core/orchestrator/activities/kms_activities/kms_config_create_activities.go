@@ -76,7 +76,6 @@ func _createAndSyncKmsConfig(ctx context.Context, se database.Storage, params *c
 		return nil, err
 	}
 
-	activity.RecordHeartbeat(ctx, "Creating KMS config record in database")
 	parsedKeyFullPathResource, err := utils.ParseKeyFullPathResource(params.KeyFullPath)
 	if err != nil {
 		return nil, err

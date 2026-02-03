@@ -143,6 +143,39 @@ func TestUpdateKmsConfigAttributesActivity(t *testing.T) {
 	})
 }
 
+// TestCreateAndSyncKmsConfig_NonActivityContext verifies that _createAndSyncKmsConfig can be called
+// from a non-activity context (e.g., HTTP handlers) without panicking.
+// Before the fix (VSCP-4440), this test would have panicked due to activity.RecordHeartbeat
+// being called outside of a Temporal activity context.
+func TestCreateAndSyncKmsConfig_NonActivityContext(t *testing.T) {
+	t.Run("DoesNotPanicWhenCalledFromNonActivityContext", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		params := &common.CreateKmsConfigParams{
+			AccountName:         "acc",
+			KeyFullPath:         "projects/p/locations/l/keyRings/r/cryptoKeys/k",
+			UUID:                "uuid",
+			KmsState:            "ENABLED",
+			KmsStateDetails:     "Active",
+			ProjectNumber:       "123",
+			ResourceID:          "res-id",
+			Instructions:        "inst",
+			ServiceAccountEmail: "sa@email.com",
+		}
+		mockAccount := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}}
+		mockSE.On("GetAccount", mock.Anything, "acc").Return(mockAccount, nil)
+		mockSE.On("CreateKmsConfig", mock.Anything, mock.Anything).Return(&datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}}, nil)
+
+		// Call helper directly with context.Background() - NO activity context
+		// This simulates how it's called from HTTP handlers
+		assert.NotPanics(tt, func() {
+			result, err := _createAndSyncKmsConfig(context.Background(), mockSE, params)
+			assert.NoError(tt, err)
+			assert.NotNil(tt, result)
+			assert.Equal(tt, "uuid", result.UUID)
+		})
+	})
+}
+
 func TestCreateAndSyncKmsConfigActivity(t *testing.T) {
 	t.Run("CreateAndSyncKmsConfigActivityReturnsKmsConfigOnSuccess", func(t *testing.T) {
 		mockSE := database.NewMockStorage(t)

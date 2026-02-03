@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
@@ -23,9 +27,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"net/http"
-	"strings"
-	"time"
 )
 
 var (
@@ -1412,6 +1413,17 @@ func _getAndSyncKmsConfigForPool(ctx context.Context, req *gcpgenserver.PoolV1be
 					Message: err.Error(),
 				}
 			}
+
+			// make sure kms config is in ready or in use state then only create the kms config in VCP
+			switch sdeKmsConfig.KmsState {
+			case models.LifeCycleStateREADY, models.LifeCycleStateInUse:
+			default:
+				return nil, &gcpgenserver.V1betaCreatePoolBadRequest{
+					Code:    http.StatusPreconditionFailed,
+					Message: fmt.Sprintf("Kms config is in invalid state %s", sdeKmsConfig.KmsState),
+				}
+			}
+
 			// create and sync the KMS configuration with the SDE KMS configuration in VCP
 			createKmsConfigParams := kms_activities.ConvertToCreateKmsConfigParams(sdeKmsConfig, params)
 			kmsConfig, err := orchestratorInterface.CreateAndSyncKmsConfig(ctx, createKmsConfigParams)

@@ -6077,6 +6077,7 @@ func TestGetKmsConfigForPool(t *testing.T) {
 			Instructions: "Instructions",
 			KeyFullPath:  &kfp,
 			ResourceID:   &resId,
+			KmsState:     cvpmodels.KmsConfigV1betaKmsStateREADY,
 		}
 		modelKmsConfig := &models.KmsConfig{}
 
@@ -6126,7 +6127,7 @@ func TestGetKmsConfigForPool(t *testing.T) {
 		req := &gcpgenserver.PoolV1beta{KmsConfigId: gcpgenserver.NewOptNilString("kms-uuid")}
 		params := &common.CreatePoolParams{}
 		orchestratorFactory := orchestrator.NewMockOrchestratorFactory(tt)
-		sdeResp := &cvpmodels.KmsConfigV1beta{}
+		sdeResp := &cvpmodels.KmsConfigV1beta{KmsState: cvpmodels.KmsConfigV1betaKmsStateREADY}
 
 		orchestratorFactory.On("GetKmsConfig", ctx, mock.Anything).Return(nil, errors.NewNotFoundErr("kms", nil))
 		orchestratorFactory.On("GetSDEKmsConfiguration", ctx, mock.Anything).Return(sdeResp, nil)
@@ -6155,6 +6156,25 @@ func TestGetKmsConfigForPool(t *testing.T) {
 		internalErr, ok := errResp.(*gcpgenserver.V1betaCreatePoolBadRequest)
 		assert.True(tt, ok)
 		assert.Equal(tt, float64(http.StatusBadRequest), internalErr.Code)
+	})
+
+	t.Run("ReturnsBadRequestWhenSDEKmsConfigHasInvalidState", func(tt *testing.T) {
+		ctx := context.Background()
+		req := &gcpgenserver.PoolV1beta{KmsConfigId: gcpgenserver.NewOptNilString("kms-uuid")}
+		params := &common.CreatePoolParams{}
+		orchestratorFactory := orchestrator.NewMockOrchestratorFactory(tt)
+		sdeResp := &cvpmodels.KmsConfigV1beta{KmsState: cvpmodels.KmsConfigV1betaKmsStateDELETING}
+
+		orchestratorFactory.On("GetKmsConfig", ctx, mock.Anything).Return(nil, errors.NewNotFoundErr("kms", nil))
+		orchestratorFactory.On("GetSDEKmsConfiguration", ctx, mock.Anything).Return(sdeResp, nil)
+
+		kmsConfig, errResp := _getAndSyncKmsConfigForPool(ctx, req, params, orchestratorFactory)
+
+		assert.Nil(tt, kmsConfig)
+		badRequestErr, ok := errResp.(*gcpgenserver.V1betaCreatePoolBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(http.StatusPreconditionFailed), badRequestErr.Code)
+		assert.Contains(tt, badRequestErr.Message, "Kms config is in invalid state")
 	})
 }
 

@@ -140,6 +140,56 @@ func TestPollKmsConfigOperationActivity(t *testing.T) {
 	})
 }
 
+// TestFailedKmsConfigCreateActivity_NonActivityContext verifies that _failedKmsConfigCreateActivity can be called
+// from a non-activity context (e.g., orphan job workflow manager) without panicking.
+// Before the fix (VSCP-4440), this test would have panicked due to activity.RecordHeartbeat
+// being called outside of a Temporal activity context.
+func TestFailedKmsConfigCreateActivity_NonActivityContext(t *testing.T) {
+	t.Run("DoesNotPanicWhenCalledFromNonActivityContext", func(tt *testing.T) {
+		mockClient := kms_configurations.NewMockClientService(t)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		originalGetSignedJwtToken := getSignedJwtToken
+		defer func() {
+			createClient = originalCreateClient
+			getSignedJwtToken = originalGetSignedJwtToken
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "mock-jwt-token", nil
+		}
+
+		done := true
+		resp := &kms_configurations.V1betaDeleteKmsConfigurationAccepted{
+			Payload: &cvpModels.OperationV1beta{
+				Name: "delete-kms-configuration",
+				Done: &done,
+			},
+		}
+		mockClient.On("V1betaDeleteKmsConfiguration", mock.Anything).Return(resp, nil, nil)
+
+		mockSE := database.NewMockStorage(t)
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:         datamodel.BaseModel{UUID: "uuid"},
+			State:             models.LifeCycleStateError,
+			StateDetails:      "failure reason",
+			CustomerProjectID: "123456789",
+			ServiceAccount:    &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "sa-uuid"}},
+		}
+		mockSE.On("DeleteKmsConfig", mock.Anything, kmsConfig.UUID, models.LifeCycleStateDeleted, "failure reason").Return(nil, nil)
+		mockSE.On("UpdateServiceAccountState", mock.Anything, "sa-uuid", models.LifeCycleStateError, "failure reason").Return(&datamodel.ServiceAccount{}, nil)
+
+		// Call helper directly with context.Background() - NO activity context
+		// This simulates how it's called from orphan job workflow manager
+		assert.NotPanics(tt, func() {
+			err := _failedKmsConfigCreateActivity(context.Background(), mockSE, kmsConfig, "failure reason", "us-central1")
+			assert.NoError(tt, err)
+		})
+	})
+}
+
 func TestFailedKmsConfigCreateActivity(t *testing.T) {
 	t.Run("WhenTokenGenerationFails", func(tt *testing.T) {
 		originalGetSignedJwtToken := getSignedJwtToken

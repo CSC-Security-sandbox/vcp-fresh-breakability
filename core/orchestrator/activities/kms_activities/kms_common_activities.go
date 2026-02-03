@@ -245,7 +245,6 @@ func _failedKmsConfigCreateActivity(ctx context.Context, se database.Storage, km
 
 	cvpClient := createClient(logger, jwtToken)
 
-	activity.RecordHeartbeat(ctx, "Cleaning up failed KMS configuration")
 	_, err = se.DeleteKmsConfig(ctx, kmsConfig.UUID, models.LifeCycleStateDeleted, errMsg)
 	if err != nil {
 		return err

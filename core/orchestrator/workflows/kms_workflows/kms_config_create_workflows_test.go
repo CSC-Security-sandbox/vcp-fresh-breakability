@@ -590,10 +590,10 @@ func TestCreateKmsConfig(t *testing.T) {
 		params := &common.CreateKmsConfigParams{
 			Name:        "test-kms",
 			AccountName: "test-account",
-			LocationID:   "us-east4",
+			LocationID:  "us-east4",
 		}
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			BaseModel:     datamodel.BaseModel{UUID: "kms-config-uuid"},
 			KmsAttributes: &datamodel.KmsAttributes{},
 		}
 		expectJobIsNew(env)
@@ -637,10 +637,10 @@ func TestCreateKmsConfig(t *testing.T) {
 		params := &common.CreateKmsConfigParams{
 			Name:        "test-kms",
 			AccountName: "test-account",
-			LocationID:   "us-east4",
+			LocationID:  "us-east4",
 		}
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			BaseModel:     datamodel.BaseModel{UUID: "kms-config-uuid"},
 			KmsAttributes: &datamodel.KmsAttributes{},
 		}
 		expectJobIsNew(env)
@@ -685,10 +685,10 @@ func TestCreateKmsConfig(t *testing.T) {
 		params := &common.CreateKmsConfigParams{
 			Name:        "test-kms",
 			AccountName: "test-account",
-			LocationID:   "us-east4",
+			LocationID:  "us-east4",
 		}
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			BaseModel:     datamodel.BaseModel{UUID: "kms-config-uuid"},
 			KmsAttributes: &datamodel.KmsAttributes{},
 		}
 		expectJobIsNew(env)
@@ -733,10 +733,10 @@ func TestCreateKmsConfig(t *testing.T) {
 		params := &common.CreateKmsConfigParams{
 			Name:        "test-kms",
 			AccountName: "test-account",
-			LocationID:   "us-east4",
+			LocationID:  "us-east4",
 		}
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			BaseModel:     datamodel.BaseModel{UUID: "kms-config-uuid"},
 			KmsAttributes: &datamodel.KmsAttributes{},
 		}
 		expectJobIsNew(env)
@@ -782,10 +782,10 @@ func TestCreateKmsConfig(t *testing.T) {
 		params := &common.CreateKmsConfigParams{
 			Name:        "test-kms",
 			AccountName: "test-account",
-			LocationID:   "us-east4",
+			LocationID:  "us-east4",
 		}
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			BaseModel:     datamodel.BaseModel{UUID: "kms-config-uuid"},
 			KmsAttributes: &datamodel.KmsAttributes{},
 		}
 		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
@@ -833,10 +833,10 @@ func TestCreateKmsConfig(t *testing.T) {
 		params := &common.CreateKmsConfigParams{
 			Name:        "test-kms",
 			AccountName: "test-account",
-			LocationID:   "us-east4",
+			LocationID:  "us-east4",
 		}
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			BaseModel:     datamodel.BaseModel{UUID: "kms-config-uuid"},
 			KmsAttributes: &datamodel.KmsAttributes{},
 		}
 		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
@@ -885,10 +885,10 @@ func TestCreateKmsConfig(t *testing.T) {
 		params := &common.CreateKmsConfigParams{
 			Name:        "test-kms",
 			AccountName: "test-account",
-			LocationID:   "us-east4",
+			LocationID:  "us-east4",
 		}
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			BaseModel:     datamodel.BaseModel{UUID: "kms-config-uuid"},
 			KmsAttributes: &datamodel.KmsAttributes{},
 		}
 		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
@@ -938,10 +938,10 @@ func TestCreateKmsConfig(t *testing.T) {
 		params := &common.CreateKmsConfigParams{
 			Name:        "test-kms",
 			AccountName: "test-account",
-			LocationID:   "us-east4",
+			LocationID:  "us-east4",
 		}
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			BaseModel:     datamodel.BaseModel{UUID: "kms-config-uuid"},
 			KmsAttributes: &datamodel.KmsAttributes{},
 		}
 		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
@@ -959,55 +959,6 @@ func TestCreateKmsConfig(t *testing.T) {
 			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
 		}, 35*time.Millisecond)
 
-		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
-
-		assert.True(t, env.IsWorkflowCompleted())
-		assert.Error(t, env.GetWorkflowError())
-		env.AssertExpectations(t)
-	})
-	t.Run("WhenCancellationOccursDuringRollback", func(t *testing.T) {
-		var ts testsuite.WorkflowTestSuite
-		env := ts.NewTestWorkflowEnvironment()
-		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-		mockHeader := &commonpb.Header{
-			Fields: map[string]*commonpb.Payload{
-				"logParam": encodedValue,
-			},
-		}
-		env.SetHeader(mockHeader)
-		env.RegisterActivity(&activities.CommonActivities{})
-		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
-
-		originalFunc := getSignedJwtToken
-		getSignedJwtToken = func(projectNumber string) (string, error) {
-			return "test-jwt-token", nil
-		}
-		defer func() {
-			getSignedJwtToken = originalFunc
-		}()
-
-		params := &common.CreateKmsConfigParams{
-			Name:        "test-kms",
-			AccountName: "test-account",
-			LocationID:   "us-east4",
-		}
-		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
-			KmsAttributes: &datamodel.KmsAttributes{},
-		}
-		expectJobIsNew(env)
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
-
-		// Send cancellation signal and then fail an activity to trigger rollback
-		env.RegisterDelayedCallback(func() {
-			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
-		}, 5*time.Millisecond)
-
-		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(errors.New("poll failed"))
 		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
@@ -1037,7 +988,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			LocationID:  "us-east4",
 		}
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			BaseModel:     datamodel.BaseModel{UUID: "kms-config-uuid"},
 			KmsAttributes: &datamodel.KmsAttributes{},
 		}
 		expectJobIsNew(env)
@@ -1057,7 +1008,7 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.AssertExpectations(t)
 	})
 	t.Run("WhenCancellationOccursDuringRollback", func(t *testing.T) {
-		// Tests lines 128-130: rollback when cancellationHandler.IsCancelled() is true
+		// Tests cancellation rollback: signal arrives after GetSignedTokenActivity, caught at line 163 CheckCancellationSignal
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -1085,19 +1036,19 @@ func TestCreateKmsConfig(t *testing.T) {
 			LocationID:  "us-east4",
 		}
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			BaseModel:     datamodel.BaseModel{UUID: "kms-config-uuid"},
 			KmsAttributes: &datamodel.KmsAttributes{},
 		}
 		expectJobIsNew(env)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
-
-		// Send cancellation signal and then fail an activity to trigger rollback with cancellation
-		env.RegisterDelayedCallback(func() {
+		// Send cancellation signal after GetSignedTokenActivity completes; it will be caught
+		// by CheckCancellationSignal at line 163, triggering the rollback via ExecuteDeferredCleanup
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 			env.SignalWorkflow(CancelKmsConfigSignalName, "cancel data")
-		}, 5*time.Millisecond)
+		}).Return("test-jwt-token", nil)
 
-		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(errors.New("poll failed"))
+		// PollKmsConfigOperationActivity is NOT called because the cancellation check at line 163
+		// catches the signal before that activity runs
 		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
@@ -1135,7 +1086,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			LocationID:  "us-east4",
 		}
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			BaseModel:     datamodel.BaseModel{UUID: "kms-config-uuid"},
 			KmsAttributes: &datamodel.KmsAttributes{},
 		}
 		expectJobIsNew(env)
@@ -1184,7 +1135,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			LocationID:  "us-east4",
 		}
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			BaseModel:     datamodel.BaseModel{UUID: "kms-config-uuid"},
 			KmsAttributes: &datamodel.KmsAttributes{},
 		}
 		expectJobIsNew(env)
@@ -1233,7 +1184,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			LocationID:  "us-east4",
 		}
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			BaseModel:     datamodel.BaseModel{UUID: "kms-config-uuid"},
 			KmsAttributes: &datamodel.KmsAttributes{},
 		}
 		expectJobIsNew(env)
@@ -1283,7 +1234,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			LocationID:  "us-east4",
 		}
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			BaseModel:     datamodel.BaseModel{UUID: "kms-config-uuid"},
 			KmsAttributes: &datamodel.KmsAttributes{},
 		}
 		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
@@ -1335,7 +1286,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			LocationID:  "us-east4",
 		}
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			BaseModel:     datamodel.BaseModel{UUID: "kms-config-uuid"},
 			KmsAttributes: &datamodel.KmsAttributes{},
 		}
 		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
@@ -1388,7 +1339,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			LocationID:  "us-east4",
 		}
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			BaseModel:     datamodel.BaseModel{UUID: "kms-config-uuid"},
 			KmsAttributes: &datamodel.KmsAttributes{},
 		}
 		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
@@ -1448,7 +1399,7 @@ func TestCreateKmsConfig(t *testing.T) {
 			LocationID:  "us-east4",
 		}
 		kmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "kms-config-uuid"},
+			BaseModel:     datamodel.BaseModel{UUID: "kms-config-uuid"},
 			KmsAttributes: &datamodel.KmsAttributes{},
 		}
 		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}

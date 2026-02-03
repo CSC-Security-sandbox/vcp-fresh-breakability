@@ -102,7 +102,7 @@ func (h Handler) V1betaCheckKmsConfig(ctx context.Context, params gcpgenserver.V
 	}
 
 	checkKmsConfigResponse := convertToKmsConfigCheckV1beta(res)
-	if kmsConfig != nil {
+	if kmsConfig != nil && kmsConfig.ServiceAccount != nil {
 		checkParams := &coremodel.KmsConfigCheck{
 			KmsConfig:   kmsConfig,
 			Email:       kmsConfig.ServiceAccount.ServiceAccountEmail,
