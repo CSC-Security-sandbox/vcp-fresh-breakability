@@ -109,6 +109,7 @@ vsaSecretAuthCacheExpirationHours: 24
 hardDeleteResources: true
 scheduleHardDelete: false
 createCommonResourcesInVCP: true
+adCreateSyncFlow: true
 numberOfHaPairsLargeCapacity: 6
 minConstituentVolumeSizeInBytes: 107374182400
 maxConstituentVolumeSizeInBytes: 329853488332800

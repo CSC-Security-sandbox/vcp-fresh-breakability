@@ -41,6 +41,85 @@ func (h Handler) V1betaCreateActiveDirectory(
 ) (gcpgenserver.V1betaCreateActiveDirectoryRes, error) {
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
+	// Check if we should use synchronous CVP path directly from handler
+	// When CVP_HOST is set, CreateCommonResourcesInVCP is false, and SyncADCreateSDEEnabled is true
+	if cvp.CVP_HOST != "" && !utils.CreateCommonResourcesInVCP && utils.SyncADCreateSDEEnabled {
+		return h.createActiveDirectorySyncViaCVP(ctx, req, params, util.GetLogger(ctx))
+	}
+
+	// Use existing orchestrator/workflow path
+	return h.createActiveDirectoryAsync(ctx, req, params)
+}
+
+// createActiveDirectorySyncViaCVP calls CVP directly from the handler for synchronous AD creation
+func (h Handler) createActiveDirectorySyncViaCVP(
+	ctx context.Context,
+	req *gcpgenserver.ActiveDirectoryV1beta,
+	params gcpgenserver.V1betaCreateActiveDirectoryParams,
+	logger log.Logger,
+) (gcpgenserver.V1betaCreateActiveDirectoryRes, error) {
+	logger.Info("Creating Active Directory synchronously via CVP")
+
+	// Build CVP request body
+	body := &models.ActiveDirectoryV1beta{
+		DNS:                        &req.DNS,
+		Domain:                     &req.Domain,
+		NetBIOS:                    &req.NetBIOS,
+		Username:                   &req.Username,
+		Password:                   &req.Password,
+		ResourceID:                 &req.ResourceId,
+		Administrators:             req.Administrators,
+		SecurityOperators:          req.SecurityOperators,
+		BackupOperators:            req.BackupOperators,
+		Description:                &req.Description.Value,
+		AesEncryption:              &req.AesEncryption.Value,
+		AllowLocalNFSUsersWithLdap: &req.AllowLocalNFSUsersWithLdap.Value,
+		EncryptDCConnections:       &req.EncryptDCConnections.Value,
+		LdapSigning:                &req.LdapSigning.Value,
+		OrganizationalUnit:         &req.OrganizationalUnit.Value,
+		Site:                       &req.Site.Value,
+		KdcIP:                      req.KdcIP.Value,
+		KdcHostname:                req.KdcHostname.Value,
+	}
+
+	createParams := &active_directories.V1betaCreateActiveDirectoryParams{
+		LocationID:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		XCorrelationID: &params.XCorrelationID.Value,
+		Body:           body,
+	}
+
+	// Get JWT token and create CVP client
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := createClient(logger, jwtToken)
+
+	// Call CVP to create Active Directory
+	created, err := cvpClient.ActiveDirectories.V1betaCreateActiveDirectory(createParams)
+	if err != nil {
+		logger.Errorf("Failed to create Active Directory via CVP: %v", err)
+		return convertCVPCreateADErrorToResponse(err)
+	}
+
+	if created == nil || created.Payload == nil {
+		logger.Error("CVP returned nil response for create Active Directory")
+		return &gcpgenserver.V1betaCreateActiveDirectoryInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: "unknown error during the create active directory",
+		}, nil
+	}
+
+	logger.Infof("Successfully created Active Directory via CVP, operation: %s", created.Payload.Name)
+
+	// Convert CVP response to gcpgenserver response
+	return convertCVPCreateADResponseToGcpServer(created.Payload, params.ProjectNumber, params.LocationId), nil
+}
+
+// createActiveDirectoryAsync uses the existing orchestrator/workflow path
+func (h Handler) createActiveDirectoryAsync(
+	ctx context.Context,
+	req *gcpgenserver.ActiveDirectoryV1beta,
+	params gcpgenserver.V1betaCreateActiveDirectoryParams,
+) (gcpgenserver.V1betaCreateActiveDirectoryRes, error) {
 	encryptedPassword, err := utils.EncryptPassword(log.Secret(req.Password))
 	if err != nil {
 		return &gcpgenserver.V1betaCreateActiveDirectoryInternalServerError{
@@ -107,6 +186,91 @@ func (h Handler) V1betaCreateActiveDirectory(
 		Response: resp,
 		Done:     gcpgenserver.NewOptBool(false),
 	}, nil
+}
+
+// convertCVPCreateADErrorToResponse converts CVP client errors to appropriate HTTP responses
+func convertCVPCreateADErrorToResponse(err error) (gcpgenserver.V1betaCreateActiveDirectoryRes, error) {
+	switch e := err.(type) {
+	case *active_directories.V1betaCreateActiveDirectoryBadRequest:
+		msg := "bad request"
+		if e.Payload != nil && e.Payload.Message != "" {
+			msg = e.Payload.Message
+		}
+		return &gcpgenserver.V1betaCreateActiveDirectoryBadRequest{
+			Code:    http.StatusBadRequest,
+			Message: msg,
+		}, nil
+	case *active_directories.V1betaCreateActiveDirectoryUnauthorized:
+		msg := "unauthorized"
+		if e.Payload != nil && e.Payload.Message != "" {
+			msg = e.Payload.Message
+		}
+		return &gcpgenserver.V1betaCreateActiveDirectoryUnauthorized{
+			Code:    http.StatusUnauthorized,
+			Message: msg,
+		}, nil
+	case *active_directories.V1betaCreateActiveDirectoryForbidden:
+		msg := "forbidden"
+		if e.Payload != nil && e.Payload.Message != "" {
+			msg = e.Payload.Message
+		}
+		return &gcpgenserver.V1betaCreateActiveDirectoryForbidden{
+			Code:    http.StatusForbidden,
+			Message: msg,
+		}, nil
+	case *active_directories.V1betaCreateActiveDirectoryConflict:
+		msg := "conflict"
+		if e.Payload != nil && e.Payload.Message != "" {
+			msg = e.Payload.Message
+		}
+		return &gcpgenserver.V1betaCreateActiveDirectoryConflict{
+			Code:    http.StatusConflict,
+			Message: msg,
+		}, nil
+	case *active_directories.V1betaCreateActiveDirectoryTooManyRequests:
+		msg := "too many requests"
+		if e.Payload != nil && e.Payload.Message != "" {
+			msg = e.Payload.Message
+		}
+		return &gcpgenserver.V1betaCreateActiveDirectoryTooManyRequests{
+			Code:    http.StatusTooManyRequests,
+			Message: msg,
+		}, nil
+	default:
+		return &gcpgenserver.V1betaCreateActiveDirectoryInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		}, nil
+	}
+}
+
+// convertCVPCreateADResponseToGcpServer converts CVP OperationV1beta to gcpgenserver response
+func convertCVPCreateADResponseToGcpServer(payload *models.OperationV1beta, projectNumber, locationId string) *gcpgenserver.OperationV1beta {
+	result := &gcpgenserver.OperationV1beta{}
+
+	if payload.Name != "" {
+		result.Name = gcpgenserver.NewOptString(payload.Name)
+	}
+
+	if payload.Done != nil {
+		result.Done = gcpgenserver.NewOptBool(*payload.Done)
+	}
+
+	if payload.Response != nil {
+		// Convert interface{} to jx.Raw by marshaling to JSON
+		if respBytes, err := json.Marshal(payload.Response); err == nil {
+			result.Response = respBytes
+		}
+	}
+
+	if payload.Error != nil {
+		result.Error = gcpgenserver.NewOptStatusV1Beta(gcpgenserver.StatusV1Beta{
+			Code:    gcpgenserver.NewOptFloat64(payload.Error.Code),
+			Message: gcpgenserver.NewOptString(payload.Error.Message),
+		})
+	}
+
+	return result
 }
 
 func convertToActiveDirectoryV1Beta(

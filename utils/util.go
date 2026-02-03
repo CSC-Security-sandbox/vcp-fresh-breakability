@@ -65,6 +65,7 @@ var (
 	MinHotTierSize                   = env.GetUint64("MIN_HOT_TIER_SIZE", 1099511627776) // 1 TiB
 	MinHotTierSizeLargeVolumes       = env.GetUint64("MIN_HOT_TIER_SIZE_LARGE_VOLUMES", 6*TiBInBytes)
 	CreateCommonResourcesInVCP       = env.GetBool("CREATE_COMMON_RESOURCES_IN_VCP", true)
+	SyncADCreateSDEEnabled           = env.GetBool("AD_CREATE_SYNC_SDE_ENABLED", true)
 	EnableMultiAD                    = env.GetBool("ENABLE_MULTI_AD", false)
 	MaxNumberOfADPerAccount          = env.GetInt("MAX_NUMBER_OF_AD_PER_ACCOUNT", 5)
 	ParseRegionAndZone               = _parseRegionAndZone
