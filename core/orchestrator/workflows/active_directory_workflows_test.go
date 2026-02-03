@@ -100,6 +100,7 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 
 		params := &common.CreateActiveDirectoryParams{
 			AccountId:          "123",
@@ -127,6 +128,7 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
 		}()
 
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("test-jwt-token", nil)
 		env.OnActivity(adCreateActivity.CreateSdeActiveDirectory, mock.Anything, params).Return(nil)
 		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
@@ -203,6 +205,7 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 
 		params := &common.CreateActiveDirectoryParams{
 			AccountId:          "123",
@@ -226,6 +229,7 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 		defer func() { cvp.CVP_HOST = originalHost }()
 
 		expectedError := vsaerrors.New("Error")
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("test-jwt-token", nil)
 		env.OnActivity(adCreateActivity.CreateSdeActiveDirectory, mock.Anything, params).Return(expectedError)
 		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
@@ -454,6 +458,7 @@ func TestActiveDirectoryCreateWorkflow_Run(t *testing.T) {
 	t.Run("SuccessfulSdeRun", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
 		mockHeader := &commonpb.Header{
@@ -463,6 +468,8 @@ func TestActiveDirectoryCreateWorkflow_Run(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&active_directory_activities.ActiveDirectoryCreateActivity{})
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost
@@ -484,6 +491,7 @@ func TestActiveDirectoryCreateWorkflow_Run(t *testing.T) {
 			AccountId: 456,
 		}
 
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("test-jwt-token", nil)
 		env.OnActivity("CreateSdeActiveDirectory", mock.Anything, params).Return(nil)
 
 		var runResult interface{}
@@ -652,6 +660,7 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 
 		params := &common.UpdateActiveDirectoryParams{
 			AccountId: "456",
@@ -678,6 +687,7 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 			Name: "update-ad-operation",
 		}
 
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("test-jwt-token", nil)
 		env.OnActivity(adUpdateActivity.UpdateSdeActiveDirectory, mock.Anything, params).Return(sdeResult, nil)
 		env.OnActivity(adUpdateActivity.PollSdeUpdateActivity, mock.Anything, params, sdeResult).Return(nil)
 		env.OnActivity(adUpdateActivity.MarkVcpAdToUpdatingActivity, mock.Anything, params, adRecord).Return(nil)
@@ -739,6 +749,7 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 
 		oldAd := &models.ActiveDirectory{
 			AdName: "test-ad-sde-error",
@@ -751,6 +762,7 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 			Password:          nillable.GetStringPtr("new-password"),
 		}
 
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("test-jwt-token", nil)
 		env.OnActivity(adUpdateActivity.UpdateSdeActiveDirectory, mock.Anything, params).Return(nil, vsaerrors.New("SDE update failed"))
 		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
@@ -788,6 +800,7 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 
 		oldAd := &models.ActiveDirectory{
 			AdName: "test-ad-poll-error",
@@ -804,6 +817,7 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 			Name: "operations/op-123",
 		}
 
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("test-jwt-token", nil)
 		env.OnActivity(adUpdateActivity.UpdateSdeActiveDirectory, mock.Anything, params).Return(sdeResult, nil)
 		env.OnActivity(adUpdateActivity.PollSdeUpdateActivity, mock.Anything, params, sdeResult).Return(vsaerrors.New("polling failed"))
 		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
@@ -1002,6 +1016,7 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 	t.Run("SuccessfulSdeRun", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
 		mockHeader := &commonpb.Header{
@@ -1012,6 +1027,8 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
 		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost
@@ -1037,6 +1054,7 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 			Name: "update-ad-sde-operation",
 		}
 
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("test-jwt-token", nil)
 		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params).Return(sdeResult, nil)
 		env.OnActivity("PollSdeUpdateActivity", mock.Anything, params, sdeResult).Return(nil)
 		env.OnActivity("MarkVcpAdToUpdatingActivity", mock.Anything, params, adRecord).Return(nil)
@@ -1133,6 +1151,7 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 	t.Run("SdeResultNilFailure", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
 		mockHeader := &commonpb.Header{
@@ -1142,6 +1161,8 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost
@@ -1164,6 +1185,7 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 		}
 
 		// Return nil result from SDE update
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("test-jwt-token", nil)
 		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params).Return(nil)
 
 		var runResult interface{}
@@ -1743,6 +1765,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 
 		accountID := int64(456)
 		params := &common.DeleteActiveDirectoryParams{
@@ -1765,6 +1788,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			DeletionAllowed: true,
 		}
 
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.ProjectNumber).Return("test-jwt-token", nil)
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
 		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(nil)
 		env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(nil)
@@ -1794,6 +1818,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 
 		accountID := int64(789)
 		params := &common.DeleteActiveDirectoryParams{
@@ -1817,6 +1842,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			DeletionAllowed: true,
 		}
 
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.ProjectNumber).Return("test-jwt-token", nil)
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
 		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -1973,6 +1999,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 
 		accountID := int64(666)
 		params := &common.DeleteActiveDirectoryParams{
@@ -1995,6 +2022,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			DeletionAllowed: true,
 		}
 
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.ProjectNumber).Return("test-jwt-token", nil)
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
 		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(errors.New("SDE deletion failed"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -2062,6 +2090,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 
 		accountID := int64(222)
 		params := &common.DeleteActiveDirectoryParams{
@@ -2084,6 +2113,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			DeletionAllowed: true,
 		}
 
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.ProjectNumber).Return("test-jwt-token", nil)
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
 		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(nil)
 		env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(errors.New("VCP deletion failed in SDE mode"))
@@ -2115,6 +2145,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 
 		accountID := int64(111)
 		params := &common.DeleteActiveDirectoryParams{
@@ -2137,6 +2168,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			DeletionAllowed: true,
 		}
 
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.ProjectNumber).Return("test-jwt-token", nil)
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
 		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(errors.New("SDE deletion failed"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -2311,6 +2343,7 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 	t.Run("SuccessfulSdeRun", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
 		mockHeader := &commonpb.Header{
@@ -2320,6 +2353,8 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{})
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost
@@ -2342,6 +2377,7 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 			DeletionAllowed: true,
 		}
 
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.ProjectNumber).Return("test-jwt-token", nil)
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
 		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(nil)
 		env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(nil)

@@ -1222,3 +1222,80 @@ func TestPopulateRotationRetryPolicyParams(t *testing.T) {
 		assert.Nil(tt, policy)
 	})
 }
+
+func TestFetchAndSetAuthToken(t *testing.T) {
+	t.Run("WhenLocalEnv_ThenReturnsOriginalContext", func(tt *testing.T) {
+		// Save original IsLocalEnv and restore after test
+		originalIsLocalEnv := env.IsLocalEnv
+		defer func() { env.IsLocalEnv = originalIsLocalEnv }()
+
+		// Set IsLocalEnv to return true
+		env.IsLocalEnv = func() bool { return true }
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.RegisterWorkflow(testFetchAndSetAuthTokenWorkflow)
+
+		env.ExecuteWorkflow(testFetchAndSetAuthTokenWorkflow, "test-account")
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
+
+	t.Run("WhenNotLocalEnv_ThenFetchesToken", func(tt *testing.T) {
+		// Save original IsLocalEnv and restore after test
+		originalIsLocalEnv := env.IsLocalEnv
+		defer func() { env.IsLocalEnv = originalIsLocalEnv }()
+
+		// Set IsLocalEnv to return false
+		env.IsLocalEnv = func() bool { return false }
+
+		var ts testsuite.WorkflowTestSuite
+		testEnv := ts.NewTestWorkflowEnvironment()
+		testEnv.RegisterWorkflow(testFetchAndSetAuthTokenWorkflow)
+		testEnv.RegisterActivity(&activities.CommonActivities{})
+
+		testEnv.OnActivity("GetAuthJWTToken", mock.Anything, "test-account").Return("test-jwt-token", nil)
+
+		testEnv.ExecuteWorkflow(testFetchAndSetAuthTokenWorkflow, "test-account")
+
+		assert.True(tt, testEnv.IsWorkflowCompleted())
+		assert.NoError(tt, testEnv.GetWorkflowError())
+	})
+
+	t.Run("WhenTokenFetchFails_ThenReturnsError", func(tt *testing.T) {
+		// Save original IsLocalEnv and restore after test
+		originalIsLocalEnv := env.IsLocalEnv
+		defer func() { env.IsLocalEnv = originalIsLocalEnv }()
+
+		// Set IsLocalEnv to return false
+		env.IsLocalEnv = func() bool { return false }
+
+		var ts testsuite.WorkflowTestSuite
+		testEnv := ts.NewTestWorkflowEnvironment()
+		testEnv.RegisterWorkflow(testFetchAndSetAuthTokenWorkflow)
+		testEnv.RegisterActivity(&activities.CommonActivities{})
+
+		testEnv.OnActivity("GetAuthJWTToken", mock.Anything, "test-account").Return("", errors.New("token fetch failed"))
+
+		testEnv.ExecuteWorkflow(testFetchAndSetAuthTokenWorkflow, "test-account")
+
+		assert.True(tt, testEnv.IsWorkflowCompleted())
+		assert.Error(tt, testEnv.GetWorkflowError())
+	})
+}
+
+// testFetchAndSetAuthTokenWorkflow is a test workflow that calls FetchAndSetAuthToken
+func testFetchAndSetAuthTokenWorkflow(ctx workflow.Context, accountId string) error {
+	logger := util.GetLogger(ctx)
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: 60 * time.Second,
+		RetryPolicy: &temporal.RetryPolicy{
+			MaximumAttempts: 3,
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	_, err := FetchAndSetAuthToken(ctx, accountId, logger)
+	return err
+}

@@ -8,8 +8,10 @@ import (
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
 )
@@ -30,7 +32,11 @@ func TestSyncActiveDirectoryInVcp(t *testing.T) {
 	t.Run("ReturnsErrorWhenCreatedADIsNil", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(tt)
 		env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountName).Return("test-jwt-token", nil)
 		env.OnActivity("PushActiveDirectoryPasswordActivity", mock.Anything, mock.Anything).Return(&cvpmodels.OperationV1beta{Name: "op"}, nil)
 		env.OnActivity("PollPushPasswordOperationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateActiveDirectoryInVCPActivity", mock.Anything, mock.Anything).Return((*datamodel.ActiveDirectory)(nil), nil)
@@ -45,7 +51,11 @@ func TestSyncActiveDirectoryInVcp(t *testing.T) {
 	t.Run("ReturnsSuccess", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(tt)
 		env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountName).Return("test-jwt-token", nil)
 		env.OnActivity("PushActiveDirectoryPasswordActivity", mock.Anything, mock.Anything).Return(&cvpmodels.OperationV1beta{Name: "op"}, nil)
 		env.OnActivity("PollPushPasswordOperationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateActiveDirectoryInVCPActivity", mock.Anything, mock.Anything).Return(&datamodel.ActiveDirectory{BaseModel: datamodel.BaseModel{ID: 10}}, nil)

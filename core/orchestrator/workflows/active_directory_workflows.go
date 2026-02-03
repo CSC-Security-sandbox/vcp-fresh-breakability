@@ -133,6 +133,11 @@ func (wf *ActiveDirectoryCreateWorkflow) Run(ctx workflow.Context, args ...inter
 			adRecord,
 		).Get(ctx, nil)
 	} else {
+		ctx, err = FetchAndSetAuthToken(ctx, params.AccountId, logger)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
 		err = workflow.ExecuteActivity(
 			ctx,
 			activeDirectoryActivity.CreateSdeActiveDirectory,
@@ -256,6 +261,11 @@ func (wf *ActiveDirectoryDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 	// Step 1: Check if SDE is enabled (CVP_HOST is set)
 	if cvp.CVP_HOST != "" && !utils.CreateCommonResourcesInVCP {
 		logger.Debug("SDE is enabled")
+
+		ctx, err = FetchAndSetAuthToken(ctx, params.ProjectNumber, logger)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
 
 		// Step 2: Check if AD can be deleted at VCP (check existence and SVM associations)
 		if !checkResult.ADExists {
@@ -422,6 +432,11 @@ func (wf *ActiveDirectoryUpdateWorkflow) Run(ctx workflow.Context, args ...inter
 		}
 	} else {
 		logger.Info("CVP_HOST environment variable is set, Updating AD in SDE first, then VCP (if applicable)")
+
+		ctx, err = FetchAndSetAuthToken(ctx, params.AccountId, logger)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
 
 		var sdeResult *cvpModels.OperationV1beta
 		// Trigger SDE update first

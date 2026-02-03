@@ -64,7 +64,7 @@ func (a ActiveDirectorySyncActivity) PushActiveDirectoryPasswordActivity(ctx con
 	}
 
 	// Create CVP client
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	jwtToken := utils.GetCVPJWTFromContext(ctx)
 	cvpClient := CvpClient(logger, jwtToken)
 
 	// Prepare API parameters
@@ -125,7 +125,7 @@ func (a ActiveDirectorySyncActivity) PollPushPasswordOperationActivity(ctx conte
 	}
 
 	logger.Debugf("Polling async operation: %s", operation.Name)
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	jwtToken := utils.GetAuthTokenFromContext(ctx)
 	cvpClient := CvpClient(logger, jwtToken)
 
 	// Extract the operation UUID

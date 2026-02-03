@@ -121,11 +121,13 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterActivity(&activities.PSCActivity{})
 	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+	env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-jwt-token", nil).Maybe()
 
 	// Mock child workflow activities
 	env.OnActivity("FetchPoolData", mock.Anything, mock.AnythingOfType("activities.FetchPoolDataActivityInput")).Return(&activities.FetchPoolDataActivityOutput{Success: true}, nil).Maybe()

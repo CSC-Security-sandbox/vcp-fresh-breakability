@@ -3,11 +3,9 @@ package active_directory_activities
 import (
 	// Standard library
 	"context"
-	"gorm.io/gorm"
 	"strconv"
 	"time"
 
-	// Third-party and local
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -25,6 +23,7 @@ import (
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"gorm.io/gorm"
 )
 
 type ActiveDirectoryCreateActivity struct {
@@ -123,7 +122,7 @@ func (a ActiveDirectoryCreateActivity) CreateSdeActiveDirectory(ctx context.Cont
 		XCorrelationID: &params.XCorrelationId,
 		Body:           body,
 	}
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	jwtToken := utils.GetCVPJWTFromContext(ctx)
 	cvpClient := CvpClient(logger, jwtToken)
 	created, err := cvpClient.ActiveDirectories.V1betaCreateActiveDirectory(createParams)
 	if err != nil {

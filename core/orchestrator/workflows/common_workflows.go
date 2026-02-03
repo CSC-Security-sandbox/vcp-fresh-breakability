@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/client"
@@ -407,6 +408,21 @@ func PollOnDBJob(ctx workflow.Context, jobUUID string, timeout time.Duration) er
 			return fmt.Errorf("failed to sleep while waiting for db job %s: %w", jobUUID, err)
 		}
 	}
+}
+
+// FetchAndSetAuthToken fetches a JWT token for the given account and sets it in the workflow context.
+func FetchAndSetAuthToken(ctx workflow.Context, accountName string, logger log.Logger) (workflow.Context, error) {
+	if env.IsLocalEnv() {
+		return ctx, nil
+	}
+
+	var token string
+	err := workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, accountName).Get(ctx, &token)
+	if err != nil {
+		logger.Errorf("Failed to get token for account %s: %v", accountName, err)
+		return ctx, err
+	}
+	return workflow.WithValue(ctx, middleware.AuthorizationToken, token), nil
 }
 
 func PollTransferStatusWithContinueAsNewCommon(ctx workflow.Context, backupActivitiesContext *activities.BackupActivitiesContext, continueAsNewFunc interface{}, continueAsNewArgs ...interface{}) error {
