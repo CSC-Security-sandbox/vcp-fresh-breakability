@@ -2484,7 +2484,7 @@ func Test_deleteActiveDirectory_AlreadyDeletingWithExistingJob(t *testing.T) {
 		BaseModel:    datamodel.BaseModel{UUID: "existing-job-uuid"},
 		WorkflowID:   "existing-workflow-id",
 		AccountID:    sql.NullInt64{Int64: 42, Valid: true},
-		ResourceName: "test-ad",
+		ResourceName: "ad-uuid",
 	}
 
 	// Patch getOrCreateAccount
@@ -2526,7 +2526,7 @@ func Test_deleteActiveDirectory_AlreadyDeletingNoJob(t *testing.T) {
 		BaseModel:    datamodel.BaseModel{UUID: "job-uuid"},
 		WorkflowID:   "workflow-id",
 		AccountID:    sql.NullInt64{Int64: 42, Valid: true},
-		ResourceName: "test-ad",
+		ResourceName: "ad-uuid",
 	}
 
 	// Patch getOrCreateAccount
@@ -2546,7 +2546,9 @@ func Test_deleteActiveDirectory_AlreadyDeletingNoJob(t *testing.T) {
 	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "ad-uuid", int64(42)).Return(ad, nil)
 	// GetJobByResourceUUID returns error (no job found)
 	mockSe.On("GetJobByResourceUUID", mock.Anything, "ad-uuid", string(models.JobTypeDeleteActiveDirectory)).Return(nil, errors.New("job not found"))
-	mockSe.On("CreateJob", mock.Anything, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
+	mockSe.On("CreateJob", mock.Anything, mock.MatchedBy(func(j *datamodel.Job) bool {
+		return j.ResourceName == params.ActiveDirectoryUUID
+	})).Return(job, nil)
 
 	jobUUID, err := _deleteActiveDirectory(ctx, mockSe, mockTemporal, params)
 
@@ -2611,7 +2613,7 @@ func Test_deleteActiveDirectory_WorkflowErrorWithUpdateJobError(t *testing.T) {
 		BaseModel:    datamodel.BaseModel{UUID: "job-uuid"},
 		WorkflowID:   "workflow-id",
 		AccountID:    sql.NullInt64{Int64: 42, Valid: true},
-		ResourceName: "test-ad",
+		ResourceName: "ad-uuid",
 	}
 
 	// Patch getOrCreateAccount
@@ -2661,7 +2663,7 @@ func Test_deleteActiveDirectory_WorkflowError(t *testing.T) {
 		BaseModel:    datamodel.BaseModel{UUID: "job-uuid"},
 		WorkflowID:   "workflow-id",
 		AccountID:    sql.NullInt64{Int64: 42, Valid: true},
-		ResourceName: "test-ad",
+		ResourceName: "ad-uuid",
 	}
 
 	// Patch getOrCreateAccount

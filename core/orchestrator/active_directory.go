@@ -558,7 +558,6 @@ func _deleteActiveDirectory(ctx context.Context, se database.Storage, temporal c
 		logger.Error("Failed to get Active Directory", "error", err, "active_directory_id", params.ActiveDirectoryUUID)
 		return "", err
 	}
-	resourceName := ad.AdName
 
 	if ad != nil {
 		// Check if the Active Directory is already in deleted state
@@ -584,7 +583,7 @@ func _deleteActiveDirectory(ctx context.Context, se database.Storage, temporal c
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeDeleteActiveDirectory),
 		State:         string(models.JobsStateNEW),
-		ResourceName:  resourceName,
+		ResourceName:  params.ActiveDirectoryUUID,
 		AccountID:     sql.NullInt64{Int64: params.AccountId, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
