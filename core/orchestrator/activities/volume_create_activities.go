@@ -751,7 +751,7 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 		}
 		if backupVault.BackupVaultType == CrossRegionBackupType {
 			if backupVault.BackupRegionName != nil && *backupVault.BackupRegionName == region {
-				return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrBadRequest, fmt.Errorf("cannot assign a cross-region backup vault to a volume in the destination region")))
+				return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCrossRegionBackupVaultAssignmentToDestinationRegion, fmt.Errorf("cannot assign a cross-region backup vault to a volume in the destination region")))
 			}
 		}
 		return backupVault, nil
@@ -795,7 +795,7 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 					return nil, errors.NewBadRequestErr("Cross-region backup vault name must be specified for cross-region backup vault")
 				}
 				if bvModel.BackupRegionName != nil && *bvModel.BackupRegionName == region {
-					return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrBadRequest, fmt.Errorf("cannot assign a cross-region backup vault to a volume in the destination region")))
+					return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCrossRegionBackupVaultAssignmentToDestinationRegion, fmt.Errorf("cannot assign a cross-region backup vault to a volume in the destination region")))
 				}
 			}
 			bvParams = bvModel

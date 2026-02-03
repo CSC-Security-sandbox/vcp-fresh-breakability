@@ -11529,7 +11529,7 @@ func TestCheckBackupVaultExistsInVCP_CrossRegionBackupVaultInSameRegion_FromVCP(
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "Bad Request")
+	assert.Contains(t, err.Error(), "Cannot assign a cross-region backup vault to a volume in the destination region")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -11627,7 +11627,7 @@ func TestCheckBackupVaultExistsInVCP_CrossRegionBackupVaultInSameRegion_FromCVP(
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "Bad Request")
+	assert.Contains(t, err.Error(), "Cannot assign a cross-region backup vault to a volume in the destination region")
 	mockStorage.AssertExpectations(t)
 	mockBackupVaultClient.AssertExpectations(t)
 }

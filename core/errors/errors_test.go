@@ -1022,3 +1022,49 @@ func TestErrWorkflowSupervisorTimeoutMapping(t *testing.T) {
 		t.Errorf("Expected ErrWorkflowSupervisorTimeout to be non retriable")
 	}
 }
+
+// TestErrCrossRegionBackupVaultAssignmentMapping verifies that ErrCrossRegionBackupVaultAssignmentToDestinationRegion (12018)
+// is properly mapped to ensure cross-region backup vault validation errors are properly communicated to users.
+func TestErrCrossRegionBackupVaultAssignmentMapping(t *testing.T) {
+	// Set up the error map with the expected mapping for ErrCrossRegionBackupVaultAssignmentToDestinationRegion
+	// This mirrors what should be in errors.json for tracking ID 12018
+	httpCode := 400
+	retriable := false
+	errorMap[ErrCrossRegionBackupVaultAssignmentToDestinationRegion] = ErrorMessage{
+		Message:   "Cannot assign a cross-region backup vault to a volume in the destination region",
+		Retriable: &retriable,
+		HttpCode:  &httpCode,
+	}
+
+	msg := GetErrorMessageByTrackingID(ErrCrossRegionBackupVaultAssignmentToDestinationRegion)
+	if msg == nil {
+		t.Fatalf("Expected non-nil ErrorMessage for ErrCrossRegionBackupVaultAssignmentToDestinationRegion (12018)")
+	}
+
+	// Verify the message is properly defined
+	if msg.Message == "undefined error" {
+		t.Errorf("ErrCrossRegionBackupVaultAssignmentToDestinationRegion should be mapped to a proper message, got 'undefined error'")
+	}
+
+	// Verify the message matches the expected validation error
+	expectedMessage := "Cannot assign a cross-region backup vault to a volume in the destination region"
+	if msg.Message != expectedMessage {
+		t.Errorf("Expected message '%s', got '%s'", expectedMessage, msg.Message)
+	}
+
+	// Verify HTTP code is 400 (Bad Request) for validation errors
+	if msg.HttpCode == nil {
+		t.Fatalf("Expected non-nil HTTP code for ErrCrossRegionBackupVaultAssignmentToDestinationRegion")
+	}
+	if *msg.HttpCode != 400 {
+		t.Errorf("Expected HTTP code 400, got %d", *msg.HttpCode)
+	}
+
+	// Verify the error is non-retriable (validation errors shouldn't be retried)
+	if msg.Retriable == nil {
+		t.Fatalf("Expected non-nil Retriable for ErrCrossRegionBackupVaultAssignmentToDestinationRegion")
+	}
+	if *msg.Retriable {
+		t.Errorf("Expected ErrCrossRegionBackupVaultAssignmentToDestinationRegion to be non-retriable")
+	}
+}

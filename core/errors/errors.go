@@ -362,12 +362,13 @@ const (
 	ErrSVMPeerNotAvailable                            = 11011
 
 	// Backup specific errors (12000-12999 range)
-	ErrImmutableValidationWithUpdatingBackupPolicy = 12001
-	ErrImmutableValidationWithUpdatingBackupVault  = 12002
-	ErrCreateInternalQuotaRule                     = 12003
-	ErrSFRFilesMissing                             = 12004
-	ErrNoSFRFilesFound                             = 12005
-	ErrInsufficientRestoreVolumeSize               = 12017
+	ErrImmutableValidationWithUpdatingBackupPolicy         = 12001
+	ErrImmutableValidationWithUpdatingBackupVault          = 12002
+	ErrCreateInternalQuotaRule                             = 12003
+	ErrSFRFilesMissing                                     = 12004
+	ErrNoSFRFilesFound                                     = 12005
+	ErrInsufficientRestoreVolumeSize                       = 12017
+	ErrCrossRegionBackupVaultAssignmentToDestinationRegion = 12018
 
 	ErrMatchingQuotaRuleNotFoundOnDestination   = 12006
 	ErrQuotaRuleNotFound                        = 12007

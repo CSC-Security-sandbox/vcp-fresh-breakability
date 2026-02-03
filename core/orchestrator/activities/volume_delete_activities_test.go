@@ -2203,6 +2203,77 @@ func TestSnapmirrorInONTAPFailsWhenGetBackupVaultFails(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
+func TestDeleteSnapmirrorInONTAP_BackupVaultNotFound_WrappedNotFoundErr(t *testing.T) {
+	// Test that when GetBackupVault returns a wrapped NotFoundErr, deletion skips gracefully
+	mockProvider := new(vsa.MockProvider)
+	mockStorage := database.NewMockStorage(t)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeUUID := "test-volume-uuid"
+	backupVaultID := "backup-vault-not-found"
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: backupVaultID,
+		},
+	}
+	node := &models.Node{}
+
+	// Return wrapped NotFoundErr (as some database methods do)
+	notFoundErr := utilErrors.NewNotFoundErr("backup vault", &backupVaultID)
+	mockStorage.On("GetBackupVault", ctx, backupVaultID).Return(nil, notFoundErr)
+
+	// Act
+	resp, err := activity.DeleteSnapmirrorInONTAP(ctx, volume, node)
+
+	// Assert - should skip gracefully without error
+	assert.NoError(t, err)
+	assert.Nil(t, resp)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteSnapmirrorInONTAP_BackupVaultNotFound_GormRecordNotFound(t *testing.T) {
+	// Test that when GetBackupVault returns gorm.ErrRecordNotFound, deletion skips gracefully
+	mockProvider := new(vsa.MockProvider)
+	mockStorage := database.NewMockStorage(t)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeUUID := "test-volume-uuid"
+	backupVaultID := "backup-vault-gorm-not-found"
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: backupVaultID,
+		},
+	}
+	node := &models.Node{}
+
+	// Return raw gorm.ErrRecordNotFound (as GetBackupVault currently does)
+	mockStorage.On("GetBackupVault", ctx, backupVaultID).Return(nil, gorm.ErrRecordNotFound)
+
+	// Act
+	resp, err := activity.DeleteSnapmirrorInONTAP(ctx, volume, node)
+
+	// Assert - should skip gracefully without error
+	assert.NoError(t, err)
+	assert.Nil(t, resp)
+	mockStorage.AssertExpectations(t)
+}
+
 func TestSnapmirrorInONTAPFailsWhenSnapmirrorRelationshipGetFails(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
 	mockStorage := database.NewMockStorage(t)

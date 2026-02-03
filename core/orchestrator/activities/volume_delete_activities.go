@@ -2,6 +2,7 @@ package activities
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/temporal"
+	"gorm.io/gorm"
 )
 
 type VolumeDeleteActivity struct {
@@ -119,6 +121,13 @@ func (va VolumeDeleteActivity) DeleteSnapmirrorInONTAP(ctx context.Context, volu
 
 		dbBackupVault, err := se.GetBackupVault(ctx, volume.DataProtection.BackupVaultID)
 		if err != nil {
+			if utilErrors.IsNotFoundErr(err) || errors.Is(err, gorm.ErrRecordNotFound) {
+				// This can happen if volume creation failed before creating
+				// the backup vault entry in VCP. In this case, there's no snap mirror to delete.
+				logger.Warnf("Backup vault %s not found for volume %s (likely never created due to validation failure). Skipping snapmirror deletion.",
+					volume.DataProtection.BackupVaultID, volume.UUID)
+				return nil, nil
+			}
 			logger.Errorf("Failed to get backup vault for volume %s: %v", volume.UUID, err)
 			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get backup vault for volume %s: %w", volume.UUID, err))
 		}
