@@ -372,7 +372,7 @@ func (gcpService *GcpServices) UpdateFirewall(firewallRule *models.Firewall) (st
 		gcpService.Logger.Debugf("failed to update firewall for project name : %s, firewall name : %s", projectName, firewallName)
 		return "", vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 	}
-	gcpService.Logger.Debugf("Operation to update firewall created successfully for project name : %s, firewall name : %s", projectName, firewallName)
+	gcpService.Logger.Debugf("Operation to update firewall created successfully for project name : %s, firewall name : %s err : %v", projectName, firewallName, err)
 	return op.Name, nil
 }
 

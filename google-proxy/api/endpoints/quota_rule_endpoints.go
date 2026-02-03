@@ -16,12 +16,14 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var (
+	enableQuotaRule              = env.GetBool("ENABLE_QUOTA_RULE", true)
 	getMultipleQuotaRulesFromCVP = _getMultipleQuotaRulesFromCVP
 )
 
@@ -330,9 +332,18 @@ func _getMultipleQuotaRulesFromCVP(ctx context.Context, req *gcpgenserver.QuotaR
 	return &quotaRuleResponse, nil
 }
 
+// quotaRuleAPIDisabledMessage is returned when ENABLE_QUOTA_RULE is false
+const quotaRuleAPIDisabledMessage = "quota rule API is disabled"
+
 // V1betaCreateQuotaRule is a handler for creating a quota rule
 func (h Handler) V1betaCreateQuotaRule(ctx context.Context, req *gcpgenserver.QuotaRuleCreateV1beta, params gcpgenserver.V1betaCreateQuotaRuleParams) (gcpgenserver.V1betaCreateQuotaRuleRes, error) {
 	logger := util.GetLogger(ctx)
+	if !enableQuotaRule {
+		return &gcpgenserver.V1betaCreateQuotaRuleBadRequest{
+			Code:    http.StatusBadRequest,
+			Message: quotaRuleAPIDisabledMessage,
+		}, nil
+	}
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
@@ -444,6 +455,12 @@ func (h Handler) V1betaCreateQuotaRuleVCP(ctx context.Context, req *gcpgenserver
 // V1betaUpdateQuotaRule is a handler for updating a quota rule
 func (h Handler) V1betaUpdateQuotaRule(ctx context.Context, req *gcpgenserver.QuotaRulesUpdateV1beta, params gcpgenserver.V1betaUpdateQuotaRuleParams) (gcpgenserver.V1betaUpdateQuotaRuleRes, error) {
 	logger := util.GetLogger(ctx)
+	if !enableQuotaRule {
+		return &gcpgenserver.V1betaUpdateQuotaRuleBadRequest{
+			Code:    http.StatusBadRequest,
+			Message: quotaRuleAPIDisabledMessage,
+		}, nil
+	}
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
@@ -513,6 +530,12 @@ func (h Handler) V1betaUpdateQuotaRule(ctx context.Context, req *gcpgenserver.Qu
 // V1betaDeleteQuotaRule is a handler for deleting a quota rule
 func (h Handler) V1betaDeleteQuotaRule(ctx context.Context, params gcpgenserver.V1betaDeleteQuotaRuleParams) (gcpgenserver.V1betaDeleteQuotaRuleRes, error) {
 	logger := util.GetLogger(ctx)
+	if !enableQuotaRule {
+		return &gcpgenserver.V1betaDeleteQuotaRuleBadRequest{
+			Code:    http.StatusBadRequest,
+			Message: quotaRuleAPIDisabledMessage,
+		}, nil
+	}
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
@@ -716,6 +739,12 @@ func (h Handler) V1betaListAllQuotaRules(ctx context.Context, params gcpgenserve
 // V1betaGetMultipleQuotaRules is a handler for getting multiple quota rules by UUIDs
 func (h Handler) V1betaGetMultipleQuotaRules(ctx context.Context, req *gcpgenserver.QuotaRuleIdListV1beta, params gcpgenserver.V1betaGetMultipleQuotaRulesParams) (gcpgenserver.V1betaGetMultipleQuotaRulesRes, error) {
 	logger := util.GetLogger(ctx)
+	if !enableQuotaRule {
+		return &gcpgenserver.V1betaGetMultipleQuotaRulesBadRequest{
+			Code:    http.StatusBadRequest,
+			Message: quotaRuleAPIDisabledMessage,
+		}, nil
+	}
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {

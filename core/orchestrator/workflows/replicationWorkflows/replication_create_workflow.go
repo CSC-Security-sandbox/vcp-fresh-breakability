@@ -26,7 +26,7 @@ const (
 
 var (
 	ReplicationJobsRetryMaxAttempts = env.GetInt("REPLICATION_JOBS_RETRY_MAX_ATTEMPTS", 10)
-	quotaRuleSync                   = env.GetBool("QUOTA_RULE_SYNC", false)
+	quotaRuleSync                   = env.GetBool("QUOTA_RULE_SYNC", true)
 )
 
 type createVolumeReplicationWorkflow struct {

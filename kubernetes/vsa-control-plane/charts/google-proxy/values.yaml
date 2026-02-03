@@ -36,6 +36,7 @@ coreApi:
 crrEnabled: false
 cpcrrEnabled: false
 czcrrEnabled: false
+enableQuotaRule: true # Enable quota rule API (create/update/delete/get multiple)
 refreshAdminJobSpecs: true
 flexCacheEnabled: false
 hybridReplicationEnabled: false

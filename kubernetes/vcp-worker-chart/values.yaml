@@ -129,7 +129,7 @@ workerConfig:
   restoreVolumeBufferEnabled: "false"
   enableLdap: "false"
   enableSmb: "false"
-  enableQuotaRule: "false"
+  enableQuotaRule: "true"
   enableKerberos: "false"
   vsaDeployedDnsName: "au-se1.vsa"
   vsaManagedZone: "au-se1-vsa"
@@ -239,7 +239,7 @@ workerConfig:
   scheduleHardDelete: "false"
   replicationJobsRetryMaxAttempts: 10
   updateRemoteVolumeJobsRetryMaxAttempts: 10
-  quotaRuleSync: "false"
+  quotaRuleSync: "true"
   expertModeRbacBucketName: "gcnv-autopush-images-bucket"
   expertModeRbacFilePath: "GCNV/%s/RBAC/gcnvadmin_create_cli" # keep %s as it is, as it will be replaced by ontap version later
   # ONTAP mode RBAC checksums mapping: key is ONTAP version, value is the checksum

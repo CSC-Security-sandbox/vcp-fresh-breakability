@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -23,6 +24,12 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"gorm.io/gorm"
 )
+
+func TestMain(m *testing.M) {
+	// Enable quota rule API for tests that expect success; individual tests may override for disabled behavior
+	_ = os.Setenv("ENABLE_QUOTA_RULE", "true")
+	os.Exit(m.Run())
+}
 
 func TestV1betaCreateQuotaRule(t *testing.T) {
 	t.Run("WhenCreateQuotaRuleSucceeds", func(tt *testing.T) {
@@ -97,6 +104,37 @@ func TestV1betaCreateQuotaRule(t *testing.T) {
 		assert.True(tt, ok, "expected V1betaCreateQuotaRuleBadRequest, got %T", res)
 		assert.Equal(tt, float64(http.StatusBadRequest), bad.Code)
 		assert.NotEmpty(tt, bad.Message)
+	})
+
+	t.Run("WhenQuotaRuleAPIDisabled", func(tt *testing.T) {
+		// enableQuotaRule is a package-level var set at init; override it for this test
+		orig := enableQuotaRule
+		defer func() { enableQuotaRule = orig }()
+		enableQuotaRule = false
+
+		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrch}
+		params := gcpgenserver.V1betaCreateQuotaRuleParams{
+			ProjectNumber: "project-1",
+			LocationId:    "us-central1",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.QuotaRuleCreateV1beta{
+			ResourceId:     "quota-name",
+			QuotaType:      gcpgenserver.QuotaRuleCreateV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+			DiskLimitInMib: 1024,
+			QuotaTarget:    gcpgenserver.NewOptString("user:alice"),
+			Description:    gcpgenserver.NewOptString("desc"),
+		}
+
+		res, err := handler.V1betaCreateQuotaRule(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		bad, ok := res.(*gcpgenserver.V1betaCreateQuotaRuleBadRequest)
+		assert.True(tt, ok, "expected V1betaCreateQuotaRuleBadRequest when API disabled, got %T", res)
+		assert.Equal(tt, float64(http.StatusBadRequest), bad.Code)
+		assert.Equal(tt, "quota rule API is disabled", bad.Message)
 	})
 
 	t.Run("WhenCreateQuotaRuleFailsWithBadRequest", func(tt *testing.T) {

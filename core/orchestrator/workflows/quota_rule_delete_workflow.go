@@ -94,9 +94,9 @@ func (wf *quotaRuleDeleteWorkflow) Setup(ctx workflow.Context, input interface{}
 }
 
 // Run executes the quota rule delete workflow.
-func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
+func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (result interface{}, customErr *vsaerrors.CustomError) {
 	quotaRule := args[0].(*datamodel.QuotaRule)
-	params := args[1].(*commonparams.DeleteQuotaRulesParam) // params - will be used for replication sync
+	params := args[1].(*commonparams.DeleteQuotaRulesParam)
 	logger := util.GetLogger(ctx)
 	quotaRuleDeleteActivity := &activities.QuotaRuleDeleteActivity{}
 	commonActivity := &activities.QuotaRuleCommonActivity{}
@@ -150,7 +150,8 @@ func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}
 		if err == nil {
 			err = workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *quotaRule, quotaRule.State == models.LifeCycleStateCreating).Get(ctx, nil)
 			if err != nil {
-				logger.Errorf("Failed to update quota rule state: %v", err)
+				logger.Errorf("Failed to update quota rule state on source: %v", err)
+				customErr = ConvertToVSAError(err)
 			}
 		}
 	}()
@@ -170,15 +171,9 @@ func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}
 		isDataProtection = volumeDetails.VolumeAttributes.IsDataProtection
 	}
 
-	// If volume is data protection, only delete from database (no ONTAP deletion needed)
+	// If volume is data protection, only delete from database (no ONTAP deletion needed).
+	// Defer block will mark quota rule as DELETED on success.
 	if isDataProtection {
-		// Update quota rule state in database only (no ONTAP update needed)
-		err = workflow.ExecuteActivity(ctx, commonActivity.UpdateQuotaRuleState, *dbQuotaRule, false).Get(ctx, nil)
-		if err != nil {
-			logger.Errorf("Failed to update quota rule state in database: %v", err)
-			return nil, ConvertToVSAError(err)
-		}
-
 		return nil, nil
 	}
 
@@ -256,57 +251,70 @@ func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}
 				err = workflow.ExecuteActivity(ctx, commonActivity.GetMatchingQuotaRuleOnDestination,
 					replication.ReplicationAttributes.DestinationVolumeUUID, replication.ReplicationAttributes.DestinationLocation, destProjectNumber, dbQuotaRule.Name, jwtToken).Get(ctx, &destinationQuotaRuleId)
 				if err != nil {
-					logger.Errorf("Failed to fetch matching quota rule from destination: destinationVolumeUUID=%s, quotaRuleName=%s, error=%v",
-						replication.ReplicationAttributes.DestinationVolumeUUID, dbQuotaRule.Name, err)
-					return nil, ConvertToVSAError(err)
-				}
-
-				// Store for revert
-				destinationQuotaRuleIdForRevert = destinationQuotaRuleId
-
-				// Delete quota rule on destination via internal API
-				var deleteOperationResult *activities.QuotaRuleOperationResult
-				err = workflow.ExecuteActivity(ctx, quotaRuleDeleteActivity.DeleteQuotaRuleOnDestination,
-					replication.ReplicationAttributes.DestinationVolumeUUID, *destinationQuotaRuleId, replication.ReplicationAttributes.DestinationLocation, destProjectNumber, jwtToken).Get(ctx, &deleteOperationResult)
-				if err != nil {
-					logger.Errorf("Failed to delete quota rule on destination: destinationVolumeUUID=%s, quotaRuleId=%s, error=%v",
-						replication.ReplicationAttributes.DestinationVolumeUUID, destinationQuotaRuleId, err)
-					// If destination deletion fails, we can't proceed with source deletion
-					return nil, ConvertToVSAError(err)
-				}
-
-				// Poll for operation completion if async operation was started
-				if deleteOperationResult != nil && deleteOperationResult.OperationName != "" && !deleteOperationResult.IsDone {
-					logger.Infof("Polling for quota rule delete operation completion on destination: operationName=%s", deleteOperationResult.OperationName)
-					err = workflow.ExecuteActivity(ctx, commonActivity.DescribeQuotaRuleRemoteJob,
-						deleteOperationResult.OperationName, replication.ReplicationAttributes.DestinationLocation, destProjectNumber, jwtToken).Get(ctx, nil)
-					if err != nil {
-						logger.Errorf("Failed to wait for quota rule delete on destination: operationName=%s, error=%v",
-							deleteOperationResult.OperationName, err)
-						// If polling fails, we can't proceed with source deletion
+					// Treat "matching quota rule not found" as success (already deleted on destination in a previous run).
+					// TrackingID is the reliable check when error comes from activity (ExtractCustomError decodes it from ApplicationError details).
+					ce := ConvertToVSAError(err)
+					isMatchingNotFound := customerrors.IsNotFoundErr(err) ||
+						(ce != nil && (ce.TrackingID == vsaerrors.ErrQuotaRuleNotFound || ce.TrackingID == vsaerrors.ErrMatchingQuotaRuleNotFoundOnDestination))
+					if isMatchingNotFound {
+						logger.Infof("Matching quota rule not found on destination (may already be deleted), skipping destination delete: destinationVolumeUUID=%s, quotaRuleName=%s",
+							replication.ReplicationAttributes.DestinationVolumeUUID, dbQuotaRule.Name)
+						// destinationQuotaRuleId stays nil; destination delete block below is skipped
+					} else {
+						logger.Errorf("Failed to fetch matching quota rule from destination: destinationVolumeUUID=%s, quotaRuleName=%s, error=%v",
+							replication.ReplicationAttributes.DestinationVolumeUUID, dbQuotaRule.Name, err)
 						return nil, ConvertToVSAError(err)
 					}
 				}
 
-				// Hydrate the quota rule deletion to CCFE after polling completes (or immediately if operation completed synchronously)
-				quotaRuleID := *destinationQuotaRuleId
-				if hydrationEnabled {
-					hydrateErr := workflow.ExecuteActivity(ctx, commonActivity.HydrateQuotaRuleDelete,
-						quotaRuleID, replication.ReplicationAttributes.DestinationVolumeUUID,
-						replication.ReplicationAttributes.DestinationLocation, destProjectNumber).Get(ctx, nil)
-					if hydrateErr != nil {
-						logger.Warnf("Failed to hydrate quota rule delete to CCFE (non-fatal): quotaRuleId=%s, error=%v", quotaRuleID, hydrateErr)
-						// Don't fail the workflow if hydration fails - log warning and continue
-					} else {
+				// Only delete on destination when we found a matching quota rule
+				if destinationQuotaRuleId != nil {
+					// Store for revert
+					destinationQuotaRuleIdForRevert = destinationQuotaRuleId
+
+					// Delete quota rule on destination via internal API
+					var deleteOperationResult *activities.QuotaRuleOperationResult
+					err = workflow.ExecuteActivity(ctx, quotaRuleDeleteActivity.DeleteQuotaRuleOnDestination,
+						replication.ReplicationAttributes.DestinationVolumeUUID, *destinationQuotaRuleId, replication.ReplicationAttributes.DestinationLocation, destProjectNumber, jwtToken).Get(ctx, &deleteOperationResult)
+					if err != nil {
+						logger.Errorf("Failed to delete quota rule on destination: destinationVolumeUUID=%s, quotaRuleId=%s, error=%v",
+							replication.ReplicationAttributes.DestinationVolumeUUID, destinationQuotaRuleId, err)
+						// If destination deletion fails, we can't proceed with source deletion
+						return nil, ConvertToVSAError(err)
+					}
+
+					// Poll for operation completion if async operation was started
+					if deleteOperationResult != nil && deleteOperationResult.OperationName != "" && !deleteOperationResult.IsDone {
+						logger.Infof("Polling for quota rule delete operation completion on destination: operationName=%s", deleteOperationResult.OperationName)
+						err = workflow.ExecuteActivity(ctx, commonActivity.DescribeQuotaRuleRemoteJob,
+							deleteOperationResult.OperationName, replication.ReplicationAttributes.DestinationLocation, destProjectNumber, jwtToken).Get(ctx, nil)
+						if err != nil {
+							logger.Errorf("Failed to wait for quota rule delete on destination: operationName=%s, error=%v",
+								deleteOperationResult.OperationName, err)
+							// If polling fails, we can't proceed with source deletion
+							return nil, ConvertToVSAError(err)
+						}
+					}
+
+					// Hydrate the quota rule deletion to CCFE after polling completes (or immediately if operation completed synchronously)
+					quotaRuleID := *destinationQuotaRuleId
+					if hydrationEnabled {
+						err = workflow.ExecuteActivity(ctx, commonActivity.HydrateQuotaRuleDelete,
+							quotaRuleID, replication.ReplicationAttributes.DestinationVolumeUUID,
+							replication.ReplicationAttributes.DestinationLocation, destProjectNumber).Get(ctx, nil)
+						if err != nil {
+							logger.Errorf("Failed to hydrate quota rule delete to CCFE: quotaRuleId=%s, error=%v", quotaRuleID, err)
+							return nil, ConvertToVSAError(err)
+						}
 						logger.Infof("Successfully hydrated quota rule delete to CCFE: quotaRuleId=%s", quotaRuleID)
 					}
+
+					logger.Infof("Successfully synced quota rule deletion to destination: location=%s, volumeUUID=%s, quotaRuleId=%s",
+						replication.ReplicationAttributes.DestinationLocation, replication.ReplicationAttributes.DestinationVolumeUUID, *destinationQuotaRuleId)
+
+					// Mark that destination deletion succeeded - this enables revert if source deletion fails
+					destinationDeleted = true
 				}
-
-				logger.Infof("Successfully synced quota rule deletion to destination: location=%s, volumeUUID=%s, quotaRuleId=%s",
-					replication.ReplicationAttributes.DestinationLocation, replication.ReplicationAttributes.DestinationVolumeUUID, *destinationQuotaRuleId)
-
-				// Mark that destination deletion succeeded - this enables revert if source deletion fails
-				destinationDeleted = true
 			} else {
 				logger.Infof("Replication is not eligible for sync: destinationLocation=%s, destinationVolumeUUID=%s",
 					replication.ReplicationAttributes.DestinationLocation, replication.ReplicationAttributes.DestinationVolumeUUID)
