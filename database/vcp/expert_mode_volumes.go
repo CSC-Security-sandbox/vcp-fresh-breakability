@@ -190,3 +190,19 @@ func (d *DataStoreRepository) UpdateExpertModeVolumeFields(ctx context.Context, 
 
 	return nil
 }
+
+// ListExpertModeVolumesByPoolID retrieves all expert mode volumes for a given pool ID
+func (d *DataStoreRepository) ListExpertModeVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.ExpertModeVolumes, error) {
+	var volumes []*datamodel.ExpertModeVolumes
+
+	// Query the database for all volumes with the given pool ID
+	err := d.db.GORM().WithContext(ctx).
+		Where("pool_id = ?", poolID).
+		Find(&volumes).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return volumes, nil
+}

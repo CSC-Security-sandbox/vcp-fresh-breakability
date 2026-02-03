@@ -22,6 +22,7 @@ import (
 
 const (
 	ExpertModeVolumeStyleFlexgroup = "flexgroup"
+	APIAccessModeONTAP             = "ONTAP"
 )
 
 // CreateExpertModeVolume creates a new expert mode volume
@@ -482,4 +483,51 @@ func _updateExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 	}
 
 	return nil
+}
+
+// GetBackupConfigsForPool retrieves backup configurations for all expert mode volumes in a pool
+func (o *Orchestrator) GetBackupConfigsForPool(ctx context.Context, poolID string, accountName string) ([]*models.ExpertModeVolumeBackupConfig, error) {
+	logger := util.GetLogger(ctx)
+
+	// Get account
+	account, err := getAccountWithName(ctx, o.storage, accountName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get pool to validate it exists and get the internal ID
+	dbPoolView, err := o.storage.GetPool(ctx, poolID, account.ID)
+	if err != nil {
+		logger.Error("Failed to get pool", "poolID", poolID, "error", err)
+		return nil, err
+	}
+
+	if dbPoolView.APIAccessMode != APIAccessModeONTAP {
+		logger.Error("Backup configurations are only available for ONTAP-mode pools", "poolID", poolID, "apiAccessMode", dbPoolView.APIAccessMode)
+		return nil, customerrors.NewBadRequestErr("backup configurations are only available for ONTAP pools")
+	}
+
+	// Get all expert mode volumes for this pool
+	expertModeVolumes, err := o.storage.ListExpertModeVolumesByPoolID(ctx, dbPoolView.ID)
+	if err != nil {
+		logger.Error("Failed to list expert mode volumes", "poolID", dbPoolView.ID, "error", err)
+		return nil, err
+	}
+
+	// Convert to VolumeBackupConfig response
+	backupConfigs := make([]*models.ExpertModeVolumeBackupConfig, 0, len(expertModeVolumes))
+	for _, vol := range expertModeVolumes {
+		config := &models.ExpertModeVolumeBackupConfig{
+			VolumeID: vol.ExternalUUID,
+		}
+
+		// Extract backup vault ID from BackupConfig if it exists
+		if vol.BackupConfig != nil && vol.BackupConfig.BackupVaultID != "" {
+			config.BackupVaultID = &vol.BackupConfig.BackupVaultID
+		}
+
+		backupConfigs = append(backupConfigs, config)
+	}
+
+	return backupConfigs, nil
 }

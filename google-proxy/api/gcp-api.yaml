@@ -302,6 +302,53 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/backupConfigs:
+    get:
+      tags:
+        - pools
+      summary: Get backup configurations for a pool
+      description: Returns the list of backup configurations for all expert mode volumes in the specified pool.
+      operationId: v1beta_getBackupConfigsForPool
+      parameters:
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  backupConfigs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VolumeBackupConfig_v1beta'
+              example:
+                backupConfigs:
+                  - volumeId: "9760acf5-4638-11e7-9bdb-020073ca7774"
+                    backupConfig:
+                      backupVaultId: "9760acf5-4638-11e7-9bdb-020073ca7774"
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}:
     get:
       tags:
@@ -10306,6 +10353,17 @@ components:
         - STORAGE_CLASS_UNSPECIFIED
         - SOFTWARE
         - HARDWARE
+    VolumeBackupConfig_v1beta:
+      title: VolumeBackupConfig
+      type: object
+      properties:
+        volumeId:
+          type: string
+          description: Volume ONTAP UUID (externalUUID from expert mode volumes table)
+          example: "9760acf5-4638-11e7-9bdb-020073ca7774"
+        backupConfig:
+          $ref: '#/components/schemas/BackupConfig_v1beta'
+      description: Backup configuration for an expert mode volume
     ExportPolicy_v1beta:
       title: ExportPolicy
       type: object

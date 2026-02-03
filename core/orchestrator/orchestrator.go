@@ -155,6 +155,7 @@ type OrchestratorFactory interface {
 	UpdateExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error
 	DeleteExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error
 	UpdateRbacForPools(ctx context.Context) (string, error)
+	GetBackupConfigsForPool(ctx context.Context, poolID string, accountName string) ([]*models.ExpertModeVolumeBackupConfig, error)
 
 	// Volume Performance Group related methods
 	CreateVolumePerformanceGroup(ctx context.Context, params *commonparams.CreateVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error)

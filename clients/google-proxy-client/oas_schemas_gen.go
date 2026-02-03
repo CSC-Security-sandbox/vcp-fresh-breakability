@@ -4039,6 +4039,7 @@ func (*ErrorStatusCode) v1betaEncryptVolumesRes()                            {}
 func (*ErrorStatusCode) v1betaEstablishPeeringRes()                          {}
 func (*ErrorStatusCode) v1betaEstablishVolumePeeringRes()                    {}
 func (*ErrorStatusCode) v1betaFinishProjectEventRes()                        {}
+func (*ErrorStatusCode) v1betaGetBackupConfigsForPoolRes()                   {}
 func (*ErrorStatusCode) v1betaGetMultipleActiveDirectoriesRes()              {}
 func (*ErrorStatusCode) v1betaGetMultipleBackupPoliciesRes()                 {}
 func (*ErrorStatusCode) v1betaGetMultipleBackupVaultsRes()                   {}
@@ -21090,6 +21091,46 @@ type V1betaFinishProjectEventUnprocessableEntity Error
 
 func (*V1betaFinishProjectEventUnprocessableEntity) v1betaFinishProjectEventRes() {}
 
+type V1betaGetBackupConfigsForPoolBadRequest Error
+
+func (*V1betaGetBackupConfigsForPoolBadRequest) v1betaGetBackupConfigsForPoolRes() {}
+
+type V1betaGetBackupConfigsForPoolForbidden Error
+
+func (*V1betaGetBackupConfigsForPoolForbidden) v1betaGetBackupConfigsForPoolRes() {}
+
+type V1betaGetBackupConfigsForPoolInternalServerError Error
+
+func (*V1betaGetBackupConfigsForPoolInternalServerError) v1betaGetBackupConfigsForPoolRes() {}
+
+type V1betaGetBackupConfigsForPoolNotFound Error
+
+func (*V1betaGetBackupConfigsForPoolNotFound) v1betaGetBackupConfigsForPoolRes() {}
+
+type V1betaGetBackupConfigsForPoolOK struct {
+	BackupConfigs []VolumeBackupConfigV1beta `json:"backupConfigs"`
+}
+
+// GetBackupConfigs returns the value of BackupConfigs.
+func (s *V1betaGetBackupConfigsForPoolOK) GetBackupConfigs() []VolumeBackupConfigV1beta {
+	return s.BackupConfigs
+}
+
+// SetBackupConfigs sets the value of BackupConfigs.
+func (s *V1betaGetBackupConfigsForPoolOK) SetBackupConfigs(val []VolumeBackupConfigV1beta) {
+	s.BackupConfigs = val
+}
+
+func (*V1betaGetBackupConfigsForPoolOK) v1betaGetBackupConfigsForPoolRes() {}
+
+type V1betaGetBackupConfigsForPoolTooManyRequests Error
+
+func (*V1betaGetBackupConfigsForPoolTooManyRequests) v1betaGetBackupConfigsForPoolRes() {}
+
+type V1betaGetBackupConfigsForPoolUnauthorized Error
+
+func (*V1betaGetBackupConfigsForPoolUnauthorized) v1betaGetBackupConfigsForPoolRes() {}
+
 type V1betaGetMultipleActiveDirectoriesBadRequest Error
 
 func (*V1betaGetMultipleActiveDirectoriesBadRequest) v1betaGetMultipleActiveDirectoriesRes() {}
@@ -24068,6 +24109,34 @@ func (*V1betaUpdateVolumeUnauthorized) v1betaUpdateVolumeRes() {}
 type V1betaUpdateVolumeUnprocessableEntity Error
 
 func (*V1betaUpdateVolumeUnprocessableEntity) v1betaUpdateVolumeRes() {}
+
+// Backup configuration for an expert mode volume.
+// Ref: #/components/schemas/VolumeBackupConfig_v1beta
+type VolumeBackupConfigV1beta struct {
+	// Volume ONTAP UUID (externalUUID from expert mode volumes table).
+	VolumeId     OptString             `json:"volumeId"`
+	BackupConfig OptBackupConfigV1beta `json:"backupConfig"`
+}
+
+// GetVolumeId returns the value of VolumeId.
+func (s *VolumeBackupConfigV1beta) GetVolumeId() OptString {
+	return s.VolumeId
+}
+
+// GetBackupConfig returns the value of BackupConfig.
+func (s *VolumeBackupConfigV1beta) GetBackupConfig() OptBackupConfigV1beta {
+	return s.BackupConfig
+}
+
+// SetVolumeId sets the value of VolumeId.
+func (s *VolumeBackupConfigV1beta) SetVolumeId(val OptString) {
+	s.VolumeId = val
+}
+
+// SetBackupConfig sets the value of BackupConfig.
+func (s *VolumeBackupConfigV1beta) SetBackupConfig(val OptBackupConfigV1beta) {
+	s.BackupConfig = val
+}
 
 // Volume and backup details.
 // Ref: #/components/schemas/VolumeBackupDetails_v1beta

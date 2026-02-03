@@ -12873,6 +12873,65 @@ func (_c *MockStorage_ListExpertModePools_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
+// ListExpertModeVolumesByPoolID provides a mock function with given fields: ctx, poolID
+func (_m *MockStorage) ListExpertModeVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.ExpertModeVolumes, error) {
+	ret := _m.Called(ctx, poolID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListExpertModeVolumesByPoolID")
+	}
+
+	var r0 []*datamodel.ExpertModeVolumes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) ([]*datamodel.ExpertModeVolumes, error)); ok {
+		return rf(ctx, poolID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) []*datamodel.ExpertModeVolumes); ok {
+		r0 = rf(ctx, poolID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.ExpertModeVolumes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, poolID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_ListExpertModeVolumesByPoolID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListExpertModeVolumesByPoolID'
+type MockStorage_ListExpertModeVolumesByPoolID_Call struct {
+	*mock.Call
+}
+
+// ListExpertModeVolumesByPoolID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolID int64
+func (_e *MockStorage_Expecter) ListExpertModeVolumesByPoolID(ctx interface{}, poolID interface{}) *MockStorage_ListExpertModeVolumesByPoolID_Call {
+	return &MockStorage_ListExpertModeVolumesByPoolID_Call{Call: _e.mock.On("ListExpertModeVolumesByPoolID", ctx, poolID)}
+}
+
+func (_c *MockStorage_ListExpertModeVolumesByPoolID_Call) Run(run func(ctx context.Context, poolID int64)) *MockStorage_ListExpertModeVolumesByPoolID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ListExpertModeVolumesByPoolID_Call) Return(_a0 []*datamodel.ExpertModeVolumes, _a1 error) *MockStorage_ListExpertModeVolumesByPoolID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ListExpertModeVolumesByPoolID_Call) RunAndReturn(run func(context.Context, int64) ([]*datamodel.ExpertModeVolumes, error)) *MockStorage_ListExpertModeVolumesByPoolID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListHostGroupsByAccountID provides a mock function with given fields: ctx, accountID
 func (_m *MockStorage) ListHostGroupsByAccountID(ctx context.Context, accountID int64) ([]*datamodel.HostGroup, error) {
 	ret := _m.Called(ctx, accountID)

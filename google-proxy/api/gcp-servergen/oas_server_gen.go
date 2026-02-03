@@ -293,6 +293,12 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/finishProjectEvent
 	V1betaFinishProjectEvent(ctx context.Context, req *ProjectStateUpdateV1beta, params V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error)
+	// V1betaGetBackupConfigsForPool implements v1beta_getBackupConfigsForPool operation.
+	//
+	// Returns the list of backup configurations for all expert mode volumes in the specified pool.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/backupConfigs
+	V1betaGetBackupConfigsForPool(ctx context.Context, params V1betaGetBackupConfigsForPoolParams) (V1betaGetBackupConfigsForPoolRes, error)
 	// V1betaGetMultipleActiveDirectories implements v1beta_getMultipleActiveDirectories operation.
 	//
 	// Returns descriptions of Active Directory credentials that is listed in request body.

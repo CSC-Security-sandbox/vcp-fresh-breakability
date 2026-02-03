@@ -3234,6 +3234,66 @@ func (_c *MockOrchestratorFactory_GetBackupByExternalUUID_Call) RunAndReturn(run
 	return _c
 }
 
+// GetBackupConfigsForPool provides a mock function with given fields: ctx, poolID, accountName
+func (_m *MockOrchestratorFactory) GetBackupConfigsForPool(ctx context.Context, poolID string, accountName string) ([]*models.ExpertModeVolumeBackupConfig, error) {
+	ret := _m.Called(ctx, poolID, accountName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupConfigsForPool")
+	}
+
+	var r0 []*models.ExpertModeVolumeBackupConfig
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) ([]*models.ExpertModeVolumeBackupConfig, error)); ok {
+		return rf(ctx, poolID, accountName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) []*models.ExpertModeVolumeBackupConfig); ok {
+		r0 = rf(ctx, poolID, accountName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.ExpertModeVolumeBackupConfig)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, poolID, accountName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetBackupConfigsForPool_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupConfigsForPool'
+type MockOrchestratorFactory_GetBackupConfigsForPool_Call struct {
+	*mock.Call
+}
+
+// GetBackupConfigsForPool is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolID string
+//   - accountName string
+func (_e *MockOrchestratorFactory_Expecter) GetBackupConfigsForPool(ctx interface{}, poolID interface{}, accountName interface{}) *MockOrchestratorFactory_GetBackupConfigsForPool_Call {
+	return &MockOrchestratorFactory_GetBackupConfigsForPool_Call{Call: _e.mock.On("GetBackupConfigsForPool", ctx, poolID, accountName)}
+}
+
+func (_c *MockOrchestratorFactory_GetBackupConfigsForPool_Call) Run(run func(ctx context.Context, poolID string, accountName string)) *MockOrchestratorFactory_GetBackupConfigsForPool_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBackupConfigsForPool_Call) Return(_a0 []*models.ExpertModeVolumeBackupConfig, _a1 error) *MockOrchestratorFactory_GetBackupConfigsForPool_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBackupConfigsForPool_Call) RunAndReturn(run func(context.Context, string, string) ([]*models.ExpertModeVolumeBackupConfig, error)) *MockOrchestratorFactory_GetBackupConfigsForPool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBackupPolicyByNameAndOwnerID provides a mock function with given fields: ctx, backupPolicyName, ownerID
 func (_m *MockOrchestratorFactory) GetBackupPolicyByNameAndOwnerID(ctx context.Context, backupPolicyName string, ownerID string) (*models.BackupPolicy, error) {
 	ret := _m.Called(ctx, backupPolicyName, ownerID)

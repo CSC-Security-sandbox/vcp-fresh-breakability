@@ -1606,3 +1606,7 @@ func (s *PersistenceStore) UpdateSvmCurrentKmsKeyID(ctx context.Context, svmUUID
 func (s *PersistenceStore) UpdateExpertModeVolumeFields(ctx context.Context, volumeUUID string, updates map[string]interface{}) error {
 	return s.dataStore.UpdateExpertModeVolumeFields(ctx, volumeUUID, updates)
 }
+
+func (s *PersistenceStore) ListExpertModeVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.ExpertModeVolumes, error) {
+	return s.dataStore.ListExpertModeVolumesByPoolID(ctx, poolID)
+}

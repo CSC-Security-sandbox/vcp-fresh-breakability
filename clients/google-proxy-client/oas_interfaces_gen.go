@@ -181,6 +181,10 @@ type V1betaFinishProjectEventRes interface {
 	v1betaFinishProjectEventRes()
 }
 
+type V1betaGetBackupConfigsForPoolRes interface {
+	v1betaGetBackupConfigsForPoolRes()
+}
+
 type V1betaGetMultipleActiveDirectoriesRes interface {
 	v1betaGetMultipleActiveDirectoriesRes()
 }

@@ -433,6 +433,15 @@ func (UnimplementedHandler) V1betaFinishProjectEvent(ctx context.Context, req *P
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaGetBackupConfigsForPool implements v1beta_getBackupConfigsForPool operation.
+//
+// Returns the list of backup configurations for all expert mode volumes in the specified pool.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/backupConfigs
+func (UnimplementedHandler) V1betaGetBackupConfigsForPool(ctx context.Context, params V1betaGetBackupConfigsForPoolParams) (r V1betaGetBackupConfigsForPoolRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaGetMultipleActiveDirectories implements v1beta_getMultipleActiveDirectories operation.
 //
 // Returns descriptions of Active Directory credentials that is listed in request body.

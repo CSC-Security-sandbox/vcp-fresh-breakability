@@ -51,6 +51,7 @@ const (
 	V1betaEstablishPeeringOperation                          OperationName = "V1betaEstablishPeering"
 	V1betaEstablishVolumePeeringOperation                    OperationName = "V1betaEstablishVolumePeering"
 	V1betaFinishProjectEventOperation                        OperationName = "V1betaFinishProjectEvent"
+	V1betaGetBackupConfigsForPoolOperation                   OperationName = "V1betaGetBackupConfigsForPool"
 	V1betaGetMultipleActiveDirectoriesOperation              OperationName = "V1betaGetMultipleActiveDirectories"
 	V1betaGetMultipleBackupPoliciesOperation                 OperationName = "V1betaGetMultipleBackupPolicies"
 	V1betaGetMultipleBackupVaultsOperation                   OperationName = "V1betaGetMultipleBackupVaults"

@@ -2,6 +2,12 @@ package models
 
 import "time"
 
+// VolumeBackupConfig represents the backup configuration for an expert mode volume
+type ExpertModeVolumeBackupConfig struct {
+	VolumeID      string  // ONTAP UUID (externalUUID)
+	BackupVaultID *string // BackupVault UUID if configured
+}
+
 // Backup describes a backup in the cloud volumes model
 type Backup struct {
 	OwnerID                          string

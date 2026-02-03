@@ -1668,3 +1668,234 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 		assert.Equal(tt, int64(1), finalCapacity.VolumeCount)          // Only volume2 count
 	})
 }
+
+func TestListExpertModeVolumesByPoolID_Success(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+	account, pool := createTestAccountAndPoolForExpertMode(t, store)
+	svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+	svmExternalUUID := utils.RandomUUID()
+	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, svmExternalUUID)
+
+	// Create multiple volumes with different configurations
+	backupConfig1 := &datamodel.DataProtection{
+		BackupVaultID: "backup-vault-uuid-1",
+		ScheduledBackupEnabled: func() *bool {
+			b := true
+			return &b
+		}(),
+	}
+	volume1 := &datamodel.ExpertModeVolumes{
+		Name:         fmt.Sprintf("test-list-volume-1-%s", utils.GenerateRandomAlphanumeric(8)),
+		SizeInBytes:  1099511627776, // 1TB
+		PoolID:       pool.ID,
+		AccountID:    account.ID,
+		SvmID:        svm.ID,
+		Style:        "flexvol",
+		ExternalUUID: "external-uuid-1",
+		State:        models.LifeCycleStateREADY,
+		BackupConfig: backupConfig1,
+	}
+	created1, err := store.CreateExpertModeVolume(ctx, volume1)
+	assert.NoError(t, err)
+
+	backupConfig2 := &datamodel.DataProtection{
+		BackupVaultID: "backup-vault-uuid-2",
+		ScheduledBackupEnabled: func() *bool {
+			b := false
+			return &b
+		}(),
+	}
+	volume2 := &datamodel.ExpertModeVolumes{
+		Name:         fmt.Sprintf("test-list-volume-2-%s", utils.GenerateRandomAlphanumeric(8)),
+		SizeInBytes:  536870912000, // 500GB
+		PoolID:       pool.ID,
+		AccountID:    account.ID,
+		SvmID:        svm.ID,
+		Style:        "flexgroup",
+		ExternalUUID: "external-uuid-2",
+		State:        models.LifeCycleStateCreating,
+		BackupConfig: backupConfig2,
+	}
+	created2, err := store.CreateExpertModeVolume(ctx, volume2)
+	assert.NoError(t, err)
+
+	// Volume without backup config
+	volume3 := &datamodel.ExpertModeVolumes{
+		Name:         fmt.Sprintf("test-list-volume-3-%s", utils.GenerateRandomAlphanumeric(8)),
+		SizeInBytes:  214748364800, // 200GB
+		PoolID:       pool.ID,
+		AccountID:    account.ID,
+		SvmID:        svm.ID,
+		Style:        "flexvol",
+		ExternalUUID: "external-uuid-3",
+		State:        models.LifeCycleStateREADY,
+	}
+	created3, err := store.CreateExpertModeVolume(ctx, volume3)
+	assert.NoError(t, err)
+
+	// Test listing volumes for the pool
+	volumes, err := store.ListExpertModeVolumesByPoolID(ctx, pool.ID)
+	assert.NoError(t, err)
+	assert.NotNil(t, volumes)
+	assert.Equal(t, 3, len(volumes), "Should return exactly 3 volumes for the test pool")
+
+	// Create a map for easier verification
+	volumeMap := make(map[string]*datamodel.ExpertModeVolumes)
+	for _, vol := range volumes {
+		volumeMap[vol.UUID] = vol
+	}
+
+	// Verify volume 1
+	vol1, exists := volumeMap[created1.UUID]
+	assert.True(t, exists, "Volume 1 should exist")
+	assert.Equal(t, created1.Name, vol1.Name)
+	assert.Equal(t, "external-uuid-1", vol1.ExternalUUID)
+	assert.Equal(t, int64(1099511627776), vol1.SizeInBytes)
+	assert.Equal(t, "flexvol", vol1.Style)
+	assert.Equal(t, models.LifeCycleStateREADY, vol1.State)
+	assert.NotNil(t, vol1.BackupConfig)
+	assert.Equal(t, "backup-vault-uuid-1", vol1.BackupConfig.BackupVaultID)
+	assert.NotNil(t, vol1.BackupConfig.ScheduledBackupEnabled)
+	assert.True(t, *vol1.BackupConfig.ScheduledBackupEnabled)
+
+	// Verify volume 2
+	vol2, exists := volumeMap[created2.UUID]
+	assert.True(t, exists, "Volume 2 should exist")
+	assert.Equal(t, created2.Name, vol2.Name)
+	assert.Equal(t, "external-uuid-2", vol2.ExternalUUID)
+	assert.Equal(t, int64(536870912000), vol2.SizeInBytes)
+	assert.Equal(t, "flexgroup", vol2.Style)
+	assert.Equal(t, models.LifeCycleStateCreating, vol2.State)
+	assert.NotNil(t, vol2.BackupConfig)
+	assert.Equal(t, "backup-vault-uuid-2", vol2.BackupConfig.BackupVaultID)
+	assert.NotNil(t, vol2.BackupConfig.ScheduledBackupEnabled)
+	assert.False(t, *vol2.BackupConfig.ScheduledBackupEnabled)
+
+	// Verify volume 3 (no backup config)
+	vol3, exists := volumeMap[created3.UUID]
+	assert.True(t, exists, "Volume 3 should exist")
+	assert.Equal(t, created3.Name, vol3.Name)
+	assert.Equal(t, "external-uuid-3", vol3.ExternalUUID)
+	assert.Equal(t, int64(214748364800), vol3.SizeInBytes)
+	assert.Equal(t, "flexvol", vol3.Style)
+	assert.Equal(t, models.LifeCycleStateREADY, vol3.State)
+	// GORM deserializes NULL JSONB as empty struct, so check for empty BackupVaultID
+	if vol3.BackupConfig != nil {
+		assert.Empty(t, vol3.BackupConfig.BackupVaultID, "Volume 3 should not have backup vault configured")
+	}
+}
+
+func TestListExpertModeVolumesByPoolID_EmptyPool(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+	_, pool := createTestAccountAndPoolForExpertMode(t, store)
+
+	// Test with empty pool (no volumes created)
+	emptyVolumes, err := store.ListExpertModeVolumesByPoolID(ctx, pool.ID)
+	assert.NoError(t, err)
+	assert.NotNil(t, emptyVolumes)
+	assert.Equal(t, 0, len(emptyVolumes), "Should return empty slice for pool with no volumes")
+}
+
+func TestListExpertModeVolumesByPoolID_NonExistentPool(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+
+	// Test with non-existent pool ID
+	nonExistentVolumes, err := store.ListExpertModeVolumesByPoolID(ctx, 999999)
+	assert.NoError(t, err, "Should not error for non-existent pool")
+	assert.NotNil(t, nonExistentVolumes)
+	assert.Equal(t, 0, len(nonExistentVolumes), "Should return empty slice for non-existent pool")
+}
+
+func TestListExpertModeVolumesByPoolID_IsolationBetweenPools(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+	account, pool1 := createTestAccountAndPoolForExpertMode(t, store)
+
+	// Create second pool
+	pool2UUID := utils.RandomUUID()
+	deploymentName := fmt.Sprintf("test_deployment_%s", utils.GenerateRandomAlphanumeric(8))
+	pool2 := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID:      pool2UUID,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		Name:           fmt.Sprintf("test_pool_2_%s", utils.GenerateRandomAlphanumeric(8)),
+		AccountID:      account.ID,
+		SizeInBytes:    2199023255552,
+		DeploymentName: deploymentName,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone: "us-west1-b",
+		},
+	}
+	err := store.db.Create(pool2).Error()
+	assert.NoError(t, err)
+
+	svmName1 := fmt.Sprintf("test-svm-1-%s", utils.GenerateRandomAlphanumeric(8))
+	svm1 := createTestSVMForExpertMode(t, store, pool1.ID, account.ID, svmName1, utils.RandomUUID())
+
+	svmName2 := fmt.Sprintf("test-svm-2-%s", utils.GenerateRandomAlphanumeric(8))
+	svm2 := createTestSVMForExpertMode(t, store, pool2.ID, account.ID, svmName2, utils.RandomUUID())
+
+	// Create volumes in pool1
+	volume1Pool1 := &datamodel.ExpertModeVolumes{
+		Name:         fmt.Sprintf("pool1-volume-1-%s", utils.GenerateRandomAlphanumeric(8)),
+		SizeInBytes:  1099511627776,
+		PoolID:       pool1.ID,
+		AccountID:    account.ID,
+		SvmID:        svm1.ID,
+		Style:        "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateREADY,
+	}
+	_, err = store.CreateExpertModeVolume(ctx, volume1Pool1)
+	assert.NoError(t, err)
+
+	volume2Pool1 := &datamodel.ExpertModeVolumes{
+		Name:         fmt.Sprintf("pool1-volume-2-%s", utils.GenerateRandomAlphanumeric(8)),
+		SizeInBytes:  536870912000,
+		PoolID:       pool1.ID,
+		AccountID:    account.ID,
+		SvmID:        svm1.ID,
+		Style:        "flexgroup",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateREADY,
+	}
+	_, err = store.CreateExpertModeVolume(ctx, volume2Pool1)
+	assert.NoError(t, err)
+
+	// Create volumes in pool2
+	volumePool2 := &datamodel.ExpertModeVolumes{
+		Name:         fmt.Sprintf("pool2-volume-1-%s", utils.GenerateRandomAlphanumeric(8)),
+		SizeInBytes:  107374182400,
+		PoolID:       pool2.ID,
+		AccountID:    account.ID,
+		SvmID:        svm2.ID,
+		Style:        "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateREADY,
+	}
+	_, err = store.CreateExpertModeVolume(ctx, volumePool2)
+	assert.NoError(t, err)
+
+	// Verify pool1 has exactly 2 volumes
+	pool1Volumes, err := store.ListExpertModeVolumesByPoolID(ctx, pool1.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(pool1Volumes), "Pool 1 should have exactly 2 volumes")
+
+	// Verify pool2 has exactly 1 volume
+	pool2Volumes, err := store.ListExpertModeVolumesByPoolID(ctx, pool2.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(pool2Volumes), "Pool 2 should have exactly 1 volume")
+
+	// Verify no overlap
+	for _, vol := range pool1Volumes {
+		assert.Equal(t, pool1.ID, vol.PoolID, "All pool1 volumes should belong to pool1")
+	}
+	for _, vol := range pool2Volumes {
+		assert.Equal(t, pool2.ID, vol.PoolID, "All pool2 volumes should belong to pool2")
+	}
+}

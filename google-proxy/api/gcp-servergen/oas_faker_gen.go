@@ -8950,6 +8950,76 @@ func (s *V1betaFinishProjectEventUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaGetBackupConfigsForPoolBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetBackupConfigsForPoolBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetBackupConfigsForPoolForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetBackupConfigsForPoolForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetBackupConfigsForPoolInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetBackupConfigsForPoolInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetBackupConfigsForPoolNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetBackupConfigsForPoolNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetBackupConfigsForPoolOK) SetFake() {
+	{
+		{
+			s.BackupConfigs = nil
+			for i := 0; i < 0; i++ {
+				var elem VolumeBackupConfigV1beta
+				{
+					elem.SetFake()
+				}
+				s.BackupConfigs = append(s.BackupConfigs, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaGetBackupConfigsForPoolTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetBackupConfigsForPoolTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaGetBackupConfigsForPoolUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetBackupConfigsForPoolUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaGetMultipleActiveDirectoriesBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -14682,6 +14752,20 @@ func (s *V1betaUpdateVolumeUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaUpdateVolumeUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *VolumeBackupConfigV1beta) SetFake() {
+	{
+		{
+			s.VolumeId.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupConfig.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

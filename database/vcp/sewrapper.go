@@ -4956,3 +4956,19 @@ func (re *retryEngine) UpdateExpertModeVolumeDataProtection(ctx context.Context,
 	})
 	return err
 }
+
+func (re *retryEngine) ListExpertModeVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.ExpertModeVolumes, error) {
+	var var0 []*datamodel.ExpertModeVolumes
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListExpertModeVolumesByPoolID(ctx, poolID)
+		if err != nil {
+			re.logError("ListExpertModeVolumesByPoolID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}

@@ -569,6 +569,69 @@ func (h Handler) V1betaListPools(ctx context.Context, params gcpgenserver.V1beta
 	}, nil
 }
 
+// V1betaGetBackupConfigsForPool handles the request to get backup configurations for a pool.
+func (h Handler) V1betaGetBackupConfigsForPool(ctx context.Context, params gcpgenserver.V1betaGetBackupConfigsForPoolParams) (gcpgenserver.V1betaGetBackupConfigsForPoolRes, error) {
+	logger := util.GetLogger(ctx)
+	if !ExpertModeBackupEnabled {
+		msg := "Backup for ONTAP mode pools is currently not enabled."
+		logger.Error(msg)
+		return &gcpgenserver.V1betaGetBackupConfigsForPoolBadRequest{
+			Code:    400,
+			Message: msg,
+		}, nil
+	}
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	// Validate the location
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaGetBackupConfigsForPoolBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	// Get backup configs for the pool
+	backupConfigs, err := h.Orchestrator.GetBackupConfigsForPool(ctx, params.PoolId, params.ProjectNumber)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			logger.Info("Pool not found", "poolId", params.PoolId)
+			return &gcpgenserver.V1betaGetBackupConfigsForPoolNotFound{
+				Code:    404,
+				Message: "Pool not found",
+			}, nil
+		}
+		if errors.IsBadRequestErr(err) {
+			return &gcpgenserver.V1betaGetBackupConfigsForPoolBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to get backup configs for pool", "poolId", params.PoolId, "error", err.Error())
+		return &gcpgenserver.V1betaGetBackupConfigsForPoolInternalServerError{}, err
+	}
+
+	// Convert to API response format
+	responseConfigs := make([]gcpgenserver.VolumeBackupConfigV1beta, 0, len(backupConfigs))
+	for _, config := range backupConfigs {
+		apiConfig := gcpgenserver.VolumeBackupConfigV1beta{
+			VolumeId: gcpgenserver.NewOptString(config.VolumeID),
+		}
+
+		if config.BackupVaultID != nil {
+			apiConfig.BackupConfig = gcpgenserver.NewOptBackupConfigV1beta(gcpgenserver.BackupConfigV1beta{
+				BackupVaultId: gcpgenserver.NewOptNilString(*config.BackupVaultID),
+			})
+		}
+
+		responseConfigs = append(responseConfigs, apiConfig)
+	}
+
+	return &gcpgenserver.V1betaGetBackupConfigsForPoolOK{
+		BackupConfigs: responseConfigs,
+	}, nil
+}
+
 // V1betaUpdatePool handles the request to update a pool.
 func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpdateV1beta, params gcpgenserver.V1betaUpdatePoolParams) (gcpgenserver.V1betaUpdatePoolRes, error) {
 	logger := util.GetLogger(ctx)

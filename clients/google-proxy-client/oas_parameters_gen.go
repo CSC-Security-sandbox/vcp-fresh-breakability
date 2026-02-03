@@ -544,6 +544,18 @@ type V1betaFinishProjectEventParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaGetBackupConfigsForPoolParams is parameters of v1beta_getBackupConfigsForPool operation.
+type V1betaGetBackupConfigsForPoolParams struct {
+	// Uuid v4 used to identify the pool.
+	PoolId string
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaGetMultipleActiveDirectoriesParams is parameters of v1beta_getMultipleActiveDirectories operation.
 type V1betaGetMultipleActiveDirectoriesParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
