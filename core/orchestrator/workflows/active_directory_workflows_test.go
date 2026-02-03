@@ -1,7 +1,6 @@
 package workflows
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 
@@ -20,7 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -1707,13 +1706,6 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			ProjectNumber:       "test-project-123",
 		}
 
-		ad := &datamodel.ActiveDirectory{
-			BaseModel: datamodel.BaseModel{UUID: "ad-uuid-123"},
-			AdName:    "test-ad",
-			State:     models.LifeCycleStateREADY,
-			AccountId: accountID,
-		}
-
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalHost }()
@@ -1727,7 +1719,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params, ad)
+		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
@@ -1759,13 +1751,6 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			ProjectNumber:       "test-project-456",
 		}
 
-		ad := &datamodel.ActiveDirectory{
-			BaseModel: datamodel.BaseModel{UUID: "ad-uuid-456"},
-			AdName:    "test-ad",
-			State:     models.LifeCycleStateREADY,
-			AccountId: accountID,
-		}
-
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost
 		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
@@ -1785,7 +1770,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params, ad)
+		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
@@ -1817,13 +1802,6 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			ProjectNumber:       "test-project-789",
 		}
 
-		ad := &datamodel.ActiveDirectory{
-			BaseModel: datamodel.BaseModel{UUID: "ad-uuid-789"},
-			AdName:    "test-ad",
-			State:     models.LifeCycleStateREADY,
-			AccountId: accountID,
-		}
-
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost
 		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
@@ -1843,7 +1821,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params, ad)
+		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
@@ -1875,13 +1853,6 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			ProjectNumber:       "test-project-999",
 		}
 
-		ad := &datamodel.ActiveDirectory{
-			BaseModel: datamodel.BaseModel{UUID: "ad-uuid-in-use"},
-			AdName:    "test-ad",
-			State:     models.LifeCycleStateREADY,
-			AccountId: accountID,
-		}
-
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalHost }()
@@ -1894,7 +1865,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params, ad)
+		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
@@ -1926,13 +1897,6 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			ProjectNumber:       "test-project-888",
 		}
 
-		ad := &datamodel.ActiveDirectory{
-			BaseModel: datamodel.BaseModel{UUID: "ad-uuid-check-error"},
-			AdName:    "test-ad",
-			State:     models.LifeCycleStateREADY,
-			AccountId: accountID,
-		}
-
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalHost }()
@@ -1940,7 +1904,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(nil, errors.New("database error"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params, ad)
+		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
@@ -1972,13 +1936,6 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			ProjectNumber:       "test-project-777",
 		}
 
-		ad := &datamodel.ActiveDirectory{
-			BaseModel: datamodel.BaseModel{UUID: "ad-uuid-vcp-error"},
-			AdName:    "test-ad",
-			State:     models.LifeCycleStateREADY,
-			AccountId: accountID,
-		}
-
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalHost }()
@@ -1992,7 +1949,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(errors.New("VCP deletion failed"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params, ad)
+		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
@@ -2024,13 +1981,6 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			ProjectNumber:       "test-project-666",
 		}
 
-		ad := &datamodel.ActiveDirectory{
-			BaseModel: datamodel.BaseModel{UUID: "ad-uuid-sde-error"},
-			AdName:    "test-ad",
-			State:     models.LifeCycleStateREADY,
-			AccountId: accountID,
-		}
-
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost
 		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
@@ -2049,7 +1999,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(errors.New("SDE deletion failed"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params, ad)
+		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
@@ -2081,20 +2031,13 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			ProjectNumber:       "test-project-555",
 		}
 
-		ad := &datamodel.ActiveDirectory{
-			BaseModel: datamodel.BaseModel{UUID: "ad-uuid-job-error"},
-			AdName:    "test-ad",
-			State:     models.LifeCycleStateREADY,
-			AccountId: accountID,
-		}
-
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalHost }()
 
-		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(customerrors.NewUserInputValidationErr("job status update failed"))
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.NewUserInputValidationErr("job status update failed"))
 
-		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params, ad)
+		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
@@ -2127,13 +2070,6 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			ProjectNumber:       "test-project-222",
 		}
 
-		ad := &datamodel.ActiveDirectory{
-			BaseModel: datamodel.BaseModel{UUID: "ad-uuid-vcp-fail-sde"},
-			AdName:    "test-ad",
-			State:     models.LifeCycleStateREADY,
-			AccountId: accountID,
-		}
-
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost // Enable SDE
 		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
@@ -2153,7 +2089,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(errors.New("VCP deletion failed in SDE mode"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params, ad)
+		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
@@ -2187,13 +2123,6 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			ProjectNumber:       "test-project-111",
 		}
 
-		ad := &datamodel.ActiveDirectory{
-			BaseModel: datamodel.BaseModel{UUID: "ad-uuid-sde-fail-notfound"},
-			AdName:    "test-ad",
-			State:     models.LifeCycleStateREADY,
-			AccountId: accountID,
-		}
-
 		originalHost := cvp.CVP_HOST
 		cvp.CVP_HOST = cvpHost // Enable SDE
 		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
@@ -2212,7 +2141,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(errors.New("SDE deletion failed"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params, ad)
+		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
@@ -2344,13 +2273,6 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 			ProjectNumber:       "test-project-123",
 		}
 
-		ad := &datamodel.ActiveDirectory{
-			BaseModel: datamodel.BaseModel{UUID: "ad-uuid-run"},
-			AdName:    "test-ad",
-			State:     models.LifeCycleStateREADY,
-			AccountId: accountID,
-		}
-
 		checkResult := &active_directory_activities.CheckDeletionAllowedResult{
 			ADExists:        true,
 			DeletionAllowed: true,
@@ -2363,7 +2285,7 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 		var runErr *vsaerrors.CustomError
 		env.RegisterWorkflow(func(ctx workflow.Context) error {
 			wf := &ActiveDirectoryDeleteWorkflow{}
-			runResult, runErr = wf.Run(ctx, params, ad)
+			runResult, runErr = wf.Run(ctx, params)
 			if runErr != nil {
 				return runErr
 			}
@@ -2372,7 +2294,7 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 
 		env.ExecuteWorkflow(func(ctx workflow.Context) error {
 			wf := &ActiveDirectoryDeleteWorkflow{}
-			runResult, runErr = wf.Run(ctx, params, ad)
+			runResult, runErr = wf.Run(ctx, params)
 			if runErr != nil {
 				return runErr
 			}
@@ -2415,13 +2337,6 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 			ProjectNumber:       "test-project-456",
 		}
 
-		ad := &datamodel.ActiveDirectory{
-			BaseModel: datamodel.BaseModel{UUID: "ad-uuid-sde-run"},
-			AdName:    "test-ad",
-			State:     models.LifeCycleStateREADY,
-			AccountId: accountID,
-		}
-
 		checkResult := &active_directory_activities.CheckDeletionAllowedResult{
 			ADExists:        true,
 			DeletionAllowed: true,
@@ -2435,7 +2350,7 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 		var runErr *vsaerrors.CustomError
 		env.RegisterWorkflow(func(ctx workflow.Context) error {
 			wf := &ActiveDirectoryDeleteWorkflow{}
-			runResult, runErr = wf.Run(ctx, params, ad)
+			runResult, runErr = wf.Run(ctx, params)
 			if runErr != nil {
 				return runErr
 			}
@@ -2444,7 +2359,7 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 
 		env.ExecuteWorkflow(func(ctx workflow.Context) error {
 			wf := &ActiveDirectoryDeleteWorkflow{}
-			runResult, runErr = wf.Run(ctx, params, ad)
+			runResult, runErr = wf.Run(ctx, params)
 			if runErr != nil {
 				return runErr
 			}
@@ -2482,20 +2397,13 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 			ProjectNumber:       "test-project-789",
 		}
 
-		ad := &datamodel.ActiveDirectory{
-			BaseModel: datamodel.BaseModel{UUID: "ad-uuid-run-error"},
-			AdName:    "test-ad",
-			State:     models.LifeCycleStateREADY,
-			AccountId: accountID,
-		}
-
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(nil, errors.New("check deletion failed"))
 
 		var runResult interface{}
 		var runErr *vsaerrors.CustomError
 		env.RegisterWorkflow(func(ctx workflow.Context) error {
 			wf := &ActiveDirectoryDeleteWorkflow{}
-			runResult, runErr = wf.Run(ctx, params, ad)
+			runResult, runErr = wf.Run(ctx, params)
 			if runErr != nil {
 				return runErr
 			}
@@ -2504,7 +2412,7 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 
 		env.ExecuteWorkflow(func(ctx workflow.Context) error {
 			wf := &ActiveDirectoryDeleteWorkflow{}
-			runResult, runErr = wf.Run(ctx, params, ad)
+			runResult, runErr = wf.Run(ctx, params)
 			if runErr != nil {
 				return runErr
 			}
@@ -2517,60 +2425,4 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 		assert.Nil(t, runResult)
 		env.AssertExpectations(t)
 	})
-}
-
-// TestActiveDirectoryDeleteWorkflow_Run_CancellationHandlingError tests line 288: when HandleCancellationInDeleteWorkflow returns an error
-func TestActiveDirectoryDeleteWorkflow_Run_CancellationHandlingError(t *testing.T) {
-	var ts testsuite.WorkflowTestSuite
-	env := ts.NewTestWorkflowEnvironment()
-	mockStorage := database.NewMockStorage(t)
-
-	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-	mockHeader := &commonpb.Header{
-		Fields: map[string]*commonpb.Payload{
-			"logger": encodedValue,
-		},
-	}
-	env.SetHeader(mockHeader)
-	env.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{})
-
-	env.RegisterActivity(&activities.CancellationActivity{})
-	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
-
-	accountID := int64(333)
-	params := &common.DeleteActiveDirectoryParams{
-		AccountId:           accountID,
-		ActiveDirectoryUUID: "ad-uuid-cancel-handle-error",
-		ProjectNumber:       "test-project-333",
-	}
-
-	ad := &datamodel.ActiveDirectory{
-		BaseModel: datamodel.BaseModel{UUID: "ad-uuid-cancel-handle-error"},
-		AdName:    "test-ad",
-		State:     models.LifeCycleStateCreating,
-		AccountId: accountID,
-	}
-
-	originalHost := cvp.CVP_HOST
-	cvp.CVP_HOST = ""
-	defer func() { cvp.CVP_HOST = originalHost }()
-
-	checkResult := &active_directory_activities.CheckDeletionAllowedResult{
-		ADExists:        true,
-		DeletionAllowed: true,
-	}
-
-	// Mock activities used by HandleCancellationInDeleteWorkflow to return an error
-	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, params.ActiveDirectoryUUID, mock.Anything, string(models.JobTypeCreateActiveDirectory)).Return(nil, errors.New("cancellation handling error"))
-	env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
-	env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(nil)
-	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-
-	env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params, ad)
-
-	assert.True(t, env.IsWorkflowCompleted())
-	assert.NoError(t, env.GetWorkflowError()) // Should proceed with normal delete despite cancellation error
-	env.AssertExpectations(t)
 }

@@ -554,44 +554,30 @@ func _deleteActiveDirectory(ctx context.Context, se database.Storage, temporal c
 
 	// Get Active Directory to check if it exists and its state
 	ad, err := se.GetActiveDirectoryByUuidAndAccountId(ctx, params.ActiveDirectoryUUID, params.AccountId)
-	if err != nil || ad == nil {
-		if !customerrors.IsNotFoundErr(err) {
-			logger.Error("Failed to get Active Directory", "error", err, "active_directory_id", params.ActiveDirectoryUUID)
-			return "", err
-		}
-		logger.Info("Active Directory not found and no delete job exists, returning done operation", "active_directory_uuid", params.ActiveDirectoryUUID)
-		return "", nil
+	if err != nil && !customerrors.IsNotFoundErr(err) {
+		logger.Error("Failed to get Active Directory", "error", err, "active_directory_id", params.ActiveDirectoryUUID)
+		return "", err
 	}
-
 	resourceName := ad.AdName
-	// Check if the Active Directory is already in deleted state
-	if ad.State == models.LifeCycleStateDeleted {
-		logger.Info("Active Directory is already deleted", "active_directory_uuid", params.ActiveDirectoryUUID, "state", ad.State)
-		return "", nil
-	}
 
-	isCleanupDelete := false
-	var existingDeleteJobUUID string
-
-	if ad.State == models.LifeCycleStateCreating {
-		existingDeleteJobUUID, isCleanupDelete, err = database.ValidateCorrelationIDForCreatingResource(
-			ctx, se, params.ActiveDirectoryUUID, "Active Directory", models.JobTypeCreateActiveDirectory, models.JobTypeDeleteActiveDirectory, logger)
-		if err != nil {
-			logger.Warnf("Active Directory %s cannot be deleted: existing create job not present and state is in CREATING", params.ActiveDirectoryUUID)
-			return "", err
+	if ad != nil {
+		// Check if the Active Directory is already in deleted state
+		if ad.State == models.LifeCycleStateDeleted {
+			logger.Info("Active Directory is already deleted", "active_directory_uuid", params.ActiveDirectoryUUID, "state", ad.State)
+			return "", nil
 		}
-		if existingDeleteJobUUID != "" {
-			return existingDeleteJobUUID, nil
-		}
-		logger.Info("Delete request with same correlation ID as create, proceeding with cancellation", "active_directory_uuid", params.ActiveDirectoryUUID)
-	} else if utils.IsTransitionalState(ad.State) && ad.State != models.LifeCycleStateDeleting {
-		logger.Errorf("Active Directory %s cannot be deleted, while in transitioning state: %s", params.ActiveDirectoryUUID, ad.State)
-		return "", customerrors.NewConflictErr(fmt.Sprintf("Error deleting Active Directory - Active Directory is already transitioning between states, state: %s", ad.State))
-	}
 
-	existingJobUUID := database.GetExistingDeleteJobForDeletingState(ctx, se, params.ActiveDirectoryUUID, models.JobTypeDeleteActiveDirectory, logger)
-	if existingJobUUID != "" {
-		return existingJobUUID, nil
+		// Check if the Active Directory is already being deleted
+		if ad.State == models.LifeCycleStateDeleting {
+			logger.Info("Active Directory is already being deleted", "active_directory_uuid", params.ActiveDirectoryUUID, "state", ad.State)
+			// Check if there's an existing job
+			existingJob, err := se.GetJobByResourceUUID(ctx, params.ActiveDirectoryUUID, string(models.JobTypeDeleteActiveDirectory))
+			if err == nil && existingJob != nil {
+				logger.Info("Returning existing job UUID", "job_uuid", existingJob.UUID)
+				return existingJob.UUID, nil
+			}
+			logger.Warn("Active Directory is in Deleting state but no job found, proceeding with new job creation")
+		}
 	}
 
 	// Create a job for tracking the deletion
@@ -613,20 +599,6 @@ func _deleteActiveDirectory(ctx context.Context, se database.Storage, temporal c
 		return "", err
 	}
 
-	if !isCleanupDelete {
-		ad.State = models.LifeCycleStateDeleting
-		ad.StateDetails = models.LifeCycleStateDeletingDetails
-		ad, err = se.UpdateActiveDirectory(ctx, ad)
-		if err != nil {
-			logger.Error("Failed to update Active Directory state to DELETING", "error", err, "active_directory_uuid", params.ActiveDirectoryUUID)
-			// Update job to error state if we can't update AD state
-			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, fmt.Sprintf("Failed to update AD state to DELETING: %v", err)); jobErr != nil {
-				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
-			}
-			return "", err
-		}
-		logger.Info("Updated Active Directory state to DELETING", "active_directory_uuid", params.ActiveDirectoryUUID)
-	}
 	// Start the delete workflow
 	controlWorkflowID := fmt.Sprintf("Account_%d_ActiveDirectory_%s_Delete", params.AccountId, params.ActiveDirectoryUUID)
 	err = workflowsExecuteWorkflowSequentially(
@@ -643,7 +615,6 @@ func _deleteActiveDirectory(ctx context.Context, se database.Storage, temporal c
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 		},
 		params,
-		ad,
 	)
 	if err != nil {
 		logger.Error("Failed to start delete active directory workflow: ", "error", err)

@@ -151,7 +151,7 @@ type ActiveDirectoryDeleteWorkflow struct {
 	BaseWorkflow
 }
 
-func DeleteActiveDirectoryWorkflow(ctx workflow.Context, params *common.DeleteActiveDirectoryParams, ad *datamodel.ActiveDirectory) (interface{}, error) {
+func DeleteActiveDirectoryWorkflow(ctx workflow.Context, params *common.DeleteActiveDirectoryParams) (interface{}, error) {
 	log := util.GetLogger(ctx)
 	activeDirectoryWf := new(ActiveDirectoryDeleteWorkflow)
 
@@ -168,7 +168,7 @@ func DeleteActiveDirectoryWorkflow(ctx workflow.Context, params *common.DeleteAc
 		return nil, err
 	}
 
-	_, customErr := activeDirectoryWf.Run(ctx, params, ad)
+	_, customErr := activeDirectoryWf.Run(ctx, params)
 	if customErr != nil {
 		log.Errorf("ActiveDirectoryDeleteWorkflow completed with error: %v", customErr)
 		activeDirectoryWf.Status = WorkflowStatusFailed
@@ -230,29 +230,8 @@ func (wf *ActiveDirectoryDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
 	params := args[0].(*common.DeleteActiveDirectoryParams)
-	activeDirectory := args[1].(*datamodel.ActiveDirectory)
 
 	logger.Info("Starting Active Directory delete workflow", "active_directory_uuid", params.ActiveDirectoryUUID)
-
-	cancellationActivity := &activities.CancellationActivity{}
-	commonActivity := &activities.CommonActivities{}
-	poolActivity := &activities.PoolActivity{}
-	ackTimeout, forceTimeout := common.GetCancellationTimeouts("ACTIVE_DIRECTORY")
-	if cancelErr := common.HandleCancellationForCreatingResource(ctx, logger,
-		common.HandleCancellationForCreatingResourceParams{
-			ResourceUUID:               params.ActiveDirectoryUUID,
-			ResourceState:              activeDirectory.State,
-			CreateJobType:              models.JobTypeCreateActiveDirectory,
-			SignalName:                 CancelActiveDirectorySignalName,
-			CancellationAckTimeout:     ackTimeout,
-			ForceTerminationAckTimeout: forceTimeout,
-		},
-		poolActivity.GetCreateJobByResourceUUID,
-		cancellationActivity,
-		commonActivity,
-	); cancelErr != nil {
-		logger.Warnf("Error handling cancellation: %v, proceeding with normal delete", cancelErr)
-	}
 
 	var checkResult active_directory_activities.CheckDeletionAllowedResult
 	err = workflow.ExecuteActivity(
