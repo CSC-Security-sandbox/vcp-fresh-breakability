@@ -610,7 +610,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 				if rule.HasRootAccess.IsSet() {
 					if val, ok := rule.HasRootAccess.Get(); ok {
 						exportRule.Superuser = val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue ||
-													val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn
+							val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn
 					}
 				}
 				exportRules = append(exportRules, exportRule)
@@ -1203,7 +1203,7 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 			if rule.HasRootAccess.IsSet() {
 				if val, ok := rule.HasRootAccess.Get(); ok {
 					exportRule.Superuser = val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessTrue ||
-											val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn
+						val == gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccessOn
 				}
 			}
 			if utils.IsAllSquashEnabled {
@@ -2703,6 +2703,10 @@ func convertToFlexCacheV1(cp *models.CacheParameters) gcpgenserver.FlexCacheV1be
 		cacheParameters.PeeringCommandExpiryTime = gcpgenserver.NewOptNilDateTime(*cp.PeerExpiryTime)
 	}
 
+	if cp.EnableGlobalFileLock != nil {
+		cacheParameters.EnableGlobalFileLock = gcpgenserver.NewOptNilBool(*cp.EnableGlobalFileLock)
+	}
+
 	if cp.CacheConfig != nil {
 		incomingConfig := cp.CacheConfig
 		cacheConfig := gcpgenserver.FlexCacheConfigV1beta{
@@ -3313,11 +3317,17 @@ func validateSmbVolumeParams(req *gcpgenserver.VolumeUpdateV1beta) error {
 }
 
 func validateFlexCacheUpdateParams(cacheParams *gcpgenserver.FlexCacheV1beta, dbVolume *models.Volume) error {
-	if cacheParams == nil || !cacheParams.CacheConfig.IsSet() {
+	hasFlexCacheFields := cacheParams.CacheConfig.IsSet() ||
+		cacheParams.EnableGlobalFileLock.IsSet() ||
+		cacheParams.PeerClusterName.IsSet() ||
+		cacheParams.PeerSvmName.IsSet() ||
+		cacheParams.PeerVolumeName.IsSet() ||
+		cacheParams.PeerIpAddresses != nil
+
+	if !hasFlexCacheFields {
 		return nil
 	}
 
-	// Validate this is actually a FlexCache volume
 	if dbVolume != nil && dbVolume.CacheParameters == nil {
 		return errors.NewUserInputValidationErr(
 			"Cannot update cacheConfig on a non-FlexCache volume",
@@ -3371,7 +3381,31 @@ func validateFlexCacheUpdateParams(cacheParams *gcpgenserver.FlexCacheV1beta, db
 		}
 	}
 
+	// Validate CacheConfig-specific rules only if CacheConfig is being updated
+	if !cacheParams.CacheConfig.IsSet() {
+		return nil
+	}
+
 	cacheConfig, _ := cacheParams.CacheConfig.Get()
+
+	// Ensure that if writeback is changed, it's only being set to false
+	if cacheConfig.WritebackEnabled.IsSet() {
+		requestedValue, _ := cacheConfig.WritebackEnabled.Get()
+		if requestedValue {
+			currentWritebackEnabled := false
+			if dbVolume != nil &&
+				dbVolume.CacheParameters != nil &&
+				dbVolume.CacheParameters.CacheConfig != nil &&
+				dbVolume.CacheParameters.CacheConfig.WritebackEnabled != nil {
+				currentWritebackEnabled = *dbVolume.CacheParameters.CacheConfig.WritebackEnabled
+			}
+			if !currentWritebackEnabled {
+				return errors.NewUserInputValidationErr(
+					"WritebackEnabled may only be set to false with NetApp Cache Volumes",
+				)
+			}
+		}
+	}
 
 	if cacheConfig.AtimeScrubDays.IsSet() {
 		atimeScrubEnabled := false

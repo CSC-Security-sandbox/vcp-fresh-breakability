@@ -5590,6 +5590,37 @@ func TestConvertToFlexCacheV1(t *testing.T) {
 		assert.True(tt, cacheConfig.CifsChangeNotifyEnabled.IsSet())
 		assert.False(tt, cacheConfig.CifsChangeNotifyEnabled.Value)
 	})
+
+	t.Run("WhenEnableGlobalFileLockSet", func(tt *testing.T) {
+		cp := &models.CacheParameters{
+			PeerVolumeName:       "test-peer-volume",
+			PeerClusterName:      "test-peer-cluster",
+			PeerSvmName:          "test-peer-svm",
+			PeerIPAddresses:      []string{"1.1.1.1"},
+			EnableGlobalFileLock: nillable.GetBoolPtr(true),
+		}
+
+		result := convertToFlexCacheV1(cp)
+
+		assert.True(tt, result.PeerVolumeName.IsSet())
+		assert.True(tt, result.EnableGlobalFileLock.IsSet())
+		assert.True(tt, result.EnableGlobalFileLock.Value)
+	})
+
+	t.Run("WhenEnableGlobalFileLockNotSet", func(tt *testing.T) {
+		cp := &models.CacheParameters{
+			PeerVolumeName:  "test-peer-volume",
+			PeerClusterName: "test-peer-cluster",
+			PeerSvmName:     "test-peer-svm",
+			PeerIPAddresses: []string{"1.1.1.1"},
+			// EnableGlobalFileLock is nil
+		}
+
+		result := convertToFlexCacheV1(cp)
+
+		assert.True(tt, result.PeerVolumeName.IsSet())
+		assert.False(tt, result.EnableGlobalFileLock.IsSet())
+	})
 }
 
 func TestV1betaCreateVolume(t *testing.T) {
@@ -11527,6 +11558,7 @@ func TestPrepareCreateVolumeParams_CacheParams(t *testing.T) {
 				CacheConfig: &models.CacheConfig{
 					// Existing config state (being updated)
 					AtimeScrubEnabled: nillable.GetBoolPtr(true),
+					WritebackEnabled:  nillable.GetBoolPtr(true),
 				},
 			},
 		}
@@ -11585,8 +11617,7 @@ func TestPrepareCreateVolumeParams_CacheParams(t *testing.T) {
 					"2.2.2.2",
 				},
 				CacheConfig: &models.CacheConfig{
-					// Existing config - only updating writebackEnabled and cifsChangeNotifyEnabled
-					WritebackEnabled:        nillable.GetBoolPtr(false), // Will be updated to true
+					WritebackEnabled:        nillable.GetBoolPtr(true),
 					CifsChangeNotifyEnabled: nillable.GetBoolPtr(false), // Will be updated to true
 				},
 			},
@@ -14155,6 +14186,9 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 					PeerSvmName:          "svm1",
 					PeerIPAddresses:      []string{"10.0.0.1", "10.0.0.2"},
 					EnableGlobalFileLock: nillable.GetBoolPtr(false),
+					CacheConfig: &models.CacheConfig{
+						WritebackEnabled: nillable.GetBoolPtr(true),
+					},
 				},
 			},
 			wantErr: false,
@@ -14174,12 +14208,15 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 					PeerClusterName: "cluster1",
 					PeerSvmName:     "svm1",
 					PeerIPAddresses: []string{"10.0.0.1"},
+					CacheConfig: &models.CacheConfig{
+						WritebackEnabled: nillable.GetBoolPtr(true),
+					},
 				},
 			},
 			wantErr: false,
 		},
 		{
-			name:        "Valid - update request with completely empty FlexCache (no required fields, no cacheConfig)",
+			name: "Valid - update request with completely empty FlexCache (no required fields, no cacheConfig)",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
 				// All fields are missing - this should pass validation for updates
 			},
@@ -14192,6 +14229,163 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 				},
 			},
 			wantErr: false,
+		},
+		{
+			name: "Valid - setting WritebackEnabled to false when volume has no CacheConfig",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid - setting WritebackEnabled to false when volume has WritebackEnabled false",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						WritebackEnabled: nillable.GetBoolPtr(false),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid - setting WritebackEnabled to false when volume has WritebackEnabled true",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(false),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						WritebackEnabled: nillable.GetBoolPtr(true),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid - setting WritebackEnabled to true when volume already has WritebackEnabled true",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(true),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						WritebackEnabled: nillable.GetBoolPtr(true),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Invalid - setting WritebackEnabled to true when volume has WritebackEnabled false",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(true),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{
+						WritebackEnabled: nillable.GetBoolPtr(false),
+					},
+				},
+			},
+			wantErr: true,
+			errMsg:  "WritebackEnabled may only be set to false with NetApp Cache Volumes",
+		},
+		{
+			name: "Invalid - setting WritebackEnabled to true when volume has no CacheConfig",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(true),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{},
+			},
+			wantErr: true,
+			errMsg:  "WritebackEnabled may only be set to false with NetApp Cache Volumes",
+		},
+		{
+			name: "Invalid - setting WritebackEnabled to true when volume has CacheConfig but WritebackEnabled is nil",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				CacheConfig: gcpgenserver.NewOptFlexCacheConfigV1beta(gcpgenserver.FlexCacheConfigV1beta{
+					WritebackEnabled: gcpgenserver.NewOptNilBool(true),
+				}),
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					CacheConfig: &models.CacheConfig{},
+				},
+			},
+			wantErr: true,
+			errMsg:  "WritebackEnabled may only be set to false with NetApp Cache Volumes",
+		},
+		{
+			name: "Invalid - updating non-FlexCache volume with only EnableGlobalFileLock (no CacheConfig)",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				EnableGlobalFileLock: gcpgenserver.NewOptNilBool(true),
+				// No CacheConfig
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: nil, // Not a FlexCache volume
+			},
+			wantErr: true,
+			errMsg:  "Cannot update cacheConfig on a non-FlexCache volume",
+		},
+		{
+			name: "Valid - updating only EnableGlobalFileLock (matching DB value, no CacheConfig)",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				EnableGlobalFileLock: gcpgenserver.NewOptNilBool(true),
+				// No CacheConfig
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					EnableGlobalFileLock: nillable.GetBoolPtr(true),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid - updating only EnableGlobalFileLock (matching DB value false, no CacheConfig)",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				EnableGlobalFileLock: gcpgenserver.NewOptNilBool(false),
+				// No CacheConfig
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					EnableGlobalFileLock: nillable.GetBoolPtr(false),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Invalid - updating only EnableGlobalFileLock (different from DB, no CacheConfig)",
+			cacheParams: &gcpgenserver.FlexCacheV1beta{
+				EnableGlobalFileLock: gcpgenserver.NewOptNilBool(true),
+				// No CacheConfig
+			},
+			dbVolume: &models.Volume{
+				CacheParameters: &models.CacheParameters{
+					EnableGlobalFileLock: nillable.GetBoolPtr(false),
+				},
+			},
+			wantErr: true,
+			errMsg:  "EnableGlobalFileLock is immutable and cannot be changed",
 		},
 	}
 

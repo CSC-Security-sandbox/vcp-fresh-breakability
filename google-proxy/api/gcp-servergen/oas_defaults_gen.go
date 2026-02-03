@@ -147,14 +147,6 @@ func (s *DailyScheduleV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
-func (s *FlexCacheV1beta) setDefaults() {
-	{
-		val := bool(false)
-		s.EnableGlobalFileLock.SetTo(val)
-	}
-}
-
-// setDefaults set default value of fields.
 func (s *HourlyScheduleV1beta) setDefaults() {
 	{
 		val := float64(0)

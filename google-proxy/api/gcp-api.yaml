@@ -10642,7 +10642,6 @@ components:
           type: boolean
           description: Specify whether this FlexCache volume has global file lock enabled
           nullable: true
-          default: false
         cacheConfig:
           nullable: true
           $ref: '#/components/schemas/FlexCacheConfig_v1beta'

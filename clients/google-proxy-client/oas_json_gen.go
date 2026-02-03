@@ -7890,7 +7890,6 @@ func (s *FlexCacheV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FlexCacheV1beta to nil")
 	}
-	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
