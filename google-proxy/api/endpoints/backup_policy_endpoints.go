@@ -173,6 +173,14 @@ func (h Handler) V1betaDeleteBackupPolicy(ctx context.Context, params gcpgenserv
 	updated, operationID, err := h.Orchestrator.DeleteBackupPolicy(ctx, param)
 	if err != nil {
 		logger.Errorf("Failed to delete backup policy in VCP: %v", err.Error())
+		if errors.IsUserInputValidationErr(err) {
+			logger.Error("Failed to delete backup policy", err.Error())
+			return &gcpgenserver.V1betaDeleteBackupPolicyBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+
 		return &gcpgenserver.V1betaDeleteBackupPolicyInternalServerError{
 			Code:    500,
 			Message: "Failed to delete backup policy",

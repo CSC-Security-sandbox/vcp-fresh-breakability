@@ -713,6 +713,30 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 		BackupPolicyId: "test-backup-policy-id",
 	}
 
+	t.Run("ReturnsBadRequestWhenUserInputValidationError", func(t *testing.T) {
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.EXPECT().
+			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
+			Return(&coremodels.BackupPolicy{ResourceID: "test-backup-policy-id", BackupPolicyUUID: "test-backup-policy-id"}, nil)
+		mockOrchestrator.EXPECT().
+			DeleteBackupPolicy(mock.Anything, mock.Anything).
+			Return(nil, "", utilerrors.NewUserInputValidationErr("invalid input for delete"))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaDeleteBackupPolicy(context.Background(), params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		badRequest, ok := result.(*gcpgenserver.V1betaDeleteBackupPolicyBadRequest)
+		assert.True(t, ok)
+		assert.Equal(t, float64(400), badRequest.Code)
+		assert.Equal(t, "invalid input for delete", badRequest.Message)
+	})
+
 	t.Run("ReturnsBadRequestWhenBackupFeatureDisabled", func(t *testing.T) {
 		oldBackupEnabled := backupEnabled
 		backupEnabled = false
