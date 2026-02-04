@@ -179,7 +179,9 @@ func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonpara
 		}
 	}
 
-	if params.ActiveDirectoryId != "" {
+	// Only set ActiveDirectoryID if the AD exists in VCP i.e. valid database ID
+	// If AD is from SDE, it will be synced to VCP later in the workflow
+	if params.ActiveDirectoryId != "" && params.ADExistsInVCP {
 		poolObj.ActiveDirectoryID = sql.NullInt64{
 			Int64: params.ActiveDirectory.ID,
 			Valid: true,

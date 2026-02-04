@@ -6494,6 +6494,7 @@ func TestCreatePoolIntegration_ActiveDirectoryConfigId(t *testing.T) {
 			PrimaryZone:       "us-central1-a",
 			VendorSubNetID:    "projects/test/networks/test",
 			ActiveDirectoryId: "550e8400-e29b-41d4-a716-446655440000",
+			ADExistsInVCP:     true, // AD exists in VCP, so ActiveDirectoryID should be set
 			ActiveDirectory: &models.ActiveDirectory{
 				BaseModel: models.BaseModel{
 					ID:   ad.ID,
@@ -6583,6 +6584,68 @@ func TestCreatePoolIntegration_ActiveDirectoryConfigId(t *testing.T) {
 		err = store.DB().Preload("ActiveDirectory").First(&dbPool, "uuid = ?", pool.UUID).Error
 		assert.NoError(tt, err)
 		assert.Equal(tt, int64(0), dbPool.ActiveDirectoryID.Int64)
+	})
+
+	t.Run("CompleteFlow_CreatePoolWithADFromSDE_NotInVCP", func(tt *testing.T) {
+		// This test simulates when AD is from SDE/CVP (not yet synced to VCP)
+		// ActiveDirectoryId is set (UUID), but ADExistsInVCP is false
+		// The pool should be created WITHOUT ActiveDirectoryID set
+		// The AD sync will happen later in the workflow
+		iopsValue := int64(1024)
+		params := &common.CreatePoolParams{
+			AccountName:       "test_account",
+			Region:            "us-central1",
+			Name:              "integration-test-pool-ad-from-sde",
+			Description:       "Integration test pool with AD from SDE",
+			VendorID:          "/projects/test/locations/us-central1/pools/integration-test-pool-ad-from-sde",
+			ServiceLevel:      "FLEX",
+			SizeInBytes:       1073741824,
+			PrimaryZone:       "us-central1-a",
+			VendorSubNetID:    "projects/test/networks/test",
+			ActiveDirectoryId: "sde-ad-uuid-not-in-vcp", // UUID from SDE
+			ADExistsInVCP:     false,                    // AD does NOT exist in VCP yet
+			ActiveDirectory: &models.ActiveDirectory{
+				BaseModel: models.BaseModel{
+					ID:   0, // ID is 0 because AD is not in VCP database
+					UUID: "sde-ad-uuid-not-in-vcp",
+				},
+				AdName: "sde-active-directory",
+			},
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				Enabled:         true,
+				ThroughputMibps: 64,
+				Iops:            &iopsValue,
+			},
+		}
+
+		// Mock the validation functions
+		originalValidateCreatePoolParams := ValidateCreatePoolParams
+		defer func() { ValidateCreatePoolParams = originalValidateCreatePoolParams }()
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams, logger log.Logger) error {
+			return nil
+		}
+
+		originalValidatePoolParams := ValidatePoolParams
+		defer func() { ValidatePoolParams = originalValidatePoolParams }()
+		ValidatePoolParams = func(perf *validators.CustomPerformance, serviceLevel string) error {
+			return nil
+		}
+
+		pool, err := CreatePoolInDB(ctx, store, params, account, mockLogger, nil)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, pool)
+
+		// Verify the ActiveDirectoryID is NOT set (should be null/invalid)
+		// This is the key assertion - when AD is from SDE, we should NOT set the FK
+		assert.False(tt, pool.ActiveDirectoryID.Valid, "ActiveDirectoryID should not be valid when AD is from SDE")
+		assert.Equal(tt, int64(0), pool.ActiveDirectoryID.Int64)
+
+		// Verify the pool was created in the database without AD reference
+		var dbPool datamodel.Pool
+		err = store.DB().First(&dbPool, "uuid = ?", pool.UUID).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, params.Name, dbPool.Name)
+		assert.False(tt, dbPool.ActiveDirectoryID.Valid, "DB ActiveDirectoryID should not be valid when AD is from SDE")
 	})
 }
 
