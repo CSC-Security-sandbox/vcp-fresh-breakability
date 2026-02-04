@@ -4,8 +4,6 @@ package vlm
 
 import (
 	"time"
-
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 
 const (
@@ -76,7 +74,6 @@ var WorkflowExecutionTimeoutMap map[string]time.Duration = map[string]time.Durat
 	GetClusterZiZsDetailsWorkflowName:          10 * time.Minute,
 	UpdateVSAMediatorWorkflowName:              30 * time.Minute,
 	UpdateLicenseWorkflowName:                  10 * time.Minute,
-	CreateVSAExpertModeUserWorkflowName:        time.Duration(env.GetInt("VLM_CREATE_VSA_EXPERT_MODE_USER_WF_TIMEOUT_MINUTES", 10)) * time.Minute,
 }
 
 type VLMConfig struct {
