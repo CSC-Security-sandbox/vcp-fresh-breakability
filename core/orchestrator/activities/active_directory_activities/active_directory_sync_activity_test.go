@@ -21,11 +21,15 @@ import (
 )
 
 type fakeInternalADClient struct {
-	resp *internal_active_directories.V1betaPushActiveDirectoryPasswordCreated
-	err  error
+	resp   *internal_active_directories.V1betaPushActiveDirectoryPasswordCreated
+	err    error
+	onCall func(params *internal_active_directories.V1betaPushActiveDirectoryPasswordParams)
 }
 
 func (f fakeInternalADClient) V1betaPushActiveDirectoryPassword(params *internal_active_directories.V1betaPushActiveDirectoryPasswordParams) (*internal_active_directories.V1betaPushActiveDirectoryPasswordCreated, error) {
+	if f.onCall != nil {
+		f.onCall(params)
+	}
 	return f.resp, f.err
 }
 
@@ -104,11 +108,15 @@ func TestPushActiveDirectoryPasswordActivity(t *testing.T) {
 		defer func() { env.SecretManagerProjectID = originalSecretProject }()
 
 		expectedOp := &cvpModels.OperationV1beta{Name: "operation/123"}
+		var capturedParams *internal_active_directories.V1betaPushActiveDirectoryPasswordParams
 		CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return cvpapi.Cvp{
 				InternalActiveDirectories: fakeInternalADClient{
 					resp: &internal_active_directories.V1betaPushActiveDirectoryPasswordCreated{
 						Payload: expectedOp,
+					},
+					onCall: func(p *internal_active_directories.V1betaPushActiveDirectoryPasswordParams) {
+						capturedParams = p
 					},
 				},
 			}
@@ -126,6 +134,9 @@ func TestPushActiveDirectoryPasswordActivity(t *testing.T) {
 		result, err := activity.PushActiveDirectoryPasswordActivity(buildAuthContext(), params)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expectedOp, result)
+		assert.NotNil(tt, capturedParams)
+		assert.NotNil(tt, capturedParams.Body)
+		assert.Equal(tt, "secret-proj", capturedParams.Body.SdeProjectID)
 	})
 }
 

@@ -61,6 +61,7 @@ func (a ActiveDirectorySyncActivity) PushActiveDirectoryPasswordActivity(ctx con
 	passwordBody := &cvpModels.ActiveDirectoryPasswordV1beta{
 		ActiveDirectoryID: params.ActiveDirectoryID,
 		SecretName:        secretName,
+		SdeProjectID:      env.SecretManagerProjectID,
 	}
 
 	// Create CVP client

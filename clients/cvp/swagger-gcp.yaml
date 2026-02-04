@@ -8795,6 +8795,13 @@ definitions:
         minLength: 1
         maxLength: 255
         example: gcnv-54e824c166fab5b
+      sdeProjectID:
+        title: sdeProjectID
+        type: string
+        description: The SDE Project ID where the secret is created
+        example: 266893635349
+        minLength: 1
+        x-nullable: false
   ActiveDirectoryUpdate_v1beta:
     type: object
     title: ActiveDirectoryUpdate

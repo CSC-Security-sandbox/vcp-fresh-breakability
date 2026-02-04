@@ -26,6 +26,12 @@ type ActiveDirectoryPasswordV1beta struct {
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
 	ActiveDirectoryID string `json:"activeDirectoryId,omitempty"`
 
+	// sdeProjectID
+	//
+	// The SDE Project ID where the secret is created
+	// Min Length: 1
+	SdeProjectID string `json:"sdeProjectID,omitempty"`
+
 	// secretName
 	//
 	// Secret name in Secret Manager where the password is stored
@@ -39,6 +45,10 @@ func (m *ActiveDirectoryPasswordV1beta) Validate(formats strfmt.Registry) error 
 	var res []error
 
 	if err := m.validateActiveDirectoryID(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateSdeProjectID(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -67,6 +77,19 @@ func (m *ActiveDirectoryPasswordV1beta) validateActiveDirectoryID(formats strfmt
 	}
 
 	if err := validate.Pattern("activeDirectoryId", "body", string(m.ActiveDirectoryID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *ActiveDirectoryPasswordV1beta) validateSdeProjectID(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.SdeProjectID) { // not required
+		return nil
+	}
+
+	if err := validate.MinLength("sdeProjectID", "body", string(m.SdeProjectID), 1); err != nil {
 		return err
 	}
 
