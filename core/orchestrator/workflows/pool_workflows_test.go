@@ -32,10 +32,14 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
+	enumspb "go.temporal.io/api/enums/v1"
+	historypb "go.temporal.io/api/history/v1"
+	taskqueuepb "go.temporal.io/api/taskqueue/v1"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/converter"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
+	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
 )
 
@@ -89,6 +93,200 @@ func testSyncPoolZIZSDetailsWorkflow(ctx workflow.Context, dbPool *datamodel.Poo
 
 	_syncPoolZIZSDetailsWorkflow(ctx, dbPool, wf)
 	return nil
+}
+
+// testStartRegisterNodeToHarvestFarmChildWorkflow runs only the register-node-to-harvest-farm child start path
+// so we can assert the child WorkflowID is deterministic
+func testStartRegisterNodeToHarvestFarmChildWorkflow(ctx workflow.Context, dbPool *datamodel.Pool) error {
+	input := RegisterNodeToHarvestFarmWorkflowInput{
+		PoolID:            dbPool.ID,
+		MaxNodesPerGroup:  200,
+		CustomerProjectID: "test-account",
+		TenantProjectID:   "test-project",
+		PoolUUID:          dbPool.UUID,
+		AccountID:         dbPool.AccountID,
+		DeploymentName:    dbPool.DeploymentName,
+		PoolName:          dbPool.Name,
+		IsRegionalHA:      dbPool.PoolAttributes != nil && dbPool.PoolAttributes.IsRegionalHA,
+	}
+	return _startRegisterNodeToHarvestFarmChild(ctx, dbPool, input)
+}
+
+// TestCreatePoolWorkflow_RegisterNodeToHarvestFarm_UsesDeterministicWorkflowID ensures the register-node-to-harvest-farm
+// child workflow is started with a deterministic WorkflowID (register-node-to-harvest-farm-{poolUUID}-{accountID}).
+// If someone reintroduces non-deterministic ID (e.g. uuid.New().String()), this test fails because the captured
+// WorkflowID would not match the expected format.
+func TestCreatePoolWorkflow_RegisterNodeToHarvestFarm_UsesDeterministicWorkflowID(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	dbPool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+		Name:           "test-pool",
+		AccountID:      12345,
+		VendorID:       "test-vendor",
+		DeploymentName: "test-deployment",
+	}
+
+	var capturedWorkflowID string
+	env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		ctx := args.Get(0).(workflow.Context)
+		capturedWorkflowID = workflow.GetInfo(ctx).WorkflowExecution.ID
+	})
+
+	env.RegisterWorkflow(testStartRegisterNodeToHarvestFarmChildWorkflow)
+	env.ExecuteWorkflow(testStartRegisterNodeToHarvestFarmChildWorkflow, dbPool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+
+	expectedWorkflowID := fmt.Sprintf("register-node-to-harvest-farm-%s-%d", dbPool.UUID, dbPool.AccountID)
+	assert.Equal(t, expectedWorkflowID, capturedWorkflowID,
+		"child WorkflowID must be deterministic for replay; non-deterministic IDs (e.g. uuid.New()) cause replay failures")
+	env.AssertExpectations(t)
+}
+
+// TestCreatePoolWorkflow_RegisterNodeToHarvestFarm_ReplayDeterminism runs the workflow twice with the same input
+// and asserts the child WorkflowID is identical both times. Non-deterministic code (e.g. uuid.New()) would produce
+// different IDs on each run and cause this test to fail.
+func TestCreatePoolWorkflow_RegisterNodeToHarvestFarm_ReplayDeterminism(t *testing.T) {
+	dbPool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+		Name:           "test-pool",
+		AccountID:      12345,
+		VendorID:       "test-vendor",
+		DeploymentName: "test-deployment",
+	}
+
+	runAndCaptureChildWorkflowID := func(t *testing.T) string {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		var captured string
+		env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+			ctx := args.Get(0).(workflow.Context)
+			captured = workflow.GetInfo(ctx).WorkflowExecution.ID
+		})
+		env.RegisterWorkflow(testStartRegisterNodeToHarvestFarmChildWorkflow)
+		env.ExecuteWorkflow(testStartRegisterNodeToHarvestFarmChildWorkflow, dbPool)
+		require.True(t, env.IsWorkflowCompleted())
+		require.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+		return captured
+	}
+
+	id1 := runAndCaptureChildWorkflowID(t)
+	id2 := runAndCaptureChildWorkflowID(t)
+	assert.Equal(t, id1, id2,
+		"two runs with same input must produce the same child WorkflowID (determinism); non-deterministic IDs (e.g. uuid.New()) cause replay failures")
+	assert.Equal(t, fmt.Sprintf("register-node-to-harvest-farm-%s-%d", dbPool.UUID, dbPool.AccountID), id1)
+}
+
+// buildRegisterNodeHarvestFarmReplayHistory builds a minimal workflow history for testStartRegisterNodeToHarvestFarmChildWorkflow
+// that includes a StartChildWorkflowExecutionInitiated event with the deterministic child WorkflowID.
+// Replaying this history runs the workflow code; if the code produced a different WorkflowID (e.g. from uuid.New()),
+// the replayer returns a non-determinism error.
+func buildRegisterNodeHarvestFarmReplayHistory(t *testing.T, pool *datamodel.Pool) *historypb.History {
+	dc := converter.GetDefaultDataConverter()
+	payloads, err := dc.ToPayloads(pool)
+	require.NoError(t, err)
+
+	taskQueue := "customer-workflows"
+	parentWorkflowType := "testStartRegisterNodeToHarvestFarmChildWorkflow"
+	childWorkflowID := fmt.Sprintf("register-node-to-harvest-farm-%s-%d", pool.UUID, pool.AccountID)
+
+	events := []*historypb.HistoryEvent{
+		{
+			EventId:   1,
+			EventType: enumspb.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED,
+			Attributes: &historypb.HistoryEvent_WorkflowExecutionStartedEventAttributes{
+				WorkflowExecutionStartedEventAttributes: &historypb.WorkflowExecutionStartedEventAttributes{
+					WorkflowType: &commonpb.WorkflowType{Name: parentWorkflowType},
+					TaskQueue:    &taskqueuepb.TaskQueue{Name: taskQueue},
+					Input:        payloads,
+				},
+			},
+		},
+		{
+			EventId:   2,
+			EventType: enumspb.EVENT_TYPE_WORKFLOW_TASK_SCHEDULED,
+			Attributes: &historypb.HistoryEvent_WorkflowTaskScheduledEventAttributes{
+				WorkflowTaskScheduledEventAttributes: &historypb.WorkflowTaskScheduledEventAttributes{
+					TaskQueue: &taskqueuepb.TaskQueue{Name: taskQueue},
+				},
+			},
+		},
+		{
+			EventId:   3,
+			EventType: enumspb.EVENT_TYPE_WORKFLOW_TASK_STARTED,
+			Attributes: &historypb.HistoryEvent_WorkflowTaskStartedEventAttributes{
+				WorkflowTaskStartedEventAttributes: &historypb.WorkflowTaskStartedEventAttributes{
+					ScheduledEventId: 2,
+				},
+			},
+		},
+		{
+			EventId:   4,
+			EventType: enumspb.EVENT_TYPE_WORKFLOW_TASK_COMPLETED,
+			Attributes: &historypb.HistoryEvent_WorkflowTaskCompletedEventAttributes{
+				WorkflowTaskCompletedEventAttributes: &historypb.WorkflowTaskCompletedEventAttributes{
+					ScheduledEventId: 2,
+					StartedEventId:   3,
+				},
+			},
+		},
+		{
+			EventId:   5,
+			EventType: enumspb.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED,
+			Attributes: &historypb.HistoryEvent_StartChildWorkflowExecutionInitiatedEventAttributes{
+				StartChildWorkflowExecutionInitiatedEventAttributes: &historypb.StartChildWorkflowExecutionInitiatedEventAttributes{
+					WorkflowId:   childWorkflowID,
+					WorkflowType: &commonpb.WorkflowType{Name: "RegisterNodeToHarvestFarmWorkflow"},
+					TaskQueue:    &taskqueuepb.TaskQueue{Name: taskQueue},
+				},
+			},
+		},
+	}
+	return &historypb.History{Events: events}
+}
+
+// TestCreatePoolWorkflow_RegisterNodeToHarvestFarm_ReplayFromHistory replays a recorded workflow history
+// against the current workflow code. If the workflow is non-deterministic (e.g. uses uuid.New() for child WorkflowID),
+// ReplayWorkflowHistory returns an error and the test fails.
+func TestCreatePoolWorkflow_RegisterNodeToHarvestFarm_ReplayFromHistory(t *testing.T) {
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
+		Name:           "test-pool",
+		AccountID:      12345,
+		VendorID:       "test-vendor",
+		DeploymentName: "test-deployment",
+	}
+
+	history := buildRegisterNodeHarvestFarmReplayHistory(t, pool)
+	replayer := worker.NewWorkflowReplayer()
+	replayer.RegisterWorkflow(testStartRegisterNodeToHarvestFarmChildWorkflow)
+	replayer.RegisterWorkflow(RegisterNodeToHarvestFarmWorkflow)
+
+	replayLogger := &testReplayLogger{t: t}
+	err := replayer.ReplayWorkflowHistory(replayLogger, history)
+	require.NoError(t, err, "replay must succeed when workflow uses deterministic child WorkflowID; non-determinism (e.g. uuid.New()) causes replay to fail")
+}
+
+// testReplayLogger adapts testing.T to Temporal's log.Logger for replay tests.
+type testReplayLogger struct{ t *testing.T }
+
+func (l *testReplayLogger) Debug(msg string, keyvals ...interface{}) {
+	l.t.Log(append([]interface{}{"DEBUG", msg}, keyvals...)...)
+}
+func (l *testReplayLogger) Info(msg string, keyvals ...interface{}) {
+	l.t.Log(append([]interface{}{"INFO", msg}, keyvals...)...)
+}
+func (l *testReplayLogger) Warn(msg string, keyvals ...interface{}) {
+	l.t.Log(append([]interface{}{"WARN", msg}, keyvals...)...)
+}
+func (l *testReplayLogger) Error(msg string, keyvals ...interface{}) {
+	l.t.Error(append([]interface{}{"ERROR", msg}, keyvals...)...)
 }
 
 func TestCreatePoolWorkflow(t *testing.T) {

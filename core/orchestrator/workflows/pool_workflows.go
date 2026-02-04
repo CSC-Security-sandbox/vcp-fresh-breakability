@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/google/uuid"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -703,20 +702,23 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			IsRegionalHA:      dbPool.PoolAttributes != nil && dbPool.PoolAttributes.IsRegionalHA,
 		}
 
-		ctx = workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
-			WorkflowID: "register-node-to-harvest-farm" + uuid.New().String(),
-			TaskQueue:  workflowengine.CustomerTaskQueue,
-		})
-
-		// If on-boarding to harvest-farm fails log warning message,
-		// TODO: Need to emit a metric to alert on pool on-boarding to harvest-farm
-		if childWfErr := workflow.ExecuteChildWorkflow(ctx,
-			RegisterNodeToHarvestFarmWorkflow,
-			registerNodeToHarvestFarmWorkflowInput).Get(ctx, nil); childWfErr != nil {
+		if childWfErr := _startRegisterNodeToHarvestFarmChild(ctx, dbPool, registerNodeToHarvestFarmWorkflowInput); childWfErr != nil {
 			wf.Logger.Warnf("Failed to on-board poolId %d to harvest-farm due to error: %v", dbPool.ID, childWfErr)
 		}
 	}
 	return nil, nil
+}
+
+// _startRegisterNodeToHarvestFarmChild starts the register-node-to-harvest-farm child workflow with a deterministic WorkflowID
+// (register-node-to-harvest-farm-{poolUUID}-{accountID}) so that workflow replay does not fail. Non-deterministic IDs
+// would cause replay non-determinism errors.
+func _startRegisterNodeToHarvestFarmChild(ctx workflow.Context, dbPool *datamodel.Pool, input RegisterNodeToHarvestFarmWorkflowInput) error {
+	childWorkflowID := fmt.Sprintf("register-node-to-harvest-farm-%s-%d", dbPool.UUID, dbPool.AccountID)
+	ctx = workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+		WorkflowID: childWorkflowID,
+		TaskQueue:  workflowengine.CustomerTaskQueue,
+	})
+	return workflow.ExecuteChildWorkflow(ctx, RegisterNodeToHarvestFarmWorkflow, input).Get(ctx, nil)
 }
 
 func _syncPoolZIZSDetailsWorkflow(ctx workflow.Context, dbPool *datamodel.Pool, wf *createPoolWorkflow) {
