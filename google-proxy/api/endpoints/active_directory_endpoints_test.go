@@ -2852,3 +2852,146 @@ func TestV1betaUpdateActiveDirectory_PasswordEncryption(t *testing.T) {
 		mockOrchestrator.AssertExpectations(t)
 	})
 }
+
+// Test compareADStateHierarchy in endpoints layer
+func Test_compareADStateHierarchy_ErrorFromVCPWins(t *testing.T) {
+	sdeAD := &gcpgenserver.ActiveDirectoryV1beta{
+		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateReadyDetails),
+	}
+	vcpAD := &gcpgenserver.ActiveDirectoryV1beta{
+		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateDeletionErrorDetails),
+	}
+
+	compareADStateHierarchy(sdeAD, vcpAD)
+
+	assert.Equal(t, gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, sdeAD.ActiveDirectoryState.Value)
+	assert.Equal(t, vcpModels.LifeCycleStateDeletionErrorDetails, sdeAD.ActiveDirectoryStateDetails.Value,
+		"StateDetails should come from VCP (the winner with ERROR state)")
+}
+
+func Test_compareADStateHierarchy_ErrorFromSDEWins(t *testing.T) {
+	sdeAD := &gcpgenserver.ActiveDirectoryV1beta{
+		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateCreationErrorDetails),
+	}
+	vcpAD := &gcpgenserver.ActiveDirectoryV1beta{
+		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateReadyDetails),
+	}
+
+	compareADStateHierarchy(sdeAD, vcpAD)
+
+	assert.Equal(t, gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, sdeAD.ActiveDirectoryState.Value)
+	assert.Equal(t, vcpModels.LifeCycleStateCreationErrorDetails, sdeAD.ActiveDirectoryStateDetails.Value,
+		"StateDetails should come from SDE (the winner with ERROR state)")
+}
+
+func Test_compareADStateHierarchy_UpdatingWins(t *testing.T) {
+	sdeAD := &gcpgenserver.ActiveDirectoryV1beta{
+		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateUPDATING),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateUpdatingDetails),
+	}
+	vcpAD := &gcpgenserver.ActiveDirectoryV1beta{
+		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateCreationErrorDetails),
+	}
+
+	compareADStateHierarchy(sdeAD, vcpAD)
+
+	assert.Equal(t, gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateUPDATING, sdeAD.ActiveDirectoryState.Value)
+	assert.Equal(t, vcpModels.LifeCycleStateUpdatingDetails, sdeAD.ActiveDirectoryStateDetails.Value,
+		"StateDetails should come from SDE (the winner with UPDATING state)")
+}
+
+func Test_compareADStateHierarchy_InUseWins(t *testing.T) {
+	sdeAD := &gcpgenserver.ActiveDirectoryV1beta{
+		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateReadyDetails),
+	}
+	vcpAD := &gcpgenserver.ActiveDirectoryV1beta{
+		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateINUSE),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateInUseDetails),
+	}
+
+	compareADStateHierarchy(sdeAD, vcpAD)
+
+	assert.Equal(t, gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateINUSE, sdeAD.ActiveDirectoryState.Value)
+	assert.Equal(t, vcpModels.LifeCycleStateInUseDetails, sdeAD.ActiveDirectoryStateDetails.Value,
+		"StateDetails should come from VCP (the winner with IN_USE state)")
+}
+
+func Test_compareADStateHierarchy_BothError(t *testing.T) {
+	sdeAD := &gcpgenserver.ActiveDirectoryV1beta{
+		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateCreationErrorDetails),
+	}
+	vcpAD := &gcpgenserver.ActiveDirectoryV1beta{
+		ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR),
+		ActiveDirectoryStateDetails: gcpgenserver.NewOptString(vcpModels.LifeCycleStateDeletionErrorDetails),
+	}
+
+	compareADStateHierarchy(sdeAD, vcpAD)
+
+	assert.Equal(t, gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, sdeAD.ActiveDirectoryState.Value)
+	assert.Equal(t, vcpModels.LifeCycleStateCreationErrorDetails, sdeAD.ActiveDirectoryStateDetails.Value,
+		"StateDetails should come from SDE (equal priority, SDE wins)")
+}
+
+func Test_compareADStateHierarchy_AllStateCombinations(t *testing.T) {
+	tests := []struct {
+		name             string
+		sdeState         gcpgenserver.ActiveDirectoryV1betaActiveDirectoryState
+		sdeStateDetails  string
+		vcpState         gcpgenserver.ActiveDirectoryV1betaActiveDirectoryState
+		vcpStateDetails  string
+		wantState        gcpgenserver.ActiveDirectoryV1betaActiveDirectoryState
+		wantStateDetails string
+	}{
+		{
+			"UPDATING vs ERROR",
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateUPDATING, vcpModels.LifeCycleStateUpdatingDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, vcpModels.LifeCycleStateCreationErrorDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateUPDATING, vcpModels.LifeCycleStateUpdatingDetails,
+		},
+		{
+			"READY vs ERROR",
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY, vcpModels.LifeCycleStateReadyDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, vcpModels.LifeCycleStateDeletionErrorDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, vcpModels.LifeCycleStateDeletionErrorDetails,
+		},
+		{
+			"READY vs IN_USE",
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateREADY, vcpModels.LifeCycleStateReadyDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateINUSE, vcpModels.LifeCycleStateInUseDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateINUSE, vcpModels.LifeCycleStateInUseDetails,
+		},
+		{
+			"ERROR vs IN_USE",
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, vcpModels.LifeCycleStateUpdateErrorDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateINUSE, vcpModels.LifeCycleStateInUseDetails,
+			gcpgenserver.ActiveDirectoryV1betaActiveDirectoryStateERROR, vcpModels.LifeCycleStateUpdateErrorDetails,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sdeAD := &gcpgenserver.ActiveDirectoryV1beta{
+				ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(tt.sdeState),
+				ActiveDirectoryStateDetails: gcpgenserver.NewOptString(tt.sdeStateDetails),
+			}
+			vcpAD := &gcpgenserver.ActiveDirectoryV1beta{
+				ActiveDirectoryState:        gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(tt.vcpState),
+				ActiveDirectoryStateDetails: gcpgenserver.NewOptString(tt.vcpStateDetails),
+			}
+
+			compareADStateHierarchy(sdeAD, vcpAD)
+
+			assert.Equal(t, tt.wantState, sdeAD.ActiveDirectoryState.Value,
+				"State should match expected value")
+			assert.Equal(t, tt.wantStateDetails, sdeAD.ActiveDirectoryStateDetails.Value,
+				"StateDetails should match expected value")
+		})
+	}
+}

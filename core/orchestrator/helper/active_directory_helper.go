@@ -110,6 +110,8 @@ func getPasswordSecret(ctx context.Context, secretID string) (*hyperscalermodels
 
 // compareADStateHierarchy evaluates and updates the primary Active Directory state based on the hierarchy of two input AD states.
 // It prioritizes states according to activeDirectoryStateHierarchy (e.g., "UPDATING" > "ERROR" > "INUSE").
+// The StateDetails are also updated to match the source (sdeAD or vcpAD) that provided the selected state.
+// This ensures that error messages and state details remain accurate and associated with the correct source.
 func compareADStateHierarchy(sdeAD, vcpAD *vcpModels.ActiveDirectory) {
 	if sdeAD == nil || vcpAD == nil {
 		return
@@ -124,25 +126,33 @@ func compareADStateHierarchy(sdeAD, vcpAD *vcpModels.ActiveDirectory) {
 
 	// Select the state with higher priority (lower index)
 	var selectedState string
+	var selectedStateDetails string
 
-	// If both states are not in hierarchy, keep the original sdeAD state
+	// If both states are not in hierarchy, keep the original sdeAD state and details
 	if sdePriority == -1 && vcpPriority == -1 {
 		return
 	}
 
-	// If one state is not in hierarchy, use the other
+	// If one state is not in hierarchy, use the other along with its state details
 	if sdePriority == -1 {
 		selectedState = vcpAD.State
+		selectedStateDetails = vcpAD.StateDetails
 	} else if vcpPriority == -1 {
 		selectedState = sdeAD.State
+		selectedStateDetails = sdeAD.StateDetails
 	} else if sdePriority <= vcpPriority {
+		// SDE has higher priority, use its state and state details
 		selectedState = sdeAD.State
+		selectedStateDetails = sdeAD.StateDetails
 	} else {
+		// VCP has higher priority, use its state and state details
 		selectedState = vcpAD.State
+		selectedStateDetails = vcpAD.StateDetails
 	}
 
-	// Update the sdeAD state with the selected state
+	// Update the sdeAD state and state details with the selected values
 	sdeAD.State = selectedState
+	sdeAD.StateDetails = selectedStateDetails
 }
 
 // stringToActiveDirectoryState converts string state to gcpgenserver enum format

@@ -158,67 +158,82 @@ func TestConvertCVPActiveDirectoryV1BetaToModel_MinimalFields(t *testing.T) {
 // Test CompareADStateHierarchy
 func TestCompareADStateHierarchy_UpdatingWins(t *testing.T) {
 	sdeAD := &models.ActiveDirectory{
-		State: "UPDATING",
+		State:        models.LifeCycleStateUpdating,
+		StateDetails: models.LifeCycleStateUpdatingDetails,
 	}
 	vcpAD := &models.ActiveDirectory{
-		State: "ERROR",
+		State:        models.LifeCycleStateError,
+		StateDetails: models.LifeCycleStateDeletionErrorDetails,
 	}
 
 	adHelper.CompareADStateHierarchy(sdeAD, vcpAD)
 
-	assert.Equal(t, "UPDATING", sdeAD.State)
+	assert.Equal(t, models.LifeCycleStateUpdating, sdeAD.State)
+	assert.Equal(t, models.LifeCycleStateUpdatingDetails, sdeAD.StateDetails, "StateDetails should come from SDE (winner)")
 }
 
 func TestCompareADStateHierarchy_ErrorWins(t *testing.T) {
 	sdeAD := &models.ActiveDirectory{
-		State: "READY",
+		State:        models.LifeCycleStateREADY,
+		StateDetails: models.LifeCycleStateReadyDetails,
 	}
 	vcpAD := &models.ActiveDirectory{
-		State: "ERROR",
+		State:        models.LifeCycleStateError,
+		StateDetails: models.LifeCycleStateDeletionErrorDetails,
 	}
 
 	adHelper.CompareADStateHierarchy(sdeAD, vcpAD)
 
-	assert.Equal(t, "ERROR", sdeAD.State)
+	assert.Equal(t, models.LifeCycleStateError, sdeAD.State)
+	assert.Equal(t, models.LifeCycleStateDeletionErrorDetails, sdeAD.StateDetails, "StateDetails should come from VCP (winner)")
 }
 
 func TestCompareADStateHierarchy_InUseWins(t *testing.T) {
 	sdeAD := &models.ActiveDirectory{
-		State: "READY",
+		State:        models.LifeCycleStateREADY,
+		StateDetails: models.LifeCycleStateReadyDetails,
 	}
 	vcpAD := &models.ActiveDirectory{
-		State: "IN_USE",
+		State:        models.LifeCycleStateInUse,
+		StateDetails: models.LifeCycleStateInUseDetails,
 	}
 
 	adHelper.CompareADStateHierarchy(sdeAD, vcpAD)
 
-	assert.Equal(t, "IN_USE", sdeAD.State)
+	assert.Equal(t, models.LifeCycleStateInUse, sdeAD.State)
+	assert.Equal(t, models.LifeCycleStateInUseDetails, sdeAD.StateDetails, "StateDetails should come from VCP (winner)")
 }
 
 func TestCompareADStateHierarchy_KeepsReady(t *testing.T) {
 	sdeAD := &models.ActiveDirectory{
-		State: "READY",
+		State:        models.LifeCycleStateREADY,
+		StateDetails: models.LifeCycleStateReadyDetails,
 	}
 	vcpAD := &models.ActiveDirectory{
-		State: "READY",
+		State:        models.LifeCycleStateREADY,
+		StateDetails: models.LifeCycleStateAvailableDetails,
 	}
 
 	adHelper.CompareADStateHierarchy(sdeAD, vcpAD)
 
-	assert.Equal(t, "READY", sdeAD.State)
+	assert.Equal(t, models.LifeCycleStateREADY, sdeAD.State)
+	assert.Equal(t, models.LifeCycleStateReadyDetails, sdeAD.StateDetails, "StateDetails should come from SDE (equal priority, SDE wins)")
 }
 
 func TestCompareADStateHierarchy_BothUpdating(t *testing.T) {
 	sdeAD := &models.ActiveDirectory{
-		State: "UPDATING",
+		State:        models.LifeCycleStateUpdating,
+		StateDetails: models.LifeCycleStateUpdatingDetails,
 	}
 	vcpAD := &models.ActiveDirectory{
-		State: "UPDATING",
+		State:        models.LifeCycleStateUpdating,
+		StateDetails: models.LifeCycleStateSyncDetails,
 	}
 
 	adHelper.CompareADStateHierarchy(sdeAD, vcpAD)
 
-	assert.Equal(t, "UPDATING", sdeAD.State)
+	assert.Equal(t, models.LifeCycleStateUpdating, sdeAD.State)
+	assert.Equal(t, models.LifeCycleStateUpdatingDetails, sdeAD.StateDetails, "StateDetails should come from SDE (equal priority, SDE wins)")
 }
 
 func TestCompareADStateHierarchy_NilSDE(t *testing.T) {
@@ -249,46 +264,142 @@ func TestCompareADStateHierarchy_BothNil(t *testing.T) {
 
 func TestCompareADStateHierarchy_UnknownState(t *testing.T) {
 	sdeAD := &models.ActiveDirectory{
-		State: "UNKNOWN_STATE",
+		State:        "UNKNOWN_STATE",
+		StateDetails: "",
 	}
 	vcpAD := &models.ActiveDirectory{
-		State: "ERROR",
+		State:        models.LifeCycleStateError,
+		StateDetails: models.LifeCycleStateCreationErrorDetails,
 	}
 
 	adHelper.CompareADStateHierarchy(sdeAD, vcpAD)
 
 	// VCP state should win because SDE state is not in hierarchy
-	assert.Equal(t, "ERROR", sdeAD.State)
+	assert.Equal(t, models.LifeCycleStateError, sdeAD.State)
+	assert.Equal(t, models.LifeCycleStateCreationErrorDetails, sdeAD.StateDetails, "StateDetails should come from VCP (winner)")
+}
+
+func TestCompareADStateHierarchy_SDEErrorVsVCPReady(t *testing.T) {
+	sdeAD := &models.ActiveDirectory{
+		State:        models.LifeCycleStateError,
+		StateDetails: models.LifeCycleStateCreationErrorDetails,
+	}
+	vcpAD := &models.ActiveDirectory{
+		State:        models.LifeCycleStateREADY,
+		StateDetails: models.LifeCycleStateReadyDetails,
+	}
+
+	adHelper.CompareADStateHierarchy(sdeAD, vcpAD)
+
+	// ERROR has higher priority than READY
+	assert.Equal(t, models.LifeCycleStateError, sdeAD.State)
+	assert.Equal(t, models.LifeCycleStateCreationErrorDetails, sdeAD.StateDetails,
+		"StateDetails should preserve the SDE error message")
+}
+
+func TestCompareADStateHierarchy_VCPErrorVsSDEReady(t *testing.T) {
+	sdeAD := &models.ActiveDirectory{
+		State:        models.LifeCycleStateREADY,
+		StateDetails: models.LifeCycleStateReadyDetails,
+	}
+	vcpAD := &models.ActiveDirectory{
+		State:        models.LifeCycleStateError,
+		StateDetails: models.LifeCycleStateUpdateErrorDetails,
+	}
+
+	adHelper.CompareADStateHierarchy(sdeAD, vcpAD)
+
+	// ERROR has higher priority than READY
+	assert.Equal(t, models.LifeCycleStateError, sdeAD.State)
+	assert.Equal(t, models.LifeCycleStateUpdateErrorDetails, sdeAD.StateDetails,
+		"StateDetails should preserve the VCP error message")
+}
+
+func TestCompareADStateHierarchy_BothError(t *testing.T) {
+	sdeAD := &models.ActiveDirectory{
+		State:        models.LifeCycleStateError,
+		StateDetails: models.LifeCycleStateCreationErrorDetails,
+	}
+	vcpAD := &models.ActiveDirectory{
+		State:        models.LifeCycleStateError,
+		StateDetails: models.LifeCycleStateDeletionErrorDetails,
+	}
+
+	adHelper.CompareADStateHierarchy(sdeAD, vcpAD)
+
+	// Equal priority, SDE wins
+	assert.Equal(t, models.LifeCycleStateError, sdeAD.State)
+	assert.Equal(t, models.LifeCycleStateCreationErrorDetails, sdeAD.StateDetails,
+		"StateDetails should come from SDE (equal priority)")
 }
 
 func TestCompareADStateHierarchy_AllStates(t *testing.T) {
 	tests := []struct {
-		name      string
-		sdeState  string
-		vcpState  string
-		wantState string
+		name             string
+		sdeState         string
+		sdeStateDetails  string
+		vcpState         string
+		vcpStateDetails  string
+		wantState        string
+		wantStateDetails string
 	}{
-		{"UPDATING vs ERROR", "UPDATING", "ERROR", "UPDATING"},
-		{"UPDATING vs IN_USE", "UPDATING", "IN_USE", "UPDATING"},
-		{"UPDATING vs READY", "UPDATING", "READY", "UPDATING"},
-		{"ERROR vs IN_USE", "ERROR", "IN_USE", "ERROR"},
-		{"ERROR vs READY", "ERROR", "READY", "ERROR"},
-		{"IN_USE vs READY", "IN_USE", "READY", "IN_USE"},
-		{"READY vs UPDATING", "READY", "UPDATING", "UPDATING"},
-		{"READY vs ERROR", "READY", "ERROR", "ERROR"},
-		{"READY vs IN_USE", "READY", "IN_USE", "IN_USE"},
+		{
+			"UPDATING vs ERROR", models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails,
+			models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails,
+		},
+		{
+			"UPDATING vs IN_USE", models.LifeCycleStateUpdating, models.LifeCycleStateSyncDetails, models.LifeCycleStateInUse, models.LifeCycleStateInUseDetails,
+			models.LifeCycleStateUpdating, models.LifeCycleStateSyncDetails,
+		},
+		{
+			"UPDATING vs READY", models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails,
+			models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails,
+		},
+		{
+			"ERROR vs IN_USE", models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails, models.LifeCycleStateInUse, models.LifeCycleStateInUseDetails,
+			models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails,
+		},
+		{
+			"ERROR vs READY", models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails,
+			models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails,
+		},
+		{
+			"IN_USE vs READY", models.LifeCycleStateInUse, models.LifeCycleStateInUseDetails, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails,
+			models.LifeCycleStateInUse, models.LifeCycleStateInUseDetails,
+		},
+		{
+			"READY vs UPDATING", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails, models.LifeCycleStateUpdating, models.LifeCycleStateSyncDetails,
+			models.LifeCycleStateUpdating, models.LifeCycleStateSyncDetails,
+		},
+		{
+			"READY vs ERROR", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails, models.LifeCycleStateError, models.LifeCycleStateUpdateErrorDetails,
+			models.LifeCycleStateError, models.LifeCycleStateUpdateErrorDetails,
+		},
+		{
+			"READY vs IN_USE", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails, models.LifeCycleStateInUse, models.LifeCycleStateInUseDetails,
+			models.LifeCycleStateInUse, models.LifeCycleStateInUseDetails,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sdeAD := &models.ActiveDirectory{State: tt.sdeState}
-			vcpAD := &models.ActiveDirectory{State: tt.vcpState}
+			sdeAD := &models.ActiveDirectory{
+				State:        tt.sdeState,
+				StateDetails: tt.sdeStateDetails,
+			}
+			vcpAD := &models.ActiveDirectory{
+				State:        tt.vcpState,
+				StateDetails: tt.vcpStateDetails,
+			}
 
 			adHelper.CompareADStateHierarchy(sdeAD, vcpAD)
 
 			assert.Equal(t, tt.wantState, sdeAD.State,
-				"For %s vs %s, expected %s but got %s",
+				"For %s vs %s, expected state %s but got %s",
 				tt.sdeState, tt.vcpState, tt.wantState, sdeAD.State)
+			assert.Equal(t, tt.wantStateDetails, sdeAD.StateDetails,
+				"For %s vs %s, expected StateDetails '%s' but got '%s'",
+				tt.sdeState, tt.vcpState, tt.wantStateDetails, sdeAD.StateDetails)
 		})
 	}
 }

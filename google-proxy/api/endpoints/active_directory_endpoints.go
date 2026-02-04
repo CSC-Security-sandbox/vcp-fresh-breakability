@@ -773,6 +773,8 @@ func convertToADV1Beta(ad *models.ActiveDirectoryV1beta) gcpgenserver.ActiveDire
 
 // compareADStateHierarchy evaluates and updates the primary Active Directory state based on the hierarchy of two input AD states.
 // It prioritizes states according to ActiveDirectoryStateHierarchy (e.g., "UPDATING" > "ERROR" > "INUSE").
+// The ActiveDirectoryStateDetails are also updated to match the source (sdeAD or vcpAD) that provided the selected state.
+// This ensures that error messages and state details remain accurate and associated with the correct source.
 func compareADStateHierarchy(sdeAD, vcpAD *gcpgenserver.ActiveDirectoryV1beta) {
 	sdeState := sdeAD.ActiveDirectoryState.Value
 	vcpState := vcpAD.ActiveDirectoryState.Value
@@ -782,24 +784,32 @@ func compareADStateHierarchy(sdeAD, vcpAD *gcpgenserver.ActiveDirectoryV1beta) {
 
 	// Select the state with higher priority (lower index)
 	var selectedState gcpgenserver.ActiveDirectoryV1betaActiveDirectoryState
+	var selectedStateDetails gcpgenserver.OptString
 
-	// If both states are not in hierarchy, keep the original sdeAD state
+	// If both states are not in hierarchy, keep the original sdeAD state and details
 	if sdePriority == -1 && vcpPriority == -1 {
 		return
 	}
 
-	// If one state is not in hierarchy, use the other
+	// If one state is not in hierarchy, use the other along with its state details
 	if sdePriority == -1 {
 		selectedState = vcpState
+		selectedStateDetails = vcpAD.ActiveDirectoryStateDetails
 	} else if vcpPriority == -1 {
 		selectedState = sdeState
+		selectedStateDetails = sdeAD.ActiveDirectoryStateDetails
 	} else if sdePriority <= vcpPriority {
+		// SDE has higher priority, use its state and state details
 		selectedState = sdeState
+		selectedStateDetails = sdeAD.ActiveDirectoryStateDetails
 	} else {
+		// VCP has higher priority, use its state and state details
 		selectedState = vcpState
+		selectedStateDetails = vcpAD.ActiveDirectoryStateDetails
 	}
 
 	sdeAD.ActiveDirectoryState = gcpgenserver.NewOptActiveDirectoryV1betaActiveDirectoryState(selectedState)
+	sdeAD.ActiveDirectoryStateDetails = selectedStateDetails
 }
 
 // convertToUpdateParamsForValidation converts the request and params to UpdateActiveDirectoryParams for validation purpose
