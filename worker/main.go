@@ -392,6 +392,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterActivity(&backgroundactivities.RotateVcpToVsaCertificateActivity{SE: dbcon})
 	worker.RegisterActivity(backgroundactivities.EmitCertificateRotationFailureMetric)
 	worker.RegisterActivity(backgroundactivities.EmitPasswordRotationFailureMetric)
+	worker.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{SE: dbcon, Scheduler: temporalScheduler})
 }
 
 func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, temporal client.Client, conn database.Storage, telemetryDBConn metricsdb.Storage) {
