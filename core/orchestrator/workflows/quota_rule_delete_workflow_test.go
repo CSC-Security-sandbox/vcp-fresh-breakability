@@ -1851,6 +1851,102 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		assert.Error(tt, env.GetWorkflowError())
 	})
 
+	t.Run("WhenRevertPollingFails_DoesNotOverwriteOriginalError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		mockStorage := database.NewMockStorage(tt)
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		quotaRuleDeleteActivity := activities.QuotaRuleDeleteActivity{SE: mockStorage}
+
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeReplication)
+		env.RegisterActivity(quotaRuleCommonActivity.VerifyReplicationState)
+		env.RegisterActivity(quotaRuleCommonActivity.GetSignedDstTokenForQuotaRule)
+		env.RegisterActivity(quotaRuleCommonActivity.GetMatchingQuotaRuleOnDestination)
+		env.RegisterActivity(quotaRuleDeleteActivity.DeleteQuotaRuleOnDestination)
+		env.RegisterActivity(quotaRuleCommonActivity.HydrateQuotaRuleDelete)
+		env.RegisterActivity(commonActivity.GetNode)
+		env.RegisterActivity(quotaRuleCommonActivity.GetOntapQuotaUUID)
+		env.RegisterActivity(quotaRuleDeleteActivity.DeleteQuotaRuleOnOntap)
+		env.RegisterActivity(quotaRuleDeleteActivity.RevertQuotaRuleOnDestinationForDelete)
+		env.RegisterActivity(quotaRuleCommonActivity.DescribeQuotaRuleRemoteJob)
+		env.RegisterActivity(quotaRuleCommonActivity.HydrateQuotaRuleCreate)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
+
+		params := createBaseParams()
+		quotaRule := createBaseQuotaRule()
+		volume := createBaseVolume(false, []string{"NFSV3"})
+		destQuotaRuleID := "dest-quota-rule-uuid"
+		jwtToken := "test-jwt-token"
+		revertOperationName := "revert-operation-123"
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				VolumeID:  volumeID,
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationVolumeUUID: "dest-volume-uuid",
+					DestinationLocation:   "us-west1-a",
+				},
+				RemoteUri: "projects/987654321/locations/us-west1-a/volumes/dest-volume-uuid/replications/replication-1",
+			},
+		}
+
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(1)).Return(volume, nil)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return(replications, nil)
+		env.OnActivity("VerifyReplicationState", mock.Anything, replications[0], params.LocationId).Return(true, nil)
+		env.OnActivity("GetSignedDstTokenForQuotaRule", mock.Anything, "987654321").Return(&jwtToken, nil)
+		env.OnActivity("GetMatchingQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", "us-west1-a", "987654321", quotaRule.Name, &jwtToken).Return(&destQuotaRuleID, nil)
+		env.OnActivity("DeleteQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", destQuotaRuleID, "us-west1-a", "987654321", &jwtToken).Return(&activities.QuotaRuleOperationResult{IsDone: true}, nil)
+		env.OnActivity("HydrateQuotaRuleDelete", mock.Anything, destQuotaRuleID, "dest-volume-uuid", "us-west1-a", "987654321").Return(nil)
+		env.OnActivity("GetNode", mock.Anything, poolID).Return(nil, errors.New("failed to get node"))
+		// Revert returns async; polling for revert fails (covers defer branch that logs and returns without overwriting error)
+		revertedQuotaRule := &datamodel.QuotaRule{
+			BaseModel:      datamodel.BaseModel{UUID: "revert-dest-uuid"},
+			Name:           quotaRule.Name,
+			QuotaType:      quotaRule.QuotaType,
+			QuotaTarget:    quotaRule.QuotaTarget,
+			DiskLimitInKib: quotaRule.DiskLimitInKib,
+		}
+		revertResult := &activities.RevertQuotaRuleResult{
+			OperationResult: &activities.QuotaRuleOperationResult{
+				OperationName: revertOperationName,
+				IsDone:        false,
+			},
+			QuotaRule: revertedQuotaRule,
+		}
+		env.OnActivity("RevertQuotaRuleOnDestinationForDelete", mock.Anything, "dest-volume-uuid", mock.Anything, "us-west1-a", "987654321", &jwtToken).Return(revertResult, nil)
+		env.OnActivity("DescribeQuotaRuleRemoteJob", mock.Anything, revertOperationName, "us-west1-a", "987654321", &jwtToken).Return(errors.New("revert poll failed"))
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+
+		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		// Workflow fails with original error (revert poll failure does not overwrite)
+		assert.Error(tt, env.GetWorkflowError())
+	})
+
 	t.Run("WhenRevertWithHydrateQuotaRuleCreateFails_NonFatal", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()

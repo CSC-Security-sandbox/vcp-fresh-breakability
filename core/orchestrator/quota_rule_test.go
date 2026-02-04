@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -2949,6 +2950,57 @@ func TestCreateQuotaRuleInternal(t *testing.T) {
 		assert.Empty(tt, operationID)
 		assert.True(tt, errors.IsUserInputValidationErr(err))
 		assert.Contains(tt, err.Error(), "quota rules limit reached")
+	})
+
+	t.Run("WhenVolumeHas99QuotaRules_AllowsCreating100th_DoesNotReturnLimitError", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+
+		params := &common.CreateQuotaRulesParam{
+			Name:           "quota-rule-100",
+			VolumeUUID:     "volume-uuid-1",
+			QuotaType:      IndividualUserQuota,
+			DiskLimitInMib: 100,
+			QuotaTarget:    "user:alice",
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
+			SizeInBytes: 200 * 1024 * 1024,
+			AccountID:   1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"NFSV3"},
+			},
+		}
+
+		// 99 existing rules: limit check should pass (allows creating the 100th)
+		existingQuotaRules := make([]*datamodel.QuotaRule, VolumeQuotaRulesDefaultLimit-1)
+		for i := 0; i < VolumeQuotaRulesDefaultLimit-1; i++ {
+			existingQuotaRules[i] = &datamodel.QuotaRule{
+				BaseModel: datamodel.BaseModel{ID: int64(i + 1)},
+				Name:      fmt.Sprintf("quota-rule-%d", i+1),
+			}
+		}
+
+		originalValidateQuotaRuleCreateParams := validateQuotaRuleCreateParams
+		validateQuotaRuleCreateParams = func(params *common.CreateQuotaRulesParam) error {
+			return nil
+		}
+		defer func() { validateQuotaRuleCreateParams = originalValidateQuotaRuleCreateParams }()
+
+		mockStore.EXPECT().GetVolume(context.Background(), params.VolumeUUID).Return(volume, nil)
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return(existingQuotaRules, nil)
+
+		// Let validation fail later (e.g. uniqueness) so we only assert limit check passed
+		quotaRule, operationID, err := _createQuotaRuleInternal(context.Background(), mockStore, mockTemporal, params)
+
+		// Must not be "quota rules limit reached" — we have 99 rules so 100th create is allowed
+		assert.False(tt, err != nil && strings.Contains(err.Error(), "quota rules limit reached"),
+			"expected limit check to pass when 99 rules exist (allow 100th); got err: %v", err)
+		// We don't care if err is nil or another validation error; we only needed to prove limit wasn't hit
+		_ = quotaRule
+		_ = operationID
 	})
 
 	t.Run("WhenValidateVolumeTypeFails", func(tt *testing.T) {
@@ -8517,6 +8569,7 @@ func Test_convertQuotaRulesV1betaToDataModel(t *testing.T) {
 		assert.Equal(tt, "user:alice", result.QuotaTarget)
 		assert.Equal(tt, "READY", result.State)
 		assert.Equal(tt, "Ready state", result.StateDetails)
+		assert.Equal(tt, "Test description", result.Description)
 	})
 
 	t.Run("WhenAllFieldsPresent_IndividualGroupQuota", func(tt *testing.T) {
@@ -8592,7 +8645,7 @@ func Test_convertQuotaRulesV1betaToDataModel(t *testing.T) {
 			ResourceId:     "quota-rule-6",
 			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA,
 			DiskLimitInMib: 600,
-			// QuotaId, QuotaTarget, State, StateDetails are not set
+			// QuotaId, QuotaTarget, State, StateDetails, Description are not set
 		}
 
 		result := _convertQuotaRulesV1betaToDataModel(clientRule)
@@ -8604,6 +8657,7 @@ func Test_convertQuotaRulesV1betaToDataModel(t *testing.T) {
 		assert.Empty(tt, result.QuotaTarget)
 		assert.Empty(tt, result.State)
 		assert.Empty(tt, result.StateDetails)
+		assert.Empty(tt, result.Description)
 	})
 
 	t.Run("WhenOnlyQuotaTargetIsSet", func(tt *testing.T) {
@@ -8646,5 +8700,19 @@ func Test_convertQuotaRulesV1betaToDataModel(t *testing.T) {
 
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "Creating state details", result.StateDetails)
+	})
+
+	t.Run("WhenOnlyDescriptionIsSet", func(tt *testing.T) {
+		clientRule := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-10",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+			DiskLimitInMib: 1000,
+			Description:    gcpgenserver.NewOptString("Human-readable description of the quota rule"),
+		}
+
+		result := _convertQuotaRulesV1betaToDataModel(clientRule)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "Human-readable description of the quota rule", result.Description)
 	})
 }

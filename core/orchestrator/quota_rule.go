@@ -349,6 +349,10 @@ func _convertQuotaRulesV1betaToDataModel(clientRule gcpgenserver.QuotaRulesV1bet
 		rule.StateDetails = stateDetails
 	}
 
+	if description, hasDescription := clientRule.Description.Get(); hasDescription {
+		rule.Description = description
+	}
+
 	return rule
 }
 
@@ -495,7 +499,7 @@ func _createQuotaRule(ctx context.Context, se database.Storage, temporal client.
 		logger.Errorf("Failed to fetch existing quota rules: %v", err)
 		return nil, "", err
 	}
-	// Validate Quota Rules Limit as early quota-rule related check
+	// Validate Quota Rules Limit: reject only when volume already has 100 rules (allows creating the 100th when 99 exist).
 	if len(existingQuotaRulesData) >= VolumeQuotaRulesDefaultLimit {
 		logger.Errorf("Quota rules limit validation failed: volume has %d quota rules, limit is %d",
 			len(existingQuotaRulesData), VolumeQuotaRulesDefaultLimit)
@@ -635,7 +639,7 @@ func _createQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 		logger.Errorf("Failed to fetch existing quota rules: %v", err)
 		return nil, nil, err
 	}
-	// Validate Quota Rules Limit as early quota-rule related check
+	// Validate Quota Rules Limit: reject only when volume already has 100 rules (allows creating the 100th when 99 exist).
 	if len(existingQuotaRulesData) >= VolumeQuotaRulesDefaultLimit {
 		logger.Errorf("Quota rules limit validation failed: volume has %d quota rules, limit is %d",
 			len(existingQuotaRulesData), VolumeQuotaRulesDefaultLimit)

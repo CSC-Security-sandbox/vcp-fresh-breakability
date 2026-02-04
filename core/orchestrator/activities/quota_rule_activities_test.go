@@ -3011,6 +3011,9 @@ func Test_CreateQuotaRuleOnDestination(t *testing.T) {
 		assert.NotNil(t, result)
 		assert.True(t, result.IsDone)
 		assert.Empty(t, result.OperationName)
+		assert.NotNil(t, result.QuotaRule, "destination quota rule should be returned for hydration")
+		assert.Equal(t, quotaID, result.QuotaRule.UUID)
+		assert.Equal(t, "test-quota-rule", result.QuotaRule.Name)
 		mockInvoker.AssertExpectations(t)
 	})
 
@@ -3082,6 +3085,9 @@ func Test_CreateQuotaRuleOnDestination(t *testing.T) {
 		assert.NotNil(t, result)
 		assert.False(t, result.IsDone)
 		assert.Equal(t, jobID, result.OperationName)
+		assert.NotNil(t, result.QuotaRule)
+		assert.Equal(t, quotaID, result.QuotaRule.UUID)
+		assert.Equal(t, "test-quota-rule", result.QuotaRule.Name)
 		mockInvoker.AssertExpectations(t)
 	})
 
@@ -3148,6 +3154,8 @@ func Test_CreateQuotaRuleOnDestination(t *testing.T) {
 		assert.NotNil(t, result)
 		assert.True(t, result.IsDone) // Assume success when no JobId available
 		assert.Empty(t, result.OperationName)
+		assert.NotNil(t, result.QuotaRule)
+		assert.Equal(t, quotaID, result.QuotaRule.UUID)
 		mockInvoker.AssertExpectations(t)
 	})
 
@@ -6096,26 +6104,21 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 }
 
 func TestMapQuotaRuleToHydrateObject(t *testing.T) {
-	t.Run("WhenQuotaRuleHasExternalUUID", func(tt *testing.T) {
+	t.Run("WhenQuotaRuleHasUUID", func(tt *testing.T) {
 		quotaRule := &datamodel.QuotaRule{
-			Name: "quota-rule-1",
-			QuotaRuleAttributes: &datamodel.QuotaRuleAttributes{
-				ExternalUUID: "external-uuid-123",
-			},
+			BaseModel: datamodel.BaseModel{UUID: "quota-uuid-123"},
+			Name:      "quota-rule-1",
 		}
 
 		result := mapQuotaRuleToHydrateObject(quotaRule)
 
 		assert.Equal(tt, "quota-rule-1", result.ResourceId)
-		assert.Equal(tt, "external-uuid-123", result.QuotaRuleId)
+		assert.Equal(tt, "quota-uuid-123", result.QuotaRuleId)
 	})
 
-	t.Run("WhenQuotaRuleHasNoExternalUUID", func(tt *testing.T) {
+	t.Run("WhenQuotaRuleHasEmptyUUID", func(tt *testing.T) {
 		quotaRule := &datamodel.QuotaRule{
 			Name: "quota-rule-2",
-			QuotaRuleAttributes: &datamodel.QuotaRuleAttributes{
-				ExternalUUID: "",
-			},
 		}
 
 		result := mapQuotaRuleToHydrateObject(quotaRule)
@@ -6124,16 +6127,52 @@ func TestMapQuotaRuleToHydrateObject(t *testing.T) {
 		assert.Equal(tt, "", result.QuotaRuleId)
 	})
 
-	t.Run("WhenQuotaRuleAttributesIsNil", func(tt *testing.T) {
+	t.Run("WhenQuotaRuleHasNameOnly", func(tt *testing.T) {
 		quotaRule := &datamodel.QuotaRule{
-			Name:                "quota-rule-3",
-			QuotaRuleAttributes: nil,
+			Name: "quota-rule-3",
 		}
 
 		result := mapQuotaRuleToHydrateObject(quotaRule)
 
 		assert.Equal(tt, "quota-rule-3", result.ResourceId)
 		assert.Equal(tt, "", result.QuotaRuleId)
+	})
+}
+
+func TestConvertQuotaRulesVCPV1betaToDatamodel(t *testing.T) {
+	t.Run("WhenInputIsNil", func(tt *testing.T) {
+		result := convertQuotaRulesVCPV1betaToDatamodel(nil)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("WhenAllOptionalFieldsSet", func(tt *testing.T) {
+		createdAt := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
+		updatedAt := time.Date(2024, 1, 16, 11, 0, 0, 0, time.UTC)
+		r := &googleproxyclient.QuotaRulesVCPV1beta{
+			ResourceId:     "test-quota-rule",
+			QuotaType:      googleproxyclient.QuotaRulesVCPV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+			DiskLimitInMib: 100,
+			QuotaId:        googleproxyclient.NewOptString("quota-uuid-123"),
+			QuotaTarget:    googleproxyclient.NewOptString("user:1001"),
+			State:          googleproxyclient.NewOptQuotaRulesVCPV1betaState(googleproxyclient.QuotaRulesVCPV1betaStateREADY),
+			StateDetails:   googleproxyclient.NewOptString("Ready state details"),
+			Description:    googleproxyclient.NewOptString("Test description"),
+			CreatedAt:      googleproxyclient.NewOptDateTime(createdAt),
+			UpdatedAt:      googleproxyclient.NewOptDateTime(updatedAt),
+		}
+
+		result := convertQuotaRulesVCPV1betaToDatamodel(r)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "test-quota-rule", result.Name)
+		assert.Equal(tt, int64(100*1024), result.DiskLimitInKib)
+		assert.Equal(tt, "quota-uuid-123", result.UUID)
+		assert.Equal(tt, "user:1001", result.QuotaTarget)
+		assert.Equal(tt, "READY", result.State)
+		assert.Equal(tt, "Ready state details", result.StateDetails)
+		assert.Equal(tt, "Test description", result.Description)
+		assert.Equal(tt, createdAt, result.CreatedAt)
+		assert.Equal(tt, updatedAt, result.UpdatedAt)
 	})
 }
 
@@ -6219,11 +6258,10 @@ func TestHydrateQuotaRuleCreate(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	mockStorage := database.NewMockStorage(t)
 	activity := QuotaRuleCommonActivity{SE: mockStorage}
+	// QuotaRuleId in hydrate object comes from quota rule UUID (BaseModel.UUID), not ExternalUUID
 	quotaRule := &datamodel.QuotaRule{
-		Name: "quota-rule-1",
-		QuotaRuleAttributes: &datamodel.QuotaRuleAttributes{
-			ExternalUUID: "external-uuid-123",
-		},
+		BaseModel: datamodel.BaseModel{UUID: "cp-quota-rule-uuid-123"},
+		Name:      "quota-rule-1",
 	}
 	volumeId := "volume-uuid-456"
 	region := "us-central1"
@@ -6244,7 +6282,7 @@ func TestHydrateQuotaRuleCreate(t *testing.T) {
 
 		common.HydrateQuotaRuleCreate = func(ctx context.Context, logger log.Logger, qr models.QuotaRuleHydrateObject, volResourceID string, loc string, projId string, token string) error {
 			assert.Equal(tt, "quota-rule-1", qr.ResourceId)
-			assert.Equal(tt, "external-uuid-123", qr.QuotaRuleId)
+			assert.Equal(tt, "cp-quota-rule-uuid-123", qr.QuotaRuleId, "QuotaRuleId should be quota rule UUID")
 			assert.Equal(tt, volumeId, volResourceID)
 			assert.Equal(tt, region, loc)
 			assert.Equal(tt, projectId, projId)
@@ -6458,7 +6496,8 @@ func TestRevertQuotaRuleOnDestinationForDelete(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.QuotaRule)
-		assert.Equal(tt, quotaRule.Name, result.QuotaRule.Name)
+		assert.Equal(tt, "quota-id-123", result.QuotaRule.UUID, "destination quota rule ID from API")
+		assert.Equal(tt, "test-quota-rule", result.QuotaRule.Name)
 		assert.NotNil(tt, result.OperationResult)
 		assert.True(tt, result.OperationResult.IsDone)
 		mockInvoker.AssertExpectations(tt)
@@ -6510,6 +6549,8 @@ func TestRevertQuotaRuleOnDestinationForDelete(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.QuotaRule)
+		assert.Equal(tt, "quota-id-456", result.QuotaRule.UUID, "destination quota rule ID from API")
+		assert.Equal(tt, "test-quota-rule", result.QuotaRule.Name)
 		assert.NotNil(tt, result.OperationResult)
 		assert.False(tt, result.OperationResult.IsDone)
 		assert.Equal(tt, jobID, result.OperationResult.OperationName)

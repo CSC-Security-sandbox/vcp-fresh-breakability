@@ -354,23 +354,22 @@ func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}
 					pollErr := workflow.ExecuteActivity(ctx, commonActivity.DescribeQuotaRuleRemoteJob,
 						revertResult.OperationResult.OperationName, replicationForRevert.ReplicationAttributes.DestinationLocation, destProjectNumberForRevert, jwtToken).Get(ctx, nil)
 					if pollErr != nil {
-						logger.Errorf("Failed to wait for quota rule revert on destination: operationName=%s, error=%v",
-							revertResult.OperationResult.OperationName, pollErr)
-						// Don't fail the workflow if polling fails - log error and continue
+						logger.Errorf("Failed to wait for quota rule revert on destination: operationName=%s, destinationVolumeUUID=%s, error=%v",
+							revertResult.OperationResult.OperationName, replicationForRevert.ReplicationAttributes.DestinationVolumeUUID, pollErr)
+						return
 					}
 				}
 
-				if hydrationEnabled {
-					// Hydrate the quota rule creation to CCFE after successful revert
+				if hydrationEnabled && revertResult.QuotaRule != nil {
+					// Hydrate the quota rule creation to CCFE after successful revert using the destination quota rule (revertResult.QuotaRule)
 					hydrateErr := workflow.ExecuteActivity(ctx, commonActivity.HydrateQuotaRuleCreate,
 						revertResult.QuotaRule, replicationForRevert.ReplicationAttributes.DestinationVolumeUUID,
 						replicationForRevert.ReplicationAttributes.DestinationLocation, destProjectNumberForRevert).Get(ctx, nil)
 					if hydrateErr != nil {
-						logger.Warnf("Failed to hydrate quota rule create to CCFE after revert (non-fatal): quotaRuleName=%s, error=%v", revertResult.QuotaRule.Name, hydrateErr)
-						// Don't fail the workflow if hydration fails - log warning and continue
-					} else {
-						logger.Infof("Successfully hydrated quota rule create to CCFE after revert: quotaRuleName=%s", revertResult.QuotaRule.Name)
+						logger.Errorf("Failed to hydrate quota rule create to CCFE after revert: quotaRuleName=%s, error=%v", revertResult.QuotaRule.Name, hydrateErr)
+						return
 					}
+					logger.Infof("Successfully hydrated quota rule create to CCFE after revert: quotaRuleName=%s", revertResult.QuotaRule.Name)
 				}
 			}
 		}

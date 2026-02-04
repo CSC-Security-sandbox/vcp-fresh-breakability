@@ -489,16 +489,12 @@ func (a *QuotaRuleCommonActivity) HydrateQuotaRuleDelete(
 	return nil
 }
 
-// mapQuotaRuleToHydrateObject maps a datamodel.QuotaRule to models.QuotaRuleHydrateObject
+// mapQuotaRuleToHydrateObject maps a datamodel.QuotaRule to models.QuotaRuleHydrateObject.
+// Uses the control-plane quota rule UUID (BaseModel.UUID) for QuotaRuleId.
 func mapQuotaRuleToHydrateObject(quotaRule *datamodel.QuotaRule) models.QuotaRuleHydrateObject {
-	quotaRuleId := ""
-	if quotaRule.QuotaRuleAttributes != nil && quotaRule.QuotaRuleAttributes.ExternalUUID != "" {
-		quotaRuleId = quotaRule.QuotaRuleAttributes.ExternalUUID
-	}
-
 	return models.QuotaRuleHydrateObject{
 		ResourceId:  quotaRule.Name,
-		QuotaRuleId: quotaRuleId,
+		QuotaRuleId: quotaRule.UUID,
 	}
 }
 
@@ -791,11 +787,16 @@ func (a *QuotaRuleDeleteActivity) RevertQuotaRuleOnDestinationForDelete(
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	if operationResult == nil || operationResult.QuotaRule == nil {
+		logger.Errorf("Revert succeeded but destination quota rule not returned; cannot hydrate")
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("revert succeeded but destination quota rule not returned; cannot hydrate"))
+	}
+
 	logger.Infof("Successfully recreated quota rule on destination: quotaType=%s, quotaTarget=%s, destinationVolumeUUID=%s",
 		quotaRule.QuotaType, quotaRule.QuotaTarget, destinationVolumeUUID)
 	return &RevertQuotaRuleResult{
 		OperationResult: operationResult,
-		QuotaRule:       quotaRule,
+		QuotaRule:       operationResult.QuotaRule,
 	}, nil
 }
 
@@ -809,10 +810,12 @@ type ReplicationSyncEligibility struct {
 
 // QuotaRuleOperationResult holds the result of a quota rule operation on destination.
 // When an async operation is started, OperationName will contain the operation identifier
-// that can be polled for completion.
+// that can be polled for completion. QuotaRule is the created destination quota rule when
+// the API returns a full quota rule (e.g. from V1betaCreateQuotaRuleVCP).
 type QuotaRuleOperationResult struct {
-	OperationName string // Operation name/ID for polling (empty if operation completed synchronously)
-	IsDone        bool   // True if operation completed synchronously
+	OperationName string               // Operation name/ID for polling (empty if operation completed synchronously)
+	IsDone        bool                 // True if operation completed synchronously
+	QuotaRule     *datamodel.QuotaRule // Created destination quota rule when available (for hydration)
 }
 
 // RevertQuotaRuleResult holds the result of reverting a quota rule deletion
@@ -1359,6 +1362,41 @@ func (a *QuotaRuleCommonActivity) DescribeQuotaRuleRemoteJob(
 	return vsaerrors.NewVCPError(vsaerrors.ErrJobNotFinished, fmt.Errorf("operation %s not finished", operationName))
 }
 
+// convertQuotaRulesVCPV1betaToDatamodel maps the internal VCP API response to datamodel.QuotaRule
+// for use in hydration (destination quota rule identity: UUID, Name, etc.).
+func convertQuotaRulesVCPV1betaToDatamodel(r *googleproxyclient.QuotaRulesVCPV1beta) *datamodel.QuotaRule {
+	if r == nil {
+		return nil
+	}
+	q := &datamodel.QuotaRule{
+		Name:           r.ResourceId,
+		QuotaType:      string(r.QuotaType),
+		DiskLimitInKib: r.DiskLimitInMib * 1024,
+	}
+	if v, ok := r.QuotaId.Get(); ok {
+		q.UUID = v
+	}
+	if v, ok := r.QuotaTarget.Get(); ok {
+		q.QuotaTarget = v
+	}
+	if r.State.IsSet() {
+		q.State = string(r.State.Value)
+	}
+	if v, ok := r.StateDetails.Get(); ok {
+		q.StateDetails = v
+	}
+	if v, ok := r.Description.Get(); ok {
+		q.Description = v
+	}
+	if v, ok := r.CreatedAt.Get(); ok {
+		q.CreatedAt = v
+	}
+	if v, ok := r.UpdatedAt.Get(); ok {
+		q.UpdatedAt = v
+	}
+	return q
+}
+
 // CreateQuotaRuleOnDestination calls the internal VCP API to create quota rule on destination volume.
 func (a *QuotaRuleCreateActivity) CreateQuotaRuleOnDestination(
 	ctx context.Context,
@@ -1427,19 +1465,20 @@ func (a *QuotaRuleCreateActivity) CreateQuotaRuleOnDestination(
 		logger.Infof("Successfully created quota rule on destination: quotaId=%s, resourceId=%s, state=%s",
 			r.QuotaId.Value, r.ResourceId, r.State.Value)
 
+		destQuotaRule := convertQuotaRulesVCPV1betaToDatamodel(r)
 		// Check if state is CREATING - need to poll for completion
 		if r.State.Value == googleproxyclient.QuotaRulesVCPV1betaStateCREATING {
 			// Extract JobId from Jobs array if available for polling
 			if len(r.Jobs) > 0 && r.Jobs[0].JobId.IsSet() {
 				jobId := r.Jobs[0].JobId.Value
 				logger.Infof("Quota rule creation in progress on destination, returning JobId for polling: %s", jobId)
-				return &QuotaRuleOperationResult{OperationName: jobId, IsDone: false}, nil
+				return &QuotaRuleOperationResult{OperationName: jobId, IsDone: false, QuotaRule: destQuotaRule}, nil
 			}
 			// No job ID available but still creating - return as done (best effort)
 			logger.Warnf("Quota rule is in CREATING state but no JobId found, assuming success")
 		}
 		// State is READY or other terminal state
-		return &QuotaRuleOperationResult{IsDone: true}, nil
+		return &QuotaRuleOperationResult{IsDone: true, QuotaRule: destQuotaRule}, nil
 	case *googleproxyclient.V1betaCreateQuotaRuleVCPBadRequest:
 		return nil, vsaerrors.WrapAsTemporalApplicationError(coreerrors.NewVCPError(coreerrors.ErrCreateInternalQuotaRule, customerrors.New(r.Message)))
 	case *googleproxyclient.V1betaCreateQuotaRuleVCPUnauthorized:

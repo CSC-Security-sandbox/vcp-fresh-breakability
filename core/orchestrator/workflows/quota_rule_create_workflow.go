@@ -447,21 +447,21 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 					}
 				}
 
-				if hydrationEnabled {
-					// Hydrate the quota rule creation to CCFE after successful creation on destination
+				if hydrationEnabled && createOperationResult != nil && createOperationResult.QuotaRule != nil {
+					// Hydrate the quota rule creation to CCFE using the destination quota rule
 					if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 						returnErr = cancelErr
 						return
 					}
 					hydrateErr := workflow.ExecuteActivity(ctx, commonActivity.HydrateQuotaRuleCreate,
-						dbQuotaRule, replication.ReplicationAttributes.DestinationVolumeUUID,
+						createOperationResult.QuotaRule, replication.ReplicationAttributes.DestinationVolumeUUID,
 						replication.ReplicationAttributes.DestinationLocation, destProjectNumber).Get(ctx, nil)
 					if hydrateErr != nil {
-						logger.Warnf("Failed to hydrate quota rule create to CCFE (non-fatal): quotaRuleName=%s, error=%v", dbQuotaRule.Name, hydrateErr)
-						// Don't fail the workflow if hydration fails - log warning and continue
-					} else {
-						logger.Infof("Successfully hydrated quota rule create to CCFE: quotaRuleName=%s", dbQuotaRule.Name)
+						logger.Errorf("Failed to hydrate quota rule create to CCFE: quotaRuleName=%s, error=%v", createOperationResult.QuotaRule.Name, hydrateErr)
+						returnErr = ConvertToVSAError(hydrateErr)
+						return
 					}
+					logger.Infof("Successfully hydrated quota rule create to CCFE: quotaRuleName=%s", createOperationResult.QuotaRule.Name)
 				}
 
 				logger.Infof("Successfully synced quota rule to destination: location=%s, volumeUUID=%s",
