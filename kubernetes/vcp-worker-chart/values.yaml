@@ -127,6 +127,7 @@ workerConfig:
   immutableBackupEnabled: "false"
   crossRegionBackupEnabled: "false"
   restoreVolumeBufferEnabled: "false"
+  maxRetryAttemptsForSDEPollJob: "20"
   enableLdap: "false"
   enableSmb: "false"
   enableQuotaRule: "true"

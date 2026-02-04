@@ -77,6 +77,7 @@ var (
 	ginLoggingFeatureFlag             = env.GetBool("GIN_LOGGING_FEATURE", false)
 	enableSyncPoolZIZS                = env.GetBool("ENABLE_SYNC_POOL_ZIZS", false)
 	enableLdap                        = env.GetBool("ENABLE_LDAP", false)
+	maxRetryAttemptsForSDEPollJob     = env.GetInt("MAX_RETRY_ATTEMPTS_FOR_SDE_POLL_JOB", 20)
 )
 
 const (
@@ -2506,7 +2507,7 @@ func syncActiveDirectoryInVcp(ctx workflow.Context, params *common.CreatePoolPar
 				InitialInterval:        retryPolicy.InitialInterval,
 				BackoffCoefficient:     retryPolicy.BackoffCoefficient,
 				MaximumInterval:        retryPolicy.MaximumInterval,
-				MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+				MaximumAttempts:        int32(maxRetryAttemptsForSDEPollJob),
 				NonRetryableErrorTypes: []string{"NonRetryableError", "PanicError"},
 			},
 		}

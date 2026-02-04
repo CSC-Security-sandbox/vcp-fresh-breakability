@@ -14,6 +14,7 @@ import (
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	adHelper "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/helper"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -136,7 +137,15 @@ func TestPushActiveDirectoryPasswordActivity(t *testing.T) {
 		assert.Equal(tt, expectedOp, result)
 		assert.NotNil(tt, capturedParams)
 		assert.NotNil(tt, capturedParams.Body)
+		assert.Equal(tt, "ad-id", capturedParams.Body.ActiveDirectoryID)
 		assert.Equal(tt, "secret-proj", capturedParams.Body.SdeProjectID)
+		expectedSecret := adHelper.GeneratePasswordSecretId("secret-proj", "acct", "ad-name", "loc")
+		assert.Equal(tt, expectedSecret, capturedParams.Body.SecretName)
+		if assert.NotNil(tt, capturedParams.XCorrelationID) {
+			assert.Equal(tt, "corr", *capturedParams.XCorrelationID)
+		}
+		assert.Equal(tt, "acct", capturedParams.ProjectNumber)
+		assert.Equal(tt, "loc", capturedParams.LocationID)
 	})
 }
 
