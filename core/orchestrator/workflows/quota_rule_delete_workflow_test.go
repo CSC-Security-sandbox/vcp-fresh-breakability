@@ -1432,7 +1432,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 			IsDone: true,
 		}
 		env.OnActivity("DeleteQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", destQuotaRuleID, "us-west1-a", "987654321", &jwtToken).Return(deleteOperationResult, nil)
-		env.OnActivity("HydrateQuotaRuleDelete", mock.Anything, destQuotaRuleID, "dest-volume-uuid", "us-west1-a", "987654321").Return(nil)
+		env.OnActivity("HydrateQuotaRuleDelete", mock.Anything, quotaRule.Name, "dest-volume-uuid", "us-west1-a", "987654321").Return(nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
 		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "delete").Return("quota-uuid-123", nil)
 		env.OnActivity("DeleteQuotaRuleOnOntap", mock.Anything, "quota-uuid-123", mock.Anything).Return(&vsa.JobStatus{State: vsa.JobRespSuccess}, nil)
@@ -1641,7 +1641,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 			IsDone: true,
 		}
 		env.OnActivity("DeleteQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", destQuotaRuleID, "us-west1-a", "987654321", &jwtToken).Return(deleteOperationResult, nil)
-		env.OnActivity("HydrateQuotaRuleDelete", mock.Anything, destQuotaRuleID, "dest-volume-uuid", "us-west1-a", "987654321").Return(errors.New("hydration failed"))
+		env.OnActivity("HydrateQuotaRuleDelete", mock.Anything, quotaRule.Name, "dest-volume-uuid", "us-west1-a", "987654321").Return(errors.New("hydration failed"))
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(DeleteQuotaRuleWorkflow, params, quotaRule)
@@ -1720,7 +1720,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 			IsDone: true,
 		}
 		env.OnActivity("DeleteQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", destQuotaRuleID, "us-west1-a", "987654321", &jwtToken).Return(deleteOperationResult, nil)
-		env.OnActivity("HydrateQuotaRuleDelete", mock.Anything, destQuotaRuleID, "dest-volume-uuid", "us-west1-a", "987654321").Return(nil)
+		env.OnActivity("HydrateQuotaRuleDelete", mock.Anything, quotaRule.Name, "dest-volume-uuid", "us-west1-a", "987654321").Return(nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nil, errors.New("failed to get node"))
 		// Mock revert and hydration after source deletion failure (synchronous completion)
 		revertedQuotaRule := &datamodel.QuotaRule{
@@ -1814,7 +1814,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 			IsDone: true,
 		}
 		env.OnActivity("DeleteQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", destQuotaRuleID, "us-west1-a", "987654321", &jwtToken).Return(deleteOperationResult, nil)
-		env.OnActivity("HydrateQuotaRuleDelete", mock.Anything, destQuotaRuleID, "dest-volume-uuid", "us-west1-a", "987654321").Return(nil)
+		env.OnActivity("HydrateQuotaRuleDelete", mock.Anything, quotaRule.Name, "dest-volume-uuid", "us-west1-a", "987654321").Return(nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nil, errors.New("failed to get node"))
 		// Mock revert with async operation that requires polling
 		revertedQuotaRule := &datamodel.QuotaRule{
@@ -1915,7 +1915,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetSignedDstTokenForQuotaRule", mock.Anything, "987654321").Return(&jwtToken, nil)
 		env.OnActivity("GetMatchingQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", "us-west1-a", "987654321", quotaRule.Name, &jwtToken).Return(&destQuotaRuleID, nil)
 		env.OnActivity("DeleteQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", destQuotaRuleID, "us-west1-a", "987654321", &jwtToken).Return(&activities.QuotaRuleOperationResult{IsDone: true}, nil)
-		env.OnActivity("HydrateQuotaRuleDelete", mock.Anything, destQuotaRuleID, "dest-volume-uuid", "us-west1-a", "987654321").Return(nil)
+		env.OnActivity("HydrateQuotaRuleDelete", mock.Anything, quotaRule.Name, "dest-volume-uuid", "us-west1-a", "987654321").Return(nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nil, errors.New("failed to get node"))
 		// Revert returns async; polling for revert fails (covers defer branch that logs and returns without overwriting error)
 		revertedQuotaRule := &datamodel.QuotaRule{
@@ -2017,7 +2017,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 			IsDone: true,
 		}
 		env.OnActivity("DeleteQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", destQuotaRuleID, "us-west1-a", "987654321", &jwtToken).Return(deleteOperationResult, nil)
-		env.OnActivity("HydrateQuotaRuleDelete", mock.Anything, destQuotaRuleID, "dest-volume-uuid", "us-west1-a", "987654321").Return(nil)
+		env.OnActivity("HydrateQuotaRuleDelete", mock.Anything, quotaRule.Name, "dest-volume-uuid", "us-west1-a", "987654321").Return(nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nil, errors.New("failed to get node"))
 		// Mock revert success but hydration failure (non-fatal) - synchronous completion
 		revertedQuotaRule := &datamodel.QuotaRule{
@@ -2120,7 +2120,7 @@ func TestDeleteQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("DeleteQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", destQuotaRuleID, "us-west1-a", "987654321", &jwtToken).Return(deleteOperationResult, nil)
 		// Mock polling for operation completion
 		env.OnActivity("DescribeQuotaRuleRemoteJob", mock.Anything, operationName, "us-west1-a", "987654321", &jwtToken).Return(nil)
-		env.OnActivity("HydrateQuotaRuleDelete", mock.Anything, destQuotaRuleID, "dest-volume-uuid", "us-west1-a", "987654321").Return(nil)
+		env.OnActivity("HydrateQuotaRuleDelete", mock.Anything, quotaRule.Name, "dest-volume-uuid", "us-west1-a", "987654321").Return(nil)
 		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
 		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "delete").Return("quota-uuid-123", nil)
 		env.OnActivity("DeleteQuotaRuleOnOntap", mock.Anything, "quota-uuid-123", mock.Anything).Return(&vsa.JobStatus{State: vsa.JobRespSuccess}, nil)

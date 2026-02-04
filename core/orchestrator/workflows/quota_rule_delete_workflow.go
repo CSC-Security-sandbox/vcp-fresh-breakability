@@ -297,16 +297,17 @@ func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}
 					}
 
 					// Hydrate the quota rule deletion to CCFE after polling completes (or immediately if operation completed synchronously)
-					quotaRuleID := *destinationQuotaRuleId
+					// Use quota rule name for hydration (CCFE expects resource name)
+					quotaRuleName := dbQuotaRule.Name
 					if hydrationEnabled {
 						err = workflow.ExecuteActivity(ctx, commonActivity.HydrateQuotaRuleDelete,
-							quotaRuleID, replication.ReplicationAttributes.DestinationVolumeUUID,
+							quotaRuleName, replication.ReplicationAttributes.DestinationVolumeUUID,
 							replication.ReplicationAttributes.DestinationLocation, destProjectNumber).Get(ctx, nil)
 						if err != nil {
-							logger.Errorf("Failed to hydrate quota rule delete to CCFE: quotaRuleId=%s, error=%v", quotaRuleID, err)
+							logger.Errorf("Failed to hydrate quota rule delete to CCFE: quotaRuleName=%s, error=%v", quotaRuleName, err)
 							return nil, ConvertToVSAError(err)
 						}
-						logger.Infof("Successfully hydrated quota rule delete to CCFE: quotaRuleId=%s", quotaRuleID)
+						logger.Infof("Successfully hydrated quota rule delete to CCFE: quotaRuleName=%s", quotaRuleName)
 					}
 
 					logger.Infof("Successfully synced quota rule deletion to destination: location=%s, volumeUUID=%s, quotaRuleId=%s",
