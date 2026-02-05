@@ -246,6 +246,7 @@ func TestCreateActiveDirectoryInVCPActivity(t *testing.T) {
 	t.Run("ReturnsErrorWhenCreateADFails", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetAccount", mock.Anything, "acct").Return(&datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}}, nil)
+		mockStorage.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "ad-id", int64(1)).Return(nil, nil)
 		mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).Return(nil, assert.AnError)
 
 		activity.SE = mockStorage
@@ -258,6 +259,40 @@ func TestCreateActiveDirectoryInVCPActivity(t *testing.T) {
 		assert.Error(tt, err)
 	})
 
+	t.Run("ReturnsExistingADWhenFoundByUUID", func(tt *testing.T) {
+		existing := &datamodel.ActiveDirectory{BaseModel: datamodel.BaseModel{ID: 99}}
+
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetAccount", mock.Anything, "acct").Return(&datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}}, nil)
+		mockStorage.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "ad-id", int64(1)).Return(existing, nil)
+
+		activity.SE = mockStorage
+		params := &SyncActiveDirectoryParams{
+			ActiveDirectoryID: "ad-id",
+			AccountName:       "acct",
+			ActiveDirectory:   &models.ActiveDirectory{AdName: "ad-name"},
+		}
+
+		ad, err := activity.CreateActiveDirectoryInVCPActivity(buildAuthContext(), params, "secret-path")
+		assert.NoError(tt, err)
+		assert.Equal(tt, existing, ad)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenFetchExistingADFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetAccount", mock.Anything, "acct").Return(&datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}}, nil)
+		mockStorage.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "ad-id", int64(1)).Return(nil, assert.AnError)
+
+		activity.SE = mockStorage
+		_, err := activity.CreateActiveDirectoryInVCPActivity(buildAuthContext(), &SyncActiveDirectoryParams{
+			ActiveDirectoryID: "ad-id",
+			AccountName:       "acct",
+			ActiveDirectory:   &models.ActiveDirectory{AdName: "ad-name"},
+		}, "secret-path")
+		assert.Error(tt, err)
+	})
+
 	t.Run("ReturnsCreatedADWithAttributes", func(tt *testing.T) {
 		originalSecretProject := env.SecretManagerProjectID
 		env.SecretManagerProjectID = "secret-proj"
@@ -265,6 +300,7 @@ func TestCreateActiveDirectoryInVCPActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		mockStorage.On("GetAccount", mock.Anything, "acct").Return(&datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}}, nil)
+		mockStorage.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, "ad-id", int64(1)).Return(nil, nil)
 		mockStorage.On("CreateActiveDirectory", mock.Anything, mock.Anything).Return(&datamodel.ActiveDirectory{
 			BaseModel: datamodel.BaseModel{ID: 10},
 			AdName:    "ad-name",

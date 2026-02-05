@@ -196,6 +196,17 @@ func (a ActiveDirectorySyncActivity) CreateActiveDirectoryInVCPActivity(ctx cont
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	// Return existing ActiveDirectory if present to avoid duplicates
+	existingAD, err := a.SE.GetActiveDirectoryByUuidAndAccountId(ctx, params.ActiveDirectoryID, account.ID)
+	if err != nil && !customerrors.IsNotFoundErr(err) {
+		logger.Errorf("Failed to fetch Active Directory by UUID: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	if existingAD != nil {
+		logger.Infof("Active Directory already exists in VCP with ID: %d", existingAD.ID)
+		return existingAD, nil
+	}
+
 	// Convert models.ActiveDirectory to datamodel.ActiveDirectory
 	adRecord := &datamodel.ActiveDirectory{
 		BaseModel: datamodel.BaseModel{
