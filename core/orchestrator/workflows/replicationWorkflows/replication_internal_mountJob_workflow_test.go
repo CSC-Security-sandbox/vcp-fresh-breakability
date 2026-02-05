@@ -63,7 +63,7 @@ func TestPerformMountCheckWorkFlow(t *testing.T) {
 
 		env.OnActivity(mountJobActivity.GetReplication, mock.Anything, replicationUUID).Return(dbreplication, nil)
 		env.OnActivity(commonActivity.GetNode, mock.Anything, dbreplication.Volume.PoolID).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
-		env.OnActivity(mountJobActivity.CheckMountJob, mock.Anything, dbreplication, mock.Anything, accountName).Return(nil)
+		env.OnActivity(mountJobActivity.CheckMountJob, mock.Anything, dbreplication, mock.Anything, accountName, mock.Anything).Return(nil)
 		env.OnActivity(mountJobActivity.GetReplicationFromOntap, mock.Anything, dbreplication, mock.Anything, accountName).Return(dbreplication, nil)
 		env.OnActivity(mountJobActivity.UpdateReplicationInDB, mock.Anything, dbreplication, mock.Anything).Return(nil)
 		env.OnActivity(mountJobActivity.GetLunDetailsFromOntap, mock.Anything, mock.Anything, mock.Anything).Return([]*vsa.LunResponse(nil), nil)
@@ -120,7 +120,7 @@ func TestPerformMountCheckWorkFlow(t *testing.T) {
 
 		env.OnActivity(mountJobActivity.GetReplication, mock.Anything, replicationUUID).Return(dbreplication, nil)
 		env.OnActivity(commonActivity.GetNode, mock.Anything, dbreplication.Volume.PoolID).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
-		env.OnActivity(mountJobActivity.CheckMountJob, mock.Anything, dbreplication, mock.Anything, accountName).Return(nil)
+		env.OnActivity(mountJobActivity.CheckMountJob, mock.Anything, dbreplication, mock.Anything, accountName, mock.Anything).Return(nil)
 		env.OnActivity(mountJobActivity.GetReplicationFromOntap, mock.Anything, dbreplication, mock.Anything, accountName).Return(dbreplication, nil)
 		env.OnActivity(mountJobActivity.UpdateReplicationInDB, mock.Anything, dbreplication, mock.Anything).Return(nil)
 		env.OnActivity(mountJobActivity.MountVolume, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -185,7 +185,7 @@ func TestPerformMountCheckWorkFlow(t *testing.T) {
 
 		env.OnActivity(mountJobActivity.GetReplication, mock.Anything, replicationUUID).Return(dbreplication, nil)
 		env.OnActivity(commonActivity.GetNode, mock.Anything, dbreplication.Volume.PoolID).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
-		env.OnActivity(mountJobActivity.CheckMountJob, mock.Anything, dbreplication, mock.Anything, accountName).Return(nil)
+		env.OnActivity(mountJobActivity.CheckMountJob, mock.Anything, dbreplication, mock.Anything, accountName, mock.Anything).Return(nil)
 		env.OnActivity(mountJobActivity.GetLunDetailsFromOntap, mock.Anything, mock.Anything, mock.Anything).Return(multipleLuns, nil)
 		env.OnActivity(mountJobActivity.AbortVolumeReplicationForMount, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity(mountJobActivity.BreakVolumeReplicationForMount, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -250,7 +250,7 @@ func TestPerformMountCheckWorkFlow(t *testing.T) {
 
 		env.OnActivity(mountJobActivity.GetReplication, mock.Anything, replicationUUID).Return(dbreplication, nil)
 		env.OnActivity(commonActivity.GetNode, mock.Anything, dbreplication.Volume.PoolID).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
-		env.OnActivity(mountJobActivity.CheckMountJob, mock.Anything, dbreplication, mock.Anything, accountName).Return(nil)
+		env.OnActivity(mountJobActivity.CheckMountJob, mock.Anything, dbreplication, mock.Anything, accountName, mock.Anything).Return(nil)
 		env.OnActivity(mountJobActivity.GetLunDetailsFromOntap, mock.Anything, mock.Anything, mock.Anything).Return(multipleLuns, nil)
 		env.OnActivity(mountJobActivity.AbortVolumeReplicationForMount, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity(mountJobActivity.BreakVolumeReplicationForMount, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)

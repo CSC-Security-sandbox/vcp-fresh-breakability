@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -59,7 +60,7 @@ func TestCheckMountJob(t *testing.T) {
 				ReplicationSchedule:   "10minutely",
 			},
 		}
-		err := activity.CheckMountJob(context.Background(), dbRep, node, "test-account")
+		err := activity.CheckMountJob(context.Background(), dbRep, node, "test-account", time.Now())
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "failed to get volume replication")
@@ -101,7 +102,7 @@ func TestCheckMountJob(t *testing.T) {
 				ReplicationSchedule:   "10minutely",
 			},
 		}
-		err := activity.CheckMountJob(context.Background(), dbRep, node, "test-account")
+		err := activity.CheckMountJob(context.Background(), dbRep, node, "test-account", time.Now())
 
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
@@ -142,7 +143,7 @@ func TestCheckMountJob(t *testing.T) {
 				ReplicationSchedule:   "10minutely",
 			},
 		}
-		err := activity.CheckMountJob(context.Background(), dbRep, node, "test-account")
+		err := activity.CheckMountJob(context.Background(), dbRep, node, "test-account", time.Now())
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "failed to get provider")
@@ -183,7 +184,7 @@ func TestCheckMountJob(t *testing.T) {
 				ReplicationSchedule:   "10minutely",
 			},
 		}
-		err := activity.CheckMountJob(context.Background(), dbRep, node, "test-account")
+		err := activity.CheckMountJob(context.Background(), dbRep, node, "test-account", time.Now())
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "replication is not in snapmirrored state yet")
@@ -228,11 +229,61 @@ func TestCheckMountJob(t *testing.T) {
 				ReplicationSchedule:   "10minutely",
 			},
 		}
-		err := activity.CheckMountJob(context.Background(), dbRep, node, "test-account")
+		// Use start time past retry window so activity returns non-retryable error
+		checkMountStart := time.Now().Add(-mountJobRetryWindow - time.Minute)
+		err := activity.CheckMountJob(context.Background(), dbRep, node, "test-account", checkMountStart)
 
 		assert.Error(tt, err)
 		assert.True(tt, utilErrors.IsNonRetryableErr(err), "Expected non-retryable error")
 		assert.Contains(tt, err.Error(), unhealthyReason)
+		mockProvider.AssertExpectations(tt)
+	})
+	t.Run("ReturnsRetryableApplicationErrorWhenScheduledUpdateOrSnapshotErrorWithinRetryWindow", func(tt *testing.T) {
+		unhealthyReason := "Scheduled update failed."
+		mockProvider := new(vsa.MockProvider)
+		mockProvider.On("GetVolumeReplication", mock.Anything).Return(&vsa.VolumeReplication{
+			UnhealthyReason: unhealthyReason,
+		}, nil)
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := &MountJobActivity{}
+		node := &models.Node{}
+		dbRep := &datamodel.VolumeReplication{
+			Account: &datamodel.Account{Name: "test-account"},
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "replication-uuid-1",
+			},
+			AccountID: 1,
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "volume-uuid-1",
+				},
+				PoolID: 1,
+				Pool: &datamodel.Pool{
+					PoolCredentials: &datamodel.PoolCredentials{
+						Password: "password-1",
+					},
+				},
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationVolumeName: "destination-volume-name-1",
+				DestinationHostName:   "destination-host-name-1",
+				DestinationSvmName:    "destination-svm-name-1",
+				ExternalUUID:          "external-uuid-1",
+				ReplicationSchedule:   "10minutely",
+			},
+		}
+		// Use current time so we are within retry window -> activity returns retryable ApplicationError (line 49)
+		checkMountStart := time.Now()
+		err := activity.CheckMountJob(context.Background(), dbRep, node, "test-account", checkMountStart)
+
+		assert.Error(tt, err)
+		assert.False(tt, utilErrors.IsNonRetryableErr(err), "Expected retryable error (ApplicationError), not non-retryable")
+		assert.Contains(tt, err.Error(), "Retrying mount job due to scheduled update failure or snapshot creation error")
 		mockProvider.AssertExpectations(tt)
 	})
 	t.Run("ReturnsNilWhenUnhealthyReasonContainsTransferAbortedAndNoCurrentTransfer", func(tt *testing.T) {
@@ -275,7 +326,7 @@ func TestCheckMountJob(t *testing.T) {
 				ReplicationSchedule:   "10minutely",
 			},
 		}
-		err := activity.CheckMountJob(context.Background(), dbRep, node, "test-account")
+		err := activity.CheckMountJob(context.Background(), dbRep, node, "test-account", time.Now())
 
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
@@ -320,7 +371,7 @@ func TestCheckMountJob(t *testing.T) {
 				ReplicationSchedule:   "10minutely",
 			},
 		}
-		err := activity.CheckMountJob(context.Background(), dbRep, node, "test-account")
+		err := activity.CheckMountJob(context.Background(), dbRep, node, "test-account", time.Now())
 
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
@@ -1460,7 +1511,7 @@ func TestMountVolume(t *testing.T) {
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
-	
+
 	t.Run("Error_SMBVolume_CreateCifsShareFails", func(tt *testing.T) {
 		originalGetProviderByNode := hyperscaler.GetProviderByNode
 		defer func() {

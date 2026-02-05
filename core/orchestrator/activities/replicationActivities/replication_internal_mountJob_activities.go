@@ -5,6 +5,7 @@ import (
 	"errors"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -17,18 +18,20 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
 )
 
 var (
 	failedStates             = []string{models.SnapmirrorRelationshipFailed, models.SnapmirrorRelationshipAborted, models.SnapmirrorRelationshipHardAborted}
 	hybridReplicationEnabled = env.GetBool("HYBRID_REPLICATION_ENABLED", false)
+	mountJobRetryWindow      = time.Duration(env.GetInt("ONTAP_TRANSIENT_ERROR_RETRY_MINUTES", 20)) * time.Minute
 )
 
 type MountJobActivity struct {
 	SE database.Storage
 }
 
-func (j *MountJobActivity) CheckMountJob(ctx context.Context, dbReplication *datamodel.VolumeReplication, node *models.Node, accountName string) error {
+func (j *MountJobActivity) CheckMountJob(ctx context.Context, dbReplication *datamodel.VolumeReplication, node *models.Node, accountName string, checkMountStart time.Time) error {
 	logger := util.GetLogger(ctx)
 	provider, err := activitiesGetProviderByNode(ctx, node)
 	if err != nil {
@@ -42,6 +45,9 @@ func (j *MountJobActivity) CheckMountJob(ctx context.Context, dbReplication *dat
 	}
 	if strings.Contains(snapmirror.UnhealthyReason, "Scheduled update failed") || strings.Contains(snapmirror.UnhealthyReason, "Failed to create snapshot") {
 		logger.Infof("Replication %s failed due to scheduled update failure or snapshot creation error. UnhealthyReason: %s", dbReplication.UUID, snapmirror.UnhealthyReason)
+		if time.Since(checkMountStart) <= mountJobRetryWindow {
+			return temporal.NewApplicationError("Retrying mount job due to scheduled update failure or snapshot creation error", "", nil)
+		}
 		return utilErrors.NewNonRetryableErr(snapmirror.UnhealthyReason)
 	}
 	if strings.Contains(snapmirror.UnhealthyReason, "Transfer aborted") && snapmirror.CurrentTransferType == "" {

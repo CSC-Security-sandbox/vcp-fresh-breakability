@@ -114,7 +114,8 @@ func (wf *mountCheckWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		},
 	}
 	ctx1 := workflow.WithActivityOptions(ctx, ao1)
-	err = workflow.ExecuteActivity(ctx1, mountJobActivity.CheckMountJob, replication, node, accountName).Get(ctx1, nil)
+	checkMountStart := workflow.Now(ctx)
+	err = workflow.ExecuteActivity(ctx1, mountJobActivity.CheckMountJob, replication, node, accountName, checkMountStart).Get(ctx1, nil)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
