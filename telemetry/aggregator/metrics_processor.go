@@ -12,6 +12,7 @@ import (
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -53,6 +54,7 @@ type ResourceData struct {
 	LargeCapacity         bool   // Track if pool/volume is large capacity
 	VolumeStyle           string // Track volume style (FLEXVOL/FLEXGROUP)
 	HasOnlyBlockVolumes   bool
+	IsONTAPMode           bool // True if pool has APIAccessMode == "ONTAP" (expert mode)
 }
 
 type VolumeReplicationInfo struct {
@@ -159,19 +161,11 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 
 		// Process each resource group
 		for resourceIdentifier, resourceMetrics := range resourceGroups {
-			// Skip auto-tiering billing metrics for pools without AllowAutoTiering enabled
+			// Skip auto-tiering billing metrics for pools that don't meet criteria
 			if isAutoTieringBillingMetric(key.MeasuredType) {
-				poolData, found := resourceCollection.PoolData[resourceIdentifier]
-
-				if !found || !poolData.AllowAutoTiering {
-					logger.Debugf("Skipping auto-tiering metric %s for pool %s - pool data not found or AllowAutoTiering disabled",
-						key.MeasuredType, resourceIdentifier.ResourceName)
-					continue
-				}
-
-				if !p.config.EnableFilesAutoTieringBilling && !poolData.HasOnlyBlockVolumes {
-					logger.Debugf("Skipping auto-tiering metric %s for pool %s - not block-only pool (EnableFilesAutoTieringBilling=false)",
-						key.MeasuredType, resourceIdentifier.ResourceName)
+				if shouldSkip, reason := p.shouldSkipAutoTieringMetric(resourceIdentifier, resourceCollection, key.MeasuredType); shouldSkip {
+					logger.Debugf("Skipping auto-tiering metric %s for pool %s - %s",
+						key.MeasuredType, resourceIdentifier.ResourceName, reason)
 					continue
 				}
 			}
@@ -383,6 +377,7 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTim
 				LargeCapacity:       pool.LargeCapacity,
 				VolumeStyle:         "",                        // Empty for pools
 				HasOnlyBlockVolumes: blockOnlyPoolIDs[pool.ID], // Set based on block-only pool IDs map
+				IsONTAPMode:         pool.APIAccessMode == commonparams.ONTAPMode,
 			}
 			resourceType := metadata.VolumePool
 			if pool.IsRegionalHA() {
@@ -1273,6 +1268,26 @@ func isAutoTieringBillingMetric(measuredType metadata.MeasuredType) bool {
 		return true
 	}
 	return false
+}
+
+// shouldSkipAutoTieringMetric determines if an auto-tiering metric should be skipped for a given pool.
+func (p *BillingProvider) shouldSkipAutoTieringMetric(resourceIdentifier ResourceKey, resourceCollection *ResourceCollection, measuredType metadata.MeasuredType) (bool, string) {
+	poolData, found := resourceCollection.PoolData[resourceIdentifier]
+
+	if !found || !poolData.AllowAutoTiering {
+		return true, "pool data not found or AllowAutoTiering disabled"
+	}
+
+	// Skip ONTAP mode (expert mode) pools unless ONTAP mode billing is enabled for Autotiering Metrics
+	if poolData.IsONTAPMode && !p.config.EnableONTAPModeAutoTieringBilling {
+		return true, "ONTAP mode pool with EnableONTAPModeAutoTieringBilling=false"
+	}
+
+	if !p.config.EnableFilesAutoTieringBilling && !poolData.HasOnlyBlockVolumes {
+		return true, "not block-only pool with EnableFilesAutoTieringBilling=false"
+	}
+
+	return false, ""
 }
 
 // fetchAndCacheCounterValues fetches all latest aggregated counter values using pagination and builds the cache

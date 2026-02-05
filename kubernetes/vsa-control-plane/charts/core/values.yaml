@@ -290,6 +290,7 @@ telemetryDeployer:
   enableBidirectionalReplicationBillingMetrics: false
   enableInRegionReplicationBillingMetrics: false
   enableAutoTieringBillingMetrics: false
+  enableONTAPModeAutoTieringBilling: false
   enableFilesAutoTieringBilling: false
   enableFilesReplicationBillingMetrics: false
   enableLargeVolumesBilling: false

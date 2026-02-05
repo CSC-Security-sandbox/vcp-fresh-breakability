@@ -3443,6 +3443,197 @@ func TestAutoTieringBillingMetricFiltering(t *testing.T) {
 	})
 }
 
+// TestShouldSkipAutoTieringMetric tests the shouldSkipAutoTieringMetric helper function
+// which exercises lines 175-178 (ONTAP mode skip logic) in metrics_processor.go
+func TestShouldSkipAutoTieringMetric(t *testing.T) {
+	mockMetricsDB := &database.MockStorage{}
+	mockVcpDB := &database2.MockStorage{}
+	mockSink := &MockUsageSink{}
+
+	t.Run("SkipsONTAPModePoolWhenFlagDisabled", func(t *testing.T) {
+		config := &common.TelemetryConfig{
+			EnableONTAPModeAutoTieringBilling: false, // KEY: flag disabled
+			EnableFilesAutoTieringBilling:     true,
+		}
+		provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+		poolResourceID := ResourceKey{
+			ResourceType:   metadata.VolumePool,
+			ResourceName:   "ontap-mode-pool",
+			ConsumerID:     "test-customer",
+			DeploymentName: "test-deployment",
+		}
+
+		resourceCollection := &ResourceCollection{
+			PoolData: map[ResourceKey]ResourceData{
+				poolResourceID: {
+					UUID:                "pool-uuid",
+					AccountID:           123,
+					AllowAutoTiering:    true, // Auto-tiering allowed
+					IsONTAPMode:         true, // ONTAP mode pool
+					HasOnlyBlockVolumes: true,
+				},
+			},
+		}
+
+		shouldSkip, reason := provider.shouldSkipAutoTieringMetric(poolResourceID, resourceCollection, metadata.PoolHotTierProvisionedSize)
+
+		assert.True(t, shouldSkip, "Should skip ONTAP mode pool when EnableONTAPModeAutoTieringBilling=false")
+		assert.Contains(t, reason, "ONTAP mode pool")
+	})
+
+	t.Run("ProcessesONTAPModePoolWhenFlagEnabled", func(t *testing.T) {
+		config := &common.TelemetryConfig{
+			EnableONTAPModeAutoTieringBilling: true, // KEY: flag enabled
+			EnableFilesAutoTieringBilling:     true,
+		}
+		provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+		poolResourceID := ResourceKey{
+			ResourceType:   metadata.VolumePool,
+			ResourceName:   "ontap-mode-pool",
+			ConsumerID:     "test-customer",
+			DeploymentName: "test-deployment",
+		}
+
+		resourceCollection := &ResourceCollection{
+			PoolData: map[ResourceKey]ResourceData{
+				poolResourceID: {
+					UUID:                "pool-uuid",
+					AccountID:           123,
+					AllowAutoTiering:    true, // Auto-tiering allowed
+					IsONTAPMode:         true, // ONTAP mode pool
+					HasOnlyBlockVolumes: true,
+				},
+			},
+		}
+
+		shouldSkip, reason := provider.shouldSkipAutoTieringMetric(poolResourceID, resourceCollection, metadata.PoolHotTierProvisionedSize)
+
+		assert.False(t, shouldSkip, "Should NOT skip ONTAP mode pool when EnableONTAPModeAutoTieringBilling=true")
+		assert.Empty(t, reason)
+	})
+
+	t.Run("SkipsPoolNotFound", func(t *testing.T) {
+		config := &common.TelemetryConfig{
+			EnableONTAPModeAutoTieringBilling: true,
+			EnableFilesAutoTieringBilling:     true,
+		}
+		provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+		poolResourceID := ResourceKey{
+			ResourceType:   metadata.VolumePool,
+			ResourceName:   "unknown-pool",
+			ConsumerID:     "test-customer",
+			DeploymentName: "test-deployment",
+		}
+
+		resourceCollection := &ResourceCollection{
+			PoolData: make(map[ResourceKey]ResourceData),
+		}
+
+		shouldSkip, reason := provider.shouldSkipAutoTieringMetric(poolResourceID, resourceCollection, metadata.PoolHotTierProvisionedSize)
+
+		assert.True(t, shouldSkip, "Should skip when pool is not found")
+		assert.Contains(t, reason, "not found")
+	})
+
+	t.Run("SkipsPoolWithAllowAutoTieringDisabled", func(t *testing.T) {
+		config := &common.TelemetryConfig{
+			EnableONTAPModeAutoTieringBilling: true,
+			EnableFilesAutoTieringBilling:     true,
+		}
+		provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+		poolResourceID := ResourceKey{
+			ResourceType:   metadata.VolumePool,
+			ResourceName:   "standard-pool",
+			ConsumerID:     "test-customer",
+			DeploymentName: "test-deployment",
+		}
+
+		resourceCollection := &ResourceCollection{
+			PoolData: map[ResourceKey]ResourceData{
+				poolResourceID: {
+					UUID:             "pool-uuid",
+					AccountID:        123,
+					AllowAutoTiering: false, // Auto-tiering disabled
+					IsONTAPMode:      false,
+				},
+			},
+		}
+
+		shouldSkip, reason := provider.shouldSkipAutoTieringMetric(poolResourceID, resourceCollection, metadata.PoolHotTierProvisionedSize)
+
+		assert.True(t, shouldSkip, "Should skip when AllowAutoTiering=false")
+		assert.Contains(t, reason, "AllowAutoTiering disabled")
+	})
+
+	t.Run("SkipsNonBlockPoolWhenFilesAutoTieringDisabled", func(t *testing.T) {
+		config := &common.TelemetryConfig{
+			EnableONTAPModeAutoTieringBilling: true,
+			EnableFilesAutoTieringBilling:     false, // Files billing disabled
+		}
+		provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+		poolResourceID := ResourceKey{
+			ResourceType:   metadata.VolumePool,
+			ResourceName:   "files-pool",
+			ConsumerID:     "test-customer",
+			DeploymentName: "test-deployment",
+		}
+
+		resourceCollection := &ResourceCollection{
+			PoolData: map[ResourceKey]ResourceData{
+				poolResourceID: {
+					UUID:                "pool-uuid",
+					AccountID:           123,
+					AllowAutoTiering:    true,
+					IsONTAPMode:         false,
+					HasOnlyBlockVolumes: false, // Has file volumes
+				},
+			},
+		}
+
+		shouldSkip, reason := provider.shouldSkipAutoTieringMetric(poolResourceID, resourceCollection, metadata.PoolHotTierProvisionedSize)
+
+		assert.True(t, shouldSkip, "Should skip non-block pool when EnableFilesAutoTieringBilling=false")
+		assert.Contains(t, reason, "not block-only pool")
+	})
+
+	t.Run("ProcessesStandardPoolRegardlessOfONTAPFlag", func(t *testing.T) {
+		config := &common.TelemetryConfig{
+			EnableONTAPModeAutoTieringBilling: false, // Flag disabled, but pool is not ONTAP mode
+			EnableFilesAutoTieringBilling:     true,
+		}
+		provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+		poolResourceID := ResourceKey{
+			ResourceType:   metadata.VolumePool,
+			ResourceName:   "standard-pool",
+			ConsumerID:     "test-customer",
+			DeploymentName: "test-deployment",
+		}
+
+		resourceCollection := &ResourceCollection{
+			PoolData: map[ResourceKey]ResourceData{
+				poolResourceID: {
+					UUID:                "pool-uuid",
+					AccountID:           123,
+					AllowAutoTiering:    true,
+					IsONTAPMode:         false, // Standard mode
+					HasOnlyBlockVolumes: true,
+				},
+			},
+		}
+
+		shouldSkip, reason := provider.shouldSkipAutoTieringMetric(poolResourceID, resourceCollection, metadata.PoolHotTierProvisionedSize)
+
+		assert.False(t, shouldSkip, "Should NOT skip standard mode pool regardless of EnableONTAPModeAutoTieringBilling flag")
+		assert.Empty(t, reason)
+	})
+}
+
 // TestFetchResourceData_SkipsPoolWithEmptyAccountName tests that pools with empty account names are skipped
 func TestFetchResourceData_SkipsPoolWithEmptyAccountName(t *testing.T) {
 	ctx := context.Background()
@@ -4738,6 +4929,103 @@ func TestFetchVolumeReplicationData_UsesLargeVolumeAttributes(t *testing.T) {
 	assert.True(t, found, "Regular replication should be in collection")
 	assert.False(t, regularRepData.LargeCapacity, "LargeCapacity should be false from Volume.LargeVolumeAttributes")
 	assert.Equal(t, "FLEXVOL", regularRepData.VolumeStyle, "VolumeStyle should be FLEXVOL for regular volume")
+
+	mockVcpDB.AssertExpectations(t)
+}
+
+// TestFetchResourceData_PopulatesIsONTAPModeFromAPIAccessMode tests that IsONTAPMode is correctly
+// populated from the pool's APIAccessMode field
+func TestFetchResourceData_PopulatesIsONTAPModeFromAPIAccessMode(t *testing.T) {
+	ctx := context.Background()
+	mockVcpDB := &database2.MockStorage{}
+	mockMetricsDB := &database.MockStorage{}
+	mockSink := &MockUsageSink{}
+	config := &common.TelemetryConfig{
+		PoolVolumeLabelPageSize:         10,
+		GoogleBillingLabelsMaxEntries:   10,
+		EnableReplicationBillingMetrics: true,
+	}
+	provider := NewBillingProvider(mockMetricsDB, mockVcpDB, config, mockSink)
+
+	// First call returns pools with different APIAccessMode values
+	mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{
+		{
+			UUID:           "expert-pool-uuid",
+			Name:           "expert-pool",
+			AccountID:      1,
+			DeploymentName: "dep1",
+			APIAccessMode:  "ONTAP", // Expert mode
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName: "account1",
+				Labels:      &datamodel.JSONB{"env": "prod"},
+			},
+			AllowAutoTiering: true,
+		},
+		{
+			UUID:           "standard-pool-uuid",
+			Name:           "standard-pool",
+			AccountID:      2,
+			DeploymentName: "dep2",
+			APIAccessMode:  "DEFAULT", // Standard mode
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName: "account2",
+				Labels:      &datamodel.JSONB{"env": "dev"},
+			},
+			AllowAutoTiering: true,
+		},
+		{
+			UUID:           "empty-mode-pool-uuid",
+			Name:           "empty-mode-pool",
+			AccountID:      3,
+			DeploymentName: "dep3",
+			APIAccessMode:  "", // Empty mode (should be treated as non-expert)
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName: "account3",
+				Labels:      &datamodel.JSONB{"env": "test"},
+			},
+			AllowAutoTiering: true,
+		},
+	}, nil).Once()
+	mockVcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+	mockVcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
+	mockVcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
+
+	resourceCollection, err := provider.fetchResourceData(ctx, time.Now().Add(-1*time.Hour))
+	assert.NoError(t, err)
+	assert.Len(t, resourceCollection.PoolData, 3)
+
+	// Verify ONTAP mode pool has IsONTAPMode=true
+	ontapPoolKey := ResourceKey{
+		ResourceType:   metadata.VolumePool,
+		ResourceName:   "expert-pool",
+		DeploymentName: "dep1",
+		ConsumerID:     "account1",
+	}
+	ontapPoolData, found := resourceCollection.PoolData[ontapPoolKey]
+	assert.True(t, found, "ONTAP mode pool should be in collection")
+	assert.True(t, ontapPoolData.IsONTAPMode, "IsONTAPMode should be true for pool with APIAccessMode=ONTAP")
+
+	// Verify standard mode pool has IsONTAPMode=false
+	standardPoolKey := ResourceKey{
+		ResourceType:   metadata.VolumePool,
+		ResourceName:   "standard-pool",
+		DeploymentName: "dep2",
+		ConsumerID:     "account2",
+	}
+	standardPoolData, found := resourceCollection.PoolData[standardPoolKey]
+	assert.True(t, found, "Standard mode pool should be in collection")
+	assert.False(t, standardPoolData.IsONTAPMode, "IsONTAPMode should be false for pool with APIAccessMode=DEFAULT")
+
+	// Verify empty mode pool has IsONTAPMode=false
+	emptyModePoolKey := ResourceKey{
+		ResourceType:   metadata.VolumePool,
+		ResourceName:   "empty-mode-pool",
+		DeploymentName: "dep3",
+		ConsumerID:     "account3",
+	}
+	emptyModePoolData, found := resourceCollection.PoolData[emptyModePoolKey]
+	assert.True(t, found, "Empty mode pool should be in collection")
+	assert.False(t, emptyModePoolData.IsONTAPMode, "IsONTAPMode should be false for pool with empty APIAccessMode")
 
 	mockVcpDB.AssertExpectations(t)
 }

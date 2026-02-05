@@ -31,6 +31,7 @@ type TelemetryConfig struct {
 	EnableBidirectionalReplicationBillingMetrics bool
 	EnableInRegionReplicationBillingMetrics      bool
 	EnableAutoTieringBillingMetrics              bool
+	EnableONTAPModeAutoTieringBilling            bool
 	EnableFilesAutoTieringBilling                bool
 	EnableFilesReplicationBillingMetrics         bool
 	SFRMetricsEnabled                            bool
@@ -83,6 +84,7 @@ func LoadConfig() *TelemetryConfig {
 	enableBidirectionalReplicationBillingMetrics := env.GetBool("ENABLE_BIDIRECTIONAL_REPLICATION_BILLING_METRICS", false)
 	enableInRegionReplicationBillingMetrics := env.GetBool("ENABLE_IN_REGION_REPLICATION_BILLING_METRICS", false)
 	enableAutoTieringBillingMetrics := env.GetBool("ENABLE_AUTO_TIERING_BILLING_METRICS", false)
+	enableONTAPModeAutoTieringBilling := env.GetBool("ENABLE_ONTAP_MODE_AUTOTIERING_BILLING", false)
 	enableFilesAutoTieringBilling := env.GetBool("ENABLE_FILES_AUTO_TIERING_BILLING", false)
 	enableFilesReplicationBillingMetrics := env.GetBool("ENABLE_FILES_REPLICATION_BILLING_METRICS", false)
 	sfrMetricsEnabled := env.GetBool("ENABLE_SFR_METRICS", false)
@@ -128,6 +130,7 @@ func LoadConfig() *TelemetryConfig {
 		EnableBidirectionalReplicationBillingMetrics: enableBidirectionalReplicationBillingMetrics,
 		EnableInRegionReplicationBillingMetrics:      enableInRegionReplicationBillingMetrics,
 		EnableAutoTieringBillingMetrics:              enableAutoTieringBillingMetrics,
+		EnableONTAPModeAutoTieringBilling:            enableONTAPModeAutoTieringBilling,
 		EnableFilesAutoTieringBilling:                enableFilesAutoTieringBilling,
 		EnableFilesReplicationBillingMetrics:         enableFilesReplicationBillingMetrics,
 		SFRMetricsEnabled:                            sfrMetricsEnabled,

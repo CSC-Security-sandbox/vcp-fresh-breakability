@@ -188,6 +188,8 @@ spec:
               value: {{ .Values.telemetryDeployer.enableInRegionReplicationBillingMetrics | default "false" | quote }}
             - name: ENABLE_AUTO_TIERING_BILLING_METRICS
               value: {{ .Values.telemetryDeployer.enableAutoTieringBillingMetrics | default "false" | quote }}
+            - name: ENABLE_ONTAP_MODE_AUTOTIERING_BILLING
+              value: {{ .Values.telemetryDeployer.enableONTAPModeAutoTieringBilling | default "false" | quote }}
             - name: ENABLE_FILES_AUTO_TIERING_BILLING
               value: {{ .Values.telemetryDeployer.enableFilesAutoTieringBilling | default "false" | quote }}
             - name: ENABLE_FILES_REPLICATION_BILLING_METRICS
