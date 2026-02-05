@@ -299,6 +299,18 @@ func TestError_Examples(t *testing.T) {
 		})
 	}
 }
+func TestExpertModeVolumeRenameV1_EncodeDecode(t *testing.T) {
+	var typ ExpertModeVolumeRenameV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ExpertModeVolumeRenameV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestExpertModeVolumeV1_EncodeDecode(t *testing.T) {
 	var typ ExpertModeVolumeV1
 	typ.SetFake()
@@ -1762,6 +1774,90 @@ func TestV1ExpertModeVolumeNotFound_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1ExpertModeVolumeNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeRenameBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeRenameBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeRenameBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeRenameConflict_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeRenameConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeRenameConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeRenameForbidden_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeRenameForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeRenameForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeRenameInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeRenameInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeRenameInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeRenameNotFound_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeRenameNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeRenameNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeRenameTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeRenameTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeRenameTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeRenameUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeRenameUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeRenameUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1ExpertModeVolumeTooManyRequests_EncodeDecode(t *testing.T) {

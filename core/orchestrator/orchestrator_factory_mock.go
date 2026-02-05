@@ -6460,6 +6460,53 @@ func (_c *MockOrchestratorFactory_ReleaseVolumeReplication_Call) RunAndReturn(ru
 	return _c
 }
 
+// RenameExpertModeVolume provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) RenameExpertModeVolume(ctx context.Context, params *common.ExpertModeVolumeRenameParams) error {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RenameExpertModeVolume")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.ExpertModeVolumeRenameParams) error); ok {
+		r0 = rf(ctx, params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockOrchestratorFactory_RenameExpertModeVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RenameExpertModeVolume'
+type MockOrchestratorFactory_RenameExpertModeVolume_Call struct {
+	*mock.Call
+}
+
+// RenameExpertModeVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.ExpertModeVolumeRenameParams
+func (_e *MockOrchestratorFactory_Expecter) RenameExpertModeVolume(ctx interface{}, params interface{}) *MockOrchestratorFactory_RenameExpertModeVolume_Call {
+	return &MockOrchestratorFactory_RenameExpertModeVolume_Call{Call: _e.mock.On("RenameExpertModeVolume", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_RenameExpertModeVolume_Call) Run(run func(ctx context.Context, params *common.ExpertModeVolumeRenameParams)) *MockOrchestratorFactory_RenameExpertModeVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.ExpertModeVolumeRenameParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_RenameExpertModeVolume_Call) Return(_a0 error) *MockOrchestratorFactory_RenameExpertModeVolume_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_RenameExpertModeVolume_Call) RunAndReturn(run func(context.Context, *common.ExpertModeVolumeRenameParams) error) *MockOrchestratorFactory_RenameExpertModeVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ReplaceDstQuotaRulesWithSrc provides a mock function with given fields: ctx, req, params
 func (_m *MockOrchestratorFactory) ReplaceDstQuotaRulesWithSrc(ctx context.Context, req *gcpserver.UpdateDstWithSrcQuotaRulesV1beta, params gcpserver.V1betaUpdateDestinationQuotaRulesVCPParams) ([]*datamodel.QuotaRule, error) {
 	ret := _m.Called(ctx, req, params)

@@ -393,7 +393,7 @@ func TestV1ExpertModeVolume(t *testing.T) {
 			Action:        oasgenserver.ExpertModeVolumeV1ActionDelete,
 			VolumeUUID:    oasgenserver.NewOptString(volumeUUID),
 			SizeInBytes:   0,
-			Style:          oasgenserver.ExpertModeVolumeV1StyleFlexvol,
+			Style:         oasgenserver.ExpertModeVolumeV1StyleFlexvol,
 			ProjectNumber: projectNumber,
 		}
 		params := oasgenserver.V1ExpertModeVolumeParams{}
@@ -441,7 +441,7 @@ func TestV1ExpertModeVolume(t *testing.T) {
 			VolumeUUID:    oasgenserver.NewOptString(volumeUUID),
 			VolumeName:    volumeName,
 			SizeInBytes:   sizeInBytes,
-			Style:          oasgenserver.ExpertModeVolumeV1StyleFlexvol,
+			Style:         oasgenserver.ExpertModeVolumeV1StyleFlexvol,
 			ProjectNumber: projectNumber,
 		}
 		params := oasgenserver.V1ExpertModeVolumeParams{}
@@ -469,6 +469,187 @@ func TestV1ExpertModeVolume(t *testing.T) {
 		assert.IsType(t, &oasgenserver.V1ExpertModeVolumeOK{}, result)
 
 		// Verify mock expectations
+		mockOrch.AssertExpectations(t)
+	})
+}
+
+func TestV1ExpertModeVolumeRename(t *testing.T) {
+	volumeName := "my-volume"
+	newName := "my-renamed-volume"
+	poolUUID := "550e8400-e29b-41d4-a716-446655440000"
+	svmName := "my-svm"
+	projectNumber := "123456789"
+
+	t.Run("Success", func(t *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		req := &oasgenserver.ExpertModeVolumeRenameV1{
+			Name:          newName,
+			ProjectNumber: projectNumber,
+			PoolUUID:      poolUUID,
+			SvmName:       svmName,
+		}
+		params := oasgenserver.V1ExpertModeVolumeRenameParams{Name: volumeName}
+
+		expectedParams := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volumeName,
+			NewName:     newName,
+			PoolUUID:    poolUUID,
+			SvmName:     svmName,
+			AccountName: projectNumber,
+		}
+
+		mockOrch.EXPECT().RenameExpertModeVolume(mock.Anything, expectedParams).Return(nil)
+
+		ctx := context.Background()
+		result, err := handler.V1ExpertModeVolumeRename(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &oasgenserver.V1ExpertModeVolumeRenameOK{}, result)
+		mockOrch.AssertExpectations(t)
+	})
+
+	t.Run("BadRequestError_VolumeNotFound", func(t *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		req := &oasgenserver.ExpertModeVolumeRenameV1{
+			Name:          newName,
+			ProjectNumber: projectNumber,
+			PoolUUID:      poolUUID,
+			SvmName:       svmName,
+		}
+		params := oasgenserver.V1ExpertModeVolumeRenameParams{Name: volumeName}
+
+		expectedParams := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volumeName,
+			NewName:     newName,
+			PoolUUID:    poolUUID,
+			SvmName:     svmName,
+			AccountName: projectNumber,
+		}
+
+		badRequestErr := customerrors.NewBadRequestErr("volume with name 'my-volume' not found in pool")
+		mockOrch.EXPECT().RenameExpertModeVolume(mock.Anything, expectedParams).Return(badRequestErr)
+
+		ctx := context.Background()
+		result, err := handler.V1ExpertModeVolumeRename(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequest, ok := result.(*oasgenserver.V1ExpertModeVolumeRenameBadRequest)
+		assert.True(t, ok)
+		assert.Equal(t, float64(http.StatusBadRequest), badRequest.Code)
+		assert.Contains(t, badRequest.Message, "not found")
+		mockOrch.AssertExpectations(t)
+	})
+
+	t.Run("BadRequestError_SvmNameMismatch", func(t *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		req := &oasgenserver.ExpertModeVolumeRenameV1{
+			Name:          newName,
+			ProjectNumber: projectNumber,
+			PoolUUID:      poolUUID,
+			SvmName:       svmName,
+		}
+		params := oasgenserver.V1ExpertModeVolumeRenameParams{Name: volumeName}
+
+		expectedParams := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volumeName,
+			NewName:     newName,
+			PoolUUID:    poolUUID,
+			SvmName:     svmName,
+			AccountName: projectNumber,
+		}
+
+		badRequestErr := customerrors.NewBadRequestErr("SVM name does not match: expected my-svm")
+		mockOrch.EXPECT().RenameExpertModeVolume(mock.Anything, expectedParams).Return(badRequestErr)
+
+		ctx := context.Background()
+		result, err := handler.V1ExpertModeVolumeRename(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequest, ok := result.(*oasgenserver.V1ExpertModeVolumeRenameBadRequest)
+		assert.True(t, ok)
+		assert.Equal(t, float64(http.StatusBadRequest), badRequest.Code)
+		assert.Contains(t, badRequest.Message, "SVM name")
+		mockOrch.AssertExpectations(t)
+	})
+
+	t.Run("InternalServerError", func(t *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		req := &oasgenserver.ExpertModeVolumeRenameV1{
+			Name:          newName,
+			ProjectNumber: projectNumber,
+			PoolUUID:      poolUUID,
+			SvmName:       svmName,
+		}
+		params := oasgenserver.V1ExpertModeVolumeRenameParams{Name: volumeName}
+
+		expectedParams := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volumeName,
+			NewName:     newName,
+			PoolUUID:    poolUUID,
+			SvmName:     svmName,
+			AccountName: projectNumber,
+		}
+
+		internalErr := errors.New("workflow execution failed")
+		mockOrch.EXPECT().RenameExpertModeVolume(mock.Anything, expectedParams).Return(internalErr)
+
+		ctx := context.Background()
+		result, err := handler.V1ExpertModeVolumeRename(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		internalError, ok := result.(*oasgenserver.V1ExpertModeVolumeRenameInternalServerError)
+		assert.True(t, ok)
+		assert.Equal(t, float64(http.StatusInternalServerError), internalError.Code)
+		assert.Equal(t, "workflow execution failed", internalError.Message)
+		mockOrch.AssertExpectations(t)
+	})
+
+	t.Run("Success_WithCorrelationID", func(t *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		req := &oasgenserver.ExpertModeVolumeRenameV1{
+			Name:          newName,
+			ProjectNumber: projectNumber,
+			PoolUUID:      poolUUID,
+			SvmName:       svmName,
+		}
+		params := oasgenserver.V1ExpertModeVolumeRenameParams{
+			Name:           volumeName,
+			XCorrelationID: oasgenserver.NewOptString("correlation-123"),
+		}
+
+		expectedParams := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volumeName,
+			NewName:     newName,
+			PoolUUID:    poolUUID,
+			SvmName:     svmName,
+			AccountName: projectNumber,
+		}
+
+		mockOrch.EXPECT().RenameExpertModeVolume(mock.Anything, expectedParams).Return(nil)
+
+		ctx := context.Background()
+		result, err := handler.V1ExpertModeVolumeRename(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &oasgenserver.V1ExpertModeVolumeRenameOK{}, result)
 		mockOrch.AssertExpectations(t)
 	})
 }

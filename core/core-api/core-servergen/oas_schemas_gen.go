@@ -529,6 +529,58 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 	s.Response = val
 }
 
+// Ref: #/components/schemas/ExpertModeVolumeRename_v1
+type ExpertModeVolumeRenameV1 struct {
+	// New name for the volume after rename.
+	Name string `json:"name"`
+	// GCP project number.
+	ProjectNumber string `json:"projectNumber"`
+	// GCNV pool UUID.
+	PoolUUID string `json:"poolUUID"`
+	// SVM name the volume belongs to.
+	SvmName string `json:"svmName"`
+}
+
+// GetName returns the value of Name.
+func (s *ExpertModeVolumeRenameV1) GetName() string {
+	return s.Name
+}
+
+// GetProjectNumber returns the value of ProjectNumber.
+func (s *ExpertModeVolumeRenameV1) GetProjectNumber() string {
+	return s.ProjectNumber
+}
+
+// GetPoolUUID returns the value of PoolUUID.
+func (s *ExpertModeVolumeRenameV1) GetPoolUUID() string {
+	return s.PoolUUID
+}
+
+// GetSvmName returns the value of SvmName.
+func (s *ExpertModeVolumeRenameV1) GetSvmName() string {
+	return s.SvmName
+}
+
+// SetName sets the value of Name.
+func (s *ExpertModeVolumeRenameV1) SetName(val string) {
+	s.Name = val
+}
+
+// SetProjectNumber sets the value of ProjectNumber.
+func (s *ExpertModeVolumeRenameV1) SetProjectNumber(val string) {
+	s.ProjectNumber = val
+}
+
+// SetPoolUUID sets the value of PoolUUID.
+func (s *ExpertModeVolumeRenameV1) SetPoolUUID(val string) {
+	s.PoolUUID = val
+}
+
+// SetSvmName sets the value of SvmName.
+func (s *ExpertModeVolumeRenameV1) SetSvmName(val string) {
+	s.SvmName = val
+}
+
 // Ref: #/components/schemas/ExpertModeVolume_v1
 type ExpertModeVolumeV1 struct {
 	// GCP project number.
@@ -4626,6 +4678,39 @@ func (*V1ExpertModeVolumeNotFound) v1ExpertModeVolumeRes() {}
 type V1ExpertModeVolumeOK struct{}
 
 func (*V1ExpertModeVolumeOK) v1ExpertModeVolumeRes() {}
+
+type V1ExpertModeVolumeRenameBadRequest Error
+
+func (*V1ExpertModeVolumeRenameBadRequest) v1ExpertModeVolumeRenameRes() {}
+
+type V1ExpertModeVolumeRenameConflict Error
+
+func (*V1ExpertModeVolumeRenameConflict) v1ExpertModeVolumeRenameRes() {}
+
+type V1ExpertModeVolumeRenameForbidden Error
+
+func (*V1ExpertModeVolumeRenameForbidden) v1ExpertModeVolumeRenameRes() {}
+
+type V1ExpertModeVolumeRenameInternalServerError Error
+
+func (*V1ExpertModeVolumeRenameInternalServerError) v1ExpertModeVolumeRenameRes() {}
+
+type V1ExpertModeVolumeRenameNotFound Error
+
+func (*V1ExpertModeVolumeRenameNotFound) v1ExpertModeVolumeRenameRes() {}
+
+// V1ExpertModeVolumeRenameOK is response for V1ExpertModeVolumeRename operation.
+type V1ExpertModeVolumeRenameOK struct{}
+
+func (*V1ExpertModeVolumeRenameOK) v1ExpertModeVolumeRenameRes() {}
+
+type V1ExpertModeVolumeRenameTooManyRequests Error
+
+func (*V1ExpertModeVolumeRenameTooManyRequests) v1ExpertModeVolumeRenameRes() {}
+
+type V1ExpertModeVolumeRenameUnauthorized Error
+
+func (*V1ExpertModeVolumeRenameUnauthorized) v1ExpertModeVolumeRenameRes() {}
 
 type V1ExpertModeVolumeTooManyRequests Error
 

@@ -437,6 +437,66 @@ func (_c *MockInvoker_V1ExpertModeVolume_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// V1ExpertModeVolumeRename provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1ExpertModeVolumeRename(ctx context.Context, request *ExpertModeVolumeRenameV1, params V1ExpertModeVolumeRenameParams) (V1ExpertModeVolumeRenameRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1ExpertModeVolumeRename")
+	}
+
+	var r0 V1ExpertModeVolumeRenameRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ExpertModeVolumeRenameV1, V1ExpertModeVolumeRenameParams) (V1ExpertModeVolumeRenameRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ExpertModeVolumeRenameV1, V1ExpertModeVolumeRenameParams) V1ExpertModeVolumeRenameRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1ExpertModeVolumeRenameRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ExpertModeVolumeRenameV1, V1ExpertModeVolumeRenameParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1ExpertModeVolumeRename_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1ExpertModeVolumeRename'
+type MockInvoker_V1ExpertModeVolumeRename_Call struct {
+	*mock.Call
+}
+
+// V1ExpertModeVolumeRename is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *ExpertModeVolumeRenameV1
+//   - params V1ExpertModeVolumeRenameParams
+func (_e *MockInvoker_Expecter) V1ExpertModeVolumeRename(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1ExpertModeVolumeRename_Call {
+	return &MockInvoker_V1ExpertModeVolumeRename_Call{Call: _e.mock.On("V1ExpertModeVolumeRename", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1ExpertModeVolumeRename_Call) Run(run func(ctx context.Context, request *ExpertModeVolumeRenameV1, params V1ExpertModeVolumeRenameParams)) *MockInvoker_V1ExpertModeVolumeRename_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ExpertModeVolumeRenameV1), args[2].(V1ExpertModeVolumeRenameParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1ExpertModeVolumeRename_Call) Return(_a0 V1ExpertModeVolumeRenameRes, _a1 error) *MockInvoker_V1ExpertModeVolumeRename_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1ExpertModeVolumeRename_Call) RunAndReturn(run func(context.Context, *ExpertModeVolumeRenameV1, V1ExpertModeVolumeRenameParams) (V1ExpertModeVolumeRenameRes, error)) *MockInvoker_V1ExpertModeVolumeRename_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1GetClusterUpgradeStatus provides a mock function with given fields: ctx, params
 func (_m *MockInvoker) V1GetClusterUpgradeStatus(ctx context.Context, params V1GetClusterUpgradeStatusParams) (V1GetClusterUpgradeStatusRes, error) {
 	ret := _m.Called(ctx, params)

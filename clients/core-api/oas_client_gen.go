@@ -67,6 +67,13 @@ type Invoker interface {
 	//
 	// POST /v1/expertMode/volumes
 	V1ExpertModeVolume(ctx context.Context, request *ExpertModeVolumeV1, params V1ExpertModeVolumeParams) (V1ExpertModeVolumeRes, error)
+	// V1ExpertModeVolumeRename invokes v1_expertModeVolumeRename operation.
+	//
+	// Renames an expert mode volume. The volume is identified by path and query; the body contains the
+	// new name and context (projectNumber, poolUUID, svmName).
+	//
+	// POST /v1/expertMode/volumes/{name}:rename
+	V1ExpertModeVolumeRename(ctx context.Context, request *ExpertModeVolumeRenameV1, params V1ExpertModeVolumeRenameParams) (V1ExpertModeVolumeRenameRes, error)
 	// V1GetClusterUpgradeStatus invokes v1_getClusterUpgradeStatus operation.
 	//
 	// Retrieves the status and progress of a cluster upgrade operation.
@@ -647,6 +654,90 @@ func (c *Client) sendV1ExpertModeVolume(ctx context.Context, request *ExpertMode
 	defer resp.Body.Close()
 
 	result, err := decodeV1ExpertModeVolumeResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1ExpertModeVolumeRename invokes v1_expertModeVolumeRename operation.
+//
+// Renames an expert mode volume. The volume is identified by path and query; the body contains the
+// new name and context (projectNumber, poolUUID, svmName).
+//
+// POST /v1/expertMode/volumes/{name}:rename
+func (c *Client) V1ExpertModeVolumeRename(ctx context.Context, request *ExpertModeVolumeRenameV1, params V1ExpertModeVolumeRenameParams) (V1ExpertModeVolumeRenameRes, error) {
+	res, err := c.sendV1ExpertModeVolumeRename(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1ExpertModeVolumeRename(ctx context.Context, request *ExpertModeVolumeRenameV1, params V1ExpertModeVolumeRenameParams) (res V1ExpertModeVolumeRenameRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/v1/expertMode/volumes/"
+	{
+		// Encode "name" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "name",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.Name))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = ":rename"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1ExpertModeVolumeRenameRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1ExpertModeVolumeRenameResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

@@ -80,6 +80,16 @@ func (UnimplementedHandler) V1ExpertModeVolume(ctx context.Context, req *ExpertM
 	return r, ht.ErrNotImplemented
 }
 
+// V1ExpertModeVolumeRename implements v1_expertModeVolumeRename operation.
+//
+// Renames an expert mode volume. The volume is identified by path and query; the body contains the
+// new name and context (projectNumber, poolUUID, svmName).
+//
+// POST /v1/expertMode/volumes/{name}:rename
+func (UnimplementedHandler) V1ExpertModeVolumeRename(ctx context.Context, req *ExpertModeVolumeRenameV1, params V1ExpertModeVolumeRenameParams) (r V1ExpertModeVolumeRenameRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1GetClusterUpgradeStatus implements v1_getClusterUpgradeStatus operation.
 //
 // Retrieves the status and progress of a cluster upgrade operation.

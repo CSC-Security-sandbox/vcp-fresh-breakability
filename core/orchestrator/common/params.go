@@ -222,7 +222,7 @@ type CreateSnapshotParams struct {
 	IsAppConsistent bool
 }
 
-// ExpertModeVolumeParams describes parameters supplied to CreateExpertModeVolume
+// ExpertModeVolumeParams describes parameters supplied to CreateExpertModeVolume, UpdateExpertModeVolume, and DeleteExpertModeVolume.
 type ExpertModeVolumeParams struct {
 	PoolUUID    string
 	Action      string
@@ -231,6 +231,15 @@ type ExpertModeVolumeParams struct {
 	SizeInBytes int64
 	Style       string // flexvol|flexgroup
 	SvmUuid     string
+	SvmName     string
+	AccountName string
+}
+
+// ExpertModeVolumeRenameParams describes parameters for RenameExpertModeVolume.
+type ExpertModeVolumeRenameParams struct {
+	VolumeName  string // Current volume name
+	NewName     string // New volume name after rename
+	PoolUUID    string
 	SvmName     string
 	AccountName string
 }

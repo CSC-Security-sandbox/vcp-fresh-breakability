@@ -56,6 +56,14 @@ type V1ExpertModeVolumeParams struct {
 	XCorrelationID OptString
 }
 
+// V1ExpertModeVolumeRenameParams is parameters of v1_expertModeVolumeRename operation.
+type V1ExpertModeVolumeRenameParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+	// Current name of the volume to rename.
+	Name string
+}
+
 // V1GetClusterUpgradeStatusParams is parameters of v1_getClusterUpgradeStatus operation.
 type V1GetClusterUpgradeStatusParams struct {
 	// Job ID of the upgrade operation.

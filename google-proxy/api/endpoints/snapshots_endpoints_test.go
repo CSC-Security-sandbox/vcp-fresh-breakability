@@ -1529,6 +1529,10 @@ func (m *mockInvoker) V1ExpertModeVolume(ctx context.Context, request *coreapi.E
 	return nil, nil
 }
 
+func (m *mockInvoker) V1ExpertModeVolumeRename(ctx context.Context, request *coreapi.ExpertModeVolumeRenameV1, params coreapi.V1ExpertModeVolumeRenameParams) (coreapi.V1ExpertModeVolumeRenameRes, error) {
+	return nil, nil
+}
+
 func (m *mockInvoker) V1CreateImageVersion(ctx context.Context, request *coreapi.ImageVersionCreateRequestV1, params coreapi.V1CreateImageVersionParams) (coreapi.V1CreateImageVersionRes, error) {
 	return nil, nil
 }

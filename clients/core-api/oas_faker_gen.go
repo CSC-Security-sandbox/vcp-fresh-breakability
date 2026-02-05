@@ -194,6 +194,30 @@ func (s *Error) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *ExpertModeVolumeRenameV1) SetFake() {
+	{
+		{
+			s.Name = "string"
+		}
+	}
+	{
+		{
+			s.ProjectNumber = "string"
+		}
+	}
+	{
+		{
+			s.PoolUUID = "string"
+		}
+	}
+	{
+		{
+			s.SvmName = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *ExpertModeVolumeV1) SetFake() {
 	{
 		{
@@ -1669,6 +1693,69 @@ func (s *V1ExpertModeVolumeNotFound) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1ExpertModeVolumeNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeRenameBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeRenameBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeRenameConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeRenameConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeRenameForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeRenameForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeRenameInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeRenameInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeRenameNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeRenameNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeRenameTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeRenameTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeRenameUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeRenameUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.

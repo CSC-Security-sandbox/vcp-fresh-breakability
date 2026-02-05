@@ -67,6 +67,20 @@ func encodeV1ExpertModeVolumeRequest(
 	return nil
 }
 
+func encodeV1ExpertModeVolumeRenameRequest(
+	req *ExpertModeVolumeRenameV1,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeV1RotateGcpKmsConfigRequest(
 	req *GcpKmsKeyRotateV1,
 	r *http.Request,

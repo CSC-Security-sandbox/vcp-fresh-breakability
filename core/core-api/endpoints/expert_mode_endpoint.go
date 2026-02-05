@@ -54,6 +54,33 @@ func (h Handler) V1ExpertModeVolume(ctx context.Context, req *oasgenserver.Exper
 	return &oasgenserver.V1ExpertModeVolumeOK{}, nil
 }
 
+// V1ExpertModeVolumeRename implements the expert mode volume rename endpoint.
+func (h Handler) V1ExpertModeVolumeRename(ctx context.Context, req *oasgenserver.ExpertModeVolumeRenameV1, params oasgenserver.V1ExpertModeVolumeRenameParams) (oasgenserver.V1ExpertModeVolumeRenameRes, error) {
+	orchestratorParams := &commonparams.ExpertModeVolumeRenameParams{
+		VolumeName:  params.Name,
+		NewName:     req.Name,
+		PoolUUID:    req.PoolUUID,
+		SvmName:     req.SvmName,
+		AccountName: req.ProjectNumber,
+	}
+
+	err := h.Orchestrator.RenameExpertModeVolume(ctx, orchestratorParams)
+	if err != nil {
+		if customerrors.IsBadRequestErr(err) {
+			return &oasgenserver.V1ExpertModeVolumeRenameBadRequest{
+				Message: err.Error(),
+				Code:    http.StatusBadRequest,
+			}, nil
+		}
+		return &oasgenserver.V1ExpertModeVolumeRenameInternalServerError{
+			Message: err.Error(),
+			Code:    http.StatusInternalServerError,
+		}, nil
+	}
+
+	return &oasgenserver.V1ExpertModeVolumeRenameOK{}, nil
+}
+
 // V1RefreshRbacForExpertModePools implements the RBAC refresh endpoint
 func (h Handler) V1RefreshRbacForExpertModePools(ctx context.Context, params oasgenserver.V1RefreshRbacForExpertModePoolsParams) (oasgenserver.V1RefreshRbacForExpertModePoolsRes, error) {
 	// Trigger the RBAC update workflow

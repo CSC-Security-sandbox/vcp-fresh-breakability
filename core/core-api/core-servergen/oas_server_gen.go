@@ -54,6 +54,13 @@ type Handler interface {
 	//
 	// POST /v1/expertMode/volumes
 	V1ExpertModeVolume(ctx context.Context, req *ExpertModeVolumeV1, params V1ExpertModeVolumeParams) (V1ExpertModeVolumeRes, error)
+	// V1ExpertModeVolumeRename implements v1_expertModeVolumeRename operation.
+	//
+	// Renames an expert mode volume. The volume is identified by path and query; the body contains the
+	// new name and context (projectNumber, poolUUID, svmName).
+	//
+	// POST /v1/expertMode/volumes/{name}:rename
+	V1ExpertModeVolumeRename(ctx context.Context, req *ExpertModeVolumeRenameV1, params V1ExpertModeVolumeRenameParams) (V1ExpertModeVolumeRenameRes, error)
 	// V1GetClusterUpgradeStatus implements v1_getClusterUpgradeStatus operation.
 	//
 	// Retrieves the status and progress of a cluster upgrade operation.

@@ -203,26 +203,20 @@ func _deleteExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 		return err
 	}
 
-	// VolumeUUID is required for delete
-	if params.VolumeUUID == "" {
-		logger.Error("VolumeUUID is required for delete operation")
-		return customerrors.NewBadRequestErr("VolumeUUID is required for delete operation")
-	}
-
-	// Fetch volume by external UUID
-	volume, err := se.GetExpertModeVolumeByExternalUUID(ctx, params.VolumeUUID)
+	dbPoolView, err := se.GetPool(ctx, params.PoolUUID, account.ID)
 	if err != nil {
-		logger.Error("Failed to find volume by external UUID", "volumeUUID", params.VolumeUUID, "error", err)
-		if customerrors.IsNotFoundErr(err) || errors.Is(err, gorm.ErrRecordNotFound) {
-			return customerrors.NewBadRequestErr(fmt.Sprintf("volume with UUID '%s' not found", params.VolumeUUID))
-		}
+		logger.Error("Failed to get pool", "poolUUID", params.PoolUUID, "error", err)
 		return err
 	}
 
-	// VolumeUUID is required for delete
+	volume, err := getExpertModeVolume(ctx, se, params, dbPoolView)
+	if err != nil {
+		return err
+	}
+
 	if params.PoolUUID != volume.Pool.UUID {
-		logger.Error("VolumeUUID is not associated to the pool for delete operation", "volumeUUID", params.VolumeUUID, params.PoolUUID)
-		return customerrors.NewBadRequestErr("VolumeUUID is not associated to the pool for delete operation")
+		logger.Error("Volume is not associated to the pool for delete operation", "volumeUUID", volume.ExternalUUID, "poolUUID", params.PoolUUID)
+		return customerrors.NewBadRequestErr("volume is not associated to the specified pool for delete operation")
 	}
 
 	// Check if volume is already deleted
@@ -306,14 +300,9 @@ func (o *Orchestrator) UpdateExpertModeVolume(ctx context.Context, params *commo
 func validateUpdateParams(ctx context.Context, se database.Storage, params *commonparams.ExpertModeVolumeParams, volume *datamodel.ExpertModeVolumes) error {
 	logger := util.GetLogger(ctx)
 
-	if params.VolumeUUID == "" {
-		logger.Error("VolumeUUID is required for update operation", "volumeUUID", params.VolumeUUID)
-		return customerrors.NewBadRequestErr("VolumeUUID is required for update operation")
-	}
-
 	if params.PoolUUID != volume.Pool.UUID {
-		logger.Error("VolumeUUID is not associated to the pool for update operation", "volumeUUID", params.VolumeUUID, "params.PoolUUID ", params.PoolUUID, "volume.Pool.UUID", volume.Pool.UUID)
-		return customerrors.NewBadRequestErr("VolumeUUID is not associated to the pool for update operation")
+		logger.Error("Volume is not associated to the pool for update operation", "volumeUUID", volume.ExternalUUID, "params.PoolUUID", params.PoolUUID, "volume.Pool.UUID", volume.Pool.UUID)
+		return customerrors.NewBadRequestErr("volume is not associated to the pool for update operation")
 	}
 	if params.SizeInBytes < 0 {
 		logger.Error("Volume size must be greater than or equal to 0", "volumeSize", params.SizeInBytes)
@@ -321,13 +310,13 @@ func validateUpdateParams(ctx context.Context, se database.Storage, params *comm
 	}
 
 	if volume.State == models.LifeCycleStateDeleted || volume.State == models.LifeCycleStateError {
-		logger.Error("Volume is deleted, cannot update", "volumeUUID", params.VolumeUUID)
-		return customerrors.NewBadRequestErr(fmt.Sprintf("volume with UUID '%s' is deleted", params.VolumeUUID))
+		logger.Error("Volume is deleted, cannot update", "volumeUUID", volume.ExternalUUID)
+		return customerrors.NewBadRequestErr(fmt.Sprintf("volume with UUID '%s' is deleted", volume.ExternalUUID))
 	}
 
 	if volume.State == models.LifeCycleStateCreating || volume.State == models.LifeCycleStateDeleting || volume.State == models.LifeCycleStateUpdating {
-		logger.Error("Volume is in a transitional state and cannot be updated", "volumeUUID", params.VolumeUUID, "state", volume.State)
-		return customerrors.NewBadRequestErr(fmt.Sprintf("volume with UUID '%s' is in a transitional state and cannot be updated", params.VolumeUUID))
+		logger.Error("Volume is in a transitional state and cannot be updated", "volumeUUID", volume.ExternalUUID, "state", volume.State)
+		return customerrors.NewBadRequestErr(fmt.Sprintf("volume with UUID '%s' is in a transitional state and cannot be updated", volume.ExternalUUID))
 	}
 
 	if params.VolumeName != "" {
@@ -342,8 +331,7 @@ func validateUpdateParams(ctx context.Context, se database.Storage, params *comm
 			}
 		} else if existingVolume != nil {
 			// If a volume with the same name exists and it's not the same volume being updated, return an error
-			// params.VolumeUUID is the ExternalUUID, so compare with existingVolume.ExternalUUID
-			if existingVolume.ExternalUUID != params.VolumeUUID {
+			if existingVolume.ExternalUUID != volume.ExternalUUID {
 				logger.Error("Volume with same name already exists in pool",
 					"volumeName", params.VolumeName,
 					"poolID", poolID,
@@ -359,18 +347,19 @@ func validateUpdateParams(ctx context.Context, se database.Storage, params *comm
 func _updateExpertModeVolume(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.ExpertModeVolumeParams) error {
 	logger := util.GetLogger(ctx)
 
-	if params.VolumeUUID == "" {
-		logger.Error("VolumeUUID is required for update operation", "volumeUUID", params.VolumeUUID, "poolUUID", params.PoolUUID)
-		return customerrors.NewBadRequestErr("VolumeUUID is required for update operation")
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		return err
 	}
 
-	// Fetch volume by the ONTAP's external UUID
-	volume, err := se.GetExpertModeVolumeByExternalUUID(ctx, params.VolumeUUID)
+	dbPoolView, err := se.GetPool(ctx, params.PoolUUID, account.ID)
 	if err != nil {
-		logger.Error("Failed to find volume by UUID", "volumeUUID", params.VolumeUUID, "error", err)
-		if customerrors.IsNotFoundErr(err) || errors.Is(err, gorm.ErrRecordNotFound) {
-			return customerrors.NewBadRequestErr(fmt.Sprintf("volume with UUID '%s' not found", params.VolumeUUID))
-		}
+		logger.Error("Failed to get pool", "poolUUID", params.PoolUUID, "error", err)
+		return err
+	}
+
+	volume, err := getExpertModeVolume(ctx, se, params, dbPoolView)
+	if err != nil {
 		return err
 	}
 
@@ -379,14 +368,9 @@ func _updateExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 		return err
 	}
 
-	account, err := getAccountWithName(ctx, se, params.AccountName)
-	if err != nil {
-		return err
-	}
-
 	// Validate account matches - use AccountID directly as it's always set
 	if volume.AccountID != account.ID {
-		logger.Error("Volume does not belong to the specified account", "volumeUUID", params.VolumeUUID, "volumeAccountID", volume.AccountID, "accountID", account.ID)
+		logger.Error("Volume does not belong to the specified account", "volumeUUID", volume.ExternalUUID, "volumeAccountID", volume.AccountID, "accountID", account.ID)
 		return customerrors.NewBadRequestErr("volume does not belong to the specified account")
 	}
 
@@ -530,4 +514,172 @@ func (o *Orchestrator) GetBackupConfigsForPool(ctx context.Context, poolID strin
 	}
 
 	return backupConfigs, nil
+}
+
+// RenameExpertModeVolume renames an expert mode volume after validating pool, SVM name, and new name uniqueness; then triggers the update workflow.
+func (o *Orchestrator) RenameExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeRenameParams) error {
+	return _renameExpertModeVolume(ctx, o.storage, o.temporal, params)
+}
+
+func _renameExpertModeVolume(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.ExpertModeVolumeRenameParams) error {
+	logger := util.GetLogger(ctx)
+
+	if params.VolumeName == "" || params.NewName == "" {
+		return customerrors.NewBadRequestErr("volumeName and new name are required for rename")
+	}
+
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		return err
+	}
+
+	dbPoolView, err := se.GetPool(ctx, params.PoolUUID, account.ID)
+	if err != nil {
+		logger.Error("Failed to get pool by UUID", "poolUUID", params.PoolUUID, "error", err)
+		return err
+	}
+
+	volume, err := se.GetExpertModeVolumeByNameAndPoolID(ctx, params.VolumeName, dbPoolView.ID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) || customerrors.IsNotFoundErr(err) {
+			return customerrors.NewBadRequestErr(fmt.Sprintf("volume with name '%s' not found in pool", params.VolumeName))
+		}
+		logger.Error("Failed to find volume by name and pool", "volumeName", params.VolumeName, "poolID", dbPoolView.ID, "error", err)
+		return err
+	}
+
+	if volume.Svm == nil {
+		return customerrors.NewBadRequestErr("volume has no SVM and cannot be renamed")
+	}
+	if volume.Svm.Name != params.SvmName {
+		return customerrors.NewBadRequestErr(fmt.Sprintf("SVM name does not match: expected %s", params.SvmName))
+	}
+
+	if volume.AccountID != account.ID {
+		logger.Error("Volume does not belong to the specified account", "volumeName", params.VolumeName, "volumeAccountID", volume.AccountID, "accountID", account.ID)
+		return customerrors.NewBadRequestErr("volume does not belong to the specified account")
+	}
+
+	if volume.State == models.LifeCycleStateCreating || volume.State == models.LifeCycleStateDeleting || volume.State == models.LifeCycleStateUpdating {
+		return customerrors.NewBadRequestErr(fmt.Sprintf("volume '%s' is in a transitional state and cannot be renamed", params.VolumeName))
+	}
+
+	existingWithNewName, err := se.GetExpertModeVolumeByNameAndPoolID(ctx, params.NewName, dbPoolView.ID)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		logger.Error("Failed to check for existing volume with new name", "newName", params.NewName, "poolID", dbPoolView.ID, "error", err)
+		return err
+	}
+	if existingWithNewName != nil && existingWithNewName.UUID != volume.UUID {
+		return customerrors.NewBadRequestErr(fmt.Sprintf("volume with name '%s' already exists in pool", params.NewName))
+	}
+
+	oldName := volume.Name
+	previousState := volume.State
+	volume.Name = params.NewName
+	volume.State = models.LifeCycleStateUpdating
+	volumeMarkedAsUpdating := true
+
+	oldVolume := &datamodel.ExpertModeVolumes{
+		BaseModel:    datamodel.BaseModel{UUID: volume.UUID},
+		Name:         oldName,
+		SizeInBytes:  volume.SizeInBytes,
+		Style:        volume.Style,
+		State:        previousState,
+		ExternalUUID: volume.ExternalUUID,
+	}
+
+	_, err = se.UpdateExpertModeVolume(ctx, volume)
+	if err != nil {
+		logger.Error("Failed to update volume name and state for rename", "volumeUUID", volume.UUID, "error", err)
+		return err
+	}
+
+	var createdJob *datamodel.Job
+	defer func() {
+		if err != nil {
+			if createdJob != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error()); jobErr != nil {
+					logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+				}
+			}
+			if volumeMarkedAsUpdating {
+				volume.Name = oldName
+				volume.State = previousState
+				if _, revertErr := se.UpdateExpertModeVolume(ctx, volume); revertErr != nil {
+					logger.Error("Failed to revert volume state after rename failure", "volumeUUID", volume.UUID, "error", revertErr)
+				}
+			}
+		}
+	}()
+
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeUpdateExpertModeVolume),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  volume.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: volume.UUID, PoolUUID: volume.Pool.UUID},
+		CorrelationID: correlationID,
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	createdJob, err = se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job for expert mode volume rename", "error", err)
+		return err
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.BackgroundTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetExpertModeSyncWorkflowTimeout(),
+		},
+		expertModeWorkflows.VolumeUpdateReconciliationWorkflow,
+		volume, oldVolume,
+	)
+	if err != nil {
+		logger.Error("Failed to start volume rename reconciliation workflow", "workflowID", createdJob.WorkflowID, "error", err)
+		return err
+	}
+
+	return nil
+}
+
+// getExpertModeVolume resolves a volume by UUID first; if UUID not provided, tries by volumeName.
+func getExpertModeVolume(ctx context.Context, se database.Storage, params *commonparams.ExpertModeVolumeParams, dbPoolView *datamodel.PoolView) (*datamodel.ExpertModeVolumes, error) {
+	logger := util.GetLogger(ctx)
+
+	if params.VolumeUUID == "" && params.VolumeName == "" {
+		return nil, customerrors.NewBadRequestErr("either volumeUUID or (volumeName and poolUUID) is required")
+	}
+
+	// 1. Look up by UUID when provided
+	if params.VolumeUUID != "" {
+		volume, err := se.GetExpertModeVolumeByExternalUUID(ctx, params.VolumeUUID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) || customerrors.IsNotFoundErr(err) {
+				return nil, customerrors.NewBadRequestErr(fmt.Sprintf("volume with UUID '%s' not found", params.VolumeUUID))
+			}
+			logger.Error("Failed to find volume by UUID", "volumeUUID", params.VolumeUUID, "error", err)
+			return nil, err
+		}
+		return volume, nil
+	}
+
+	// 2. Try by name
+	if dbPoolView != nil {
+		volume, err := se.GetExpertModeVolumeByNameAndPoolID(ctx, params.VolumeName, dbPoolView.ID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) || customerrors.IsNotFoundErr(err) {
+				return nil, customerrors.NewBadRequestErr(fmt.Sprintf("volume with name '%s' not found in pool", params.VolumeName))
+			}
+			logger.Error("Failed to find volume by name and pool", "volumeName", params.VolumeName, "poolID", dbPoolView.ID, "error", err)
+			return nil, err
+		}
+		return volume, nil
+	}
+
+	return nil, customerrors.NewBadRequestErr("volume not found")
 }

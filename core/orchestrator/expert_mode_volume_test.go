@@ -855,7 +855,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 		err := orch.DeleteExpertModeVolume(ctx, params)
 
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "VolumeUUID is required for delete operation")
+		assert.Contains(tt, err.Error(), "either volumeUUID or (volumeName and poolUUID) is required")
 
 		mockLogger.AssertExpectations(tt)
 		temporal.AssertExpectations(tt)
@@ -979,6 +979,89 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 		temporal.AssertExpectations(tt)
 	})
 
+	t.Run("Failure_GetPoolFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "550e8400-e29b-41d4-a716-446655440000"},
+			Name:      "test_pool",
+		}
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
+			Name:         "test-volume",
+			ExternalUUID: "770e8400-e29b-41d4-a716-446655440002",
+			Pool:         pool,
+		}
+		mockStorage := database.NewMockStorage(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(nil, errors.New("failed to get pool")).Once()
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			AccountName: account.Name,
+			PoolUUID:    pool.UUID,
+		}
+		orch := &Orchestrator{storage: mockStorage, temporal: temporal}
+		err := orch.DeleteExpertModeVolume(ctx, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to get pool")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeNotAssociatedToPool", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		volumePool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "aaaaaaaa-e29b-41d4-a716-446655440001"},
+			Name:      "volume_pool",
+		}
+		requestPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: "550e8400-e29b-41d4-a716-446655440000"},
+			Name:      "request_pool",
+		}
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
+			Name:         "test-volume",
+			ExternalUUID: "770e8400-e29b-41d4-a716-446655440002",
+			PoolID:       volumePool.ID,
+			Pool:         volumePool,
+		}
+		mockStorage := database.NewMockStorage(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.EXPECT().GetPool(ctx, requestPool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *requestPool}, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			AccountName: account.Name,
+			PoolUUID:    requestPool.UUID,
+		}
+		orch := &Orchestrator{storage: mockStorage, temporal: temporal}
+		err := orch.DeleteExpertModeVolume(ctx, params)
+		assert.Error(tt, err)
+		assert.True(tt, customerrors.IsBadRequestErr(err))
+		assert.Contains(tt, err.Error(), "not associated to the specified pool")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
 	t.Run("Failure_UpdateVolumeStateFails", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -1015,6 +1098,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 			getAccountWithName = originalGetAccountWithName
 		}()
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(nil, errors.New("failed to update volume state")).Once()
 
@@ -1072,6 +1156,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 			getAccountWithName = originalGetAccountWithName
 		}()
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
 		mockStorage.EXPECT().CreateJob(ctx, mock.AnythingOfType("*datamodel.Job")).Return(nil, errors.New("failed to create job")).Once()
@@ -1338,6 +1423,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 		}
 		mockWorkflowRun := &mockWorkflowRun{}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID).Return(&database.ExpertModePoolCapacity{TotalSize: 0, VolumeCount: 0}, nil).Once()
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
@@ -1381,6 +1467,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 		}
 		mockWorkflowRun := &mockWorkflowRun{}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, newName, pool.ID).Return(nil, gorm.ErrRecordNotFound).Once()
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
@@ -1425,6 +1512,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 		}
 		mockWorkflowRun := &mockWorkflowRun{}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, newName, pool.ID).Return(nil, gorm.ErrRecordNotFound).Once()
 		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID).Return(&database.ExpertModePoolCapacity{TotalSize: 0, VolumeCount: 0}, nil).Once()
@@ -1440,32 +1528,49 @@ func Test_updateExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("Failure_VolumeUUIDRequired", func(tt *testing.T) {
+		account, pool, _ := setupTestData()
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
 
 		params := &commonparams.ExpertModeVolumeParams{
 			VolumeUUID:  "", // Empty UUID
 			SizeInBytes: 2199023255552,
 			AccountName: "test_account",
 		}
+		mockStorage.EXPECT().GetPool(ctx, "", account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		err := _updateExpertModeVolume(ctx, mockStorage, temporal, params)
 
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "VolumeUUID is required for update operation")
+		assert.Contains(tt, err.Error(), "either volumeUUID or (volumeName and poolUUID) is required")
 		mockStorage.AssertExpectations(tt)
 		temporal.AssertExpectations(tt)
 	})
 
 	t.Run("Failure_VolumeNotFound", func(tt *testing.T) {
+		account, pool, _ := setupTestData()
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
 
 		params := &commonparams.ExpertModeVolumeParams{
 			VolumeUUID:  "non-existent-volume-uuid",
 			SizeInBytes: 2199023255552,
 			AccountName: "test_account",
+			PoolUUID:    pool.UUID,
 		}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, params.VolumeUUID).Return(nil, gorm.ErrRecordNotFound).Once()
 
 		err := _updateExpertModeVolume(ctx, mockStorage, temporal, params)
@@ -1477,15 +1582,24 @@ func Test_updateExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("Failure_VolumeNotFound_NotFoundError", func(tt *testing.T) {
+		account, pool, _ := setupTestData()
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
 
 		params := &commonparams.ExpertModeVolumeParams{
 			VolumeUUID:  "non-existent-volume-uuid",
 			SizeInBytes: 2199023255552,
 			AccountName: "test_account",
+			PoolUUID:    pool.UUID,
 		}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, params.VolumeUUID).Return(nil, customerrors.NewNotFoundErr("volume not found", nil)).Once()
 
 		err := _updateExpertModeVolume(ctx, mockStorage, temporal, params)
@@ -1497,10 +1611,16 @@ func Test_updateExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("Failure_VolumeStateDeleted", func(tt *testing.T) {
-		_, _, volume := setupTestData()
+		account, pool, volume := setupTestData()
 		volume.State = models.LifeCycleStateDeleted
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
 
 		params := &commonparams.ExpertModeVolumeParams{
 			VolumeUUID:  volume.ExternalUUID,
@@ -1509,6 +1629,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 			PoolUUID:    "550e8400-e29b-41d4-a716-446655440000",
 		}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 
 		err := _updateExpertModeVolume(ctx, mockStorage, temporal, params)
@@ -1520,10 +1641,16 @@ func Test_updateExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("Failure_VolumeStateError", func(tt *testing.T) {
-		_, _, volume := setupTestData()
+		account, pool, volume := setupTestData()
 		volume.State = models.LifeCycleStateError
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
 
 		params := &commonparams.ExpertModeVolumeParams{
 			VolumeUUID:  volume.ExternalUUID,
@@ -1532,6 +1659,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 			PoolUUID:    "550e8400-e29b-41d4-a716-446655440000",
 		}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 
 		err := _updateExpertModeVolume(ctx, mockStorage, temporal, params)
@@ -1543,10 +1671,16 @@ func Test_updateExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("Failure_VolumeStateCreating", func(tt *testing.T) {
-		_, _, volume := setupTestData()
+		account, pool, volume := setupTestData()
 		volume.State = models.LifeCycleStateCreating
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
 
 		params := &commonparams.ExpertModeVolumeParams{
 			VolumeUUID:  volume.ExternalUUID,
@@ -1555,6 +1689,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 			PoolUUID:    "550e8400-e29b-41d4-a716-446655440000",
 		}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 
 		err := _updateExpertModeVolume(ctx, mockStorage, temporal, params)
@@ -1566,10 +1701,16 @@ func Test_updateExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("Failure_VolumeStateDeleting", func(tt *testing.T) {
-		_, _, volume := setupTestData()
+		account, pool, volume := setupTestData()
 		volume.State = models.LifeCycleStateDeleting
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
 
 		params := &commonparams.ExpertModeVolumeParams{
 			VolumeUUID:  volume.ExternalUUID,
@@ -1578,6 +1719,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 			PoolUUID:    "550e8400-e29b-41d4-a716-446655440000",
 		}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 
 		err := _updateExpertModeVolume(ctx, mockStorage, temporal, params)
@@ -1589,10 +1731,16 @@ func Test_updateExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("Failure_VolumeStateUpdating", func(tt *testing.T) {
-		_, _, volume := setupTestData()
+		account, pool, volume := setupTestData()
 		volume.State = models.LifeCycleStateUpdating
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
 
 		params := &commonparams.ExpertModeVolumeParams{
 			VolumeUUID:  volume.ExternalUUID,
@@ -1601,6 +1749,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 			PoolUUID:    "550e8400-e29b-41d4-a716-446655440000",
 		}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 
 		err := _updateExpertModeVolume(ctx, mockStorage, temporal, params)
@@ -1612,9 +1761,15 @@ func Test_updateExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("Failure_SizeNegative", func(tt *testing.T) {
-		_, _, volume := setupTestData()
+		account, pool, volume := setupTestData()
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
 
 		params := &commonparams.ExpertModeVolumeParams{
 			VolumeUUID:  volume.ExternalUUID,
@@ -1623,6 +1778,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 			PoolUUID:    "550e8400-e29b-41d4-a716-446655440000",
 		}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 
 		err := _updateExpertModeVolume(ctx, mockStorage, temporal, params)
@@ -1637,6 +1793,15 @@ func Test_updateExpertModeVolume(t *testing.T) {
 		account, pool, volume := setupTestData()
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		// Mock getAccountWithName
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
 
 		// Create another volume with the duplicate name
 		duplicateVolume := &datamodel.ExpertModeVolumes{
@@ -1653,6 +1818,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 			PoolUUID:    "550e8400-e29b-41d4-a716-446655440000",
 		}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, "duplicate-name", pool.ID).Return(duplicateVolume, nil).Once()
 
@@ -1694,6 +1860,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 		}
 		mockWorkflowRun := &mockWorkflowRun{}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, volume.Name, pool.ID).Return(volume, nil).Once() // Returns same volume
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
@@ -1728,8 +1895,6 @@ func Test_updateExpertModeVolume(t *testing.T) {
 			PoolUUID:    "550e8400-e29b-41d4-a716-446655440000",
 		}
 
-		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
-
 		err := _updateExpertModeVolume(ctx, mockStorage, temporal, params)
 
 		assert.Error(tt, err)
@@ -1738,8 +1903,32 @@ func Test_updateExpertModeVolume(t *testing.T) {
 		temporal.AssertExpectations(tt)
 	})
 
+	t.Run("Failure_GetPoolFails", func(tt *testing.T) {
+		account, pool, volume := setupTestData()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(nil, errors.New("failed to get pool")).Once()
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			SizeInBytes: 2199023255552,
+			AccountName: account.Name,
+			PoolUUID:    pool.UUID,
+		}
+		err := _updateExpertModeVolume(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to get pool")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
 	t.Run("Failure_AccountMismatch", func(tt *testing.T) {
-		_, _, volume := setupTestData()
+		_, pool, volume := setupTestData()
 		otherAccount := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "other-account-uuid"},
 			Name:      "other_account",
@@ -1763,6 +1952,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 			PoolUUID:    "550e8400-e29b-41d4-a716-446655440000",
 		}
 
+		mockStorage.EXPECT().GetPool(ctx, "550e8400-e29b-41d4-a716-446655440000", otherAccount.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 
 		err := _updateExpertModeVolume(ctx, mockStorage, temporal, params)
@@ -1774,7 +1964,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("Failure_AccountMismatch_UsingAccountID", func(tt *testing.T) {
-		_, _, volume := setupTestData()
+		_, pool, volume := setupTestData()
 		otherAccount := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{ID: 2, UUID: "other-account-uuid"},
 			Name:      "other_account",
@@ -1800,6 +1990,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 			PoolUUID:    "550e8400-e29b-41d4-a716-446655440000",
 		}
 
+		mockStorage.EXPECT().GetPool(ctx, "550e8400-e29b-41d4-a716-446655440000", otherAccount.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 
 		err := _updateExpertModeVolume(ctx, mockStorage, temporal, params)
@@ -1834,6 +2025,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 			PoolUUID:    "550e8400-e29b-41d4-a716-446655440000",
 		}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 		// Pool has 1TB used capacity (the existing volume), trying to add 2TB more (3TB - 1TB = 2TB increase)
 		// Pool size is 2TB, so 1TB + 2TB = 3TB > 2TB, should fail
@@ -1848,7 +2040,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("Success_SizeDecrease_NoCapacityCheck", func(tt *testing.T) {
-		account, _, volume := setupTestData()
+		account, pool, volume := setupTestData()
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
 
@@ -1877,6 +2069,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 		}
 		mockWorkflowRun := &mockWorkflowRun{}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 		// Should not call GetExpertModePoolUsedCapacityAndVolumeCount for size decrease
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
@@ -1895,6 +2088,15 @@ func Test_updateExpertModeVolume(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
 
+		// Mock getAccountWithName
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
 		params := &commonparams.ExpertModeVolumeParams{
 			VolumeUUID:  volume.ExternalUUID,
 			VolumeName:  "new-name",
@@ -1903,6 +2105,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 			PoolUUID:    "550e8400-e29b-41d4-a716-446655440000",
 		}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 		// Simulate a database error (not ErrRecordNotFound)
 		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, "new-name", pool.ID).Return(nil, errors.New("database connection error")).Once()
@@ -1937,6 +2140,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 			PoolUUID:    "550e8400-e29b-41d4-a716-446655440000",
 		}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID).Return(nil, errors.New("failed to get capacity")).Once()
 
@@ -1949,7 +2153,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("Success_SizeZero_NoSizeUpdate", func(tt *testing.T) {
-		account, _, volume := setupTestData()
+		account, pool, volume := setupTestData()
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
 
@@ -1976,6 +2180,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 		}
 		mockWorkflowRun := &mockWorkflowRun{}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 		// Should not call GetExpertModePoolUsedCapacityAndVolumeCount for zero size
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
@@ -1990,15 +2195,27 @@ func Test_updateExpertModeVolume(t *testing.T) {
 	})
 
 	t.Run("Failure_GetExpertModeVolumeByExternalUUID_DatabaseError", func(tt *testing.T) {
+		account, pool, _ := setupTestData()
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		// Mock getAccountWithName
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
 
 		params := &commonparams.ExpertModeVolumeParams{
 			VolumeUUID:  "test-uuid",
 			SizeInBytes: 2199023255552,
 			AccountName: "test_account",
+			PoolUUID:    pool.UUID,
 		}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, params.VolumeUUID).Return(nil, errors.New("database connection error")).Once()
 
 		err := _updateExpertModeVolume(ctx, mockStorage, temporal, params)
@@ -2031,6 +2248,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 			PoolUUID:    "550e8400-e29b-41d4-a716-446655440000",
 		}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID).Return(&database.ExpertModePoolCapacity{TotalSize: 0, VolumeCount: 0}, nil).Once()
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
@@ -2074,6 +2292,7 @@ func Test_updateExpertModeVolume(t *testing.T) {
 			TrackingID: 1,
 		}
 
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
 		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID).Return(&database.ExpertModePoolCapacity{TotalSize: 0, VolumeCount: 0}, nil).Once()
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
@@ -2089,6 +2308,588 @@ func Test_updateExpertModeVolume(t *testing.T) {
 		assert.Contains(tt, err.Error(), "failed to start workflow")
 		mockStorage.AssertExpectations(tt)
 		temporal.AssertExpectations(tt)
+	})
+}
+
+func TestRenameExpertModeVolume(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	setupRenameTestData := func() (*datamodel.Account, *datamodel.Pool, *datamodel.Svm, *datamodel.ExpertModeVolumes) {
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "550e8400-e29b-41d4-a716-446655440000"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			SizeInBytes: 2199023255552,
+		}
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "svm-uuid"},
+			Name:      "test-svm",
+			PoolID:    pool.ID,
+			AccountID: account.ID,
+		}
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
+			Name:         "test-volume",
+			SizeInBytes:  1099511627776,
+			PoolID:       pool.ID,
+			AccountID:    account.ID,
+			SvmID:        svm.ID,
+			State:        models.LifeCycleStateAvailable,
+			ExternalUUID: "770e8400-e29b-41d4-a716-446655440002",
+			Pool:         pool,
+			Account:      account,
+			Svm:          svm,
+		}
+		return account, pool, svm, volume
+	}
+
+	poolViewFromPool := func(pool *datamodel.Pool) *datamodel.PoolView {
+		return &datamodel.PoolView{Pool: *pool}
+	}
+
+	t.Run("Success_RenameVolume", func(tt *testing.T) {
+		account, pool, _, volume := setupRenameTestData()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		params := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volume.Name,
+			NewName:     "renamed-volume",
+			PoolUUID:    pool.UUID,
+			SvmName:     volume.Svm.Name,
+			AccountName: account.Name,
+		}
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+			TrackingID: 1,
+		}
+		mockWorkflowRun := &mockWorkflowRun{}
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(poolViewFromPool(pool), nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, params.VolumeName, pool.ID).Return(volume, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, params.NewName, pool.ID).Return(nil, gorm.ErrRecordNotFound).Once()
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
+		mockStorage.EXPECT().CreateJob(ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil).Once()
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockWorkflowRun, nil).Once()
+
+		err := _renameExpertModeVolume(ctx, mockStorage, temporal, params)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Success_OrchestratorRenameExpertModeVolume", func(tt *testing.T) {
+		account, pool, _, volume := setupRenameTestData()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		params := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volume.Name,
+			NewName:     "renamed-volume",
+			PoolUUID:    pool.UUID,
+			SvmName:     volume.Svm.Name,
+			AccountName: account.Name,
+		}
+		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "workflow-id", TrackingID: 1}
+		mockWorkflowRun := &mockWorkflowRun{}
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(poolViewFromPool(pool), nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, params.VolumeName, pool.ID).Return(volume, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, params.NewName, pool.ID).Return(nil, gorm.ErrRecordNotFound).Once()
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
+		mockStorage.EXPECT().CreateJob(ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil).Once()
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockWorkflowRun, nil).Once()
+
+		orch := &Orchestrator{storage: mockStorage, temporal: temporal}
+		err := orch.RenameExpertModeVolume(ctx, params)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeNotFound", func(tt *testing.T) {
+		account, pool, _, _ := setupRenameTestData()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		params := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  "nonexistent",
+			NewName:     "renamed",
+			PoolUUID:    pool.UUID,
+			SvmName:     "test-svm",
+			AccountName: account.Name,
+		}
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(poolViewFromPool(pool), nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, params.VolumeName, pool.ID).Return(nil, gorm.ErrRecordNotFound).Once()
+
+		err := _renameExpertModeVolume(ctx, mockStorage, temporal, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, customerrors.IsBadRequestErr(err))
+		assert.Contains(tt, err.Error(), "not found")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeHasNoSvm", func(tt *testing.T) {
+		account, pool, _, volume := setupRenameTestData()
+		volume.Svm = nil
+		volume.SvmID = 0
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		params := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volume.Name,
+			NewName:     "renamed-volume",
+			PoolUUID:    pool.UUID,
+			SvmName:     "test-svm",
+			AccountName: account.Name,
+		}
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(poolViewFromPool(pool), nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, params.VolumeName, pool.ID).Return(volume, nil).Once()
+
+		err := _renameExpertModeVolume(ctx, mockStorage, temporal, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, customerrors.IsBadRequestErr(err))
+		assert.Contains(tt, err.Error(), "no SVM")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_SvmNameMismatch", func(tt *testing.T) {
+		account, pool, _, volume := setupRenameTestData()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		params := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volume.Name,
+			NewName:     "renamed-volume",
+			PoolUUID:    pool.UUID,
+			SvmName:     "wrong-svm-name",
+			AccountName: account.Name,
+		}
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(poolViewFromPool(pool), nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, params.VolumeName, pool.ID).Return(volume, nil).Once()
+
+		err := _renameExpertModeVolume(ctx, mockStorage, temporal, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, customerrors.IsBadRequestErr(err))
+		assert.Contains(tt, err.Error(), "SVM name")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_NewNameAlreadyExists", func(tt *testing.T) {
+		account, pool, _, volume := setupRenameTestData()
+		existingVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "other-uuid"},
+			Name:         "renamed-volume",
+			ExternalUUID: "other-external-uuid",
+			PoolID:       pool.ID,
+		}
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		params := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volume.Name,
+			NewName:     "renamed-volume",
+			PoolUUID:    pool.UUID,
+			SvmName:     volume.Svm.Name,
+			AccountName: account.Name,
+		}
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(poolViewFromPool(pool), nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, params.VolumeName, pool.ID).Return(volume, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, params.NewName, pool.ID).Return(existingVolume, nil).Once()
+
+		err := _renameExpertModeVolume(ctx, mockStorage, temporal, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, customerrors.IsBadRequestErr(err))
+		assert.Contains(tt, err.Error(), "already exists")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeInTransitionalState", func(tt *testing.T) {
+		account, pool, _, volume := setupRenameTestData()
+		volume.State = models.LifeCycleStateUpdating
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		params := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volume.Name,
+			NewName:     "renamed-volume",
+			PoolUUID:    pool.UUID,
+			SvmName:     volume.Svm.Name,
+			AccountName: account.Name,
+		}
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(poolViewFromPool(pool), nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, params.VolumeName, pool.ID).Return(volume, nil).Once()
+
+		err := _renameExpertModeVolume(ctx, mockStorage, temporal, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, customerrors.IsBadRequestErr(err))
+		assert.Contains(tt, err.Error(), "transitional")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_ExecuteWorkflowFails_RevertsState", func(tt *testing.T) {
+		account, pool, _, volume := setupRenameTestData()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		params := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volume.Name,
+			NewName:     "renamed-volume",
+			PoolUUID:    pool.UUID,
+			SvmName:     volume.Svm.Name,
+			AccountName: account.Name,
+		}
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+			TrackingID: 1,
+		}
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(poolViewFromPool(pool), nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, params.VolumeName, pool.ID).Return(volume, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, params.NewName, pool.ID).Return(nil, gorm.ErrRecordNotFound).Once()
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
+		mockStorage.EXPECT().CreateJob(ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil).Once()
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow failed")).Once()
+		mockStorage.EXPECT().UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, mock.AnythingOfType("string")).Return(nil).Once()
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
+
+		err := _renameExpertModeVolume(ctx, mockStorage, temporal, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "workflow failed")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_AccountNotFound", func(tt *testing.T) {
+		_, pool, _, volume := setupRenameTestData()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account not found")
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		params := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volume.Name,
+			NewName:     "renamed",
+			PoolUUID:    pool.UUID,
+			SvmName:     volume.Svm.Name,
+			AccountName: "missing",
+		}
+		err := _renameExpertModeVolume(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "account not found")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_GetPoolFails", func(tt *testing.T) {
+		account, pool, _, volume := setupRenameTestData()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(nil, errors.New("failed to get pool by UUID")).Once()
+		params := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volume.Name,
+			NewName:     "renamed",
+			PoolUUID:    pool.UUID,
+			SvmName:     volume.Svm.Name,
+			AccountName: account.Name,
+		}
+		err := _renameExpertModeVolume(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to get pool by UUID")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_GetVolumeByName_DatabaseError", func(tt *testing.T) {
+		account, pool, _, _ := setupRenameTestData()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(poolViewFromPool(pool), nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, "my-vol", pool.ID).Return(nil, errors.New("database connection error")).Once()
+		params := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  "my-vol",
+			NewName:     "renamed",
+			PoolUUID:    pool.UUID,
+			SvmName:     "test-svm",
+			AccountName: account.Name,
+		}
+		err := _renameExpertModeVolume(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "database connection error")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_VolumeDoesNotBelongToAccount", func(tt *testing.T) {
+		_, pool, _, volume := setupRenameTestData()
+		volume.AccountID = 1
+		otherAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: "other-account-uuid"},
+			Name:      "other_account",
+		}
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return otherAccount, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, otherAccount.ID).Return(poolViewFromPool(pool), nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, volume.Name, pool.ID).Return(volume, nil).Once()
+		params := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volume.Name,
+			NewName:     "renamed",
+			PoolUUID:    pool.UUID,
+			SvmName:     volume.Svm.Name,
+			AccountName: otherAccount.Name,
+		}
+		err := _renameExpertModeVolume(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+		assert.True(tt, customerrors.IsBadRequestErr(err))
+		assert.Contains(tt, err.Error(), "does not belong to the specified account")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_CheckNewNameExists_DatabaseError", func(tt *testing.T) {
+		account, pool, _, volume := setupRenameTestData()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(poolViewFromPool(pool), nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, volume.Name, pool.ID).Return(volume, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, "new-name", pool.ID).Return(nil, errors.New("db error")).Once()
+		params := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volume.Name,
+			NewName:     "new-name",
+			PoolUUID:    pool.UUID,
+			SvmName:     volume.Svm.Name,
+			AccountName: account.Name,
+		}
+		err := _renameExpertModeVolume(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "db error")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_CreateJobFails", func(tt *testing.T) {
+		account, pool, _, volume := setupRenameTestData()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(poolViewFromPool(pool), nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, volume.Name, pool.ID).Return(volume, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, "renamed", pool.ID).Return(nil, gorm.ErrRecordNotFound).Once()
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
+		mockStorage.EXPECT().CreateJob(ctx, mock.AnythingOfType("*datamodel.Job")).Return(nil, errors.New("failed to create job for expert mode volume rename")).Once()
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
+		params := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volume.Name,
+			NewName:     "renamed",
+			PoolUUID:    pool.UUID,
+			SvmName:     volume.Svm.Name,
+			AccountName: account.Name,
+		}
+		err := _renameExpertModeVolume(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to create job")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_UpdateExpertModeVolumeFails", func(tt *testing.T) {
+		account, pool, _, volume := setupRenameTestData()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(poolViewFromPool(pool), nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, volume.Name, pool.ID).Return(volume, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, "renamed", pool.ID).Return(nil, gorm.ErrRecordNotFound).Once()
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(nil, errors.New("Failed to update volume name and state for rename")).Once()
+		params := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volume.Name,
+			NewName:     "renamed",
+			PoolUUID:    pool.UUID,
+			SvmName:     volume.Svm.Name,
+			AccountName: account.Name,
+		}
+		err := _renameExpertModeVolume(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Failed to update volume name and state for rename")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_ExecuteWorkflowFails_UpdateJobFails", func(tt *testing.T) {
+		account, pool, _, volume := setupRenameTestData()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "workflow-id", TrackingID: 1}
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(poolViewFromPool(pool), nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, volume.Name, pool.ID).Return(volume, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, "renamed", pool.ID).Return(nil, gorm.ErrRecordNotFound).Once()
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
+		mockStorage.EXPECT().CreateJob(ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil).Once()
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow failed")).Once()
+		mockStorage.EXPECT().UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, mock.AnythingOfType("string")).Return(errors.New("failed to update job status to error")).Once()
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
+		params := &commonparams.ExpertModeVolumeRenameParams{
+			VolumeName:  volume.Name,
+			NewName:     "renamed",
+			PoolUUID:    pool.UUID,
+			SvmName:     volume.Svm.Name,
+			AccountName: account.Name,
+		}
+		err := _renameExpertModeVolume(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "workflow failed")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+}
+
+func TestGetExpertModeVolume(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	t.Run("Failure_ByName_DatabaseError", func(tt *testing.T) {
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test_account"}
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "550e8400-e29b-41d4-a716-446655440000"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			SizeInBytes: 2199023255552,
+		}
+		dbPoolView := &datamodel.PoolView{Pool: *pool}
+		mockStorage := database.NewMockStorage(tt)
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  "",
+			VolumeName:  "my-volume",
+			AccountName: account.Name,
+			PoolUUID:    pool.UUID,
+		}
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, "my-volume", pool.ID).Return(nil, errors.New("database error")).Once()
+		vol, err := getExpertModeVolume(ctx, mockStorage, params, dbPoolView)
+		assert.Error(tt, err)
+		assert.Nil(tt, vol)
+		assert.Contains(tt, err.Error(), "database error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_ByName_NilPoolView", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID: "",
+			VolumeName: "my-volume",
+			PoolUUID:   "550e8400-e29b-41d4-a716-446655440000",
+		}
+		vol, err := getExpertModeVolume(ctx, mockStorage, params, nil)
+		assert.Error(tt, err)
+		assert.Nil(tt, vol)
+		assert.True(tt, customerrors.IsBadRequestErr(err))
+		assert.Contains(tt, err.Error(), "volume not found")
+		mockStorage.AssertExpectations(tt)
 	})
 }
 
@@ -2170,23 +2971,6 @@ func TestValidateUpdateParams(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("Failure_EmptyVolumeUUID", func(tt *testing.T) {
-		_, volume := setupTestData()
-		mockStorage := database.NewMockStorage(tt)
-
-		params := &commonparams.ExpertModeVolumeParams{
-			VolumeUUID:  "", // Empty UUID
-			SizeInBytes: 2199023255552,
-			PoolUUID:    "550e8400-e29b-41d4-a716-446655440000",
-		}
-
-		err := validateUpdateParams(ctx, mockStorage, params, volume)
-
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "VolumeUUID is required for update operation")
-		mockStorage.AssertExpectations(tt)
-	})
-
 	t.Run("Failure_IncorrectPoolUUID", func(tt *testing.T) {
 		_, volume := setupTestData()
 		mockStorage := database.NewMockStorage(tt)
@@ -2200,7 +2984,7 @@ func TestValidateUpdateParams(t *testing.T) {
 		err := validateUpdateParams(ctx, mockStorage, params, volume)
 
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "VolumeUUID is not associated to the pool for update operation")
+		assert.Contains(tt, err.Error(), "volume is not associated to the pool for update operation")
 		mockStorage.AssertExpectations(tt)
 	})
 

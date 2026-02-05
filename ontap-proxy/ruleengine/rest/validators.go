@@ -105,12 +105,17 @@ func _validateVolumeModification(r *http.Request) (bool, string) {
 	fields := parseVolumeRequestFields(requestBody)
 	volumeUUID := extractVolumeUUIDFromRequest(r)
 
-	// Size is optional for PATCH; only trigger reconcile if size is being modified
-	if sizeValue, sizeExists := requestBody["size"]; sizeExists {
+	// Trigger reconcile only if name or size is being modified
+	_, nameExists := requestBody["name"]
+	sizeValue, sizeExists := requestBody["size"]
+
+	if sizeExists {
 		if fields.SizeInBytes == 0 {
 			return false, fmt.Sprintf("\"%v\" is an invalid value for field \"size\"", sizeValue)
 		}
-	} else {
+	}
+
+	if !nameExists && !sizeExists {
 		return true, ""
 	}
 
