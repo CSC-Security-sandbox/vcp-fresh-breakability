@@ -167,6 +167,12 @@
     "retriable": false,
     "http_code": 404
   },
+  "2103": {
+    "description": "Volume or account does not exist in VCP (eligible for CVP fallback)",
+    "message": "Volume or account not found in VCP",
+    "retriable": false,
+    "http_code": 404
+  },
   "3001": {
     "description": "GCP Client Initialization Error",
     "message": "An internal error occurred.",

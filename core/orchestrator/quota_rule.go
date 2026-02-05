@@ -402,11 +402,17 @@ func (o *Orchestrator) GetMultipleQuotaRules(ctx context.Context, volumeUuid str
 
 	account, err := getAccountWithName(ctx, se, accountName)
 	if err != nil {
+		if customerrors.IsNotFoundErrForObjectTypeInChain(err, "account") {
+			return nil, coreerrors.NewVCPError(coreerrors.ErrVolumeOrAccountNotFoundInVCP, err)
+		}
 		return nil, err
 	}
 
 	volume, err := se.GetVolumeWithAccountID(ctx, volumeUuid, account.ID)
 	if err != nil {
+		if customerrors.IsNotFoundErrForObjectTypeInChain(err, "volume") {
+			return nil, coreerrors.NewVCPError(coreerrors.ErrVolumeOrAccountNotFoundInVCP, err)
+		}
 		return nil, err
 	}
 

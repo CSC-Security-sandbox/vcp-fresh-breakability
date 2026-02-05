@@ -67,10 +67,21 @@ func IsNotFoundErr(err error) bool {
 	return is
 }
 
-// IsNotFoundErrForObjectType checks whether the specified error is a NotFoundErr for the specified object type
+// IsNotFoundErrForObjectType checks whether the specified error is a NotFoundErr for the specified object type.
 func IsNotFoundErrForObjectType(err error, objectType string) bool {
 	if nfe, is := err.(*NotFoundErr); is {
 		return strings.EqualFold(nfe.objectType, objectType)
+	}
+	return false
+}
+
+// IsNotFoundErrForObjectTypeInChain checks whether the error chain contains a NotFoundErr for the specified object type.
+// It uses As to unwrap the error chain, so it works when the error is wrapped (e.g. by VCPError).
+// Use this when the error may be wrapped; use IsNotFoundErrForObjectType for unwrapped errors.
+func IsNotFoundErrForObjectTypeInChain(err error, objectType string) bool {
+	var notFoundErr *NotFoundErr
+	if vsaerrors.As(err, &notFoundErr) {
+		return strings.EqualFold(notFoundErr.objectType, objectType)
 	}
 	return false
 }

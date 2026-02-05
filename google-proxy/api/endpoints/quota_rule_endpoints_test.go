@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/quota_rules"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	orchestratorcommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -1988,7 +1989,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 		mockOrch.AssertExpectations(tt)
 	})
 
-	t.Run("WhenGetMultipleQuotaRulesReturnsEmptyList_TriggersCVPFallback", func(tt *testing.T) {
+	t.Run("WhenGetMultipleQuotaRulesReturnsEmptyList_DoesNotCallCVP_ReturnsEmptyList", func(tt *testing.T) {
 		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
@@ -2012,27 +2013,23 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 
 		mockOrch.On("GetMultipleQuotaRules", mock.Anything, "vol-1", "project-1", []string{"quota-rule-uuid-1"}).Return([]*models.QuotaRule{}, nil)
 
-		// Mock CVP client to return empty list
-		mockQuotaRulesClient := quota_rules.NewMockClientService(tt)
-		cvpClient := &cvpapi.Cvp{QuotaRules: mockQuotaRulesClient}
+		cvpCalled := false
 		originalGetMultipleQuotaRulesFromCVP := getMultipleQuotaRulesFromCVP
 		getMultipleQuotaRulesFromCVP = func(ctx context.Context, req *gcpgenserver.QuotaRuleIdListV1beta, params gcpgenserver.V1betaGetMultipleQuotaRulesParams, vcpQuotaRules []gcpgenserver.QuotaRulesV1beta) (gcpgenserver.V1betaGetMultipleQuotaRulesRes, error) {
-			return &gcpgenserver.V1betaGetMultipleQuotaRulesOK{
-				QuotaRules: []gcpgenserver.QuotaRulesV1beta{},
-			}, nil
+			cvpCalled = true
+			return &gcpgenserver.V1betaGetMultipleQuotaRulesOK{QuotaRules: []gcpgenserver.QuotaRulesV1beta{}}, nil
 		}
 
 		res, err := handler.V1betaGetMultipleQuotaRules(context.Background(), req, params)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, res)
-
+		assert.False(tt, cvpCalled, "CVP should not be called when VCP returns success with empty list")
 		ok, okType := res.(*gcpgenserver.V1betaGetMultipleQuotaRulesOK)
 		assert.True(tt, okType, "expected V1betaGetMultipleQuotaRulesOK, got %T", res)
 		assert.NotNil(tt, ok.QuotaRules)
 		assert.Len(tt, ok.QuotaRules, 0)
 		mockOrch.AssertExpectations(tt)
-		_ = cvpClient // avoid unused variable
 		getMultipleQuotaRulesFromCVP = originalGetMultipleQuotaRulesFromCVP
 	})
 
@@ -2058,8 +2055,8 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 			return "us-central1", "us-central1", nil
 		}
 
-		// Mock VCP to return NotFoundErr
-		mockOrch.On("GetMultipleQuotaRules", mock.Anything, "vol-1", "project-1", []string{"quota-rule-uuid-1"}).Return(nil, errors.NewNotFoundErr("Volume not found", nil))
+		// Mock VCP to return volume/account not found in VCP (triggers CVP fallback)
+		mockOrch.On("GetMultipleQuotaRules", mock.Anything, "vol-1", "project-1", []string{"quota-rule-uuid-1"}).Return(nil, vsaerrors.NewVCPError(vsaerrors.ErrVolumeOrAccountNotFoundInVCP, nil))
 
 		// Mock CVP client to return quota rules
 		mockQuotaRulesClient := quota_rules.NewMockClientService(tt)
@@ -2113,10 +2110,10 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 			return "us-central1", "us-central1", nil
 		}
 
-		// Mock VCP to return empty list (triggers CVP fallback)
-		mockOrch.On("GetMultipleQuotaRules", mock.Anything, "vol-1", "project-1", []string{"quota-rule-uuid-1"}).Return([]*models.QuotaRule{}, nil)
+		// Mock VCP to return volume/account not found in VCP (triggers CVP fallback)
+		mockOrch.On("GetMultipleQuotaRules", mock.Anything, "vol-1", "project-1", []string{"quota-rule-uuid-1"}).Return(nil, vsaerrors.NewVCPError(vsaerrors.ErrVolumeOrAccountNotFoundInVCP, nil))
 
-		// Mock CVP client to return NotFound
+		// Mock CVP to return NotFound
 		mockQuotaRulesClient := quota_rules.NewMockClientService(tt)
 		cvpClient := &cvpapi.Cvp{QuotaRules: mockQuotaRulesClient}
 		originalGetMultipleQuotaRulesFromCVP := getMultipleQuotaRulesFromCVP
@@ -2163,8 +2160,8 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 			return "us-central1", "us-central1", nil
 		}
 
-		// Mock VCP to return empty list (triggers CVP fallback)
-		mockOrch.On("GetMultipleQuotaRules", mock.Anything, "vol-1", "project-1", []string{"quota-rule-uuid-1"}).Return([]*models.QuotaRule{}, nil)
+		// Mock VCP to return volume/account not found in VCP (triggers CVP fallback)
+		mockOrch.On("GetMultipleQuotaRules", mock.Anything, "vol-1", "project-1", []string{"quota-rule-uuid-1"}).Return(nil, vsaerrors.NewVCPError(vsaerrors.ErrVolumeOrAccountNotFoundInVCP, nil))
 
 		// Mock CVP client to return BadRequest
 		mockQuotaRulesClient := quota_rules.NewMockClientService(tt)
@@ -2213,8 +2210,8 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 			return "us-central1", "us-central1", nil
 		}
 
-		// Mock VCP to return empty list (triggers CVP fallback)
-		mockOrch.On("GetMultipleQuotaRules", mock.Anything, "vol-1", "project-1", []string{"quota-rule-uuid-1"}).Return([]*models.QuotaRule{}, nil)
+		// Mock VCP to return volume/account not found in VCP (triggers CVP fallback)
+		mockOrch.On("GetMultipleQuotaRules", mock.Anything, "vol-1", "project-1", []string{"quota-rule-uuid-1"}).Return(nil, vsaerrors.NewVCPError(vsaerrors.ErrVolumeOrAccountNotFoundInVCP, nil))
 
 		// Mock CVP client to return Unauthorized
 		mockQuotaRulesClient := quota_rules.NewMockClientService(tt)
@@ -2263,8 +2260,8 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 			return "us-central1", "us-central1", nil
 		}
 
-		// Mock VCP to return empty list (triggers CVP fallback)
-		mockOrch.On("GetMultipleQuotaRules", mock.Anything, "vol-1", "project-1", []string{"quota-rule-uuid-1"}).Return([]*models.QuotaRule{}, nil)
+		// Mock VCP to return volume/account not found in VCP (triggers CVP fallback)
+		mockOrch.On("GetMultipleQuotaRules", mock.Anything, "vol-1", "project-1", []string{"quota-rule-uuid-1"}).Return(nil, vsaerrors.NewVCPError(vsaerrors.ErrVolumeOrAccountNotFoundInVCP, nil))
 
 		// Mock CVP client to return Forbidden
 		mockQuotaRulesClient := quota_rules.NewMockClientService(tt)
@@ -2313,8 +2310,8 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 			return "us-central1", "us-central1", nil
 		}
 
-		// Mock VCP to return empty list (triggers CVP fallback)
-		mockOrch.On("GetMultipleQuotaRules", mock.Anything, "vol-1", "project-1", []string{"quota-rule-uuid-1"}).Return([]*models.QuotaRule{}, nil)
+		// Mock VCP to return volume/account not found in VCP (triggers CVP fallback)
+		mockOrch.On("GetMultipleQuotaRules", mock.Anything, "vol-1", "project-1", []string{"quota-rule-uuid-1"}).Return(nil, vsaerrors.NewVCPError(vsaerrors.ErrVolumeOrAccountNotFoundInVCP, nil))
 
 		// Mock CVP client to return TooManyRequests
 		mockQuotaRulesClient := quota_rules.NewMockClientService(tt)
@@ -2363,8 +2360,8 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 			return "us-central1", "us-central1", nil
 		}
 
-		// Mock VCP to return empty list (triggers CVP fallback)
-		mockOrch.On("GetMultipleQuotaRules", mock.Anything, "vol-1", "project-1", []string{"quota-rule-uuid-1"}).Return([]*models.QuotaRule{}, nil)
+		// Mock VCP to return volume/account not found in VCP (triggers CVP fallback)
+		mockOrch.On("GetMultipleQuotaRules", mock.Anything, "vol-1", "project-1", []string{"quota-rule-uuid-1"}).Return(nil, vsaerrors.NewVCPError(vsaerrors.ErrVolumeOrAccountNotFoundInVCP, nil))
 
 		// Mock CVP client to return quota rules
 		mockQuotaRulesClient := quota_rules.NewMockClientService(tt)

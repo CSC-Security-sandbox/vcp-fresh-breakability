@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/quota_rules"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	orchestratorcommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -756,27 +757,23 @@ func (h Handler) V1betaGetMultipleQuotaRules(ctx context.Context, req *gcpgenser
 
 	quotaRuleModelVCP, err := h.Orchestrator.GetMultipleQuotaRules(ctx, params.VolumeId, params.ProjectNumber, req.QuotaRuleUuids)
 	if err != nil {
-		// If volume/account not found error, try fetching from CVP
-		if errors.IsNotFoundErr(err) {
+		// When volume or account does not exist in VCP, fallback to CVP
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) && customErr.IsError(vsaerrors.ErrVolumeOrAccountNotFoundInVCP) {
 			return getMultipleQuotaRulesFromCVP(ctx, req, params, []gcpgenserver.QuotaRulesV1beta{})
 		}
 		logger.Error("Failed to fetch quota rules", "error", err.Error())
 		return &gcpgenserver.V1betaGetMultipleQuotaRulesInternalServerError{Code: 500, Message: "Internal server error"}, nil
 	}
 
-	quotaRulesVCP := make([]gcpgenserver.QuotaRulesV1beta, 0)
-	if len(quotaRuleModelVCP) > 0 {
-		for _, quotaRule := range quotaRuleModelVCP {
-			response := convertQuotaRuleToV1beta(quotaRule)
-			quotaRulesVCP = append(quotaRulesVCP, *response)
-		}
-		return &gcpgenserver.V1betaGetMultipleQuotaRulesOK{
-			QuotaRules: quotaRulesVCP,
-		}, nil
+	quotaRulesVCP := make([]gcpgenserver.QuotaRulesV1beta, 0, len(quotaRuleModelVCP))
+	for _, quotaRule := range quotaRuleModelVCP {
+		response := convertQuotaRuleToV1beta(quotaRule)
+		quotaRulesVCP = append(quotaRulesVCP, *response)
 	}
-
-	// If no quota rules found in VCP, fetch from CVP
-	return getMultipleQuotaRulesFromCVP(ctx, req, params, quotaRulesVCP)
+	return &gcpgenserver.V1betaGetMultipleQuotaRulesOK{
+		QuotaRules: quotaRulesVCP,
+	}, nil
 }
 
 // V1betaDescribeQuotaRule is a handler for describing a single quota rule by ID

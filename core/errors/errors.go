@@ -43,16 +43,17 @@ const (
 	ErrWorkflowNotLaunched        = 1017
 	ErrWorkflowSupervisorTimeout  = 1018
 
-	ErrDatabaseConnectionClosed  = 2001
-	ErrDatabaseTransactionError  = 2002
-	ErrDatabaseDataInsertError   = 2003
-	ErrDatabaseDataReadError     = 2004
-	ErrDatabaseDataUpdateError   = 2005
-	ErrDatabaseDataDeleteError   = 2006
-	ErrDatabaseDataNotFoundError = 2007
-	ErrVolumeNotFound            = 2100
-	ErrAccountNotFound           = 2101
-	ErrPoolNotFound              = 2102
+	ErrDatabaseConnectionClosed     = 2001
+	ErrDatabaseTransactionError     = 2002
+	ErrDatabaseDataInsertError      = 2003
+	ErrDatabaseDataReadError        = 2004
+	ErrDatabaseDataUpdateError      = 2005
+	ErrDatabaseDataDeleteError      = 2006
+	ErrDatabaseDataNotFoundError    = 2007
+	ErrVolumeNotFound               = 2100
+	ErrAccountNotFound              = 2101
+	ErrPoolNotFound                 = 2102
+	ErrVolumeOrAccountNotFoundInVCP = 2103
 
 	ErrGCPClientInitializationError               = 3001
 	ErrPSAPeeringNotFoundError                    = 3002

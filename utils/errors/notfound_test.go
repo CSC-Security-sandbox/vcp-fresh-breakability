@@ -2,6 +2,7 @@ package errors
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -177,5 +178,37 @@ func TestIsNotFoundErrForObjectType(t *testing.T) {
 		if IsNotFoundErrForObjectType(New("Job"), "Job") {
 			tt.Fail()
 		}
+	})
+}
+
+func TestIsNotFoundErrForObjectTypeInChain(t *testing.T) {
+	t.Run("WhenSpecifyingNil", func(tt *testing.T) {
+		assert.False(tt, IsNotFoundErrForObjectTypeInChain(nil, "volume"))
+	})
+	t.Run("WhenErrorIsUnwrappedNotFoundErrAndObjectTypeMatches", func(tt *testing.T) {
+		assert.True(tt, IsNotFoundErrForObjectTypeInChain(NewNotFoundErr("volume", nil), "volume"))
+		assert.True(tt, IsNotFoundErrForObjectTypeInChain(NewNotFoundErr("account", nil), "account"))
+	})
+	t.Run("WhenErrorIsUnwrappedNotFoundErrAndObjectTypeDoesNotMatch", func(tt *testing.T) {
+		assert.False(tt, IsNotFoundErrForObjectTypeInChain(NewNotFoundErr("volume", nil), "account"))
+		assert.False(tt, IsNotFoundErrForObjectTypeInChain(NewNotFoundErr("quota rule", nil), "volume"))
+	})
+	t.Run("WhenErrorIsWrappedNotFoundErrAndObjectTypeMatches", func(tt *testing.T) {
+		nfErr := NewNotFoundErr("volume", nil)
+		wrapped := fmt.Errorf("wrapped: %w", nfErr)
+		assert.True(tt, IsNotFoundErrForObjectTypeInChain(wrapped, "volume"))
+		assert.True(tt, IsNotFoundErrForObjectTypeInChain(wrapped, "VOLUME"))
+	})
+	t.Run("WhenErrorIsWrappedNotFoundErrAndObjectTypeDoesNotMatch", func(tt *testing.T) {
+		nfErr := NewNotFoundErr("volume", nil)
+		wrapped := fmt.Errorf("wrapped: %w", nfErr)
+		assert.False(tt, IsNotFoundErrForObjectTypeInChain(wrapped, "account"))
+	})
+	t.Run("WhenErrorIsWrappedButNotNotFoundErr", func(tt *testing.T) {
+		wrapped := fmt.Errorf("wrapped: %w", errors.New("other error"))
+		assert.False(tt, IsNotFoundErrForObjectTypeInChain(wrapped, "volume"))
+	})
+	t.Run("WhenErrorIsNotNotFoundErr", func(tt *testing.T) {
+		assert.False(tt, IsNotFoundErrForObjectTypeInChain(errors.New("other"), "volume"))
 	})
 }
