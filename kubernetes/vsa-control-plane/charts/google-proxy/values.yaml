@@ -61,6 +61,7 @@ minQuotaInBytesPool: "1099511627776" # 1TiB in bytes
 maxQuotaInBytesPool: "467292441804800" # 425TiB in bytes
 minQuotaInBytesVolume: "1073741824" # 1GiB in bytes
 maxQuotaInBytesVolume: "140737488355328" # 128TiB in bytes
+maxQuotaInBytesFileVolume: "329853488332800" # 300TiB in bytes
 minQuotaInBytesLargeVolume: "5277655813325" # 4.8TiB in bytes
 minQuotaInBytesLargeVolumeWithCV: "2638827906662" # 2.4TiB in bytes
 maxQuotaInBytesLargeVolume: "22517998136852480" # 20PiB in bytes

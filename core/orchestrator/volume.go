@@ -50,6 +50,7 @@ var (
 	validateCloneATPolicyMatchParent     = env.GetBool("VALIDATE_CLONE_AT_POLICY_MATCH_PARENT", false)
 	minQuotaInBytesVolume                = utils.MinQuotaInBytesVolumeForVolume
 	maxQuotaInBytesVolume                = utils.MaxQuotaInBytesVolumeForVolume
+	maxQuotaInBytesFilesVolume           = utils.MaxQuotaInBytesForFileVolume
 	createVolume                         = _createVolume
 	revertVolume                         = _revertVolume
 	splitCloneVolume                     = _splitCloneVolume
@@ -1431,11 +1432,11 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		if params.LargeVolumeConstituentCount > 0 {
 			return customerrors.NewUserInputValidationErr("Large Volume constituent count is only supported for large capacity volumes")
 		}
-
-		if params.QuotaInBytes < minQuotaInBytesVolume || params.QuotaInBytes > maxQuotaInBytesVolume {
+		maxQuotaInBytes := getMaxQuotaForVolume(params.Protocols)
+		if params.QuotaInBytes < minQuotaInBytesVolume || params.QuotaInBytes > maxQuotaInBytes {
 			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %s. Must be between %s and %s.",
 				utils.FmtUint64Bytes(params.QuotaInBytes), utils.FmtUint64Bytes(minQuotaInBytesVolume),
-				utils.FmtUint64Bytes(maxQuotaInBytesVolume)))
+				utils.FmtUint64Bytes(maxQuotaInBytes)))
 		}
 	}
 
@@ -2594,10 +2595,14 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 					utils.FmtUint64Bytes(maxCVSizeInBytes), utils.FmtUint64Bytes(cvSizeInBytes), cvCount))
 			}
 		} else {
-			if uint64(params.QuotaInBytes) < minQuotaInBytesVolume || uint64(params.QuotaInBytes) > maxQuotaInBytesVolume {
+			maxQuotaInBytes := maxQuotaInBytesVolume
+			if volume.VolumeAttributes != nil {
+				maxQuotaInBytes = getMaxQuotaForVolume(volume.VolumeAttributes.Protocols)
+			}
+			if uint64(params.QuotaInBytes) < minQuotaInBytesVolume || uint64(params.QuotaInBytes) > maxQuotaInBytes {
 				return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %s. Must be between %s and %s.",
 					utils.FmtUint64Bytes(uint64(params.QuotaInBytes)), utils.FmtUint64Bytes(minQuotaInBytesVolume),
-					utils.FmtUint64Bytes(maxQuotaInBytesVolume)))
+					utils.FmtUint64Bytes(maxQuotaInBytes)))
 			}
 		}
 	}
@@ -3619,4 +3624,12 @@ func validateCloneATPolicyMatchParentVolume(parentVolume *datamodel.Volume, clon
 	}
 
 	return nil
+}
+
+func getMaxQuotaForVolume(protocols []string) uint64 {
+	// use the 300 TiB max quota for file protocol volumes
+	if protocols != nil && utils.IsNasProtocols(protocols) {
+		return maxQuotaInBytesFilesVolume
+	}
+	return maxQuotaInBytesVolume
 }

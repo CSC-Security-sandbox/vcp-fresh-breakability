@@ -64,6 +64,7 @@ data:
   MAX_QUOTA_IN_BYTES_POOL: "{{ index .Values "maxQuotaInBytesPool" }}"
   MIN_QUOTA_IN_BYTES_VOLUME: "{{ index .Values "minQuotaInBytesVolume" }}"
   MAX_QUOTA_IN_BYTES_VOLUME: "{{ index .Values "maxQuotaInBytesVolume" }}"
+  MAX_QUOTA_IN_BYTES_FILE_VOLUME: "{{ index .Values "maxQuotaInBytesFileVolume" }}"
   MIN_QUOTA_IN_BYTES_LARGE_VOLUME: "{{ index .Values "minQuotaInBytesLargeVolume" }}"
   MIN_QUOTA_IN_BYTES_LARGE_VOLUME_WITH_CV: "{{ index .Values "minQuotaInBytesLargeVolumeWithCV" }}"
   MAX_QUOTA_IN_BYTES_LARGE_VOLUME: "{{ index .Values "maxQuotaInBytesLargeVolume" }}"

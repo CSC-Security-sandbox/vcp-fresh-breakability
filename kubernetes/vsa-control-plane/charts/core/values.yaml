@@ -47,6 +47,7 @@ global:
     jwkTimeoutSeconds: "30"
     logSql: "true"
     maxQuotaInBytesVolume: "1000000000"
+    maxQuotaInBytesFileVolume: "329853488332800"
     migrationPath: ""
     minQuotaInBytesPool: "10000000"
     minQuotaInBytesVolume: "10000000"
