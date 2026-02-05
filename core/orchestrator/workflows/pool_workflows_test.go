@@ -446,9 +446,12 @@ func TestCreatePoolWorkflow(t *testing.T) {
 			input.MaxNodesPerGroup == 200 &&
 			input.TenantProjectID == "test-project"
 	})).Return(nil)
-	env.OnActivity("PushActiveDirectoryPasswordActivity", mock.Anything, mock.Anything).Return(&cvpModels.OperationV1beta{Name: "op"}, nil).Maybe()
+	env.OnActivity("PushActiveDirectoryPasswordActivity", mock.Anything, mock.Anything).Return(&active_directory_activities.PushActiveDirectoryPasswordResult{
+		Operation:  &cvpModels.OperationV1beta{Name: "op"},
+		SecretName: "secret-path",
+	}, nil).Maybe()
 	env.OnActivity("PollPushPasswordOperationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-	env.OnActivity("CreateActiveDirectoryInVCPActivity", mock.Anything, mock.Anything).Return(&datamodel.ActiveDirectory{BaseModel: datamodel.BaseModel{ID: 1}}, nil).Maybe()
+	env.OnActivity("CreateActiveDirectoryInVCPActivity", mock.Anything, mock.Anything, "secret-path").Return(&datamodel.ActiveDirectory{BaseModel: datamodel.BaseModel{ID: 1}}, nil).Maybe()
 	env.OnActivity("UpdatePoolActiveDirectoryIDActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)

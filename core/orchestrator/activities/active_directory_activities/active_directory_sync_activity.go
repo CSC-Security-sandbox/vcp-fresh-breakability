@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strconv"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/internal_active_directories"
@@ -36,8 +35,14 @@ type SyncActiveDirectoryParams struct {
 	ActiveDirectory   *models.ActiveDirectory
 }
 
+// PushActiveDirectoryPasswordResult holds the CVP operation and the generated secret name.
+type PushActiveDirectoryPasswordResult struct {
+	Operation  *cvpModels.OperationV1beta `json:"operation"`
+	SecretName string                     `json:"secretName"`
+}
+
 // PushActiveDirectoryPasswordActivity calls CVP API V1betaPushActiveDirectoryPassword
-func (a ActiveDirectorySyncActivity) PushActiveDirectoryPasswordActivity(ctx context.Context, params *SyncActiveDirectoryParams) (*cvpModels.OperationV1beta, error) {
+func (a ActiveDirectorySyncActivity) PushActiveDirectoryPasswordActivity(ctx context.Context, params *SyncActiveDirectoryParams) (*PushActiveDirectoryPasswordResult, error) {
 	logger := util.GetLogger(ctx)
 	logger.Infof("Pushing Active Directory password to CVP for AD ID: %s", params.ActiveDirectoryID)
 
@@ -92,7 +97,10 @@ func (a ActiveDirectorySyncActivity) PushActiveDirectoryPasswordActivity(ctx con
 	}
 
 	logger.Infof("Successfully pushed Active Directory password to CVP, operation: %s", response.Payload.Name)
-	return response.Payload, nil
+	return &PushActiveDirectoryPasswordResult{
+		Operation:  response.Payload,
+		SecretName: secretName,
+	}, nil
 }
 
 // PollPushPasswordOperationActivity polls the CVP operation until it completes
@@ -171,7 +179,7 @@ func (a ActiveDirectorySyncActivity) PollPushPasswordOperationActivity(ctx conte
 }
 
 // CreateActiveDirectoryInVCPActivity creates the ActiveDirectory entry in VCP database
-func (a ActiveDirectorySyncActivity) CreateActiveDirectoryInVCPActivity(ctx context.Context, params *SyncActiveDirectoryParams) (*datamodel.ActiveDirectory, error) {
+func (a ActiveDirectorySyncActivity) CreateActiveDirectoryInVCPActivity(ctx context.Context, params *SyncActiveDirectoryParams, secretCredentialPath string) (*datamodel.ActiveDirectory, error) {
 	logger := util.GetLogger(ctx)
 	logger.Infof("Creating Active Directory entry in VCP for AD ID: %s", params.ActiveDirectoryID)
 
@@ -231,17 +239,8 @@ func (a ActiveDirectorySyncActivity) CreateActiveDirectoryInVCPActivity(ctx cont
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	// Generate and set credential path using the actual AD ID
-	secretName := adHelper.GeneratePasswordSecretId(
-		env.SecretManagerProjectID,
-		strconv.FormatInt(createdAD.ID, 10),
-		createdAD.AdName,
-		params.LocationID,
-	)
-	createdAD.CredentialPath = secretName
+	createdAD.CredentialPath = secretCredentialPath
 
-	// Update the AD record with the credential path
-	createdAD.CredentialPath = secretName
 	_, err = a.SE.UpdateActiveDirectory(ctx, createdAD)
 	if err != nil {
 		logger.Errorf("Failed to update Active Directory credential path: %v", err)

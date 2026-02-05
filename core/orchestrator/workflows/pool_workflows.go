@@ -4,10 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strconv"
-	"time"
-
-	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -34,6 +30,8 @@ import (
 	"go.temporal.io/sdk/workflow"
 	logger "golang.org/x/exp/slog"
 	"google.golang.org/api/iam/v1"
+	"strconv"
+	"time"
 )
 
 var (
@@ -2491,15 +2489,20 @@ func syncActiveDirectoryInVcp(ctx workflow.Context, params *common.CreatePoolPar
 	}
 
 	// Step 1: Call CVP API V1betaPushActiveDirectoryPassword
-	var pushPasswordResult *cvpModels.OperationV1beta
+	var pushPasswordResult *active_directory_activities.PushActiveDirectoryPasswordResult
 	err = workflow.ExecuteActivity(ctx, adSyncActivity.PushActiveDirectoryPasswordActivity, syncParams).Get(ctx, &pushPasswordResult)
 	if err != nil {
 		logger.Errorf("Failed to push Active Directory password to CVP: %v", err)
 		return ConvertToVSAError(err)
 	}
 
+	if pushPasswordResult == nil || pushPasswordResult.Operation == nil {
+		logger.Errorf("Failed to push Active Directory password to cvp: %v", pushPasswordResult)
+		return ConvertToVSAError(fmt.Errorf("failed to push Active Directory password to cvp: %v", pushPasswordResult))
+	}
+
 	// Step 2: Poll for job to complete
-	if pushPasswordResult != nil {
+	if pushPasswordResult != nil && pushPasswordResult.Operation != nil {
 		// Prepare polling options
 		pollingOptions := workflow.ActivityOptions{
 			StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -2514,7 +2517,7 @@ func syncActiveDirectoryInVcp(ctx workflow.Context, params *common.CreatePoolPar
 		pollingCtx := workflow.WithActivityOptions(ctx, pollingOptions)
 
 		// Poll the push password operation until completion
-		err = workflow.ExecuteActivity(pollingCtx, adSyncActivity.PollPushPasswordOperationActivity, syncParams, pushPasswordResult).Get(pollingCtx, nil)
+		err = workflow.ExecuteActivity(pollingCtx, adSyncActivity.PollPushPasswordOperationActivity, syncParams, pushPasswordResult.Operation).Get(pollingCtx, nil)
 		if err != nil {
 			logger.Errorf("Failed to poll push password operation: %v", err)
 			return ConvertToVSAError(err)
@@ -2524,7 +2527,7 @@ func syncActiveDirectoryInVcp(ctx workflow.Context, params *common.CreatePoolPar
 
 	// Step 3: Create ActiveDirectory entry in VCP
 	var createdAD *datamodel.ActiveDirectory
-	err = workflow.ExecuteActivity(ctx, adSyncActivity.CreateActiveDirectoryInVCPActivity, syncParams).Get(ctx, &createdAD)
+	err = workflow.ExecuteActivity(ctx, adSyncActivity.CreateActiveDirectoryInVCPActivity, syncParams, pushPasswordResult.SecretName).Get(ctx, &createdAD)
 	if err != nil {
 		logger.Errorf("Failed to create Active Directory in VCP: %v", err)
 		return ConvertToVSAError(err)

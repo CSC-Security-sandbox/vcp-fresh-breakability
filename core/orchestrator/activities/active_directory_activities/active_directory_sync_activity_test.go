@@ -2,9 +2,6 @@ package active_directory_activities
 
 import (
 	"context"
-	"net/http"
-	"testing"
-
 	"github.com/go-openapi/runtime"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -19,6 +16,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"net/http"
+	"testing"
 )
 
 type fakeInternalADClient struct {
@@ -132,14 +131,18 @@ func TestPushActiveDirectoryPasswordActivity(t *testing.T) {
 			ActiveDirectory:   &models.ActiveDirectory{AdName: "ad-name"},
 		}
 
+		expectedSecret := adHelper.GeneratePasswordSecretId("secret-proj", "acct", "ad-name", "loc")
 		result, err := activity.PushActiveDirectoryPasswordActivity(buildAuthContext(), params)
 		assert.NoError(tt, err)
-		assert.Equal(tt, expectedOp, result)
+		if assert.NotNil(tt, result) {
+			assert.Equal(tt, expectedOp, result.Operation)
+			assert.Equal(tt, expectedSecret, result.SecretName)
+		}
 		assert.NotNil(tt, capturedParams)
 		assert.NotNil(tt, capturedParams.Body)
 		assert.Equal(tt, "ad-id", capturedParams.Body.ActiveDirectoryID)
 		assert.Equal(tt, "secret-proj", capturedParams.Body.SdeProjectID)
-		expectedSecret := adHelper.GeneratePasswordSecretId("secret-proj", "acct", "ad-name", "loc")
+		expectedSecret = adHelper.GeneratePasswordSecretId("secret-proj", "acct", "ad-name", "loc")
 		assert.Equal(tt, expectedSecret, capturedParams.Body.SecretName)
 		if assert.NotNil(tt, capturedParams.XCorrelationID) {
 			assert.Equal(tt, "corr", *capturedParams.XCorrelationID)
@@ -223,7 +226,7 @@ func TestCreateActiveDirectoryInVCPActivity(t *testing.T) {
 	t.Run("ReturnsErrorWhenADIsNil", func(tt *testing.T) {
 		_, err := activity.CreateActiveDirectoryInVCPActivity(buildAuthContext(), &SyncActiveDirectoryParams{
 			ActiveDirectoryID: "ad-id",
-		})
+		}, "secret-path")
 		assert.Error(tt, err)
 	})
 
@@ -236,7 +239,7 @@ func TestCreateActiveDirectoryInVCPActivity(t *testing.T) {
 			ActiveDirectoryID: "ad-id",
 			AccountName:       "acct",
 			ActiveDirectory:   &models.ActiveDirectory{AdName: "ad-name"},
-		})
+		}, "secret-path")
 		assert.Error(tt, err)
 	})
 
@@ -251,7 +254,7 @@ func TestCreateActiveDirectoryInVCPActivity(t *testing.T) {
 			AccountName:       "acct",
 			LocationID:        "loc",
 			ActiveDirectory:   &models.ActiveDirectory{AdName: "ad-name"},
-		})
+		}, "secret-path")
 		assert.Error(tt, err)
 	})
 
@@ -296,11 +299,11 @@ func TestCreateActiveDirectoryInVCPActivity(t *testing.T) {
 			},
 		}
 
-		created, err := activity.CreateActiveDirectoryInVCPActivity(buildAuthContext(), params)
+		created, err := activity.CreateActiveDirectoryInVCPActivity(buildAuthContext(), params, "secret-path")
 		assert.NoError(tt, err)
 		assert.NotNil(tt, created)
 		assert.Equal(tt, int64(10), created.ID)
-		assert.NotEmpty(tt, created.CredentialPath)
+		assert.Equal(tt, "secret-path", created.CredentialPath)
 		mockStorage.AssertExpectations(tt)
 	})
 }
