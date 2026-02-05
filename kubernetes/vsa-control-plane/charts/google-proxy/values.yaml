@@ -167,8 +167,26 @@ service:
   type: ClusterIP
   appPort: 8080
 
+istio:
+  enabled: true
+
+startupProbe:
+  path: /healthz/ready
+  port: 15021
+  scheme: HTTP
+  periodSeconds: 2
+  failureThreshold: 30
+
+livenessProbe:
+  initialDelaySeconds: 60
+  periodSeconds: 15
+  timeoutSeconds: 1
+  failureThreshold: 3
+
 # Readiness probe configuration for graceful shutdown
 readinessProbe:
+  initialDelaySeconds: 10
+  timeoutSeconds: 1
   failureThreshold: 1  # Number of consecutive failures before marking pod as not ready
   periodSeconds: 5     # Interval between probe checks
 

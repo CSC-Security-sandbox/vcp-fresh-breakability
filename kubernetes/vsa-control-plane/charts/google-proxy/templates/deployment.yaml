@@ -64,26 +64,35 @@ spec:
               memory: {{ .Values.resources.requests.memory }}
           ports:
             - containerPort: {{ .Values.service.appPort }}
+          {{- if .Values.istio.enabled }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.startupProbe.path }}
+              port: {{ .Values.startupProbe.port }}
+              scheme: {{ .Values.startupProbe.scheme }}
+            periodSeconds: {{ .Values.startupProbe.periodSeconds }}
+            failureThreshold: {{ .Values.startupProbe.failureThreshold }}
+          {{- end }}
           livenessProbe:
-            failureThreshold: 3
+            failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
             httpGet:
               path: /health
               port: {{ .Values.service.appPort }}
               scheme: HTTP
-            initialDelaySeconds: 60
-            periodSeconds: 15
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
             successThreshold: 1
-            timeoutSeconds: 1
+            timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
           readinessProbe:
             failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
             httpGet:
               path: /health
               port: {{ .Values.service.appPort }}
               scheme: HTTP
-            initialDelaySeconds: 10
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
             successThreshold: 1
-            timeoutSeconds: 1
+            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
           envFrom:
             - configMapRef:
                 name: google-proxy-service-env-config
