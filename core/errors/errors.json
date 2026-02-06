@@ -2014,5 +2014,11 @@
     "message": "Large Volume Restore Validation failure",
     "retriable": false,
     "http_code": 400
+  },
+  "14000": {
+    "description": "Error deleting active directory - Active Directory credentials are in use by Storage Pool(s)",
+    "message": "Error deleting active directory - Active Directory credentials are in use by Storage Pool(s)",
+    "retriable": false,
+    "http_code": 409
   }
 }

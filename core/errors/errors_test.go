@@ -115,6 +115,40 @@ func TestNewVSAError(t *testing.T) {
 	}
 }
 
+// TestErrActiveDirectoryDeleteErrorDueToInUseByPool verifies the VSCP-4490 error code for AD deletion when AD is in use by pool(s).
+func TestErrActiveDirectoryDeleteErrorDueToInUseByPool(t *testing.T) {
+	if ErrActiveDirectoryDeleteErrorDueToInUseByPool != 14000 {
+		t.Errorf("Expected ErrActiveDirectoryDeleteErrorDueToInUseByPool to be 14000, got %d", ErrActiveDirectoryDeleteErrorDueToInUseByPool)
+	}
+	// Ensure 14000 is in errorMap so NewVCPError returns it (other tests may have overwritten errorMap)
+	if errorMap == nil {
+		errorMap = make(map[int]ErrorMessage)
+	}
+	retriable := false
+	httpCode := 409
+	errorMap[ErrActiveDirectoryDeleteErrorDueToInUseByPool] = ErrorMessage{
+		Message:   "Error deleting active directory - Active Directory credentials are in use by Storage Pool(s)",
+		Retriable: &retriable,
+		HttpCode:  &httpCode,
+	}
+
+	originalErr := New("AD credentials in use by pool")
+	customErr := NewVCPError(ErrActiveDirectoryDeleteErrorDueToInUseByPool, originalErr)
+	if customErr == nil {
+		t.Fatalf("Expected non-nil CustomError")
+	}
+	if !customErr.IsError(ErrActiveDirectoryDeleteErrorDueToInUseByPool) {
+		t.Errorf("Expected IsError(ErrActiveDirectoryDeleteErrorDueToInUseByPool) to be true")
+	}
+	if customErr.TrackingID != ErrActiveDirectoryDeleteErrorDueToInUseByPool {
+		t.Errorf("Expected TrackingID %d, got %d", ErrActiveDirectoryDeleteErrorDueToInUseByPool, customErr.TrackingID)
+	}
+	expectedMsg := "Error deleting active directory - Active Directory credentials are in use by Storage Pool(s)"
+	if customErr.GetMessage() != expectedMsg {
+		t.Errorf("Expected message %q, got %q", expectedMsg, customErr.GetMessage())
+	}
+}
+
 func TestIsAndAs(t *testing.T) {
 	originalErr := New("original error")
 	customErr := &CustomError{

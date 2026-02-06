@@ -385,6 +385,9 @@ const (
 
 	// Large volume backup specific error (13001-13999)
 	ErrLargeVolumeBackupRestoreValidation = 13001
+
+	// Active Directory specific errors (14000-14999)
+	ErrActiveDirectoryDeleteErrorDueToInUseByPool = 14000
 )
 
 // ErrorMessage struct represents the structure of each error message in the JSON file.

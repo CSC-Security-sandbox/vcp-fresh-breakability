@@ -255,7 +255,7 @@ func (wf *ActiveDirectoryDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 		// AD found at VCP but deletion not allowed (SVMs using it)
 		err1 := customerrors.Errorf("active directory deletion is not allowed - ad is in use")
 		logger.Error(err1.Error())
-		return nil, ConvertToVSAError(err1)
+		return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrActiveDirectoryDeleteErrorDueToInUseByPool, err1))
 	}
 
 	// Step 1: Check if SDE is enabled (CVP_HOST is set)

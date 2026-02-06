@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	ontapmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
@@ -1883,7 +1884,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalHost }()
 
-		checkResult := active_directory_activities.CheckDeletionAllowedResult{
+		checkResult := &active_directory_activities.CheckDeletionAllowedResult{
 			ADExists:        true,
 			DeletionAllowed: false,
 		}
@@ -1894,7 +1895,15 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.Error(t, env.GetWorkflowError())
+		wfErr := env.GetWorkflowError()
+		assert.Error(t, wfErr)
+		// VSCP-4490: when AD is in use by pool(s), workflow must fail with the expected message (and optionally VCP error 14000)
+		assert.Contains(t, wfErr.Error(), "Active Directory credentials are in use by Storage Pool(s)",
+			"expected workflow error to indicate AD is in use by pool(s)")
+		// If the error was preserved as CustomError across the workflow boundary, verify the code
+		if customErr := vsaerrors.ExtractCustomError(wfErr); customErr != nil && customErr.IsError(vsaerrors.ErrActiveDirectoryDeleteErrorDueToInUseByPool) {
+			assert.Contains(t, customErr.GetMessage(), "Active Directory credentials are in use by Storage Pool(s)")
+		}
 		env.AssertExpectations(t)
 	})
 
@@ -2458,6 +2467,65 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		assert.NotNil(t, runErr)
+		assert.Nil(t, runResult)
+		env.AssertExpectations(t)
+	})
+
+	t.Run("DeletionNotAllowed_ReturnsErrActiveDirectoryDeleteErrorDueToInUseByPool", func(t *testing.T) {
+		// VSCP-4490: when AD is in use by pool(s), Run must return VCP error 14000 with the correct message
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logger": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{})
+
+		originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = originalHost }()
+
+		params := &common.DeleteActiveDirectoryParams{
+			AccountId:           int64(333),
+			ActiveDirectoryUUID: "ad-uuid-in-use-by-pool",
+			ProjectNumber:       "test-project-333",
+		}
+
+		checkResult := &active_directory_activities.CheckDeletionAllowedResult{
+			ADExists:        true,
+			DeletionAllowed: false,
+		}
+		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
+
+		var runResult interface{}
+		var runErr *vsaerrors.CustomError
+		env.RegisterWorkflow(func(ctx workflow.Context) error {
+			wf := &ActiveDirectoryDeleteWorkflow{}
+			runResult, runErr = wf.Run(ctx, params)
+			if runErr != nil {
+				return runErr
+			}
+			return nil
+		})
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			wf := &ActiveDirectoryDeleteWorkflow{}
+			runResult, runErr = wf.Run(ctx, params)
+			if runErr != nil {
+				return runErr
+			}
+			return nil
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		require.NotNil(t, runErr, "expected CustomError when deletion is not allowed (workflow error: %v)", env.GetWorkflowError())
+		assert.True(t, runErr.IsError(vsaerrors.ErrActiveDirectoryDeleteErrorDueToInUseByPool),
+			"expected ErrActiveDirectoryDeleteErrorDueToInUseByPool (14000), got TrackingID %d", runErr.TrackingID)
+		assert.Contains(t, runErr.GetMessage(), "Active Directory credentials are in use by Storage Pool(s)")
 		assert.Nil(t, runResult)
 		env.AssertExpectations(t)
 	})
