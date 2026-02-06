@@ -4577,6 +4577,106 @@ func TestHybridReplicationActivity_GetOrCreateClusterPeerInOntapForHybridReplica
 		assert.Contains(tt, err.Error(), "Source cluster is unreachable. Please verify that the peer address is correct and try again")
 	})
 
+	t.Run("ErrorWhenCreateClusterPeerFailsWithRetriesExhausted", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := HybridReplicationActivity{SE: mockStorage}
+
+		replicationResult := replication.CreateHybridReplicationResult{
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				ResourceID:  "test-resource-id",
+				PeerSvmName: "test-svm",
+			},
+			NodeProvider: &models.Node{Name: "test-node"},
+			ClusterPeeringRow: &datamodel.ClusterPeerings{
+				OntapPeerUUID: "",
+			},
+			DbVolReplication: &datamodel.VolumeReplication{
+				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{},
+			},
+			DestinationVolume: &datamodel.Volume{
+				Pool: &datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						InterclusterLifIPs: []string{"192.168.1.1"},
+					},
+				},
+			},
+		}
+
+		// Mock hyperscaler.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		mockProvider := &vsa.MockProvider{}
+		mockProvider.On("CreateRole", mock.Anything).Return("role-name", nil)
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{}, nil)
+		mockProvider.On("CreateClusterPeer", mock.Anything).Return(nil, fmt.Errorf("Retries exhausted when attempting to reach the storage server"))
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		// Mock se.UpdateClusterPeeringRow to return success
+		mockStorage.On("UpdateClusterPeeringRow", mock.Anything, mock.Anything).Return(nil)
+		// Mock se.UpdateVolumeReplication for updateReplicationStateDetailsCode
+		mockStorage.On("UpdateVolumeReplication", mock.Anything, mock.Anything).Return(nil)
+
+		result, err := activity.GetOrCreateClusterPeerInOntapForHybridReplication(ctx, &replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Source cluster is unreachable. Please verify that the peer address is correct and try again")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ErrorWhenCreateClusterPeerFailsWithVerifyPeerAddress", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := HybridReplicationActivity{SE: mockStorage}
+
+		replicationResult := replication.CreateHybridReplicationResult{
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				ResourceID:  "test-resource-id",
+				PeerSvmName: "test-svm",
+			},
+			NodeProvider: &models.Node{Name: "test-node"},
+			ClusterPeeringRow: &datamodel.ClusterPeerings{
+				OntapPeerUUID: "",
+			},
+			DbVolReplication: &datamodel.VolumeReplication{
+				HybridReplicationAttributes: &datamodel.HybridReplicationAttribute{},
+			},
+			DestinationVolume: &datamodel.Volume{
+				Pool: &datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						InterclusterLifIPs: []string{"192.168.1.1"},
+					},
+				},
+			},
+		}
+
+		// Mock hyperscaler.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		mockProvider := &vsa.MockProvider{}
+		mockProvider.On("CreateRole", mock.Anything).Return("role-name", nil)
+		mockProvider.On("ListClusterPeers").Return([]*vsa.ClusterPeer{}, nil)
+		mockProvider.On("CreateClusterPeer", mock.Anything).Return(nil, fmt.Errorf("Verify that the peer address is correct, and then try the operation again."))
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		// Mock se.UpdateClusterPeeringRow to return success
+		mockStorage.On("UpdateClusterPeeringRow", mock.Anything, mock.Anything).Return(nil)
+		// Mock se.UpdateVolumeReplication for updateReplicationStateDetailsCode
+		mockStorage.On("UpdateVolumeReplication", mock.Anything, mock.Anything).Return(nil)
+
+		result, err := activity.GetOrCreateClusterPeerInOntapForHybridReplication(ctx, &replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Source cluster is unreachable. Please verify that the peer address is correct and try again")
+		mockStorage.AssertExpectations(tt)
+	})
+
 	t.Run("SuccessWhenPassphraseIsNil", func(tt *testing.T) {
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)

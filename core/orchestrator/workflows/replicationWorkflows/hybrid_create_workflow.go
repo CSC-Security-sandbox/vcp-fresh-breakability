@@ -298,6 +298,10 @@ func (wf *createEstablishPeeringWorkflow) Run(ctx workflow.Context, args ...inte
 			if err2 != nil {
 				log.Errorf("Failed to update cache parameters in DB: %v", err2)
 			}
+			err3 := workflow.ExecuteActivity(ctx, replicationActivity.UpdateReplicationRowDetailsOnErrorActivity, &replicationResult).Get(ctx, nil)
+			if err3 != nil {
+				log.Errorf("Failed to update cache parameters in DB: %v", err3)
+			}
 			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
 			rollbackManager.ExecuteRollback(disconnectedCtx, err)
 		}

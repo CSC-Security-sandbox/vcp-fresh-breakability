@@ -517,7 +517,7 @@ func (a *HybridReplicationActivity) GetOrCreateClusterPeerInOntapForHybridReplic
 	if err != nil {
 		if strings.Contains(err.Error(), "Error creating cluster peer - Max retries reached") ||
 			strings.Contains(err.Error(), "Verify that the peer address is correct, and then try the operation again.") ||
-			strings.Contains(err.Error(), "Error creating cluster peer - Retries exhausted") {
+			strings.Contains(err.Error(), "Retries exhausted when attempting to reach the storage server") {
 			return nil, errors.WrapAsNonRetryableTemporalApplicationError(errors.NewVCPError(errors.ErrorCreateClusterPeerCVISourceClusterUnreachable, err))
 		}
 		return nil, errors.NewVCPError(errors.ErrClusterPeerError, err)
