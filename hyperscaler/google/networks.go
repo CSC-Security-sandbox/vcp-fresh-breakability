@@ -394,7 +394,7 @@ func (gcpService *GcpServices) GetServiceNetOpStatus(operationName string) (*mod
 		}
 		return nil, err
 	}
-	gcpService.Logger.Debug(fmt.Sprintf("GetServiceNetOpStatus successful : %s", op.Name))
+	gcpService.Logger.Debug(fmt.Sprintf("Fetching GetServiceNetOpStatus successful : %s", op.Name))
 	return convertServiceNetOpToComputeOp(op), nil
 }
 
@@ -410,7 +410,7 @@ func (gcpService *GcpServices) GetComputeGlobalOpStatus(tenantProject, operation
 		gcpService.Logger.Errorf("GetComputeGlobalOpStatus's operation failed for project %s with operation name %s: %v", tenantProject, operationName, &googleapi.Error{Message: op.Error.Errors[0].Message})
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, &googleapi.Error{Message: op.Error.Errors[0].Message})
 	}
-	gcpService.Logger.Debug(fmt.Sprintf("getComputeGlobalOpStatus successful : %s", op.Name))
+	gcpService.Logger.Debug(fmt.Sprintf("Fetching getComputeGlobalOpStatus successful : %s", op.Name))
 	return convertComputeOpToComputeOp(op), nil
 }
 
@@ -425,6 +425,7 @@ func (gcpService *GcpServices) GetComputeRegionalOpStatus(projectNumber, region,
 		gcpService.Logger.Debug(fmt.Sprintf("getComputeRegionalOpStatus's operation failed with error : %s", op.Error.Errors[0].Message))
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, &googleapi.Error{Message: op.Error.Errors[0].Message})
 	}
+	gcpService.Logger.Debug(fmt.Sprintf("Fetching GetComputeRegionalOpStatus successful : %s", operationName))
 	return convertComputeOpToComputeOp(op), nil
 }
 

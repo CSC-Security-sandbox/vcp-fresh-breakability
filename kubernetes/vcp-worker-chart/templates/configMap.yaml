@@ -281,6 +281,7 @@ data:
   # Pool workflow timeout configuration
   POOL_ACTIVITY_HEARTBEAT_TIMEOUT: {{$.Values.workerConfig.poolActivityHeartbeatTimeout | quote }}
   DATABASE_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.databaseHeartbeatTimeoutSec | quote }}
+  SETUP_NW_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.setupNwHeartbeatTimeoutSec | quote }}
 
   # Expert Mode Volume Reconciliation configuration
   VOLUME_RECONCILIATION_EXPERT_MODE_ACTIVITIES_MAX_ATTEMPTS: {{$.Values.workerConfig.volumeReconciliationExpertModeActivitiesMaxAttempts | quote }}

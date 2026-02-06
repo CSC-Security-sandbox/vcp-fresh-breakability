@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
+	"time"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -30,8 +33,6 @@ import (
 	"go.temporal.io/sdk/workflow"
 	logger "golang.org/x/exp/slog"
 	"google.golang.org/api/iam/v1"
-	"strconv"
-	"time"
 )
 
 var (
@@ -2030,7 +2031,7 @@ func ReleasePSCEndpointWorkflow(ctx workflow.Context, pool *datamodel.Pool) erro
 		util.GetLogger(ctx).Infof("Unable to delete forwarding rule.")
 		return nil
 	}
-	err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, &deleteForwardingRuleOperation, retryPolicy.StartToCloseTimeout)
+	err = WaitForGCPNetworkOperationStatus(setupPscCtx, poolActivity, &deleteForwardingRuleOperation, retryPolicy.StartToCloseTimeout)
 	if err != nil {
 		return vsaerror.Errorf("failed to release PSC endpoint for tenant project: %s: %w", pool.ClusterDetails.RegionalTenantProject, err)
 	}
@@ -2039,7 +2040,7 @@ func ReleasePSCEndpointWorkflow(ctx workflow.Context, pool *datamodel.Pool) erro
 	if err != nil {
 		return ConvertToVSAError(err)
 	}
-	err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, &deleteAddressOperation, retryPolicy.StartToCloseTimeout)
+	err = WaitForGCPNetworkOperationStatus(setupPscCtx, poolActivity, &deleteAddressOperation, retryPolicy.StartToCloseTimeout)
 	if err != nil {
 		return vsaerror.Errorf("failed to release PSC endpoint for tenant project: %s: %w", pool.ClusterDetails.RegionalTenantProject, err)
 	}
@@ -2074,7 +2075,7 @@ func ConfigurePSCEndpointWorkflow(ctx workflow.Context, projectName string, regi
 	if err != nil {
 		return ConvertToVSAError(err)
 	}
-	err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, &subnetFirewallOperations, retryPolicy.StartToCloseTimeout)
+	err = WaitForGCPNetworkOperationStatus(setupPscCtx, poolActivity, &subnetFirewallOperations, retryPolicy.StartToCloseTimeout)
 	if err != nil {
 		return vsaerror.Errorf("failed to create internal infra subnet for tenant project: %s: %w", projectName, err)
 	}
@@ -2086,7 +2087,7 @@ func ConfigurePSCEndpointWorkflow(ctx workflow.Context, projectName string, regi
 	if err != nil {
 		return ConvertToVSAError(err)
 	}
-	err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, &createAddressOperation, retryPolicy.StartToCloseTimeout)
+	err = WaitForGCPNetworkOperationStatus(setupPscCtx, poolActivity, &createAddressOperation, retryPolicy.StartToCloseTimeout)
 	if err != nil {
 		return vsaerror.Errorf("failed to create PSC endpoint for tenant project: %s: %w", projectName, err)
 	}
@@ -2103,7 +2104,7 @@ func ConfigurePSCEndpointWorkflow(ctx workflow.Context, projectName string, regi
 	if err != nil {
 		return ConvertToVSAError(err)
 	}
-	err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, &createForwardingRuleOperation, retryPolicy.StartToCloseTimeout)
+	err = WaitForGCPNetworkOperationStatus(setupPscCtx, poolActivity, &createForwardingRuleOperation, retryPolicy.StartToCloseTimeout)
 	if err != nil {
 		return vsaerror.Errorf("failed to create forwarding rule subnet for tenant project: %s: %w", projectName, err)
 	}
@@ -2116,13 +2117,13 @@ func ConfigurePSCEndpointWorkflow(ctx workflow.Context, projectName string, regi
 	}
 
 	// Update audit log
-	err = workflow.ExecuteActivity(ctx, pscActivity.UpdateSecurityAudit, node).Get(ctx, nil)
+	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.UpdateSecurityAudit, node).Get(setupPscCtx, nil)
 	if err != nil {
 		return ConvertToVSAError(err)
 	}
 
 	// forward ontap logging to PSC Endpoint
-	err = workflow.ExecuteActivity(ctx, pscActivity.CreateClusterLogForwarding, node, forwardingRuleIpAddress).Get(ctx, nil)
+	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.CreateClusterLogForwarding, node, forwardingRuleIpAddress).Get(setupPscCtx, nil)
 	if err != nil {
 		return ConvertToVSAError(err)
 	}
