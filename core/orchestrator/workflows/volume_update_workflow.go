@@ -184,6 +184,21 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(err)
 	}
 
+	// Validate volume size reduction against actual used space from ONTAP
+	if params.QuotaInBytes > 0 && params.QuotaInBytes < volResponse.Size {
+		// Size reduction requested - validate against actual used space
+		if volResponse.UsedBytes > params.QuotaInBytes {
+			err = fmt.Errorf("cannot reduce volume size to %s as it is currently using %s. "+
+				"Free up space or choose a larger size",
+				utils.FmtUint64Bytes(uint64(params.QuotaInBytes)),
+				utils.FmtUint64Bytes(uint64(volResponse.UsedBytes)))
+			log.Errorf(err.Error())
+			return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrVolumeSizeTooSmall, err))
+		}
+		log.Debugf("Volume size reduction validation passed for volume %s: new size %d >= used bytes %d",
+			volume.UUID, params.QuotaInBytes, volResponse.UsedBytes)
+	}
+
 	if isUpdateRequired(volResponse, params, volume) {
 		rollbackManager.AddActivity(updateActivity.UpdateVolumeInONTAP, volume, getUpdateParamsForRollback(volResponse, volume), node)
 		err = workflow.ExecuteActivity(ctx, updateActivity.UpdateVolumeInONTAP, volume, params, node).Get(ctx, nil)
@@ -829,7 +844,7 @@ func populateSnapshotPolicyFromParams(params *models.SnapshotPolicy) *datamodel.
 }
 
 func isUpdateRequired(response *vsa.VolumeResponse, params *common.UpdateVolumeParams, existingVolume *datamodel.Volume) bool {
-	if response.Size < params.QuotaInBytes {
+	if params.QuotaInBytes > 0 && response.Size != params.QuotaInBytes {
 		return true
 	}
 	if params.SnapshotPolicy != nil && params.SnapshotPolicy.Name != response.SnapshotPolicyName {

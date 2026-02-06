@@ -2866,7 +2866,7 @@ func TestIsUpdateRequired(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "Size decreased but params has changes - no update required for size",
+			name: "Size decreased - update required (size reduction support)",
 			response: &vsa.VolumeResponse{
 				Size: 200,
 			},
@@ -2879,7 +2879,7 @@ func TestIsUpdateRequired(t *testing.T) {
 			existingVolume: &datamodel.Volume{
 				AutoTieringEnabled: false,
 			},
-			want: false,
+			want: true, // Changed from false - now detects size reductions
 		},
 		{
 			name: "Size is same and no tiering policy passed - no update required",
@@ -2888,6 +2888,17 @@ func TestIsUpdateRequired(t *testing.T) {
 			},
 			params: &common.UpdateVolumeParams{
 				QuotaInBytes: 200,
+			},
+			existingVolume: &datamodel.Volume{},
+			want:           false,
+		},
+		{
+			name: "QuotaInBytes is 0 - no size update requested",
+			response: &vsa.VolumeResponse{
+				Size: 200,
+			},
+			params: &common.UpdateVolumeParams{
+				QuotaInBytes: 0, // Not changing size
 			},
 			existingVolume: &datamodel.Volume{},
 			want:           false,
@@ -7816,4 +7827,432 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Rollba
 	// UpdateVolumePerformanceGroupInDBForVolume should be called to restore old VPG
 	// AssignQoSPolicyToVolume may or may not be called depending on how empty policy is handled
 	s.env.AssertExpectations(s.T())
+}
+
+// Test_UpdateVolumeWorkflow_SizeReduction_Success tests successful volume size reduction
+// when new size is larger than used bytes
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_SizeReduction_Success() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+
+	// Volume currently: Size=100GB, UsedBytes=30GB
+	// Attempting to reduce to 50GB (should succeed because 50GB > 30GB used)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		Size:           107374182400, // 100GB
+		UsedBytes:      32212254720,  // 30GB
+		AvailableSpace: 75161927680,  // 70GB
+		State:          "online",
+	}, nil)
+
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Name: "test_volume",
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		SizeInBytes: 107374182400, // 100GB in DB (not used for validation)
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 53687091200, // 50GB - larger than 30GB used, should succeed
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+// Test_UpdateVolumeWorkflow_SizeReduction_FailsUsedBytesExceeded tests that volume size reduction
+// is rejected when new size is smaller than current used bytes
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_SizeReduction_FailsUsedBytesExceeded() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+
+	// Volume currently: Size=100GB, UsedBytes=70GB
+	// Attempting to reduce to 50GB (should fail because 50GB < 70GB used)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		Size:           107374182400, // 100GB
+		UsedBytes:      75161927680,  // 70GB
+		AvailableSpace: 32212254720,  // 30GB
+		State:          "online",
+	}, nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Name: "test_volume",
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		SizeInBytes: 107374182400, // 100GB in DB (not used for validation)
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 53687091200, // 50GB - smaller than 70GB used, should fail
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow failed with validation error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "cannot reduce volume size")
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "currently using")
+
+	// Verify UpdateVolumeInONTAP was NOT called (validation failed before update)
+	s.env.AssertNotCalled(s.T(), "UpdateVolumeInONTAP")
+}
+
+// Test_UpdateVolumeWorkflow_SizeReduction_ExactlyEqualUsedBytes tests edge case
+// where new size exactly equals used bytes (should succeed - technically valid)
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_SizeReduction_ExactlyEqualUsedBytes() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+
+	// Volume currently: Size=100GB, UsedBytes=50GB
+	// Attempting to reduce to exactly 50GB (should succeed because 50GB >= 50GB used, though risky in practice)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		Size:           107374182400, // 100GB
+		UsedBytes:      53687091200,  // 50GB
+		AvailableSpace: 53687091200,  // 50GB
+		State:          "online",
+	}, nil)
+
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Name: "test_volume",
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		SizeInBytes: 107374182400, // 100GB in DB
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 53687091200, // 50GB - equal to used bytes, should succeed (edge case)
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed successfully (validation allows equal)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+// Test_UpdateVolumeWorkflow_SizeIncrease_BypassesValidation tests that volume size increases
+// skip the used bytes validation (validation only applies to size reductions)
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_SizeIncrease_BypassesValidation() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+
+	// Volume currently: Size=100GB, UsedBytes=30GB
+	// Attempting to increase to 200GB (should succeed and bypass validation)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		Size:           107374182400, // 100GB
+		UsedBytes:      32212254720,  // 30GB
+		AvailableSpace: 75161927680,  // 70GB
+		State:          "online",
+	}, nil)
+
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Name: "test_volume",
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		SizeInBytes: 107374182400, // 100GB in DB
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 214748364800, // 200GB - increase, bypasses validation
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+// Test_UpdateVolumeWorkflow_SizeReduction_ZeroUsedBytes tests size reduction
+// when volume has zero used bytes (empty volume)
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_SizeReduction_ZeroUsedBytes() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+
+	// Volume currently: Size=100GB, UsedBytes=0 (empty volume)
+	// Attempting to reduce to 10GB (should succeed)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		Size:           107374182400, // 100GB
+		UsedBytes:      0,            // Empty
+		AvailableSpace: 107374182400, // 100GB
+		State:          "online",
+	}, nil)
+
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Name: "test_volume",
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		SizeInBytes: 107374182400, // 100GB in DB
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 10737418240, // 10GB - much smaller than current size, but no data, should succeed
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+// Test_UpdateVolumeWorkflow_NoSizeChange_SkipsValidation tests that when
+// size is not being changed, validation is skipped
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_NoSizeChange_SkipsValidation() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+
+	// Volume currently: Size=100GB, UsedBytes=30GB
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		Size:           107374182400, // 100GB
+		UsedBytes:      32212254720,  // 30GB
+		AvailableSpace: 75161927680,  // 70GB
+		State:          "online",
+	}, nil)
+
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Name: "test_volume",
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		SizeInBytes: 107374182400, // 100GB in DB
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID:     "test-external-uuid",
+			IsDataProtection: false,
+		},
+	}
+	snapReserve := int64(10)
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 0, // No size change requested
+		SnapReserve:  &snapReserve,
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed successfully (no size validation ran)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+// Test_UpdateVolumeWorkflow_SizeReduction_GetVolumeFromONTAPFails tests that
+// if we can't fetch volume from ONTAP, the workflow fails before attempting update
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_SizeReduction_GetVolumeFromONTAPFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+
+	// GetVolumeFromONTAP fails
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to fetch volume from ONTAP"))
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Name: "test_volume",
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		SizeInBytes: 107374182400, // 100GB
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 53687091200, // 50GB
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "failed to fetch volume from ONTAP")
 }
