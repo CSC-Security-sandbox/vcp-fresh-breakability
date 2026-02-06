@@ -743,10 +743,6 @@ service:
     metrics:
       receivers: [prometheus]
       processors: [batch, resourcedetection]
-      exporters: [googlecloud, debug]
-    metrics/tenants:
-      receivers: [prometheus]
-      processors: [resourcedetection, batch]
       exporters: [googlecloud, debug]`
 }
 

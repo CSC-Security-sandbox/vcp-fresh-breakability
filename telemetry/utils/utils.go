@@ -47,8 +47,8 @@ func ParseBizOpsReportParams(bizOpsReportParams *BizOpsReportParams) error {
 	}
 	bizOpsReportParams.StartDate = bizOpsReportParams.StartDate.Truncate(time.Hour * 24)
 	_, offset := bizOpsReportParams.StartDate.In(location).Zone()
-	bizOpsReportParams.StartDate = bizOpsReportParams.StartDate.Add(time.Second * time.Duration(-offset))
-	bizOpsReportParams.EndDate = bizOpsReportParams.StartDate.Add(time.Hour * 24)
+	bizOpsReportParams.StartDate = bizOpsReportParams.StartDate.Add(time.Second * time.Duration(-offset)).UTC()
+	bizOpsReportParams.EndDate = bizOpsReportParams.StartDate.Add(time.Hour * 24).UTC()
 	return nil
 }
 
