@@ -314,7 +314,7 @@ func TestCreateExpertModeVolume(t *testing.T) {
 		err = orch.CreateExpertModeVolume(ctx, params)
 
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "volume with name 'duplicate-volume-name' already exists in pool")
+		assert.Contains(tt, err.Error(), "a volume named 'duplicate-volume-name' already exists in this pool")
 
 		mockLogger.AssertExpectations(tt)
 		temporal.AssertExpectations(tt)

@@ -3,13 +3,13 @@ package rules_v2
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	coreapi "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/core-api"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
 	core "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/coreapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/ruleengine/dsl"
+	proxyutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -190,7 +190,7 @@ func extractVolumeUUIDFromRequest(r *http.Request) coreapi.OptString {
 }
 
 // parseSize parses a size that may be a float64 (bytes) or a string like "10GB" into bytes.
-// Supports units: KB, MB, GB, TB, PB (base-1024). If invalid, returns 0.
+// Supports units: K/KB, M/MB, G/GB, T/TB, P/PB (base-1024). If invalid, returns 0.
 func parseSize(raw interface{}) float64 {
 	if raw == nil {
 		return 0
@@ -201,45 +201,7 @@ func parseSize(raw interface{}) float64 {
 	}
 	// string with optional unit
 	if s, ok := raw.(string); ok {
-		s = strings.TrimSpace(s)
-		if s == "" {
-			return 0
-		}
-		// split number and unit
-		var numPart string
-		var unitPart string
-		for i, r := range s {
-			if r < '0' || r > '9' {
-				numPart = s[:i]
-				unitPart = strings.TrimSpace(strings.ToUpper(s[i:]))
-				break
-			}
-		}
-		if numPart == "" { // all digits or string starts with unit
-			numPart = s
-		}
-		val, err := strconv.ParseFloat(numPart, 64)
-		if err != nil {
-			return 0
-		}
-		var mult float64
-		switch unitPart {
-		case "":
-			mult = 1
-		case "KB":
-			mult = 1024
-		case "MB":
-			mult = 1024 * 1024
-		case "GB":
-			mult = 1024 * 1024 * 1024
-		case "TB":
-			mult = 1024 * 1024 * 1024 * 1024
-		case "PB":
-			mult = 1024 * 1024 * 1024 * 1024 * 1024
-		default:
-			return 0
-		}
-		return val * mult
+		return proxyutils.ParseSizeString(s)
 	}
 	return 0
 }

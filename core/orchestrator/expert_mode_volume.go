@@ -58,7 +58,7 @@ func _createExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 		logger.Error("Volume with same name already exists in pool",
 			"volumeName", volumeName,
 			"poolID", dbPoolView.ID)
-		return customerrors.NewBadRequestErr(fmt.Sprintf("volume with name '%s' already exists in pool", volumeName))
+		return customerrors.NewBadRequestErr(fmt.Sprintf("a volume named '%s' already exists in this pool; if the previous volume was deleted or creation failed, wait at least 180 seconds before reusing the name", volumeName))
 	}
 
 	err = canFitInPool(ctx, se, dbPoolView.ID, dbPoolView.SizeInBytes, params.SizeInBytes)

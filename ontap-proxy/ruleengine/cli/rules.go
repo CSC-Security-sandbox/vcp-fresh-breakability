@@ -75,6 +75,7 @@ var cliRules = []CLIRule{
 			CLIIfPresentThenEquals("-is-space-enforcement-logical", "true"),
 			CLIIfPresentThenEquals("-is-space-reporting-logical", "true"),
 		),
+		ExternalValidator: validateVolumeCreate,
 		InjectArguments: map[string]string{
 			"-is-space-enforcement-logical": "true",
 			"-is-space-reporting-logical":   "true",
@@ -91,6 +92,7 @@ var cliRules = []CLIRule{
 			CLIIfPresentThenEquals("-is-space-enforcement-logical", "true"),
 			CLIIfPresentThenEquals("-is-space-reporting-logical", "true"),
 		),
+		ExternalValidator: validateVolumeCreate,
 		InjectArguments: map[string]string{
 			"-is-space-enforcement-logical": "true",
 			"-is-space-reporting-logical":   "true",
@@ -121,14 +123,16 @@ var cliRules = []CLIRule{
 		),
 	},
 	{
-		Pattern:   "volume delete",
-		Allow:     true,
-		Condition: CLIHasArgs("-vserver", "-volume"),
+		Pattern:           "volume delete",
+		Allow:             true,
+		Condition:         CLIHasArgs("-vserver", "-volume"),
+		ExternalValidator: validateVolumeDelete,
 	},
 	{
-		Pattern:   "vol delete",
-		Allow:     true,
-		Condition: CLIHasArgs("-vserver", "-volume"),
+		Pattern:           "vol delete",
+		Allow:             true,
+		Condition:         CLIHasArgs("-vserver", "-volume"),
+		ExternalValidator: validateVolumeDelete,
 	},
 
 	// Security Certificates - corresponds to /api/security/certificates in rule_map.go

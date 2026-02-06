@@ -295,3 +295,31 @@ func TestWriteErrorResponse_JSONFormat(t *testing.T) {
 		assert.Equal(t, errorResponse, roundTripError, "Round-trip JSON should match original")
 	})
 }
+
+func TestParseSizeString(t *testing.T) {
+	tests := []struct {
+		input  string
+		expect float64
+	}{
+		{"1024", 1024},
+		{"10g", 10 * 1024 * 1024 * 1024},
+		{"10G", 10 * 1024 * 1024 * 1024},
+		{"100m", 100 * 1024 * 1024},
+		{"1t", 1 * 1024 * 1024 * 1024 * 1024},
+		{"2k", 2 * 1024},
+		{" 5gb ", 5 * 1024 * 1024 * 1024},
+		{"invalid", 0},
+		{"", 0},
+		{"10x", 0}, // unknown unit
+		{"10.5g", 10.5 * 1024 * 1024 * 1024},
+		{"1.5MB", 1.5 * 1024 * 1024},
+		{"1p", 1 * 1024 * 1024 * 1024 * 1024 * 1024},
+		{"2PB", 2 * 1024 * 1024 * 1024 * 1024 * 1024},
+	}
+	for _, tt := range tests {
+		got := ParseSizeString(tt.input)
+		if got != tt.expect {
+			t.Errorf("ParseSizeString(%q) = %v, want %v", tt.input, got, tt.expect)
+		}
+	}
+}

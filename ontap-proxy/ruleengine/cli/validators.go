@@ -1,0 +1,96 @@
+package cli
+
+import (
+	"context"
+	"fmt"
+
+	coreapi "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/core-api"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
+	core "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/coreapi"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/middleware"
+	proxyutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+)
+
+var (
+	validateVolumeCreate           = _validateVolumeCreate
+	validateVolumeDelete           = _validateVolumeDelete
+	submitExpertModeVolumeOperation = core.SubmitExpertModeVolumeOperation
+)
+
+// _validateVolumeCreate validates volume create via the core API (expert mode volume).
+// Called after credential setup; uses auth from context and builds ExpertModeVolumeV1 Create request.
+func _validateVolumeCreate(ctx context.Context, cmd *CLICommand) (bool, string) {
+	logger := util.GetLogger(ctx)
+
+	cacheKey := cache.GetAuthDataKeyFromContext(ctx)
+	if cacheKey == "" {
+		return false, "cache key not found in context"
+	}
+	authData, exists := cache.GetFromAuthDataCache(cacheKey)
+	if !exists || authData == nil {
+		return false, fmt.Sprintf("auth data not found in cache for key: %s", cacheKey)
+	}
+
+	volumeName := cmd.GetArgument("-volume")
+	vserverName := cmd.GetArgument("-vserver")
+	sizeStr := cmd.GetArgument("-size")
+
+	sizeInBytes := proxyutils.ParseSizeString(sizeStr)
+	if sizeInBytes == 0 {
+		return false, fmt.Sprintf("%q is an invalid value for argument \"-size\"", sizeStr)
+	}
+
+	expertVolumeRequest := &coreapi.ExpertModeVolumeV1{
+		ProjectNumber: authData.AccountName,
+		PoolUUID:      authData.PoolID,
+		Action:        coreapi.ExpertModeVolumeV1ActionCreate,
+		VolumeName:    volumeName,
+		SizeInBytes:   sizeInBytes,
+		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
+		SvmName:       coreapi.NewOptString(vserverName),
+	}
+
+	jwtToken := middleware.ExtractJWTFromContext(ctx)
+	if err := submitExpertModeVolumeOperation(ctx, expertVolumeRequest, jwtToken, logger); err != nil {
+		return false, err.Error()
+	}
+
+	return true, ""
+}
+
+// _validateVolumeDelete validates volume delete via the core API (expert mode volume).
+// Called after credential setup; uses auth from context and builds ExpertModeVolumeV1 Delete request.
+// Core resolves volume by name (no VolumeUUID needed).
+func _validateVolumeDelete(ctx context.Context, cmd *CLICommand) (bool, string) {
+	logger := util.GetLogger(ctx)
+
+	cacheKey := cache.GetAuthDataKeyFromContext(ctx)
+	if cacheKey == "" {
+		return false, "cache key not found in context"
+	}
+	authData, exists := cache.GetFromAuthDataCache(cacheKey)
+	if !exists || authData == nil {
+		return false, fmt.Sprintf("auth data not found in cache for key: %s", cacheKey)
+	}
+
+	// -volume and -vserver are already enforced by rule Condition (CLIHasArgs) before this runs.
+	volumeName := cmd.GetArgument("-volume")
+	vserverName := cmd.GetArgument("-vserver")
+
+	expertVolumeRequest := &coreapi.ExpertModeVolumeV1{
+		ProjectNumber: authData.AccountName,
+		PoolUUID:      authData.PoolID,
+		Action:        coreapi.ExpertModeVolumeV1ActionDelete,
+		VolumeName:    volumeName,
+		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol, // TODO: fix this. Style should not be mandatory for delete.
+		SvmName:       coreapi.NewOptString(vserverName),
+	}
+
+	jwtToken := middleware.ExtractJWTFromContext(ctx)
+	if err := submitExpertModeVolumeOperation(ctx, expertVolumeRequest, jwtToken, logger); err != nil {
+		return false, err.Error()
+	}
+
+	return true, ""
+}
