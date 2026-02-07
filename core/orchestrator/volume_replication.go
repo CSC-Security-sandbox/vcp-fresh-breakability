@@ -871,6 +871,7 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 	}
 
 	regionReplicationMap := make(map[string][]*datamodel.VolumeReplication)
+	regionProjectMap := make(map[string]string) // region -> unique project numbers
 	emptyUUID := uuid.UUID{}
 
 	// Add destination regions with their replications and source regions for job fetching
@@ -883,6 +884,11 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 				return nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingErrorDestinationRegion, err)
 			}
 			regionReplicationMap[destRegion] = append(regionReplicationMap[destRegion], replication)
+			projectNumber, err := GetProjectNumberForRegion(replication, destRegion)
+			if err != nil {
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrProjectParsingError, err)
+			}
+			regionProjectMap[destRegion] = projectNumber
 		}
 
 		// Add source region to map (without replications) so we can get active jobs from both regions
@@ -903,6 +909,11 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 			if replication.ReplicationAttributes.DestinationLocation == remoteRegionCustomer {
 				regionReplicationMap[srcRegion] = append(regionReplicationMap[srcRegion], replication)
 			}
+			projectNumber, err := GetProjectNumberForRegion(replication, srcRegion)
+			if err != nil {
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrProjectParsingError, err)
+			}
+			regionProjectMap[srcRegion] = projectNumber
 		}
 	}
 
@@ -912,7 +923,7 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 	}
 
 	// Fetch the replications from the respective regions via internal API calls
-	list, jobsList, err := getReplicationObjects(ctx, regionReplicationMap, logger, params)
+	list, jobsList, err := getReplicationObjects(ctx, regionReplicationMap, logger, params, regionProjectMap)
 	if err != nil {
 		logger.Error("Failed to get replication objects", "error", err)
 		return nil, err
@@ -965,7 +976,7 @@ func convertDataStoreReplicationToGcpGenServerModel(replication *datamodel.Volum
 	}
 }
 
-func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger logger.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger logger.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
 	type ReplicationsForProject struct {
 		replicationUUIDs []string
 		token            string
@@ -984,13 +995,14 @@ func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string
 
 		if len(replicationsInRegion) == 0 {
 			// No replications found in this region, get all the jobs for the region
-			token, err := authGetSignedJwtToken(params.AccountName)
+			projectNumber := regionProjectMap[region]
+			token, err := authGetSignedJwtToken(projectNumber)
 			if err != nil {
 				logger.Error("Failed to get signed JWT token", "error", err)
 				return nil, nil, vsaerrors.NewVCPError(vsaerrors.ErrFailedToGenerateAccessToken, err)
 			}
 
-			jobs, err := getActiveReplicationJobs(ctx, basePath, token, region, params.AccountName, &params.XCorrelationID)
+			jobs, err := getActiveReplicationJobs(ctx, basePath, token, region, projectNumber, &params.XCorrelationID)
 			if err != nil {
 				logger.Error("Failed to get active replication jobs", "error", err, "region", region)
 				return nil, nil, err

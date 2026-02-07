@@ -33,7 +33,8 @@ var (
 )
 
 const (
-	waitForReplicationStateMaxRetries = 10
+	waitForReplicationStateMaxRetries      = 10
+	waitForReplicationStateAbortMaxRetries = 30
 )
 
 // Volume states
@@ -561,7 +562,7 @@ func (rc *OntapRestProvider) AbortVolumeReplication(volRep *VolumeReplication) (
 		rc.Logger.Error("Failed to abort volume replication in ontap", "error", err)
 		return nil, err
 	}
-	for retries := 0; retries < waitForReplicationStateMaxRetries; retries++ {
+	for retries := 0; retries < waitForReplicationStateAbortMaxRetries; retries++ {
 		snapmirror, err := client.Snapmirror().SnapmirrorRelationshipGet(&ontaprest.SnapmirrorRelationshipGetParams{UUID: volRep.RelationshipID})
 		if err != nil {
 			rc.Logger.Error("Failed to get volume replication in ontap", "error", err)

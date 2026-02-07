@@ -1363,9 +1363,9 @@
   },
   "6192": {
     "description": "Provider Abort Volume Replication Error",
-    "message": "Failed to abort volume replication",
+    "message": "Failed to abort volume replication. Please try again",
     "retriable": false,
-    "http_code": 500
+    "http_code": 408
   },
   "6193": {
     "description": "Google Proxy Internal Reverse Replication",

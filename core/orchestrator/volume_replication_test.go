@@ -996,6 +996,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			getAccountWithName = _getAccountWithName
 			getReplicationObjects = _getReplicationObjects
 			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			GetProjectNumberForRegion = _getProjectNumberForRegion
 		}()
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1006,7 +1007,11 @@ func TestGetMultipleReplications(t *testing.T) {
 			return "us-e4", "", nil
 		}
 
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
+			return "45110233509", nil
+		}
+
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
 			return nil, []googleproxyclient.InternalJobV1beta{}, errors.New("failed to get replication objects")
 		}
 
@@ -1048,6 +1053,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			getAccountWithName = _getAccountWithName
 			getReplicationObjects = _getReplicationObjects
 			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			GetProjectNumberForRegion = _getProjectNumberForRegion
 		}()
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1058,7 +1064,11 @@ func TestGetMultipleReplications(t *testing.T) {
 			return "us-e4", "", nil
 		}
 
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
+			return "45110233509", nil
+		}
+
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
 			return []*googleproxyclient.VolumeReplicationInternalV1beta{
 				{
 					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
@@ -1137,6 +1147,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 			utilParseRegionAndZone = utils.ParseRegionAndZone
 			getReplicationObjects = _getReplicationObjects
+			GetProjectNumberForRegion = _getProjectNumberForRegion
 		}()
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1151,9 +1162,13 @@ func TestGetMultipleReplications(t *testing.T) {
 			return locationID, "", nil
 		}
 
+		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
+			return "45110233509", nil
+		}
+
 		// Mock getReplicationObjects to capture the regionReplicationMap
 		var capturedRegionMap map[string][]*datamodel.VolumeReplication
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
 			capturedRegionMap = regionReplicationMap
 			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
 		}
@@ -1228,6 +1243,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 			utilParseRegionAndZone = utils.ParseRegionAndZone
 			getReplicationObjects = _getReplicationObjects
+			GetProjectNumberForRegion = _getProjectNumberForRegion
 		}()
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1242,9 +1258,13 @@ func TestGetMultipleReplications(t *testing.T) {
 			return locationID, "", nil
 		}
 
+		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
+			return "45110233509", nil
+		}
+
 		// Mock getReplicationObjects to capture the regionReplicationMap
 		var capturedRegionMap map[string][]*datamodel.VolumeReplication
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
 			capturedRegionMap = regionReplicationMap
 			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
 		}
@@ -1297,6 +1317,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 			utilParseRegionAndZone = utils.ParseRegionAndZone
 			getReplicationObjects = _getReplicationObjects
+			GetProjectNumberForRegion = _getProjectNumberForRegion
 		}()
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1311,9 +1332,13 @@ func TestGetMultipleReplications(t *testing.T) {
 			return locationID, "", nil
 		}
 
+		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
+			return "45110233509", nil
+		}
+
 		// Mock getReplicationObjects to capture the regionReplicationMap
 		var capturedRegionMap map[string][]*datamodel.VolumeReplication
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
 			capturedRegionMap = regionReplicationMap
 			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
 		}
@@ -1394,6 +1419,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 			utilParseRegionAndZone = utils.ParseRegionAndZone
 			getReplicationObjects = _getReplicationObjects
+			GetProjectNumberForRegion = _getProjectNumberForRegion
 		}()
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1408,9 +1434,13 @@ func TestGetMultipleReplications(t *testing.T) {
 			return locationID, "", nil
 		}
 
+		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
+			return "45110233509", nil
+		}
+
 		// Mock getReplicationObjects to capture the regionReplicationMap
 		var capturedRegionMap map[string][]*datamodel.VolumeReplication
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
 			capturedRegionMap = regionReplicationMap
 			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
 		}
@@ -1462,6 +1492,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 			utilParseRegionAndZone = utils.ParseRegionAndZone
 			getReplicationObjects = _getReplicationObjects
+			GetProjectNumberForRegion = _getProjectNumberForRegion
 		}()
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1476,9 +1507,13 @@ func TestGetMultipleReplications(t *testing.T) {
 			return locationID, "", nil
 		}
 
+		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
+			return "45110233509", nil
+		}
+
 		// Mock getReplicationObjects to capture the regionReplicationMap
 		var capturedRegionMap map[string][]*datamodel.VolumeReplication
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
 			capturedRegionMap = regionReplicationMap
 			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
 		}
@@ -1530,6 +1565,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 			utilParseRegionAndZone = utils.ParseRegionAndZone
 			getReplicationObjects = _getReplicationObjects
+			GetProjectNumberForRegion = _getProjectNumberForRegion
 		}()
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1544,9 +1580,13 @@ func TestGetMultipleReplications(t *testing.T) {
 			return locationID, "", nil
 		}
 
+		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
+			return "45110233509", nil
+		}
+
 		// Mock getReplicationObjects to capture the regionReplicationMap
 		var capturedRegionMap map[string][]*datamodel.VolumeReplication
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
 			capturedRegionMap = regionReplicationMap
 			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
 		}
@@ -1594,6 +1634,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 			utilParseRegionAndZone = utils.ParseRegionAndZone
 			getReplicationObjects = _getReplicationObjects
+			GetProjectNumberForRegion = _getProjectNumberForRegion
 		}()
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1608,9 +1649,13 @@ func TestGetMultipleReplications(t *testing.T) {
 			return locationID, "", nil
 		}
 
+		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
+			return "45110233509", nil
+		}
+
 		// Mock getReplicationObjects to capture the regionReplicationMap
 		var capturedRegionMap map[string][]*datamodel.VolumeReplication
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
 			capturedRegionMap = regionReplicationMap
 			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
 		}
@@ -1661,7 +1706,8 @@ func TestGetMultipleReplications(t *testing.T) {
 		// Use monkey mocks
 		mm := newMonkeyMockAndPatch(tt)
 
-		// Set up mock expectations
+		// Set up mock expectations (GetProjectNumberForRegion calls utilsParseProjectNumberFromURI for dest and source region; test replications have empty Uri/RemoteUri)
+		mm.On("utilsParseProjectNumberFromURI", "").Return("45110233509", nil).Times(2)
 		mm.On("getAccountWithName", ctx, mockStorage, "test-account").Return(&datamodel.Account{Name: "test-account"}, nil).Once()
 		mm.On("utilParseAndValidateRegionAndZone", "us-west1-a").Return("us-west1", "us-west1-a", (*gcpserver.Error)(nil)).Once()
 
@@ -1679,7 +1725,7 @@ func TestGetMultipleReplications(t *testing.T) {
 		}, nil)
 
 		// Mock the getReplicationObjects function to return a replication with remote region as zone
-		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
 			// Return a replication where RemoteRegion is a zone (us-central1-b)
 			replication := &googleproxyclient.VolumeReplicationInternalV1beta{
 				RemoteRegion: "us-central1-b", // This is a zone, not a region
@@ -1717,7 +1763,8 @@ func TestGetMultipleReplications(t *testing.T) {
 		// Use monkey mocks
 		mm := newMonkeyMockAndPatch(tt)
 
-		// Set up mock expectations
+		// Set up mock expectations (GetProjectNumberForRegion calls utilsParseProjectNumberFromURI for dest and source region; test replications have empty Uri/RemoteUri)
+		mm.On("utilsParseProjectNumberFromURI", "").Return("45110233509", nil).Times(2)
 		mm.On("getAccountWithName", ctx, mockStorage, "test-account").Return(&datamodel.Account{Name: "test-account"}, nil).Once()
 		mm.On("utilParseAndValidateRegionAndZone", "us-west1-a").Return("us-west1", "us-west1-a", (*gcpserver.Error)(nil)).Once()
 
@@ -1735,7 +1782,7 @@ func TestGetMultipleReplications(t *testing.T) {
 		}, nil)
 
 		// Mock the getReplicationObjects function to return a replication where remote region matches current location
-		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
 			// Return a replication where RemoteRegion matches current location (us-west1-a)
 			replication := &googleproxyclient.VolumeReplicationInternalV1beta{
 				RemoteRegion: "us-west1-a", // This matches the current location
@@ -1773,7 +1820,8 @@ func TestGetMultipleReplications(t *testing.T) {
 		// Use monkey mocks
 		mm := newMonkeyMockAndPatch(tt)
 
-		// Set up mock expectations
+		// Set up mock expectations (GetProjectNumberForRegion calls utilsParseProjectNumberFromURI for dest and source region; test replications have empty Uri/RemoteUri)
+		mm.On("utilsParseProjectNumberFromURI", "").Return("45110233509", nil).Times(2)
 		mm.On("getAccountWithName", ctx, mockStorage, "test-account").Return(&datamodel.Account{Name: "test-account"}, nil).Once()
 		mm.On("utilParseAndValidateRegionAndZone", "us-west1").Return("us-west1", "", (*gcpserver.Error)(nil)).Once()
 
@@ -1791,7 +1839,7 @@ func TestGetMultipleReplications(t *testing.T) {
 		}, nil)
 
 		// Mock the getReplicationObjects function to return a replication where remote region is a region
-		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
 			// Return a replication where RemoteRegion is a region (us-central1)
 			replication := &googleproxyclient.VolumeReplicationInternalV1beta{
 				RemoteRegion: "us-central1", // This is a region, not a zone
@@ -1829,7 +1877,8 @@ func TestGetMultipleReplications(t *testing.T) {
 		// Use monkey mocks
 		mm := newMonkeyMockAndPatch(tt)
 
-		// Set up mock expectations
+		// Set up mock expectations (GetProjectNumberForRegion calls utilsParseProjectNumberFromURI for dest and source region; test replications have empty Uri/RemoteUri)
+		mm.On("utilsParseProjectNumberFromURI", "").Return("45110233509", nil).Times(2)
 		mm.On("getAccountWithName", ctx, mockStorage, "test-account").Return(&datamodel.Account{Name: "test-account"}, nil).Once()
 		mm.On("utilParseAndValidateRegionAndZone", "us-west1").Return("us-west1", "", (*gcpserver.Error)(nil)).Once()
 
@@ -1847,7 +1896,7 @@ func TestGetMultipleReplications(t *testing.T) {
 		}, nil)
 
 		// Mock the getReplicationObjects function to return a replication where remote region matches current location
-		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
 			// Return a replication where RemoteRegion matches current location (us-west1)
 			replication := &googleproxyclient.VolumeReplicationInternalV1beta{
 				RemoteRegion: "us-west1", // This matches the current location
@@ -2057,7 +2106,7 @@ func TestGetReplicationObjects(t *testing.T) {
 
 		expectedError := errors2.NewVCPError(errors2.ErrRegionZoneParsingErrorPairedRegionURI, errors.New("failed to get paired region URI"))
 
-		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
+		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, err.Error(), expectedError.Error())
 	})
@@ -2101,7 +2150,7 @@ func TestGetReplicationObjects(t *testing.T) {
 
 		expectedError := errors2.NewVCPError(errors2.ErrProjectParsingError, errors.New("failed to get project number for region"))
 
-		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
+		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.NotNil(tt, err)
 		assert.EqualError(tt, err, expectedError.Error())
 	})
@@ -2150,7 +2199,7 @@ func TestGetReplicationObjects(t *testing.T) {
 
 		expectedError := errors2.NewVCPError(errors2.ErrFailedToGenerateAccessToken, errors.New("failed to get signed JWT token"))
 
-		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
+		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.NotNil(tt, err)
 		assert.EqualError(tt, err, expectedError.Error())
 	})
@@ -2191,7 +2240,7 @@ func TestGetReplicationObjects(t *testing.T) {
 		replicationsMap["us-e4"] = []*datamodel.VolumeReplication{}
 
 		expectedError := errors.New("failed to get active replication jobs")
-		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
+		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.NotNil(tt, err)
 		assert.EqualError(tt, err, expectedError.Error())
 	})
@@ -2244,7 +2293,7 @@ func TestGetReplicationObjects(t *testing.T) {
 		replicationsMap["us-e4"] = replications
 
 		expectedError := errors.New("Internal server error getting multiple replications")
-		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
+		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.NotNil(tt, err)
 		assert.EqualError(tt, err, expectedError.Error())
 	})
@@ -2270,6 +2319,7 @@ func TestGetReplicationObjects(t *testing.T) {
 				},
 				Name: "replication-1",
 				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:              "au-se1",
 					DestinationLocation:        "us-e4",
 					DestinationReplicationUUID: "replication-uuid-1",
 				},
@@ -2336,7 +2386,7 @@ func TestGetReplicationObjects(t *testing.T) {
 		replicationsMap["us-e4"] = replications
 		replicationsMap["au-se1"] = []*datamodel.VolumeReplication{}
 
-		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
+		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.Nil(tt, err)
 		assert.Len(tt, res, 1)
 		assert.Equal(tt, "replication-1", res[0].Name.Value)
@@ -2435,7 +2485,7 @@ func TestGetReplicationObjects(t *testing.T) {
 		replicationsMap := make(map[string][]*datamodel.VolumeReplication)
 		replicationsMap["us-e4"] = replications
 
-		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
+		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.Nil(tt, err)
 		assert.Len(tt, res, 1)
 		assert.Equal(tt, "replication-1", res[0].Name.Value)
@@ -2491,7 +2541,7 @@ func TestGetReplicationObjects(t *testing.T) {
 		replicationsMap := make(map[string][]*datamodel.VolumeReplication)
 		replicationsMap["us-e4"] = replications
 
-		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
+		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.Nil(tt, err)
 		assert.Len(tt, res, 0)
 		assert.Equal(tt, 1, counter)
@@ -2610,7 +2660,7 @@ func TestGetReplicationObjects(t *testing.T) {
 		replicationsMap := make(map[string][]*datamodel.VolumeReplication)
 		replicationsMap["us-e4"] = replications
 
-		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
+		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.Nil(tt, err)
 		assert.Len(tt, res, 3)
 		// Verify that token was only requested once (for the same project)
@@ -2620,6 +2670,312 @@ func TestGetReplicationObjects(t *testing.T) {
 		assert.Contains(tt, capturedReplicationUUIDs, "replication-uuid-1")
 		assert.Contains(tt, capturedReplicationUUIDs, "replication-uuid-2")
 		assert.Contains(tt, capturedReplicationUUIDs, "replication-uuid-3")
+	})
+	t.Run("WhenSourceRegionParseErrorWithTwoRegions", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			utilParseRegionAndZone = utils.ParseRegionAndZone
+			GetProjectNumberForRegion = _getProjectNumberForRegion
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "test-account"}, nil
+		}
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpserver.Error) {
+			return "us-e4", "", nil
+		}
+		utilParseRegionAndZone = func(locationID string) (string, string, error) {
+			if locationID == "invalid-region!!!" {
+				return "", "", errors.New("LocationID represents neither a region nor a zone")
+			}
+			return locationID, "", nil
+		}
+		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
+			return "45110233509", nil
+		}
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        1,
+					UUID:      "uuid-1",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				},
+				Name: "replication-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:              "invalid-region!!!",
+					SourceReplicationUUID:       "source-uuid-1",
+					DestinationLocation:        "us-e4",
+					DestinationReplicationUUID: "replication-uuid-1",
+				},
+				Uri:       "projects/45110233509/locations/us-east4/volumes/gosrcvolume1/replications/replication-name-6",
+				RemoteUri: "projects/45110233509/locations/australia-southeast1/volumes/gosrcvolume1/replications/replication-name-6",
+			},
+		}
+
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
+
+		params := commonparams.GetMultipleReplicationsParams{
+			AccountName: "test-account",
+			LocationId:  "us-e4",
+		}
+		_, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.NotNil(tt, err)
+		var customErr *errors2.CustomError
+		assert.True(tt, errors2.As(err, &customErr) && customErr.TrackingID == errors2.ErrRegionZoneParsingErrorSourceRegion)
+	})
+	t.Run("WhenGoogleProxyReturnsNotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		defer func() {
+			utilsGetPairedRegionUri = utils.GetPairedRegionURI
+			GetProjectNumberForRegion = _getProjectNumberForRegion
+			authGetSignedJwtToken = auth.GetSignedJwtToken
+			googleProxyInternalGetMultipleReplications = _googleProxyInternalGetMultipleReplications
+			getActiveReplicationJobs = _getActiveReplicationJobs
+		}()
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        1,
+					UUID:      "uuid-1",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				},
+				Name: "replication-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "us-e4",
+					DestinationReplicationUUID: "replication-uuid-1",
+				},
+				Uri:       "projects/45110233509/locations/us-east4/volumes/gosrcvolume1/replications/replication-name-6",
+				RemoteUri: "projects/45110233509/locations/australia-southeast1/volumes/gosrcvolume1/replications/replication-name-6",
+			},
+		}
+
+		utilsGetPairedRegionUri = func(locationId string) (string, error) {
+			return "paired.region.uri", nil
+		}
+		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
+			return "45110233509", nil
+		}
+		authGetSignedJwtToken = func(projectNumber string) (string, error) {
+			return "signed-jwt-token", nil
+		}
+		googleProxyInternalGetMultipleReplications = func(ctx context.Context, basePath, projectNumber, location, token string, body googleproxyclient.ReplicationIDListV1beta, logger log.Logger, paramz commonparams.GetMultipleReplicationsParams) ([]googleproxyclient.VolumeReplicationInternalV1beta, error) {
+			return nil, errors2.NewVCPError(errors2.ErrGoogleProxyInternalGetMultipleReplicationsNotFound, errors.New("not found"))
+		}
+		getActiveReplicationJobs = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string) ([]googleproxyclient.InternalJobV1beta, error) {
+			return nil, nil
+		}
+
+		replicationsMap := make(map[string][]*datamodel.VolumeReplication)
+		replicationsMap["us-e4"] = replications
+
+		res, jobs, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
+		assert.Nil(tt, err)
+		assert.Len(tt, res, 0)
+		assert.NotNil(tt, jobs)
+	})
+	t.Run("WhenCrossRegionReplicationThreeRegions", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		defer func() {
+			utilsGetPairedRegionUri = utils.GetPairedRegionURI
+			GetProjectNumberForRegion = _getProjectNumberForRegion
+			authGetSignedJwtToken = auth.GetSignedJwtToken
+			googleProxyInternalGetMultipleReplications = _googleProxyInternalGetMultipleReplications
+			getActiveReplicationJobs = _getActiveReplicationJobs
+		}()
+
+		replicationsUsE4 := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        1,
+					UUID:      "uuid-1",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				},
+				Name: "replication-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "us-e4",
+					DestinationReplicationUUID: "replication-uuid-1",
+				},
+				Uri:       "projects/45110233509/locations/us-east4/volumes/gosrcvolume1/replications/replication-name-6",
+				RemoteUri: "projects/45110233509/locations/australia-southeast1/volumes/gosrcvolume1/replications/replication-name-6",
+			},
+		}
+
+		utilsGetPairedRegionUri = func(locationId string) (string, error) {
+			return "paired.region.uri", nil
+		}
+		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
+			return "45110233509", nil
+		}
+		authGetSignedJwtToken = func(projectNumber string) (string, error) {
+			return "signed-jwt-token", nil
+		}
+		googleProxyInternalGetMultipleReplications = func(ctx context.Context, basePath, projectNumber, location, token string, body googleproxyclient.ReplicationIDListV1beta, logger log.Logger, paramz commonparams.GetMultipleReplicationsParams) ([]googleproxyclient.VolumeReplicationInternalV1beta, error) {
+			return []googleproxyclient.VolumeReplicationInternalV1beta{
+				{
+					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+					Name:                  googleproxyclient.NewOptString("replication-1"),
+					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(models.LifeCycleStateREADY),
+				},
+			}, nil
+		}
+		getActiveReplicationJobs = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string) ([]googleproxyclient.InternalJobV1beta, error) {
+			return nil, nil
+		}
+
+		replicationsMap := make(map[string][]*datamodel.VolumeReplication)
+		replicationsMap["us-e4"] = replicationsUsE4
+		replicationsMap["au-se1"] = []*datamodel.VolumeReplication{}
+		replicationsMap["us-w1"] = []*datamodel.VolumeReplication{}
+
+		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
+		assert.Nil(tt, err)
+		assert.Len(tt, res, 1)
+		assert.Equal(tt, "replication-1", res[0].Name.Value)
+	})
+	t.Run("WhenTwoRegionsEmptyReplicationsUsesSourceFromFirstNonEmpty", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		defer func() {
+			utilsGetPairedRegionUri = utils.GetPairedRegionURI
+			GetProjectNumberForRegion = _getProjectNumberForRegion
+			authGetSignedJwtToken = auth.GetSignedJwtToken
+			googleProxyInternalGetMultipleReplications = _googleProxyInternalGetMultipleReplications
+			getActiveReplicationJobs = _getActiveReplicationJobs
+		}()
+
+		replicationsWithSource := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        1,
+					UUID:      "uuid-1",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				},
+				Name: "replication-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:              "au-se1",
+					DestinationLocation:        "us-e4",
+					DestinationReplicationUUID: "a1b2c3d4-e5f6-4789-a012-345678901234",
+				},
+				Uri:       "projects/45110233509/locations/us-east4/volumes/gosrcvolume1/replications/replication-name-6",
+				RemoteUri: "projects/45110233509/locations/australia-southeast1/volumes/gosrcvolume1/replications/replication-name-6",
+			},
+		}
+
+		utilsGetPairedRegionUri = func(locationId string) (string, error) {
+			return "paired.region.uri", nil
+		}
+		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
+			return "45110233509", nil
+		}
+		authGetSignedJwtToken = func(projectNumber string) (string, error) {
+			return "signed-jwt-token", nil
+		}
+		googleProxyInternalGetMultipleReplications = func(ctx context.Context, basePath, projectNumber, location, token string, body googleproxyclient.ReplicationIDListV1beta, logger log.Logger, paramz commonparams.GetMultipleReplicationsParams) ([]googleproxyclient.VolumeReplicationInternalV1beta, error) {
+			return []googleproxyclient.VolumeReplicationInternalV1beta{}, nil
+		}
+		getActiveReplicationJobs = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string) ([]googleproxyclient.InternalJobV1beta, error) {
+			return nil, nil
+		}
+
+		replicationsMap := make(map[string][]*datamodel.VolumeReplication)
+		replicationsMap["au-se1"] = []*datamodel.VolumeReplication{}
+		replicationsMap["us-e4"] = replicationsWithSource
+
+		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
+		assert.Nil(tt, err)
+		assert.Len(tt, res, 0)
+	})
+	t.Run("WhenTwoRegionsEndpointTypeDstUsesSourceProjectFromRemoteUri", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		defer func() {
+			utilsGetPairedRegionUri = utils.GetPairedRegionURI
+			GetProjectNumberForRegion = _getProjectNumberForRegion
+			authGetSignedJwtToken = auth.GetSignedJwtToken
+			googleProxyInternalGetMultipleReplications = _googleProxyInternalGetMultipleReplications
+			getActiveReplicationJobs = _getActiveReplicationJobs
+		}()
+
+		// Destination-side replication: Uri = destination project, RemoteUri = source project.
+		// When EndpointType is "dst", sourceProject must be taken from RemoteUri for the empty-region job path.
+		sourceProjectNumber := "999888777666"
+		sourceRegion := "au-se1"
+		replicationsDst := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        1,
+					UUID:      "uuid-1",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				},
+				Name: "replication-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType:               "dst",
+					SourceLocation:             sourceRegion,
+					DestinationLocation:       "us-e4",
+					DestinationReplicationUUID: "a1b2c3d4-e5f6-4789-a012-345678901234",
+				},
+				Uri:       "projects/45110233509/locations/us-east4/volumes/gosrcvolume1/replications/replication-name-6",
+				RemoteUri: "projects/" + sourceProjectNumber + "/locations/australia-southeast1/volumes/gosrcvolume1/replications/replication-name-6",
+			},
+		}
+
+		utilsGetPairedRegionUri = func(locationId string) (string, error) {
+			return "paired.region.uri", nil
+		}
+		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
+			return "45110233509", nil
+		}
+		authGetSignedJwtToken = func(projectNumber string) (string, error) {
+			return "signed-jwt-token", nil
+		}
+		googleProxyInternalGetMultipleReplications = func(ctx context.Context, basePath, projectNumber, location, token string, body googleproxyclient.ReplicationIDListV1beta, logger log.Logger, paramz commonparams.GetMultipleReplicationsParams) ([]googleproxyclient.VolumeReplicationInternalV1beta, error) {
+			return []googleproxyclient.VolumeReplicationInternalV1beta{}, nil
+		}
+
+		// Capture getActiveReplicationJobs calls for the empty-region path (source region + source project).
+		var jobsCalls []struct{ locationID, projectNumber string }
+		getActiveReplicationJobs = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string) ([]googleproxyclient.InternalJobV1beta, error) {
+			jobsCalls = append(jobsCalls, struct{ locationID, projectNumber string }{locationID, projectNumber})
+			return nil, nil
+		}
+
+		replicationsMap := make(map[string][]*datamodel.VolumeReplication)
+		replicationsMap[sourceRegion] = []*datamodel.VolumeReplication{}
+		replicationsMap["us-e4"] = replicationsDst
+
+		// Empty-region path uses regionProjectMap; pass source region -> source project so jobs are fetched with correct project.
+		regionProjectMap := map[string]string{sourceRegion: sourceProjectNumber}
+
+		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, regionProjectMap)
+		assert.Nil(tt, err)
+		assert.Len(tt, res, 0)
+		// Empty-region path must call getActiveReplicationJobs with source region and project from regionProjectMap.
+		var foundEmptyRegionPath bool
+		for _, c := range jobsCalls {
+			if c.locationID == sourceRegion && c.projectNumber == sourceProjectNumber {
+				foundEmptyRegionPath = true
+				break
+			}
+		}
+		assert.True(tt, foundEmptyRegionPath, "getActiveReplicationJobs must be called with source region %q and source project %q (from regionProjectMap) when EndpointType is dst", sourceRegion, sourceProjectNumber)
 	})
 }
 

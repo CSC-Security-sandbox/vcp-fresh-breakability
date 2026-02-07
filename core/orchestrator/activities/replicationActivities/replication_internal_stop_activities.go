@@ -92,7 +92,7 @@ func (j *InternalStopVolumeReplicationActivity) AbortVolumeReplication(ctx conte
 	_, err = provider.AbortVolumeReplication(vsaReplication)
 	if err != nil {
 		logger.Error("Failed to abort volume replication", "error", err)
-		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrProviderAbortVolumeReplication, err))
+		return nil, vsaerror.WrapAsTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrProviderAbortVolumeReplication, err))
 	}
 	return vsaReplication, nil
 }

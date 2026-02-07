@@ -527,10 +527,10 @@ func TestAbortVolumeReplication(t *testing.T) {
 		snapmirror, err := activity.AbortVolumeReplication(ctx, replication, node, true)
 		assert.Error(tt, err)
 		assert.Nil(tt, snapmirror)
-		// Check that the error is a VCPError with ErrProviderAbortVolumeReplication
-		var customErr *vsaerrors.CustomError
-		assert.True(tt, vsaerrors.As(err, &customErr))
-		assert.Equal(tt, vsaerrors.ErrProviderAbortVolumeReplication, customErr.TrackingID)
+		// Activity wraps the VCPError in a Temporal ApplicationError; extract and assert TrackingID
+		extracted := vsaerrors.ExtractCustomError(err)
+		assert.NotNil(tt, extracted)
+		assert.Equal(tt, vsaerrors.ErrProviderAbortVolumeReplication, extracted.TrackingID)
 		mockProvider.AssertExpectations(tt)
 	})
 }

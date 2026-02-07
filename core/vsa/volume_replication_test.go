@@ -3035,8 +3035,8 @@ func TestAbortVolumeReplication(t *testing.T) {
 
 		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipTransferModify", modifyTransferParams).Return(nil)
-		// Mock the method to be called waitForReplicationStateMaxRetries times (10 times)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirror, nil).Times(waitForReplicationStateMaxRetries)
+		// Mock the method to be called waitForReplicationStateAbortMaxRetries times (abort loop uses this constant)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirror, nil).Times(waitForReplicationStateAbortMaxRetries)
 
 		result, err := provider.AbortVolumeReplication(volRep)
 
