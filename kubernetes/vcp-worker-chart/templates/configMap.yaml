@@ -134,6 +134,7 @@ data:
   ENABLE_CLONE_INFO_REFRESH: {{$.Values.workerConfig.enableCloneInfoRefresh | quote }}
   RESTORE_VOLUME_BUFFER_ENABLED: {{$.Values.workerConfig.restoreVolumeBufferEnabled | quote }}
   MAX_RETRY_ATTEMPTS_FOR_SDE_POLL_JOB: {{$.Values.workerConfig.maxRetryAttemptsForSDEPollJob | quote }}
+  POOL_SUBNET_SUPERVISOR_GRACE_PERIOD: {{$.Values.workerConfig.poolSubnetSupervisorGracePeriod | default "30m" | quote }}
   ENABLE_LDAP: {{$.Values.workerConfig.enableLdap | quote }}
   ENABLE_SMB: {{$.Values.workerConfig.enableSmb | quote }}
   ENABLE_QUOTA_RULE: {{$.Values.workerConfig.enableQuotaRule | quote }}

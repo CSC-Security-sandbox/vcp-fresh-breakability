@@ -128,6 +128,7 @@ workerConfig:
   crossRegionBackupEnabled: "false"
   restoreVolumeBufferEnabled: "false"
   maxRetryAttemptsForSDEPollJob: "20"
+  poolSubnetSupervisorGracePeriod: "30m"
   enableLdap: "false"
   enableSmb: "false"
   enableQuotaRule: "true"
