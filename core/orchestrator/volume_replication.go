@@ -884,8 +884,15 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 				return nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingErrorDestinationRegion, err)
 			}
 			regionReplicationMap[destRegion] = append(regionReplicationMap[destRegion], replication)
-			projectNumber, err := GetProjectNumberForRegion(replication, destRegion)
+
+			var projectNumber string
+			if replication.ReplicationAttributes.EndpointType == database.VolumeReplicationEndpointTypeDestination {
+				projectNumber, err = utilsParseProjectNumberFromURI(replication.Uri)
+			} else {
+				projectNumber, err = utilsParseProjectNumberFromURI(replication.RemoteUri)
+			}
 			if err != nil {
+				logger.Error("Failed to parse project number from replication URI", "error", err)
 				return nil, vsaerrors.NewVCPError(vsaerrors.ErrProjectParsingError, err)
 			}
 			regionProjectMap[destRegion] = projectNumber
@@ -909,8 +916,15 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 			if replication.ReplicationAttributes.DestinationLocation == remoteRegionCustomer {
 				regionReplicationMap[srcRegion] = append(regionReplicationMap[srcRegion], replication)
 			}
-			projectNumber, err := GetProjectNumberForRegion(replication, srcRegion)
+
+			var projectNumber string
+			if replication.ReplicationAttributes.EndpointType == database.VolumeReplicationEndpointTypeDestination {
+				projectNumber, err = utilsParseProjectNumberFromURI(replication.RemoteUri)
+			} else {
+				projectNumber, err = utilsParseProjectNumberFromURI(replication.Uri)
+			}
 			if err != nil {
+				logger.Error("Failed to parse project number from replication URI", "error", err)
 				return nil, vsaerrors.NewVCPError(vsaerrors.ErrProjectParsingError, err)
 			}
 			regionProjectMap[srcRegion] = projectNumber

@@ -997,6 +997,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			getReplicationObjects = _getReplicationObjects
 			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 			GetProjectNumberForRegion = _getProjectNumberForRegion
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
 		}()
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1007,6 +1008,10 @@ func TestGetMultipleReplications(t *testing.T) {
 			return "us-e4", "", nil
 		}
 
+		// _getMultipleReplications uses utilsParseProjectNumberFromURI (not GetProjectNumberForRegion) when building regionProjectMap
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "45110233509", nil
+		}
 		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
 			return "45110233509", nil
 		}
@@ -1038,11 +1043,204 @@ func TestGetMultipleReplications(t *testing.T) {
 
 		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
 
-		expError := errors.New("failed to get replication objects")
+		res, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.Empty(tt, res)
+		assert.ErrorContains(tt, err, "failed to get replication objects")
+	})
+	// Coverage for lines 890, 895 (dest region: EndpointType dst → Uri; parse error)
+	t.Run("WhenEndpointTypeDestinationUsesUriForDestRegion", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			getReplicationObjects = _getReplicationObjects
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "test-account"}, nil
+		}
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpserver.Error) {
+			return "us-e4", "", nil
+		}
+		// Line 890: EndpointType == Destination → utilsParseProjectNumberFromURI(replication.Uri)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "45110233509", nil
+		}
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
+		}
+
+		params := commonparams.GetMultipleReplicationsParams{AccountName: "test-account", LocationId: "us-e4"}
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "uuid-1", CreatedAt: time.Time{}, UpdatedAt: time.Time{}},
+				Name: "replication-1",
+				Uri: "projects/45110233509/locations/us-east4/volumes/vol/replications/rep",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType:               database.VolumeReplicationEndpointTypeDestination,
+					DestinationLocation:        "us-e4",
+					DestinationReplicationUUID: "dest-uuid-1",
+				},
+			},
+		}
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
+
+		res, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, res)
+	})
+	t.Run("WhenParseProjectNumberFailsForDestRegion", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "test-account"}, nil
+		}
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpserver.Error) {
+			return "us-e4", "", nil
+		}
+		// Line 895: parse error for dest region → return ErrProjectParsingError
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "", errors.New("invalid project uri")
+		}
+
+		params := commonparams.GetMultipleReplicationsParams{AccountName: "test-account", LocationId: "us-e4"}
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "uuid-1", CreatedAt: time.Time{}, UpdatedAt: time.Time{}},
+				Name: "replication-1",
+				Uri: "projects/45110233509/locations/us-east4/volumes/vol/replications/rep",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType:               database.VolumeReplicationEndpointTypeDestination,
+					DestinationLocation:        "us-e4",
+					DestinationReplicationUUID: "dest-uuid-1",
+				},
+			},
+		}
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
 
 		res, err := _getMultipleReplications(ctx, mockStorage, params)
 		assert.Empty(tt, res)
-		assert.EqualError(tt, err, expError.Error())
+		var customErr *errors2.CustomError
+		assert.True(tt, errors2.As(err, &customErr) && customErr.TrackingID == errors2.ErrProjectParsingError)
+	})
+	// Coverage for lines 922, 927 (source region: EndpointType dst → RemoteUri; parse error)
+	t.Run("WhenEndpointTypeDestinationUsesRemoteUriForSourceRegion", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			getReplicationObjects = _getReplicationObjects
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			utilParseRegionAndZone = utils.ParseRegionAndZone
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "test-account"}, nil
+		}
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpserver.Error) {
+			return "us-e4", "", nil
+		}
+		utilParseRegionAndZone = func(locationID string) (string, string, error) {
+			return locationID, "", nil
+		}
+		// Line 890 (dest Uri) and line 922 (source RemoteUri) when EndpointType == Destination
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "45110233509", nil
+		}
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
+		}
+
+		params := commonparams.GetMultipleReplicationsParams{AccountName: "test-account", LocationId: "us-e4"}
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "uuid-1", CreatedAt: time.Time{}, UpdatedAt: time.Time{}},
+				Name: "replication-1",
+				Uri:       "projects/45110233509/locations/us-east4/volumes/vol/replications/rep",
+				RemoteUri: "projects/45110233509/locations/australia-southeast1/volumes/vol/replications/rep",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType:               database.VolumeReplicationEndpointTypeDestination,
+					SourceLocation:             "au-se1",
+					SourceReplicationUUID:      "src-uuid-1",
+					DestinationLocation:        "us-e4",
+					DestinationReplicationUUID: "dest-uuid-1",
+				},
+			},
+		}
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
+
+		res, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, res)
+	})
+	t.Run("WhenParseProjectNumberFailsForSourceRegion", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			utilParseRegionAndZone = utils.ParseRegionAndZone
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "test-account"}, nil
+		}
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpserver.Error) {
+			return "us-e4", "", nil
+		}
+		utilParseRegionAndZone = func(locationID string) (string, string, error) {
+			return locationID, "", nil
+		}
+		// Line 927: parse error for source region (RemoteUri when EndpointType dst) → return ErrProjectParsingError
+		callCount := 0
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			callCount++
+			if callCount == 1 {
+				return "45110233509", nil // dest region (Uri)
+			}
+			return "", errors.New("invalid project uri") // source region (RemoteUri)
+		}
+
+		params := commonparams.GetMultipleReplicationsParams{AccountName: "test-account", LocationId: "us-e4"}
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "uuid-1", CreatedAt: time.Time{}, UpdatedAt: time.Time{}},
+				Name: "replication-1",
+				Uri:       "projects/45110233509/locations/us-east4/volumes/vol/replications/rep",
+				RemoteUri: "projects/45110233509/locations/australia-southeast1/volumes/vol/replications/rep",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType:               database.VolumeReplicationEndpointTypeDestination,
+					SourceLocation:             "au-se1",
+					SourceReplicationUUID:      "src-uuid-1",
+					DestinationLocation:        "us-e4",
+					DestinationReplicationUUID: "dest-uuid-1",
+				},
+			},
+		}
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
+
+		res, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.Empty(tt, res)
+		var customErr *errors2.CustomError
+		assert.True(tt, errors2.As(err, &customErr) && customErr.TrackingID == errors2.ErrProjectParsingError)
 	})
 	t.Run("WhenHappyPath", func(tt *testing.T) {
 		ctx := context.Background()
@@ -1054,6 +1252,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			getReplicationObjects = _getReplicationObjects
 			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 			GetProjectNumberForRegion = _getProjectNumberForRegion
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
 		}()
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1064,6 +1263,10 @@ func TestGetMultipleReplications(t *testing.T) {
 			return "us-e4", "", nil
 		}
 
+		// _getMultipleReplications uses utilsParseProjectNumberFromURI (not GetProjectNumberForRegion) when building regionProjectMap
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "45110233509", nil
+		}
 		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
 			return "45110233509", nil
 		}
@@ -1148,6 +1351,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			utilParseRegionAndZone = utils.ParseRegionAndZone
 			getReplicationObjects = _getReplicationObjects
 			GetProjectNumberForRegion = _getProjectNumberForRegion
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
 		}()
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1162,6 +1366,9 @@ func TestGetMultipleReplications(t *testing.T) {
 			return locationID, "", nil
 		}
 
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "45110233509", nil
+		}
 		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
 			return "45110233509", nil
 		}
@@ -1244,6 +1451,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			utilParseRegionAndZone = utils.ParseRegionAndZone
 			getReplicationObjects = _getReplicationObjects
 			GetProjectNumberForRegion = _getProjectNumberForRegion
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
 		}()
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1258,6 +1466,9 @@ func TestGetMultipleReplications(t *testing.T) {
 			return locationID, "", nil
 		}
 
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "45110233509", nil
+		}
 		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
 			return "45110233509", nil
 		}
@@ -1318,6 +1529,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			utilParseRegionAndZone = utils.ParseRegionAndZone
 			getReplicationObjects = _getReplicationObjects
 			GetProjectNumberForRegion = _getProjectNumberForRegion
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
 		}()
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1332,6 +1544,9 @@ func TestGetMultipleReplications(t *testing.T) {
 			return locationID, "", nil
 		}
 
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "45110233509", nil
+		}
 		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
 			return "45110233509", nil
 		}
@@ -1420,6 +1635,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			utilParseRegionAndZone = utils.ParseRegionAndZone
 			getReplicationObjects = _getReplicationObjects
 			GetProjectNumberForRegion = _getProjectNumberForRegion
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
 		}()
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1434,6 +1650,9 @@ func TestGetMultipleReplications(t *testing.T) {
 			return locationID, "", nil
 		}
 
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "45110233509", nil
+		}
 		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
 			return "45110233509", nil
 		}
@@ -1493,6 +1712,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			utilParseRegionAndZone = utils.ParseRegionAndZone
 			getReplicationObjects = _getReplicationObjects
 			GetProjectNumberForRegion = _getProjectNumberForRegion
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
 		}()
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1507,6 +1727,9 @@ func TestGetMultipleReplications(t *testing.T) {
 			return locationID, "", nil
 		}
 
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "45110233509", nil
+		}
 		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
 			return "45110233509", nil
 		}
@@ -1566,6 +1789,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			utilParseRegionAndZone = utils.ParseRegionAndZone
 			getReplicationObjects = _getReplicationObjects
 			GetProjectNumberForRegion = _getProjectNumberForRegion
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
 		}()
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1580,6 +1804,9 @@ func TestGetMultipleReplications(t *testing.T) {
 			return locationID, "", nil
 		}
 
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "45110233509", nil
+		}
 		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
 			return "45110233509", nil
 		}
@@ -1635,6 +1862,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			utilParseRegionAndZone = utils.ParseRegionAndZone
 			getReplicationObjects = _getReplicationObjects
 			GetProjectNumberForRegion = _getProjectNumberForRegion
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
 		}()
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
@@ -1649,6 +1877,9 @@ func TestGetMultipleReplications(t *testing.T) {
 			return locationID, "", nil
 		}
 
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "45110233509", nil
+		}
 		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
 			return "45110233509", nil
 		}
