@@ -2408,6 +2408,24 @@ func (a VolumeCreateActivity) UpdateVolumeAttributesInDB(ctx context.Context, vo
 	return nil
 }
 
+func (a VolumeCreateActivity) UpdateVolumeLargeConstituentInDB(ctx context.Context, volumeUUID string, largeVolumeAttributes *datamodel.LargeVolumeAttributes) error {
+	activity.RecordHeartbeat(ctx, "Initializing large volume constituent attributes update")
+	se := a.SE
+	activity.RecordHeartbeat(ctx, "Starting UpdateVolumeLargeConstituentInDB activity")
+
+	activity.RecordHeartbeat(ctx, "Updating large volume attributes in database")
+	err := se.UpdateVolumeFields(ctx, volumeUUID, map[string]interface{}{
+		"large_volume_attributes": largeVolumeAttributes,
+	})
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	activity.RecordHeartbeat(ctx, "Volume large constituent attributes updated successfully")
+
+	activity.RecordHeartbeat(ctx, "Finished UpdateVolumeLargeConstituentInDB activity")
+	return nil
+}
+
 // CrossPoolOrVPCRestorationActivity handles the VPC pool restoration logic when restoring a backup to a different VPC pool
 func (a *VolumeCreateActivity) CrossPoolOrVPCRestorationActivity(ctx context.Context, targetPool *datamodel.Pool, backup *datamodel.Backup) error {
 	log := util.GetLogger(ctx)

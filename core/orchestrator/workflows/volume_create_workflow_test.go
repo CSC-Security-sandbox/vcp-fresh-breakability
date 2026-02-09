@@ -81,7 +81,7 @@ func (s *UnitTestSuite) SetupTest() {
 	s.commonActivity = &commonActivity
 	s.kmsConfigActivity = &kmsConfigActivity
 	s.volumeCreateActivity = &volumeCreateActivity
-	
+
 	// Create and store VPG activity for use in tests
 	vpgActivity := activities.VolumePerformanceGroupActivity{SE: mockStorage}
 	s.vpgActivity = &vpgActivity
@@ -6236,6 +6236,8 @@ func (s *UnitTestSuite) TestCreateVolumeWorkflow_CVCountUpdate() {
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeLargeConstituentInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name:         "lun_test",

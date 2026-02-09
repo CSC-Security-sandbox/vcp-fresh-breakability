@@ -955,6 +955,10 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		OntapCredentials: dbVolume.Pool.PoolCredentials,
 	})
 
+	if createVolumeParams.LargeVolumeConstituentCount > 0 {
+		dbVolume.LargeVolumeAttributes.LargeVolumeConstituentCount = &createVolumeParams.LargeVolumeConstituentCount
+	}
+
 	// Get Aggregates from ONTAP if the volume is large capacity
 	var aggregateResult *models.AggregateDistributionResult
 	if dbVolume.LargeVolumeAttributes != nil && dbVolume.LargeVolumeAttributes.LargeCapacity && dbVolume.LargeVolumeAttributes.LargeVolumeConstituentCount != nil {
@@ -1101,6 +1105,13 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	err = workflow.ExecuteActivity(dbHbCtx, volumeActivity.UpdateVolumeAttributesInDB, dbVolume.UUID, dbVolume.VolumeAttributes).Get(dbHbCtx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
+	}
+
+	if dbVolume.LargeVolumeAttributes != nil && dbVolume.LargeVolumeAttributes.LargeCapacity {
+		err = workflow.ExecuteActivity(dbHbCtx, volumeActivity.UpdateVolumeLargeConstituentInDB, dbVolume.UUID, dbVolume.LargeVolumeAttributes).Get(dbHbCtx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
 	}
 
 	// Update CV count for auto-provisioned large volumes from the CreateVolume response

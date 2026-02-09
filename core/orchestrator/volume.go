@@ -464,11 +464,13 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			volumeObj.LargeVolumeAttributes.LargeVolumeConstituentCount = nillable.GetInt32Ptr(params.LargeVolumeConstituentCount)
 		} else {
 			// Set default constituent count: 8 CVs per aggregate × 6 aggregates = 48 CVs
-			defaultConstituentCount := int32(numOfLvHAPairs * defaultConstituentsPerAggregate)
-			if !isActivePassive {
-				defaultConstituentCount *= 2
+			if params.BackupPath == "" {
+				defaultConstituentCount := int32(numOfLvHAPairs * defaultConstituentsPerAggregate)
+				if !isActivePassive {
+					defaultConstituentCount *= 2
+				}
+				volumeObj.LargeVolumeAttributes.LargeVolumeConstituentCount = &defaultConstituentCount
 			}
-			volumeObj.LargeVolumeAttributes.LargeVolumeConstituentCount = &defaultConstituentCount
 		}
 	}
 

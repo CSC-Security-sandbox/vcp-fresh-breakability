@@ -778,12 +778,12 @@ func TestCreateVolumeInONTAP_WithQoSPolicy_VPGLoaded(t *testing.T) {
 		OntapQosPolicyID: "qos-policy-uuid",
 	}
 	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
-		Name:      "test-volume",
-		Svm:       &datamodel.Svm{Name: "test-svm"},
-		Account:   &datamodel.Account{Name: "test-account"},
+		BaseModel:                datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:                     "test-volume",
+		Svm:                      &datamodel.Svm{Name: "test-svm"},
+		Account:                  &datamodel.Account{Name: "test-account"},
 		VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true},
-		VolumePerformanceGroup:     vpg,
+		VolumePerformanceGroup:   vpg,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: false,
 		},
@@ -836,12 +836,12 @@ func TestCreateVolumeInONTAP_WithQoSPolicy_VPGNil_ReturnsError(t *testing.T) {
 	env.RegisterActivity(activity.CreateVolumeInONTAP)
 
 	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
-		Name:      "test-volume",
-		Svm:       &datamodel.Svm{Name: "test-svm"},
-		Account:   &datamodel.Account{Name: "test-account"},
+		BaseModel:                datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:                     "test-volume",
+		Svm:                      &datamodel.Svm{Name: "test-svm"},
+		Account:                  &datamodel.Account{Name: "test-account"},
 		VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true},
-		VolumePerformanceGroup:     nil, // VPG is nil - this should not happen with foreign key constraints
+		VolumePerformanceGroup:   nil, // VPG is nil - this should not happen with foreign key constraints
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: false,
 		},
@@ -885,12 +885,12 @@ func TestCreateVolumeInONTAP_WithQoSPolicy_VPGNil_ReloadError(t *testing.T) {
 	env.RegisterActivity(activity.CreateVolumeInONTAP)
 
 	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
-		Name:      "test-volume",
-		Svm:       &datamodel.Svm{Name: "test-svm"},
-		Account:   &datamodel.Account{Name: "test-account"},
+		BaseModel:                datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:                     "test-volume",
+		Svm:                      &datamodel.Svm{Name: "test-svm"},
+		Account:                  &datamodel.Account{Name: "test-account"},
 		VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true},
-		VolumePerformanceGroup:     nil, // VPG is nil - this should not happen with foreign key constraints
+		VolumePerformanceGroup:   nil, // VPG is nil - this should not happen with foreign key constraints
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: false,
 		},
@@ -934,12 +934,12 @@ func TestCreateVolumeInONTAP_WithQoSPolicy_VPGNil_ReloadedVolumeHasNilVPG(t *tes
 	env.RegisterActivity(activity.CreateVolumeInONTAP)
 
 	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
-		Name:      "test-volume",
-		Svm:       &datamodel.Svm{Name: "test-svm"},
-		Account:   &datamodel.Account{Name: "test-account"},
+		BaseModel:                datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:                     "test-volume",
+		Svm:                      &datamodel.Svm{Name: "test-svm"},
+		Account:                  &datamodel.Account{Name: "test-account"},
 		VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true},
-		VolumePerformanceGroup:     nil, // VPG is nil - this should not happen with foreign key constraints
+		VolumePerformanceGroup:   nil, // VPG is nil - this should not happen with foreign key constraints
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: false,
 		},
@@ -980,12 +980,12 @@ func TestCreateVolumeInONTAP_WithQoSPolicy_EmptyOntapQosPolicyID(t *testing.T) {
 		OntapQosPolicyID: "", // Empty QoS policy ID
 	}
 	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
-		Name:      "test-volume",
-		Svm:       &datamodel.Svm{Name: "test-svm"},
-		Account:   &datamodel.Account{Name: "test-account"},
+		BaseModel:                datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:                     "test-volume",
+		Svm:                      &datamodel.Svm{Name: "test-svm"},
+		Account:                  &datamodel.Account{Name: "test-account"},
 		VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true},
-		VolumePerformanceGroup:     vpg,
+		VolumePerformanceGroup:   vpg,
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: false,
 		},
@@ -1028,10 +1028,10 @@ func TestCreateVolumeInONTAP_WithoutQoSPolicy_EnableMQOSDisabled(t *testing.T) {
 	env.RegisterActivity(activity.CreateVolumeInONTAP)
 
 	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
-		Name:      "test-volume",
-		Svm:       &datamodel.Svm{Name: "test-svm"},
-		Account:   &datamodel.Account{Name: "test-account"},
+		BaseModel:                datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:                     "test-volume",
+		Svm:                      &datamodel.Svm{Name: "test-svm"},
+		Account:                  &datamodel.Account{Name: "test-account"},
 		VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: false,
@@ -1083,10 +1083,10 @@ func TestCreateVolumeInONTAP_WithoutQoSPolicy_InvalidVPGID(t *testing.T) {
 	env.RegisterActivity(activity.CreateVolumeInONTAP)
 
 	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
-		Name:      "test-volume",
-		Svm:       &datamodel.Svm{Name: "test-svm"},
-		Account:   &datamodel.Account{Name: "test-account"},
+		BaseModel:                datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:                     "test-volume",
+		Svm:                      &datamodel.Svm{Name: "test-svm"},
+		Account:                  &datamodel.Account{Name: "test-account"},
 		VolumePerformanceGroupID: sql.NullInt64{Valid: false}, // Invalid VPG ID
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			IsDataProtection: false,
@@ -12863,5 +12863,78 @@ func TestUpdateVolumeAutoTieringPolicyInONTAP_WithNilPool(t *testing.T) {
 	// The activity will panic (nil pointer dereference), which gets converted to an error by Temporal
 	assert.Error(t, err)
 	// Don't check for specific error message since the panic message may vary
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeLargeConstituentInDB_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeUUID := "vol-uuid-123"
+	constituentCount := int32(8)
+	largeVolumeAttributes := &datamodel.LargeVolumeAttributes{
+		LargeCapacity:               true,
+		LargeVolumeConstituentCount: &constituentCount,
+	}
+
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, map[string]interface{}{
+		"large_volume_attributes": largeVolumeAttributes,
+	}).Return(nil)
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.UpdateVolumeLargeConstituentInDB)
+
+	_, err := env.ExecuteActivity(activity.UpdateVolumeLargeConstituentInDB, volumeUUID, largeVolumeAttributes)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeLargeConstituentInDB_Error(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeUUID := "vol-uuid-456"
+	constituentCount := int32(4)
+	largeVolumeAttributes := &datamodel.LargeVolumeAttributes{
+		LargeCapacity:               true,
+		LargeVolumeConstituentCount: &constituentCount,
+	}
+	expectedErr := errors.New("database update failed")
+
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, map[string]interface{}{
+		"large_volume_attributes": largeVolumeAttributes,
+	}).Return(expectedErr)
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.UpdateVolumeLargeConstituentInDB)
+
+	_, err := env.ExecuteActivity(activity.UpdateVolumeLargeConstituentInDB, volumeUUID, largeVolumeAttributes)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), expectedErr.Error())
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeLargeConstituentInDB_NilAttributes(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeUUID := "vol-uuid-789"
+	var largeVolumeAttributes *datamodel.LargeVolumeAttributes = nil
+
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, map[string]interface{}{
+		"large_volume_attributes": largeVolumeAttributes,
+	}).Return(nil)
+
+	// Create Temporal test environment for activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.UpdateVolumeLargeConstituentInDB)
+
+	_, err := env.ExecuteActivity(activity.UpdateVolumeLargeConstituentInDB, volumeUUID, largeVolumeAttributes)
+
+	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
