@@ -385,7 +385,7 @@
   },
   "5016": {
     "description": "DNS server unreachable",
-    "message": "One or more of the Active Directory DNS IP do not exist or cannot be reached. Verify that the Active Directory policy is correct and that DNS servers are available.",
+    "message": "The DNS IP address specified in your Active Directory policy cannot be reached. Make sure the DNS IP is correct and the firewall on your DNS server allows access.",
     "retriable": false,
     "http_code": 400
   },

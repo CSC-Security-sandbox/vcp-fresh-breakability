@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	ontaprestmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -605,8 +606,10 @@ func TestCreateOrModifyADDNS_DnsCreateError_DNSServerUnreachable(t *testing.T) {
 	_, err := env.ExecuteActivity(activity.CreateOrModifyADDNS, &models.Node{}, ad, "svm", "svm-uuid")
 
 	require.Error(t, err)
-	// Verify the error message contains the customer-facing message from errors.json (5016)
-	assert.Contains(t, err.Error(), "One or more of the Active Directory DNS IP do not exist or cannot be reached")
+	customErr := vsaerrors.ExtractCustomError(err)
+	require.NotNil(t, customErr)
+	assert.Equal(t, vsaerrors.ErrDNSServerUnreachable, customErr.TrackingID)
+	assert.Equal(t, "The DNS IP address specified in your Active Directory policy cannot be reached. Make sure the DNS IP is correct and the firewall on your DNS server allows access.", customErr.Error())
 	mockClient.AssertExpectations(t)
 	mockNameSvc.AssertExpectations(t)
 }
@@ -635,8 +638,10 @@ func TestCreateOrModifyADDNS_DnsCreateError_DNSServerUnreachable_ConnectionRefus
 	_, err := env.ExecuteActivity(activity.CreateOrModifyADDNS, &models.Node{}, ad, "svm", "svm-uuid")
 
 	require.Error(t, err)
-	// Verify the error message contains the customer-facing message from errors.json (5016)
-	assert.Contains(t, err.Error(), "One or more of the Active Directory DNS IP do not exist or cannot be reached")
+	customErr := vsaerrors.ExtractCustomError(err)
+	require.NotNil(t, customErr)
+	assert.Equal(t, vsaerrors.ErrDNSServerUnreachable, customErr.TrackingID)
+	assert.Equal(t, "The DNS IP address specified in your Active Directory policy cannot be reached. Make sure the DNS IP is correct and the firewall on your DNS server allows access.", customErr.Error())
 	mockClient.AssertExpectations(t)
 	mockNameSvc.AssertExpectations(t)
 }
@@ -665,9 +670,9 @@ func TestCreateOrModifyADDNS_DnsCreateError_OtherError_NotDNSUnreachable(t *test
 	_, err := env.ExecuteActivity(activity.CreateOrModifyADDNS, &models.Node{}, ad, "svm", "svm-uuid")
 
 	require.Error(t, err)
-	// Verify this error does NOT get the DNS unreachable customer-facing message (5016)
-	assert.NotContains(t, err.Error(), "One or more of the Active Directory DNS IP do not exist or cannot be reached")
-	assert.Contains(t, err.Error(), "Domain name cannot be an IP address")
+	customErr := vsaerrors.ExtractCustomError(err)
+	require.NotNil(t, customErr)
+	assert.NotEqual(t, vsaerrors.ErrDNSServerUnreachable, customErr.TrackingID)
 	mockClient.AssertExpectations(t)
 	mockNameSvc.AssertExpectations(t)
 }
