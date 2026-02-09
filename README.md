@@ -244,6 +244,35 @@ Raise a ticket with Google: <https://partnerissuetracker.corp.google.com/issues/
 
 <https://console.cloud.google.com/netapp/pools?p2env=features%2F1649438282178%2Fbuild_units%2Fmain%2Fenvironments%2Fautopush&project=g1p-rc74879-dev>
 
+### Triagebot
+
+Triagebot is a Cursor rule that triages failed flows by fetching GCP logs for a given correlation id and analyzing them against the repo’s design and workflow docs. The report is returned in chat only (no files written).
+
+#### Prerequisites
+
+1. **Google Cloud SDK (gcloud)**  
+   Install from [cloud.google.com/sdk](https://cloud.google.com/sdk/docs/install).
+
+2. **Authenticate to GCP**  
+   Log in so `gcloud` can read Cloud Logging in the target project:
+
+   ```bash
+   gcloud auth login
+   ```
+
+   Ensure your account has access to the GCP project that contains the logs (e.g. `netapp-us-c1-staging-sde`).
+
+#### How to use
+
+1. In Cursor chat, start your message with **`triagebot`** (case-insensitive).
+2. When prompted, provide:
+   - **GCP project id** (e.g. `netapp-us-c1-staging-sde`)
+   - **Correlation id** (the `x-correlation-id` value from the request or error)
+3. Optionally you can pass them inline:  
+   `triagebot project=<project_id> correlation_id=<correlation_id>`
+
+Triagebot will fetch logs, analyze them against `doc/workflows/` and related design docs, and reply with a concise triage report (outcome, failed step, evidence, root cause, next actions). Logs are written under `triagebot_logs/<correlation_id>.json` in the repo for the run only.
+
 ### Guides
 
 For operator and developer runbooks and debugging guides, see the doc/guides directory. Notable guides:

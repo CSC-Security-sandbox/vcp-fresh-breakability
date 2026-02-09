@@ -22,7 +22,9 @@ go.work
 
 # VS Code settings
 .vscode/
-.cursor/
+# Ignore .cursor except rules (track .cursor/rules/)
+.cursor/*
+!.cursor/rules/
 
 # macOS specific files
 .DS_Store
@@ -44,3 +46,5 @@ build/
 
 artifacts/
 app/
+triagebot_logs/
+.gcloud/
