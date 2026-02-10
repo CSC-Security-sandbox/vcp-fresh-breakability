@@ -64,10 +64,19 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 
 		// For certificate-based auth, we still need password for SSH connections
 		// Use the node's password directly - SecretID contains private key, not password
-		var password string
-		if node.Password != "" {
-			password = node.Password
-		} else {
+		password := node.Password
+		if password == "" && node.SecretID != "" {
+			secret, GetPasswordFromCacheOrSecretManagerErr := GetPasswordFromCacheOrSecretManager(ctx, node.SecretID)
+			if GetPasswordFromCacheOrSecretManagerErr != nil {
+				util.GetLogger(ctx).Debugf("Failed to get password from Secret Manager for SSH: %v", GetPasswordFromCacheOrSecretManagerErr)
+			} else if secret != "" {
+				password = secret
+				util.GetLogger(ctx).Debugf("Retrieved password from Secret Manager for SSH authentication")
+			} else {
+				util.GetLogger(ctx).Warnf("Password retrieved from Secret Manager for node %s is empty", node.Name)
+			}
+		}
+		if password == "" {
 			util.GetLogger(ctx).Warnf("No password available for SSH authentication with certificate-based auth")
 			// Continue without password - SSH will fail but REST API will work
 		}

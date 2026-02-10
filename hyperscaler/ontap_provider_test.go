@@ -188,6 +188,78 @@ func Test_GetProviderByNode(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, provider)
 	})
+
+	t.Run("GetProviderByNode_SecretID_GetPasswordError", func(t *testing.T) {
+		// Test with node.Password empty, node.SecretID not empty, GetPasswordFromCacheOrSecretManager returns error - covers lines 71-73
+		node := &models.Node{
+			Name:                           "node6",
+			CertificateID:                  "cert-id",
+			Password:                       "", // Empty password
+			SecretID:                       "secret-id",
+			EndpointAddressesToHostNameMap: map[string]string{"1.2.3.4": "1.2.3.4"},
+			AuthType:                       env.USER_CERTIFICATE,
+		}
+
+		origGetCert := GetCertificateFromCacheOrSecretManager
+		origGetPwd := GetPasswordFromCacheOrSecretManager
+		defer func() {
+			GetCertificateFromCacheOrSecretManager = origGetCert
+			GetPasswordFromCacheOrSecretManager = origGetPwd
+		}()
+
+		GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+			return &models.Certificate{
+				SignedCertificate:        "signed",
+				InterMediateCertificates: []string{"intermediate"},
+				CommonName:               "common",
+				PrivateKey:               "key",
+			}, nil
+		}
+
+		GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+			return "", errors.New("secret manager error")
+		}
+
+		provider, err := GetProviderByNode(ctx, node)
+		assert.NoError(t, err) // Should not fail, just log debug message
+		assert.NotNil(t, provider)
+	})
+
+	t.Run("GetProviderByNode_SecretID_GetPasswordSuccess", func(t *testing.T) {
+		// Test with node.Password empty, node.SecretID not empty, GetPasswordFromCacheOrSecretManager returns non-empty secret - covers lines 71, 74-76
+		node := &models.Node{
+			Name:                           "node7",
+			CertificateID:                  "cert-id",
+			Password:                       "", // Empty password
+			SecretID:                       "secret-id",
+			EndpointAddressesToHostNameMap: map[string]string{"1.2.3.4": "1.2.3.4"},
+			AuthType:                       env.USER_CERTIFICATE,
+		}
+
+		origGetCert := GetCertificateFromCacheOrSecretManager
+		origGetPwd := GetPasswordFromCacheOrSecretManager
+		defer func() {
+			GetCertificateFromCacheOrSecretManager = origGetCert
+			GetPasswordFromCacheOrSecretManager = origGetPwd
+		}()
+
+		GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+			return &models.Certificate{
+				SignedCertificate:        "signed",
+				InterMediateCertificates: []string{"intermediate"},
+				CommonName:               "common",
+				PrivateKey:               "key",
+			}, nil
+		}
+
+		GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+			return "retrieved-password", nil
+		}
+
+		provider, err := GetProviderByNode(ctx, node)
+		assert.NoError(t, err)
+		assert.NotNil(t, provider)
+	})
 }
 
 // Unit test for NewGcpServices in core/orchestrator/activities/pool_activities_test.go
