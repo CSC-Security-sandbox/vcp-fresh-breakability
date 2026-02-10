@@ -13,8 +13,9 @@ import (
 )
 
 var (
-	validateVolumeCreate           = _validateVolumeCreate
-	validateVolumeDelete           = _validateVolumeDelete
+	validateVolumeCreate            = _validateVolumeCreate
+	validateVolumeDelete            = _validateVolumeDelete
+	validateVolumeUpdate            = _validateVolumeUpdate
 	submitExpertModeVolumeOperation = core.SubmitExpertModeVolumeOperation
 )
 
@@ -84,6 +85,51 @@ func _validateVolumeDelete(ctx context.Context, cmd *CLICommand) (bool, string) 
 		Action:        coreapi.ExpertModeVolumeV1ActionDelete,
 		VolumeName:    volumeName,
 		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol, // TODO: fix this. Style should not be mandatory for delete.
+		SvmName:       coreapi.NewOptString(vserverName),
+	}
+
+	jwtToken := middleware.ExtractJWTFromContext(ctx)
+	if err := submitExpertModeVolumeOperation(ctx, expertVolumeRequest, jwtToken, logger); err != nil {
+		return false, err.Error()
+	}
+
+	return true, ""
+}
+
+// _validateVolumeUpdate validates volume modify when -size is present: validates the size and submits
+// an Update operation to the core API. If -size is not present, the command is allowed without submission.
+func _validateVolumeUpdate(ctx context.Context, cmd *CLICommand) (bool, string) {
+	sizeStr := cmd.GetArgument("-size")
+	if sizeStr == "" {
+		return true, "" // No size change requested, allow without submitting
+	}
+
+	logger := util.GetLogger(ctx)
+
+	cacheKey := cache.GetAuthDataKeyFromContext(ctx)
+	if cacheKey == "" {
+		return false, "cache key not found in context"
+	}
+	authData, exists := cache.GetFromAuthDataCache(cacheKey)
+	if !exists || authData == nil {
+		return false, fmt.Sprintf("auth data not found in cache for key: %s", cacheKey)
+	}
+
+	sizeInBytes := proxyutils.ParseSizeString(sizeStr)
+	if sizeInBytes == 0 {
+		return false, fmt.Sprintf("%q is an invalid value for argument \"-size\"", sizeStr)
+	}
+
+	volumeName := cmd.GetArgument("-volume")
+	vserverName := cmd.GetArgument("-vserver")
+
+	expertVolumeRequest := &coreapi.ExpertModeVolumeV1{
+		ProjectNumber: authData.AccountName,
+		PoolUUID:      authData.PoolID,
+		Action:        coreapi.ExpertModeVolumeV1ActionUpdate,
+		VolumeName:    volumeName,
+		SizeInBytes:   sizeInBytes,
+		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
 		SvmName:       coreapi.NewOptString(vserverName),
 	}
 

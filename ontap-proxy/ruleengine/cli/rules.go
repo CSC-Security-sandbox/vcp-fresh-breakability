@@ -109,6 +109,7 @@ var cliRules = []CLIRule{
 			CLIIfPresentThenEquals("-is-space-enforcement-logical", "true"),
 			CLIIfPresentThenEquals("-is-space-reporting-logical", "true"),
 		),
+		ExternalValidator: validateVolumeUpdate,
 	},
 	{
 		Pattern: "vol modify",
@@ -121,6 +122,7 @@ var cliRules = []CLIRule{
 			CLIIfPresentThenEquals("-is-space-enforcement-logical", "true"),
 			CLIIfPresentThenEquals("-is-space-reporting-logical", "true"),
 		),
+		ExternalValidator: validateVolumeUpdate,
 	},
 	{
 		Pattern:           "volume delete",

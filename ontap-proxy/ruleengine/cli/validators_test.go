@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	coreapi "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/core-api"
@@ -12,9 +13,6 @@ import (
 )
 
 func Test_validateVolumeCreate(t *testing.T) {
-	origSubmit := submitExpertModeVolumeOperation
-	defer func() { submitExpertModeVolumeOperation = origSubmit }()
-
 	t.Run("WhenCacheKeyMissing_ShouldReturnNotAllowed", func(t *testing.T) {
 		ctx := context.Background()
 		cmd := &CLICommand{
@@ -60,7 +58,7 @@ func Test_validateVolumeCreate(t *testing.T) {
 			t.Error("Expected non-empty reason")
 		}
 		wantPrefix := "auth data not found in cache for key:"
-		if len(reason) < len(wantPrefix) || reason[:len(wantPrefix)] != wantPrefix {
+		if !strings.HasPrefix(reason, wantPrefix) {
 			t.Errorf("Reason = %q, want prefix %q", reason, wantPrefix)
 		}
 	})
@@ -95,6 +93,8 @@ func Test_validateVolumeCreate(t *testing.T) {
 	})
 
 	t.Run("WhenCoreSucceeds_ShouldReturnAllowed", func(t *testing.T) {
+		origSubmit := submitExpertModeVolumeOperation
+		defer func() { submitExpertModeVolumeOperation = origSubmit }()
 		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
 			return nil
 		}
@@ -124,6 +124,8 @@ func Test_validateVolumeCreate(t *testing.T) {
 	})
 
 	t.Run("WhenCoreReturnsError_ShouldReturnNotAllowed", func(t *testing.T) {
+		origSubmit := submitExpertModeVolumeOperation
+		defer func() { submitExpertModeVolumeOperation = origSubmit }()
 		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
 			return errors.New("core validation failed")
 		}
@@ -154,9 +156,6 @@ func Test_validateVolumeCreate(t *testing.T) {
 }
 
 func Test_validateVolumeDelete(t *testing.T) {
-	origSubmit := submitExpertModeVolumeOperation
-	defer func() { submitExpertModeVolumeOperation = origSubmit }()
-
 	t.Run("WhenCacheKeyMissing_ShouldReturnNotAllowed", func(t *testing.T) {
 		ctx := context.Background()
 		cmd := &CLICommand{
@@ -200,12 +199,14 @@ func Test_validateVolumeDelete(t *testing.T) {
 			t.Error("Expected non-empty reason")
 		}
 		wantPrefix := "auth data not found in cache for key:"
-		if len(reason) < len(wantPrefix) || reason[:len(wantPrefix)] != wantPrefix {
+		if !strings.HasPrefix(reason, wantPrefix) {
 			t.Errorf("Reason = %q, want prefix %q", reason, wantPrefix)
 		}
 	})
 
 	t.Run("WhenCoreSucceeds_ShouldReturnAllowed", func(t *testing.T) {
+		origSubmit := submitExpertModeVolumeOperation
+		defer func() { submitExpertModeVolumeOperation = origSubmit }()
 		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
 			return nil
 		}
@@ -234,6 +235,8 @@ func Test_validateVolumeDelete(t *testing.T) {
 	})
 
 	t.Run("WhenCoreReturnsError_ShouldReturnNotAllowed", func(t *testing.T) {
+		origSubmit := submitExpertModeVolumeOperation
+		defer func() { submitExpertModeVolumeOperation = origSubmit }()
 		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
 			return errors.New("volume not found")
 		}
@@ -258,6 +261,183 @@ func Test_validateVolumeDelete(t *testing.T) {
 		}
 		if reason != "volume not found" {
 			t.Errorf("Reason = %q, want volume not found", reason)
+		}
+	})
+}
+
+func Test_validateVolumeUpdate(t *testing.T) {
+	t.Run("WhenSizeNotPresent_ShouldReturnAllowed", func(t *testing.T) {
+		ctx := context.Background()
+		cmd := &CLICommand{
+			FullCommand: "volume modify",
+			Arguments: map[string]string{
+				"-vserver": "vs1",
+				"-volume":  "vol1",
+			},
+		}
+
+		allowed, reason := _validateVolumeUpdate(ctx, cmd)
+
+		if !allowed {
+			t.Errorf("Expected allowed when -size not present, got reason = %q", reason)
+		}
+		if reason != "" {
+			t.Errorf("Expected empty reason when -size not present, got %q", reason)
+		}
+	})
+
+	t.Run("WhenCacheKeyMissing_ShouldReturnNotAllowed", func(t *testing.T) {
+		ctx := context.Background()
+		cmd := &CLICommand{
+			FullCommand: "volume modify",
+			Arguments: map[string]string{
+				"-vserver": "vs1",
+				"-volume":  "vol1",
+				"-size":    "10g",
+			},
+		}
+
+		allowed, reason := _validateVolumeUpdate(ctx, cmd)
+
+		if allowed {
+			t.Error("Expected not allowed when cache key missing")
+		}
+		if reason == "" {
+			t.Error("Expected non-empty reason")
+		}
+		if reason != "cache key not found in context" {
+			t.Errorf("Reason = %q, want cache key not found", reason)
+		}
+	})
+
+	t.Run("WhenAuthDataNotFoundInCache_ShouldReturnNotAllowed", func(t *testing.T) {
+		wrongKey := "wrong-pool-key-update"
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, wrongKey)
+		cmd := &CLICommand{
+			FullCommand: "volume modify",
+			Arguments: map[string]string{
+				"-vserver": "vs1",
+				"-volume":  "vol1",
+				"-size":    "10g",
+			},
+		}
+
+		allowed, reason := _validateVolumeUpdate(ctx, cmd)
+
+		if allowed {
+			t.Error("Expected not allowed when auth data not in cache")
+		}
+		if reason == "" {
+			t.Error("Expected non-empty reason")
+		}
+		wantPrefix := "auth data not found in cache for key:"
+		if !strings.HasPrefix(reason, wantPrefix) {
+			t.Errorf("Reason = %q, want prefix %q", reason, wantPrefix)
+		}
+	})
+
+	t.Run("WhenInvalidSize_ShouldReturnNotAllowed", func(t *testing.T) {
+		cacheKey := "test-pool-key-update-invalid-size"
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, cacheKey)
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+		})
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		cmd := &CLICommand{
+			FullCommand: "volume modify",
+			Arguments: map[string]string{
+				"-vserver": "vs1",
+				"-volume":  "vol1",
+				"-size":    "invalid",
+			},
+		}
+		allowed, reason := _validateVolumeUpdate(ctx, cmd)
+		if allowed {
+			t.Error("Expected not allowed for invalid size")
+		}
+		if reason == "" {
+			t.Error("Expected non-empty reason")
+		}
+		if reason != `"invalid" is an invalid value for argument "-size"` {
+			t.Errorf("Reason = %q", reason)
+		}
+	})
+
+	t.Run("WhenCoreSucceeds_ShouldReturnAllowed", func(t *testing.T) {
+		origSubmit := submitExpertModeVolumeOperation
+		defer func() { submitExpertModeVolumeOperation = origSubmit }()
+		var capturedReq *coreapi.ExpertModeVolumeV1
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			capturedReq = req
+			return nil
+		}
+		cacheKey := "test-pool-key-update-success"
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, cacheKey)
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+		})
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		cmd := &CLICommand{
+			FullCommand: "volume modify",
+			Arguments: map[string]string{
+				"-vserver": "vs1",
+				"-volume":  "vol1",
+				"-size":    "200g",
+			},
+		}
+		allowed, reason := _validateVolumeUpdate(ctx, cmd)
+		if !allowed {
+			t.Errorf("Expected allowed when core succeeds, got reason = %q", reason)
+		}
+		if reason != "" {
+			t.Errorf("Expected empty reason on success, got %q", reason)
+		}
+		if capturedReq == nil {
+			t.Fatal("Expected request to be sent to core")
+		}
+		if capturedReq.Action != coreapi.ExpertModeVolumeV1ActionUpdate {
+			t.Errorf("Action = %v, want Update", capturedReq.Action)
+		}
+		if capturedReq.VolumeName != "vol1" {
+			t.Errorf("VolumeName = %q, want vol1", capturedReq.VolumeName)
+		}
+		if capturedReq.SizeInBytes == 0 {
+			t.Error("Expected SizeInBytes to be set")
+		}
+	})
+
+	t.Run("WhenCoreReturnsError_ShouldReturnNotAllowed", func(t *testing.T) {
+		origSubmit := submitExpertModeVolumeOperation
+		defer func() { submitExpertModeVolumeOperation = origSubmit }()
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return errors.New("update conflict")
+		}
+		cacheKey := "test-pool-key-update-core-err"
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, cacheKey)
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+		})
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		cmd := &CLICommand{
+			FullCommand: "volume modify",
+			Arguments: map[string]string{
+				"-vserver": "vs1",
+				"-volume":  "vol1",
+				"-size":    "10g",
+			},
+		}
+		allowed, reason := _validateVolumeUpdate(ctx, cmd)
+		if allowed {
+			t.Error("Expected not allowed when core returns error")
+		}
+		if reason != "update conflict" {
+			t.Errorf("Reason = %q, want update conflict", reason)
 		}
 	})
 }
