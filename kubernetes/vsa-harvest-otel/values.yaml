@@ -33,7 +33,7 @@ images:
   otel:
     name: vcp-open-telemetry-images/opentelemetry-collector-contrib
     tag: 0.118.0
-    digest: 'sha256:83ff24727f615c39056d954dd3a5d4ef227a5a9fe2c234a4489199e4351f0ab'
+    digest: 'sha256:83ff24727f615c39056d954dd3a5d4ef227a5a9fe2c234a4489199e4351f0ab5'
     secondary: true
     pullPolicy: IfNotPresent
   metricsAdapter:
