@@ -918,7 +918,7 @@ func decodeV1ExpertModeVolumeRenameParams(args [1]string, argsEscaped bool, r *h
 					MaxLengthSet: false,
 					Email:        false,
 					Hostname:     false,
-					Regex:        regexMap["^([a-zA-Z][a-zA-Z0-9_-]{0,201})?$"],
+					Regex:        regexMap["^([a-zA-Z][a-zA-Z0-9_]{0,201})?$"],
 				}).Validate(string(params.Name)); err != nil {
 					return errors.Wrap(err, "string")
 				}

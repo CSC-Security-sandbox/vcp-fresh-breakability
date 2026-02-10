@@ -1071,8 +1071,8 @@ paths:
           required: true
           schema:
             type: string
-            pattern: "^([a-zA-Z][a-zA-Z0-9_-]{0,201})?$"
-            example: "my-volume"
+            pattern: "^([a-zA-Z][a-zA-Z0-9_]{0,201})?$"
+            example: "my_volume"
       requestBody:
         description: New name for the volume and context (projectNumber, poolUUID, svmName)
         required: true
@@ -2464,8 +2464,8 @@ components:
           title: volumeName
           type: string
           description: Volume name
-          pattern: "^([a-zA-Z][a-zA-Z0-9_-]{0,201})?$"
-          example: "my-volume"
+          pattern: "^([a-zA-Z][a-zA-Z0-9_]{0,201})?$"
+          example: "my_volume"
         volumeUUID:
           title: volumeUUID
           type: string
@@ -2511,8 +2511,8 @@ components:
           title: name
           type: string
           description: New name for the volume after rename
-          pattern: "^([a-zA-Z][a-zA-Z0-9_-]{0,201})?$"
-          example: "my-renamed-volume"
+          pattern: "^([a-zA-Z][a-zA-Z0-9_]{0,201})?$"
+          example: "my_renamed_volume"
         projectNumber:
           title: projectNumber
           type: string
