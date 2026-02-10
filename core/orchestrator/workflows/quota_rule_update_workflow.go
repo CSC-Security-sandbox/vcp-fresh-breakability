@@ -101,7 +101,7 @@ func (wf *quotaRuleUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: 20 * time.Minute,
+		StartToCloseTimeout: time.Duration(startToCloseTimeoutQuotaRuleActivitySec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,

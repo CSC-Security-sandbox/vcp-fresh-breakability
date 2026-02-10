@@ -334,6 +334,9 @@ workerConfig:
   snapshotStartToCloseTimeoutSec: "300"  # 5 minutes
   snapshotHeartbeatTimeoutSec: "150"     # 2.5 minutes
 
+  # Quota rule workflow timeout configuration (in seconds)
+  quotaRuleStartToCloseTimeoutSec: "300"  # 5 minutes
+
   # Volume revert workflow timeout configuration (in seconds)
   volumeRevertStartToCloseTimeoutSec: "600"  # 10 minutes
   volumeRevertHeartbeatTimeoutSec: "300"     # 5 minutes

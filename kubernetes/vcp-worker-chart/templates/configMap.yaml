@@ -299,6 +299,9 @@ data:
   SNAPSHOT_START_TO_CLOSE_TIMEOUT_SEC: {{$.Values.workerConfig.snapshotStartToCloseTimeoutSec | quote }}
   SNAPSHOT_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.snapshotHeartbeatTimeoutSec | quote }}
 
+  # Quota rule workflow timeout configuration (in seconds)
+  QUOTA_RULE_START_TO_CLOSE_TIMEOUT_SEC: {{$.Values.workerConfig.quotaRuleStartToCloseTimeoutSec | quote }}
+
   # Volume revert workflow timeout configuration
   VOLUME_REVERT_START_TO_CLOSE_TIMEOUT_SEC: {{$.Values.workerConfig.volumeRevertStartToCloseTimeoutSec | quote }}
   VOLUME_REVERT_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.volumeRevertHeartbeatTimeoutSec | quote }}

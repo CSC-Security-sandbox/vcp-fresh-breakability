@@ -106,7 +106,7 @@ func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}
 		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: 20 * time.Minute,
+		StartToCloseTimeout: time.Duration(startToCloseTimeoutQuotaRuleActivitySec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -297,11 +297,11 @@ func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}
 					}
 
 					// Hydrate the quota rule deletion to CCFE after polling completes (or immediately if operation completed synchronously)
-					// Use quota rule name for hydration (CCFE expects resource name)
+					// Use quota rule name and destination volume name for hydration (CCFE expects resource names)
 					quotaRuleName := dbQuotaRule.Name
 					if hydrationEnabled {
 						err = workflow.ExecuteActivity(ctx, commonActivity.HydrateQuotaRuleDelete,
-							quotaRuleName, replication.ReplicationAttributes.DestinationVolumeUUID,
+							quotaRuleName, replication.ReplicationAttributes.DestinationVolumeName,
 							replication.ReplicationAttributes.DestinationLocation, destProjectNumber).Get(ctx, nil)
 						if err != nil {
 							logger.Errorf("Failed to hydrate quota rule delete to CCFE: quotaRuleName=%s, error=%v", quotaRuleName, err)
@@ -310,7 +310,7 @@ func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}
 						logger.Infof("Successfully hydrated quota rule delete to CCFE: quotaRuleName=%s", quotaRuleName)
 					}
 
-					logger.Infof("Successfully synced quota rule deletion to destination: location=%s, volumeUUID=%s, quotaRuleId=%s",
+					logger.Infof("Successfully deleted quotaRule on destination: location=%s, volumeUUID=%s, quotaRuleId=%s",
 						replication.ReplicationAttributes.DestinationLocation, replication.ReplicationAttributes.DestinationVolumeUUID, *destinationQuotaRuleId)
 
 					// Mark that destination deletion succeeded - this enables revert if source deletion fails
@@ -364,7 +364,7 @@ func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}
 				if hydrationEnabled && revertResult.QuotaRule != nil {
 					// Hydrate the quota rule creation to CCFE after successful revert using the destination quota rule (revertResult.QuotaRule)
 					hydrateErr := workflow.ExecuteActivity(ctx, commonActivity.HydrateQuotaRuleCreate,
-						revertResult.QuotaRule, replicationForRevert.ReplicationAttributes.DestinationVolumeUUID,
+						revertResult.QuotaRule, replicationForRevert.ReplicationAttributes.DestinationVolumeName,
 						replicationForRevert.ReplicationAttributes.DestinationLocation, destProjectNumberForRevert).Get(ctx, nil)
 					if hydrateErr != nil {
 						logger.Errorf("Failed to hydrate quota rule create to CCFE after revert: quotaRuleName=%s, error=%v", revertResult.QuotaRule.Name, hydrateErr)
@@ -375,6 +375,8 @@ func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}
 			}
 		}
 	}()
+
+	logger.Infof("Start Source quotaRule deletion")
 
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, volumeDetails.PoolID).Get(ctx, &dbNodes)

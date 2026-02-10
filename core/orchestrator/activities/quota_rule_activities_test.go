@@ -3519,6 +3519,378 @@ func Test_CreateQuotaRuleOnDestination(t *testing.T) {
 	})
 }
 
+// Test_DeleteQuotaRuleOnDestination tests the DeleteQuotaRuleOnDestination activity
+func Test_DeleteQuotaRuleOnDestination(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	t.Run("DeleteQuotaRuleOnDestination_Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleDeleteActivity{SE: mockStorage}
+		destinationVolumeUUID := "dest-vol-uuid"
+		destinationQuotaRuleId := "quota-rule-id-123"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		jwtToken := "test-jwt-token"
+
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+			return basePath, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		expectedResponse := &googleproxyclient.QuotaRulesVCPV1beta{
+			QuotaId:    googleproxyclient.NewOptString("quota-id"),
+			ResourceId: "res-id",
+			State:      googleproxyclient.NewOptQuotaRulesVCPV1betaState(googleproxyclient.QuotaRulesVCPV1betaStateREADY),
+		}
+		mockInvoker.On("V1betaDeleteQuotaRuleVCP", ctx, mock.Anything).Return(expectedResponse, nil)
+
+		result, err := activity.DeleteQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, destinationRegion, projectNumber, &jwtToken)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.IsDone)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("DeleteQuotaRuleOnDestination_DELETINGStateWithJobId_ReturnsJobIdForPolling", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleDeleteActivity{SE: mockStorage}
+		destinationVolumeUUID := "dest-vol-uuid"
+		destinationQuotaRuleId := "quota-rule-id-123"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		jwtToken := "test-jwt-token"
+
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+			return basePath, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		jobID := "job-123"
+		expectedResponse := &googleproxyclient.QuotaRulesVCPV1beta{
+			QuotaId:    googleproxyclient.NewOptString("quota-id"),
+			ResourceId: "res-id",
+			State:      googleproxyclient.NewOptQuotaRulesVCPV1betaState(googleproxyclient.QuotaRulesVCPV1betaStateDELETING),
+			Jobs: []googleproxyclient.JobV1beta{
+				{JobId: googleproxyclient.NewOptString(jobID)},
+			},
+		}
+		mockInvoker.On("V1betaDeleteQuotaRuleVCP", ctx, mock.Anything).Return(expectedResponse, nil)
+
+		result, err := activity.DeleteQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, destinationRegion, projectNumber, &jwtToken)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, result.IsDone)
+		assert.Equal(t, jobID, result.OperationName)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("DeleteQuotaRuleOnDestination_DELETINGStateWithoutJobId_ReturnsSuccess", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleDeleteActivity{SE: mockStorage}
+		destinationVolumeUUID := "dest-vol-uuid"
+		destinationQuotaRuleId := "quota-rule-id-123"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		jwtToken := "test-jwt-token"
+
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+			return basePath, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		expectedResponse := &googleproxyclient.QuotaRulesVCPV1beta{
+			QuotaId:    googleproxyclient.NewOptString("quota-id"),
+			ResourceId: "res-id",
+			State:      googleproxyclient.NewOptQuotaRulesVCPV1betaState(googleproxyclient.QuotaRulesVCPV1betaStateDELETING),
+			Jobs:       []googleproxyclient.JobV1beta{},
+		}
+		mockInvoker.On("V1betaDeleteQuotaRuleVCP", ctx, mock.Anything).Return(expectedResponse, nil)
+
+		result, err := activity.DeleteQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, destinationRegion, projectNumber, &jwtToken)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.IsDone)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("DeleteQuotaRuleOnDestination_BadRequest_ReturnsError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleDeleteActivity{SE: mockStorage}
+		destinationVolumeUUID := "dest-vol-uuid"
+		destinationQuotaRuleId := "quota-rule-id-123"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		jwtToken := "test-jwt-token"
+
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+			return basePath, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		badRequestResponse := &googleproxyclient.V1betaDeleteQuotaRuleVCPBadRequest{
+			Message: "Invalid request",
+		}
+		mockInvoker.On("V1betaDeleteQuotaRuleVCP", ctx, mock.Anything).Return(badRequestResponse, nil)
+
+		result, err := activity.DeleteQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, destinationRegion, projectNumber, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("DeleteQuotaRuleOnDestination_NilJWTToken_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleDeleteActivity{SE: mockStorage}
+		_, err := activity.DeleteQuotaRuleOnDestination(ctx, "vol-uuid", "quota-id", "us-east1", "123", nil)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "JWT token is required")
+	})
+
+	t.Run("DeleteQuotaRuleOnDestination_EmptyJWTToken_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleDeleteActivity{SE: mockStorage}
+		emptyToken := ""
+		_, err := activity.DeleteQuotaRuleOnDestination(ctx, "vol-uuid", "quota-id", "us-east1", "123", &emptyToken)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "JWT token is required")
+	})
+
+	t.Run("DeleteQuotaRuleOnDestination_GetBasePathError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleDeleteActivity{SE: mockStorage}
+		jwtToken := "test-jwt"
+
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+			return "", errors.New("failed to get base path")
+		}
+
+		_, err := activity.DeleteQuotaRuleOnDestination(ctx, "vol-uuid", "quota-id", "us-east1", "123", &jwtToken)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get destination base path")
+	})
+
+	t.Run("DeleteQuotaRuleOnDestination_APIError_Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleDeleteActivity{SE: mockStorage}
+		destinationVolumeUUID := "dest-vol-uuid"
+		destinationQuotaRuleId := "quota-rule-id-123"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		jwtToken := "test-jwt-token"
+
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+			return basePath, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		expectedError := errors.New("API call failed")
+		mockInvoker.On("V1betaDeleteQuotaRuleVCP", ctx, mock.Anything).Return(nil, expectedError)
+
+		result, err := activity.DeleteQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, destinationRegion, projectNumber, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to delete quota rule on destination")
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("DeleteQuotaRuleOnDestination_NotFound_ReturnsError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleDeleteActivity{SE: mockStorage}
+		destinationVolumeUUID := "dest-vol-uuid"
+		destinationQuotaRuleId := "quota-rule-id-123"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		jwtToken := "test-jwt-token"
+
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+			return basePath, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		notFoundResponse := &googleproxyclient.V1betaDeleteQuotaRuleVCPNotFound{
+			Message: "quota rule not found",
+		}
+		mockInvoker.On("V1betaDeleteQuotaRuleVCP", ctx, mock.Anything).Return(notFoundResponse, nil)
+
+		result, err := activity.DeleteQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, destinationRegion, projectNumber, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("DeleteQuotaRuleOnDestination_InternalServerError_ReturnsError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleDeleteActivity{SE: mockStorage}
+		destinationVolumeUUID := "dest-vol-uuid"
+		destinationQuotaRuleId := "quota-rule-id-123"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		jwtToken := "test-jwt-token"
+
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+			return basePath, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		internalErrResponse := &googleproxyclient.V1betaDeleteQuotaRuleVCPInternalServerError{
+			Message: "internal error",
+		}
+		mockInvoker.On("V1betaDeleteQuotaRuleVCP", ctx, mock.Anything).Return(internalErrResponse, nil)
+
+		result, err := activity.DeleteQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, destinationRegion, projectNumber, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("DeleteQuotaRuleOnDestination_Unauthorized_ReturnsError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleDeleteActivity{SE: mockStorage}
+		destinationVolumeUUID := "dest-vol-uuid"
+		destinationQuotaRuleId := "quota-rule-id-123"
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		jwtToken := "test-jwt-token"
+
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(locationID string) (string, error) {
+			return basePath, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		unauthorizedResponse := &googleproxyclient.V1betaDeleteQuotaRuleVCPUnauthorized{Message: "unauthorized"}
+		mockInvoker.On("V1betaDeleteQuotaRuleVCP", ctx, mock.Anything).Return(unauthorizedResponse, nil)
+
+		result, err := activity.DeleteQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, destinationRegion, projectNumber, &jwtToken)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockInvoker.AssertExpectations(t)
+	})
+}
+
 // Test_GetOntapQuotaUUID tests the GetOntapQuotaUUID activity
 // following the pattern from existing activity tests
 func Test_GetOntapQuotaUUID(t *testing.T) {

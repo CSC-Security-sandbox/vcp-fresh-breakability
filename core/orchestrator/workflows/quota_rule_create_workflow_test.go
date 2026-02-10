@@ -22,6 +22,13 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+// TestQuotaRuleActivityStartToCloseTimeout_DefaultValue verifies the quota rule activity start-to-close timeout
+// is read from QUOTA_RULE_START_TO_CLOSE_TIMEOUT_SEC and defaults to 300 seconds (5 minutes).
+func TestQuotaRuleActivityStartToCloseTimeout_DefaultValue(t *testing.T) {
+	assert.Equal(t, uint64(300), startToCloseTimeoutQuotaRuleActivitySec,
+		"default QUOTA_RULE_START_TO_CLOSE_TIMEOUT_SEC should be 300 seconds (5 minutes)")
+}
+
 func TestCreateQuotaRuleWorkflow(t *testing.T) {
 	// Common test data
 	volumeID := int64(1)
@@ -692,6 +699,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 				VolumeID: volumeID,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					DestinationVolumeUUID: "dest-volume-uuid",
+					DestinationVolumeName: "dest-volume-name",
 					DestinationLocation:   "us-west1-a",
 				},
 				RemoteUri: "projects/987654321/locations/us-west1-a/volumes/dest-volume-uuid/replications/replication-1",
@@ -770,6 +778,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 				VolumeID:  volumeID,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					DestinationVolumeUUID: "dest-volume-uuid",
+					DestinationVolumeName: "dest-volume-name",
 					DestinationLocation:   "us-west1-a",
 				},
 				RemoteUri: "projects/987654321/locations/us-west1-a/volumes/dest-volume-uuid/replications/replication-1",
@@ -793,7 +802,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("VerifyReplicationState", mock.Anything, replications[0], params.LocationId).Return(true, nil)
 		env.OnActivity("GetSignedDstTokenForQuotaRule", mock.Anything, "987654321").Return(&jwtToken, nil)
 		env.OnActivity("CreateQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", quotaRule, "us-west1-a", "987654321", &jwtToken).Return(&activities.QuotaRuleOperationResult{IsDone: true, QuotaRule: destQuotaRule}, nil)
-		env.OnActivity("HydrateQuotaRuleCreate", mock.Anything, mock.Anything, "dest-volume-uuid", "us-west1-a", "987654321").Return(errors.New("hydration failed"))
+		env.OnActivity("HydrateQuotaRuleCreate", mock.Anything, mock.Anything, "dest-volume-name", "us-west1-a", "987654321").Return(errors.New("hydration failed"))
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -869,6 +878,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 				VolumeID: volumeID,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					DestinationVolumeUUID: "dest-volume-uuid",
+					DestinationVolumeName: "dest-volume-name",
 					DestinationLocation:   "us-west1-a",
 				},
 				RemoteUri: "projects/987654321/locations/us-west1-a/volumes/dest-volume-uuid/replications/replication-1",
@@ -1039,6 +1049,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 				VolumeID: volumeID,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					DestinationVolumeUUID: "dest-volume-uuid",
+					DestinationVolumeName: "dest-volume-name",
 					DestinationLocation:   "us-west1-a",
 				},
 				RemoteUri: "projects/987654321/locations/us-west1-a/volumes/dest-volume-uuid/replications/replication-1",
@@ -1068,7 +1079,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("HydrateQuotaRuleCreate", mock.Anything, mock.MatchedBy(func(qr *datamodel.QuotaRule) bool {
 			return qr != nil && qr.UUID == "dest-quota-rule-uuid" && qr.Name == quotaRule.Name &&
 				qr.UUID != "" && qr.Name != "" // hydrate object ResourceId and QuotaRuleId must not be empty
-		}), "dest-volume-uuid", "us-west1-a", "987654321").Return(nil)
+		}), "dest-volume-name", "us-west1-a", "987654321").Return(nil)
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Mock GetJob for EnsureJobState
@@ -1751,6 +1762,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 				VolumeID: volumeID,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					DestinationVolumeUUID: "dest-volume-uuid",
+					DestinationVolumeName: "dest-volume-name",
 					DestinationLocation:   "us-west1-a",
 				},
 				RemoteUri: "projects/987654321/locations/us-west1-a/volumes/dest-volume-uuid/replications/replication-1",
@@ -1842,6 +1854,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 				VolumeID: volumeID,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					DestinationVolumeUUID: "dest-volume-uuid",
+					DestinationVolumeName: "dest-volume-name",
 					DestinationLocation:   "us-west1-a",
 				},
 				RemoteUri: "projects/987654321/locations/us-west1-a/volumes/dest-volume-uuid/replications/replication-1",
@@ -1935,6 +1948,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 				VolumeID: volumeID,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					DestinationVolumeUUID: "dest-volume-uuid",
+					DestinationVolumeName: "dest-volume-name",
 					DestinationLocation:   "us-west1-a",
 				},
 				RemoteUri: "projects/987654321/locations/us-west1-a/volumes/dest-volume-uuid/replications/replication-1",
@@ -2032,6 +2046,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 				VolumeID: volumeID,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					DestinationVolumeUUID: "dest-volume-uuid",
+					DestinationVolumeName: "dest-volume-name",
 					DestinationLocation:   "us-west1-a",
 				},
 				RemoteUri: "projects/987654321/locations/us-west1-a/volumes/dest-volume-uuid/replications/replication-1",
@@ -2135,6 +2150,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 				VolumeID: volumeID,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					DestinationVolumeUUID: "dest-volume-uuid",
+					DestinationVolumeName: "dest-volume-name",
 					DestinationLocation:   "us-west1-a",
 				},
 				RemoteUri: "projects/987654321/locations/us-west1-a/volumes/dest-volume-uuid/replications/replication-1",
@@ -2243,6 +2259,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 				VolumeID: volumeID,
 				ReplicationAttributes: &datamodel.ReplicationDetails{
 					DestinationVolumeUUID: "dest-volume-uuid",
+					DestinationVolumeName: "dest-volume-name",
 					DestinationLocation:   "us-west1-a",
 				},
 				RemoteUri: "projects/987654321/locations/us-west1-a/volumes/dest-volume-uuid/replications/replication-1",
@@ -2276,7 +2293,7 @@ func TestCreateQuotaRuleWorkflow(t *testing.T) {
 		env.OnActivity("GetSignedDstTokenForQuotaRule", mock.Anything, "987654321").Return(&jwtToken, nil)
 		env.OnActivity("CreateQuotaRuleOnDestination", mock.Anything, "dest-volume-uuid", quotaRule, "us-west1-a", "987654321", &jwtToken).Return(operationResult, nil)
 		env.OnActivity("DescribeQuotaRuleRemoteJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(operationResult, nil).Maybe()
-		env.OnActivity("HydrateQuotaRuleCreate", mock.Anything, mock.Anything, "dest-volume-uuid", "us-west1-a", "987654321").Run(func(args mock.Arguments) {
+		env.OnActivity("HydrateQuotaRuleCreate", mock.Anything, mock.Anything, "dest-volume-name", "us-west1-a", "987654321").Run(func(args mock.Arguments) {
 			// Send cancellation signal right after HydrateQuotaRuleCreate completes, before the final cancellation check
 			env.SignalWorkflow(CancelQuotaRuleSignalName, "cancel data")
 		}).Return(nil)

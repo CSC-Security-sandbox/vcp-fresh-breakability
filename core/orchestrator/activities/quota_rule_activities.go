@@ -714,7 +714,7 @@ func (a *QuotaRuleDeleteActivity) DeleteQuotaRuleOnDestination(
 	// Handle response types (following the UpdateQuotaRuleOnDestination pattern)
 	switch r := res.(type) {
 	case *googleproxyclient.QuotaRulesVCPV1beta:
-		logger.Infof("Successfully deleted quota rule on destination: quotaId=%s, resourceId=%s, state=%s",
+		logger.Infof("Successfully triggered quota rule deletion on destination: quotaId=%s, resourceId=%s, state=%s",
 			r.QuotaId.Value, r.ResourceId, r.State.Value)
 
 		// Check if state is DELETING - need to poll for completion

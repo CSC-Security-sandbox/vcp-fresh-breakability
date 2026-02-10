@@ -263,9 +263,9 @@ func validateReplicationState(ctx context.Context, se database.Storage, volume *
 				mirrorState == string(gcpgenserver.ReplicationV1betaMirrorStateUNINITIALIZED) ||
 				mirrorState == OntapSnapmirrored ||
 				mirrorState == OntapUninitialized {
-				logger.Errorf("Destination replication is in %s state", mirrorState)
+				logger.Errorf("QuotaRule Operation is not allowed when destination replication is in %s state", mirrorState)
 				return customerrors.NewUserInputValidationErr(
-					fmt.Sprintf("Quota creation not allowed when destination replication is in %s state", mirrorState))
+					fmt.Sprintf("QuotaRule Operation is not allowed when destination replication is in %s state", mirrorState))
 			}
 		}
 	}

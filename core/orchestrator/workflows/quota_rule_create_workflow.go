@@ -23,7 +23,8 @@ import (
 )
 
 var (
-	hydrationEnabled = env.GetBool("GCP_HYDRATE_ENABLED", true)
+	hydrationEnabled                          = env.GetBool("GCP_HYDRATE_ENABLED", true)
+	startToCloseTimeoutQuotaRuleActivitySec   = env.GetUint64("QUOTA_RULE_START_TO_CLOSE_TIMEOUT_SEC", 300)
 )
 
 const (
@@ -109,7 +110,7 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: 20 * time.Minute,
+		StartToCloseTimeout: time.Duration(startToCloseTimeoutQuotaRuleActivitySec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -448,13 +449,13 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 				}
 
 				if hydrationEnabled && createOperationResult != nil && createOperationResult.QuotaRule != nil {
-					// Hydrate the quota rule creation to CCFE using the destination quota rule
+					// Hydrate the quota rule creation to CCFE using the destination quota rule and destination volume name
 					if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 						returnErr = cancelErr
 						return
 					}
 					hydrateErr := workflow.ExecuteActivity(ctx, commonActivity.HydrateQuotaRuleCreate,
-						createOperationResult.QuotaRule, replication.ReplicationAttributes.DestinationVolumeUUID,
+						createOperationResult.QuotaRule, replication.ReplicationAttributes.DestinationVolumeName,
 						replication.ReplicationAttributes.DestinationLocation, destProjectNumber).Get(ctx, nil)
 					if hydrateErr != nil {
 						logger.Errorf("Failed to hydrate quota rule create to CCFE: quotaRuleName=%s, error=%v", createOperationResult.QuotaRule.Name, hydrateErr)
