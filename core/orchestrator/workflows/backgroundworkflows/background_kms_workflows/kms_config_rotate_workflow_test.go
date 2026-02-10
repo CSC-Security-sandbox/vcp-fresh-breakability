@@ -63,9 +63,11 @@ func TestRotateKmsConfigWorkflow_Success(t *testing.T) {
 	}
 
 	// Set up activity mocks
-	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	// UpdateJobStatus is called multiple times (PROCESSING, DONE), so use Maybe() to allow multiple calls
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("GetKmsConfig", mock.Anything, "test-kms-config-uuid").Return(kmsConfig, nil)
-	env.OnWorkflow("RotateKmsKeyChildWorkflow", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Use function reference instead of string name for better matching
+	env.OnWorkflow(RotateKmsKeyChildWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(RotateKmsConfigWorkflow, params)

@@ -127,6 +127,9 @@ func CreateTestVolume() *datamodel.Volume {
 		},
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 		Name:      "test-flexcache-volume",
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
 		Pool: &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: int64(1)},
 			PoolCredentials: &datamodel.PoolCredentials{
@@ -135,11 +138,21 @@ func CreateTestVolume() *datamodel.Volume {
 				CertificateID: "",
 			},
 			DeploymentName: "test-deployment",
+			PoolAttributes: &datamodel.PoolAttributes{
+				LdapEnabled: false, // Default value, tests can override if needed
+			},
 		},
 		CacheParameters: &datamodel.CacheParameters{
 			CommandExpiryTime: &peerExpiry,
 		},
-		VolumeAttributes: &datamodel.VolumeAttributes{},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			FileProperties: &datamodel.FileProperties{
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "", // Empty is fine, activity checks for this
+				},
+			},
+			Protocols: []string{}, // Initialize empty slice to avoid nil
+		},
 	}
 }
 
