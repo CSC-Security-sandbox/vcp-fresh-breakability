@@ -1595,27 +1595,10 @@ func _verifyBackupRestoreCompatibilityForLargeVolumes(backup *datamodel.Backup, 
 // WaitForGCPNetworkOperationStatusWorkflow is a wrapper workflow that calls WaitForGCPNetworkOperationStatus
 // This allows it to be called as a child workflow to prevent deadlocks
 func WaitForGCPNetworkOperationStatusWorkflow(ctx workflow.Context, operations *[]common.Operations, timeout time.Duration) error {
-	retryPolicy, err := PopulateRetryPolicyParams()
-	if err != nil {
-		return ConvertToVSAError(err)
-	}
-	// Parse the configurable timeout for network operation activities
-	// Use StartToCloseTimeoutForConfigureNetwork as default, or fallback to 5 minutes
-	startToCloseTimeout, parseErr := time.ParseDuration(StartToCloseTimeoutForConfigureNetwork)
-	if parseErr != nil {
-		// Fallback to default 5 minutes if parsing fails
-		startToCloseTimeout = 5 * time.Minute
-	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: startToCloseTimeout,
-		HeartbeatTimeout:    startToCloseTimeout / 2,
-		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:        retryPolicy.InitialInterval,
-			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
-			MaximumInterval:        retryPolicy.MaximumInterval,
-			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
-			NonRetryableErrorTypes: []string{"PanicError"},
-		},
+		StartToCloseTimeout: utils.GetStartToCloseTimeoutHyperscaler(),
+		HeartbeatTimeout:    utils.GetHeartbeatTimeoutForHyperscaler(),
+		RetryPolicy:         utils.GetHyperscalerLRORetryPolicy(),
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	poolActivity := &activities.PoolActivity{}

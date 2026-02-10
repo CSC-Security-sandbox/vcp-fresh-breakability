@@ -289,6 +289,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	// Create custom activity options for service account creation
 	saActivityOptions := workflow.ActivityOptions{
 		StartToCloseTimeout: saRetryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        saRetryPolicy.InitialInterval,
 			BackoffCoefficient:     saRetryPolicy.BackoffCoefficient,
@@ -305,7 +306,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, cancelErr
 	}
 	// Use the new context for the service account creation activity
-	err = workflow.ExecuteActivity(saCtx, poolActivity.CreateServiceAccountWithStorageRole, tenancyDetails.RegionalTenantProject, serviceAccountID, pool.Name).Get(saCtx, serviceAccount)
+	err = workflow.ExecuteActivity(saCtx, poolActivity.CreateServiceAccountWithStorageRole, tenancyDetails.RegionalTenantProject, serviceAccountID, pool.Name).Get(ctx, serviceAccount)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -1192,6 +1193,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -1202,6 +1204,12 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	dbHbCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(dbHeartbeatTimeoutSec)*time.Second)
+	hyperscalerCtx := workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: utils.GetStartToCloseTimeoutHyperscaler(),
+		HeartbeatTimeout:    utils.GetHeartbeatTimeoutForHyperscaler(),
+		RetryPolicy:         utils.GetHyperscalerLRORetryPolicy(),
+	})
+
 	rollbackManager := common.NewRollbackManager()
 
 	defer func() {
@@ -1256,12 +1264,12 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	// Only perform DNS cleanup if pool credentials exist (indicates pool was at least partially created)
 	if hasPoolCredentials {
 		hostMap := make(map[string]string)
-		err = workflow.ExecuteActivity(ctx, poolActivity.GetCloudDNSRecords, dbPool.ID, dbPool.PoolCredentials.AuthType).Get(ctx, &hostMap)
+		err = workflow.ExecuteActivity(hyperscalerCtx, poolActivity.GetCloudDNSRecords, dbPool.ID, dbPool.PoolCredentials.AuthType).Get(ctx, &hostMap)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
 
-		err = workflow.ExecuteActivity(ctx, poolActivity.DeleteCloudDNSRecords, hostMap, dbPool.PoolCredentials.AuthType).Get(ctx, nil)
+		err = workflow.ExecuteActivity(hyperscalerCtx, poolActivity.DeleteCloudDNSRecords, hostMap, dbPool.PoolCredentials.AuthType).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -1303,14 +1311,34 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		bucketName = dbPool.AutoTieringConfig.BucketName
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteAutoTierBucket, bucketName, dbPool.Account.Name, dbPool.ID).Get(ctx, nil)
+	err = workflow.ExecuteActivity(hyperscalerCtx, poolActivity.DeleteAutoTierBucket, bucketName, dbPool.Account.Name, dbPool.ID).Get(ctx, nil)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 
 	// Only delete service account if cluster details exist
 	if hasClusterDetails && dbPool.ServiceAccountId != "" {
-		err = workflow.ExecuteActivity(ctx, poolActivity.DeleteServiceAccount, dbPool.ClusterDetails.RegionalTenantProject, dbPool.ServiceAccountId).Get(ctx, nil)
+		saRetryPolicy, err := populateServiceAccountRetryPolicyParams()
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		// Create custom activity options for service account deletion
+		saActivityOptions := workflow.ActivityOptions{
+			StartToCloseTimeout: saRetryPolicy.StartToCloseTimeout,
+			HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
+			RetryPolicy: &temporal.RetryPolicy{
+				InitialInterval:        saRetryPolicy.InitialInterval,
+				BackoffCoefficient:     saRetryPolicy.BackoffCoefficient,
+				MaximumInterval:        saRetryPolicy.MaximumInterval,
+				MaximumAttempts:        int32(saRetryPolicy.MaximumAttempts),
+				NonRetryableErrorTypes: []string{"PanicError"},
+			},
+		}
+
+		saCtx := workflow.WithActivityOptions(ctx, saActivityOptions)
+
+		err = workflow.ExecuteActivity(saCtx, poolActivity.DeleteServiceAccount, dbPool.ClusterDetails.RegionalTenantProject, dbPool.ServiceAccountId).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -1318,13 +1346,13 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	if !disableVsaCleanupOnVLMFailure || dbPool.State != models.LifeCycleStateError {
 		if dbPool.APIAccessMode == common.ONTAPMode {
-			err = workflow.ExecuteActivity(ctx, poolActivity.DeleteExpertModeCredentials, dbPool).Get(ctx, nil)
+			err = workflow.ExecuteActivity(hyperscalerCtx, poolActivity.DeleteExpertModeCredentials, dbPool).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
 		}
 		if hasPoolCredentials {
-			err = workflow.ExecuteActivity(ctx, poolActivity.DeleteOnTapCredentials, dbPool).Get(ctx, nil)
+			err = workflow.ExecuteActivity(hyperscalerCtx, poolActivity.DeleteOnTapCredentials, dbPool).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
@@ -1332,7 +1360,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	if ginLoggingFeatureFlag {
-		err = workflow.ExecuteChildWorkflow(ctx, ReleasePSCEndpointWorkflow, dbPool).Get(ctx, nil)
+		err = workflow.ExecuteChildWorkflow(hyperscalerCtx, ReleasePSCEndpointWorkflow, dbPool).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -1340,7 +1368,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	// Only execute data subnet cleanup if cluster details exist
 	if hasClusterDetails {
-		err = workflow.ExecuteChildWorkflow(ctx, DataSubnetSequentialPoller, params, dbPool, dbPool.ClusterDetails.RegionalTenantProject, models.ResourceOperationDelete).Get(ctx, nil)
+		err = workflow.ExecuteChildWorkflow(hyperscalerCtx, DataSubnetSequentialPoller, params, dbPool, dbPool.ClusterDetails.RegionalTenantProject, models.ResourceOperationDelete).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -1369,7 +1397,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	if dbPool.KmsConfig != nil {
 		// Check if the KMS config is reachable and update the kms appropriately i.e. from in-use to created when last pool/svm is deleted
 		kmsConfigActivity := &kms_activities.KmsConfigActivity{}
-		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.VerifyVsaKmsReachabilityActivity, dbPool.KmsConfig.UUID, false).Get(ctx, nil)
+		err = workflow.ExecuteActivity(hyperscalerCtx, kmsConfigActivity.VerifyVsaKmsReachabilityActivity, dbPool.KmsConfig.UUID, false).Get(ctx, nil)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -1578,26 +1606,29 @@ func (wf *poolDataSubnetWorkFlow) Run(ctx workflow.Context, args ...interface{})
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
-	// Parse the configurable timeout for data poller activities
-	activityStartToCloseTimeout, err := time.ParseDuration(getStartToCloseTimeoutDataSubnet(actionType))
+	// Parse the configurable timeout for GetCreateDataSubnetOp (long-running subnet creation)
+	subnetOpsTimeout, err := time.ParseDuration(getStartToCloseTimeoutDataSubnet(actionType))
 	if err != nil {
 		// Fallback to default 20 minutes if parsing fails
-		activityStartToCloseTimeout = 20 * time.Minute
+		subnetOpsTimeout = 20 * time.Minute
+	}
+	defaultActivityTimeout, err := time.ParseDuration(StartToCloseTimeoutDataSubnetActivities)
+	if err != nil {
+		// Fallback to default 5 minutes if parsing fails
+		defaultActivityTimeout = 5 * time.Minute
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: activityStartToCloseTimeout,
-		HeartbeatTimeout:    activityStartToCloseTimeout / 2,
-		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:    retryPolicy.InitialInterval,
-			BackoffCoefficient: retryPolicy.BackoffCoefficient,
-			MaximumInterval:    retryPolicy.MaximumInterval,
-			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
-			// TODO: Add non-retryable errors.ErrPSAPeeringNotFoundError
-			NonRetryableErrorTypes: []string{"PanicError", "NonRetryableErr"},
-		},
+		StartToCloseTimeout: defaultActivityTimeout,
+		HeartbeatTimeout:    utils.GetHeartbeatTimeoutForHyperscaler(),
+		RetryPolicy:         utils.GetHyperscalerRetryPolicy(),
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
-
+	lroRetryPolicy := utils.GetHyperscalerLRORetryPolicy()
+	subnetCtx := workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: subnetOpsTimeout,
+		HeartbeatTimeout:    subnetOpsTimeout / 2,
+		RetryPolicy:         lroRetryPolicy,
+	})
 	switch actionType {
 	case models.ResourceOperationCreate:
 		subnet := new(hyperscalermodels.Subnet)
@@ -1608,7 +1639,7 @@ func (wf *poolDataSubnetWorkFlow) Run(ctx workflow.Context, args ...interface{})
 
 		if subnet.Name == "" {
 			var operationName string
-			err = workflow.ExecuteActivity(ctx, poolActivity.GetCreateDataSubnetOp, params, tenantProjectNumber).Get(ctx, &operationName)
+			err = workflow.ExecuteActivity(subnetCtx, poolActivity.GetCreateDataSubnetOp, params, tenantProjectNumber).Get(ctx, &operationName)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
@@ -1616,7 +1647,7 @@ func (wf *poolDataSubnetWorkFlow) Run(ctx workflow.Context, args ...interface{})
 				return nil, ConvertToVSAError(fmt.Errorf("failed to create subnet for tenant project: %s, operation name is empty", tenantProjectNumber))
 			}
 			// add retry only for Google timeout : strings.Contains(err.Error(), "Timeout while confirming service network google components")
-			opSubnetInBytes, err := WaitForServiceNetworkOperationStatus(ctx, poolActivity, operationName, retryPolicy.StartToCloseTimeout)
+			opSubnetInBytes, err := WaitForServiceNetworkOperationStatus(subnetCtx, poolActivity, operationName, retryPolicy.StartToCloseTimeout)
 			if err != nil {
 				return nil, ConvertToVSAError(fmt.Errorf("failed to create subnet for tenant project while waiting to get operation status: %s: %w", tenantProjectNumber, err))
 			}
@@ -1645,13 +1676,12 @@ func (wf *poolDataSubnetWorkFlow) Run(ctx workflow.Context, args ...interface{})
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
-
 		deleteSubnetOp := make([]common.Operations, 0)
-		err = workflow.ExecuteActivity(ctx, poolActivity.ReleaseDataSubnetOp, dbPool).Get(ctx, &deleteSubnetOp)
+		err = workflow.ExecuteActivity(subnetCtx, poolActivity.ReleaseDataSubnetOp, dbPool).Get(ctx, &deleteSubnetOp)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
-		err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, &deleteSubnetOp, retryPolicy.StartToCloseTimeout)
+		err = WaitForGCPNetworkOperationStatus(subnetCtx, poolActivity, &deleteSubnetOp, retryPolicy.StartToCloseTimeout)
 		if err != nil {
 			return nil, ConvertToVSAError(vsaerror.Errorf("failed to release data subnet for pool: %s project: %s with error : %w", dbPool.Name, dbPool.Account.Name, err))
 		}
@@ -1683,7 +1713,8 @@ func DataSubnetSequentialPoller(ctx workflow.Context, params *common.CreatePoolP
 		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: utils.GetStartToCloseTimeoutHyperscaler(),
+		HeartbeatTimeout:    utils.GetHeartbeatTimeoutForHyperscaler(),
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -1994,18 +2025,12 @@ func ReleasePSCEndpointWorkflow(ctx workflow.Context, pool *datamodel.Pool) erro
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
-		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:        retryPolicy.InitialInterval,
-			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
-			MaximumInterval:        retryPolicy.MaximumInterval,
-			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
-			NonRetryableErrorTypes: []string{"PanicError"},
-		},
+		HeartbeatTimeout:    time.Duration(setupNwHeartbeatTimeout) * time.Second,
+		RetryPolicy:         utils.GetHyperscalerLRORetryPolicy(),
 	}
-	ctx = workflow.WithActivityOptions(ctx, ao)
 	poolActivity := &activities.PoolActivity{}
 	pscActivity := &activities.PSCActivity{}
-	setupPscCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(setupNwHeartbeatTimeout)*time.Second)
+	setupPscCtx := workflow.WithActivityOptions(ctx, ao)
 
 	if pool == nil {
 		logger.Warn("pool is nil, unable to release PSC Endpoint")
@@ -2021,7 +2046,7 @@ func ReleasePSCEndpointWorkflow(ctx workflow.Context, pool *datamodel.Pool) erro
 			VendorSubNetID: pool.Network,
 			Region:         Region,
 		}
-		err = workflow.ExecuteActivity(ctx, poolActivity.FindTenancyProject, params).Get(ctx, tenantProjectNumber)
+		err = workflow.ExecuteActivity(setupPscCtx, poolActivity.FindTenancyProject, params).Get(ctx, tenantProjectNumber)
 		if err != nil {
 			logger.Warnf("Failed to fetch tenancy project number for pool: %s, error: %v", pool.UUID, err)
 			return nil
@@ -2029,7 +2054,7 @@ func ReleasePSCEndpointWorkflow(ctx workflow.Context, pool *datamodel.Pool) erro
 		pool.ClusterDetails.RegionalTenantProject = *tenantProjectNumber
 	}
 	deleteForwardingRuleOperation := make([]common.Operations, 0)
-	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.DeleteForwardingRule, pool).Get(setupPscCtx, &deleteForwardingRuleOperation)
+	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.DeleteForwardingRule, pool).Get(ctx, &deleteForwardingRuleOperation)
 	if err != nil {
 		return ConvertToVSAError(err)
 	}
@@ -2042,7 +2067,7 @@ func ReleasePSCEndpointWorkflow(ctx workflow.Context, pool *datamodel.Pool) erro
 		return vsaerror.Errorf("failed to release PSC endpoint for tenant project: %s: %w", pool.ClusterDetails.RegionalTenantProject, err)
 	}
 	deleteAddressOperation := make([]common.Operations, 0)
-	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.DeleteAddress, pool).Get(setupPscCtx, &deleteAddressOperation)
+	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.DeleteAddress, pool).Get(ctx, &deleteAddressOperation)
 	if err != nil {
 		return ConvertToVSAError(err)
 	}
@@ -2060,13 +2085,9 @@ func ConfigurePSCEndpointWorkflow(ctx workflow.Context, projectName string, regi
 		return ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
-		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:    retryPolicy.InitialInterval,
-			BackoffCoefficient: retryPolicy.BackoffCoefficient,
-			MaximumInterval:    retryPolicy.MaximumInterval,
-			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
-		},
+		StartToCloseTimeout: utils.GetStartToCloseTimeoutHyperscaler(),
+		HeartbeatTimeout:    time.Duration(setupNwHeartbeatTimeout) * time.Second,
+		RetryPolicy:         utils.GetHyperscalerRetryPolicy(),
 	}
 	// poolActivity is used for GCP network operations
 	poolActivity := &activities.PoolActivity{}
@@ -2077,7 +2098,7 @@ func ConfigurePSCEndpointWorkflow(ctx workflow.Context, projectName string, regi
 
 	// CreateInternalInfraSubnet
 	subnetFirewallOperations := make([]common.Operations, 0)
-	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.CreateInternalInfraSubnet, projectName).Get(setupPscCtx, &subnetFirewallOperations)
+	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.CreateInternalInfraSubnet, projectName).Get(ctx, &subnetFirewallOperations)
 	if err != nil {
 		return ConvertToVSAError(err)
 	}
@@ -2089,7 +2110,7 @@ func ConfigurePSCEndpointWorkflow(ctx workflow.Context, projectName string, regi
 	var addressURI string
 	pscEndpointName := region + "-rg-fluent-bit-psc"
 	createAddressOperation := make([]common.Operations, 0)
-	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.CreateAddressForPSCEndpoint, projectName, region, pscEndpointName).Get(setupPscCtx, &createAddressOperation)
+	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.CreateAddressForPSCEndpoint, projectName, region, pscEndpointName).Get(ctx, &createAddressOperation)
 	if err != nil {
 		return ConvertToVSAError(err)
 	}
@@ -2097,7 +2118,7 @@ func ConfigurePSCEndpointWorkflow(ctx workflow.Context, projectName string, regi
 	if err != nil {
 		return vsaerror.Errorf("failed to create PSC endpoint for tenant project: %s: %w", projectName, err)
 	}
-	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.GetAddressURI, projectName, region, pscEndpointName).Get(setupPscCtx, &addressURI)
+	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.GetAddressURI, projectName, region, pscEndpointName).Get(ctx, &addressURI)
 	if err != nil {
 		return ConvertToVSAError(err)
 	}
@@ -2106,7 +2127,7 @@ func ConfigurePSCEndpointWorkflow(ctx workflow.Context, projectName string, regi
 	}
 
 	createForwardingRuleOperation := make([]common.Operations, 0)
-	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.CreateForwardingRuleForPSCEndpoint, projectName, region, pscEndpointName, addressURI).Get(setupPscCtx, &createForwardingRuleOperation)
+	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.CreateForwardingRuleForPSCEndpoint, projectName, region, pscEndpointName, addressURI).Get(ctx, &createForwardingRuleOperation)
 	if err != nil {
 		return ConvertToVSAError(err)
 	}
@@ -2114,7 +2135,7 @@ func ConfigurePSCEndpointWorkflow(ctx workflow.Context, projectName string, regi
 	if err != nil {
 		return vsaerror.Errorf("failed to create forwarding rule subnet for tenant project: %s: %w", projectName, err)
 	}
-	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.GetForwardingRuleIPAddress, projectName, region, pscEndpointName).Get(setupPscCtx, &forwardingRuleIpAddress)
+	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.GetForwardingRuleIPAddress, projectName, region, pscEndpointName).Get(ctx, &forwardingRuleIpAddress)
 	if err != nil {
 		return ConvertToVSAError(err)
 	}
@@ -2123,13 +2144,13 @@ func ConfigurePSCEndpointWorkflow(ctx workflow.Context, projectName string, regi
 	}
 
 	// Update audit log
-	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.UpdateSecurityAudit, node).Get(setupPscCtx, nil)
+	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.UpdateSecurityAudit, node).Get(ctx, nil)
 	if err != nil {
 		return ConvertToVSAError(err)
 	}
 
 	// forward ontap logging to PSC Endpoint
-	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.CreateClusterLogForwarding, node, forwardingRuleIpAddress).Get(setupPscCtx, nil)
+	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.CreateClusterLogForwarding, node, forwardingRuleIpAddress).Get(ctx, nil)
 	if err != nil {
 		return ConvertToVSAError(err)
 	}
@@ -2141,22 +2162,10 @@ func ConfigureNetworkWorkflow(ctx workflow.Context, tenancyDetails *common.Tenan
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
-	// Parse the configurable timeout for ConfigureNetworkWorkflow activities
-	startToCloseTimeout, parseErr := time.ParseDuration(StartToCloseTimeoutForConfigureNetwork)
-	if parseErr != nil {
-		// Fallback to default 5 minutes if parsing fails
-		startToCloseTimeout = 5 * time.Minute
-	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: startToCloseTimeout,
-		HeartbeatTimeout:    time.Duration(setupNwHeartbeatTimeout/2) * time.Second,
-		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:        retryPolicy.InitialInterval,
-			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
-			MaximumInterval:        retryPolicy.MaximumInterval,
-			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
-			NonRetryableErrorTypes: []string{"PanicError"},
-		},
+		StartToCloseTimeout: utils.GetStartToCloseTimeoutHyperscaler(),
+		HeartbeatTimeout:    time.Duration(setupNwHeartbeatTimeout) * time.Second,
+		RetryPolicy:         utils.GetHyperscalerRetryPolicy(),
 	}
 	poolActivity := &activities.PoolActivity{}
 	ctx = workflow.WithActivityOptions(ctx, ao)
@@ -2169,10 +2178,9 @@ func ConfigureNetworkWorkflow(ctx workflow.Context, tenancyDetails *common.Tenan
 			rollbackManager.ExecuteRollback(disconnectedCtx, err)
 		}
 	}()
-	setupNwCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(setupNwHeartbeatTimeout)*time.Second)
 	vpcOperations := make([]common.Operations, 0)
 	tenantProjectNumber := tenancyDetails.RegionalTenantProject
-	err = workflow.ExecuteActivity(setupNwCtx, poolActivity.CreateVPCs, tenantProjectNumber).Get(setupNwCtx, &vpcOperations)
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVPCs, tenantProjectNumber).Get(ctx, &vpcOperations)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -2182,13 +2190,13 @@ func ConfigureNetworkWorkflow(ctx workflow.Context, tenancyDetails *common.Tenan
 	}
 
 	subnetFirewallOperations := make([]common.Operations, 0)
-	err = workflow.ExecuteActivity(setupNwCtx, poolActivity.CreateSubnets, tenantProjectNumber).Get(setupNwCtx, &subnetFirewallOperations)
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateSubnets, tenantProjectNumber).Get(ctx, &subnetFirewallOperations)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 
 	firewallOperations := make([]common.Operations, 0)
-	err = workflow.ExecuteActivity(setupNwCtx, poolActivity.CreateFirewalls, tenantProjectNumber, tenancyDetails.SnHostProject, tenancyDetails.Network, poolMode).Get(setupNwCtx, &firewallOperations)
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateFirewalls, tenantProjectNumber, tenancyDetails.SnHostProject, tenancyDetails.Network, poolMode).Get(ctx, &firewallOperations)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}

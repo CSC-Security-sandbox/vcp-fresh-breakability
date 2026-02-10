@@ -312,13 +312,21 @@ workerConfig:
   startToCloseTimeoutCmekBackupRotate: "8640m"
   startToCloseTimeoutDataSubnetCreate: "20m"
   startToCloseTimeoutDataSubnetDelete: "5m"
+  startToCloseTimeoutDataSubnetActivities: "5m"
+  # Hyperscaler retry configuration
+  hyperscalerHeartbeatTimeout: "300s"
+  hyperscalerRetryInitialInterval: "30s"
+  hyperscalerLRORetryInitialInterval: "30s"
+  hyperscalerRetryMaximumAttempts: "10"
+  hyperscalerRetryBackoffCoefficient: "1"
+  hyperscalerRetryMaximumInterval: "30s"
   retryInterval: "5s"
   retryMaxAttempts: "3"
   retryMaxInterval: "5m"
   retryBackoffCoefficient: "2.0"
   startToCloseTimeoutForReplicationActivities: 300
   backoffCoefficientForReplicationActivities: 1.5
-  startToCloseTimeoutForConfigureNetwork: "5m"
+  startToCloseTimeoutForHyperscaler: "5m"
 
   # Expert Mode Volume Reconciliation configuration
   volumeReconciliationExpertModeActivitiesMaxAttempts: "8"
@@ -359,7 +367,7 @@ workerConfig:
   autoTieringHotTierAutoResizeWorkflowHeartbeatTimeoutSec: "600"
 
   # SA Creation Retry Configuration
-  saRetryStartToCloseTimeout: "25m"
+  saRetryStartToCloseTimeout: "15m"
   saRetryInitialInterval: "10s"
   saRetryMaximumAttempts: "12"
   saRetryMaximumInterval: "60s"

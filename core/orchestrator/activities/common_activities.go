@@ -545,20 +545,24 @@ func getSubnetToBeUsed(service hyperscaler2.GoogleServices, se database.Storage,
 	if isLargeCapacity {
 		subnetPrefix = fmt.Sprintf("%s%s", VSALVSubnetPrefix, tenantProjectNumber)
 	}
+	var allPoolsInDeleting bool
 	for _, subnet := range *subnetsReceived {
 		if strings.HasPrefix(subnet.Name, subnetPrefix) {
-			// For large capacity pools, check if subnet already has a pool associated with it
-			if isLargeCapacity {
-				pools, err := getPoolsBySubnetwork(ctx, se, strconv.Itoa(int(account.ID)), subnet.Name, "")
-				if err != nil {
-					logger.Errorf("Error checking pools for subnet: %s, Error: %s", subnet.Name, err.Error())
-					return nil, err
-				}
-				// If subnet already has pools associated with it, skip this subnet for large capacity pools
-				if len(pools) > 0 {
+			pools, err := getPoolsBySubnetwork(ctx, se, strconv.Itoa(int(account.ID)), subnet.Name, "")
+			if err != nil {
+				logger.Errorf("Error checking pools for subnet: %s, Error: %s", subnet.Name, err.Error())
+				return nil, err
+			}
+			// if all pools are in deleting state, don't consider the subnet for reusing.
+			allPoolsInDeleting = false
+			// If subnet already has pools associated with it, skip this subnet for large capacity pools
+			if len(pools) > 0 {
+				// For large capacity pools, check if subnet already has a pool associated with it
+				if isLargeCapacity {
 					logger.Debug(fmt.Sprintf("Subnetwork %s already has %d pools associated with it. Skipping for large capacity pool creation", subnet.Name, len(pools)))
 					continue
 				}
+				allPoolsInDeleting = allPoolsDeleting(pools)
 			}
 
 			// get number of free IPs in the subnet
@@ -567,7 +571,7 @@ func getSubnetToBeUsed(service hyperscaler2.GoogleServices, se database.Storage,
 				logger.Errorf("Error finding empty IP's subnet: tenant project: %s, SN host : %s, region %s. Error : %s", tenantProjectNumber, snHost, tenantProjectRegion, err.Error())
 				return nil, err
 			}
-			if reuseSubnet {
+			if reuseSubnet && !allPoolsInDeleting {
 				logger.Debug(fmt.Sprintf("Subnetwork %s already exists in tenant project %s and region %s. Reusing the subnet", subnet.Name, tenantProjectNumber, tenantProjectRegion))
 				return &subnet, nil
 			}
@@ -575,6 +579,15 @@ func getSubnetToBeUsed(service hyperscaler2.GoogleServices, se database.Storage,
 	}
 	// either no subnet was found or no subnet was found with enough free IPs sufficient to create a HA pair for pool
 	return nil, nil
+}
+
+func allPoolsDeleting(pools []*datamodel.PoolView) bool {
+	for _, pool := range pools {
+		if pool.State != models.LifeCycleStateDeleting {
+			return false
+		}
+	}
+	return true
 }
 
 func _isSubnetReusable(ctx context.Context, se database.Storage, subnet hyperscaler_models.Subnet, accountId, poolNetwork string) (bool, error) {

@@ -48,7 +48,8 @@ var (
 	StartToCloseTimeoutForReplicationActivities = env.GetInt("START_TO_CLOSE_TIMEOUT_FOR_REPLICATION_ACTIVITIES", 300)
 	StartToCloseTimeoutDataSubnetCreate         = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT_DATA_SUBNET_CREATE", "20m")
 	StartToCloseTimeoutDataSubnetDelete         = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT_DATA_SUBNET_DELETE", "5m")
-	StartToCloseTimeoutForConfigureNetwork      = env.GetString("START_TO_CLOSE_TIMEOUT_FOR_CONFIGURE_NETWORK", "5m")
+	StartToCloseTimeoutDataSubnetActivities     = env.GetString("START_TO_CLOSE_TIMEOUT_DATA_SUBNET_ACTIVITIES", "5m")
+	StartToCloseTimeoutForHyperscaler           = env.GetString("START_TO_CLOSE_TIMEOUT_FOR_HYPERSCALER", "5m")
 	BackoffCoefficientForReplicationActivities  = env.GetFloat64("BACKOFF_COEFFICIENT_FOR_REPLICATION_ACTIVITIES", 1.5)
 	StartToCloseTimeoutUpgrade                  = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT_UPGRADE", "300m")
 	RetryInterval                               = env.GetString("RETRY_INTERVAL", "5s")
@@ -58,7 +59,7 @@ var (
 	ActivityHeartBeatTimeout                    = env.GetString("POOL_ACTIVITY_HEARTBEAT_TIMEOUT", "5m")
 
 	// Service Account specific retry policy configurations
-	SARetryStartToCloseTimeout = env.GetString("SA_RETRY_START_TO_CLOSE_TIMEOUT", "25m")
+	SARetryStartToCloseTimeout = env.GetString("SA_RETRY_START_TO_CLOSE_TIMEOUT", "15m")
 	SARetryInitialInterval     = env.GetString("SA_RETRY_INITIAL_INTERVAL", "10s")
 	SARetryMaximumAttempts     = env.GetInt("SA_RETRY_MAXIMUM_ATTEMPTS", 12)
 	SARetryMaximumInterval     = env.GetString("SA_RETRY_MAXIMUM_INTERVAL", "60s")

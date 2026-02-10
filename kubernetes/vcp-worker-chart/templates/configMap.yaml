@@ -271,7 +271,14 @@ data:
   START_TO_CLOSE_TIMEOUT_FOR_REPLICATION_ACTIVITIES: {{$.Values.workerConfig.startToCloseTimeoutForReplicationActivities | quote }}
   START_TO_CLOSE_WORKFLOW_TIMEOUT_DATA_SUBNET_CREATE: {{$.Values.workerConfig.startToCloseTimeoutDataSubnetCreate | quote }}
   START_TO_CLOSE_WORKFLOW_TIMEOUT_DATA_SUBNET_DELETE: {{$.Values.workerConfig.startToCloseTimeoutDataSubnetDelete | quote }}
-  START_TO_CLOSE_TIMEOUT_FOR_CONFIGURE_NETWORK: {{$.Values.workerConfig.startToCloseTimeoutForConfigureNetwork | quote }}
+  START_TO_CLOSE_TIMEOUT_DATA_SUBNET_ACTIVITIES: {{$.Values.workerConfig.startToCloseTimeoutDataSubnetActivities | quote }}
+  HYPERSCALER_HEARTBEAT_TIMEOUT: {{$.Values.workerConfig.hyperscalerHeartbeatTimeout | quote }}
+  HYPERSCALER_RETRY_INITIAL_INTERVAL: {{$.Values.workerConfig.hyperscalerRetryInitialInterval | quote }}
+  HYPERSCALER_LRO_RETRY_INITIAL_INTERVAL: {{$.Values.workerConfig.hyperscalerLRORetryInitialInterval | quote }}
+  HYPERSCALER_RETRY_MAXIMUM_ATTEMPTS: {{$.Values.workerConfig.hyperscalerRetryMaximumAttempts | quote }}
+  HYPERSCALER_RETRY_BACKOFF_COEFFICIENT: {{$.Values.workerConfig.hyperscalerRetryBackoffCoefficient | quote }}
+  HYPERSCALER_RETRY_MAXIMUM_INTERVAL: {{$.Values.workerConfig.hyperscalerRetryMaximumInterval | quote }}
+  START_TO_CLOSE_TIMEOUT_FOR_HYPERSCALER: {{$.Values.workerConfig.startToCloseTimeoutForHyperscaler | quote }}
   RETRY_INTERVAL: {{$.Values.workerConfig.retryInterval | quote }}
   RETRY_MAX_ATTEMPTS: {{$.Values.workerConfig.retryMaxAttempts | quote }}
   RETRY_MAX_INTERVAL: {{$.Values.workerConfig.retryMaxInterval | quote }}

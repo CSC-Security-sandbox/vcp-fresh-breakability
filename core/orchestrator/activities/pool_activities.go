@@ -2311,7 +2311,8 @@ func (j *PoolActivity) ReleaseDataSubnetOp(ctx context.Context, pool *datamodel.
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	logger.Infof("Found %d pools using the same subnetwork: %s for account: %s, network: %s", len(poolsUsingSubnet), subnetName, pool.Account.Name, pool.Network)
-	if len(poolsUsingSubnet) > 1 {
+	allPoolsForDeleting := allPoolsDeleting(poolsUsingSubnet)
+	if len(poolsUsingSubnet) > 1 && !allPoolsForDeleting {
 		logger.Infof("Skipping release subnetwork as there are other pools using the same subnetwork: %s for account: %s, network: %s, pool : %s", subnetName, pool.Account.Name, pool.Network, pool.Name)
 		return nil, nil
 	}

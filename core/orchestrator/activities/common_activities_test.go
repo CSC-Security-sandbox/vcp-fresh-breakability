@@ -513,6 +513,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
 		mgs.On("GetContext").Return(ctx)
 		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 
 		origIsSubnetReusable := isSubnetReusable
 		defer func() { isSubnetReusable = origIsSubnetReusable }()
@@ -535,6 +536,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
 		mgs.On("GetContext").Return(ctx)
 		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 		origIsSubnetReusable := isSubnetReusable
 		defer func() {
 			isSubnetReusable = origIsSubnetReusable
@@ -557,6 +559,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 		subnets := []hyperscaler_models.Subnet{{Name: "vsa-tenant-456"}}
 		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
 		mockStorage.On("GetAccount", ctx, customerProjectNumber).Return(account, nil)
+		mockStorage.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 		origIsSubnetReusable := isSubnetReusable
 		defer func() {
 			isSubnetReusable = origIsSubnetReusable

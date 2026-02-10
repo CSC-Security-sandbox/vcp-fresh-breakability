@@ -2395,14 +2395,14 @@ func TestConfigureNetworkWorkflow_Success(t *testing.T) {
 
 func TestConfigureNetworkWorkflow_TimeoutConfiguration(t *testing.T) {
 	// Save original value
-	origTimeout := StartToCloseTimeoutForConfigureNetwork
+	origTimeout := StartToCloseTimeoutForHyperscaler
 	defer func() {
-		StartToCloseTimeoutForConfigureNetwork = origTimeout
+		StartToCloseTimeoutForHyperscaler = origTimeout
 	}()
 
 	t.Run("valid_timeout_parsed_correctly", func(t *testing.T) {
 		// Set timeout before creating test environment
-		StartToCloseTimeoutForConfigureNetwork = "45m"
+		StartToCloseTimeoutForHyperscaler = "45m"
 		testSuite := &testsuite.WorkflowTestSuite{}
 		env := testSuite.NewTestWorkflowEnvironment()
 
@@ -2463,13 +2463,13 @@ func TestConfigureNetworkWorkflow_TimeoutConfiguration(t *testing.T) {
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
 		// Verify that the timeout uses retryPolicy.StartToCloseTimeout (default 55 minutes)
-		// Note: WaitForGCPNetworkOperationStatus uses retryPolicy.StartToCloseTimeout, not StartToCloseTimeoutForConfigureNetwork
+		// Note: WaitForGCPNetworkOperationStatus uses retryPolicy.StartToCloseTimeout, not StartToCloseTimeoutForHyperscaler
 		assert.Equal(t, 55*time.Minute, capturedTimeout)
 	})
 
 	t.Run("invalid_timeout_falls_back_to_default", func(t *testing.T) {
 		// Set invalid timeout to test fallback behavior
-		StartToCloseTimeoutForConfigureNetwork = "invalid-duration"
+		StartToCloseTimeoutForHyperscaler = "invalid-duration"
 		testSuite := &testsuite.WorkflowTestSuite{}
 		env := testSuite.NewTestWorkflowEnvironment()
 
@@ -2530,13 +2530,13 @@ func TestConfigureNetworkWorkflow_TimeoutConfiguration(t *testing.T) {
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
 		// Verify that the timeout uses retryPolicy.StartToCloseTimeout (default 55 minutes)
-		// Note: WaitForGCPNetworkOperationStatus uses retryPolicy.StartToCloseTimeout, not StartToCloseTimeoutForConfigureNetwork
+		// Note: WaitForGCPNetworkOperationStatus uses retryPolicy.StartToCloseTimeout, not StartToCloseTimeoutForHyperscaler
 		assert.Equal(t, 55*time.Minute, capturedTimeout)
 	})
 
 	t.Run("heartbeat_timeout_is_set", func(t *testing.T) {
 		// Set timeout before creating test environment
-		StartToCloseTimeoutForConfigureNetwork = "10m"
+		StartToCloseTimeoutForHyperscaler = "10m"
 		testSuite := &testsuite.WorkflowTestSuite{}
 		env := testSuite.NewTestWorkflowEnvironment()
 
