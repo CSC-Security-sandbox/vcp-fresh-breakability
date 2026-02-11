@@ -43,9 +43,10 @@ type UnitTestSuite struct {
 	kmsConfigActivity    *kms_activities.KmsConfigActivity
 	volumeCreateActivity *activities.VolumeCreateActivity
 	vpgActivity          *activities.VolumePerformanceGroupActivity
+	poolActivity         *activities.PoolActivity
 }
 
-func (s *UnitTestSuite) SetupTest() {
+func (s *UnitTestSuite) setupTestWorkflowEnv(t *testing.T) {
 	s.env = s.NewTestWorkflowEnvironment()
 	s.env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
@@ -68,7 +69,7 @@ func (s *UnitTestSuite) SetupTest() {
 	s.env.RegisterWorkflow(WaitForGCPNetworkOperationStatusWorkflow)
 
 	// Register all activities that might be used across tests
-	mockStorage := database.NewMockStorage(s.T())
+	mockStorage := database.NewMockStorage(t)
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
@@ -81,6 +82,7 @@ func (s *UnitTestSuite) SetupTest() {
 	s.commonActivity = &commonActivity
 	s.kmsConfigActivity = &kmsConfigActivity
 	s.volumeCreateActivity = &volumeCreateActivity
+	s.poolActivity = &poolActivity
 
 	// Create and store VPG activity for use in tests
 	vpgActivity := activities.VolumePerformanceGroupActivity{SE: mockStorage}
@@ -150,9 +152,13 @@ func (s *UnitTestSuite) SetupTest() {
 	s.env.RegisterActivity(kmsConfigActivity.GrantRoleActivity)
 	s.env.RegisterActivity(kmsConfigActivity.VerifyVsaKmsReachabilityActivity)
 
-	// Register pool activities (needed for cancellation handling in deferred cleanup)
+	// Register pool activities (needed for cancellation handling in deferred cleanup and pool state validation)
 	s.env.RegisterActivity(poolActivity.GetCreateJobByResourceUUID)
 	s.env.OnActivity(poolActivity.GetCreateJobByResourceUUID, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("not found")).Maybe()
+	s.env.RegisterActivity(poolActivity.GetPoolView)
+	s.env.RegisterActivity(volumeCreateActivity.ValidatePoolStateForVolumeCreate)
+	// Default: pool state validation sees READY pool so existing tests are unchanged
+	mockStorage.On("GetPool", mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.PoolView{Pool: datamodel.Pool{State: models.LifeCycleStateREADY}}, nil).Maybe()
 
 	// Register VPG activities (needed when throughputMibps is provided)
 	// Use the stored activity reference so tests can override mocks using the same function reference
@@ -171,14 +177,18 @@ func (s *UnitTestSuite) SetupTest() {
 	// CreateVolume - tests should provide their own mocks
 	// Note: The default mock here is minimal - individual tests must provide CreateVolume mocks
 	// that return volumes with all necessary fields (Pool, Account, Svm, VolumeAttributes, etc.)
-	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil).Maybe()
-	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Enable file protocols for testing
 	utils.SetFileProtocolSupportedForTesting(true)
+}
+
+func (s *UnitTestSuite) SetupTest() {
+	s.setupTestWorkflowEnv(s.T())
 }
 
 func (s *UnitTestSuite) AfterTest() {
@@ -265,6 +275,34 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Success() {
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_WhenPoolStateNotReady_Fails() {
+	testCases := []struct {
+		name          string
+		poolState     string
+		expectedError string
+	}{
+		{"CreatingPool", models.LifeCycleStateCreating, "Specified pool is in CREATING state, hence volume cannot be created"},
+		{"DeletingPool", models.LifeCycleStateDeleting, "Specified pool is in DELETING state, hence volume cannot be created"},
+		{"DeletedPool", models.LifeCycleStateDeleted, "Specified pool is in DELETED state, hence volume cannot be created"},
+	}
+	for _, tc := range testCases {
+		s.T().Run(tc.name, func(t *testing.T) {
+			s.setupTestWorkflowEnv(t)
+			s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Twice()
+			s.env.OnActivity(s.volumeCreateActivity.ValidatePoolStateForVolumeCreate, mock.Anything, mock.Anything, mock.Anything).
+				Return(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrVolumeCreationFailedDueToPoolInDeletion,
+						fmt.Errorf("Specified pool is in %s state, hence volume cannot be created", tc.poolState)))).Once()
+
+			s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, CreateTestVolume())
+
+			assert.True(t, s.env.IsWorkflowCompleted())
+			assert.Error(t, s.env.GetWorkflowError())
+			assert.Contains(t, s.env.GetWorkflowError().Error(), tc.expectedError)
+		})
+	}
 }
 
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_WithThroughputMibps_CreatesVPG() {

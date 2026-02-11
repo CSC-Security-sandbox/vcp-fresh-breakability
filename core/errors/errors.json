@@ -173,6 +173,18 @@
     "retriable": false,
     "http_code": 404
   },
+  "2104": {
+    "description": "Pool went into deleting state before create volume workflow could start",
+    "message": "Specified pool is in Deleting state, hence volume cannot be created",
+    "retriable": false,
+    "http_code": 409
+  },
+  "2105": {
+    "description": "Pool went into deleted state before create volume workflow could start",
+    "message": "Specified pool is in Deleted state, hence volume cannot be created",
+    "retriable": false,
+    "http_code": 409
+  },
   "3001": {
     "description": "GCP Client Initialization Error",
     "message": "An internal error occurred.",

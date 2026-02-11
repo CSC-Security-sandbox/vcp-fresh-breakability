@@ -754,6 +754,45 @@ func (a VolumeCreateActivity) GetVolumeByVolumeID(ctx context.Context, volumeID 
 	return dbVolume, nil
 }
 
+// deleteVolumeOnPoolValidationFailure performs best-effort volume deletion when pool validation fails,
+// so the volume does not remain in ERROR state. Returns the given err wrapped as non-retryable.
+func (a VolumeCreateActivity) deleteVolumeOnPoolValidationFailure(ctx context.Context, volumeUUID string, err error) error {
+	if volumeUUID != "" {
+		if _, delErr := a.SE.DeleteVolume(ctx, volumeUUID); delErr != nil {
+			util.GetLogger(ctx).Errorf("Failed to delete volume %s on pool validation failure: %v", volumeUUID, delErr)
+		}
+	}
+	return vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)
+}
+
+// ValidatePoolStateForVolumeCreate ensures the pool is in a state that allows volume creation.
+// Returns a non-retryable validation error if the pool is Creating, Deleting, or Deleted.
+// When validation fails, the volume record is deleted before returning so it does not remain in ERROR state.
+func (a VolumeCreateActivity) ValidatePoolStateForVolumeCreate(ctx context.Context, pool *datamodel.Pool, volumeUUID string) error {
+	if pool == nil {
+		return nil
+	}
+	poolView, err := a.SE.GetPool(ctx, pool.UUID, pool.AccountID)
+	if err != nil {
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) && customErr != nil && customErr.IsError(vsaerrors.ErrPoolNotFound) {
+			return a.deleteVolumeOnPoolValidationFailure(ctx, volumeUUID,
+				vsaerrors.NewVCPError(vsaerrors.ErrVolumeCreationFailedDueToPoolIsDeleted,
+					fmt.Errorf("specified pool is in Deleted state, hence volume cannot be created")))
+		}
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	if poolView == nil {
+		return nil
+	}
+	if poolView.State == models.LifeCycleStateDeleting {
+		return a.deleteVolumeOnPoolValidationFailure(ctx, volumeUUID,
+			vsaerrors.NewVCPError(vsaerrors.ErrVolumeCreationFailedDueToPoolInDeletion,
+				fmt.Errorf("specified pool is in Deleting state, hence volume cannot be created")))
+	}
+	return nil
+}
+
 func _findTenancy(gcpService hyperscaler.GoogleServices, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*common.TenancyInfo, error) {
 	// need to pass tenantProjectRegion only in case of CBR where region != the regional region as set from env variable
 	if tenantProjectRegion == nil {

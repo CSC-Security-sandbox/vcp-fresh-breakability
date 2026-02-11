@@ -329,7 +329,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Crea
 	s.env.OnActivity(hybridReplicationActivity.UpdateHybridVolumeReplicationDetailsAndSetPeeringStatusToPeered, mock.Anything, mock.Anything).Return(replicationResult, nil)
 
 	// Mock CreateVolumeWorkflow child workflow
-	s.env.OnWorkflow(workflows.CreateVolumeWorkflow, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnWorkflow(workflows.CreateVolumeWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(CreateHybridReplicationWorkflow, params, volume)
@@ -358,7 +358,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Crea
 		State:     string(models.JobsStateNEW),
 	}, nil).Maybe()
 	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
-	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Node{{BaseModel: datamodel.BaseModel{UUID: "test-node-uuid"}}}, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Maybe().Return([]*datamodel.Node{{BaseModel: datamodel.BaseModel{UUID: "test-node-uuid"}}}, nil)
 	s.env.OnActivity(hybridReplicationActivity.GetDstBasePathForHybridReplication, mock.Anything, mock.Anything).Return(&replication.CreateHybridReplicationResult{
 		DestinationVolume:        volume,
 		DestinationRegion:        params.Region,
@@ -374,9 +374,23 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Crea
 		DestinationRegion:        params.Region,
 		DestinationProjectNumber: params.AccountName,
 	}, nil)
+	s.env.OnActivity(hybridReplicationActivity.DescribeJobForHybridReplicationWorkflow, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(hybridReplicationActivity.GetNodeForHybridReplication, mock.Anything, mock.Anything).Return(&replication.CreateHybridReplicationResult{
+		DestinationVolume:        volume,
+		DestinationRegion:        params.Region,
+		DestinationProjectNumber: params.AccountName,
+	}, nil)
+	s.env.OnActivity(hybridReplicationActivity.CreateNodesForHybridReplication, mock.Anything, mock.Anything).Return(&replication.CreateHybridReplicationResult{
+		DestinationVolume:        volume,
+		DestinationRegion:        params.Region,
+		DestinationProjectNumber: params.AccountName,
+	}, nil)
 	s.env.OnActivity(hybridReplicationActivity.CreateLocalHybridReplicationRow, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create local volume replication row"))
 	s.env.OnActivity(hybridReplicationActivity.UpdateClusterPeerDetailsOnErrorActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(hybridReplicationActivity.UpdateReplicationRowDetailsOnErrorActivity, mock.Anything, mock.Anything).Return(nil)
+
+	// Mock CreateVolumeWorkflow child workflow so it is not executed (avoids needing volume-create activities e.g. GetPoolView)
+	s.env.OnWorkflow(workflows.CreateVolumeWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(CreateHybridReplicationWorkflow, params, volume)
@@ -405,7 +419,7 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Hydr
 		State:     string(models.JobsStateNEW),
 	}, nil).Maybe()
 	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"}}, nil)
-	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Node{{BaseModel: datamodel.BaseModel{UUID: "test-node-uuid"}}}, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, mock.Anything).Maybe().Return([]*datamodel.Node{{BaseModel: datamodel.BaseModel{UUID: "test-node-uuid"}}}, nil)
 	s.env.OnActivity(hybridReplicationActivity.GetDstBasePathForHybridReplication, mock.Anything, mock.Anything).Return(&replication.CreateHybridReplicationResult{
 		DestinationVolume:        volume,
 		DestinationRegion:        params.Region,
@@ -421,7 +435,23 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Hydr
 		DestinationRegion:        params.Region,
 		DestinationProjectNumber: params.AccountName,
 	}, nil)
+	s.env.OnActivity(hybridReplicationActivity.DescribeJobForHybridReplicationWorkflow, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(hybridReplicationActivity.GetNodeForHybridReplication, mock.Anything, mock.Anything).Return(&replication.CreateHybridReplicationResult{
+		DestinationVolume:        volume,
+		DestinationRegion:        params.Region,
+		DestinationProjectNumber: params.AccountName,
+	}, nil)
+	s.env.OnActivity(hybridReplicationActivity.CreateNodesForHybridReplication, mock.Anything, mock.Anything).Return(&replication.CreateHybridReplicationResult{
+		DestinationVolume:        volume,
+		DestinationRegion:        params.Region,
+		DestinationProjectNumber: params.AccountName,
+	}, nil)
 	s.env.OnActivity(hybridReplicationActivity.CreateLocalHybridReplicationRow, mock.Anything, mock.Anything).Return(&replication.CreateHybridReplicationResult{
+		DestinationVolume:        volume,
+		DestinationRegion:        params.Region,
+		DestinationProjectNumber: params.AccountName,
+	}, nil)
+	s.env.OnActivity(hybridReplicationActivity.HydrateVolumeReplicationForHybridReplication, mock.Anything, mock.Anything).Return(&replication.CreateHybridReplicationResult{
 		DestinationVolume:        volume,
 		DestinationRegion:        params.Region,
 		DestinationProjectNumber: params.AccountName,
@@ -429,6 +459,9 @@ func (s *HybridCreateWorkflowTestSuite) TestCreateHybridReplicationWorkflow_Hydr
 	s.env.OnActivity(hybridReplicationActivity.HydrateReplicationStateForHybridReplication, mock.Anything, mock.Anything).Return(nil, errors.New("failed to hydrate replication state"))
 	s.env.OnActivity(hybridReplicationActivity.UpdateClusterPeerDetailsOnErrorActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(hybridReplicationActivity.UpdateReplicationRowDetailsOnErrorActivity, mock.Anything, mock.Anything).Return(nil)
+
+	// Mock CreateVolumeWorkflow child workflow so it is not executed (avoids needing volume-create activities e.g. GetPoolView)
+	s.env.OnWorkflow(workflows.CreateVolumeWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(CreateHybridReplicationWorkflow, params, volume)

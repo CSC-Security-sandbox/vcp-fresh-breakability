@@ -826,6 +826,14 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, cancelErr
 	}
 
+	// Validate pool state: do not proceed if pool is in Creating, Deleting, or Deleted
+	if dbVolume.Pool != nil {
+		err = workflow.ExecuteActivity(dbHbCtx, volumeActivity.ValidatePoolStateForVolumeCreate, dbVolume.Pool, dbVolume.UUID).Get(dbHbCtx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	}
+
 	// Fail fast if pool KMS config is not reachable, matching pool create workflow behavior.
 	// This ensures key disabled / EKM unreachable errors surface early.
 	if dbVolume.Pool != nil && dbVolume.Pool.KmsConfig != nil {

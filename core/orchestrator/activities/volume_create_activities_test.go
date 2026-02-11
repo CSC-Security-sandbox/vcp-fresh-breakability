@@ -81,6 +81,193 @@ func TestCreateVolume_Failure(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
+func TestValidatePoolStateForVolumeCreate_NilPool_ReturnsNil(t *testing.T) {
+	activity := activities.VolumeCreateActivity{SE: nil}
+	ctx := context.Background()
+
+	err := activity.ValidatePoolStateForVolumeCreate(ctx, nil, "")
+
+	assert.NoError(t, err)
+}
+
+func TestValidatePoolStateForVolumeCreate_ReadyPool_ReturnsNil(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, AccountID: 1}
+	poolView := &datamodel.PoolView{Pool: datamodel.Pool{State: models.LifeCycleStateREADY}}
+
+	mockStorage.On("GetPool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
+
+	err := activity.ValidatePoolStateForVolumeCreate(ctx, pool, "vol-uuid")
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestValidatePoolStateForVolumeCreate_PoolInDeletingState_ReturnsError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, AccountID: 1}
+	poolView := &datamodel.PoolView{Pool: datamodel.Pool{State: models.LifeCycleStateDeleting}}
+	volumeUUID := "vol-uuid"
+
+	mockStorage.On("GetPool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
+	mockStorage.On("DeleteVolume", ctx, volumeUUID).Return(&datamodel.Volume{}, nil).Once()
+
+	err := activity.ValidatePoolStateForVolumeCreate(ctx, pool, volumeUUID)
+
+	assert.Error(t, err)
+	var appErr *temporal.ApplicationError
+	assert.True(t, errors.As(err, &appErr))
+	assert.True(t, appErr.NonRetryable())
+	var trackingID int
+	var originalMsg string
+	assert.NoError(t, appErr.Details(&trackingID, &originalMsg))
+	assert.Equal(t, vsaerrors.ErrVolumeCreationFailedDueToPoolInDeletion, trackingID)
+	assert.Contains(t, originalMsg, "specified pool is in Deleting state, hence volume cannot be created")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestValidatePoolStateForVolumeCreate_PoolInCreatingState_ReturnsNil(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, AccountID: 1}
+	poolView := &datamodel.PoolView{Pool: datamodel.Pool{State: models.LifeCycleStateCreating}}
+
+	mockStorage.On("GetPool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
+
+	err := activity.ValidatePoolStateForVolumeCreate(ctx, pool, "vol-uuid")
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestValidatePoolStateForVolumeCreate_DeletingState_EmptyVolumeUUID_DoesNotCallDelete(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, AccountID: 1}
+	poolView := &datamodel.PoolView{Pool: datamodel.Pool{State: models.LifeCycleStateDeleting}}
+
+	mockStorage.On("GetPool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
+	// DeleteVolume must not be called when volumeUUID is empty
+
+	err := activity.ValidatePoolStateForVolumeCreate(ctx, pool, "")
+
+	assert.Error(t, err)
+	mockStorage.AssertExpectations(t)
+	mockStorage.AssertNotCalled(t, "DeleteVolume")
+}
+
+func TestValidatePoolStateForVolumeCreate_GetPoolReturnsRecordNotFound_DeletesVolumeAndReturnsNonRetryableError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, AccountID: 1}
+	volumeUUID := "vol-uuid"
+
+	mockStorage.On("GetPool", ctx, pool.UUID, pool.AccountID).Return(nil, vsaerrors.NewVCPError(vsaerrors.ErrPoolNotFound, errors.New("pool not found")))
+	mockStorage.On("DeleteVolume", ctx, volumeUUID).Return(&datamodel.Volume{}, nil).Once()
+
+	err := activity.ValidatePoolStateForVolumeCreate(ctx, pool, volumeUUID)
+
+	assert.Error(t, err)
+	var appErr *temporal.ApplicationError
+	assert.True(t, errors.As(err, &appErr))
+	assert.True(t, appErr.NonRetryable())
+	var trackingID int
+	var originalMsg string
+	assert.NoError(t, appErr.Details(&trackingID, &originalMsg))
+	assert.Equal(t, vsaerrors.ErrVolumeCreationFailedDueToPoolIsDeleted, trackingID)
+	assert.Contains(t, originalMsg, "specified pool is in Deleted state, hence volume cannot be created")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestValidatePoolStateForVolumeCreate_GetPoolReturnsErrPoolNotFound_DeletesVolumeAndReturnsNonRetryableError(t *testing.T) {
+	// GetPool returns vsaerrors.NewVCPError(ErrPoolNotFound, ...) in production (database/vcp/pools.go).
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, AccountID: 1}
+	volumeUUID := "vol-uuid"
+	poolNotFoundErr := vsaerrors.NewVCPError(vsaerrors.ErrPoolNotFound, errors.New("pool not found"))
+
+	mockStorage.On("GetPool", ctx, pool.UUID, pool.AccountID).Return(nil, poolNotFoundErr)
+	mockStorage.On("DeleteVolume", ctx, volumeUUID).Return(&datamodel.Volume{}, nil).Once()
+
+	err := activity.ValidatePoolStateForVolumeCreate(ctx, pool, volumeUUID)
+
+	assert.Error(t, err)
+	var appErr *temporal.ApplicationError
+	assert.True(t, errors.As(err, &appErr))
+	assert.True(t, appErr.NonRetryable())
+	var trackingID int
+	var originalMsg string
+	assert.NoError(t, appErr.Details(&trackingID, &originalMsg))
+	assert.Equal(t, vsaerrors.ErrVolumeCreationFailedDueToPoolIsDeleted, trackingID)
+	assert.Contains(t, originalMsg, "specified pool is in Deleted state, hence volume cannot be created")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestValidatePoolStateForVolumeCreate_GetPoolReturnsRecordNotFound_EmptyVolumeUUID_DoesNotCallDelete(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, AccountID: 1}
+
+	mockStorage.On("GetPool", ctx, pool.UUID, pool.AccountID).Return(nil, vsaerrors.NewVCPError(vsaerrors.ErrPoolNotFound, errors.New("pool not found")))
+
+	err := activity.ValidatePoolStateForVolumeCreate(ctx, pool, "")
+
+	assert.Error(t, err)
+	mockStorage.AssertExpectations(t)
+	mockStorage.AssertNotCalled(t, "DeleteVolume")
+}
+
+func TestValidatePoolStateForVolumeCreate_GetPoolReturnsOtherError_NoDelete_ReturnsWrappedError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, AccountID: 1}
+	volumeUUID := "vol-uuid"
+	dbErr := errors.New("database connection failed")
+
+	mockStorage.On("GetPool", ctx, pool.UUID, pool.AccountID).Return(nil, dbErr)
+
+	err := activity.ValidatePoolStateForVolumeCreate(ctx, pool, volumeUUID)
+
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, dbErr.Error())
+	mockStorage.AssertExpectations(t)
+	mockStorage.AssertNotCalled(t, "DeleteVolume")
+}
+
+func TestValidatePoolStateForVolumeCreate_GetPoolReturnsRecordNotFound_DeleteVolumeFails_StillReturnsValidationError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}, AccountID: 1}
+	volumeUUID := "vol-uuid"
+
+	mockStorage.On("GetPool", ctx, pool.UUID, pool.AccountID).Return(nil, vsaerrors.NewVCPError(vsaerrors.ErrPoolNotFound, errors.New("pool not found")))
+	mockStorage.On("DeleteVolume", ctx, volumeUUID).Return(nil, errors.New("delete failed")).Once()
+
+	err := activity.ValidatePoolStateForVolumeCreate(ctx, pool, volumeUUID)
+
+	assert.Error(t, err)
+	var appErr *temporal.ApplicationError
+	assert.True(t, errors.As(err, &appErr))
+	assert.True(t, appErr.NonRetryable())
+	var trackingID int
+	var originalMsg string
+	assert.NoError(t, appErr.Details(&trackingID, &originalMsg))
+	assert.Equal(t, vsaerrors.ErrVolumeCreationFailedDueToPoolIsDeleted, trackingID)
+	mockStorage.AssertExpectations(t)
+}
+
 func TestCreateVolumeInONTAP_Success(t *testing.T) {
 	t.Run("TestCreateVolumeInONTAP_DefaultConfig_Success", func(t *testing.T) {
 		testSuite := &testsuite.WorkflowTestSuite{}
