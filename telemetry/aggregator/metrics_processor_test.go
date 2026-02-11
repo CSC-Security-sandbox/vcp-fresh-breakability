@@ -2710,7 +2710,7 @@ func TestFetchBackupData_Success(t *testing.T) {
 
 	key := ResourceKey{
 		ResourceType:   metadata.Backup,
-		ResourceName:   "Volume1",
+		ResourceName:   "volume-uuid-1",
 		DeploymentName: "Vault1",
 		ConsumerID:     "Account1",
 	}
@@ -3257,7 +3257,7 @@ func TestFetchBackupData_MultipleBatches(t *testing.T) {
 	// Verify first backup
 	key1 := ResourceKey{
 		ResourceType:   metadata.Backup,
-		ResourceName:   "Volume1",
+		ResourceName:   "volume-uuid-1",
 		DeploymentName: "Vault1",
 		ConsumerID:     "Account1",
 	}
@@ -3270,7 +3270,7 @@ func TestFetchBackupData_MultipleBatches(t *testing.T) {
 	// Verify second backup
 	key2 := ResourceKey{
 		ResourceType:   metadata.Backup,
-		ResourceName:   "Volume2",
+		ResourceName:   "volume-uuid-2",
 		DeploymentName: "Vault2",
 		ConsumerID:     "Account2",
 	}
@@ -4810,7 +4810,7 @@ func TestFetchBackupData_UsesOntapVolumeStyle(t *testing.T) {
 	// Find and verify the large capacity backup
 	largeBackupKey := ResourceKey{
 		ResourceType:   metadata.Backup,
-		ResourceName:   "deleted-large-volume",
+		ResourceName:   "deleted-volume-uuid",
 		DeploymentName: "vault1",
 		ConsumerID:     "account1",
 	}
@@ -4822,7 +4822,7 @@ func TestFetchBackupData_UsesOntapVolumeStyle(t *testing.T) {
 	// Find and verify the regular backup
 	regularBackupKey := ResourceKey{
 		ResourceType:   metadata.Backup,
-		ResourceName:   "deleted-regular-volume",
+		ResourceName:   "another-deleted-volume-uuid",
 		DeploymentName: "vault2",
 		ConsumerID:     "account2",
 	}

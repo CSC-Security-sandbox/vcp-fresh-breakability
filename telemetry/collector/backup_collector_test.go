@@ -78,7 +78,7 @@ func Test_GetBackupMetrics_ReturnsMetrics(t *testing.T) {
 	assert.Equal(t, float64(1024), result.HydratedMetrics[0].Quantity)
 	assert.Equal(t, "volume-uuid-1", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
 	assert.Equal(t, metadata.Backup, result.HydratedMetrics[0].Metadata.ResourceType)
-	assert.Equal(t, "Volume1", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
+	assert.Equal(t, "volume-uuid-1", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
 	assert.Equal(t, "us-east-1", derefString(result.HydratedMetrics[0].Metadata.RegionName))
 	assert.Equal(t, "Account1", derefString(result.HydratedMetrics[0].Metadata.AccountName))
 
@@ -86,7 +86,7 @@ func Test_GetBackupMetrics_ReturnsMetrics(t *testing.T) {
 	assert.Equal(t, metadata.BackupLogicalSize, result.HydratedMetricsDataModel[0].MeasuredType)
 	assert.Equal(t, metadata.Backup, result.HydratedMetricsDataModel[0].ResourceType)
 	assert.Equal(t, "Account1", result.HydratedMetricsDataModel[0].ConsumerID)
-	assert.Equal(t, "Volume1", result.HydratedMetricsDataModel[0].ResourceName)
+	assert.Equal(t, "volume-uuid-1", result.HydratedMetricsDataModel[0].ResourceName)
 	assert.Equal(t, "us-east-1", result.HydratedMetricsDataModel[0].Location)
 	assert.Equal(t, float64(1024), result.HydratedMetricsDataModel[0].Quantity)
 
@@ -159,25 +159,25 @@ func Test_GetBackupMetrics_MultipleBackups(t *testing.T) {
 	assert.Equal(t, metadata.BackupLogicalSize, result.HydratedMetrics[0].MeasuredType)
 	assert.Equal(t, float64(1024), result.HydratedMetrics[0].Quantity)
 	assert.Equal(t, "volume-uuid-1", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
-	assert.Equal(t, "Volume1", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
+	assert.Equal(t, "volume-uuid-1", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
 	assert.Equal(t, "Account1", derefString(result.HydratedMetrics[0].Metadata.AccountName))
 
 	// Check second backup metric
 	assert.Equal(t, metadata.BackupLogicalSize, result.HydratedMetrics[1].MeasuredType)
 	assert.Equal(t, float64(2048), result.HydratedMetrics[1].Quantity)
 	assert.Equal(t, "volume-uuid-2", derefString(result.HydratedMetrics[1].Metadata.ResourceUUID))
-	assert.Equal(t, "Volume2", derefString(result.HydratedMetrics[1].Metadata.ResourceName))
+	assert.Equal(t, "volume-uuid-2", derefString(result.HydratedMetrics[1].Metadata.ResourceName))
 	assert.Equal(t, "Account2", derefString(result.HydratedMetrics[1].Metadata.AccountName))
 
 	// Check hydrated metrics - Backup1
 	assert.Equal(t, "Account1", result.HydratedMetricsDataModel[0].ConsumerID)
-	assert.Equal(t, "Volume1", result.HydratedMetricsDataModel[0].ResourceName)
+	assert.Equal(t, "volume-uuid-1", result.HydratedMetricsDataModel[0].ResourceName)
 	assert.Equal(t, metadata.BackupLogicalSize, result.HydratedMetricsDataModel[0].MeasuredType)
 	assert.Equal(t, float64(1024), result.HydratedMetricsDataModel[0].Quantity)
 
 	// Check hydrated metrics - Backup2
 	assert.Equal(t, "Account2", result.HydratedMetricsDataModel[1].ConsumerID)
-	assert.Equal(t, "Volume2", result.HydratedMetricsDataModel[1].ResourceName)
+	assert.Equal(t, "volume-uuid-2", result.HydratedMetricsDataModel[1].ResourceName)
 	assert.Equal(t, metadata.BackupLogicalSize, result.HydratedMetricsDataModel[1].MeasuredType)
 	assert.Equal(t, float64(2048), result.HydratedMetricsDataModel[1].Quantity)
 }
@@ -321,25 +321,25 @@ func Test_GetBackupMetrics_MixedValidAndNilAttributes(t *testing.T) {
 	assert.Equal(t, metadata.BackupLogicalSize, result.HydratedMetrics[0].MeasuredType)
 	assert.Equal(t, float64(1024), result.HydratedMetrics[0].Quantity)
 	assert.Equal(t, "volume-uuid-1", derefString(result.HydratedMetrics[0].Metadata.ResourceUUID))
-	assert.Equal(t, "Volume1", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
+	assert.Equal(t, "volume-uuid-1", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
 	assert.Equal(t, "Account1", derefString(result.HydratedMetrics[0].Metadata.AccountName))
 
 	// Check second valid backup metric
 	assert.Equal(t, metadata.BackupLogicalSize, result.HydratedMetrics[1].MeasuredType)
 	assert.Equal(t, float64(4096), result.HydratedMetrics[1].Quantity)
 	assert.Equal(t, "volume-uuid-3", derefString(result.HydratedMetrics[1].Metadata.ResourceUUID))
-	assert.Equal(t, "Volume3", derefString(result.HydratedMetrics[1].Metadata.ResourceName))
+	assert.Equal(t, "volume-uuid-3", derefString(result.HydratedMetrics[1].Metadata.ResourceName))
 	assert.Equal(t, "Account3", derefString(result.HydratedMetrics[1].Metadata.AccountName))
 
 	// Check hydrated metrics - Backup1
 	assert.Equal(t, "Account1", result.HydratedMetricsDataModel[0].ConsumerID)
-	assert.Equal(t, "Volume1", result.HydratedMetricsDataModel[0].ResourceName)
+	assert.Equal(t, "volume-uuid-1", result.HydratedMetricsDataModel[0].ResourceName)
 	assert.Equal(t, metadata.BackupLogicalSize, result.HydratedMetricsDataModel[0].MeasuredType)
 	assert.Equal(t, float64(1024), result.HydratedMetricsDataModel[0].Quantity)
 
 	// Check hydrated metrics - Backup3
 	assert.Equal(t, "Account3", result.HydratedMetricsDataModel[1].ConsumerID)
-	assert.Equal(t, "Volume3", result.HydratedMetricsDataModel[1].ResourceName)
+	assert.Equal(t, "volume-uuid-3", result.HydratedMetricsDataModel[1].ResourceName)
 	assert.Equal(t, metadata.BackupLogicalSize, result.HydratedMetricsDataModel[1].MeasuredType)
 	assert.Equal(t, float64(4096), result.HydratedMetricsDataModel[1].Quantity)
 }
@@ -369,7 +369,7 @@ func TestAssembleBackupMetadata(t *testing.T) {
 	assert.Equal(t, metadata.Backup, resourceMetadata.ResourceType)
 	assert.Equal(t, int64(1024), derefInt64(resourceMetadata.SizeInBytes))
 	assert.Equal(t, "us-central1", derefString(resourceMetadata.RegionName))
-	assert.Equal(t, "test-volume", derefString(resourceMetadata.ResourceName))
+	assert.Equal(t, "test-volume-uuid", derefString(resourceMetadata.ResourceName))
 	assert.Equal(t, "test-volume", derefString(resourceMetadata.ResourceDisplayName))
 	assert.Equal(t, "test-account", derefString(resourceMetadata.AccountName))
 }
@@ -471,7 +471,7 @@ func TestGetBackupMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 	assert.Equal(t, metadata.BackupLogicalSize, hmBackup.MeasuredType)
 	assert.Equal(t, metadata.Backup, hmBackup.ResourceType)
 	assert.Equal(t, "IntegrationAccount", hmBackup.ConsumerID)
-	assert.Equal(t, "IntegrationVolume", hmBackup.ResourceName)
+	assert.Equal(t, "volume-uuid-integration", hmBackup.ResourceName)
 	assert.Equal(t, "ap-south-1", hmBackup.Location)
 	assert.Equal(t, float64(5000), hmBackup.Quantity)
 
@@ -521,6 +521,7 @@ func Test_GetBackupMetrics_WithSANProtocol(t *testing.T) {
 	// Should be included because it's SAN protocol
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
 	assert.Equal(t, "AccountSAN", result.HydratedMetricsDataModel[0].ConsumerID)
+	assert.Equal(t, "volume-uuid-san", result.HydratedMetricsDataModel[0].ResourceName)
 }
 
 // Test that verifies backup with NAS protocol is NOT included in HydratedMetricsDataModel when EnableFilesBackupBilling is false
@@ -706,7 +707,7 @@ func Test_GetBackupMetrics_MixedProtocols(t *testing.T) {
 	// Only SAN protocol should be included
 	assert.Len(t, result.HydratedMetricsDataModel, 1)
 	assert.Equal(t, "AccountSAN", result.HydratedMetricsDataModel[0].ConsumerID)
-	assert.Equal(t, "VolumeSAN", result.HydratedMetricsDataModel[0].ResourceName)
+	assert.Equal(t, "volume-uuid-san", result.HydratedMetricsDataModel[0].ResourceName)
 }
 
 func TestGetBackupMetrics_Skipping_Cross_Region_Backups_Billing_Metrics(t *testing.T) {

@@ -142,7 +142,7 @@ func assembleBackupMetadata(backup *datamodel.Backup, config *common.TelemetryCo
 	met.SetResourceType(metadata.Backup)
 	met.SetSizeInBytes(backup.LatestLogicalBackupSize)
 	met.SetRegionName(config.RegionName)
-	met.SetResourceName(backup.Attributes.VolumeName)
+	met.SetResourceName(backup.VolumeUUID)
 	met.SetResourceDisplayName(backup.Attributes.VolumeName)
 	met.SetAccountName(backup.Attributes.AccountIdentifier)
 
