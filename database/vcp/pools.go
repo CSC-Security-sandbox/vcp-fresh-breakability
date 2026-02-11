@@ -316,6 +316,14 @@ func (d *DataStoreRepository) ListPools(ctx context.Context, filter *utils2.Filt
 	return listPoolWithDetails(d.db.GORM().WithContext(ctx))
 }
 
+// ListPoolsWithFilterAndPaginationOrderedByUUID returns non-deleted pools matching the filter with limit/offset,
+// ordered by uuid for stable pagination (no overlapping or missing pools across pages). Use for certificate and password rotation.
+func (d *DataStoreRepository) ListPoolsWithFilterAndPaginationOrderedByUUID(ctx context.Context, filter *utils2.Filter, pagination *utils2.Pagination) ([]*datamodel.PoolView, error) {
+	if filter != nil {
+		return listPoolWithDetailsPaginationOrderedByUUID(d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx), pagination)
+	}
+	return listPoolWithDetailsPaginationOrderedByUUID(d.db.GORM().WithContext(ctx), pagination)
+}
 // ListPoolsWithPagination retrieves pools with pagination support including deleted pools
 func (d *DataStoreRepository) ListPoolsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *utils2.Pagination) ([]*datamodel.PoolView, error) {
 	return listPoolWithDetailsPagination(d.db.ApplyFilter(conditions).Unscoped().GORM().WithContext(ctx), pagination)
@@ -382,6 +390,16 @@ func _listPoolWithDetails(db *gorm.DB) ([]*datamodel.PoolView, error) {
 func _listPoolWithDetailsPagination(db *gorm.DB, pagination *utils2.Pagination) ([]*datamodel.PoolView, error) {
 	var pools []*datamodel.PoolView
 	err := db.Preload("Account").Scopes(utils2.Paginate(pagination)).Find(&pools).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return pools, nil
+}
+
+// listPoolWithDetailsPaginationOrderedByUUID paginates pools with deterministic order by uuid to avoid overlap across pages.
+func listPoolWithDetailsPaginationOrderedByUUID(db *gorm.DB, pagination *utils2.Pagination) ([]*datamodel.PoolView, error) {
+	var pools []*datamodel.PoolView
+	err := db.Preload("Account").Order("uuid").Scopes(utils2.Paginate(pagination)).Find(&pools).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}

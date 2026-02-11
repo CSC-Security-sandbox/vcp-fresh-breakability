@@ -13796,6 +13796,66 @@ func (_c *MockStorage_ListPools_Call) RunAndReturn(run func(context.Context, *ut
 	return _c
 }
 
+// ListPoolsWithFilterAndPaginationOrderedByUUID provides a mock function with given fields: ctx, filter, pagination
+func (_m *MockStorage) ListPoolsWithFilterAndPaginationOrderedByUUID(ctx context.Context, filter *utils.Filter, pagination *utils.Pagination) ([]*datamodel.PoolView, error) {
+	ret := _m.Called(ctx, filter, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListPoolsWithFilterAndPaginationOrderedByUUID")
+	}
+
+	var r0 []*datamodel.PoolView
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter, *utils.Pagination) ([]*datamodel.PoolView, error)); ok {
+		return rf(ctx, filter, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter, *utils.Pagination) []*datamodel.PoolView); ok {
+		r0 = rf(ctx, filter, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.PoolView)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *utils.Filter, *utils.Pagination) error); ok {
+		r1 = rf(ctx, filter, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_ListPoolsWithFilterAndPaginationOrderedByUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListPoolsWithFilterAndPaginationOrderedByUUID'
+type MockStorage_ListPoolsWithFilterAndPaginationOrderedByUUID_Call struct {
+	*mock.Call
+}
+
+// ListPoolsWithFilterAndPaginationOrderedByUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filter *utils.Filter
+//   - pagination *utils.Pagination
+func (_e *MockStorage_Expecter) ListPoolsWithFilterAndPaginationOrderedByUUID(ctx interface{}, filter interface{}, pagination interface{}) *MockStorage_ListPoolsWithFilterAndPaginationOrderedByUUID_Call {
+	return &MockStorage_ListPoolsWithFilterAndPaginationOrderedByUUID_Call{Call: _e.mock.On("ListPoolsWithFilterAndPaginationOrderedByUUID", ctx, filter, pagination)}
+}
+
+func (_c *MockStorage_ListPoolsWithFilterAndPaginationOrderedByUUID_Call) Run(run func(ctx context.Context, filter *utils.Filter, pagination *utils.Pagination)) *MockStorage_ListPoolsWithFilterAndPaginationOrderedByUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*utils.Filter), args[2].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ListPoolsWithFilterAndPaginationOrderedByUUID_Call) Return(_a0 []*datamodel.PoolView, _a1 error) *MockStorage_ListPoolsWithFilterAndPaginationOrderedByUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ListPoolsWithFilterAndPaginationOrderedByUUID_Call) RunAndReturn(run func(context.Context, *utils.Filter, *utils.Pagination) ([]*datamodel.PoolView, error)) *MockStorage_ListPoolsWithFilterAndPaginationOrderedByUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListPoolsForMetrics provides a mock function with given fields: ctx
 func (_m *MockStorage) ListPoolsForMetrics(ctx context.Context) ([]*PoolMetricsData, error) {
 	ret := _m.Called(ctx)

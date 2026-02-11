@@ -444,6 +444,9 @@ func (s *PersistenceStore) ListPools(ctx context.Context, filter *dbutils.Filter
 	return s.dataStore.ListPools(ctx, filter)
 }
 
+func (s *PersistenceStore) ListPoolsWithFilterAndPaginationOrderedByUUID(ctx context.Context, filter *dbutils.Filter, pagination *dbutils.Pagination) ([]*datamodel.PoolView, error) {
+	return s.dataStore.ListPoolsWithFilterAndPaginationOrderedByUUID(ctx, filter, pagination)
+}
 func (s *PersistenceStore) ListPoolsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.PoolView, error) {
 	return s.dataStore.ListPoolsWithPagination(ctx, conditions, pagination)
 }

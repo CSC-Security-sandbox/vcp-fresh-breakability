@@ -138,7 +138,8 @@ func (s *CertificateRotationWorkflowTestSuite) TestRotateVcpToVsaCertificatesWor
 	}
 
 	// Set up activity mocks for pool listing
-	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithCertificateAuth, mock.Anything).Return(pools, nil)
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithCertificateAuth, mock.Anything, mock.Anything, mock.Anything).
+		Return(&backgroundactivities.ListPoolsBatchResult{Pools: pools, HasMore: false}, nil)
 	
 	// Mock PopulateMissingCaURI activity
 	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).PopulateMissingCaURI, mock.Anything, mock.Anything).Return(nil)
@@ -172,7 +173,8 @@ func (s *CertificateRotationWorkflowTestSuite) TestRotateVcpToVsaCertificatesWor
 	// Return empty pool list
 	var pools []*datamodel.Pool
 
-	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithCertificateAuth, mock.Anything).Return(pools, nil)
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithCertificateAuth, mock.Anything, mock.Anything, mock.Anything).
+		Return(&backgroundactivities.ListPoolsBatchResult{Pools: pools, HasMore: false}, nil)
 
 	// Set environment variables for test
 	cleanup := s.setEnvVarsForTest(true, false, false)
@@ -206,7 +208,8 @@ func (s *CertificateRotationWorkflowTestSuite) TestRotateVcpToVsaCertificatesWor
 	}
 
 	// Set up activity mocks for pool listing
-	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithCertificateAuth, mock.Anything).Return(pools, nil)
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithCertificateAuth, mock.Anything, mock.Anything, mock.Anything).
+		Return(&backgroundactivities.ListPoolsBatchResult{Pools: pools, HasMore: false}, nil)
 	
 	// Mock PopulateMissingCaURI activity
 	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).PopulateMissingCaURI, mock.Anything, mock.Anything).Return(nil)
@@ -244,7 +247,8 @@ func (s *CertificateRotationWorkflowTestSuite) TestRotateVcpToVsaCertificatesWor
 	}
 
 	// Set up activity mocks for pool listing
-	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithCertificateAuth, mock.Anything).Return(pools, nil)
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithCertificateAuth, mock.Anything, mock.Anything, mock.Anything).
+		Return(&backgroundactivities.ListPoolsBatchResult{Pools: pools, HasMore: false}, nil)
 	
 	// Mock PopulateMissingCaURI activity
 	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).PopulateMissingCaURI, mock.Anything, mock.Anything).Return(nil)
@@ -288,8 +292,10 @@ func (s *CertificateRotationWorkflowTestSuite) TestRotateVcpToVsaCertificatesWor
 	}
 
 	// Set up activity mocks for parallel pool listing
-	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithCertificateAuth, mock.Anything).Return(certPools, nil)
-	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithPasswordAuth, mock.Anything).Return(passwordPools, nil)
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithCertificateAuth, mock.Anything, mock.Anything, mock.Anything).
+		Return(&backgroundactivities.ListPoolsBatchResult{Pools: certPools, HasMore: false}, nil)
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithPasswordAuth, mock.Anything, mock.Anything, mock.Anything).
+		Return(&backgroundactivities.ListPoolsBatchResult{Pools: passwordPools, HasMore: false}, nil)
 	
 	// Mock PopulateMissingCaURI activity
 	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).PopulateMissingCaURI, mock.Anything, mock.Anything).Return(nil)
@@ -330,7 +336,8 @@ func (s *CertificateRotationWorkflowTestSuite) TestRotateVcpToVsaCertificatesWor
 	}
 
 	// Set up activity mocks for password pool listing
-	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithPasswordAuth, mock.Anything).Return(passwordPools, nil)
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithPasswordAuth, mock.Anything, mock.Anything, mock.Anything).
+		Return(&backgroundactivities.ListPoolsBatchResult{Pools: passwordPools, HasMore: false}, nil)
 	
 	// Mock control workflow activities
 	s.env.OnActivity((&backgroundactivities.ControlWorkflowActivity{}).ExecutePoolPasswordRotationSequentially, mock.Anything, "password-pool-1", mock.Anything).Return(nil)
@@ -348,7 +355,8 @@ func (s *CertificateRotationWorkflowTestSuite) TestRotateVcpToVsaCertificatesWor
 
 func (s *CertificateRotationWorkflowTestSuite) TestRotateVcpToVsaCertificatesWorkflow_PoolListingFailure() {
 	// Mock pool listing failure
-	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithCertificateAuth, mock.Anything).Return(nil, errors.New("failed to list certificate pools"))
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithCertificateAuth, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, errors.New("failed to list certificate pools"))
 
 	// Set environment variables for test
 	cleanup := s.setEnvVarsForTest(true, false, false)
@@ -362,9 +370,146 @@ func (s *CertificateRotationWorkflowTestSuite) TestRotateVcpToVsaCertificatesWor
 
 func (s *CertificateRotationWorkflowTestSuite) TestRotateVcpToVsaCertificatesWorkflow_EnvironmentVariables() {
 	// Test different environment variable combinations
-	
+
 	// Test case 1: All disabled
 	cleanup := s.setEnvVarsForTest(false, false, false)
+	defer cleanup()
+
+	s.env.ExecuteWorkflow(RotateVsaCertificateAndPasswordWorkflow)
+
+	s.True(s.env.IsWorkflowCompleted())
+	s.NoError(s.env.GetWorkflowError())
+}
+
+// TestRotateVcpToVsaCertificatesWorkflow_PopulateMissingCaURIFails covers line 107 (Warn on PopulateMissingCaURI error).
+func (s *CertificateRotationWorkflowTestSuite) TestRotateVcpToVsaCertificatesWorkflow_PopulateMissingCaURIFails() {
+	pools := []*datamodel.Pool{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "pool-1"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-1",
+				AuthType:      env.USER_CERTIFICATE,
+			},
+		},
+	}
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithCertificateAuth, mock.Anything, mock.Anything, mock.Anything).
+		Return(&backgroundactivities.ListPoolsBatchResult{Pools: pools, HasMore: false}, nil)
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).PopulateMissingCaURI, mock.Anything, mock.Anything).Return(errors.New("populate ca_uri failed"))
+	s.env.OnActivity((&backgroundactivities.ControlWorkflowActivity{}).ExecutePoolCertificateRotationSequentially, mock.Anything, "pool-1", mock.Anything).Return(nil)
+
+	cleanup := s.setEnvVarsForTest(true, false, false)
+	defer cleanup()
+
+	s.env.ExecuteWorkflow(RotateVsaCertificateAndPasswordWorkflow)
+
+	s.True(s.env.IsWorkflowCompleted())
+	s.NoError(s.env.GetWorkflowError())
+}
+
+// TestRotateVcpToVsaCertificatesWorkflow_PasswordListFails covers lines 153-154 (return on ListPoolsWithPasswordAuth error).
+func (s *CertificateRotationWorkflowTestSuite) TestRotateVcpToVsaCertificatesWorkflow_PasswordListFails() {
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithPasswordAuth, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, errors.New("failed to list password pools"))
+
+	cleanup := s.setEnvVarsForTest(false, true, true)
+	defer cleanup()
+
+	s.env.ExecuteWorkflow(RotateVsaCertificateAndPasswordWorkflow)
+
+	s.True(s.env.IsWorkflowCompleted())
+	s.Error(s.env.GetWorkflowError())
+}
+
+// TestRotateVcpToVsaCertificatesWorkflow_PasswordRotationPartialFailure covers lines 169-170, 186-187, 202, 204.
+func (s *CertificateRotationWorkflowTestSuite) TestRotateVcpToVsaCertificatesWorkflow_PasswordRotationPartialFailure() {
+	passwordPools := []*datamodel.Pool{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "pw-pool-1"},
+			PoolCredentials: &datamodel.PoolCredentials{SecretID: "secret-1", AuthType: env.USERNAME_PWD_SEC_MGR},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "pw-pool-2"},
+			PoolCredentials: &datamodel.PoolCredentials{SecretID: "secret-2", AuthType: env.USERNAME_PWD_SEC_MGR},
+		},
+	}
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithPasswordAuth, mock.Anything, mock.Anything, mock.Anything).
+		Return(&backgroundactivities.ListPoolsBatchResult{Pools: passwordPools, HasMore: false}, nil)
+	s.env.OnActivity((&backgroundactivities.ControlWorkflowActivity{}).ExecutePoolPasswordRotationSequentially, mock.Anything, "pw-pool-1", mock.Anything).Return(nil)
+	s.env.OnActivity((&backgroundactivities.ControlWorkflowActivity{}).ExecutePoolPasswordRotationSequentially, mock.Anything, "pw-pool-2", mock.Anything).Return(errors.New("failed to queue"))
+
+	cleanup := s.setEnvVarsForTest(false, true, true)
+	defer cleanup()
+
+	s.env.ExecuteWorkflow(RotateVsaCertificateAndPasswordWorkflow)
+
+	s.True(s.env.IsWorkflowCompleted())
+	s.NoError(s.env.GetWorkflowError())
+}
+
+// TestRotateVcpToVsaCertificatesWorkflow_PasswordRotationDisabled covers line 184 (logger when password rotation disabled).
+func (s *CertificateRotationWorkflowTestSuite) TestRotateVcpToVsaCertificatesWorkflow_PasswordRotationDisabled() {
+	cleanup := s.setEnvVarsForTest(false, false, true) // cert off, password off, authType1 on
+	defer cleanup()
+
+	s.env.ExecuteWorkflow(RotateVsaCertificateAndPasswordWorkflow)
+
+	s.True(s.env.IsWorkflowCompleted())
+	s.NoError(s.env.GetWorkflowError())
+}
+
+// TestRotateVcpToVsaCertificatesWorkflow_AuthType1PasswordRotationDisabled covers lines 186-187.
+func (s *CertificateRotationWorkflowTestSuite) TestRotateVcpToVsaCertificatesWorkflow_AuthType1PasswordRotationDisabled() {
+	cleanup := s.setEnvVarsForTest(false, true, false) // password on, authType1 off
+	defer cleanup()
+
+	s.env.ExecuteWorkflow(RotateVsaCertificateAndPasswordWorkflow)
+
+	s.True(s.env.IsWorkflowCompleted())
+	s.NoError(s.env.GetWorkflowError())
+}
+
+// TestRotateVcpToVsaCertificatesWorkflow_BothRotationsPartialFailure covers lines 197-198, 202, 204 (summary warnings).
+func (s *CertificateRotationWorkflowTestSuite) TestRotateVcpToVsaCertificatesWorkflow_BothRotationsPartialFailure() {
+	certPools := []*datamodel.Pool{
+		{BaseModel: datamodel.BaseModel{UUID: "c1"}, PoolCredentials: &datamodel.PoolCredentials{CertificateID: "cert-1", AuthType: env.USER_CERTIFICATE}},
+	}
+	passwordPools := []*datamodel.Pool{
+		{BaseModel: datamodel.BaseModel{UUID: "p1"}, PoolCredentials: &datamodel.PoolCredentials{SecretID: "s1", AuthType: env.USERNAME_PWD_SEC_MGR}},
+	}
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithCertificateAuth, mock.Anything, mock.Anything, mock.Anything).
+		Return(&backgroundactivities.ListPoolsBatchResult{Pools: certPools, HasMore: false}, nil)
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithPasswordAuth, mock.Anything, mock.Anything, mock.Anything).
+		Return(&backgroundactivities.ListPoolsBatchResult{Pools: passwordPools, HasMore: false}, nil)
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).PopulateMissingCaURI, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity((&backgroundactivities.ControlWorkflowActivity{}).ExecutePoolCertificateRotationSequentially, mock.Anything, "c1", mock.Anything).Return(errors.New("cert queue failed"))
+	s.env.OnActivity((&backgroundactivities.ControlWorkflowActivity{}).ExecutePoolPasswordRotationSequentially, mock.Anything, "p1", mock.Anything).Return(errors.New("password queue failed"))
+
+	cleanup := s.setEnvVarsForTest(true, true, true)
+	defer cleanup()
+
+	s.env.ExecuteWorkflow(RotateVsaCertificateAndPasswordWorkflow)
+
+	s.True(s.env.IsWorkflowCompleted())
+	s.NoError(s.env.GetWorkflowError())
+}
+
+// TestRotateVcpToVsaCertificatesWorkflow_BothSucceedWithPools covers lines 211, 214 (success summary when no failures).
+func (s *CertificateRotationWorkflowTestSuite) TestRotateVcpToVsaCertificatesWorkflow_BothSucceedWithPools() {
+	certPools := []*datamodel.Pool{
+		{BaseModel: datamodel.BaseModel{UUID: "c1"}, PoolCredentials: &datamodel.PoolCredentials{CertificateID: "cert-1", AuthType: env.USER_CERTIFICATE}},
+	}
+	passwordPools := []*datamodel.Pool{
+		{BaseModel: datamodel.BaseModel{UUID: "p1"}, PoolCredentials: &datamodel.PoolCredentials{SecretID: "s1", AuthType: env.USERNAME_PWD_SEC_MGR}},
+	}
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithCertificateAuth, mock.Anything, mock.Anything, mock.Anything).
+		Return(&backgroundactivities.ListPoolsBatchResult{Pools: certPools, HasMore: false}, nil)
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).ListPoolsWithPasswordAuth, mock.Anything, mock.Anything, mock.Anything).
+		Return(&backgroundactivities.ListPoolsBatchResult{Pools: passwordPools, HasMore: false}, nil)
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).PopulateMissingCaURI, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity((&backgroundactivities.ControlWorkflowActivity{}).ExecutePoolCertificateRotationSequentially, mock.Anything, "c1", mock.Anything).Return(nil)
+	s.env.OnActivity((&backgroundactivities.ControlWorkflowActivity{}).ExecutePoolPasswordRotationSequentially, mock.Anything, "p1", mock.Anything).Return(nil)
+
+	cleanup := s.setEnvVarsForTest(true, true, true)
 	defer cleanup()
 
 	s.env.ExecuteWorkflow(RotateVsaCertificateAndPasswordWorkflow)

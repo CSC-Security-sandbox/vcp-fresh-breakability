@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -202,19 +203,22 @@ func TestRotateVcpToVsaCertificateActivity_ListPoolsWithCertificateAuth(t *testi
 		poolView2 := createTestPoolView()
 		poolView2.Pool.UUID = "pool-2"
 
-		// Mock database calls
-		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView1, poolView2}, nil).Twice()
+		// Mock batched list (ListPoolsWithFilterAndPaginationOrderedByUUID)
+		mockSE.On("ListPoolsWithFilterAndPaginationOrderedByUUID", ctx, mock.AnythingOfType("*utils.Filter"), mock.AnythingOfType("*utils.Pagination")).
+			Return([]*datamodel.PoolView{poolView1, poolView2}, nil)
 
-		// Execute
-		result, err := activity.ListPoolsWithCertificateAuth(ctx)
+		// Execute (offset=0, limit=50)
+		result, err := activity.ListPoolsWithCertificateAuth(ctx, 0, 50)
 
 		// Assert
 		assert.NoError(tt, err)
-		assert.Len(tt, result, 2)
-		assert.Equal(tt, "pool-1", result[0].UUID)
-		assert.Equal(tt, "pool-2", result[1].UUID)
-		assert.Equal(tt, env.USER_CERTIFICATE, result[0].PoolCredentials.AuthType)
-		assert.Equal(tt, env.USER_CERTIFICATE, result[1].PoolCredentials.AuthType)
+		require.NotNil(tt, result)
+		assert.Len(tt, result.Pools, 2)
+		assert.False(tt, result.HasMore) // 2 < 50 so no more
+		assert.Equal(tt, "pool-1", result.Pools[0].UUID)
+		assert.Equal(tt, "pool-2", result.Pools[1].UUID)
+		assert.Equal(tt, env.USER_CERTIFICATE, result.Pools[0].PoolCredentials.AuthType)
+		assert.Equal(tt, env.USER_CERTIFICATE, result.Pools[1].PoolCredentials.AuthType)
 		mockSE.AssertExpectations(tt)
 	})
 
@@ -223,14 +227,17 @@ func TestRotateVcpToVsaCertificateActivity_ListPoolsWithCertificateAuth(t *testi
 		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
 
 		// Mock database calls to return empty lists
-		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{}, nil).Twice()
+		mockSE.On("ListPoolsWithFilterAndPaginationOrderedByUUID", ctx, mock.AnythingOfType("*utils.Filter"), mock.AnythingOfType("*utils.Pagination")).
+			Return([]*datamodel.PoolView{}, nil)
 
 		// Execute
-		result, err := activity.ListPoolsWithCertificateAuth(ctx)
+		result, err := activity.ListPoolsWithCertificateAuth(ctx, 0, 50)
 
 		// Assert
 		assert.NoError(tt, err)
-		assert.Empty(tt, result)
+		require.NotNil(tt, result)
+		assert.Empty(tt, result.Pools)
+		assert.False(tt, result.HasMore)
 		mockSE.AssertExpectations(tt)
 	})
 
@@ -239,12 +246,11 @@ func TestRotateVcpToVsaCertificateActivity_ListPoolsWithCertificateAuth(t *testi
 		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
 
 		dbError := errors.New("database connection failed")
-
-		// Mock database call to return error
-		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return(nil, dbError)
+		mockSE.On("ListPoolsWithFilterAndPaginationOrderedByUUID", ctx, mock.AnythingOfType("*utils.Filter"), mock.AnythingOfType("*utils.Pagination")).
+			Return(nil, dbError)
 
 		// Execute
-		result, err := activity.ListPoolsWithCertificateAuth(ctx)
+		result, err := activity.ListPoolsWithCertificateAuth(ctx, 0, 50)
 
 		// Assert
 		assert.Error(tt, err)
@@ -261,19 +267,20 @@ func TestRotateVcpToVsaCertificateActivity_ListPoolsWithCertificateAuth(t *testi
 		poolView1.Pool.UUID = "pool-1"
 		poolView2 := createTestPoolView()
 		poolView2.Pool.UUID = "pool-2"
-		poolView2.Pool.PoolCredentials = nil // Nil credentials to test line 81
+		poolView2.Pool.PoolCredentials = nil
 
-		// Mock database calls - first call for all pools, second for filtered pools
-		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView1, poolView2}, nil).Once()
-		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView1}, nil).Once()
+		// Mock batched list - filter returns only pool-1 (pool-2 has nil credentials filtered at DB or returned as single)
+		mockSE.On("ListPoolsWithFilterAndPaginationOrderedByUUID", ctx, mock.AnythingOfType("*utils.Filter"), mock.AnythingOfType("*utils.Pagination")).
+			Return([]*datamodel.PoolView{poolView1}, nil)
 
 		// Execute
-		result, err := activity.ListPoolsWithCertificateAuth(ctx)
+		result, err := activity.ListPoolsWithCertificateAuth(ctx, 0, 50)
 
 		// Assert
 		assert.NoError(tt, err)
-		assert.Len(tt, result, 1) // Only pool-1 should be returned (pool-2 has nil credentials)
-		assert.Equal(tt, "pool-1", result[0].UUID)
+		require.NotNil(tt, result)
+		assert.Len(tt, result.Pools, 1)
+		assert.Equal(tt, "pool-1", result.Pools[0].UUID)
 		mockSE.AssertExpectations(tt)
 	})
 }
@@ -289,8 +296,10 @@ func TestRotateVcpToVsaCertificateActivity_BasicIntegration(t *testing.T) {
 		poolUUID := "test-pool-uuid"
 		poolView := createTestPoolView()
 
-		// Mock database calls
+		// Mock database calls (ListPools for CertificateNeedsRotation, ListPoolsWithFilterAndPaginationOrderedByUUID for ListPoolsWithCertificateAuth)
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView}, nil).Maybe()
+		mockSE.On("ListPoolsWithFilterAndPaginationOrderedByUUID", ctx, mock.AnythingOfType("*utils.Filter"), mock.AnythingOfType("*utils.Pagination")).
+			Return([]*datamodel.PoolView{poolView}, nil).Maybe()
 
 		// Test basic workflow steps that don't require complex dependencies
 		
@@ -300,9 +309,10 @@ func TestRotateVcpToVsaCertificateActivity_BasicIntegration(t *testing.T) {
 		assert.False(tt, needsRotation)
 
 		// Step 2: List pools with certificate auth (should work)
-		pools, err := activity.ListPoolsWithCertificateAuth(ctx)
+		result, err := activity.ListPoolsWithCertificateAuth(ctx, 0, 50)
 		assert.NoError(tt, err)
-		assert.NotNil(tt, pools)
+		require.NotNil(tt, result)
+		assert.NotNil(tt, result.Pools)
 
 		// Step 3: Check if certificate is expired - using GetCertificateExpirationInfo instead
 		// IsCertificateExpired is not a public method

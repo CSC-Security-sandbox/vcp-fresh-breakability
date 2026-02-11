@@ -9,7 +9,6 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -63,12 +62,21 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 		}
 
 		// For certificate-based auth, we still need password for SSH connections
-		// Use the node's password directly - SecretID contains private key, not password
-		var password string
-		if node.Password != "" {
-			password = node.Password
-		} else {
-			util.GetLogger(ctx).Warnf("No password available for SSH authentication with certificate-based auth")
+		// Use the node's password directly, or fetch from Secret Manager if SecretID is set
+		password := node.Password
+		if password == "" && node.SecretID != "" {
+			secret, GetPasswordFromCacheOrSecretManagerErr := GetPasswordFromCacheOrSecretManager(ctx, node.SecretID)
+			if GetPasswordFromCacheOrSecretManagerErr != nil {
+				util.GetLogger(ctx).Debugf("Failed to get password from Secret Manager for SSH: %v", GetPasswordFromCacheOrSecretManagerErr)
+			} else if secret != "" {
+				password = secret
+				util.GetLogger(ctx).Debugf("Retrieved password from Secret Manager for SSH authentication")
+			} else {
+				util.GetLogger(ctx).Warnf("Password retrieved from Secret Manager for node %s is empty", node.Name)
+			}
+		}
+		if password == "" {
+			util.GetLogger(ctx).Debugf("No password available for SSH authentication with certificate-based auth")
 			// Continue without password - SSH will fail but REST API will work
 		}
 
@@ -583,42 +591,35 @@ func _revokeCertificateAndDeleteFromCacheAndSecretManager(gcpService GoogleServi
 	certificateID := poolCredentials.CertificateID
 	certificate, secret, err := GetCertificateAndSecret(gcpService, poolCredentials)
 
-	// Check if the error is due to a revoked certificate
-	isRevoked := err != nil && strings.Contains(err.Error(), "certificate") && strings.Contains(err.Error(), "is revoked and cannot be used")
+	if err != nil {
+		// Cannot get certificate (e.g. revoked, permission denied, permission not assigned, 404, network).
+		// Do best-effort cleanup of secret and cache so pool deletion can complete and resources are not left stale.
+		logger.Warnf("Cannot get certificate %s (err: %v), proceeding with best-effort cleanup of secret and cache so pool deletion can continue", certificateID, err)
 
-	if err != nil && !isRevoked {
-		logger.Errorf("Failed to get Certificate and Secret for certificateID: %s, err: %v", certificateID, err)
+		secret, secretErr := gcpService.GetSecretWithLatestVersion(env.SecretManagerProjectID, certificateID)
+		if secretErr != nil {
+			logger.Debugf("Secret not found for certificate %s, skipping secret deletion", certificateID)
+		}
+		if secretErr == nil && secret != nil {
+			if delErr := gcpService.DeleteSecret(env.SecretManagerProjectID, certificateID); delErr != nil {
+				logger.Warnf("Failed to delete private key from secret manager for certificate %s: %v", certificateID, delErr)
+			}
+		}
+
+		done := common.RemoveFromCertAuthCache(certificateID)
+		if !done {
+			logger.Errorf("Failed to remove certificate %s from cache", certificateID)
+		}
+		return nil
+	}
+
+	// Successfully got certificate and secret; revoke certificate and delete secret.
+	err = DeleteCertificateAndSecret(gcpService, certificate, secret, poolCredentials)
+	if err != nil {
+		logger.Errorf("Failed to delete certificate and private key for certificateID: %s, err: %v", certificateID, err)
 		return err
 	}
 
-	if isRevoked {
-		logger.Warnf("Certificate %s is already revoked, proceeding with cleanup of secret and cache", certificateID)
-
-		// Check if the secret exists before attempting deletion
-		secret, secretErr := gcpService.GetSecretWithLatestVersion(env.SecretManagerProjectID, certificateID)
-		if secretErr != nil {
-			logger.Debugf("Secret not found for revoked certificate %s, skipping deletion", certificateID)
-		}
-
-		// Delete the secret if it exists
-		if secretErr == nil && secret != nil {
-			err = gcpService.DeleteSecret(env.SecretManagerProjectID, certificateID)
-			if err != nil {
-				logger.Errorf("Failed to delete private key from secret manager for projectID: %s and certificate: %s, err: %v", env.SecretManagerProjectID, certificateID, err)
-				// Don't return error - continue with cache cleanup
-			}
-		}
-	} else {
-		// Certificate is not revoked, proceed with normal deletion
-		// DeleteCertificateAndSecret handles both certificate revocation and secret deletion
-		err = DeleteCertificateAndSecret(gcpService, certificate, secret, poolCredentials)
-		if err != nil {
-			logger.Errorf("Failed to delete certificate and private key for certificateID: %s, err: %v", certificateID, err)
-			return err
-		}
-	}
-
-	// delete from cache if not expired
 	done := common.RemoveFromCertAuthCache(certificateID)
 	if !done {
 		logger.Errorf("Failed to remove certificate %s from cache", certificateID)

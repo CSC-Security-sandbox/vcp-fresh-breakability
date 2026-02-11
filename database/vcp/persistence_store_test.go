@@ -246,6 +246,41 @@ func TestListPools_Persistence_Store(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetPoolsByActiveDirectoryId_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	pools, err := store.GetPoolsByActiveDirectoryId(ctx, "ad-id-123")
+	assert.NoError(t, err)
+	assert.NotNil(t, pools)
+	assert.Empty(t, pools)
+}
+
+func TestListPoolsWithFilterAndPaginationOrderedByUUID_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	filter := &dbutils.Filter{}
+	pagination := &dbutils.Pagination{Offset: 0, Limit: 10}
+	pools, err := store.ListPoolsWithFilterAndPaginationOrderedByUUID(ctx, filter, pagination)
+	assert.NoError(t, err)
+	assert.NotNil(t, pools)
+}
+
 func TestListPoolUUIDs_Persistence_Store(t *testing.T) {
 	logger := log.NewLogger()
 	store, _ := SetupStorageForTest(logger)

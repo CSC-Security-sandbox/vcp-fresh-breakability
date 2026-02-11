@@ -418,52 +418,33 @@ func (a *RotateVcpToVsaCertificateActivity) ValidateNewPasswordConnectivity(ctx 
 	return nil
 }
 
-// ListPoolsWithPasswordAuth retrieves all pools that use password authentication (auth type USERNAME_PWD_SEC_MGR)
-func (a *RotateVcpToVsaCertificateActivity) ListPoolsWithPasswordAuth(ctx context.Context) ([]*datamodel.Pool, error) {
+// ListPoolsWithPasswordAuth returns one batch of pools that use password authentication (auth type USERNAME_PWD_SEC_MGR).
+// Offset and limit support pagination to avoid Temporal activity result size limit.
+func (a *RotateVcpToVsaCertificateActivity) ListPoolsWithPasswordAuth(ctx context.Context, offset, limit int) (*ListPoolsBatchResult, error) {
 	logger := util.GetLogger(ctx)
 	se := a.SE
+	logger.Debugf("Listing pools with password authentication (offset=%d, limit=%d)", offset, limit)
 
-	// Create filter for pools with password authentication
 	authTypeValue := fmt.Sprintf("%d", env.USERNAME_PWD_SEC_MGR)
-
+	readyStates := []string{"READY", "DEGRADED"}
 	filter := dbutils.CreateFilterWithConditions(
 		dbutils.NewFilterCondition("pool_credentials->>'auth_type'", "=", authTypeValue),
-		dbutils.NewFilterCondition("state", "!=", "DELETED"),
-		dbutils.NewFilterCondition("state", "!=", "CREATING"),
+		dbutils.NewFilterCondition("state", "in", readyStates),
 	)
+	pagination := &dbutils.Pagination{Limit: limit, Offset: offset}
 
-	// First, let's get all pools to see what auth_types exist
-	allPoolsFilter := dbutils.CreateFilterWithConditions(
-		dbutils.NewFilterCondition("state", "!=", "DELETED"),
-	)
-	allPoolViews, err := se.ListPools(ctx, allPoolsFilter)
-	if err != nil {
-		logger.Errorf("Failed to list all pools: %v", err)
-	} else {
-		logger.Debugf("Found %d total pools in database", len(allPoolViews))
-		for i, poolView := range allPoolViews {
-			if poolView.PoolCredentials != nil {
-				logger.Debugf("Pool %d: UUID=%s, AuthType=%v, SecretID=%s",
-					i+1, poolView.UUID, poolView.PoolCredentials.AuthType, poolView.PoolCredentials.SecretID)
-			} else {
-				logger.Debugf("Pool %d: UUID=%s, PoolCredentials is nil", i+1, poolView.UUID)
-			}
-		}
-	}
-
-	poolViews, err := se.ListPools(ctx, filter)
+	poolViews, err := se.ListPoolsWithFilterAndPaginationOrderedByUUID(ctx, filter, pagination)
 	if err != nil {
 		logger.Errorf("Failed to list pools with password authentication: %v", err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 
-
-	// Convert PoolViews to Pools
+	hasMore := len(poolViews) == limit
 	var pools []*datamodel.Pool
 	for _, poolView := range poolViews {
-		pool := ConvertPoolViewToPool(poolView)
-		pools = append(pools, pool)
+		pools = append(pools, ConvertPoolViewToPool(poolView))
 	}
-	return pools, nil
+	logger.Debugf("Retrieved batch of %d password auth pools (hasMore=%v)", len(pools), hasMore)
+	return &ListPoolsBatchResult{Pools: pools, HasMore: hasMore}, nil
 }
 

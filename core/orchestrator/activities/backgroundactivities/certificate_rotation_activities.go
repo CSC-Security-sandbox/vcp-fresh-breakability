@@ -11,15 +11,21 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
+// ListPoolsBatchResult holds one page of pools and whether more pages exist (avoids Temporal activity result size limit).
+type ListPoolsBatchResult struct {
+	Pools   []*datamodel.Pool
+	HasMore bool
+}
+
 // CertificateNeedsRotation checks if a certificate needs rotation for a specific pool
 func (a *RotateVcpToVsaCertificateActivity) CertificateNeedsRotation(ctx context.Context, poolUUID string) (bool, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debugf("Checking if certificate needs rotation for pool: %s", poolUUID)
 
+	readyStates := []string{"READY", "DEGRADED"}
 	filter := dbutils.CreateFilterWithConditions(
 		dbutils.NewFilterCondition("uuid", "=", poolUUID),
-		dbutils.NewFilterCondition("state", "!=", "CREATING"),
-		dbutils.NewFilterCondition("state", "!=", "DELETING"),
+		dbutils.NewFilterCondition("state", "in", readyStates),
 	)
 	poolViews, err := a.SE.ListPools(ctx, filter)
 	if err != nil {
@@ -49,55 +55,32 @@ func (a *RotateVcpToVsaCertificateActivity) CertificateNeedsRotation(ctx context
 }
 
 
-// ListPoolsWithCertificateAuth retrieves all pools that use certificate authentication (auth type USER_CERTIFICATE)
-func (a *RotateVcpToVsaCertificateActivity) ListPoolsWithCertificateAuth(ctx context.Context) ([]*datamodel.Pool, error) {
+// ListPoolsWithCertificateAuth returns one batch of pools that use certificate authentication (auth type USER_CERTIFICATE).
+// Offset and limit support pagination to avoid Temporal activity result size limit.
+func (a *RotateVcpToVsaCertificateActivity) ListPoolsWithCertificateAuth(ctx context.Context, offset, limit int) (*ListPoolsBatchResult, error) {
 	logger := util.GetLogger(ctx)
 	se := a.SE
-	logger.Debug("Starting to list pools with certificate authentication")
+	logger.Debugf("Listing pools with certificate authentication (offset=%d, limit=%d)", offset, limit)
 
 	authTypeValue := fmt.Sprintf("%d", env.USER_CERTIFICATE)
-	logger.Debugf("Looking for pools with auth_type = %s (USER_CERTIFICATE = %d)", authTypeValue, env.USER_CERTIFICATE)
-
+	readyStates := []string{"READY", "DEGRADED"}
 	filter := dbutils.CreateFilterWithConditions(
 		dbutils.NewFilterCondition("pool_credentials->>'auth_type'", "=", authTypeValue),
-		dbutils.NewFilterCondition("state", "!=", "DELETED"),
-		dbutils.NewFilterCondition("state", "!=", "CREATING"),
+		dbutils.NewFilterCondition("state", "in", readyStates),
 	)
-	logger.Debugf("Created filter for certificate authentication pools: %+v", filter)
+	pagination := &dbutils.Pagination{Limit: limit, Offset: offset}
 
-	allPoolsFilter := dbutils.CreateFilterWithConditions(
-		dbutils.NewFilterCondition("state", "!=", "DELETED"),
-	)
-	allPoolViews, err := se.ListPools(ctx, allPoolsFilter)
-	if err != nil {
-		logger.Errorf("Failed to list all pools: %v", err)
-	} else {
-		logger.Debugf("Found %d total pools in database", len(allPoolViews))
-		for i, poolView := range allPoolViews {
-			if poolView.PoolCredentials != nil {
-				logger.Debugf("Pool %d: UUID=%s, AuthType=%v, CertificateID=%s",
-					i+1, poolView.UUID, poolView.PoolCredentials.AuthType, poolView.PoolCredentials.CertificateID)
-			} else {
-				logger.Debugf("Pool %d: UUID=%s, PoolCredentials is nil", i+1, poolView.UUID)
-			}
-		}
-	}
-
-	poolViews, err := se.ListPools(ctx, filter)
+	poolViews, err := se.ListPoolsWithFilterAndPaginationOrderedByUUID(ctx, filter, pagination)
 	if err != nil {
 		logger.Errorf("Failed to list pools with certificate authentication: %v", err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 
-	logger.Debugf("Retrieved %d pool views from database with certificate authentication", len(poolViews))
-
+	hasMore := len(poolViews) == limit
 	var pools []*datamodel.Pool
-	for i, poolView := range poolViews {
-		pool := ConvertPoolViewToPool(poolView)
-		pools = append(pools, pool)
-		logger.Debugf("Converted pool %d: UUID=%s, AuthType=%d, CertificateID=%s, CreatedAt=%s",
-			i+1, pool.UUID, pool.PoolCredentials.AuthType, pool.PoolCredentials.CertificateID, pool.CreatedAt)
+	for _, poolView := range poolViews {
+		pools = append(pools, ConvertPoolViewToPool(poolView))
 	}
-	logger.Debugf("Successfully listed %d pools with certificate authentication", len(pools))
-	return pools, nil
+	logger.Debugf("Retrieved batch of %d certificate auth pools (hasMore=%v)", len(pools), hasMore)
+	return &ListPoolsBatchResult{Pools: pools, HasMore: hasMore}, nil
 }

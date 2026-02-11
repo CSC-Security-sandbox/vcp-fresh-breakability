@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -710,19 +711,22 @@ func TestRotateVcpToVsaCertificateActivity_ListPoolsWithPasswordAuth(t *testing.
 		poolView2.Pool.UUID = "pool-2"
 		poolView2.Pool.PoolCredentials.AuthType = env.USERNAME_PWD_SEC_MGR
 
-		// Mock database calls
-		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView1, poolView2}, nil).Twice()
+		// Mock batched list (ListPoolsWithFilterAndPaginationOrderedByUUID)
+		mockSE.On("ListPoolsWithFilterAndPaginationOrderedByUUID", ctx, mock.AnythingOfType("*utils.Filter"), mock.AnythingOfType("*utils.Pagination")).
+			Return([]*datamodel.PoolView{poolView1, poolView2}, nil)
 
-		// Execute
-		result, err := activity.ListPoolsWithPasswordAuth(ctx)
+		// Execute (offset=0, limit=50)
+		result, err := activity.ListPoolsWithPasswordAuth(ctx, 0, 50)
 
 		// Assert
 		assert.NoError(tt, err)
-		assert.Len(tt, result, 2)
-		assert.Equal(tt, "pool-1", result[0].UUID)
-		assert.Equal(tt, "pool-2", result[1].UUID)
-		assert.Equal(tt, env.USERNAME_PWD_SEC_MGR, result[0].PoolCredentials.AuthType)
-		assert.Equal(tt, env.USERNAME_PWD_SEC_MGR, result[1].PoolCredentials.AuthType)
+		require.NotNil(tt, result)
+		assert.Len(tt, result.Pools, 2)
+		assert.False(tt, result.HasMore)
+		assert.Equal(tt, "pool-1", result.Pools[0].UUID)
+		assert.Equal(tt, "pool-2", result.Pools[1].UUID)
+		assert.Equal(tt, env.USERNAME_PWD_SEC_MGR, result.Pools[0].PoolCredentials.AuthType)
+		assert.Equal(tt, env.USERNAME_PWD_SEC_MGR, result.Pools[1].PoolCredentials.AuthType)
 		mockSE.AssertExpectations(tt)
 	})
 
@@ -731,14 +735,17 @@ func TestRotateVcpToVsaCertificateActivity_ListPoolsWithPasswordAuth(t *testing.
 		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
 
 		// Mock database calls to return empty lists
-		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{}, nil).Twice()
+		mockSE.On("ListPoolsWithFilterAndPaginationOrderedByUUID", ctx, mock.AnythingOfType("*utils.Filter"), mock.AnythingOfType("*utils.Pagination")).
+			Return([]*datamodel.PoolView{}, nil)
 
 		// Execute
-		result, err := activity.ListPoolsWithPasswordAuth(ctx)
+		result, err := activity.ListPoolsWithPasswordAuth(ctx, 0, 50)
 
 		// Assert
 		assert.NoError(tt, err)
-		assert.Empty(tt, result)
+		require.NotNil(tt, result)
+		assert.Empty(tt, result.Pools)
+		assert.False(tt, result.HasMore)
 		mockSE.AssertExpectations(tt)
 	})
 
@@ -747,12 +754,11 @@ func TestRotateVcpToVsaCertificateActivity_ListPoolsWithPasswordAuth(t *testing.
 		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
 
 		dbError := errors.New("database connection failed")
-
-		// Mock database call to return error
-		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return(nil, dbError)
+		mockSE.On("ListPoolsWithFilterAndPaginationOrderedByUUID", ctx, mock.AnythingOfType("*utils.Filter"), mock.AnythingOfType("*utils.Pagination")).
+			Return(nil, dbError)
 
 		// Execute
-		result, err := activity.ListPoolsWithPasswordAuth(ctx)
+		result, err := activity.ListPoolsWithPasswordAuth(ctx, 0, 50)
 
 		// Assert
 		assert.Error(tt, err)
@@ -770,19 +776,20 @@ func TestRotateVcpToVsaCertificateActivity_ListPoolsWithPasswordAuth(t *testing.
 		poolView1.Pool.PoolCredentials.AuthType = env.USERNAME_PWD_SEC_MGR
 		poolView2 := createTestPoolViewForPassword()
 		poolView2.Pool.UUID = "pool-2"
-		poolView2.Pool.PoolCredentials = nil // Nil credentials to test line 449
+		poolView2.Pool.PoolCredentials = nil
 
-		// Mock database calls - first call for all pools, second for filtered pools
-		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView1, poolView2}, nil).Once()
-		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView1}, nil).Once()
+		// Mock batched list - filter returns only pool-1
+		mockSE.On("ListPoolsWithFilterAndPaginationOrderedByUUID", ctx, mock.AnythingOfType("*utils.Filter"), mock.AnythingOfType("*utils.Pagination")).
+			Return([]*datamodel.PoolView{poolView1}, nil)
 
 		// Execute
-		result, err := activity.ListPoolsWithPasswordAuth(ctx)
+		result, err := activity.ListPoolsWithPasswordAuth(ctx, 0, 50)
 
 		// Assert
 		assert.NoError(tt, err)
-		assert.Len(tt, result, 1) // Only pool-1 should be returned (pool-2 has nil credentials)
-		assert.Equal(tt, "pool-1", result[0].UUID)
+		require.NotNil(tt, result)
+		assert.Len(tt, result.Pools, 1)
+		assert.Equal(tt, "pool-1", result.Pools[0].UUID)
 		mockSE.AssertExpectations(tt)
 	})
 }
@@ -798,15 +805,18 @@ func TestRotateVcpToVsaCertificateActivity_PasswordRotationBasicIntegration(t *t
 		poolUUID := "test-pool-uuid"
 		poolView := createTestPoolViewForPassword()
 
-		// Mock database calls
+		// Mock database calls (ListPools for other activities, ListPoolsWithFilterAndPaginationOrderedByUUID for ListPoolsWithPasswordAuth)
 		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView}, nil).Maybe()
+		mockSE.On("ListPoolsWithFilterAndPaginationOrderedByUUID", ctx, mock.AnythingOfType("*utils.Filter"), mock.AnythingOfType("*utils.Pagination")).
+			Return([]*datamodel.PoolView{poolView}, nil).Maybe()
 
 		// Test basic workflow steps that don't require complex dependencies
 		
 		// Step 1: List pools with password auth (should work)
-		pools, err := activity.ListPoolsWithPasswordAuth(ctx)
+		result, err := activity.ListPoolsWithPasswordAuth(ctx, 0, 50)
 		assert.NoError(tt, err)
-		assert.NotNil(tt, pools)
+		require.NotNil(tt, result)
+		assert.NotNil(tt, result.Pools)
 
 		// Step 2: Get old secret ID (should work)
 		oldSecretID, err := activity.GetOldSecretID(ctx, poolUUID)
@@ -849,18 +859,19 @@ func TestRotateVcpToVsaCertificateActivity_ListPoolsWithPasswordAuth_EdgeCases(t
 		poolView3.Pool.UUID = "pool-3"
 		poolView3.Pool.PoolCredentials.AuthType = env.USERNAME_PWD // Should be filtered out
 
-		// Mock database calls - first call for all pools, second for filtered
-		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView1, poolView2, poolView3}, nil).Once()
-		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView1}, nil).Once()
+		// Mock batched list - filter returns only USERNAME_PWD_SEC_MGR pools
+		mockSE.On("ListPoolsWithFilterAndPaginationOrderedByUUID", ctx, mock.AnythingOfType("*utils.Filter"), mock.AnythingOfType("*utils.Pagination")).
+			Return([]*datamodel.PoolView{poolView1}, nil)
 
 		// Execute
-		result, err := activity.ListPoolsWithPasswordAuth(ctx)
+		result, err := activity.ListPoolsWithPasswordAuth(ctx, 0, 50)
 
 		// Assert - should only return pools with USERNAME_PWD_SEC_MGR
 		assert.NoError(tt, err)
-		assert.Len(tt, result, 1)
-		assert.Equal(tt, "pool-1", result[0].UUID)
-		assert.Equal(tt, env.USERNAME_PWD_SEC_MGR, result[0].PoolCredentials.AuthType)
+		require.NotNil(tt, result)
+		assert.Len(tt, result.Pools, 1)
+		assert.Equal(tt, "pool-1", result.Pools[0].UUID)
+		assert.Equal(tt, env.USERNAME_PWD_SEC_MGR, result.Pools[0].PoolCredentials.AuthType)
 		mockSE.AssertExpectations(tt)
 	})
 
@@ -874,15 +885,17 @@ func TestRotateVcpToVsaCertificateActivity_ListPoolsWithPasswordAuth_EdgeCases(t
 		poolView.Pool.State = "DELETED"
 		poolView.Pool.PoolCredentials.AuthType = env.USERNAME_PWD_SEC_MGR
 
-		// Mock database calls - filter should exclude DELETED pools
-		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{}, nil).Twice()
+		// Mock - filter (READY/DEGRADED only) returns no pools
+		mockSE.On("ListPoolsWithFilterAndPaginationOrderedByUUID", ctx, mock.AnythingOfType("*utils.Filter"), mock.AnythingOfType("*utils.Pagination")).
+			Return([]*datamodel.PoolView{}, nil)
 
 		// Execute
-		result, err := activity.ListPoolsWithPasswordAuth(ctx)
+		result, err := activity.ListPoolsWithPasswordAuth(ctx, 0, 50)
 
-		// Assert - DELETED pools should be filtered out
+		// Assert - DELETED pools are filtered out by READY/DEGRADED filter
 		assert.NoError(tt, err)
-		assert.Empty(tt, result)
+		require.NotNil(tt, result)
+		assert.Empty(tt, result.Pools)
 		mockSE.AssertExpectations(tt)
 	})
 }

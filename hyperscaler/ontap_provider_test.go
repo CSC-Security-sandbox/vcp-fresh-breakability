@@ -188,6 +188,122 @@ func Test_GetProviderByNode(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, provider)
 	})
+
+	// Certificate auth with SecretID: GetPasswordFromCacheOrSecretManager returns error (lines 68-69).
+	t.Run("GetProviderByNode_USER_CERTIFICATE_SecretID_GetPasswordError", func(t *testing.T) {
+		node := &models.Node{
+			Name:                           "node-cert-secret",
+			CertificateID:                  "cert-id",
+			SecretID:                       "secret-id",
+			EndpointAddressesToHostNameMap: map[string]string{"1.2.3.4": "host"},
+			AuthType:                       env.USER_CERTIFICATE,
+		}
+		origGetCert := GetCertificateFromCacheOrSecretManager
+		origGetPwd := GetPasswordFromCacheOrSecretManager
+		defer func() {
+			GetCertificateFromCacheOrSecretManager = origGetCert
+			GetPasswordFromCacheOrSecretManager = origGetPwd
+		}()
+		GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+			return &models.Certificate{
+				SignedCertificate:        "signed",
+				InterMediateCertificates: []string{"intermediate"},
+				CommonName:               "common",
+				PrivateKey:               "key",
+			}, nil
+		}
+		GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+			return "", errors.New("secret not found")
+		}
+		provider, err := GetProviderByNode(ctx, node)
+		assert.NoError(t, err)
+		assert.NotNil(t, provider)
+	})
+
+	// Certificate auth with SecretID: GetPassword returns empty string (lines 73-74).
+	t.Run("GetProviderByNode_USER_CERTIFICATE_SecretID_EmptyPassword", func(t *testing.T) {
+		node := &models.Node{
+			Name:                           "node-cert-secret-empty",
+			CertificateID:                  "cert-id",
+			SecretID:                       "secret-id",
+			EndpointAddressesToHostNameMap: map[string]string{"1.2.3.4": "host"},
+			AuthType:                       env.USER_CERTIFICATE,
+		}
+		origGetCert := GetCertificateFromCacheOrSecretManager
+		origGetPwd := GetPasswordFromCacheOrSecretManager
+		defer func() {
+			GetCertificateFromCacheOrSecretManager = origGetCert
+			GetPasswordFromCacheOrSecretManager = origGetPwd
+		}()
+		GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+			return &models.Certificate{
+				SignedCertificate:        "signed",
+				InterMediateCertificates: []string{"intermediate"},
+				CommonName:               "common",
+				PrivateKey:               "key",
+			}, nil
+		}
+		GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+			return "", nil
+		}
+		provider, err := GetProviderByNode(ctx, node)
+		assert.NoError(t, err)
+		assert.NotNil(t, provider)
+	})
+
+	// Certificate auth with SecretID: GetPassword returns non-empty (lines 70-72).
+	t.Run("GetProviderByNode_USER_CERTIFICATE_SecretID_PasswordFromSecret", func(t *testing.T) {
+		node := &models.Node{
+			Name:                           "node-cert-secret-ok",
+			CertificateID:                  "cert-id",
+			SecretID:                       "secret-id",
+			EndpointAddressesToHostNameMap: map[string]string{"1.2.3.4": "host"},
+			AuthType:                       env.USER_CERTIFICATE,
+		}
+		origGetCert := GetCertificateFromCacheOrSecretManager
+		origGetPwd := GetPasswordFromCacheOrSecretManager
+		defer func() {
+			GetCertificateFromCacheOrSecretManager = origGetCert
+			GetPasswordFromCacheOrSecretManager = origGetPwd
+		}()
+		GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+			return &models.Certificate{
+				SignedCertificate:        "signed",
+				InterMediateCertificates: []string{"intermediate"},
+				CommonName:               "common",
+				PrivateKey:               "key",
+			}, nil
+		}
+		GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+			return "secret-pwd", nil
+		}
+		provider, err := GetProviderByNode(ctx, node)
+		assert.NoError(t, err)
+		assert.NotNil(t, provider)
+	})
+
+	// Certificate auth, no SecretID, no password (lines 76-78).
+	t.Run("GetProviderByNode_USER_CERTIFICATE_NoPasswordNoSecretID", func(t *testing.T) {
+		node := &models.Node{
+			Name:                           "node-cert-nopwd",
+			CertificateID:                  "cert-id",
+			EndpointAddressesToHostNameMap: map[string]string{"1.2.3.4": "host"},
+			AuthType:                       env.USER_CERTIFICATE,
+		}
+		origGetCert := GetCertificateFromCacheOrSecretManager
+		defer func() { GetCertificateFromCacheOrSecretManager = origGetCert }()
+		GetCertificateFromCacheOrSecretManager = func(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (*models.Certificate, error) {
+			return &models.Certificate{
+				SignedCertificate:        "signed",
+				InterMediateCertificates: []string{"intermediate"},
+				CommonName:               "common",
+				PrivateKey:               "key",
+			}, nil
+		}
+		provider, err := GetProviderByNode(ctx, node)
+		assert.NoError(t, err)
+		assert.NotNil(t, provider)
+	})
 }
 
 // Unit test for NewGcpServices in core/orchestrator/activities/pool_activities_test.go
@@ -1438,7 +1554,7 @@ func Test_RevokeCertificateAndDeleteFromCacheAndSecretManager(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("GetCertificateAndSecret fails", func(t *testing.T) {
+	t.Run("GetCertificateAndSecret fails - best-effort cleanup so pool deletion can continue", func(t *testing.T) {
 		mockGCP := new(MockGoogleServices)
 		origRemoveFromCertAuthCache := common.RemoveFromCertAuthCache
 		origGetCertificateAndSecret := GetCertificateAndSecret
@@ -1449,12 +1565,14 @@ func Test_RevokeCertificateAndDeleteFromCacheAndSecretManager(t *testing.T) {
 		GetCertificateAndSecret = func(gcpService GoogleServices, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
 			return nil, nil, fmt.Errorf("get cert error")
 		}
+		common.RemoveFromCertAuthCache = func(certID string) bool { return true }
 		mockGCP.On("GetLogger").Return(mockLogger)
+		mockGCP.On("GetSecretWithLatestVersion", env.SecretManagerProjectID, certificateID).Return(nil, fmt.Errorf("secret not found"))
 
 		poolCredentials := &datamodel.PoolCredentials{CertificateID: certificateID}
 		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGCP, poolCredentials)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "get cert error")
+		assert.NoError(t, err)
+		mockGCP.AssertExpectations(t)
 	})
 
 	t.Run("DeleteCertificateAndSecret fails", func(t *testing.T) {
@@ -1632,6 +1750,48 @@ func Test_RevokeCertificateAndDeleteFromCacheAndSecretManager(t *testing.T) {
 		poolCredentials := &datamodel.PoolCredentials{CertificateID: certificateID}
 		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGCP, poolCredentials)
 		assert.NoError(t, err) // Should not return error even if DeleteSecret fails
+		mockGCP.AssertExpectations(t)
+	})
+
+	t.Run("permission denied (403) - log and continue so pool deletion can succeed", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		origRemoveFromCertAuthCache := common.RemoveFromCertAuthCache
+		origGetCertificateAndSecret := GetCertificateAndSecret
+		defer func() {
+			common.RemoveFromCertAuthCache = origRemoveFromCertAuthCache
+			GetCertificateAndSecret = origGetCertificateAndSecret
+		}()
+		permissionDeniedErr := fmt.Errorf("googleapi: Error 403: Permission 'privateca.certificates.get' denied on 'projects/266893635349/locations/us-east4/caPools/vsa-pool-ca/certificates/gcnv-9471c3a41714607-cert', forbidden")
+		GetCertificateAndSecret = func(gcpService GoogleServices, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return nil, nil, permissionDeniedErr
+		}
+		common.RemoveFromCertAuthCache = func(certID string) bool { return true }
+		mockGCP.On("GetLogger").Return(mockLogger)
+		mockGCP.On("GetSecretWithLatestVersion", env.SecretManagerProjectID, certificateID).Return(nil, fmt.Errorf("secret not found"))
+		poolCredentials := &datamodel.PoolCredentials{CertificateID: certificateID}
+		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGCP, poolCredentials)
+		assert.NoError(t, err)
+		mockGCP.AssertExpectations(t)
+	})
+
+	t.Run("permission denied (403) - secret exists and deleted successfully, cache removed", func(t *testing.T) {
+		mockGCP := new(MockGoogleServices)
+		origRemoveFromCertAuthCache := common.RemoveFromCertAuthCache
+		origGetCertificateAndSecret := GetCertificateAndSecret
+		defer func() {
+			common.RemoveFromCertAuthCache = origRemoveFromCertAuthCache
+			GetCertificateAndSecret = origGetCertificateAndSecret
+		}()
+		GetCertificateAndSecret = func(gcpService GoogleServices, poolCredentials *datamodel.PoolCredentials) (*hyperscaler3.CustomCertificate, *hyperscaler3.CustomSecret, error) {
+			return nil, nil, fmt.Errorf("googleapi: Error 403: Permission denied, forbidden")
+		}
+		common.RemoveFromCertAuthCache = func(certID string) bool { return true }
+		mockGCP.On("GetLogger").Return(mockLogger)
+		mockGCP.On("GetSecretWithLatestVersion", env.SecretManagerProjectID, certificateID).Return(&hyperscaler3.CustomSecret{}, nil)
+		mockGCP.On("DeleteSecret", env.SecretManagerProjectID, certificateID).Return(nil)
+		poolCredentials := &datamodel.PoolCredentials{CertificateID: certificateID}
+		err := RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGCP, poolCredentials)
+		assert.NoError(t, err)
 		mockGCP.AssertExpectations(t)
 	})
 }

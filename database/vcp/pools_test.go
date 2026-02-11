@@ -410,6 +410,34 @@ func TestListPools(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Len(tt, pools, 0)
 	})
+
+	t.Run("WhenFilterExcludeDeleted", func(tt *testing.T) {
+		store := setup(tt)
+		_, _ = createDBPools(tt, store)
+		filter := &utils.Filter{}
+		filter.SetIncludeDeleted(false)
+		result, err := store.ListPools(context.Background(), filter)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+	})
+}
+
+func TestListPoolsWithFilterAndPaginationOrderedByUUID(t *testing.T) {
+	t.Run("WithNilFilter", func(tt *testing.T) {
+		store := setup(tt)
+		pagination := &utils.Pagination{Limit: 10, Offset: 0}
+		result, err := store.ListPoolsWithFilterAndPaginationOrderedByUUID(context.Background(), nil, pagination)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+	})
+	t.Run("WithFilter", func(tt *testing.T) {
+		store := setup(tt)
+		filter := &utils.Filter{}
+		pagination := &utils.Pagination{Limit: 10, Offset: 0}
+		result, err := store.ListPoolsWithFilterAndPaginationOrderedByUUID(context.Background(), filter, pagination)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+	})
 }
 
 func TestGetPoolWithVendorID(t *testing.T) {
@@ -3439,6 +3467,15 @@ func TestListExpertModePool(t *testing.T) {
 		for _, pool := range result {
 			assert.Equal(tt, "ONTAP", pool.APIAccessMode)
 		}
+	})
+
+	t.Run("ReturnsErrorWhenContextCanceled", func(tt *testing.T) {
+		store := setup(tt)
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		result, err := store.ListExpertModePools(ctx)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
 	})
 }
 
