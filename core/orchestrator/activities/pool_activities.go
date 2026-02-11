@@ -312,13 +312,55 @@ func (j *PoolActivity) CreatedPool(ctx context.Context, pool *datamodel.Pool, vl
 	return pool, nil
 }
 
+// getPasswordFromPoolCredentials retrieves the password from pool credentials, fetching from secret manager
+func getPasswordFromPoolCredentials(ctx context.Context, poolCredentials *datamodel.PoolCredentials) (string, error) {
+	password := poolCredentials.Password
+	if poolCredentials.AuthType == env.USERNAME_PWD_SEC_MGR || poolCredentials.AuthType == env.USER_CERTIFICATE {
+		if poolCredentials.SecretID != "" {
+			secret, err := hyperscaler2.GetPasswordFromCacheOrSecretManager(ctx, poolCredentials.SecretID)
+			if err != nil {
+				return "", fmt.Errorf("failed to get password from secret manager: %w", err)
+			}
+			password = secret
+		}
+	}
+
+	if password == "" {
+		return "", fmt.Errorf("password is empty (authType=%d)", poolCredentials.AuthType)
+	}
+
+	return password, nil
+}
+
 // SetWaflMaxVolCloneHier sets the wafl.maxvolclonehier option on the ONTAP cluster
-func (j *PoolActivity) SetWaflMaxVolCloneHier(ctx context.Context, node *models.Node) error {
+// For certificate-based auth, it uses password-based auth for admin CLI commands since certificate users lack admin privileges
+func (j *PoolActivity) SetWaflMaxVolCloneHier(ctx context.Context, node *models.Node, pool *datamodel.Pool) error {
 	activity.RecordHeartbeat(ctx, "Initializing WAFL maxvolclonehier configuration")
 	logger := util.GetLogger(ctx)
 	if node == nil {
 		logger.Warnf("SetWaflMaxVolCloneHier: node is nil, skipping")
 		return nil
+	}
+
+	if node.AuthType == env.USER_CERTIFICATE {
+		activity.RecordHeartbeat(ctx, "Using password-based auth for admin CLI command")
+		logger.Debugf("SetWaflMaxVolCloneHier: Certificate auth detected, falling back to password auth for admin command")
+
+		if pool == nil || pool.PoolCredentials == nil {
+			logger.Warnf("SetWaflMaxVolCloneHier: Pool or pool credentials are nil, cannot fallback to password auth")
+			return fmt.Errorf("cannot fallback to password auth: pool or pool credentials are nil")
+		}
+
+		password, err := getPasswordFromPoolCredentials(ctx, pool.PoolCredentials)
+		if err != nil {
+			logger.Warnf("SetWaflMaxVolCloneHier failed to get password: %v", err)
+			return fmt.Errorf("failed to get password for cert-auth fallback: %w", err)
+		}
+
+		// Override AuthType and set password on the node
+		node.AuthType = env.USERNAME_PWD
+		node.Password = password
+		logger.Debugf("SetWaflMaxVolCloneHier: Overridden node AuthType to USERNAME_PWD for admin CLI command")
 	}
 
 	activity.RecordHeartbeat(ctx, "Getting ONTAP provider")

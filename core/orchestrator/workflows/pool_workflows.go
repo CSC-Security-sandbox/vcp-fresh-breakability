@@ -682,9 +682,9 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	// Set wafl.maxvolclonehier option on the ONTAP cluster
 	if thinCloneGASupport {
-		err = workflow.ExecuteActivity(ctx, poolActivity.SetWaflMaxVolCloneHier, node).Get(ctx, nil)
-		if err != nil {
-			wf.Logger.Warnf("Failed to set wafl.maxvolclonehier (non-critical, continuing): %v", err)
+		setMaxVolCloneErr := workflow.ExecuteActivity(ctx, poolActivity.SetWaflMaxVolCloneHier, node, dbPool).Get(ctx, nil)
+		if setMaxVolCloneErr != nil {
+			wf.Logger.Errorf("Failed to set wafl.maxvolclonehier (non-critical, continuing): %v", setMaxVolCloneErr)
 		}
 	}
 

@@ -13034,14 +13034,17 @@ func TestFetchExpertModeCredentials_WithDefaultAuthType_ReturnsPassword(t *testi
 
 func TestSetWaflMaxVolCloneHier(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
-	env := ts.NewTestActivityEnvironment()
+	testEnv := ts.NewTestActivityEnvironment()
 
 	mockStorage := database.NewMockStorage(t)
 	activity := &activities.PoolActivity{SE: mockStorage}
-	env.RegisterActivity(activity.SetWaflMaxVolCloneHier)
+	testEnv.RegisterActivity(activity.SetWaflMaxVolCloneHier)
 
 	t.Run("WhenNodeIsNil_ThenReturnNil", func(tt *testing.T) {
-		_, err := env.ExecuteActivity(activity.SetWaflMaxVolCloneHier, (*coremodel.Node)(nil))
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		}
+		_, err := testEnv.ExecuteActivity(activity.SetWaflMaxVolCloneHier, (*coremodel.Node)(nil), pool)
 		assert.NoError(tt, err)
 	})
 
@@ -13058,7 +13061,11 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 			Password:        "test-password",
 		}
 
-		_, err := env.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node)
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		}
+
+		_, err := testEnv.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node, pool)
 		assert.NoError(tt, err)
 	})
 
@@ -13078,7 +13085,11 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 			Password:        "test-password",
 		}
 
-		_, err := env.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node)
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		}
+
+		_, err := testEnv.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node, pool)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
@@ -13099,7 +13110,11 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 			Password:        "test-password",
 		}
 
-		_, err := env.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node)
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		}
+
+		_, err := testEnv.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node, pool)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
@@ -13122,7 +13137,11 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 			Password:        "test-password",
 		}
 
-		_, err := env.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node)
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		}
+
+		_, err := testEnv.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node, pool)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 		mockRESTClient.AssertExpectations(tt)
@@ -13148,7 +13167,11 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 			Password:        "test-password",
 		}
 
-		_, err := env.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node)
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		}
+
+		_, err := testEnv.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node, pool)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 		mockRESTClient.AssertExpectations(tt)
@@ -13175,7 +13198,11 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 			Password:        "test-password",
 		}
 
-		_, err := env.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node)
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		}
+
+		_, err := testEnv.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node, pool)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 		mockRESTClient.AssertExpectations(tt)
@@ -13203,7 +13230,11 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 			Password:        "test-password",
 		}
 
-		_, err := env.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node)
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		}
+
+		_, err := testEnv.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node, pool)
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 		mockRESTClient.AssertExpectations(tt)
@@ -13236,8 +13267,257 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 			Password:        "test-password",
 		}
 
-		_, err := env.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node)
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		}
+
+		_, err := testEnv.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node, pool)
 		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+		mockRESTClient.AssertExpectations(tt)
+		mockNetworkingClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNodeAuthTypeIsUSER_CERTIFICATE_AndPoolIsNil_ThenReturnError", func(tt *testing.T) {
+		node := &coremodel.Node{
+			EndpointAddress: "127.0.0.1",
+			AuthType:        env.USER_CERTIFICATE,
+		}
+
+		_, err := testEnv.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node, (*datamodel.Pool)(nil))
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "cannot fallback to password auth: pool or pool credentials are nil")
+	})
+
+	t.Run("WhenNodeAuthTypeIsUSER_CERTIFICATE_AndPoolCredentialsIsNil_ThenReturnError", func(tt *testing.T) {
+		node := &coremodel.Node{
+			EndpointAddress: "127.0.0.1",
+			AuthType:        env.USER_CERTIFICATE,
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+			PoolCredentials: nil,
+		}
+
+		_, err := testEnv.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "cannot fallback to password auth: pool or pool credentials are nil")
+	})
+
+	t.Run("WhenNodeAuthTypeIsUSER_CERTIFICATE_AndGetPasswordFails_ThenReturnError", func(tt *testing.T) {
+		// Save original function
+		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		defer func() {
+			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+		}()
+
+		// Mock secret manager to return error
+		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+			return "", errors.New("secret manager error")
+		}
+
+		node := &coremodel.Node{
+			EndpointAddress: "127.0.0.1",
+			AuthType:        env.USER_CERTIFICATE,
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType: env.USER_CERTIFICATE,
+				SecretID: "test-secret-id",
+				Password: "",
+			},
+		}
+
+		_, err := testEnv.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to get password for cert-auth fallback")
+		assert.Contains(tt, err.Error(), "secret manager error")
+	})
+
+	t.Run("WhenNodeAuthTypeIsUSER_CERTIFICATE_AndGetPasswordSucceeds_ThenOverrideAuthTypeAndPassword", func(tt *testing.T) {
+		// Save original function
+		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() {
+			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		// Mock secret manager to return password
+		expectedPassword := "secret-manager-password"
+		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+			return expectedPassword, nil
+		}
+
+		mockProvider := new(vsa.MockProvider)
+		mockRESTClient := new(ontap_rest.MockRESTClient)
+		mockNetworkingClient := new(ontap_rest.MockNetworkingClient)
+
+		// Capture the node passed to GetProviderByNode to verify AuthType and Password were overridden
+		var capturedNode *coremodel.Node
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			capturedNode = node
+			return mockProvider, nil
+		}
+
+		mockProvider.On("CreateRESTClient").Return(mockRESTClient, nil)
+		mockRESTClient.On("Networking").Return(mockNetworkingClient)
+		output := "wafl.maxvolclonehier updated successfully"
+		cliExecuteOK := &networkpriv.CliExecuteOK{
+			Payload: &privmodels.CliExecuteResponse{
+				Output: output,
+			},
+		}
+		mockNetworkingClient.On("CliExecute", mock.Anything).Return(cliExecuteOK, nil)
+
+		node := &coremodel.Node{
+			EndpointAddress: "127.0.0.1",
+			AuthType:        env.USER_CERTIFICATE,
+			Password:        "", // Initially empty
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType: env.USER_CERTIFICATE,
+				SecretID: "test-secret-id",
+				Password: "",
+			},
+		}
+
+		_, err := testEnv.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node, pool)
+		assert.NoError(tt, err)
+
+		// Verify that AuthType and Password were overridden on the node
+		assert.NotNil(tt, capturedNode)
+		assert.Equal(tt, env.USERNAME_PWD, capturedNode.AuthType, "AuthType should be overridden to USERNAME_PWD")
+		assert.Equal(tt, expectedPassword, capturedNode.Password, "Password should be set from secret manager")
+
+		mockProvider.AssertExpectations(tt)
+		mockRESTClient.AssertExpectations(tt)
+		mockNetworkingClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNodeAuthTypeIsUSER_CERTIFICATE_WithUSERNAME_PWD_SEC_MGR_Credentials_ThenOverrideAuthTypeAndPassword", func(tt *testing.T) {
+		// Save original function
+		originalGetPassword := hyperscaler2.GetPasswordFromCacheOrSecretManager
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() {
+			hyperscaler2.GetPasswordFromCacheOrSecretManager = originalGetPassword
+			hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		// Mock secret manager to return password
+		expectedPassword := "secret-password"
+		hyperscaler2.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+			assert.Equal(tt, "test-secret-id", secretID)
+			return expectedPassword, nil
+		}
+
+		mockProvider := new(vsa.MockProvider)
+		mockRESTClient := new(ontap_rest.MockRESTClient)
+		mockNetworkingClient := new(ontap_rest.MockNetworkingClient)
+
+		// Capture the node passed to GetProviderByNode to verify AuthType and Password were overridden
+		var capturedNode *coremodel.Node
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			capturedNode = node
+			return mockProvider, nil
+		}
+
+		mockProvider.On("CreateRESTClient").Return(mockRESTClient, nil)
+		mockRESTClient.On("Networking").Return(mockNetworkingClient)
+		output := "wafl.maxvolclonehier updated successfully"
+		cliExecuteOK := &networkpriv.CliExecuteOK{
+			Payload: &privmodels.CliExecuteResponse{
+				Output: output,
+			},
+		}
+		mockNetworkingClient.On("CliExecute", mock.Anything).Return(cliExecuteOK, nil)
+
+		node := &coremodel.Node{
+			EndpointAddress: "127.0.0.1",
+			AuthType:        env.USER_CERTIFICATE,
+			Password:        "",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType: env.USERNAME_PWD_SEC_MGR,
+				SecretID: "test-secret-id",
+				Password: "",
+			},
+		}
+
+		_, err := testEnv.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node, pool)
+		assert.NoError(tt, err)
+
+		// Verify that AuthType and Password were overridden on the node
+		assert.NotNil(tt, capturedNode)
+		assert.Equal(tt, env.USERNAME_PWD, capturedNode.AuthType, "AuthType should be overridden to USERNAME_PWD")
+		assert.Equal(tt, expectedPassword, capturedNode.Password, "Password should be set from secret manager")
+
+		mockProvider.AssertExpectations(tt)
+		mockRESTClient.AssertExpectations(tt)
+		mockNetworkingClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNodeAuthTypeIsUSER_CERTIFICATE_WithDirectPassword_ThenOverrideAuthTypeAndPassword", func(tt *testing.T) {
+		// Save original function
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() {
+			hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		mockProvider := new(vsa.MockProvider)
+		mockRESTClient := new(ontap_rest.MockRESTClient)
+		mockNetworkingClient := new(ontap_rest.MockNetworkingClient)
+
+		// Capture the node passed to GetProviderByNode to verify AuthType and Password were overridden
+		var capturedNode *coremodel.Node
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			capturedNode = node
+			return mockProvider, nil
+		}
+
+		mockProvider.On("CreateRESTClient").Return(mockRESTClient, nil)
+		mockRESTClient.On("Networking").Return(mockNetworkingClient)
+		output := "wafl.maxvolclonehier updated successfully"
+		cliExecuteOK := &networkpriv.CliExecuteOK{
+			Payload: &privmodels.CliExecuteResponse{
+				Output: output,
+			},
+		}
+		mockNetworkingClient.On("CliExecute", mock.Anything).Return(cliExecuteOK, nil)
+
+		expectedPassword := "direct-password"
+		node := &coremodel.Node{
+			EndpointAddress: "127.0.0.1",
+			AuthType:        env.USER_CERTIFICATE,
+			Password:        "",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				AuthType: env.USERNAME_PWD,
+				SecretID: "",
+				Password: expectedPassword, // Direct password, no secret manager
+			},
+		}
+
+		_, err := testEnv.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node, pool)
+		assert.NoError(tt, err)
+
+		// Verify that AuthType and Password were overridden on the node
+		assert.NotNil(tt, capturedNode)
+		assert.Equal(tt, env.USERNAME_PWD, capturedNode.AuthType, "AuthType should be overridden to USERNAME_PWD")
+		assert.Equal(tt, expectedPassword, capturedNode.Password, "Password should be set from pool credentials")
+
 		mockProvider.AssertExpectations(tt)
 		mockRESTClient.AssertExpectations(tt)
 		mockNetworkingClient.AssertExpectations(tt)
@@ -15154,3 +15434,4 @@ func TestPoolActivity_GetCreateJobByResourceUUID_Success_WithSnapshotJobType(t *
 	assert.Equal(t, "workflow-id", result.WorkflowID)
 	mockStorage.AssertExpectations(t)
 }
+
