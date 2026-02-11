@@ -66,7 +66,7 @@ func Test_GetBackupVaultMetrics_ReturnsMetrics(t *testing.T) {
 	assert.Equal(t, "BackupVault1", derefString(result.HydratedMetrics[0].Metadata.ResourceName))
 	assert.Equal(t, "us-east-1", derefString(result.HydratedMetrics[0].Metadata.RegionName))
 	assert.Equal(t, "account-1", derefString(result.HydratedMetrics[0].Metadata.AccountName))
-	assert.Equal(t, "projects/test/locations/us/keyRings/test/cryptoKeys/key1", result.HydratedMetrics[0].Metadata.Tags["backup_crypto_key_version"])
+	assert.Equal(t, "projects/test/locations/us/keyRings/test/cryptoKeys/key1", result.HydratedMetrics[0].Metadata.Tags[BackupCryptoKeyVersionTag])
 }
 
 func Test_GetBackupVaultMetrics_MultipleJobStatuses(t *testing.T) {
@@ -550,5 +550,5 @@ func Test_GetBackupVaultMetrics_BackupCryptoKeyVersionTag(t *testing.T) {
 	assert.Len(t, result.HydratedMetrics, 1)
 
 	assert.NotNil(t, result.HydratedMetrics[0].Metadata.Tags)
-	assert.Equal(t, "projects/test-project/locations/us-central1/keyRings/test-ring/cryptoKeys/test-key", result.HydratedMetrics[0].Metadata.Tags["backup_crypto_key_version"])
+	assert.Equal(t, "projects/test-project/locations/us-central1/keyRings/test-ring/cryptoKeys/test-key", result.HydratedMetrics[0].Metadata.Tags[BackupCryptoKeyVersionTag])
 }

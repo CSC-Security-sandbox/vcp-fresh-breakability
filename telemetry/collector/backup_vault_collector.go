@@ -18,12 +18,14 @@ type BackupVaultMetricsResult struct {
 	HydratedMetrics []entity.HydratedMetric
 }
 
-// CMEK rotation state enum values
 const (
+	// CMEK rotation state enum values
 	CmekRotationStatePending    int64 = 0
 	CmekRotationStateInProgress int64 = 1
 	CmekRotationStateCompleted  int64 = 2
 	CmekRotationStateFailed     int64 = 3
+
+	BackupCryptoKeyVersionTag = "backup_crypto_key_version"
 )
 
 // Maps job states to CMEK rotation state enum values per schema:
@@ -80,12 +82,13 @@ func GetBackupVaultMetrics(ctx context.Context, vcpDB database.Storage, config *
 	var metrics []entity.HydratedMetric
 
 	for _, jobStatus := range allJobStatuses {
-		if jobStatus.BackupVaultUUID == "" {
-			logger.Error(fmt.Sprintf("Backup vault UUID is missing for job status %d", jobStatus.ID))
-			continue
-		}
-		if jobStatus.BackupVaultName == "" {
-			logger.Error(fmt.Sprintf("Backup vault name is missing for job status %d", jobStatus.ID))
+		if jobStatus.BackupVaultUUID == "" || jobStatus.BackupVaultName == "" {
+			if jobStatus.BackupVaultUUID == "" {
+				logger.Error(fmt.Sprintf("Backup vault UUID is missing for job status %d", jobStatus.ID))
+			}
+			if jobStatus.BackupVaultName == "" {
+				logger.Error(fmt.Sprintf("Backup vault name is missing for job status %d", jobStatus.ID))
+			}
 			continue
 		}
 
@@ -100,7 +103,7 @@ func GetBackupVaultMetrics(ctx context.Context, vcpDB database.Storage, config *
 		if metric.Metadata.Tags == nil {
 			metric.Metadata.Tags = make(map[string]string)
 		}
-		metric.Metadata.Tags["backup_crypto_key_version"] = jobStatus.NewKmsKeyURL
+		metric.Metadata.Tags[BackupCryptoKeyVersionTag] = jobStatus.NewKmsKeyURL
 
 		metrics = append(metrics, metric)
 	}

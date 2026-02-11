@@ -567,11 +567,14 @@ func (client *GoogleMetricsClient) CreateMetricValue(metric common.GoogleMetric)
 		}
 
 		// Add labels from Tags in ResourceMetadata (for custom metric labels like backup_crypto_key_version)
-		hydratedMetric, err := metric.GetAsHydratedMetric()
-		if err == nil && hydratedMetric.Metadata.Tags != nil {
-			for key, value := range hydratedMetric.Metadata.Tags {
-				if value != "" {
-					valueLabels[key] = value
+		// Only process tags for backup vault metrics
+		if metricResourceType == metadata.BackupVault {
+			hydratedMetric, err := metric.GetAsHydratedMetric()
+			if err == nil && hydratedMetric.Metadata.Tags != nil {
+				for key, value := range hydratedMetric.Metadata.Tags {
+					if value != "" {
+						valueLabels[key] = value
+					}
 				}
 			}
 		}
