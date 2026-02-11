@@ -16,7 +16,9 @@ var (
 	validateVolumeCreate            = _validateVolumeCreate
 	validateVolumeDelete            = _validateVolumeDelete
 	validateVolumeUpdate            = _validateVolumeUpdate
+	validateVolumeRename            = _validateVolumeRename
 	submitExpertModeVolumeOperation = core.SubmitExpertModeVolumeOperation
+	submitExpertModeVolumeRename    = core.SubmitExpertModeVolumeRename
 )
 
 // _validateVolumeCreate validates volume create via the core API (expert mode volume).
@@ -105,7 +107,6 @@ func _validateVolumeUpdate(ctx context.Context, cmd *CLICommand) (bool, string) 
 	}
 
 	logger := util.GetLogger(ctx)
-
 	cacheKey := cache.GetAuthDataKeyFromContext(ctx)
 	if cacheKey == "" {
 		return false, "cache key not found in context"
@@ -135,6 +136,41 @@ func _validateVolumeUpdate(ctx context.Context, cmd *CLICommand) (bool, string) 
 
 	jwtToken := middleware.ExtractJWTFromContext(ctx)
 	if err := submitExpertModeVolumeOperation(ctx, expertVolumeRequest, jwtToken, logger); err != nil {
+		return false, err.Error()
+	}
+
+	return true, ""
+}
+
+// _validateVolumeRename validates volume rename via the core API.
+func _validateVolumeRename(ctx context.Context, cmd *CLICommand) (bool, string) {
+	logger := util.GetLogger(ctx)
+
+	cacheKey := cache.GetAuthDataKeyFromContext(ctx)
+	if cacheKey == "" {
+		return false, "cache key not found in context"
+	}
+	authData, exists := cache.GetFromAuthDataCache(cacheKey)
+	if !exists || authData == nil {
+		return false, fmt.Sprintf("auth data not found in cache for key: %s", cacheKey)
+	}
+
+	vserverName := cmd.GetArgument("-vserver")
+	volumeName := cmd.GetArgument("-volume")
+	newName := cmd.GetArgument("-newname")
+
+	renameRequest := &coreapi.ExpertModeVolumeRenameV1{
+		Name:          newName,
+		ProjectNumber: authData.AccountName,
+		PoolUUID:      authData.PoolID,
+		SvmName:       vserverName,
+	}
+	params := coreapi.V1ExpertModeVolumeRenameParams{
+		Name: volumeName,
+	}
+
+	jwtToken := middleware.ExtractJWTFromContext(ctx)
+	if err := submitExpertModeVolumeRename(ctx, renameRequest, params, jwtToken, logger); err != nil {
 		return false, err.Error()
 	}
 

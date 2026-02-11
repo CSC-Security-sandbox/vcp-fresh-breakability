@@ -136,6 +136,18 @@ var cliRules = []CLIRule{
 		Condition:         CLIHasArgs("-vserver", "-volume"),
 		ExternalValidator: validateVolumeDelete,
 	},
+	{
+		Pattern:           "volume rename",
+		Allow:             true,
+		Condition:         CLIHasArgs("-vserver", "-volume", "-newname"),
+		ExternalValidator: validateVolumeRename,
+	},
+	{
+		Pattern:           "vol rename",
+		Allow:             true,
+		Condition:         CLIHasArgs("-vserver", "-volume", "-newname"),
+		ExternalValidator: validateVolumeRename,
+	},
 
 	// Security Certificates - corresponds to /api/security/certificates in rule_map.go
 	// Supports both "security" and shorthand "sec"

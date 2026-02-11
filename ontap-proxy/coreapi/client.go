@@ -101,8 +101,9 @@ func SubmitExpertModeVolumeOperation(ctx context.Context, request *coreapi.Exper
 
 	client := createCoreAPIClient(coreAPIHost, jwtToken, logger)
 	correlationID, _ := ctx.Value(middleware.CorrelationContextKey).(string)
-	params := coreapi.V1ExpertModeVolumeParams{
-		XCorrelationID: coreapi.NewOptString(correlationID),
+	params := coreapi.V1ExpertModeVolumeParams{}
+	if correlationID != "" {
+		params.XCorrelationID = coreapi.NewOptString(correlationID)
 	}
 
 	response, err := client.Invoker.V1ExpertModeVolume(ctx, request, params)
@@ -142,6 +143,60 @@ func SubmitExpertModeVolumeOperation(ctx context.Context, request *coreapi.Exper
 		logger.ErrorContext(ctx, "Unexpected response from Core API",
 			"responseType", fmt.Sprintf("%T", resp),
 			"volumeName", request.VolumeName)
+		return err
+	}
+}
+
+// SubmitExpertModeVolumeRename submits a volume rename to the Core API.
+// Params.Name is the current volume name (path); request.Name is the new name.
+func SubmitExpertModeVolumeRename(ctx context.Context, request *coreapi.ExpertModeVolumeRenameV1, params coreapi.V1ExpertModeVolumeRenameParams, jwtToken string, logger log.Logger) error {
+	logger.InfoContext(ctx, "Submitting expert mode volume rename",
+		"projectNumber", request.ProjectNumber,
+		"poolUUID", request.PoolUUID,
+		"currentName", params.Name,
+		"newName", request.Name)
+
+	client := createCoreAPIClient(coreAPIHost, jwtToken, logger)
+	correlationID, _ := ctx.Value(middleware.CorrelationContextKey).(string)
+	if correlationID != "" {
+		params.XCorrelationID = coreapi.NewOptString(correlationID)
+	}
+
+	response, err := client.Invoker.V1ExpertModeVolumeRename(ctx, request, params)
+	if err != nil {
+		logger.ErrorContext(ctx, "Failed to submit expert mode volume rename",
+			"error", err,
+			"currentName", params.Name,
+			"newName", request.Name)
+		return err
+	}
+
+	switch resp := response.(type) {
+	case *coreapi.V1ExpertModeVolumeRenameOK:
+		logger.InfoContext(ctx, "Successfully submitted expert mode volume rename",
+			"currentName", params.Name,
+			"newName", request.Name)
+		return nil
+
+	case *coreapi.V1ExpertModeVolumeRenameBadRequest:
+		logger.ErrorContext(ctx, "Bad request when submitting expert mode volume rename",
+			"errorMessage", resp.Message, "currentName", params.Name)
+		return customerrors.NewBadRequestErr(fmt.Sprintf("bad request: %s", resp.Message))
+
+	case *coreapi.V1ExpertModeVolumeRenameConflict:
+		logger.ErrorContext(ctx, "Conflict when submitting expert mode volume rename",
+			"errorMessage", resp.Message, "currentName", params.Name)
+		return customerrors.NewConflictErr(fmt.Sprintf("conflict: %s", resp.Message))
+
+	case *coreapi.V1ExpertModeVolumeRenameNotFound:
+		logger.ErrorContext(ctx, "Volume not found when submitting expert mode volume rename",
+			"errorMessage", resp.Message, "currentName", params.Name)
+		return fmt.Errorf("volume not found: %s", resp.Message)
+
+	default:
+		logger.ErrorContext(ctx, "Unexpected response from Core API",
+			"responseType", fmt.Sprintf("%T", resp),
+			"currentName", params.Name)
 		return err
 	}
 }

@@ -214,3 +214,110 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 		})
 	})
 }
+
+func TestSubmitExpertModeVolumeRename(t *testing.T) {
+	originalCreateClient := createCoreAPIClient
+	defer func() { createCoreAPIClient = originalCreateClient }()
+
+	t.Run("VolumeRenamedSuccessfully", func(tt *testing.T) {
+		mockInvoker := coreapi.NewMockInvoker(tt)
+		mockLogger := &log.MockLogger{}
+
+		mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+		mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
+		createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{
+				Invoker: mockInvoker,
+			}
+		}
+
+		request := &coreapi.ExpertModeVolumeRenameV1{
+			Name:          "reconcile_update004",
+			ProjectNumber: "12345",
+			PoolUUID:      "pool-uuid-123",
+			SvmName:       "vs1",
+		}
+		params := coreapi.V1ExpertModeVolumeRenameParams{
+			Name: "reconcile004",
+		}
+
+		mockInvoker.On("V1ExpertModeVolumeRename", mock.Anything, request, mock.MatchedBy(func(p coreapi.V1ExpertModeVolumeRenameParams) bool {
+			return p.Name == "reconcile004" && p.XCorrelationID.IsSet() && p.XCorrelationID.Value == "corr-id-rename"
+		})).Return(&coreapi.V1ExpertModeVolumeRenameOK{}, nil)
+
+		ctx := context.WithValue(context.Background(), middleware.CorrelationContextKey, "corr-id-rename")
+		err := SubmitExpertModeVolumeRename(ctx, request, params, "test-jwt-token", mockLogger)
+
+		assert.NoError(tt, err)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("RenameBadRequest", func(tt *testing.T) {
+		mockInvoker := coreapi.NewMockInvoker(tt)
+		mockLogger := &log.MockLogger{}
+
+		mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+		mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
+		createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{
+				Invoker: mockInvoker,
+			}
+		}
+
+		request := &coreapi.ExpertModeVolumeRenameV1{
+			Name:          "reconcile_update004",
+			ProjectNumber: "12345",
+			PoolUUID:      "pool-uuid-123",
+			SvmName:       "vs1",
+		}
+		params := coreapi.V1ExpertModeVolumeRenameParams{Name: "reconcile004"}
+
+		mockInvoker.On("V1ExpertModeVolumeRename", mock.Anything, request, mock.Anything).Return(&coreapi.V1ExpertModeVolumeRenameBadRequest{
+			Code:    400,
+			Message: "Invalid new volume name",
+		}, nil)
+
+		ctx := context.Background()
+		err := SubmitExpertModeVolumeRename(ctx, request, params, "test-jwt-token", mockLogger)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "bad request: Invalid new volume name")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("RenameNotFound", func(tt *testing.T) {
+		mockInvoker := coreapi.NewMockInvoker(tt)
+		mockLogger := &log.MockLogger{}
+
+		mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+		mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
+		createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{
+				Invoker: mockInvoker,
+			}
+		}
+
+		request := &coreapi.ExpertModeVolumeRenameV1{
+			Name:          "reconcile_update004",
+			ProjectNumber: "12345",
+			PoolUUID:      "pool-uuid-123",
+			SvmName:       "vs1",
+		}
+		params := coreapi.V1ExpertModeVolumeRenameParams{Name: "reconcile004"}
+
+		mockInvoker.On("V1ExpertModeVolumeRename", mock.Anything, request, mock.Anything).Return(&coreapi.V1ExpertModeVolumeRenameNotFound{
+			Code:    404,
+			Message: "Volume not found",
+		}, nil)
+
+		ctx := context.Background()
+		err := SubmitExpertModeVolumeRename(ctx, request, params, "test-jwt-token", mockLogger)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume not found: Volume not found")
+		mockInvoker.AssertExpectations(tt)
+	})
+}
