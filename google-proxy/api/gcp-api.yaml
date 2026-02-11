@@ -9402,11 +9402,11 @@ components:
           example: 4000000000000
         throughputMibps:
           title: throughputMibps
-          type: integer
-          format: int64
+          type: number
+          format: double
           readOnly: false
           description: Throughput of the volume in Mibps.
-          example: 100
+          example: 100.0
           nullable: true
         iops:
           title: iops
@@ -10186,11 +10186,11 @@ components:
           example: 24
         throughputMibps:
           title: throughputMibps
-          type: integer
-          format: int64
+          type: number
+          format: double
           description: Throughput in MiB/s. Only set if parent pool is qosType ='manual', iops is set, and volumePerformanceGroupId is not set.
           minimum: 1
-          example: 200
+          example: 200.0
           nullable: true
         iops:
           title: iops

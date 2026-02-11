@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"regexp"
 	"slices"
@@ -478,7 +479,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 	// Extract QoS parameters: throughputMibps (existing field in API spec)
 	// Note: iops is always calculated from throughputMibps server-side when inferred IOPS is enabled
 	if hasThroughput {
-		throughputValue := int64(req.Volume.ThroughputMibps.Value)
+		throughputValue := int64(math.Floor(req.Volume.ThroughputMibps.Value))
 		param.ThroughputMibps = &throughputValue
 	}
 
@@ -1354,7 +1355,8 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 				return nil, errors.NewUserInputValidationErr("throughputMibps and iops must be set together")
 			}
 			if hasThroughput {
-				param.ThroughputMibps = nillable.ToPointer(req.ThroughputMibps.Value)
+				throughputValue := int64(math.Floor(req.ThroughputMibps.Value))
+				param.ThroughputMibps = nillable.ToPointer(throughputValue)
 			}
 			if hasIops {
 				if enableInferredIops {
@@ -1626,7 +1628,8 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 	}
 	// Include throughput and iops if they were set from VPG (nullable int64)
 	if volume.ThroughputMibps != nil {
-		res.ThroughputMibps = utils.SafeInt64(volume.ThroughputMibps)
+		throughputMibps := float64(*volume.ThroughputMibps)
+		res.ThroughputMibps = gcpgenserver.NewOptNilFloat64(throughputMibps)
 	}
 	if volume.Iops != nil {
 		res.Iops = utils.SafeInt64(volume.Iops)
@@ -2255,8 +2258,8 @@ func _convertVolumeV1betaCVPToModel(in *cvpmodels.VolumeV1beta) gcpgenserver.Vol
 	}
 
 	if in.ThroughputMibps != nil {
-		throughputMibps := int64(*in.ThroughputMibps)
-		volume.ThroughputMibps = gcpgenserver.NewOptNilInt64(throughputMibps)
+		throughputMibps := float64(*in.ThroughputMibps)
+		volume.ThroughputMibps = gcpgenserver.NewOptNilFloat64(throughputMibps)
 	}
 
 	if in.SecurityStyle != "" {

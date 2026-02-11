@@ -66,7 +66,7 @@ func TestPrepareCreateVolumeParams_WithThroughputMibps(t *testing.T) {
 			CreationToken:   gcpgenserver.NewOptString("test-token"),
 			PoolId:          gcpgenserver.NewNilString("test-pool"),
 			QuotaInBytes:    gcpgenserver.NewOptFloat64(1024),
-			ThroughputMibps: gcpgenserver.NewOptNilInt64(200),
+			ThroughputMibps: gcpgenserver.NewOptNilFloat64(200),
 			Protocols: []gcpgenserver.ProtocolsV1beta{
 				gcpgenserver.ProtocolsV1betaNFSV3,
 			},
@@ -206,7 +206,7 @@ func TestPrepareCreateVolumeParams_ThroughputRequiresIopsWhenInferenceDisabled(t
 			CreationToken:   gcpgenserver.NewOptString("test-token"),
 			PoolId:          gcpgenserver.NewNilString("test-pool"),
 			QuotaInBytes:    gcpgenserver.NewOptFloat64(1024),
-			ThroughputMibps: gcpgenserver.NewOptNilInt64(200),
+			ThroughputMibps: gcpgenserver.NewOptNilFloat64(200),
 			Protocols: []gcpgenserver.ProtocolsV1beta{
 				gcpgenserver.ProtocolsV1betaNFSV3,
 			},
@@ -234,7 +234,7 @@ func TestPrepareCreateVolumeParams_WithThroughputMibps_MqosDisabled(t *testing.T
 			CreationToken:   gcpgenserver.NewOptString("test-token"),
 			PoolId:          gcpgenserver.NewNilString("test-pool"),
 			QuotaInBytes:    gcpgenserver.NewOptFloat64(1024),
-			ThroughputMibps: gcpgenserver.NewOptNilInt64(200),
+			ThroughputMibps: gcpgenserver.NewOptNilFloat64(200),
 			Protocols: []gcpgenserver.ProtocolsV1beta{
 				gcpgenserver.ProtocolsV1betaNFSV3,
 			},
@@ -3690,7 +3690,7 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.True(tt, res.ThroughputMibps.IsSet())
 		throughput, ok := res.ThroughputMibps.Get()
 		assert.True(tt, ok)
-		assert.Equal(tt, int64(200), throughput)
+		assert.Equal(tt, float64(200), throughput)
 	})
 
 	t.Run("ConvertVolumeV1betaCVPToModelWithoutThroughputMibps", func(tt *testing.T) {
@@ -7704,7 +7704,7 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.True(t, out.ThroughputMibps.IsSet())
 		throughput, ok := out.ThroughputMibps.Get()
 		assert.True(t, ok)
-		assert.Equal(t, int64(200), throughput)
+		assert.Equal(t, float64(200), throughput)
 
 		assert.True(t, out.Iops.IsSet())
 		iopsVal, ok := out.Iops.Get()
@@ -8819,7 +8819,7 @@ func TestPrepareUpdateVolumeParams_MQoSValidation(t *testing.T) {
 	t.Run("WhenEnableMqosIsFalse_ThroughputMibpsSet_ReturnsError", func(t *testing.T) {
 		enableMqos = false
 		req := &gcpgenserver.VolumeUpdateV1beta{
-			ThroughputMibps: gcpgenserver.NewOptNilInt64(100),
+			ThroughputMibps: gcpgenserver.NewOptNilFloat64(100),
 		}
 		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.Error(t, err)
@@ -8853,7 +8853,7 @@ func TestPrepareUpdateVolumeParams_MQoSValidation(t *testing.T) {
 		enableMqos = true
 		enableInferredIops = false
 		req := &gcpgenserver.VolumeUpdateV1beta{
-			ThroughputMibps: gcpgenserver.NewOptNilInt64(100),
+			ThroughputMibps: gcpgenserver.NewOptNilFloat64(100),
 		}
 		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.Error(t, err)
@@ -8877,7 +8877,7 @@ func TestPrepareUpdateVolumeParams_MQoSValidation(t *testing.T) {
 		enableVolumePerformanceGroupAssignment = true
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			VolumePerformanceGroupId: gcpgenserver.NewOptNilString("vpg-123"),
-			ThroughputMibps:          gcpgenserver.NewOptNilInt64(100),
+			ThroughputMibps:          gcpgenserver.NewOptNilFloat64(100),
 		}
 		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.Error(t, err)
@@ -8903,7 +8903,7 @@ func TestPrepareUpdateVolumeParams_MQoSValidation(t *testing.T) {
 		enableMqos = true
 		enableInferredIops = true
 		req := &gcpgenserver.VolumeUpdateV1beta{
-			ThroughputMibps: gcpgenserver.NewOptNilInt64(100),
+			ThroughputMibps: gcpgenserver.NewOptNilFloat64(100),
 		}
 		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.NoError(t, err)
@@ -8917,7 +8917,7 @@ func TestPrepareUpdateVolumeParams_MQoSValidation(t *testing.T) {
 		enableMqos = true
 		enableInferredIops = false
 		req := &gcpgenserver.VolumeUpdateV1beta{
-			ThroughputMibps: gcpgenserver.NewOptNilInt64(100),
+			ThroughputMibps: gcpgenserver.NewOptNilFloat64(100),
 			Iops:            gcpgenserver.NewOptNilInt64(1000),
 		}
 		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
@@ -8986,7 +8986,7 @@ func TestPrepareUpdateVolumeParams_MQoSValidation(t *testing.T) {
 		enableMqos = true
 		enableInferredIops = true
 		req := &gcpgenserver.VolumeUpdateV1beta{
-			ThroughputMibps: gcpgenserver.NewOptNilInt64(100),
+			ThroughputMibps: gcpgenserver.NewOptNilFloat64(100),
 			Iops:            gcpgenserver.NewOptNilInt64(1000),
 		}
 		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
@@ -9303,7 +9303,7 @@ func TestV1betaDescribeVolume(t *testing.T) {
 		assert.True(tt, volumeResponse.ThroughputMibps.IsSet())
 		throughput, ok := volumeResponse.ThroughputMibps.Get()
 		assert.True(tt, ok)
-		assert.Equal(tt, int64(200), throughput)
+		assert.Equal(tt, float64(200), throughput)
 
 		assert.True(tt, volumeResponse.Iops.IsSet())
 		iopsVal, ok := volumeResponse.Iops.Get()
@@ -14674,7 +14674,7 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Valid - update request with completely empty FlexCache (no required fields, no cacheConfig)",
+			name:        "Valid - update request with completely empty FlexCache (no required fields, no cacheConfig)",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
 				// All fields are missing - this should pass validation for updates
 			},

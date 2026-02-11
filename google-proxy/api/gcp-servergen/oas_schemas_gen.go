@@ -26769,7 +26769,7 @@ type VolumeUpdateV1beta struct {
 	LargeVolumeConstituentCount OptNilInt32 `json:"largeVolumeConstituentCount"`
 	// Throughput in MiB/s. Only set if parent pool is qosType ='manual', iops is set, and
 	// volumePerformanceGroupId is not set.
-	ThroughputMibps OptNilInt64 `json:"throughputMibps"`
+	ThroughputMibps OptNilFloat64 `json:"throughputMibps"`
 	// Io Operations Per Second limit. Only set if parent pool is qosType ='manual', throughputMibps is
 	// set, and volumePerformanceGroupId is not set.
 	Iops OptNilInt64 `json:"iops"`
@@ -26879,7 +26879,7 @@ func (s *VolumeUpdateV1beta) GetLargeVolumeConstituentCount() OptNilInt32 {
 }
 
 // GetThroughputMibps returns the value of ThroughputMibps.
-func (s *VolumeUpdateV1beta) GetThroughputMibps() OptNilInt64 {
+func (s *VolumeUpdateV1beta) GetThroughputMibps() OptNilFloat64 {
 	return s.ThroughputMibps
 }
 
@@ -26994,7 +26994,7 @@ func (s *VolumeUpdateV1beta) SetLargeVolumeConstituentCount(val OptNilInt32) {
 }
 
 // SetThroughputMibps sets the value of ThroughputMibps.
-func (s *VolumeUpdateV1beta) SetThroughputMibps(val OptNilInt64) {
+func (s *VolumeUpdateV1beta) SetThroughputMibps(val OptNilFloat64) {
 	s.ThroughputMibps = val
 }
 
@@ -27064,7 +27064,7 @@ type VolumeV1beta struct {
 	// Maximum storage quota allowed for a volume in bytes. This is a soft quota used for alerting only.
 	QuotaInBytes OptFloat64 `json:"quotaInBytes"`
 	// Throughput of the volume in Mibps.
-	ThroughputMibps OptNilInt64 `json:"throughputMibps"`
+	ThroughputMibps OptNilFloat64 `json:"throughputMibps"`
 	// IOPS limit for the volume, retrieved from the associated Volume Performance Group.
 	Iops OptNilInt64 `json:"iops"`
 	// Volume footprint in cold storage.
@@ -27217,7 +27217,7 @@ func (s *VolumeV1beta) GetQuotaInBytes() OptFloat64 {
 }
 
 // GetThroughputMibps returns the value of ThroughputMibps.
-func (s *VolumeV1beta) GetThroughputMibps() OptNilInt64 {
+func (s *VolumeV1beta) GetThroughputMibps() OptNilFloat64 {
 	return s.ThroughputMibps
 }
 
@@ -27477,7 +27477,7 @@ func (s *VolumeV1beta) SetQuotaInBytes(val OptFloat64) {
 }
 
 // SetThroughputMibps sets the value of ThroughputMibps.
-func (s *VolumeV1beta) SetThroughputMibps(val OptNilInt64) {
+func (s *VolumeV1beta) SetThroughputMibps(val OptNilFloat64) {
 	s.ThroughputMibps = val
 }
 

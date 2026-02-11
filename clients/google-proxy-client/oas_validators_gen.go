@@ -20378,7 +20378,7 @@ func (s *VolumeUpdateV1beta) Validate() error {
 	if err := func() error {
 		if value, ok := s.ThroughputMibps.Get(); ok {
 			if err := func() error {
-				if err := (validate.Int{
+				if err := (validate.Float{
 					MinSet:        true,
 					Min:           1,
 					MaxSet:        false,
@@ -20386,9 +20386,9 @@ func (s *VolumeUpdateV1beta) Validate() error {
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
-					MultipleOf:    0,
-				}).Validate(int64(value)); err != nil {
-					return errors.Wrap(err, "int")
+					MultipleOf:    nil,
+				}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
 				}
 				return nil
 			}(); err != nil {
@@ -20694,6 +20694,24 @@ func (s *VolumeV1beta) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "quotaInBytes",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.ThroughputMibps.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "throughputMibps",
 			Error: err,
 		})
 	}
