@@ -87,3 +87,29 @@ func TestIsCLISuccess(t *testing.T) {
 		}
 	})
 }
+
+func TestStripOntapLoginBanner(t *testing.T) {
+	t.Run("removes first login banner with double newlines", func(t *testing.T) {
+		output := "\n\nThis is your first recorded login.\n\nVserver   Volume       Aggregate    State      Type       Size  Available Used%\n--------- ------------ ------------ ---------- ---- ---------- ---------- -----\ngcnv-76ad899c86ae3ab-svm-01 clivo10 aggr1 online RW        1GB    972.3MB    0%\n\n"
+		got := StripOntapLoginBanner(output)
+		assert.NotContains(t, got, "This is your first recorded login.")
+		assert.Contains(t, got, "Vserver   Volume")
+		assert.Contains(t, got, "gcnv-76ad899c86ae3ab-svm-01 clivo10 aggr1")
+	})
+
+	t.Run("returns empty unchanged", func(t *testing.T) {
+		assert.Equal(t, "", StripOntapLoginBanner(""))
+	})
+
+	t.Run("leaves output without banner unchanged", func(t *testing.T) {
+		output := "Vserver   Volume\n--------- -----\nvol1      aggr1\n"
+		assert.Equal(t, output, StripOntapLoginBanner(output))
+	})
+
+	t.Run("handles Windows line endings", func(t *testing.T) {
+		output := "\r\n\r\nThis is your first recorded login.\r\n\r\nVserver   Volume\r\n"
+		got := StripOntapLoginBanner(output)
+		assert.NotContains(t, got, "This is your first recorded login.")
+		assert.Contains(t, got, "Vserver   Volume")
+	})
+}

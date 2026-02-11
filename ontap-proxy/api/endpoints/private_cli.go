@@ -151,7 +151,7 @@ func (h Handler) V1PrivateCli(
 		}, nil
 	}
 
-	output := cliResponse.Output
+	output := handlers.StripOntapLoginBanner(cliResponse.Output)
 	if rule != nil && len(rule.RemoveFields) > 0 {
 		output = cli.RemoveFieldsFromCLIOutput(output, rule.RemoveFields)
 	}
