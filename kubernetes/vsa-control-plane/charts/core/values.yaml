@@ -97,6 +97,7 @@ global:
     vcpDbPostRollbackSteps: "0"
     metricsDbPreRollbackSteps: "0"
     metricsDbPostRollbackSteps: "0"
+    gcpAuthServiceAccount: ""
     workflowSupervisorNotFoundGracePeriod: "5m"
     regionNumberMap:
       africa-south1: "01"
