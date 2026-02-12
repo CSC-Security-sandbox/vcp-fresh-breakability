@@ -185,6 +185,12 @@
     "retriable": false,
     "http_code": 409
   },
+  "2106": {
+    "description": "Pool is in creating state; ONTAP proxy operations are not allowed until ready",
+    "message": "Pool is in creating state",
+    "retriable": false,
+    "http_code": 409
+  },
   "3001": {
     "description": "GCP Client Initialization Error",
     "message": "An internal error occurred.",

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	coreerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -982,6 +983,10 @@ func (o *Orchestrator) GetExpertModePoolCreds(ctx context.Context, poolUUID stri
 	pool, err := se.GetPool(ctx, poolUUID, account.ID)
 	if err != nil {
 		return nil, err
+	}
+
+	if pool.State == models.LifeCycleStateCreating {
+		return nil, coreerrors.NewVCPError(coreerrors.ErrPoolInCreatingState, fmt.Errorf("pool %s is in creating state", pool.UUID))
 	}
 
 	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)

@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
+	stderrors "errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -5544,6 +5545,44 @@ func TestOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, credentials)
 		assert.Contains(t, err.Error(), "Pool not found")
+	})
+	t.Run("WhenPoolInCreatingState", func(t *testing.T) {
+		ctx, store, orch, _ := setup(t)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err := store.DB().Create(account).Error
+		assert.NoError(t, err)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test-pool-uuid",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateCreating,
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{
+						SecretID:      "test-secret-id",
+						CertificateID: "test-cert-id",
+						Password:      "test-password",
+						AuthType:      2,
+						Username:      "test-user_gadmin",
+					},
+				},
+			},
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(t, err)
+
+		credentials, err := orch.GetExpertModePoolCreds(ctx, "test-pool-uuid", "test_account", "gadmin")
+
+		assert.Error(t, err)
+		assert.Nil(t, credentials)
+		var customErr *vsaerrors.CustomError
+		assert.True(t, stderrors.As(err, &customErr) && customErr.IsError(vsaerrors.ErrPoolInCreatingState))
+		assert.Contains(t, err.Error(), "creating state")
 	})
 	t.Run("WhenPoolHasNoCredentials", func(t *testing.T) {
 		ctx, store, orch, _ := setup(t)

@@ -72,6 +72,10 @@ func FetchCredentials(ctx context.Context, poolDetails *models.PoolDetails, jwtT
 		logger.ErrorContext(ctx, "Forbidden access", "poolID", poolDetails.PoolID, "message", resp.Message)
 		return nil, fmt.Errorf("forbidden access: %s", resp.Message)
 
+	case *coreapi.V1GetOntapCredentialsConflict:
+		logger.ErrorContext(ctx, "Pool is in creating state", "poolID", poolDetails.PoolID, "message", resp.Message)
+		return nil, fmt.Errorf("pool is in creating state: %s", resp.Message)
+
 	case *coreapi.V1GetOntapCredentialsInternalServerError:
 		logger.ErrorContext(ctx, "Internal server error", "poolID", poolDetails.PoolID, "message", resp.Message)
 		return nil, fmt.Errorf("internal server error: %s", resp.Message)

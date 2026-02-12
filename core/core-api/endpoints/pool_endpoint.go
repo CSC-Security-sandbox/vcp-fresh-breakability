@@ -20,13 +20,24 @@ func (h Handler) V1GetOntapCredentials(ctx context.Context, params oasgenserver.
 	accountName := params.AccountName.Value
 	expertModeCredential, err := h.Orchestrator.GetExpertModePoolCreds(ctx, params.PoolId, accountName, params.UserName.Value)
 	if err != nil {
-		// Check if the error is ErrPoolNotFound and return 404
 		var customErr *errors.CustomError
-		if errors.As(err, &customErr) && customErr.IsError(errors.ErrPoolNotFound) {
-			return &oasgenserver.V1GetOntapCredentialsNotFound{
-				Message: "Pool not found",
-				Code:    404,
-			}, nil
+		if errors.As(err, &customErr) {
+			if customErr.IsError(errors.ErrPoolNotFound) {
+				return &oasgenserver.V1GetOntapCredentialsNotFound{
+					Message: "Pool not found",
+					Code:    404,
+				}, nil
+			}
+			if customErr.IsError(errors.ErrPoolInCreatingState) {
+				msg := customErr.GetMessage()
+				if msg == "" {
+					msg = "Pool is in creating state"
+				}
+				return &oasgenserver.V1GetOntapCredentialsConflict{
+					Message: msg,
+					Code:    400,
+				}, nil
+			}
 		}
 		return &oasgenserver.V1GetOntapCredentialsInternalServerError{
 			Message: fmt.Sprintf("Failed to get pool credentials: %v", err),

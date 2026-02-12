@@ -370,6 +370,14 @@ func TestHandleCredentialError(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 		assert.Contains(t, w.Body.String(), "Internal server error")
 	})
+	t.Run("WhenPoolInCreatingState_ShouldReturn409", func(t *testing.T) {
+		w := httptest.NewRecorder()
+
+		handleCredentialError(w, fmt.Errorf("pool is in creating state: Pool is in creating state"))
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Contains(t, w.Body.String(), "Pool is in creating state")
+	})
 }
 
 func TestIsIAMRoleValidationError(t *testing.T) {

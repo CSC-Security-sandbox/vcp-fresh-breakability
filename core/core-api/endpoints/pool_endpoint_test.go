@@ -132,6 +132,60 @@ func TestV1GetOntapCredentials(t *testing.T) {
 		assert.Equal(t, "Pool not found", response.Message)
 		assert.Equal(t, float64(404), response.Code)
 	})
+	t.Run("WhenPoolInCreatingState", func(t *testing.T) {
+		// Setup
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		poolID := "test-pool-uuid"
+		accountName := "test-account"
+		userName := "test-user"
+		poolCreatingError := vsaerrors.NewVCPError(vsaerrors.ErrPoolInCreatingState, stderrors.New("pool is in creating state"))
+
+		params := oasgenserver.V1GetOntapCredentialsParams{
+			PoolId:      poolID,
+			AccountName: oasgenserver.NewOptString(accountName),
+			UserName:    oasgenserver.NewOptString(userName),
+		}
+
+		mockOrch.EXPECT().GetExpertModePoolCreds(mock.Anything, poolID, accountName, userName).Return(nil, poolCreatingError)
+
+		ctx := context.Background()
+		result, err := handler.V1GetOntapCredentials(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		response, ok := result.(*oasgenserver.V1GetOntapCredentialsConflict)
+		assert.True(t, ok)
+		assert.Equal(t, "Pool is in creating state", response.Message)
+		assert.Equal(t, float64(400), response.Code)
+	})
+	t.Run("WhenPoolInCreatingState_WithEmptyMessage", func(t *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		// CustomError with empty Message so handler uses fallback "Pool is in creating state"
+		poolCreatingError := &vsaerrors.CustomError{
+			TrackingID: vsaerrors.ErrPoolInCreatingState,
+			Message:    "",
+		}
+
+		params := oasgenserver.V1GetOntapCredentialsParams{
+			PoolId:      "test-pool-uuid",
+			AccountName: oasgenserver.NewOptString("test-account"),
+			UserName:    oasgenserver.NewOptString("test-user"),
+		}
+		mockOrch.EXPECT().GetExpertModePoolCreds(mock.Anything, "test-pool-uuid", "test-account", "test-user").Return(nil, poolCreatingError)
+
+		result, err := handler.V1GetOntapCredentials(context.Background(), params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		response, ok := result.(*oasgenserver.V1GetOntapCredentialsConflict)
+		assert.True(t, ok)
+		assert.Equal(t, "Pool is in creating state", response.Message)
+		assert.Equal(t, float64(400), response.Code)
+	})
 	t.Run("WhenOtherVSAError", func(t *testing.T) {
 		// Setup
 		mockOrch := orchestrator.NewMockOrchestratorFactory(t)

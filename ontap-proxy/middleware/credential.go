@@ -118,6 +118,8 @@ func handleCredentialError(w http.ResponseWriter, err error) {
 	switch {
 	case contains(errorMsg, "pool not found"):
 		ontapproxyutils.WriteErrorResponse(w, http.StatusNotFound, "Pool not found")
+	case contains(errorMsg, "pool is in creating state"):
+		ontapproxyutils.WriteErrorResponse(w, http.StatusBadRequest, "Pool is in creating state")
 	case contains(errorMsg, "invalid pool details"):
 		ontapproxyutils.WriteErrorResponse(w, http.StatusBadRequest, "Invalid pool details")
 	case contains(errorMsg, "unable to determine IAM role from context headers"):

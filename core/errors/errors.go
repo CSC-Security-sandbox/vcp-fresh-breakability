@@ -56,6 +56,7 @@ const (
 	ErrVolumeOrAccountNotFoundInVCP            = 2103
 	ErrVolumeCreationFailedDueToPoolInDeletion = 2104
 	ErrVolumeCreationFailedDueToPoolIsDeleted  = 2105
+	ErrPoolInCreatingState                     = 2106
 
 	ErrGCPClientInitializationError               = 3001
 	ErrPSAPeeringNotFoundError                    = 3002
