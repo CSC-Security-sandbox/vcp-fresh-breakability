@@ -702,6 +702,103 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 		assert.Error(tt, err)
 	})
 
+	t.Run("CreateJob_SetsSupervisorGracePeriod", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewMockLogger(tt)
+		store := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		mm := newMonkeyMockAndPatch(tt)
+		peerExpiryTime := time.Now().Add(1 * time.Hour)
+
+		params := &common.CreateVolumeParams{
+			AccountName:     "test_account",
+			Region:          "test_region",
+			Name:            "test_volume",
+			VendorID:        "test_vendor",
+			QuotaInBytes:    minQuotaInBytesPool,
+			Protocols:       []string{"NFS"},
+			Description:     "Some description",
+			DisplayName:     "Some display name",
+			PoolID:          "test-pool-uuid",
+			CreationToken:   "test-creation-token",
+			CacheParameters: &models.CacheParameters{PeerExpiryTime: &peerExpiryTime},
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+
+		event := &flexcache.CreateFlexCacheEvent{
+			LocationID:    location,
+			ProjectNumber: params.AccountName,
+			RequestUri:    requestURI,
+			CorrelationID: &correlationID,
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				APIAccessMode: common.DEFAULTMode,
+			},
+		}
+
+		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
+		mm.EXPECT().verifyCommandExpiryTime(&peerExpiryTime).Return(nil)
+		mm.EXPECT().getOrCreateAccount(ctx, store, params.AccountName).Return(dbAccount, nil)
+		store.EXPECT().GetPool(ctx, params.PoolID, dbAccount.ID).Return(poolView, nil)
+		mm.EXPECT().validateCreateVolumeParams(ctx, store, params, mock.AnythingOfType("*datamodel.PoolView")).Return(nil)
+		mm.EXPECT().utilsGetLocationFromVendorID(vendorID).Return(location, nil)
+		mm.EXPECT().utilsGetRequestIDFromContext(ctx).Return(requestURI)
+		mm.EXPECT().utilsGetCorrelationIDFromContext(ctx).Return(correlationID)
+		store.EXPECT().GetSvmForPoolID(ctx, int64(0)).Return(&datamodel.Svm{}, nil)
+		store.EXPECT().CreateVolume(ctx, mock.AnythingOfType("*datamodel.Volume")).Return(&datamodel.Volume{
+			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Account:           dbAccount,
+			Name:              params.Name,
+			Description:       params.Description,
+			SizeInBytes:       int64(params.QuotaInBytes),
+			State:             models.LifeCycleStatePreparing,
+			UsedBytes:         0,
+			ClonesSharedBytes: 0,
+			Pool: &datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: params.PoolID},
+				VendorID:  vendorID,
+				Name:      poolName,
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone: "us-west1-a",
+				},
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection:  false,
+				Mounted:           false,
+				SnapReserve:       0,
+				SnapshotDirectory: false,
+			},
+		}, nil)
+		store.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.JobAttributes != nil &&
+				job.JobAttributes.SupervisorAttributes != nil &&
+				job.JobAttributes.SupervisorAttributes.OverrideGracePeriod == flexCacheCreateVolumeSupervisorGracePeriod &&
+				job.JobAttributes.ResourceUUID == "test-volume-uuid"
+		})).Return(&datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "test-job-uuid"},
+			WorkflowID: "test-workflow-id",
+		}, nil)
+		mm.EXPECT().workflowsExecuteWorkflowSequentially(
+			temporal, ctx,
+			mock.AnythingOfType("StartWorkflowOptions"),
+			mock.AnythingOfType("func(internal.Context, *common.CreateVolumeParams, *datamodel.Volume, *flexcache.CreateFlexCacheEvent) error"),
+			mock.AnythingOfType("ChildWorkflowOptions"),
+			params, mock.AnythingOfType("*datamodel.Volume"), event).Return(nil)
+
+		volume, jobID, err := _createFlexCacheVolume(ctx, store, temporal, params)
+		assert.NotNil(tt, volume)
+		assert.NotEmpty(tt, jobID)
+		assert.NoError(tt, err)
+	})
+
 	t.Run("ExecuteWorkflowSequentially_Error", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger, store := setupStore(tt)
@@ -858,7 +955,7 @@ func TestCreateFlexCacheVolume(t *testing.T) {
 			PoolID:          "test-pool-uuid",
 			CreationToken:   "test-creation-token",
 			CacheParameters: &models.CacheParameters{PeerExpiryTime: &peerExpiryTime},
-			FileProperties:  &models.FileProperties{
+			FileProperties: &models.FileProperties{
 				// No ExportPolicy set
 			},
 		}

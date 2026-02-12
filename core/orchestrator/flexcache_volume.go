@@ -17,6 +17,7 @@ import (
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -42,6 +43,11 @@ var (
 	checkForFlexCacheJobInProgress       = _checkForFlexCacheJobInProgress
 	flexCacheParamsMatch                 = _flexCacheParamsMatch
 	verifyCommandExpiryTime              = _verifyCommandExpiryTime
+
+	// flexCacheCreateVolumeSupervisorGracePeriod controls how long the supervisor waits
+	// before cleaning up a flexcache create volume job in NEW state. This prevents cleanup
+	// of jobs stuck in NEW state during the customer peering command window.
+	flexCacheCreateVolumeSupervisorGracePeriod = env.GetDuration("FLEXCACHE_CREATE_VOLUME_SUPERVISOR_GRACE_PERIOD", 60*time.Minute)
 )
 
 func (o *Orchestrator) CreateFlexCacheVolume(ctx context.Context, params *common.CreateVolumeParams) (*coremodels.Volume, string, error) {
@@ -164,7 +170,12 @@ func _createFlexCacheVolume(ctx context.Context, se database.Storage, temporal c
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: correlationID,
 		RequestID:     requestURI,
-		JobAttributes: &datamodel.JobAttributes{ResourceUUID: dbVolume.UUID},
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: dbVolume.UUID,
+			SupervisorAttributes: &datamodel.SupervisorAttributes{
+				OverrideGracePeriod: flexCacheCreateVolumeSupervisorGracePeriod,
+			},
+		},
 	}
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {

@@ -92,6 +92,7 @@ deleteResourcesCronExpression: "0 0 * * *" # DELETE_RESOURCES job configuration
 waitForTemporalEnabled: false
 metricsDbCleanupEnabled: false
 volumeRefreshIntervalMinutes: "5"
+flexCacheCreateVolumeSupervisorGracePeriod: "60" # Grace period for flexcache create volume supervisor in minutes
 thinCloneGASupport: false
 validateCloneATPolicyMatchParent: false
 enableCloneInfoRefresh: true
