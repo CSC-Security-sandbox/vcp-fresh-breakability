@@ -174,6 +174,7 @@ func (wf *quotaRuleDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}
 	// If volume is data protection, only delete from database (no ONTAP deletion needed).
 	// Defer block will mark quota rule as DELETED on success.
 	if isDataProtection {
+		logger.Info("DP volume: quota rule delete skipped (DB-only), returning success")
 		return nil, nil
 	}
 

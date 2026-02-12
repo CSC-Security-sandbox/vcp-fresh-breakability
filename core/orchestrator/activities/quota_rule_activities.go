@@ -1676,7 +1676,7 @@ func (a *QuotaRuleUpdateActivity) UpdateQuotaRuleOnDestination(
 	// Handle response types (following the CreateQuotaRuleOnDestination pattern)
 	switch r := res.(type) {
 	case *googleproxyclient.QuotaRulesVCPV1beta:
-		logger.Infof("Successfully updated quota rule on destination: quotaId=%s, resourceId=%s, state=%s",
+		logger.Infof("Successfully triggered update quota rule on destination: quotaId=%s, resourceId=%s, state=%s",
 			r.QuotaId.Value, r.ResourceId, r.State.Value)
 
 		// Check if state is UPDATING - need to poll for completion

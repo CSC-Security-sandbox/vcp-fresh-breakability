@@ -241,6 +241,52 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		assert.Error(tt, env.GetWorkflowError())
 	})
 
+	t.Run("WhenDPVolumeUpdateQuotaRuleStateSucceeds_ReturnsEarly", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		mockStorage := database.NewMockStorage(tt)
+		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+
+		// Only register activities used for DP path: GetVolumeByID, UpdateQuotaRuleState.
+		// GetNode is not registered so workflow must return after DB update and not proceed to ONTAP.
+		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
+		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetJob)
+
+		params := createBaseParamsDescriptionOnly()
+		quotaRule := createBaseQuotaRule()
+		volume := createBaseVolume(true, []string{"NFSV3"})
+
+		expectedQuotaRule := createBaseQuotaRule()
+		expectedQuotaRule.Description = "Updated description"
+
+		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(1)).Return(volume, nil)
+		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.MatchedBy(func(qr datamodel.QuotaRule) bool {
+			return qr.UUID == expectedQuotaRule.UUID && qr.Description == expectedQuotaRule.Description
+		}), mock.Anything).Return(nil)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil)
+
+		env.ExecuteWorkflow(UpdateQuotaRuleWorkflow, params, quotaRule)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
+
 	t.Run("WhenGetNodeFails", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
@@ -845,6 +891,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 	})
 
 	t.Run("WhenQuotaUpdateWorkflowSucceedsForDPVolume", func(tt *testing.T) {
+		// DP volume: DB-only update regardless of params; workflow returns early after UpdateQuotaRuleState.
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -857,15 +904,10 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 
 		mockStorage := database.NewMockStorage(tt)
-		quotaRuleActivity := activities.QuotaRuleUpdateActivity{SE: mockStorage}
 		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 
 		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
-		env.RegisterActivity(commonActivity.GetNode)
-		env.RegisterActivity(quotaRuleCommonActivity.GetOntapQuotaUUID)
-		env.RegisterActivity(quotaRuleActivity.UpdateQuotaRulesOnOntap)
-		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeReplication)
 		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(commonActivity.GetJob)
@@ -873,20 +915,14 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		params := createBaseParams(200 * 1024)
 		quotaRule := createBaseQuotaRule()
 		volume := createBaseVolume(true, []string{"NFSV3"}) // Data protection volume
-		nodes := createBaseNodes()
+		expectedQuotaRule := createBaseQuotaRule()
+		expectedQuotaRule.DiskLimitInKib = 200 * 1024 * 1024
 
-		// Mock all activities to succeed
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(1)).Return(volume, nil)
-		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
-		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "update").Return("quota-uuid-123", nil)
-		env.OnActivity("UpdateQuotaRulesOnOntap", mock.Anything, "quota-uuid-123", mock.Anything, int64(200*1024*1024)).Return(nil)
-		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return([]*datamodel.VolumeReplication{}, nil)
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.MatchedBy(func(qr datamodel.QuotaRule) bool {
-			return qr.UUID == quotaRule.UUID
+			return qr.UUID == expectedQuotaRule.UUID && qr.DiskLimitInKib == expectedQuotaRule.DiskLimitInKib
 		}), mock.Anything).Return(nil)
-
-		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
 			State:     string(models.JobsStateNEW),
@@ -894,7 +930,6 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 
 		env.ExecuteWorkflow(UpdateQuotaRuleWorkflow, params, quotaRule)
 
-		// Verify workflow completed successfully
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		assert.Nil(tt, err)
 		assert.True(tt, env.IsWorkflowCompleted())
@@ -902,6 +937,7 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 	})
 
 	t.Run("WhenQuotaUpdateWorkflowSucceedsForDescriptionOnly", func(tt *testing.T) {
+		// Description-only update is DB-only; workflow returns early after UpdateQuotaRuleState.
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -914,15 +950,10 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 
 		mockStorage := database.NewMockStorage(tt)
-		quotaRuleActivity := activities.QuotaRuleUpdateActivity{SE: mockStorage}
 		quotaRuleCommonActivity := activities.QuotaRuleCommonActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 
 		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeByID)
-		env.RegisterActivity(commonActivity.GetNode)
-		env.RegisterActivity(quotaRuleCommonActivity.GetOntapQuotaUUID)
-		env.RegisterActivity(quotaRuleActivity.UpdateQuotaRulesOnOntap)
-		env.RegisterActivity(quotaRuleCommonActivity.GetVolumeReplication)
 		env.RegisterActivity(quotaRuleCommonActivity.UpdateQuotaRuleState)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 		env.RegisterActivity(commonActivity.GetJob)
@@ -930,20 +961,14 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 		params := createBaseParamsDescriptionOnly()
 		quotaRule := createBaseQuotaRule()
 		volume := createBaseVolume(false, []string{"NFSV3"})
-		nodes := createBaseNodes()
+		expectedQuotaRule := createBaseQuotaRule()
+		expectedQuotaRule.Description = "Updated description"
 
-		// Mock all activities to succeed
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetVolumeByID", mock.Anything, volumeID, int64(1)).Return(volume, nil)
-		env.OnActivity("GetNode", mock.Anything, poolID).Return(nodes, nil)
-		env.OnActivity("GetOntapQuotaUUID", mock.Anything, volume, mock.Anything, quotaRule.QuotaType, quotaRule.QuotaTarget, "update").Return("quota-uuid-123", nil)
-		env.OnActivity("UpdateQuotaRulesOnOntap", mock.Anything, "quota-uuid-123", mock.Anything, int64(100*1024)).Return(nil) // Uses original disk limit for description-only
-		env.OnActivity("GetVolumeReplication", mock.Anything, volumeID).Return([]*datamodel.VolumeReplication{}, nil)
 		env.OnActivity("UpdateQuotaRuleState", mock.Anything, mock.MatchedBy(func(qr datamodel.QuotaRule) bool {
-			return qr.UUID == quotaRule.UUID
+			return qr.UUID == expectedQuotaRule.UUID && qr.Description == expectedQuotaRule.Description
 		}), mock.Anything).Return(nil)
-
-		// Mock GetJob for EnsureJobState
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
 			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
 			State:     string(models.JobsStateNEW),
@@ -951,7 +976,6 @@ func TestUpdateQuotaRuleWorkflow(t *testing.T) {
 
 		env.ExecuteWorkflow(UpdateQuotaRuleWorkflow, params, quotaRule)
 
-		// Verify workflow completed successfully
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		assert.Nil(tt, err)
 		assert.True(tt, env.IsWorkflowCompleted())

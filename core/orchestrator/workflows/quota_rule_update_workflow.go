@@ -162,6 +162,9 @@ func (wf *quotaRuleUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}
 			logger.Errorf("Failed to update quota rule state in database: %v", err)
 			return nil, ConvertToVSAError(err)
 		}
+		// DB-only update (DP volume or description-only): return after successful update.
+		logger.Info("DB update of quotaRule successful")
+		return nil, nil
 	}
 
 	var dbNodes []*datamodel.Node

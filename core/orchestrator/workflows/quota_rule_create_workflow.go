@@ -23,8 +23,8 @@ import (
 )
 
 var (
-	hydrationEnabled                          = env.GetBool("GCP_HYDRATE_ENABLED", true)
-	startToCloseTimeoutQuotaRuleActivitySec   = env.GetUint64("QUOTA_RULE_START_TO_CLOSE_TIMEOUT_SEC", 300)
+	hydrationEnabled                        = env.GetBool("GCP_HYDRATE_ENABLED", true)
+	startToCloseTimeoutQuotaRuleActivitySec = env.GetUint64("QUOTA_RULE_START_TO_CLOSE_TIMEOUT_SEC", 300)
 )
 
 const (
@@ -175,6 +175,7 @@ func (wf *quotaRuleCreateWorkflow) Run(ctx workflow.Context, args ...interface{}
 			returnErr = ConvertToVSAError(err)
 			return
 		}
+		logger.Info("Quota rule created for DP volume")
 		return nil, nil
 	}
 
