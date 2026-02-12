@@ -323,7 +323,7 @@ func _isEstablishVolumePeeringNeeded(ctx context.Context, se database.Storage,
 	}
 
 	if verifyClusterPeering(ctx, dbVolume) {
-		return "", fmt.Errorf("cluster peering is already established")
+		return "", errors.NewUserInputValidationErr("cluster peering is already established")
 	}
 
 	isJobInProgress, jobUUID, err := checkForFlexCacheJobInProgress(ctx, se, dbVolume, params)
@@ -342,8 +342,8 @@ func _verifyVolumeState(ctx context.Context, dbVolume *datamodel.Volume) error {
 	logger.Debugf("verifying volume state: name=%s, state=%s", dbVolume.Name, dbVolume.State)
 	// Establish Volume Peering can be tried if the volume is in PREPARING state
 	if dbVolume.State != coremodels.LifeCycleStatePreparing {
-		return fmt.Errorf("volume %s must be in %s state (current: %s)",
-			dbVolume.Name, coremodels.LifeCycleStatePreparing, dbVolume.State)
+		return errors.NewUserInputValidationErr(fmt.Sprintf("volume %s must be in %s state (current: %s)",
+			dbVolume.Name, coremodels.LifeCycleStatePreparing, dbVolume.State))
 	}
 	return nil
 }
@@ -353,7 +353,7 @@ func _verifyFlexCacheParameters(ctx context.Context, params *common.EstablishVol
 	logger := utilGetLogger(ctx)
 	logger.Debugf("verifying FlexCache parameters for volume %s (ignoring IPs)", dbVolume.Name)
 	if !flexCacheParamsMatch(dbVolume, params) {
-		return fmt.Errorf("provided FlexCache parameters do not match with existing FlexCache volume parameters")
+		return errors.NewUserInputValidationErr("provided FlexCache parameters do not match with existing FlexCache volume parameters")
 	}
 	return nil
 }

@@ -1397,6 +1397,7 @@ func Test_IsEstablishVolumePeeringNeeded(t *testing.T) {
 
 		_, err := _isEstablishVolumePeeringNeeded(ctx, mockStorage, params, dbVolume)
 		assert.Error(tt, err)
+		assert.True(tt, vsaerrors.IsUserInputValidationErr(err))
 	})
 
 	t.Run("checkForFlexCacheJobInProgress_error", func(tt *testing.T) {
@@ -1490,6 +1491,7 @@ func Test_VerifyFlexCacheParameters(t *testing.T) {
 		vol := newVolume("different-cluster", "peer-svm", "peer-volume")
 		err := _verifyFlexCacheParameters(ctx, baseParams, vol)
 		assert.Error(tt, err)
+		assert.True(tt, vsaerrors.IsUserInputValidationErr(err))
 	})
 
 	t.Run("Mismatch_PeerSvmName", func(tt *testing.T) {
@@ -1501,6 +1503,7 @@ func Test_VerifyFlexCacheParameters(t *testing.T) {
 		vol := newVolume("peer-cluster", "other-svm", "peer-volume")
 		err := _verifyFlexCacheParameters(ctx, baseParams, vol)
 		assert.Error(tt, err)
+		assert.True(tt, vsaerrors.IsUserInputValidationErr(err))
 	})
 
 	t.Run("Mismatch_PeerVolumeName", func(tt *testing.T) {
@@ -1512,6 +1515,7 @@ func Test_VerifyFlexCacheParameters(t *testing.T) {
 		vol := newVolume("peer-cluster", "peer-svm", "different-volume")
 		err := _verifyFlexCacheParameters(ctx, baseParams, vol)
 		assert.Error(tt, err)
+		assert.True(tt, vsaerrors.IsUserInputValidationErr(err))
 	})
 }
 
@@ -1674,6 +1678,7 @@ func Test_VerifyVolumeState_TwoCases(t *testing.T) {
 
 		err := _verifyVolumeState(ctx, vol)
 		assert.Error(tt, err)
+		assert.True(tt, vsaerrors.IsUserInputValidationErr(err))
 	})
 }
 
