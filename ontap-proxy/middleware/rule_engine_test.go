@@ -63,8 +63,8 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
-	t.Run("WhenRuleMatchesAndDenies_ShouldReturnBadRequestWithReason", func(t *testing.T) {
-		// Setup
+	t.Run("WhenNoRuleForPrivatePath_ShouldPassThrough", func(t *testing.T) {
+		// Setup - /api/private/something has no rule; only explicit private CLI paths are configured
 		originalExtract := extractOntapPathUtil
 		extractOntapPathUtil = func(fullPath string) string {
 			return "/api/private/something"
@@ -84,9 +84,8 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		// Execute
 		handler.ServeHTTP(w, req)
 
-		// Verify - returns 400 Bad Request with reason
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-		assert.Contains(t, w.Body.String(), "Private API access denied")
+		// Verify - no rule matches, so request passes through to next handler
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
 	t.Run("WhenDenyActionConfigured_ShouldReturnBadRequestWithReason", func(t *testing.T) {
@@ -168,8 +167,8 @@ func TestFindMatchingRule(t *testing.T) {
 		assert.NotNil(t, rule.GET)
 	})
 
-	t.Run("WhenWildcardMatch_ShouldReturnRule", func(t *testing.T) {
-		// Setup
+	t.Run("WhenPrivatePathWithNoExactRule_ShouldReturnNotFound", func(t *testing.T) {
+		// Setup - no catch-all for /api/private/*; only explicit private CLI paths have rules
 		originalExtract := extractOntapPathUtil
 		extractOntapPathUtil = func(fullPath string) string {
 			return "/api/private/nested/path"
@@ -179,12 +178,10 @@ func TestFindMatchingRule(t *testing.T) {
 		logger := util.GetLogger(context.Background())
 
 		// Execute
-		rule, path, found := findMatchingRule("/ontap/api/private/nested/path", logger)
+		_, _, found := findMatchingRule("/ontap/api/private/nested/path", logger)
 
-		// Verify
-		assert.True(t, found)
-		assert.Equal(t, "/api/private/*", path)
-		assert.NotNil(t, rule.GET)
+		// Verify - no rule for this path, so not found
+		assert.False(t, found)
 	})
 
 	t.Run("WhenNoMatch_ShouldReturnNotFound", func(t *testing.T) {

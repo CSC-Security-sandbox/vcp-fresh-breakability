@@ -15,10 +15,20 @@ func TestGetProxyRules(t *testing.T) {
 		assert.NotEmpty(t, rules)
 	})
 
-	t.Run("ShouldContainPrivateAPIRule", func(t *testing.T) {
+	t.Run("ShouldContainPrivateCLIVolumeRule", func(t *testing.T) {
 		rules := GetProxyRules()
-		rule, ok := rules["/api/private/*"]
-		assert.True(t, ok, "Should have rule for /api/private/*")
+		rule, ok := rules["/api/private/cli/volume"]
+		assert.True(t, ok, "Should have rule for /api/private/cli/volume")
+		assert.NotNil(t, rule.GET)
+		assert.NotNil(t, rule.POST)
+		assert.NotNil(t, rule.PATCH)
+		assert.NotNil(t, rule.DELETE)
+	})
+
+	t.Run("ShouldContainPrivateCLIVolumeRenameRule", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule, ok := rules["/api/private/cli/volume/rename"]
+		assert.True(t, ok, "Should have rule for /api/private/cli/volume/rename")
 		assert.NotNil(t, rule.GET)
 		assert.NotNil(t, rule.POST)
 		assert.NotNil(t, rule.PATCH)
@@ -50,30 +60,190 @@ func TestGetProxyRules(t *testing.T) {
 	})
 }
 
-func TestPrivateAPIRule(t *testing.T) {
-	t.Run("WhenGET_ShouldDeny", func(t *testing.T) {
+func TestPrivateCLIVolumeRule(t *testing.T) {
+	origValidateCreation := validatePrivateCLIVolumeCreation
+	origValidateModification := validatePrivateCLIVolumeModification
+	origValidateDeletion := validatePrivateCLIVolumeDeletion
+	defer func() {
+		validatePrivateCLIVolumeCreation = origValidateCreation
+		validatePrivateCLIVolumeModification = origValidateModification
+		validatePrivateCLIVolumeDeletion = origValidateDeletion
+	}()
+
+	validatePrivateCLIVolumeCreation = func(r *http.Request) (bool, string) { return true, "" }
+	validatePrivateCLIVolumeModification = func(r *http.Request) (bool, string) { return true, "" }
+	validatePrivateCLIVolumeDeletion = func(r *http.Request) (bool, string) { return true, "" }
+
+	t.Run("WhenGET_ShouldAllow", func(t *testing.T) {
 		rules := GetProxyRules()
-		rule := rules["/api/private/*"]
-		req := httptest.NewRequest(http.MethodGet, "/api/private/test", nil)
+		rule := rules["/api/private/cli/volume"]
+		req := httptest.NewRequest(http.MethodGet, "/api/private/cli/volume", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "GET should be allowed for private CLI volume")
+	})
+
+	t.Run("WhenPOSTWithRequiredFields_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume"]
+		body := bytes.NewBufferString(`{"volume":"vol1","vserver":"vs0","size":1073741824}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST with required fields should be allowed")
+	})
+
+	t.Run("WhenPOSTWithoutVolume_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume"]
+		body := bytes.NewBufferString(`{"vserver":"vs0","size":1073741824}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume", body)
+		req.Header.Set("Content-Type", "application/json")
 
 		action := rule.GetAction(req)
 
 		assert.NotNil(t, action)
 		allowed, reason := action.ShouldAllow(req)
-		assert.False(t, allowed, "GET should be denied for private API")
+		assert.False(t, allowed, "POST without volume should be denied")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenPOSTWithValidSpaceGuarantee_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume"]
+		body := bytes.NewBufferString(`{"volume":"vol1","vserver":"vs0","size":1073741824,"space_guarantee":"none"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST with space_guarantee='none' should be allowed")
+	})
+
+	t.Run("WhenPOSTWithInvalidSpaceGuarantee_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume"]
+		body := bytes.NewBufferString(`{"volume":"vol1","vserver":"vs0","size":1073741824,"space_guarantee":"volume"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "POST with invalid space_guarantee should be denied")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenPATCHWithQueryParams_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume"]
+		body := bytes.NewBufferString(`{"size":2147483648}`)
+		req := httptest.NewRequest(http.MethodPatch, "/api/private/cli/volume?vserver=vs1&volume=vol1", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "PATCH with vserver and volume query params should be allowed")
+	})
+
+	t.Run("WhenDELETEWithQueryParams_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume"]
+		req := httptest.NewRequest(http.MethodDelete, "/api/private/cli/volume?vserver=vs1&volume=vol1", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "DELETE with vserver and volume query params should be allowed")
+	})
+}
+
+func TestPrivateCLIVolumeRenameRule(t *testing.T) {
+	origValidateRename := validatePrivateCLIVolumeRename
+	defer func() { validatePrivateCLIVolumeRename = origValidateRename }()
+
+	validatePrivateCLIVolumeRename = func(r *http.Request) (bool, string) { return true, "" }
+
+	t.Run("WhenPATCHWithNewnameAndValidatorSucceeds_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume/rename"]
+		body := bytes.NewBufferString(`{"newname":"vol_renamed"}`)
+		req := httptest.NewRequest(http.MethodPatch, "/api/private/cli/volume/rename?vserver=vs1&volume=vol1", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "PATCH with newname and passing validator should be allowed")
+	})
+
+	t.Run("WhenPATCHWithoutNewname_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume/rename"]
+		body := bytes.NewBufferString(`{}`)
+		req := httptest.NewRequest(http.MethodPatch, "/api/private/cli/volume/rename?vserver=vs1&volume=vol1", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "PATCH without newname should be denied")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenGET_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume/rename"]
+		req := httptest.NewRequest(http.MethodGet, "/api/private/cli/volume/rename", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "GET should be denied for volume rename")
 		assert.NotEmpty(t, reason)
 	})
 
 	t.Run("WhenPOST_ShouldDeny", func(t *testing.T) {
 		rules := GetProxyRules()
-		rule := rules["/api/private/*"]
-		req := httptest.NewRequest(http.MethodPost, "/api/private/test", nil)
+		rule := rules["/api/private/cli/volume/rename"]
+		body := bytes.NewBufferString(`{"newname":"vol_renamed"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume/rename?vserver=vs1&volume=vol1", body)
+		req.Header.Set("Content-Type", "application/json")
 
 		action := rule.GetAction(req)
 
 		assert.NotNil(t, action)
 		allowed, reason := action.ShouldAllow(req)
-		assert.False(t, allowed, "POST should be denied for private API")
+		assert.False(t, allowed, "POST should be denied for volume rename")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenDELETE_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume/rename"]
+		req := httptest.NewRequest(http.MethodDelete, "/api/private/cli/volume/rename?vserver=vs1&volume=vol1", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "DELETE should be denied for volume rename")
 		assert.NotEmpty(t, reason)
 	})
 }

@@ -500,6 +500,74 @@ func TestGetCLIRules(t *testing.T) {
 	}
 }
 
+func TestVolumeShowRemoveFields(t *testing.T) {
+	// Assert exact RemoveFields for volume show / vol show (physical and efficiency fields).
+	// Corresponds to rule_map.go GET /api/storage/volumes and /api/private/cli/volume response filtering.
+	expectedFields := []string{
+		"Used Size",
+		"Used Percentage",
+		"Physical Used",
+		"Storage Efficiency",
+		"Deduplication",
+		"Compression",
+		"Sis Space Saved",
+		"Dedupe Space Saved",
+		"Dedupe Space Shared",
+		"Compression Space Saved",
+		"Efficiency",
+	}
+
+	rules := GetCLIRules()
+
+	t.Run("WhenVolumeShowRule_ShouldHaveExpectedRemoveFields", func(t *testing.T) {
+		var volumeShowRule *CLIRule
+		for i := range rules {
+			if rules[i].Pattern == "volume show" {
+				volumeShowRule = &rules[i]
+				break
+			}
+		}
+		if volumeShowRule == nil {
+			t.Fatal("volume show rule not found")
+		}
+		if len(volumeShowRule.RemoveFields) != len(expectedFields) {
+			t.Errorf("volume show RemoveFields length = %d, want %d", len(volumeShowRule.RemoveFields), len(expectedFields))
+		}
+		for i, want := range expectedFields {
+			if i >= len(volumeShowRule.RemoveFields) {
+				break
+			}
+			if volumeShowRule.RemoveFields[i] != want {
+				t.Errorf("volume show RemoveFields[%d] = %q, want %q", i, volumeShowRule.RemoveFields[i], want)
+			}
+		}
+	})
+
+	t.Run("WhenVolShowRule_ShouldHaveSameRemoveFieldsAsVolumeShow", func(t *testing.T) {
+		var volShowRule *CLIRule
+		for i := range rules {
+			if rules[i].Pattern == "vol show" {
+				volShowRule = &rules[i]
+				break
+			}
+		}
+		if volShowRule == nil {
+			t.Fatal("vol show rule not found")
+		}
+		if len(volShowRule.RemoveFields) != len(expectedFields) {
+			t.Errorf("vol show RemoveFields length = %d, want %d", len(volShowRule.RemoveFields), len(expectedFields))
+		}
+		for i, want := range expectedFields {
+			if i >= len(volShowRule.RemoveFields) {
+				break
+			}
+			if volShowRule.RemoveFields[i] != want {
+				t.Errorf("vol show RemoveFields[%d] = %q, want %q", i, volShowRule.RemoveFields[i], want)
+			}
+		}
+	})
+}
+
 func TestEvaluateRule_DefaultReason(t *testing.T) {
 	// Test that denied rule with empty reason gets default message
 	t.Run("WhenDeniedRuleHasEmptyReason_ShouldReturnDefaultMessage", func(t *testing.T) {

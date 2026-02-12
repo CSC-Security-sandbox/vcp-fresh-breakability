@@ -69,31 +69,46 @@ func fieldMatches(fieldName string, fieldsToRemove []string) bool {
 // - A header line with column names separated by spaces
 // - A separator line (dashes) or
 // - Multiple rows with aligned columns
+//
+// Key-value format has lines like "Field Name: value". Output may start with
+// message lines (e.g. "This is your first recorded login.") before key-value lines;
+// we scan the first portion and prefer key-value if any line contains ":" or "=".
 func isTabularOutput(lines []string) bool {
 	if len(lines) < 2 {
 		return false
 	}
 
-	// Look for separator line (dashes)
+	// Scan first portion: if any line looks like key-value (has ":" or "="),
+	// treat as key-value so RemoveFields runs (e.g. "volume show -instance" with login message).
+	scanLimit := len(lines)
+	if scanLimit > 30 {
+		scanLimit = 30
+	}
+	for i := 0; i < scanLimit; i++ {
+		line := strings.TrimSpace(lines[i])
+		if line == "" {
+			continue
+		}
+		if strings.Contains(line, ":") || strings.Contains(line, "=") {
+			return false
+		}
+	}
+
+	// Look for separator line (dashes) indicating a table
 	for i := 0; i < len(lines) && i < 5; i++ {
 		line := strings.TrimSpace(lines[i])
-		// Check if line is primarily dashes (separator)
 		if len(line) > 10 && strings.Count(line, "-") > len(line)/2 {
 			return true
 		}
 	}
 
-	// Check if first non-empty line looks like a header (multiple words without ":" or "=")
+	// No key-value lines in first portion and no separator: first non-empty line with
+	// multiple words and no colon may be a table header (e.g. "Volume Aggregate Physical_Used")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		// If line contains ":" or "=" it's likely key-value format
-		if strings.Contains(line, ":") || strings.Contains(line, "=") {
-			return false
-		}
-		// If line has multiple space-separated words without ":" or "=", might be tabular
 		words := strings.Fields(line)
 		if len(words) >= 3 {
 			return true

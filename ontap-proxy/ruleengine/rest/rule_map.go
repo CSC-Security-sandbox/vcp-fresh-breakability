@@ -8,14 +8,6 @@ import (
 // This uses the DSL-based rule engine for cleaner rule definitions.
 func GetProxyRules() map[string]Rule {
 	return map[string]Rule{
-		// Private API - deny all access
-		"/api/private/*": {
-			GET:    Deny{Name: "Private API access denied"},
-			POST:   Deny{Name: "Private API access denied"},
-			PATCH:  Deny{Name: "Private API access denied"},
-			DELETE: Deny{Name: "Private API access denied"},
-		},
-
 		// Storage Volumes - list and create
 		"/api/storage/volumes": {
 			GET: Allow{
@@ -105,6 +97,84 @@ func GetProxyRules() map[string]Rule {
 							"$.space.physical_used",
 						},
 					},
+				},
+			},
+		},
+
+		// Private CLI Volume rename - PATCH with query vserver, volume and body newname
+		"/api/private/cli/volume/rename": {
+			GET:    DenyAll{},
+			POST:   DenyAll{},
+			PATCH: When{
+				Name: "Private CLI volume rename validation",
+				Condition: And(
+					HasFields("newname"),
+					validatePrivateCLIVolumeRename,
+				),
+				IsTrue: Allow{
+					Name: "Allow private CLI volume rename",
+				},
+			},
+			DELETE: DenyAll{},
+		},
+
+		// Private CLI Volume - same controls as standard volume CRUD
+		// Must be defined before /api/private/* for exact match to take precedence
+		"/api/private/cli/volume": {
+			GET: Allow{
+				Name: "Allow private CLI volume listing",
+				ModifyResponse: RemoveFields{
+					Fields: []string{
+						"$.percent_used",
+						"$.physical_used",
+						"$.physical_used_percent",
+						"$.sis_space_saved",
+						"$.sis_space_saved_percent",
+						"$.dedupe_space_saved",
+						"$.dedupe_space_saved_percent",
+						"$.dedupe_space_shared",
+						"$.compression_space_saved",
+						"$.compression_space_saved_percent",
+					},
+				},
+			},
+			POST: When{
+				Name: "Private CLI volume creation validation",
+				Condition: And(
+					HasFields("size", "volume", "vserver"),
+					IfPresentThenValue("space_guarantee", "none"),
+					IfPresentThenValue("snaplock_type", "enterprise", "non_snaplock"),
+					IfPresentThenEquals("is_space_enforcement_logical", true),
+					IfPresentThenEquals("is_space_reporting_logical", true),
+					validatePrivateCLIVolumeCreation,
+				),
+				IsTrue: Allow{
+					Name: "Allow private CLI volume creation",
+					ModifyRequest: SetRequestFields{
+						Fields: map[string]interface{}{
+							"is_space_enforcement_logical": true,
+							"is_space_reporting_logical":   true,
+						},
+					},
+				},
+			},
+			PATCH: When{
+				Name: "Private CLI volume modification validation",
+				Condition: And(
+					IfPresentThenValue("space_guarantee", "none"),
+					IfPresentThenValue("snaplock_type", "enterprise", "non_snaplock"),
+					IfPresentThenEquals("is_space_enforcement_logical", true),
+					validatePrivateCLIVolumeModification,
+				),
+				IsTrue: Allow{
+					Name: "Allow private CLI volume modification",
+				},
+			},
+			DELETE: When{
+				Name:      "Private CLI volume deletion validation",
+				Condition: validatePrivateCLIVolumeDeletion,
+				IsTrue: Allow{
+					Name: "Allow private CLI volume deletion",
 				},
 			},
 		},

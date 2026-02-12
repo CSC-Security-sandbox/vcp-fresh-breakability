@@ -411,3 +411,208 @@ func TestValidateVolumeDeletion(t *testing.T) {
 		}
 	})
 }
+
+func TestValidatePrivateCLIVolumeCreation(t *testing.T) {
+	origSubmit := submitExpertModeVolumeOperation
+	defer func() { submitExpertModeVolumeOperation = origSubmit }()
+
+	const cacheKey = "unit-test-cache-key-priv-cli"
+
+	t.Run("WhenSuccess", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume", bytes.NewBufferString(`{"volume":"vol1","vserver":"vs0","size":1024}`))
+		r = r.WithContext(ctx)
+		ok, reason := _validatePrivateCLIVolumeCreation(r)
+		if !ok || reason != "" {
+			t.Fatalf("expected success, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("WhenMissingCacheKey", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return nil
+		}
+		r := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume", bytes.NewBufferString(`{"volume":"vol1","vserver":"vs0","size":1024}`))
+		ok, reason := _validatePrivateCLIVolumeCreation(r)
+		if ok || !strings.Contains(reason, "cache key not found") {
+			t.Fatalf("expected cache key error, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("WhenInvalidSize", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume", bytes.NewBufferString(`{"volume":"vol1","vserver":"vs0","size":"100GiB"}`))
+		r = r.WithContext(ctx)
+		ok, reason := _validatePrivateCLIVolumeCreation(r)
+		if ok || !strings.Contains(reason, "invalid value for field \"size\"") {
+			t.Fatalf("expected invalid size error, got ok=%v reason=%q", ok, reason)
+		}
+	})
+}
+
+func TestValidatePrivateCLIVolumeModification(t *testing.T) {
+	origSubmit := submitExpertModeVolumeOperation
+	defer func() { submitExpertModeVolumeOperation = origSubmit }()
+
+	const cacheKey = "unit-test-cache-key-priv-cli-mod"
+
+	t.Run("WhenSuccess", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPatch, "/api/private/cli/volume?vserver=vs1&volume=vol1", bytes.NewBufferString(`{"size":2048}`))
+		r = r.WithContext(ctx)
+		ok, reason := _validatePrivateCLIVolumeModification(r)
+		if !ok || reason != "" {
+			t.Fatalf("expected success, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("WhenMissingQueryParams", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPatch, "/api/private/cli/volume", bytes.NewBufferString(`{"size":2048}`))
+		r = r.WithContext(ctx)
+		ok, reason := _validatePrivateCLIVolumeModification(r)
+		if ok || !strings.Contains(reason, "missing required query parameter") {
+			t.Fatalf("expected missing query param error, got ok=%v reason=%q", ok, reason)
+		}
+	})
+}
+
+func TestValidatePrivateCLIVolumeDeletion(t *testing.T) {
+	origSubmit := submitExpertModeVolumeOperation
+	defer func() { submitExpertModeVolumeOperation = origSubmit }()
+
+	const cacheKey = "unit-test-cache-key-priv-cli-del"
+
+	t.Run("WhenSuccess", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodDelete, "/api/private/cli/volume?vserver=vs1&volume=vol1", nil)
+		r = r.WithContext(ctx)
+		ok, reason := _validatePrivateCLIVolumeDeletion(r)
+		if !ok || reason != "" {
+			t.Fatalf("expected success, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("WhenMissingQueryParams", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodDelete, "/api/private/cli/volume", nil)
+		r = r.WithContext(ctx)
+		ok, reason := _validatePrivateCLIVolumeDeletion(r)
+		if ok || !strings.Contains(reason, "missing required query parameter") {
+			t.Fatalf("expected missing query param error, got ok=%v reason=%q", ok, reason)
+		}
+	})
+}
+
+func TestValidatePrivateCLIVolumeRename(t *testing.T) {
+	origSubmit := submitExpertModeVolumeRename
+	defer func() { submitExpertModeVolumeRename = origSubmit }()
+
+	const cacheKey = "unit-test-cache-key-priv-cli-rename"
+
+	t.Run("WhenSuccess", func(t *testing.T) {
+		submitExpertModeVolumeRename = func(ctx context.Context, req *coreapi.ExpertModeVolumeRenameV1, params coreapi.V1ExpertModeVolumeRenameParams, jwt string, logger log.Logger) error {
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPatch, "/api/private/cli/volume/rename?vserver=vs1&volume=vol1", bytes.NewBufferString(`{"newname":"vol1_renamed"}`))
+		r = r.WithContext(ctx)
+		r.Header.Set("Content-Type", "application/json")
+		ok, reason := _validatePrivateCLIVolumeRename(r)
+		if !ok || reason != "" {
+			t.Fatalf("expected success, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("WhenMissingCacheKey", func(t *testing.T) {
+		submitExpertModeVolumeRename = func(ctx context.Context, req *coreapi.ExpertModeVolumeRenameV1, params coreapi.V1ExpertModeVolumeRenameParams, jwt string, logger log.Logger) error {
+			return nil
+		}
+		r := httptest.NewRequest(http.MethodPatch, "/api/private/cli/volume/rename?vserver=vs1&volume=vol1", bytes.NewBufferString(`{"newname":"vol1_renamed"}`))
+		r.Header.Set("Content-Type", "application/json")
+		ok, reason := _validatePrivateCLIVolumeRename(r)
+		if ok || !strings.Contains(reason, "cache key not found") {
+			t.Fatalf("expected cache key error, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("WhenMissingQueryParams", func(t *testing.T) {
+		submitExpertModeVolumeRename = func(ctx context.Context, req *coreapi.ExpertModeVolumeRenameV1, params coreapi.V1ExpertModeVolumeRenameParams, jwt string, logger log.Logger) error {
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPatch, "/api/private/cli/volume/rename", bytes.NewBufferString(`{"newname":"vol1_renamed"}`))
+		r = r.WithContext(ctx)
+		r.Header.Set("Content-Type", "application/json")
+		ok, reason := _validatePrivateCLIVolumeRename(r)
+		if ok || !strings.Contains(reason, "missing required query parameters") {
+			t.Fatalf("expected missing query params error, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("WhenMissingNewname", func(t *testing.T) {
+		submitExpertModeVolumeRename = func(ctx context.Context, req *coreapi.ExpertModeVolumeRenameV1, params coreapi.V1ExpertModeVolumeRenameParams, jwt string, logger log.Logger) error {
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPatch, "/api/private/cli/volume/rename?vserver=vs1&volume=vol1", bytes.NewBufferString(`{}`))
+		r = r.WithContext(ctx)
+		r.Header.Set("Content-Type", "application/json")
+		ok, reason := _validatePrivateCLIVolumeRename(r)
+		if ok || !strings.Contains(reason, "newname") {
+			t.Fatalf("expected missing newname error, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("WhenSubmitFails", func(t *testing.T) {
+		submitExpertModeVolumeRename = func(ctx context.Context, req *coreapi.ExpertModeVolumeRenameV1, params coreapi.V1ExpertModeVolumeRenameParams, jwt string, logger log.Logger) error {
+			return errors.New("rename failed")
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPatch, "/api/private/cli/volume/rename?vserver=vs1&volume=vol1", bytes.NewBufferString(`{"newname":"vol1_renamed"}`))
+		r = r.WithContext(ctx)
+		r.Header.Set("Content-Type", "application/json")
+		ok, reason := _validatePrivateCLIVolumeRename(r)
+		if ok || !strings.Contains(reason, "rename failed") {
+			t.Fatalf("expected submit failure, got ok=%v reason=%q", ok, reason)
+		}
+	})
+}

@@ -14,10 +14,15 @@ import (
 )
 
 var (
-	submitExpertModeVolumeOperation = core.SubmitExpertModeVolumeOperation
-	validateVolumeCreation          = _validateVolumeCreation
-	validateVolumeModification      = _validateVolumeModification
-	validateVolumeDeletion          = _validateVolumeDeletion
+	submitExpertModeVolumeOperation      = core.SubmitExpertModeVolumeOperation
+	submitExpertModeVolumeRename         = core.SubmitExpertModeVolumeRename
+	validateVolumeCreation               = _validateVolumeCreation
+	validateVolumeModification           = _validateVolumeModification
+	validateVolumeDeletion               = _validateVolumeDeletion
+	validatePrivateCLIVolumeCreation     = _validatePrivateCLIVolumeCreation
+	validatePrivateCLIVolumeModification = _validatePrivateCLIVolumeModification
+	validatePrivateCLIVolumeDeletion     = _validatePrivateCLIVolumeDeletion
+	validatePrivateCLIVolumeRename        = _validatePrivateCLIVolumeRename
 )
 
 type VolumeRequestFields struct {
@@ -167,6 +172,173 @@ func _validateVolumeDeletion(r *http.Request) (bool, string) {
 	return true, ""
 }
 
+func _validatePrivateCLIVolumeCreation(r *http.Request) (bool, string) {
+	logger := util.GetLogger(r.Context())
+	requestBody, parseErr := dsl.GetParsedBody(r)
+	if parseErr != "" {
+		return false, parseErr
+	}
+
+	cacheKey := cache.GetAuthDataKeyFromContext(r.Context())
+	if cacheKey == "" {
+		return false, "cache key not found in context"
+	}
+	authData, exists := cache.GetFromAuthDataCache(cacheKey)
+	if !exists || authData == nil {
+		return false, fmt.Sprintf("auth data not found in cache for key: %s", cacheKey)
+	}
+
+	fields := parsePrivateCLIVolumeRequestFields(r, requestBody)
+
+	// Reject invalid size (parsed to 0)
+	if fields.SizeInBytes == 0 {
+		orig := requestBody["size"]
+		return false, fmt.Sprintf("\"%v\" is an invalid value for field \"size\"", orig)
+	}
+
+	expertVolumeRequest := &coreapi.ExpertModeVolumeV1{
+		ProjectNumber: authData.AccountName,
+		PoolUUID:      authData.PoolID,
+		Action:        coreapi.ExpertModeVolumeV1ActionCreate,
+		VolumeName:    fields.VolumeName,
+		SizeInBytes:   fields.SizeInBytes,
+		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
+		SvmName:       fields.SvmName,
+	}
+
+	if err := submitExpertModeVolumeOperation(r.Context(), expertVolumeRequest, "", logger); err != nil {
+		return false, err.Error()
+	}
+
+	return true, ""
+}
+
+func _validatePrivateCLIVolumeModification(r *http.Request) (bool, string) {
+	logger := util.GetLogger(r.Context())
+	requestBody, parseErr := dsl.GetParsedBody(r)
+	if parseErr != "" {
+		return false, parseErr
+	}
+
+	cacheKey := cache.GetAuthDataKeyFromContext(r.Context())
+	if cacheKey == "" {
+		return false, "cache key not found in context"
+	}
+	authData, exists := cache.GetFromAuthDataCache(cacheKey)
+	if !exists || authData == nil {
+		return false, fmt.Sprintf("auth data not found in cache for key: %s", cacheKey)
+	}
+
+	fields := parsePrivateCLIVolumeRequestFields(r, requestBody)
+
+	// Trigger reconcile only if volume size is being modified
+	sizeValue, sizeExists := requestBody["size"]
+	if !sizeExists {
+		return true, ""
+	}
+	if fields.SizeInBytes == 0 {
+		return false, fmt.Sprintf("\"%v\" is an invalid value for field \"size\"", sizeValue)
+	}
+
+	volumeName, svmName := extractVolumeFromPrivateCLIRequest(r)
+	if volumeName == "" || svmName == "" {
+		return false, "missing required query parameters: vserver and volume"
+	}
+
+	expertVolumeRequest := &coreapi.ExpertModeVolumeV1{
+		ProjectNumber: authData.AccountName,
+		PoolUUID:      authData.PoolID,
+		Action:        coreapi.ExpertModeVolumeV1ActionUpdate,
+		VolumeName:    volumeName,
+		SizeInBytes:   fields.SizeInBytes,
+		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
+		SvmName:       coreapi.NewOptString(svmName),
+	}
+
+	if err := submitExpertModeVolumeOperation(r.Context(), expertVolumeRequest, "", logger); err != nil {
+		return false, err.Error()
+	}
+
+	return true, ""
+}
+
+func _validatePrivateCLIVolumeDeletion(r *http.Request) (bool, string) {
+	logger := util.GetLogger(r.Context())
+	cacheKey := cache.GetAuthDataKeyFromContext(r.Context())
+	if cacheKey == "" {
+		return false, "cache key not found in context"
+	}
+	authData, exists := cache.GetFromAuthDataCache(cacheKey)
+	if !exists || authData == nil {
+		return false, fmt.Sprintf("auth data not found in cache for key: %s", cacheKey)
+	}
+
+	volumeName, svmName := extractVolumeFromPrivateCLIRequest(r)
+	if volumeName == "" || svmName == "" {
+		return false, "missing required query parameters: vserver and volume"
+	}
+
+	expertVolumeRequest := &coreapi.ExpertModeVolumeV1{
+		ProjectNumber: authData.AccountName,
+		PoolUUID:      authData.PoolID,
+		Action:        coreapi.ExpertModeVolumeV1ActionDelete,
+		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
+		VolumeName:    volumeName,
+		SvmName:       coreapi.NewOptString(svmName),
+	}
+
+	if err := submitExpertModeVolumeOperation(r.Context(), expertVolumeRequest, "", logger); err != nil {
+		return false, err.Error()
+	}
+
+	return true, ""
+}
+
+// _validatePrivateCLIVolumeRename validates volume rename via the private CLI API.
+// Query params: vserver, volume. Body: newname. Submits to core API (expert mode volume rename).
+func _validatePrivateCLIVolumeRename(r *http.Request) (bool, string) {
+	logger := util.GetLogger(r.Context())
+	requestBody, parseErr := dsl.GetParsedBody(r)
+	if parseErr != "" {
+		return false, parseErr
+	}
+
+	cacheKey := cache.GetAuthDataKeyFromContext(r.Context())
+	if cacheKey == "" {
+		return false, "cache key not found in context"
+	}
+	authData, exists := cache.GetFromAuthDataCache(cacheKey)
+	if !exists || authData == nil {
+		return false, fmt.Sprintf("auth data not found in cache for key: %s", cacheKey)
+	}
+
+	volumeName, svmName := extractVolumeFromPrivateCLIRequest(r)
+	if volumeName == "" || svmName == "" {
+		return false, "missing required query parameters: vserver and volume"
+	}
+
+	newName, _ := requestBody["newname"].(string)
+	if newName == "" {
+		return false, "missing required field \"newname\" in request body"
+	}
+
+	renameRequest := &coreapi.ExpertModeVolumeRenameV1{
+		Name:          newName,
+		ProjectNumber: authData.AccountName,
+		PoolUUID:      authData.PoolID,
+		SvmName:       svmName,
+	}
+	params := coreapi.V1ExpertModeVolumeRenameParams{
+		Name: volumeName,
+	}
+
+	if err := submitExpertModeVolumeRename(r.Context(), renameRequest, params, "", logger); err != nil {
+		return false, err.Error()
+	}
+
+	return true, ""
+}
+
 // WrapValidator wraps a simple bool-returning validator into a Condition.
 // Useful for validators that don't need to return specific error messages.
 func WrapValidator(validator func(r *http.Request) bool, failureReason string) dsl.Condition {
@@ -187,6 +359,48 @@ func extractVolumeUUIDFromRequest(r *http.Request) coreapi.OptString {
 		}
 	}
 	return coreapi.OptString{}
+}
+
+// parsePrivateCLIVolumeRequestFields extracts volume request fields from private CLI API format.
+// Private CLI uses: volume (not name), vserver (not svm.name), and size in body for POST;
+// for PATCH, vserver and volume are in query params, size and other fields in body.
+// REST converts CLI hyphens to underscores (e.g. space_guarantee).
+// requestBody must be the already-parsed body from the caller (parse once, pass in) to avoid re-reading the request.
+func parsePrivateCLIVolumeRequestFields(r *http.Request, requestBody map[string]interface{}) VolumeRequestFields {
+	fields := VolumeRequestFields{}
+	query := r.URL.Query()
+
+	// Use body first when provided (POST has body; PATCH may have body)
+	if requestBody != nil {
+		if v, ok := requestBody["volume"].(string); ok && v != "" {
+			fields.VolumeName = v
+		}
+		if v, ok := requestBody["vserver"].(string); ok && v != "" {
+			fields.SvmName = coreapi.NewOptString(v)
+		}
+		fields.SizeInBytes = parseSize(requestBody["size"])
+	}
+
+	// For PATCH/DELETE, keys come from query; query overrides if body was empty
+	if fields.VolumeName == "" {
+		if v := query.Get("volume"); v != "" {
+			fields.VolumeName = v
+		}
+	}
+	if !fields.SvmName.IsSet() {
+		if v := query.Get("vserver"); v != "" {
+			fields.SvmName = coreapi.NewOptString(v)
+		}
+	}
+
+	return fields
+}
+
+// extractVolumeFromPrivateCLIRequest returns volume name and SVM name from private CLI query params.
+// Used for PATCH and DELETE where identity is specified via vserver and volume query parameters.
+func extractVolumeFromPrivateCLIRequest(r *http.Request) (volumeName, svmName string) {
+	query := r.URL.Query()
+	return query.Get("volume"), query.Get("vserver")
 }
 
 // parseSize parses a size that may be a float64 (bytes) or a string like "10GB" into bytes.
