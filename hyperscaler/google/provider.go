@@ -1124,6 +1124,28 @@ func (gcpService *GcpServices) AttachOrUpdateRolesForServiceAccounts(roles []str
 	return gcpService.setProjectIamPolicy(projectID, policy.Etag, projectIAMPolicyBindings)
 }
 
+// GetServiceAccountRoles retrieves all IAM roles assigned to a service account in a specified project
+func (gcpService *GcpServices) GetServiceAccountRoles(serviceAccountEmail, projectID string) ([]string, error) {
+	policy, err := gcpService.getProjectIamPolicy(projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	roles := []string{}
+	serviceAccountMember := "serviceAccount:" + serviceAccountEmail
+
+	for _, binding := range policy.Bindings {
+		for _, member := range binding.Members {
+			if strings.EqualFold(member, serviceAccountMember) {
+				roles = append(roles, binding.Role)
+				break
+			}
+		}
+	}
+
+	return roles, nil
+}
+
 // RemoveRolesFromServiceAccounts removes specified roles from a service account
 func (gcpService *GcpServices) RemoveRolesFromServiceAccounts(roles []string, serviceAccountEmail, projectID string) error {
 	policy, err := gcpService.getProjectIamPolicy(projectID)

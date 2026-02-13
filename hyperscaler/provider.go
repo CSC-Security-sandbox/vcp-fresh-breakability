@@ -48,6 +48,7 @@ type Services interface {
 	IsServiceAccountCreated(email string) (account *models.ServiceAccount, isSACreated bool, err error)
 	AttachOrUpdateRolesForServiceAccounts(roles []string, serviceAccountEmail, projectID string) error
 	RemoveRolesFromServiceAccounts(roles []string, serviceAccountEmail, projectID string) error
+	GetServiceAccountRoles(serviceAccountEmail, projectID string) ([]string, error)
 	DeleteServiceAccount(project string, email string) error
 	GetServiceAccountByEmail(email string) (*models.ServiceAccount, error)
 

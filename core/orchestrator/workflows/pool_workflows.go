@@ -1342,6 +1342,19 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
+
+		// cleanup service account roles and permissions as an orphan child workflow
+		// This prevents orphaned IAM policies that would otherwise persist for 60 days
+		cleanupCtx := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+			ParentClosePolicy:        enums.PARENT_CLOSE_POLICY_ABANDON,
+			WorkflowExecutionTimeout: workflowengine.GetWorkflowGlobalTimeout(),
+		})
+
+		childWorkflowFuture := workflow.ExecuteChildWorkflow(cleanupCtx, CleanupServiceAccountPermissionsWorkflow, dbPool, retryPolicy)
+
+		if err := childWorkflowFuture.GetChildWorkflowExecution().Get(cleanupCtx, &workflow.Execution{}); err != nil {
+			wf.Logger.Warnf("Failed to start cleanup IAM permissions workflow for pool %s: %v", dbPool.UUID, err)
+		}
 	}
 
 	if !disableVsaCleanupOnVLMFailure || dbPool.State != models.LifeCycleStateError {
@@ -2560,5 +2573,42 @@ func syncActiveDirectoryInVcp(ctx workflow.Context, params *common.CreatePoolPar
 	}
 
 	logger.Infof("Successfully synced Active Directory from CVP to VCP for pool: %s", pool.Name)
+	return nil
+}
+
+// CleanupServiceAccountPermissionsWorkflow is an orphan child workflow that cleans up
+// service account IAM permissions from tenant projects.
+func CleanupServiceAccountPermissionsWorkflow(ctx workflow.Context, pool *datamodel.Pool, retryPolicy *WorkflowRetryPolicy) error {
+	logger := util.GetLogger(ctx)
+	info := workflow.GetInfo(ctx)
+
+	logger.Infof("Starting CleanupServiceAccountPermissionsWorkflow for pool %s (UUID: %s), WorkflowID: %s",
+		pool.Name, pool.UUID, info.WorkflowExecution.ID)
+
+	// Get the service-account-specific retry policy
+	saRetryPolicy, err := populateServiceAccountRetryPolicyParams()
+	if err != nil {
+		return ConvertToVSAError(err)
+	}
+
+	saActivityOptions := workflow.ActivityOptions{
+		StartToCloseTimeout: saRetryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:        saRetryPolicy.InitialInterval,
+			BackoffCoefficient:     saRetryPolicy.BackoffCoefficient,
+			MaximumInterval:        saRetryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(saRetryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
+		},
+	}
+
+	activityCtx := workflow.WithActivityOptions(ctx, saActivityOptions)
+	poolActivity := &activities.PoolActivity{}
+
+	err = workflow.ExecuteActivity(activityCtx, poolActivity.CleanupServiceAccountPermissionsInTenantProjects, pool).Get(activityCtx, nil)
+	if err != nil {
+		return ConvertToVSAError(err)
+	}
 	return nil
 }

@@ -957,6 +957,12 @@ func (a *VolumeCreateActivity) SetupCrossRegionBackupPermissionsActivity(ctx con
 
 	logger.Infof("Successfully granted storage.objectAdmin role to service account %s in backup project %s for cross-region access", poolServiceAccount, backupTenantProject)
 
+	// Track the tenant project for IAM cleanup during pool deletion
+	err = addServiceAccountPermissionProject(ctx, a.SE, pool.UUID, backupTenantProject)
+	if err != nil {
+		logger.Errorf("Failed to track tenant project %s for pool %s: %v", backupTenantProject, pool.UUID, err)
+	}
+
 	return nil
 }
 

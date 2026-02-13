@@ -15435,3 +15435,228 @@ func TestPoolActivity_GetCreateJobByResourceUUID_Success_WithSnapshotJobType(t *
 	mockStorage.AssertExpectations(t)
 }
 
+func TestCleanupServiceAccountPermissionsInTenantProjects_NilPoolAttributes(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	env.RegisterActivity(activity.CleanupServiceAccountPermissionsInTenantProjects)
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{UUID: "pool-uuid"},
+		ServiceAccountId: "sa-id",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "regional-tenant-project",
+		},
+		PoolAttributes: nil,
+	}
+
+	val, err := env.ExecuteActivity(activity.CleanupServiceAccountPermissionsInTenantProjects, pool)
+	assert.Error(t, err)
+	var result error
+	if err == nil {
+		err = val.Get(&result)
+		assert.Error(t, err)
+	}
+}
+
+func TestCleanupServiceAccountPermissionsInTenantProjects_NoTenantProjects(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	env.RegisterActivity(activity.CleanupServiceAccountPermissionsInTenantProjects)
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{UUID: "pool-uuid"},
+		ServiceAccountId: "sa-id",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "regional-tenant-project",
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			ServiceAccountPermissionProjects: []string{},
+		},
+	}
+
+	_, err := env.ExecuteActivity(activity.CleanupServiceAccountPermissionsInTenantProjects, pool)
+	assert.NoError(t, err)
+}
+
+func TestCleanupServiceAccountPermissionsInTenantProjects_GetCloudServiceError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	originalGetCloudService := activities.GetCloudService
+	defer func() {
+		activities.GetCloudService = originalGetCloudService
+	}()
+
+	activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+		return nil, fmt.Errorf("failed to get GCP service")
+	}
+
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	env.RegisterActivity(activity.CleanupServiceAccountPermissionsInTenantProjects)
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{UUID: "pool-uuid"},
+		ServiceAccountId: "sa-id",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "regional-tenant-project",
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			ServiceAccountPermissionProjects: []string{"tenant-project-1"},
+		},
+	}
+
+	val, err := env.ExecuteActivity(activity.CleanupServiceAccountPermissionsInTenantProjects, pool)
+	assert.Error(t, err)
+	var result error
+	if err == nil {
+		err = val.Get(&result)
+		assert.Error(t, err)
+	}
+}
+
+func TestCleanupServiceAccountPermissionsInTenantProjects_GetRolesError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	originalGetCloudService := activities.GetCloudService
+	defer func() {
+		activities.GetCloudService = originalGetCloudService
+	}()
+
+	mockCloudService := hyperscaler2.NewMockGoogleServices(t)
+	activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+		return mockCloudService, nil
+	}
+
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	env.RegisterActivity(activity.CleanupServiceAccountPermissionsInTenantProjects)
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{UUID: "pool-uuid"},
+		ServiceAccountId: "sa-id",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "regional-tenant-project",
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			ServiceAccountPermissionProjects: []string{"tenant-project-1"},
+		},
+	}
+
+	saEmail := "sa-id@regional-tenant-project.iam.gserviceaccount.com"
+	mockCloudService.On("GetServiceAccountRoles", saEmail, "tenant-project-1").Return(nil, fmt.Errorf("failed to fetch roles"))
+
+	val, err := env.ExecuteActivity(activity.CleanupServiceAccountPermissionsInTenantProjects, pool)
+	assert.Error(t, err)
+	var result error
+	if err == nil {
+		err = val.Get(&result)
+		assert.Error(t, err)
+	}
+	mockCloudService.AssertExpectations(t)
+}
+
+func TestCleanupServiceAccountPermissionsInTenantProjects_RemoveRolesError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	originalGetCloudService := activities.GetCloudService
+	defer func() {
+		activities.GetCloudService = originalGetCloudService
+	}()
+
+	mockCloudService := hyperscaler2.NewMockGoogleServices(t)
+	activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+		return mockCloudService, nil
+	}
+
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	env.RegisterActivity(activity.CleanupServiceAccountPermissionsInTenantProjects)
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{UUID: "pool-uuid"},
+		ServiceAccountId: "sa-id",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "regional-tenant-project",
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			ServiceAccountPermissionProjects: []string{"tenant-project-1"},
+		},
+	}
+
+	saEmail := "sa-id@regional-tenant-project.iam.gserviceaccount.com"
+	roles := []string{"roles/storage.objectAdmin"}
+	mockCloudService.On("GetServiceAccountRoles", saEmail, "tenant-project-1").Return(roles, nil)
+	mockCloudService.On("RemoveRolesFromServiceAccounts", roles, saEmail, "tenant-project-1").Return(fmt.Errorf("failed to remove roles"))
+
+	val, err := env.ExecuteActivity(activity.CleanupServiceAccountPermissionsInTenantProjects, pool)
+	assert.Error(t, err)
+	var result error
+	if err == nil {
+		err = val.Get(&result)
+		assert.Error(t, err)
+	}
+	mockCloudService.AssertExpectations(t)
+}
+
+func TestCleanupServiceAccountPermissionsInTenantProjects_MultipleProjectsWithFailures(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	originalGetCloudService := activities.GetCloudService
+	defer func() {
+		activities.GetCloudService = originalGetCloudService
+	}()
+
+	mockCloudService := hyperscaler2.NewMockGoogleServices(t)
+	activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+		return mockCloudService, nil
+	}
+
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	env.RegisterActivity(activity.CleanupServiceAccountPermissionsInTenantProjects)
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{UUID: "pool-uuid"},
+		ServiceAccountId: "sa-id",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "regional-tenant-project",
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			ServiceAccountPermissionProjects: []string{"tenant-project-1", "tenant-project-2", "tenant-project-3"},
+		},
+	}
+
+	saEmail := "sa-id@regional-tenant-project.iam.gserviceaccount.com"
+	roles := []string{"roles/storage.objectAdmin"}
+
+	// First project - success
+	mockCloudService.On("GetServiceAccountRoles", saEmail, "tenant-project-1").Return(roles, nil)
+	mockCloudService.On("RemoveRolesFromServiceAccounts", roles, saEmail, "tenant-project-1").Return(nil)
+
+	// Second project - failure to fetch roles
+	mockCloudService.On("GetServiceAccountRoles", saEmail, "tenant-project-2").Return(nil, fmt.Errorf("fetch error"))
+
+	// Third project - failure to remove roles
+	mockCloudService.On("GetServiceAccountRoles", saEmail, "tenant-project-3").Return(roles, nil)
+	mockCloudService.On("RemoveRolesFromServiceAccounts", roles, saEmail, "tenant-project-3").Return(fmt.Errorf("remove error"))
+
+	val, err := env.ExecuteActivity(activity.CleanupServiceAccountPermissionsInTenantProjects, pool)
+	assert.Error(t, err)
+	var result error
+	if err == nil {
+		err = val.Get(&result)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "2/3 failures")
+	}
+	mockCloudService.AssertExpectations(t)
+}

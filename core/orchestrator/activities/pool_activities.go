@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -3549,4 +3550,126 @@ func (j *PoolActivity) MarshalVLMConfig(ctx context.Context, vlmConfig vlm.VLMCo
 		return "", vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return string(marshalledVlmConfig), nil
+}
+
+// addServiceAccountPermissionProject adds a tenant project to the pool's service account permission projects list.
+// When IAM roles are granted to pool service accounts in tenant projects (e.g., for cross-region backup),
+// we track those projects so we can proactively clean up the IAM policies when the pool is deleted.
+// This prevents orphaned IAM policies that would otherwise persist for 60 days.
+func addServiceAccountPermissionProject(ctx context.Context, se database.Storage, poolUUID string, tenantProject string) error {
+	logger := util.GetLogger(ctx)
+	pool, err := se.GetPoolByUUID(ctx, poolUUID)
+	if err != nil {
+		logger.Errorf("Failed to get pool %s: %v", poolUUID, err)
+		return err
+	}
+
+	if pool.PoolAttributes == nil {
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("pool %s has nil PoolAttributes", poolUUID))
+	}
+
+	// Initializing the ServiceAccountPermissionProjects
+	if pool.PoolAttributes.ServiceAccountPermissionProjects == nil {
+		pool.PoolAttributes.ServiceAccountPermissionProjects = []string{}
+	}
+
+	// Check if a tenant project is already tracked (idempotent)
+	if slices.Contains(pool.PoolAttributes.ServiceAccountPermissionProjects, tenantProject) {
+		logger.Infof("Tenant project %s already tracked for pool %s", tenantProject, poolUUID)
+		return nil
+	}
+
+	pool.PoolAttributes.ServiceAccountPermissionProjects = append(pool.PoolAttributes.ServiceAccountPermissionProjects, tenantProject)
+
+	updates := map[string]interface{}{
+		"pool_attributes": pool.PoolAttributes,
+	}
+
+	if err := se.UpdatePoolFields(ctx, poolUUID, updates); err != nil {
+		logger.Errorf("Failed to update pool %s with tenant project: %v", poolUUID, err)
+		return err
+	}
+
+	logger.Infof("Successfully tracked tenant project %s for pool %s", tenantProject, poolUUID)
+	return nil
+}
+
+// CleanupServiceAccountPermissionsInTenantProjects removes all IAM roles assigned to the pool's service account
+func (j *PoolActivity) CleanupServiceAccountPermissionsInTenantProjects(ctx context.Context, pool *datamodel.Pool) error {
+	logger := util.GetLogger(ctx)
+	activityStartTime := time.Now()
+	activity.RecordHeartbeat(ctx, "Starting service account permissions cleanup in tenant projects")
+
+	if pool.PoolAttributes == nil {
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("pool %s has nil PoolAttributes", pool.UUID))
+	}
+
+	if len(pool.PoolAttributes.ServiceAccountPermissionProjects) == 0 {
+		logger.Debugf("No tenant projects to cleanup for pool %s", pool.UUID)
+		return nil
+	}
+
+	// Initialize GCP service and construct service account email
+	gcpService, err := GetCloudService(ctx)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get GCP service: %w", err))
+	}
+
+	saEmail := utils.ConstructServiceAccountEmail(pool.ServiceAccountId, pool.ClusterDetails.RegionalTenantProject)
+	tenantProjects := pool.PoolAttributes.ServiceAccountPermissionProjects
+	totalProjects := len(tenantProjects)
+
+	logger.Infof("Cleaning up all IAM roles for service account %s from %d tenant projects", saEmail, totalProjects)
+	var failures []string
+
+	// Cleanup IAM roles from each tenant project
+	for i, tenantProject := range tenantProjects {
+		projectStartTime := time.Now()
+		logger.Debugf("Starting cleanup for tenant project %s (%d/%d)", tenantProject, i+1, totalProjects)
+
+		// Fetch all roles assigned to the service account in this tenant project
+		roles, err := getServiceAccountRolesInProject(gcpService, saEmail, tenantProject)
+		if err != nil {
+			projectDuration := time.Since(projectStartTime)
+			logger.Errorf("Failed to fetch IAM roles for service account %s in tenant project %s: %v (duration: %v)", saEmail, tenantProject, err, projectDuration)
+			failures = append(failures, fmt.Sprintf("project %s: failed to fetch roles: %v", tenantProject, err))
+			continue
+		}
+
+		if len(roles) == 0 {
+			logger.Debugf("No IAM roles found for service account %s in tenant project %s", saEmail, tenantProject)
+		} else {
+			logger.Debugf("Found %d IAM role(s) for service account %s in tenant project %s: %v", len(roles), saEmail, tenantProject, roles)
+			if err := gcpService.RemoveRolesFromServiceAccounts(roles, saEmail, tenantProject); err != nil {
+				projectDuration := time.Since(projectStartTime)
+				logger.Errorf("Failed to remove IAM roles from tenant project %s: %v (duration: %v)", tenantProject, err, projectDuration)
+				failures = append(failures, fmt.Sprintf("project %s: failed to remove roles: %v", tenantProject, err))
+				continue
+			}
+			projectDuration := time.Since(projectStartTime)
+			logger.Debugf("Successfully removed %d IAM role(s) from tenant project %s (duration: %v)", len(roles), tenantProject, projectDuration)
+		}
+
+		// Record heartbeat every 5 projects or at the end
+		if (i+1)%5 == 0 || i == totalProjects-1 {
+			activity.RecordHeartbeat(ctx, fmt.Sprintf("Cleaned up %d/%d tenant projects", i+1, totalProjects))
+		}
+	}
+
+	totalActivityDuration := time.Since(activityStartTime)
+
+	if len(failures) > 0 {
+		errMsg := fmt.Sprintf("IAM cleanup completed with %d/%d failures: %s", len(failures), totalProjects, strings.Join(failures, "; "))
+		logger.Errorf("Activity completed with failures - total duration: %v, projects processed: %d", totalActivityDuration, totalProjects)
+		return vsaerrors.WrapAsTemporalApplicationError(errors.New(errMsg))
+	}
+
+	logger.Infof("Successfully cleaned up IAM roles from all %d tenant projects - total activity duration: %v (avg per project: %v)",
+		totalProjects, totalActivityDuration, totalActivityDuration/time.Duration(totalProjects))
+	return nil
+}
+
+// getServiceAccountRolesInProject fetches all IAM roles assigned to a service account in a specific project.
+func getServiceAccountRolesInProject(gcpService hyperscaler2.Services, saEmail string, projectID string) ([]string, error) {
+	return gcpService.GetServiceAccountRoles(saEmail, projectID)
 }

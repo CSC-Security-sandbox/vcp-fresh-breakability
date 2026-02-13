@@ -2383,6 +2383,65 @@ func (_c *MockGoogleServices_GetServiceAccountByEmail_Call) RunAndReturn(run fun
 	return _c
 }
 
+// GetServiceAccountRoles provides a mock function with given fields: serviceAccountEmail, projectID
+func (_m *MockGoogleServices) GetServiceAccountRoles(serviceAccountEmail string, projectID string) ([]string, error) {
+	ret := _m.Called(serviceAccountEmail, projectID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetServiceAccountRoles")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string) ([]string, error)); ok {
+		return rf(serviceAccountEmail, projectID)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) []string); ok {
+		r0 = rf(serviceAccountEmail, projectID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(serviceAccountEmail, projectID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_GetServiceAccountRoles_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetServiceAccountRoles'
+type MockGoogleServices_GetServiceAccountRoles_Call struct {
+	*mock.Call
+}
+
+// GetServiceAccountRoles is a helper method to define mock.On call
+//   - serviceAccountEmail string
+//   - projectID string
+func (_e *MockGoogleServices_Expecter) GetServiceAccountRoles(serviceAccountEmail interface{}, projectID interface{}) *MockGoogleServices_GetServiceAccountRoles_Call {
+	return &MockGoogleServices_GetServiceAccountRoles_Call{Call: _e.mock.On("GetServiceAccountRoles", serviceAccountEmail, projectID)}
+}
+
+func (_c *MockGoogleServices_GetServiceAccountRoles_Call) Run(run func(serviceAccountEmail string, projectID string)) *MockGoogleServices_GetServiceAccountRoles_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_GetServiceAccountRoles_Call) Return(_a0 []string, _a1 error) *MockGoogleServices_GetServiceAccountRoles_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_GetServiceAccountRoles_Call) RunAndReturn(run func(string, string) ([]string, error)) *MockGoogleServices_GetServiceAccountRoles_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetServiceNetOpStatus provides a mock function with given fields: operationName
 func (_m *MockGoogleServices) GetServiceNetOpStatus(operationName string) (*models.ComputeOperation, error) {
 	ret := _m.Called(operationName)

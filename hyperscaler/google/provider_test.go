@@ -5550,6 +5550,16 @@ func TestRotateObjectsInParallel_ContextCancelledWhileFeeding(t *testing.T) {
 		{Name: "obj1", KMSKeyName: "old"},
 	}
 
+	origCopier := newObjectCopier
+	defer func() { newObjectCopier = origCopier }()
+
+	newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
+		return &fakeCopier{
+			result: &storage.ObjectAttrs{KMSKeyName: "new-key"},
+			err:    nil,
+		}
+	}
+
 	rotated, err := rotateObjectsInParallel(
 		ctx,
 		nil,
@@ -5619,4 +5629,161 @@ func TestRotateObjectsInParallel_ContextCancelledWhileCollecting(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "context cancelled while collecting CMEK rotation results")
 	assert.Equal(t, 0, rotated)
+}
+
+func TestGetServiceAccountRoles(t *testing.T) {
+	projectID := "test-project"
+	serviceAccountEmail := "test-sa@test-project.iam.gserviceaccount.com"
+
+	t.Run("WhenGetServiceAccountRolesSuccess", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock policy response for getIamPolicy
+		getPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "test-etag",
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role: "roles/storage.objectAdmin",
+					Members: []string{
+						"serviceAccount:" + serviceAccountEmail,
+						"user:test@example.com",
+					},
+				},
+				{
+					Role: "roles/viewer",
+					Members: []string{
+						"serviceAccount:" + serviceAccountEmail,
+					},
+				},
+				{
+					Role: "roles/editor",
+					Members: []string{
+						"user:other@example.com",
+					},
+				},
+			},
+		}
+
+		callCount := 0
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			callCount++
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":getIamPolicy") {
+				response, err := json.Marshal(getPolicyResp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		roles, err := gService.GetServiceAccountRoles(serviceAccountEmail, projectID)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, roles)
+		assert.Equal(tt, 2, len(roles))
+		assert.Contains(tt, roles, "roles/storage.objectAdmin")
+		assert.Contains(tt, roles, "roles/viewer")
+		assert.Equal(tt, 1, callCount, "Expected 1 API call (getIamPolicy)")
+	})
+
+	t.Run("WhenGetProjectIamPolicyFails", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":getIamPolicy") {
+				rw.WriteHeader(http.StatusForbidden)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		roles, err := gService.GetServiceAccountRoles(serviceAccountEmail, projectID)
+		assert.NotNil(tt, err)
+		assert.Nil(tt, roles)
+	})
+
+	t.Run("WhenServiceAccountHasNoRoles", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock policy response where service account has no roles
+		getPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "test-etag",
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role: "roles/storage.admin",
+					Members: []string{
+						"user:test@example.com",
+					},
+				},
+			},
+		}
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":getIamPolicy") {
+				response, err := json.Marshal(getPolicyResp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		roles, err := gService.GetServiceAccountRoles(serviceAccountEmail, projectID)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, roles)
+		assert.Equal(tt, 0, len(roles))
+	})
 }

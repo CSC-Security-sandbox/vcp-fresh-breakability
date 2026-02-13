@@ -320,6 +320,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
@@ -1874,6 +1875,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 		env.RegisterWorkflowWithOptions(
 			func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 				return nil
@@ -2633,6 +2635,7 @@ func TestReleasePSCEndpointWorkflow_Success(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PSCActivity{})
 
@@ -2676,6 +2679,7 @@ func TestReleasePSCEndpointWorkflow_NoTPAttachedToPool(t *testing.T) {
 	}
 
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterActivity(&activities.PSCActivity{})
 
 	env.ExecuteWorkflow(ReleasePSCEndpointWorkflow, &pool)
@@ -2698,6 +2702,7 @@ func TestReleasePSCEndpointWorkflow_PoolIsNil(t *testing.T) {
 	env.SetHeader(mockHeader)
 
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 
 	env.ExecuteWorkflow(ReleasePSCEndpointWorkflow, nil)
 
@@ -2735,6 +2740,7 @@ func TestReleasePSCEndpointWorkflow_FetchTenantProjectSuccess(t *testing.T) {
 	pscActivity := &activities.PSCActivity{}
 
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PSCActivity{})
@@ -2797,6 +2803,7 @@ func TestReleasePSCEndpointWorkflow_FetchTenantProjectFailure(t *testing.T) {
 	poolActivity := &activities.PoolActivity{}
 
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 
@@ -2831,6 +2838,7 @@ func TestReleasePSCEndpointWorkflow_DeleteForwardingRuleFailure(t *testing.T) {
 	pscActivity := &activities.PSCActivity{}
 
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PSCActivity{})
 
@@ -3910,6 +3918,12 @@ func TestDeletePoolWorkflow(t *testing.T) {
 		},
 		workflow.RegisterOptions{Name: "DataSubnetSequentialPoller"},
 	)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, pool *datamodel.Pool, retryPolicy *WorkflowRetryPolicy) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: "CleanupServiceAccountPermissionsWorkflow"},
+	)
 
 	// Set up test data
 	params := &common.DeletePoolParams{
@@ -4002,6 +4016,7 @@ func TestDeletePoolWorkflowFailsOnJobInErrorState(t *testing.T) {
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 
 	// Set up test data
 	params := &common.DeletePoolParams{
@@ -4079,6 +4094,7 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabled(t *testing.T) {
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 	params := &common.DeletePoolParams{
@@ -4181,6 +4197,7 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabledPoolAvailable(t *testing.T) {
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 	params := &common.DeletePoolParams{
@@ -4281,6 +4298,7 @@ func TestDeletePoolWorkflowWhenVSACleanupDisabledAndStateError(t *testing.T) {
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 	params := &common.DeletePoolParams{
@@ -4379,6 +4397,7 @@ func TestDeletePoolWorkflowWhenUnRegisterNodesFromHarvestFails(t *testing.T) {
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 	// Set up test data
@@ -4478,6 +4497,7 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 	pool := &datamodel.Pool{
@@ -4590,6 +4610,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 		poolEmpty := &datamodel.Pool{
@@ -4667,6 +4688,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 
 		poolNonEmpty := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 123},
@@ -4746,6 +4768,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 
 		poolNilBuildInfo := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 123},
@@ -4821,6 +4844,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 
 		// Pool with BuildInfo.OntapVersion that extracts to empty string (e.g., invalid format)
 		// and has DeploymentName set to trigger the VSA cleanup path
@@ -5293,6 +5317,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 		env.RegisterWorkflow(RegisterNodeToHarvestFarmWorkflow)
 		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PSCActivity{SE: mockStorage})
@@ -11014,6 +11039,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflowError(t *testing.T) {
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 			return nil
@@ -11124,6 +11150,7 @@ func TestCreatePoolWorkflow_SavePoolWithClusterDetailsError(t *testing.T) {
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 			return nil
@@ -11287,6 +11314,7 @@ func TestServiceAccountBackwardCompatibility(t *testing.T) {
 			env.RegisterWorkflow(DataSubnetSequentialPoller)
 			env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 			env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 			env.RegisterActivity(&activities.PoolActivity{})
 			env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
@@ -13540,6 +13568,7 @@ func TestCreatePoolWorkflow_BuildInfo_StandardProtocol(t *testing.T) {
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
@@ -13646,6 +13675,7 @@ func TestCreatePoolWorkflow_BuildInfo_FilesProtocol(t *testing.T) {
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
@@ -14952,6 +14982,7 @@ func TestDeletePoolWorkflow_ErrorHandlingCancellation(t *testing.T) {
 	env.RegisterActivity(cancellationActivity)
 	env.RegisterActivity(commonActivity)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
@@ -15033,6 +15064,7 @@ func TestDeletePoolWorkflow_ErrorDeletingPoolResources(t *testing.T) {
 	env.RegisterActivity(cancellationActivity)
 	env.RegisterActivity(commonActivity)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 
 	params := &common.DeletePoolParams{
 		PoolID:      "test-pool-uuid",
@@ -15089,6 +15121,7 @@ func TestDeletePoolWorkflow_ErrorDeletingVSAClusterDeployment(t *testing.T) {
 	env.RegisterActivity(cancellationActivity)
 	env.RegisterActivity(commonActivity)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 
 	params := &common.DeletePoolParams{
 		PoolID:      "test-pool-uuid",
@@ -15229,6 +15262,7 @@ func TestDeletePoolWorkflow_ErrorDeletingServiceAccount(t *testing.T) {
 	env.RegisterActivity(cancellationActivity)
 	env.RegisterActivity(commonActivity)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 
 	params := &common.DeletePoolParams{
 		PoolID:      "test-pool-uuid",
@@ -16118,6 +16152,7 @@ func TestDeletePoolWorkflow_HandleCancellationError(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 			return nil
@@ -16199,6 +16234,7 @@ func TestDeletePoolWorkflow_HandleCancellationCreateJobNotFound(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 			return nil
@@ -16280,6 +16316,7 @@ func TestDeletePoolWorkflow_HandleCancellationWorkflowNotRunning(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 			return nil
@@ -16368,6 +16405,7 @@ func TestDeletePoolWorkflow_HandleCancellationSendSignalError(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 			return nil
@@ -16459,6 +16497,7 @@ func TestDeletePoolWorkflow_HandleCancellationTimeout(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 			return nil
@@ -16550,6 +16589,7 @@ func TestDeletePoolWorkflow_DeleteServiceAccountError(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{
@@ -16620,6 +16660,7 @@ func TestDeletePoolWorkflow_DataSubnetSequentialPollerError(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{
@@ -16760,6 +16801,7 @@ func TestDeletePoolWorkflow_HandleCancellationLogsCreateJobFound(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 			return nil
@@ -16951,6 +16993,7 @@ func TestDeletePoolWorkflow_HandleCancellationErrorAtLine1204(t *testing.T) {
 		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
 	)
 	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 
 	pool := &datamodel.Pool{

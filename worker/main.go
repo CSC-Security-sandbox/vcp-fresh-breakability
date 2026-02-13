@@ -236,6 +236,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterWorkflow(workflows.ReleasePSCEndpointWorkflow)
 	worker.RegisterWorkflow(workflows.UpdatePoolWorkflow)
 	worker.RegisterWorkflow(workflows.DeletePoolWorkflow)
+	worker.RegisterWorkflow(workflows.CleanupServiceAccountPermissionsWorkflow)
 	worker.RegisterWorkflow(workflows.CreateVolumeWorkflow)
 	worker.RegisterWorkflow(flexcache_workflows.CreateFlexCacheWorkflow)
 	worker.RegisterWorkflow(flexcache_workflows.DeleteFlexCacheVolumeWorkflow)

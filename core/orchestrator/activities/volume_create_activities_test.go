@@ -7884,7 +7884,18 @@ func TestSetupCrossRegionBackupPermissionsActivity_Success(t *testing.T) {
 		"backup-project-123",
 	).Return(nil).Once()
 
-	activity := &activities.VolumeCreateActivity{}
+	// Mock database for addServiceAccountPermissionProject
+	mockStorage := database.NewMockStorage(t)
+	pool.UUID = "test-pool-uuid"
+	pool.PoolAttributes = &datamodel.PoolAttributes{
+		ServiceAccountPermissionProjects: []string{},
+	}
+	mockStorage.On("GetPoolByUUID", ctx, "test-pool-uuid").Return(pool, nil).Once()
+	mockStorage.On("UpdatePoolFields", ctx, "test-pool-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
+		return updates["pool_attributes"] != nil
+	})).Return(nil).Once()
+
+	activity := &activities.VolumeCreateActivity{SE: mockStorage}
 
 	// Act
 	err := activity.SetupCrossRegionBackupPermissionsActivity(ctx, backupVault, pool, bucketDetails)
@@ -7892,6 +7903,7 @@ func TestSetupCrossRegionBackupPermissionsActivity_Success(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	mockGCPService.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
 }
 
 func TestSetupCrossRegionBackupPermissionsActivity_SameRegion_SkipsSetup(t *testing.T) {
@@ -13124,4 +13136,55 @@ func TestUpdateVolumeLargeConstituentInDB_NilAttributes(t *testing.T) {
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
+}
+
+func TestSetupCrossRegionBackupPermissionsActivity_TrackProjectError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	originalGetCloudService := activities.GetCloudService
+	defer func() {
+		activities.GetCloudService = originalGetCloudService
+	}()
+
+	mockCloudService := hyperscaler2.NewMockGoogleServices(t)
+	activities.GetCloudService = func(ctx context.Context) (hyperscaler2.Services, error) {
+		return mockCloudService, nil
+	}
+
+	backupRegion := "us-west1"
+	backupVault := &datamodel.BackupVault{
+		BaseModel:        datamodel.BaseModel{UUID: "bv-uuid"},
+		BackupRegionName: &backupRegion,
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{UUID: "pool-uuid"},
+		ServiceAccountId: "sa-id",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "us-east1",
+		},
+		PoolAttributes: &datamodel.PoolAttributes{},
+	}
+
+	bucketDetails := &common.BucketDetails{
+		TenantProjectNumber: "backup-tenant-project",
+	}
+
+	saEmail := "sa-id@us-east1.iam.gserviceaccount.com"
+	roles := []string{"roles/storage.objectAdmin"}
+
+	mockCloudService.On("AttachOrUpdateRolesForServiceAccounts", roles, saEmail, "backup-tenant-project").Return(nil)
+	// Mock GetPoolByUUID for addServiceAccountPermissionProject
+	mockStorage.On("GetPoolByUUID", ctx, pool.UUID).Return(pool, nil)
+	// Mock UpdatePoolFields to fail - should log error but not fail the activity
+	mockStorage.On("UpdatePoolFields", ctx, pool.UUID, mock.Anything).Return(fmt.Errorf("update failed"))
+
+	err := activity.SetupCrossRegionBackupPermissionsActivity(ctx, backupVault, pool, bucketDetails)
+
+	// Should log error but not fail the activity
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockCloudService.AssertExpectations(t)
 }
