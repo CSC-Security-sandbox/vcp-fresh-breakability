@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -1582,4 +1583,88 @@ func TestAutoTieringPauseResumeWorkflow_ResumeSuccess_MultipleAggregates_Partial
 	// Assert workflow completion - should complete successfully even with partial failure
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestAutoTieringHotTierAutoResizeWorkflow_ONTAPModePool_Success(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	autoTierActivity := &backgroundactivities.AutoTierSyncActivity{}
+	syncSnapshotActivity := &backgroundactivities.SyncSnapshotActivity{}
+	poolActivity := &activities.PoolActivity{}
+	commonActivities := &activities.CommonActivities{}
+
+	// Register activities
+	env.RegisterActivity(autoTierActivity)
+	env.RegisterActivity(syncSnapshotActivity)
+	env.RegisterActivity(poolActivity)
+	env.RegisterActivity(commonActivities)
+
+	// Register workflows
+	env.RegisterWorkflow(workflows.UpdatePoolWorkflow)
+
+	poolIdentifier := &database.PoolIdentifier{
+		Name:      "test-ontap-pool-autoresize",
+		AccountID: 123,
+		VendorID:  "/projects/test-project/locations/us-central1/pools/test-ontap-pool-autoresize",
+		UUID:      "test-ontap-pool-autoresize-uuid",
+	}
+
+	// Create pool with ONTAP mode - auto-resize should work for ONTAP mode pools
+	pool := &datamodel.Pool{
+		BaseModel:     datamodel.BaseModel{ID: 1, UUID: "test-ontap-pool-autoresize-uuid"},
+		Name:          "test-ontap-pool-autoresize",
+		AccountID:     123,
+		APIAccessMode: common.ONTAPMode, // ONTAP mode pool
+		VendorID:      "/projects/test-project/locations/us-central1/pools/test-ontap-pool-autoresize",
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			HotTierSizeInBytes:      500000000000, // 500GB
+			EnableHotTierAutoResize: true,
+		},
+		AllowAutoTiering: true,
+		SizeInBytes:      1000000000000, // 1TB
+		Description:      "test ontap pool",
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 1000,
+			Iops:            100,
+		},
+		Account: &datamodel.Account{
+			Name: "test-account",
+		},
+	}
+
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{ID: 1, UUID: "job-uuid"},
+		Type:       string(models.JobTypeUpdatePool),
+		State:      string(models.JobsStatePROCESSING),
+		IsAdminJob: true,
+		WorkflowID: "test-workflow-id",
+		AccountID:  sql.NullInt64{Int64: pool.AccountID, Valid: true},
+	}
+
+	// Mock activities
+	env.OnActivity(syncSnapshotActivity.FetchPoolByUUID, mock.Anything, poolIdentifier.UUID, poolIdentifier.AccountID).Return(pool, nil)
+	env.OnActivity(commonActivities.CreateJob, mock.Anything, mock.Anything).Return(job, nil)
+	env.OnActivity(poolActivity.UpdatingPool, mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Mock child workflow - should be called for ONTAP mode pools
+	env.OnWorkflow(workflows.UpdatePoolWorkflow, mock.Anything, mock.Anything, pool, mock.Anything).Return(nil, nil)
+
+	// Execute workflow
+	env.ExecuteWorkflow(AutoTieringHotTierAutoResizeWorkflow, poolIdentifier)
+
+	// Assert workflow completion - should succeed for ONTAP mode pools
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	// Verify workflow status
+	var status *time.Time
+	encVal, err := env.QueryWorkflow(workflows.StatusQueryName)
+	if err != nil {
+		t.Fatalf("Failed to query workflow status: %v", err)
+	}
+	err = encVal.Get(&status)
+	assert.NoError(t, err)
+	assert.NotNil(t, status)
 }
