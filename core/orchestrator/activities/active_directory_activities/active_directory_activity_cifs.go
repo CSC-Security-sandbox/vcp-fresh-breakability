@@ -33,6 +33,61 @@ func _getOntapRestProvider(ctx context.Context, node *models.Node) (*vsa.OntapRe
 	return ontapProvider, nil
 }
 
+// mapCreateCIFSServerError maps ONTAP CIFS/AD join errors to VCP tracking IDs.
+// Order matters: more specific (e.g. credential) checks first. Returns (trackingID, true) if matched.
+func mapCreateCIFSServerError(err error) (trackingID int, ok bool) {
+	if err == nil {
+		return 0, false
+	}
+	s := err.Error()
+	if strings.Contains(s, "Invalid Credentials") || strings.Contains(s, "KRB5KDC_ERR_PREAUTH_FAILED") {
+		return vsaerrors.ErrADInvalidCredentials, true
+	}
+	if strings.Contains(s, "does not match password stored in Active Directory") {
+		return vsaerrors.ErrADPasswordNotInSync, true
+	}
+	if strings.Contains(s, "Invalid credentials were given") || strings.Contains(s, "Username format not supported") ||
+		strings.Contains(s, "Reason: Invalid credentials.") {
+		return vsaerrors.ErrADIncorrectUsername, true
+	}
+	if strings.Contains(s, "Clients credentials have been revoked") || strings.Contains(s, "credentials have been revoked") {
+		return vsaerrors.ErrADUserDisabled, true
+	}
+	if strings.Contains(s, "KDC has no support for encryption type") ||
+		(strings.Contains(s, "msDS-SupportedEncryptionTypes") && strings.Contains(s, "Insufficient access")) {
+		return vsaerrors.ErrADAESEncryptionSettingsInvalid, true
+	}
+	if strings.Contains(s, "Failed to bind service principal name on LIF") || strings.Contains(s, "KDC Unreachable Details") {
+		return vsaerrors.ErrADKDCUnreachable, true
+	}
+	if strings.Contains(s, "Cannot find any domain controllers") || (strings.Contains(s, "no server available") && strings.Contains(s, "SecD")) {
+		return vsaerrors.ErrADDomainControllersUnreachable, true
+	}
+	if strings.Contains(s, "RESULT_ERROR_LDAPSERVER_SERVER_DOWN") && strings.Contains(s, "Can't contact LDAP server") {
+		return vsaerrors.ErrADLDAPUnreachable, true
+	}
+	if strings.Contains(s, "ou not found") || strings.Contains(s, "Lookup of organizational_unit failed") {
+		return vsaerrors.ErrADInvalidOU, true
+	}
+	if strings.Contains(s, "insufficient access rights") || strings.Contains(s, "insufficient privilege") ||
+		strings.Contains(s, "LDAP constraint") {
+		return vsaerrors.ErrADInsufficientPermission, true
+	}
+	if strings.Contains(s, "cannot find the indicated default site") {
+		return vsaerrors.ErrADDefaultSiteInvalid, true
+	}
+	if strings.Contains(s, "Unable to connect to NetLogon") || strings.Contains(s, "RESULT_ERROR_SPINCLIENT") {
+		return vsaerrors.ErrADNetLogonError, true
+	}
+	if strings.Contains(s, "Operation timed out") && strings.Contains(s, "domain controllers") {
+		return vsaerrors.ErrADLDAPNetworkIssue, true
+	}
+	if strings.Contains(s, "Unable to connect to any") && strings.Contains(s, "domain controllers") {
+		return vsaerrors.ErrADLDAPNetworkIssue, true
+	}
+	return 0, false
+}
+
 // GetOrCreateCifsServiceResult contains the result of GetOrCreateCifsService
 type GetOrCreateCifsServiceResult struct {
 	FQDN            string // FQDN if service was created, empty if service existed
@@ -166,6 +221,9 @@ func (a ActiveDirectoryActivity) GetOrCreateCifsService(ctx context.Context, nod
 		fqdn, createErr := ontapProvider.CreateAndSetupCIFSServer(client, ad, externalSVMUUID, svmName)
 		if createErr != nil {
 			logger.Error("failed to createAndSetupCIFSServer", "error", createErr.Error())
+			if trackingID, ok := mapCreateCIFSServerError(createErr); ok {
+				return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(trackingID, createErr))
+			}
 			return nil, vsaerrors.WrapAsTemporalApplicationError(createErr)
 		}
 		return &GetOrCreateCifsServiceResult{FQDN: fqdn, NeedsDDNS: false}, nil

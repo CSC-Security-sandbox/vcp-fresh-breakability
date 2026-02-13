@@ -121,6 +121,19 @@ const (
 	ErrVolumeSizeTooSmall              = 5017
 	ErrOntapClusterHealthCheckFailed   = 5018
 	ErrOntapClusterNotAvailable        = 5019
+	ErrADInvalidCredentials            = 5020
+	ErrADKDCUnreachable                = 5021
+	ErrADDomainControllersUnreachable  = 5022
+	ErrADLDAPUnreachable               = 5023
+	ErrADInvalidOU                     = 5024
+	ErrADInsufficientPermission        = 5025
+	ErrADIncorrectUsername             = 5026
+	ErrADUserDisabled                  = 5027
+	ErrADAESEncryptionSettingsInvalid  = 5028
+	ErrADDefaultSiteInvalid            = 5029
+	ErrADNetLogonError                 = 5030
+	ErrADPasswordNotInSync             = 5031
+	ErrADLDAPNetworkIssue              = 5032
 
 	ErrIamClientNotFoundError      = 6020
 	ErrFailedToParseProjectNumber  = 6021

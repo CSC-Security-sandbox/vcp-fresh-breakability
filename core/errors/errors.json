@@ -425,6 +425,84 @@
     "retriable": false,
     "http_code": 503
   },
+  "5020": {
+    "description": "Active Directory invalid credentials",
+    "message": "Active Directory credentials are invalid. Verify the username and password in your Active Directory configuration.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5021": {
+    "description": "Active Directory KDC unreachable",
+    "message": "Invalid KDC IP or clock skew error b/w DC and CIFS server, please correct the KDC IP or set appropriate time(use NTP) on DC",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5022": {
+    "description": "Active Directory domain controllers unreachable",
+    "message": "Unable to reach Active Directory domain controllers. Verify network and domain controller configuration.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5023": {
+    "description": "Active Directory LDAP server unreachable",
+    "message": "Unable to contact LDAP server. Verify LDAP server configuration and connectivity.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5024": {
+    "description": "Active Directory invalid organizational unit",
+    "message": "The specified organizational unit was not found. Verify the OU path in your Active Directory configuration.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5025": {
+    "description": "Active Directory insufficient permission",
+    "message": "The supplied user has insufficient privilege to perform the Active Directory operation. Verify domain join permissions.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5026": {
+    "description": "Active Directory incorrect username",
+    "message": "Invalid credentials or username format. Use either \"user\" or \"user@ad.domain\" format.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5027": {
+    "description": "Active Directory user disabled",
+    "message": "The Active Directory user account has been disabled or credentials have been revoked.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5028": {
+    "description": "Active Directory AES encryption settings invalid",
+    "message": "KDC has no support for the required encryption type. Verify AES encryption settings.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5029": {
+    "description": "Active Directory default site invalid",
+    "message": "The indicated default site was not found. Verify Active Directory site configuration.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5030": {
+    "description": "Active Directory NetLogon error",
+    "message": "Unable to connect to NetLogon service. Verify network and domain controller configuration.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5031": {
+    "description": "Active Directory password not in sync",
+    "message": "CIFS server account password does not match password stored in Active Directory.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5032": {
+    "description": "Active Directory LDAP network issue",
+    "message": "Unable to connect to domain controllers within the timeout. Verify network connectivity and firewall settings.",
+    "retriable": false,
+    "http_code": 400
+  },
   "6020": {
     "description": "IAM client Not Found",
     "message": "IAM client Not Found",
