@@ -9853,3 +9853,169 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CrossRegionBackup_Cancellation
 	err := s.env.GetWorkflowError()
 	assert.NotNil(s.T(), err)
 }
+
+// TestCreateVolumeWorkflow_UpdateLargeConstituentCount tests the logic for updating large volume constituent count
+// This test covers lines 966-972 in volume_create_workflow.go
+func (s *UnitTestSuite) TestCreateVolumeWorkflow_UpdateLargeConstituentCount() {
+	t := s.T()
+
+	testCases := []struct {
+		name                        string
+		largeVolumeConstituentCount int32
+		updateActivityError         error
+		shouldCallUpdateActivity    bool
+		expectWorkflowError         bool
+		errorContains               string
+	}{
+		{
+			name:                        "Success_UpdateLargeConstituentCount",
+			largeVolumeConstituentCount: 4,
+			updateActivityError:         nil,
+			shouldCallUpdateActivity:    true,
+			expectWorkflowError:         false,
+		},
+		{
+			name:                        "Error_UpdateLargeConstituentCountFails",
+			largeVolumeConstituentCount: 8,
+			updateActivityError:         errors.New("database error: failed to update constituent count"),
+			shouldCallUpdateActivity:    true,
+			expectWorkflowError:         true,
+			errorContains:               "database error",
+		},
+		{
+			name:                        "Skip_ZeroConstituentCount",
+			largeVolumeConstituentCount: 0,
+			updateActivityError:         nil,
+			shouldCallUpdateActivity:    false,
+			expectWorkflowError:         false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s.setupTestWorkflowEnv(t)
+
+			// Setup volume with large volume attributes
+			volume := &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+				Name:      "test-volume",
+				Account:   &datamodel.Account{Name: "account-1"},
+				Svm:       &datamodel.Svm{Name: "svm_test"},
+				Pool: &datamodel.Pool{
+					BaseModel: datamodel.BaseModel{ID: int64(1)},
+					PoolCredentials: &datamodel.PoolCredentials{
+						Password:      "password",
+						SecretID:      "",
+						CertificateID: "",
+					},
+					DeploymentName: "deployment-1",
+				},
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"},
+					Protocols:       []string{utils.ProtocolISCSI},
+				},
+				LargeVolumeAttributes: &datamodel.LargeVolumeAttributes{
+					LargeCapacity: true,
+				},
+			}
+
+			// Setup create volume params
+			createVolumeParams := &common.CreateVolumeParams{
+				LargeCapacity:               true,
+				LargeVolumeConstituentCount: tc.largeVolumeConstituentCount,
+			}
+
+			// Register activities
+			commonActivity := s.commonActivity
+			volumeCreateActivity := s.volumeCreateActivity
+			volumeDeleteActivity := activities.VolumeDeleteActivity{SE: volumeCreateActivity.SE}
+
+			s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+			s.env.RegisterActivity(commonActivity.GetNode)
+			s.env.RegisterActivity(volumeCreateActivity.GetHosts)
+			s.env.RegisterActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP)
+			s.env.RegisterActivity(volumeCreateActivity.CreateVolumeInONTAP)
+			s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+			s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeAttributesInDB)
+			s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeLargeConstituentInDB)
+			s.env.RegisterActivity(volumeCreateActivity.GetAggregatesFromOntap)
+			s.env.RegisterActivity(volumeCreateActivity.CreateVolume)
+			s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
+			s.env.RegisterActivity(volumeCreateActivity.CreateIgroup)
+			s.env.RegisterActivity(volumeCreateActivity.CreateLun)
+			s.env.RegisterActivity(volumeCreateActivity.CreateLunMap)
+			s.env.RegisterActivity(volumeCreateActivity.LunSizeUpdateValidation)
+			s.env.RegisterActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP)
+			s.env.RegisterActivity(volumeDeleteActivity.DeleteVolumeInONTAP)
+
+			// Mock common activities
+			s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+
+			// Mock GetJob activity - return NEW state for workflow job
+			s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+				BaseModel: datamodel.BaseModel{UUID: "test-workflow-id"},
+				State:     string(models.JobsStateNEW),
+			}, nil).Maybe()
+
+			// Mock volume create activities
+			s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil)
+			s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+				ProviderResponse: vsa.ProviderResponse{
+					ExternalUUID: "ontap-uuid",
+					Name:         "test-volume",
+				},
+				State: "online",
+			}, nil)
+			s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			s.env.OnActivity(volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
+			s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+				ProviderResponse: vsa.ProviderResponse{
+					Name:         "lun_test",
+					ExternalUUID: "lun-uuid",
+				},
+				SerialNumber: "6c5738423724595454686164",
+			}, nil)
+			s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+			// Mock GetAggregatesFromOntap if large constituent count > 0
+			if tc.largeVolumeConstituentCount > 0 {
+				s.env.OnActivity(volumeCreateActivity.GetAggregatesFromOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&models.AggregateDistributionResult{
+					Aggregates:     []string{"aggr1", "aggr2", "aggr3", "aggr4"},
+					AggrMultiplier: 1,
+				}, nil)
+			}
+
+			// Mock UpdateVolumeLargeConstituentInDB activity based on test case
+			if tc.shouldCallUpdateActivity {
+				// Allow multiple calls for retries by not using .Once()
+				s.env.OnActivity(volumeCreateActivity.UpdateVolumeLargeConstituentInDB, mock.Anything, mock.Anything, mock.Anything).Return(tc.updateActivityError)
+			} else {
+				// For the skip case, ensure the activity is NOT called
+				s.env.OnActivity(volumeCreateActivity.UpdateVolumeLargeConstituentInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+			}
+
+			// Execute workflow
+			s.env.ExecuteWorkflow(CreateVolumeWorkflow, createVolumeParams, volume)
+
+			// Assert workflow completion
+			assert.True(t, s.env.IsWorkflowCompleted())
+
+			// Verify expected error behavior
+			workflowErr := s.env.GetWorkflowError()
+			if tc.expectWorkflowError {
+				assert.NotNil(t, workflowErr, "Expected workflow to fail but it succeeded")
+				// The activity was called and failed as expected
+			} else {
+				assert.Nil(t, workflowErr, "Expected workflow to succeed but it failed with: %v", workflowErr)
+			}
+		})
+	}
+}
