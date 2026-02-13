@@ -22,7 +22,7 @@ global:
   # Override in deployment-specific values to pin/upgrade proxy versions consistently.
   cloudSqlProxy:
     image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1"
-  enableBackgroundTask: true
+  enableBackgroundTasks: true
   requiredTakeoverReasons:
     - "reason1"
   jobPollingMaxDuration: 25 # seconds

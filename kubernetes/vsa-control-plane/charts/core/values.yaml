@@ -154,7 +154,7 @@ serviceAccountName: vcp-core
 deployerServiceAccountName: vcp-core
 metricsEnabled: false
 replicaCount: 1
-enableBackgroundTask: true
+enableBackgroundTasks: true
 enableJSwapVersionCheck: true
 requiredTakeoverReasons:
   - "disabled"
