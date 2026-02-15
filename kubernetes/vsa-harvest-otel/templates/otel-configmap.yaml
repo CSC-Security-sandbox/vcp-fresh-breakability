@@ -77,7 +77,7 @@ data:
                     regex: 'metadata_collector_bytesRx|metadata_collector_calc_time|metadata_collector_instances|metadata_collector_metrics|metadata_collector_numPartials|metadata_collector_parse_time|metadata_collector_pluginInstances|metadata_collector_plugin_time|metadata_collector_poll_time|metadata_collector_skips|metadata_collector_task_time|metadata_component_count|metadata_component_status|metadata_exporter_count|metadata_exporter_time|metadata_target_goroutines|metadata_target_ping|metadata_target_status|metadata_collector_api_time|metadata_collector_numCalls'
                   - source_labels: ['__name__']
                     action: drop
-                    regex: 'poller_memory|poller_memory_percent|plex|aggr|node'
+                    regex: 'poller_memory|poller_memory_percent'
                   - source_labels: [source_cluster, source_location, source_volume, source_vserver]
                     separator: '_'
                     target_label: source_details
@@ -86,16 +86,16 @@ data:
                     separator: '_'
                     target_label: destination_details
                     replacement: '$${1}_$${2}_$${3}_$${4}'
-                  - source_labels: [project, tenant_project, deployment_name, pool_name, is_regional_ha]
+                  - source_labels: [aggr, partition, plex]
                     separator: '_'
-                    target_label: tenant_cluster
-                    replacement: '$${1}_$${2}_$${3}_$${4}_$${5}'
+                    target_label: aggr_details
+                    replacement: '$${1}_$${2}_$${3}'
                   - action: labeldrop
                     regex: 'source_cluster|source_location|source_volume|source_vserver'
                   - action: labeldrop
                     regex: 'destination_location|destination_node|destination_volume|destination_vserver'
                   - action: labeldrop
-                    regex: 'project|tenant_project|deployment_name|pool_name|is_regional_ha'
+                    regex: 'aggr|partition|plex'
         prometheus/health:
             config:
                 scrape_configs:
