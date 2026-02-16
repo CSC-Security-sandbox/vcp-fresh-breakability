@@ -1096,6 +1096,8 @@ type V1betaListBackupsParams struct {
 	IncludeDeleted OptBool
 	// Volume ID for which the backups are to be listed. If not present, all backups will be returned.
 	VolumeId OptString
+	// Backup name for which the backups are to be listed. If not present, all backups will be returned.
+	BackupName OptString
 	// If true, response will include only orphaned backups under the mentioned project.
 	OnlyOrphanedBackups OptBool
 }

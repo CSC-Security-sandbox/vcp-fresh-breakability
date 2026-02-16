@@ -3347,6 +3347,34 @@ func (s *BackupV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.BucketName.Set {
+			e.FieldStart("bucketName")
+			s.BucketName.Encode(e)
+		}
+	}
+	{
+		if s.SnapshotName.Set {
+			e.FieldStart("snapshotName")
+			s.SnapshotName.Encode(e)
+		}
+	}
+	{
+		if s.EndPointUUID.Set {
+			e.FieldStart("endPointUUID")
+			s.EndPointUUID.Encode(e)
+		}
+	}
+	{
+		if s.Protocols != nil {
+			e.FieldStart("protocols")
+			e.ArrStart()
+			for _, elem := range s.Protocols {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		if s.AssetLocationMetadata.Set {
 			e.FieldStart("assetLocationMetadata")
 			s.AssetLocationMetadata.Encode(e)
@@ -3354,7 +3382,7 @@ func (s *BackupV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfBackupV1beta = [18]string{
+var jsonFieldsNameOfBackupV1beta = [22]string{
 	0:  "resourceId",
 	1:  "volumeId",
 	2:  "state",
@@ -3372,7 +3400,11 @@ var jsonFieldsNameOfBackupV1beta = [18]string{
 	14: "satisfiesPzi",
 	15: "volumeRegion",
 	16: "backupRegion",
-	17: "assetLocationMetadata",
+	17: "bucketName",
+	18: "snapshotName",
+	19: "endPointUUID",
+	20: "protocols",
+	21: "assetLocationMetadata",
 }
 
 // Decode decodes BackupV1beta from json.
@@ -3553,6 +3585,53 @@ func (s *BackupV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"backupRegion\"")
+			}
+		case "bucketName":
+			if err := func() error {
+				s.BucketName.Reset()
+				if err := s.BucketName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"bucketName\"")
+			}
+		case "snapshotName":
+			if err := func() error {
+				s.SnapshotName.Reset()
+				if err := s.SnapshotName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"snapshotName\"")
+			}
+		case "endPointUUID":
+			if err := func() error {
+				s.EndPointUUID.Reset()
+				if err := s.EndPointUUID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"endPointUUID\"")
+			}
+		case "protocols":
+			if err := func() error {
+				s.Protocols = make([]ProtocolsV1beta, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ProtocolsV1beta
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Protocols = append(s.Protocols, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"protocols\"")
 			}
 		case "assetLocationMetadata":
 			if err := func() error {

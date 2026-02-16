@@ -2759,6 +2759,122 @@ func TestV1betaListBackups(t *testing.T) {
 		assert.Equal(t, float64(400), badRequest.Code)
 		assert.Equal(t, "Bad Request", badRequest.Message)
 	})
+
+	t.Run("WhenFilteringByBackupName_BackupFoundInVCP", func(t *testing.T) {
+		ctx := context.Background()
+		backupName := "test-backup-name"
+		params := gcpgenserver.V1betaListBackupsParams{
+			BackupVaultId:  "test-vault-id",
+			LocationId:     "test-location-id",
+			ProjectNumber:  "test-project-number",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+			BackupName:     gcpgenserver.NewOptString(backupName),
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+		// Mock GetBackupVaultByUUID to return success (vault exists in VCP)
+		mockOrchestrator.EXPECT().
+			GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber).
+			Return(&coremodels.BackupVaultV1beta{}, nil)
+
+		// Mock ListBackups to verify it's called with the correct filter and returns backup from VCP
+		backupVault := &datamodel.BackupVault{
+			Name:             "test-backup-vault",
+			SourceRegionName: nillable.ToPointer("us-east4"),
+			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+		}
+		filteredBackups := []*datamodel.Backup{
+			{
+				State:         "Available",
+				Name:          backupName,
+				VolumeUUID:    "test-vol-1",
+				BackupVault:   backupVault,
+				BackupVaultID: 1,
+				Attributes:    &datamodel.BackupAttributes{},
+			},
+		}
+
+		// Verify ListBackups is called with the correct filter
+		mockOrchestrator.EXPECT().
+			ListBackups(ctx, params.BackupVaultId, params.ProjectNumber, [][]interface{}{{"name = ?", backupName}}).
+			Return(filteredBackups, nil)
+
+		// Mock CVP response - backup not found in CVP (returns empty list)
+		mockListBackupsToCVP := func(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
+			// Verify that BackupName is passed to CVP
+			assert.True(t, params.BackupName.IsSet())
+			assert.Equal(t, backupName, params.BackupName.Value)
+			return &gcpgenserver.V1betaListBackupsOK{
+				Backups: []gcpgenserver.BackupV1beta{},
+			}, nil
+		}
+
+		originalListBackupsToCVP := listBackupsToCVP
+		defer func() { listBackupsToCVP = originalListBackupsToCVP }()
+		listBackupsToCVP = mockListBackupsToCVP
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaListBackups(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsOK{}, result)
+
+		response := result.(*gcpgenserver.V1betaListBackupsOK)
+		// Should have only 1 backup from VCP (backup cannot exist in both VCP and CVP)
+		assert.Len(t, response.Backups, 1)
+		// Verify VCP backup matches the filter
+		assert.Equal(t, backupName, response.Backups[0].ResourceId.Value)
+	})
+
+	t.Run("WhenFilteringByBackupName_BackupFoundInCVP", func(t *testing.T) {
+		ctx := context.Background()
+		backupName := "test-backup-name"
+		params := gcpgenserver.V1betaListBackupsParams{
+			BackupVaultId:  "test-vault-id",
+			LocationId:     "test-location-id",
+			ProjectNumber:  "test-project-number",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+			BackupName:     gcpgenserver.NewOptString(backupName),
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+		// Mock GetBackupVaultByUUID to return NotFoundErr (vault doesn't exist in VCP, so backup is in CVP)
+		mockOrchestrator.EXPECT().
+			GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber).
+			Return(nil, errors.NewNotFoundErr("backup vault", nil))
+
+		// Mock CVP response with BackupName filter - backup found in CVP
+		mockListBackupsToCVP := func(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
+			// Verify that BackupName is passed to CVP
+			assert.True(t, params.BackupName.IsSet())
+			assert.Equal(t, backupName, params.BackupName.Value)
+			return &gcpgenserver.V1betaListBackupsOK{
+				Backups: []gcpgenserver.BackupV1beta{
+					{ResourceId: gcpgenserver.NewOptString(backupName)},
+				},
+			}, nil
+		}
+
+		originalListBackupsToCVP := listBackupsToCVP
+		defer func() { listBackupsToCVP = originalListBackupsToCVP }()
+		listBackupsToCVP = mockListBackupsToCVP
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaListBackups(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsOK{}, result)
+
+		response := result.(*gcpgenserver.V1betaListBackupsOK)
+		// Should have only 1 backup from CVP (backup cannot exist in both VCP and CVP)
+		assert.Len(t, response.Backups, 1)
+		// Verify CVP backup matches the filter
+		assert.Equal(t, backupName, response.Backups[0].ResourceId.Value)
+	})
 }
 
 // TestV1betaCreateBackup_BackupDisabled tests the scenario where backup creation is disabled.
@@ -3946,6 +4062,194 @@ func TestConvertBackupDataModelToBackupsV1beta_SnapshotRenaming(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("WhenBackupHasProtocols", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:        "test-backup",
+			VolumeUUID:  "test-volume-uuid",
+			State:       coremodels.LifeCycleStateAvailable,
+			SizeInBytes: 1024,
+			Description: "Test backup description",
+			Type:        "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:          "test-bucket",
+				AccountIdentifier:   "test-account",
+				VolumeName:          "test-volume",
+				SnapshotName:        "test-snapshot",
+				UseExistingSnapshot: true,
+				Protocols:           []string{"NFSV3", "NFSV4", "SMB"},
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-vault-uuid",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				SourceRegionName: nillable.GetStringPtr("us-east1"),
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:   "test-bucket",
+						SatisfiesPzi: true,
+						SatisfiesPzs: false,
+					},
+				},
+			},
+		}
+
+		result := convertBackupDataModelToBackupsV1beta(backup)
+
+		assert.Equal(t, "test-backup", result.ResourceId.Value)
+		assert.Equal(t, "test-volume-uuid", result.VolumeId.Value)
+		// Verify protocols are correctly converted
+		assert.NotNil(t, result.Protocols)
+		assert.Len(t, result.Protocols, 3)
+		assert.Equal(t, gcpgenserver.ProtocolsV1beta("NFSV3"), result.Protocols[0])
+		assert.Equal(t, gcpgenserver.ProtocolsV1beta("NFSV4"), result.Protocols[1])
+		assert.Equal(t, gcpgenserver.ProtocolsV1beta("SMB"), result.Protocols[2])
+	})
+
+	t.Run("WhenBackupHasEmptyProtocols", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:        "test-backup",
+			VolumeUUID:  "test-volume-uuid",
+			State:       coremodels.LifeCycleStateAvailable,
+			SizeInBytes: 1024,
+			Description: "Test backup description",
+			Type:        "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:          "test-bucket",
+				AccountIdentifier:   "test-account",
+				VolumeName:          "test-volume",
+				SnapshotName:        "test-snapshot",
+				UseExistingSnapshot: true,
+				Protocols:           []string{},
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-vault-uuid",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				SourceRegionName: nillable.GetStringPtr("us-east1"),
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:   "test-bucket",
+						SatisfiesPzi: true,
+						SatisfiesPzs: false,
+					},
+				},
+			},
+		}
+
+		result := convertBackupDataModelToBackupsV1beta(backup)
+
+		assert.Equal(t, "test-backup", result.ResourceId.Value)
+		// Verify protocols is nil when empty
+		assert.Nil(t, result.Protocols)
+	})
+
+	t.Run("WhenBackupHasNilProtocols", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:        "test-backup",
+			VolumeUUID:  "test-volume-uuid",
+			State:       coremodels.LifeCycleStateAvailable,
+			SizeInBytes: 1024,
+			Description: "Test backup description",
+			Type:        "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:          "test-bucket",
+				AccountIdentifier:   "test-account",
+				VolumeName:          "test-volume",
+				SnapshotName:        "test-snapshot",
+				UseExistingSnapshot: true,
+				Protocols:           nil,
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-vault-uuid",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				SourceRegionName: nillable.GetStringPtr("us-east1"),
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:   "test-bucket",
+						SatisfiesPzi: true,
+						SatisfiesPzs: false,
+					},
+				},
+			},
+		}
+
+		result := convertBackupDataModelToBackupsV1beta(backup)
+
+		assert.Equal(t, "test-backup", result.ResourceId.Value)
+		// Verify protocols is nil when nil
+		assert.Nil(t, result.Protocols)
+	})
+
+	t.Run("WhenBackupHasSingleProtocol", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:        "test-backup",
+			VolumeUUID:  "test-volume-uuid",
+			State:       coremodels.LifeCycleStateAvailable,
+			SizeInBytes: 1024,
+			Description: "Test backup description",
+			Type:        "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:          "test-bucket",
+				AccountIdentifier:   "test-account",
+				VolumeName:          "test-volume",
+				SnapshotName:        "test-snapshot",
+				UseExistingSnapshot: true,
+				Protocols:           []string{"ISCSI"},
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-vault-uuid",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				SourceRegionName: nillable.GetStringPtr("us-east1"),
+				BucketDetails: []*datamodel.BucketDetails{
+					{
+						BucketName:   "test-bucket",
+						SatisfiesPzi: true,
+						SatisfiesPzs: false,
+					},
+				},
+			},
+		}
+
+		result := convertBackupDataModelToBackupsV1beta(backup)
+
+		assert.Equal(t, "test-backup", result.ResourceId.Value)
+		// Verify single protocol is correctly converted
+		assert.NotNil(t, result.Protocols)
+		assert.Len(t, result.Protocols, 1)
+		assert.Equal(t, gcpgenserver.ProtocolsV1beta("ISCSI"), result.Protocols[0])
+	})
+
 	t.Run("WhenBackupIsNotImmutable", func(t *testing.T) {
 		backup := &coremodels.Backup{
 			BackupID:       "test-backup-id",
@@ -4100,6 +4404,80 @@ func TestConvertBackupDataModelToBackupsV1beta_SnapshotRenaming(t *testing.T) {
 		assert.Equal(t, "test-snapshot", result.SourceSnapshot.Value)
 		assert.Equal(t, "MANUAL", string(result.BackupType.Value))
 		assert.False(t, result.EnforcedRetentionEndTime.Set)
+	})
+
+	t.Run("WhenBackupHasProtocols", func(t *testing.T) {
+		backup := &coremodels.Backup{
+			BackupID:       "test-backup-id",
+			Name:           "test-backup",
+			VolumeID:       "test-volume-id",
+			LifeCycleState: "AVAILABLE",
+			VolumeName:     "test-volume",
+			BackupVaultID:  "test-vault-id",
+			Description:    stringPtr("test description"),
+			SnapshotName:   "test-snapshot",
+			Type:           "MANUAL",
+			Protocols:      []string{"NFSV3", "NFSV4", "SMB"},
+		}
+
+		result := convertBackupModelToBackupsV1beta(backup)
+
+		assert.Equal(t, "test-backup", result.ResourceId.Value)
+		assert.Equal(t, "test-volume-id", result.VolumeId.Value)
+		assert.Equal(t, "test-backup-id", result.BackupId.Value)
+		assert.Equal(t, "test-volume", result.SourceVolume.Value)
+		assert.Equal(t, "test-vault-id", result.BackupVaultId.Value)
+		assert.Equal(t, "test description", result.Description.Value)
+		assert.Equal(t, "test-snapshot", result.SourceSnapshot.Value)
+		assert.Equal(t, "MANUAL", string(result.BackupType.Value))
+		// Verify protocols are correctly converted
+		assert.NotNil(t, result.Protocols)
+		assert.Len(t, result.Protocols, 3)
+		assert.Equal(t, gcpgenserver.ProtocolsV1beta("NFSV3"), result.Protocols[0])
+		assert.Equal(t, gcpgenserver.ProtocolsV1beta("NFSV4"), result.Protocols[1])
+		assert.Equal(t, gcpgenserver.ProtocolsV1beta("SMB"), result.Protocols[2])
+	})
+
+	t.Run("WhenBackupHasEmptyProtocols", func(t *testing.T) {
+		backup := &coremodels.Backup{
+			BackupID:       "test-backup-id",
+			Name:           "test-backup",
+			VolumeID:       "test-volume-id",
+			LifeCycleState: "AVAILABLE",
+			VolumeName:     "test-volume",
+			BackupVaultID:  "test-vault-id",
+			Description:    stringPtr("test description"),
+			SnapshotName:   "test-snapshot",
+			Type:           "MANUAL",
+			Protocols:      []string{},
+		}
+
+		result := convertBackupModelToBackupsV1beta(backup)
+
+		assert.Equal(t, "test-backup", result.ResourceId.Value)
+		// Verify protocols is nil when empty
+		assert.Nil(t, result.Protocols)
+	})
+
+	t.Run("WhenBackupHasNoProtocolsField", func(t *testing.T) {
+		backup := &coremodels.Backup{
+			BackupID:       "test-backup-id",
+			Name:           "test-backup",
+			VolumeID:       "test-volume-id",
+			LifeCycleState: "AVAILABLE",
+			VolumeName:     "test-volume",
+			BackupVaultID:  "test-vault-id",
+			Description:    stringPtr("test description"),
+			SnapshotName:   "test-snapshot",
+			Type:           "MANUAL",
+			Protocols:      nil,
+		}
+
+		result := convertBackupModelToBackupsV1beta(backup)
+
+		assert.Equal(t, "test-backup", result.ResourceId.Value)
+		// Verify protocols is nil when nil
+		assert.Nil(t, result.Protocols)
 	})
 }
 

@@ -275,7 +275,7 @@ func Test_createBackup_VolumeFetching(t *testing.T) {
 			State:        models.LifeCycleStateCreating,
 			StateDetails: models.LifeCycleStateCreatingDetails,
 			BackupVault:  backupVault,
-			Attributes:   &datamodel.BackupAttributes{VolumeName: expertModeVol.Name},
+			Attributes:   &datamodel.BackupAttributes{VolumeName: expertModeVol.Name, Protocols: []string{}},
 			Description:  params.Description,
 			Type:         params.BackupType,
 		}
@@ -342,7 +342,7 @@ func Test_createBackup_VolumeFetching(t *testing.T) {
 			State:        models.LifeCycleStateCreating,
 			StateDetails: models.LifeCycleStateCreatingDetails,
 			BackupVault:  backupVault,
-			Attributes:   &datamodel.BackupAttributes{VolumeName: expertModeVol.Name},
+			Attributes:   &datamodel.BackupAttributes{VolumeName: expertModeVol.Name, Protocols: []string{}},
 			Description:  params.Description,
 			Type:         params.BackupType,
 		}
@@ -416,7 +416,7 @@ func Test_createBackup_VolumeFetching(t *testing.T) {
 			State:        models.LifeCycleStateCreating,
 			StateDetails: models.LifeCycleStateCreatingDetails,
 			BackupVault:  backupVault,
-			Attributes:   &datamodel.BackupAttributes{VolumeName: volume.Name},
+			Attributes:   &datamodel.BackupAttributes{VolumeName: volume.Name, Protocols: volume.VolumeAttributes.Protocols},
 			Description:  params.Description,
 			Type:         params.BackupType,
 		}
@@ -525,7 +525,7 @@ func Test_createBackupEdgeCases(t *testing.T) {
 			State:        models.LifeCycleStateCreating,
 			StateDetails: models.LifeCycleStateCreatingDetails,
 			BackupVault:  backupVault,
-			Attributes:   &datamodel.BackupAttributes{VolumeName: "vol"},
+			Attributes:   &datamodel.BackupAttributes{VolumeName: "vol", Protocols: []string{"NFS"}},
 		}
 		validateCreateBackupParams = func(ctx context.Context, se database.Storage, params *common.CreateBackupParams) error {
 			return nil
@@ -3714,6 +3714,7 @@ func TestConvertDatastoreBackupToModel(t *testing.T) {
 			Type:         "MANUAL",
 			Attributes: &datamodel.BackupAttributes{
 				VolumeName: "test-volume",
+				Protocols:  []string{"NFS", "SMB"},
 			},
 		}
 
@@ -3727,6 +3728,7 @@ func TestConvertDatastoreBackupToModel(t *testing.T) {
 		assert.Equal(t, "Test backup description", *result.Description)
 		assert.Equal(t, "MANUAL", result.Type)
 		assert.Equal(t, "test-volume", result.VolumeName)
+		assert.Equal(t, []string{"NFS", "SMB"}, result.Protocols)
 		assert.Equal(t, int64(0), *result.MinimumEnforcedRetentionDuration)
 		assert.False(t, result.IsBackupImmutable)
 	})
@@ -3744,6 +3746,7 @@ func TestConvertDatastoreBackupToModel(t *testing.T) {
 			Type:         "MANUAL",
 			Attributes: &datamodel.BackupAttributes{
 				VolumeName: "test-volume",
+				Protocols:  []string{"NFS"},
 			},
 			BackupVault: &datamodel.BackupVault{
 				BaseModel: datamodel.BaseModel{
@@ -3763,6 +3766,7 @@ func TestConvertDatastoreBackupToModel(t *testing.T) {
 		assert.Equal(t, "Test backup description", *result.Description)
 		assert.Equal(t, "MANUAL", result.Type)
 		assert.Equal(t, "test-volume", result.VolumeName)
+		assert.Equal(t, []string{"NFS"}, result.Protocols)
 		assert.Equal(t, "test-vault-uuid", result.BackupVaultID)
 		assert.Equal(t, "us-east1", result.Region)
 		assert.Equal(t, int64(0), *result.MinimumEnforcedRetentionDuration)
@@ -3783,6 +3787,7 @@ func TestConvertDatastoreBackupToModel(t *testing.T) {
 			Type:         "MANUAL",
 			Attributes: &datamodel.BackupAttributes{
 				VolumeName: "test-volume",
+				Protocols:  []string{"NFS", "SMB"},
 			},
 			BackupVault: &datamodel.BackupVault{
 				BaseModel: datamodel.BaseModel{
@@ -3806,6 +3811,7 @@ func TestConvertDatastoreBackupToModel(t *testing.T) {
 		assert.Equal(t, "Test backup description", *result.Description)
 		assert.Equal(t, "MANUAL", result.Type)
 		assert.Equal(t, "test-volume", result.VolumeName)
+		assert.Equal(t, []string{"NFS", "SMB"}, result.Protocols)
 		assert.Equal(t, "test-vault-uuid", result.BackupVaultID)
 		assert.Equal(t, "us-east1", result.Region)
 		assert.Equal(t, int64(30), *result.MinimumEnforcedRetentionDuration)
@@ -3826,6 +3832,7 @@ func TestConvertDatastoreBackupToModel(t *testing.T) {
 			Type:         "MANUAL",
 			Attributes: &datamodel.BackupAttributes{
 				VolumeName: "test-volume",
+				Protocols:  []string{"NFS"},
 			},
 			BackupVault: &datamodel.BackupVault{
 				BaseModel: datamodel.BaseModel{
@@ -3849,6 +3856,7 @@ func TestConvertDatastoreBackupToModel(t *testing.T) {
 		assert.Equal(t, "Test backup description", *result.Description)
 		assert.Equal(t, "MANUAL", result.Type)
 		assert.Equal(t, "test-volume", result.VolumeName)
+		assert.Equal(t, []string{"NFS"}, result.Protocols)
 		assert.Equal(t, "test-vault-uuid", result.BackupVaultID)
 		assert.Equal(t, "us-east1", result.Region)
 		assert.Equal(t, int64(30), *result.MinimumEnforcedRetentionDuration)
@@ -3869,6 +3877,7 @@ func TestConvertDatastoreBackupToModel(t *testing.T) {
 			Type:         "MANUAL",
 			Attributes: &datamodel.BackupAttributes{
 				VolumeName: "test-volume",
+				Protocols:  []string{"NFS"},
 			},
 			BackupVault: &datamodel.BackupVault{
 				BaseModel: datamodel.BaseModel{
@@ -3892,10 +3901,43 @@ func TestConvertDatastoreBackupToModel(t *testing.T) {
 		assert.Equal(t, "Test backup description", *result.Description)
 		assert.Equal(t, "MANUAL", result.Type)
 		assert.Equal(t, "test-volume", result.VolumeName)
+		assert.Equal(t, []string{"NFS"}, result.Protocols)
 		assert.Equal(t, "test-vault-uuid", result.BackupVaultID)
 		assert.Equal(t, "us-east1", result.Region)
 		assert.Equal(t, int64(0), *result.MinimumEnforcedRetentionDuration)
 		assert.True(t, result.IsBackupImmutable)
+	})
+
+	t.Run("WhenProtocolsIsNil", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-uuid",
+			},
+			Name:         "test-backup",
+			VolumeUUID:   "test-volume-uuid",
+			State:        "AVAILABLE",
+			StateDetails: "Backup is available",
+			Description:  "Test backup description",
+			Type:         "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName: "test-volume",
+				Protocols:  nil,
+			},
+		}
+
+		result := convertDatastoreBackupToModel(backup)
+
+		assert.Equal(t, "test-backup-uuid", result.BackupID)
+		assert.Equal(t, "test-backup", result.Name)
+		assert.Equal(t, "test-volume-uuid", result.VolumeID)
+		assert.Equal(t, "AVAILABLE", result.LifeCycleState)
+		assert.Equal(t, "Backup is available", result.LifeCycleStateDetails)
+		assert.Equal(t, "Test backup description", *result.Description)
+		assert.Equal(t, "MANUAL", result.Type)
+		assert.Equal(t, "test-volume", result.VolumeName)
+		assert.Equal(t, []string{}, result.Protocols)
+		assert.Equal(t, int64(0), *result.MinimumEnforcedRetentionDuration)
+		assert.False(t, result.IsBackupImmutable)
 	})
 }
 
@@ -4909,7 +4951,7 @@ func Test_createBackup_WithOptionalAttributes(t *testing.T) {
 			State:        models.LifeCycleStateCreating,
 			StateDetails: models.LifeCycleStateCreatingDetails,
 			BackupVault:  backupVault,
-			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume"},
+			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume", Protocols: []string{"NFS"}},
 		}
 
 		params := &common.CreateBackupParams{
@@ -5010,6 +5052,7 @@ func Test_createBackupInternal(t *testing.T) {
 			Attributes: &datamodel.BackupAttributes{
 				VolumeName:        params.VolumeName,
 				AccountIdentifier: account.Name,
+				Protocols:         params.Protocols,
 			},
 		}
 
@@ -5129,7 +5172,7 @@ func Test_createBackupInternal(t *testing.T) {
 			State:        models.LifeCycleStateAvailable,
 			StateDetails: models.LifeCycleStateAvailableDetails,
 			BackupVault:  backupVault,
-			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume"},
+			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume", Protocols: []string{"NFS"}},
 		}
 
 		store.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, params.BackupVaultID, int64(1)).Return(backupVault, nil)
@@ -5224,7 +5267,7 @@ func Test_createBackupInternal(t *testing.T) {
 			State:        models.LifeCycleStateAvailable,
 			StateDetails: models.LifeCycleStateAvailableDetails,
 			BackupVault:  backupVault,
-			Attributes:   &datamodel.BackupAttributes{VolumeName: params.VolumeName},
+			Attributes:   &datamodel.BackupAttributes{VolumeName: params.VolumeName, Protocols: params.Protocols},
 		}
 
 		store.On("GetBackupVaultByExternalUUIDAndOwnerID", ctx, params.BackupVaultID, int64(1)).Return(backupVault, nil)
@@ -5269,6 +5312,7 @@ func Test_createBackupInternal(t *testing.T) {
 			Attributes: &datamodel.BackupAttributes{
 				VolumeName:        params.VolumeName,
 				AccountIdentifier: account.Name,
+				Protocols:         params.Protocols,
 			},
 		}
 
@@ -5321,6 +5365,7 @@ func Test_createBackupInternal(t *testing.T) {
 			Attributes: &datamodel.BackupAttributes{
 				VolumeName:        params.VolumeName,
 				AccountIdentifier: account.Name,
+				Protocols:         params.Protocols,
 			},
 		}
 
@@ -5384,6 +5429,7 @@ func Test_createBackupInternal(t *testing.T) {
 			Attributes: &datamodel.BackupAttributes{
 				VolumeName:        params.VolumeName,
 				AccountIdentifier: account.Name,
+				Protocols:         params.Protocols,
 			},
 		}
 
@@ -5447,6 +5493,7 @@ func Test_createBackupInternal(t *testing.T) {
 			Attributes: &datamodel.BackupAttributes{
 				VolumeName:        params.VolumeName,
 				AccountIdentifier: account.Name,
+				Protocols:         params.Protocols,
 			},
 		}
 
@@ -5501,7 +5548,7 @@ func Test_updateBackupInternal(t *testing.T) {
 			StateDetails: models.LifeCycleStateAvailableDetails,
 			Description:  "old description",
 			BackupVault:  backupVault,
-			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume"},
+			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume", Protocols: []string{"NFS"}},
 		}
 		updatedBackup := &datamodel.Backup{
 			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
@@ -5510,7 +5557,7 @@ func Test_updateBackupInternal(t *testing.T) {
 			StateDetails: models.LifeCycleStateAvailableDetails,
 			Description:  params.Description,
 			BackupVault:  backupVault,
-			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume"},
+			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume", Protocols: []string{"NFS"}},
 		}
 
 		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
@@ -5590,7 +5637,7 @@ func Test_updateBackupInternal(t *testing.T) {
 			State:        models.LifeCycleStateCreating,
 			StateDetails: models.LifeCycleStateCreatingDetails,
 			BackupVault:  backupVault,
-			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume"},
+			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume", Protocols: []string{"NFS"}},
 		}
 
 		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
@@ -5625,7 +5672,7 @@ func Test_updateBackupInternal(t *testing.T) {
 			StateDetails: models.LifeCycleStateAvailableDetails,
 			Description:  "old description",
 			BackupVault:  backupVault,
-			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume"},
+			Attributes:   &datamodel.BackupAttributes{VolumeName: "testVolume", Protocols: []string{"NFS"}},
 		}
 
 		store.On("GetBackupByExternalUUID", ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
@@ -5863,7 +5910,7 @@ func Test_createBackup_ExpertModeVolumeErrors(t *testing.T) {
 			State:        models.LifeCycleStateCreating,
 			StateDetails: models.LifeCycleStateCreatingDetails,
 			BackupVault:  backupVault,
-			Attributes:   &datamodel.BackupAttributes{VolumeName: expertModeVol.Name},
+			Attributes:   &datamodel.BackupAttributes{VolumeName: expertModeVol.Name, Protocols: []string{}},
 			Description:  params.Description,
 			Type:         params.BackupType,
 		}

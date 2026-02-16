@@ -883,7 +883,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 
 		// FetchBackupMetadataForRestore activity fetches backup metadata for restore
-		err = workflow.ExecuteActivity(ctx, volumeActivity.FetchBackupMetadataForRestore, createVolumeParams.BackupPath, backupVault, &dbVolume.Pool, dbVolume).Get(ctx, &backup)
+		err = workflow.ExecuteActivity(ctx, volumeActivity.FetchBackupMetadataForRestore, createVolumeParams.BackupPath, backupVault, dbVolume, region).Get(ctx, &backup)
 		if err != nil {
 			log.Errorf("Failed to fetch backup metadata for restore: %v", err)
 			return nil, ConvertToVSAError(err)

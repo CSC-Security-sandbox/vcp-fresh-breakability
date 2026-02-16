@@ -14451,6 +14451,10 @@ func (s *Server) handleV1betaListBackupsRequest(args [3]string, argsEscaped bool
 					In:   "query",
 				}: params.VolumeId,
 				{
+					Name: "backupName",
+					In:   "query",
+				}: params.BackupName,
+				{
 					Name: "onlyOrphanedBackups",
 					In:   "query",
 				}: params.OnlyOrphanedBackups,

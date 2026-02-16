@@ -53,6 +53,7 @@ type Backup struct {
 	MinimumEnforcedRetentionDuration *int64
 	SourceRegion                     *string
 	BackupRegion                     *string
+	Protocols                        []string
 }
 
 type HydrateBackup struct {

@@ -705,6 +705,7 @@ func (h Handler) V1betaListBackups(ctx context.Context, params gcpgenserver.V1be
 		LocationId:     params.LocationId,
 		ProjectNumber:  params.ProjectNumber,
 		XCorrelationID: gcpgenserver.NewOptString(params.XCorrelationID.Value),
+		BackupName:     params.BackupName,
 	}
 	listBackupsResp, err := listBackupsToCVP(ctx, listBackupParams)
 
@@ -732,7 +733,12 @@ func (h Handler) V1betaListBackups(ctx context.Context, params gcpgenserver.V1be
 			}, nil
 		}
 	} else {
-		backupList, err := h.Orchestrator.ListBackups(ctx, params.BackupVaultId, params.ProjectNumber, nil)
+		var filters [][]interface{}
+		if params.BackupName.IsSet() && params.BackupName.Value != "" {
+			filters = [][]interface{}{{"name = ?", params.BackupName.Value}}
+		}
+
+		backupList, err := h.Orchestrator.ListBackups(ctx, params.BackupVaultId, params.ProjectNumber, filters)
 		if err != nil {
 			logger.Error("Failed to list backups", "error", err)
 			return &gcpgenserver.V1betaListBackupsInternalServerError{
@@ -768,6 +774,20 @@ func convertToBackupsV1beta(backup *models.BackupV1beta) gcpgenserver.BackupV1be
 		SatisfiesPzi:             utils.GetOptBool(backup.SatisfiesPzi),
 		VolumeRegion:             utils.GetOptString(backup.VolumeRegion),
 		BackupRegion:             utils.GetOptString(backup.BackupRegion),
+		BucketName:               utils.GetOptString(&backup.BucketName),
+		SnapshotName: func() gcpgenserver.OptString {
+			backupName := ""
+			if backup.ResourceID != "" {
+				backupName = backup.ResourceID
+			}
+			snapshotName := utils.ExtractSnapshotNameFromCVPBackup(backup, backupName)
+			if snapshotName != "" {
+				return gcpgenserver.NewOptString(snapshotName)
+			}
+			return gcpgenserver.OptString{}
+		}(),
+		EndPointUUID: utils.GetOptString(backup.EndPointUUID),
+		Protocols:    nil, // CVP models don't have protocols field, will be empty for backups fetched from CVP
 		AssetLocationMetadata: func() gcpgenserver.OptAssetLocationMetadataV2 {
 			if backup.AssetLocationMetadata != nil {
 				var assets []gcpgenserver.ChildAssetV2
@@ -790,15 +810,28 @@ func convertToBackupsV1beta(backup *models.BackupV1beta) gcpgenserver.BackupV1be
 func convertBackupModelToBackupsV1beta(backup *coremodels.Backup) *gcpgenserver.BackupV1beta {
 	sourceSnapshot := utils.RenameSnapshotName(backup.SnapshotName)
 	backupV1 := &gcpgenserver.BackupV1beta{
-		ResourceId:            utils.GetOptString(&backup.Name),
-		VolumeId:              utils.GetOptString(&backup.VolumeID),
-		State:                 gcpgenserver.NewOptBackupV1betaState(gcpgenserver.BackupV1betaState(backup.LifeCycleState)),
-		BackupId:              utils.GetOptString(&backup.BackupID),
-		SourceVolume:          utils.GetOptString(&backup.VolumeName),
-		BackupVaultId:         utils.GetOptString(&backup.BackupVaultID),
-		Description:           utils.GetOptString(backup.Description),
-		SourceSnapshot:        utils.GetOptString(&sourceSnapshot),
-		BackupType:            gcpgenserver.NewOptBackupV1betaBackupType(gcpgenserver.BackupV1betaBackupType(backup.Type)),
+		ResourceId:     utils.GetOptString(&backup.Name),
+		VolumeId:       utils.GetOptString(&backup.VolumeID),
+		State:          gcpgenserver.NewOptBackupV1betaState(gcpgenserver.BackupV1betaState(backup.LifeCycleState)),
+		BackupId:       utils.GetOptString(&backup.BackupID),
+		SourceVolume:   utils.GetOptString(&backup.VolumeName),
+		BackupVaultId:  utils.GetOptString(&backup.BackupVaultID),
+		Description:    utils.GetOptString(backup.Description),
+		SourceSnapshot: utils.GetOptString(&sourceSnapshot),
+		BackupType:     gcpgenserver.NewOptBackupV1betaBackupType(gcpgenserver.BackupV1betaBackupType(backup.Type)),
+		BucketName:     utils.GetOptString(&backup.BucketName),
+		SnapshotName:   utils.GetOptString(&backup.SnapshotName),
+		EndPointUUID:   utils.GetOptString(&backup.EndpointUUID),
+		Protocols: func() []gcpgenserver.ProtocolsV1beta {
+			if len(backup.Protocols) > 0 {
+				protocols := make([]gcpgenserver.ProtocolsV1beta, 0, len(backup.Protocols))
+				for _, p := range backup.Protocols {
+					protocols = append(protocols, gcpgenserver.ProtocolsV1beta(p))
+				}
+				return protocols
+			}
+			return nil
+		}(),
 		AssetLocationMetadata: gcpgenserver.OptAssetLocationMetadataV2{},
 	}
 	if backup.MinimumEnforcedRetentionDuration != nil && *backup.MinimumEnforcedRetentionDuration > 0 && backup.IsBackupImmutable {
@@ -894,6 +927,18 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 			Value: *backup.BackupVault.SourceRegionName,
 			Set:   backup.BackupVault.SourceRegionName != nil,
 		},
+		BucketName: gcpgenserver.OptString{
+			Value: backup.Attributes.BucketName,
+			Set:   backup.Attributes != nil && backup.Attributes.BucketName != "",
+		},
+		SnapshotName: gcpgenserver.OptString{
+			Value: backup.Attributes.SnapshotName,
+			Set:   backup.Attributes != nil && backup.Attributes.SnapshotName != "",
+		},
+		EndPointUUID: gcpgenserver.OptString{
+			Value: backup.Attributes.EndpointUUID,
+			Set:   backup.Attributes != nil && backup.Attributes.EndpointUUID != "",
+		},
 		SatisfiesPzi: gcpgenserver.OptBool{
 			Value: satisfiesPzi,
 			Set:   true,
@@ -906,6 +951,16 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 			Value: backup.LatestLogicalBackupSize,
 			Set:   backup.LatestLogicalBackupSize != 0,
 		},
+		Protocols: func() []gcpgenserver.ProtocolsV1beta {
+			if backup.Attributes != nil && backup.Attributes.Protocols != nil && len(backup.Attributes.Protocols) > 0 {
+				protocols := make([]gcpgenserver.ProtocolsV1beta, 0, len(backup.Attributes.Protocols))
+				for _, p := range backup.Attributes.Protocols {
+					protocols = append(protocols, gcpgenserver.ProtocolsV1beta(p))
+				}
+				return protocols
+			}
+			return nil
+		}(),
 	}
 	if backup.BackupVault.ImmutableAttributes != nil && *backup.BackupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration > 0 && common.CheckIfBackupIsImmutable(backup) {
 		expirationDate := backup.CreatedAt.AddDate(0, 0, int(*backup.BackupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration))
@@ -1132,6 +1187,9 @@ func _listBackupsToCVP(ctx context.Context, params gcpgenserver.V1betaListBackup
 		LocationID:     params.LocationId,
 		ProjectNumber:  params.ProjectNumber,
 		XCorrelationID: &params.XCorrelationID.Value,
+	}
+	if params.BackupName.IsSet() && params.BackupName.Value != "" {
+		cvpParams.BackupName = params.BackupName.Value
 	}
 
 	backup, err := cvpClient.Backups.V1betaListBackups(cvpParams)

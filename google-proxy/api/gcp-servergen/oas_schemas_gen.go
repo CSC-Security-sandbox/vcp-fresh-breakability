@@ -1636,7 +1636,15 @@ type BackupV1beta struct {
 	// Name of the volume region.
 	VolumeRegion OptString `json:"volumeRegion"`
 	// Name of the backup region.
-	BackupRegion          OptString                  `json:"backupRegion"`
+	BackupRegion OptString `json:"backupRegion"`
+	// Name of the bucket where the backup is stored.
+	BucketName OptString `json:"bucketName"`
+	// Name of the snapshot used for the backup.
+	SnapshotName OptString `json:"snapshotName"`
+	// UUID v4 of the endpoint that was used to create the backup.
+	EndPointUUID OptString `json:"endPointUUID"`
+	// Protocol types supported by the source volume.
+	Protocols             []ProtocolsV1beta          `json:"protocols"`
 	AssetLocationMetadata OptAssetLocationMetadataV2 `json:"assetLocationMetadata"`
 }
 
@@ -1723,6 +1731,26 @@ func (s *BackupV1beta) GetVolumeRegion() OptString {
 // GetBackupRegion returns the value of BackupRegion.
 func (s *BackupV1beta) GetBackupRegion() OptString {
 	return s.BackupRegion
+}
+
+// GetBucketName returns the value of BucketName.
+func (s *BackupV1beta) GetBucketName() OptString {
+	return s.BucketName
+}
+
+// GetSnapshotName returns the value of SnapshotName.
+func (s *BackupV1beta) GetSnapshotName() OptString {
+	return s.SnapshotName
+}
+
+// GetEndPointUUID returns the value of EndPointUUID.
+func (s *BackupV1beta) GetEndPointUUID() OptString {
+	return s.EndPointUUID
+}
+
+// GetProtocols returns the value of Protocols.
+func (s *BackupV1beta) GetProtocols() []ProtocolsV1beta {
+	return s.Protocols
 }
 
 // GetAssetLocationMetadata returns the value of AssetLocationMetadata.
@@ -1813,6 +1841,26 @@ func (s *BackupV1beta) SetVolumeRegion(val OptString) {
 // SetBackupRegion sets the value of BackupRegion.
 func (s *BackupV1beta) SetBackupRegion(val OptString) {
 	s.BackupRegion = val
+}
+
+// SetBucketName sets the value of BucketName.
+func (s *BackupV1beta) SetBucketName(val OptString) {
+	s.BucketName = val
+}
+
+// SetSnapshotName sets the value of SnapshotName.
+func (s *BackupV1beta) SetSnapshotName(val OptString) {
+	s.SnapshotName = val
+}
+
+// SetEndPointUUID sets the value of EndPointUUID.
+func (s *BackupV1beta) SetEndPointUUID(val OptString) {
+	s.EndPointUUID = val
+}
+
+// SetProtocols sets the value of Protocols.
+func (s *BackupV1beta) SetProtocols(val []ProtocolsV1beta) {
+	s.Protocols = val
 }
 
 // SetAssetLocationMetadata sets the value of AssetLocationMetadata.

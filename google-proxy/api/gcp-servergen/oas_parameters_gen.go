@@ -24820,6 +24820,8 @@ type V1betaListBackupsParams struct {
 	IncludeDeleted OptBool
 	// Volume ID for which the backups are to be listed. If not present, all backups will be returned.
 	VolumeId OptString
+	// Backup name for which the backups are to be listed. If not present, all backups will be returned.
+	BackupName OptString
 	// If true, response will include only orphaned backups under the mentioned project.
 	OnlyOrphanedBackups OptBool
 }
@@ -24871,6 +24873,15 @@ func unpackV1betaListBackupsParams(packed middleware.Parameters) (params V1betaL
 		}
 		if v, ok := packed[key]; ok {
 			params.VolumeId = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "backupName",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.BackupName = v.(OptString)
 		}
 	}
 	{
@@ -25188,6 +25199,47 @@ func decodeV1betaListBackupsParams(args [3]string, argsEscaped bool, r *http.Req
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "volumeId",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: backupName.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "backupName",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotBackupNameVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotBackupNameVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.BackupName.SetTo(paramsDotBackupNameVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "backupName",
 			In:   "query",
 			Err:  err,
 		}

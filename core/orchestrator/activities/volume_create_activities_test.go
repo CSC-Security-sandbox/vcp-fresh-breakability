@@ -9,14 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backups"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/volumes"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
@@ -9991,7 +9988,226 @@ func TestCreateRemoteBackupVaultInVCP(t *testing.T) {
 	})
 }
 
-// TestFetchBackupMetadataForRestore tests the FetchBackupMetadataForRestore activity
+// TestFetchBackupVaultMetadataForRestore tests the FetchBackupVaultMetadataForRestore activity
+func TestFetchBackupVaultMetadataForRestore(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
+	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
+
+	t.Run("Success_SameRegionBackupVault_FoundInVCP", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+
+		backupPath := "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup"
+		region := "us-central1"
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Account:   &datamodel.Account{Name: "123456"},
+			AccountID: 1,
+		}
+
+		expectedBackupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid-123"},
+			Name:      "my-vault",
+			BucketDetails: datamodel.BucketDetailsArray{
+				{BucketName: "test-bucket", TenantProjectNumber: "123456789"},
+			},
+		}
+
+		// Mock the storage call for same region
+		mockStorage.On("GetBackupVaultByNameAndOwnerID", ctx, "my-vault", "1").Return(expectedBackupVault, nil)
+
+		// Act
+		result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, region)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "my-vault", result.Name)
+		assert.Equal(t, "bv-uuid-123", result.UUID)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Success_BackupVaultNotFoundInVCP_FetchedFromRemoteVCP", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+
+		backupPath := "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup"
+		region := "us-central1"
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Account:   &datamodel.Account{Name: "123456"},
+			AccountID: 1,
+		}
+
+		// Mock database to return NotFoundErr
+		mockStorage.On("GetBackupVaultByNameAndOwnerID", ctx, "my-vault", "1").Return(nil, utilErrors.NewNotFoundErr("Backup vault", nil))
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-central1.example.com", "mock-jwt-token", nil
+		}
+
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePathParam string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock successful remote VCP response
+		backupVaultID := "bv-uuid-123"
+		mockResponse := &googleproxyclient.V1betaListBackupVaultsOK{
+			BackupVaults: []googleproxyclient.BackupVaultV1beta{
+				{
+					ResourceId:    "my-vault",
+					BackupVaultId: googleproxyclient.NewOptString(backupVaultID),
+					BackupVaultType: googleproxyclient.NewOptBackupVaultV1betaBackupVaultType(
+						googleproxyclient.BackupVaultV1betaBackupVaultTypeINREGION,
+					),
+					BackupRegion: googleproxyclient.NewOptString("us-central1"),
+					State: googleproxyclient.NewOptBackupVaultV1betaState(
+						googleproxyclient.BackupVaultV1betaStateREADY,
+					),
+				},
+			},
+		}
+
+		mockInvoker.On("V1betaListBackupVaults", ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Act
+		result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, region)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "my-vault", result.Name)
+		assert.Equal(t, backupVaultID, result.UUID)
+		mockStorage.AssertExpectations(t)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Error_InvalidBackupPathFormat", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+
+		// Invalid backup path - missing components
+		backupPath := "projects/123456/locations/us-central1"
+		region := "us-central1"
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Account:   &datamodel.Account{Name: "123456"},
+			AccountID: 1,
+		}
+
+		// Act
+		result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, region)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "Backup path is not in correct format")
+	})
+
+	t.Run("Error_DatabaseError_NotNotFound", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+
+		backupPath := "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup"
+		region := "us-central1"
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Account:   &datamodel.Account{Name: "123456"},
+			AccountID: 1,
+		}
+
+		// Mock database to return a non-NotFound error
+		dbError := fmt.Errorf("database connection failed")
+		mockStorage.On("GetBackupVaultByNameAndOwnerID", ctx, "my-vault", "1").Return(nil, dbError)
+
+		// Act
+		result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, region)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, dbError, err)
+		assert.Contains(t, err.Error(), "database connection failed")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error_BackupVaultNotFoundInVCP_RemoteVCPFetchFails", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+
+		backupPath := "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup"
+		region := "us-central1"
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Account:   &datamodel.Account{Name: "123456"},
+			AccountID: 1,
+		}
+
+		// Mock database to return NotFoundErr
+		mockStorage.On("GetBackupVaultByNameAndOwnerID", ctx, "my-vault", "1").Return(nil, utilErrors.NewNotFoundErr("Backup vault", nil))
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-central1.example.com", "mock-jwt-token", nil
+		}
+
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePathParam string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Remote VCP fallback fails with an error
+		mockInvoker.On("V1betaListBackupVaults", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("remote VCP connection error"))
+
+		// Act
+		result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, region)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "remote VCP connection error")
+		mockStorage.AssertExpectations(t)
+		mockInvoker.AssertExpectations(t)
+	})
+}
+
 func TestFetchBackupMetadataForRestore(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
@@ -10008,10 +10224,6 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 			BaseModel: datamodel.BaseModel{ID: 1},
 			Account:   &datamodel.Account{Name: "123456"},
 			AccountID: 1,
-		}
-
-		pool := &datamodel.Pool{
-			VendorID: "gcp-us-central1-a",
 		}
 
 		backupVault := &datamodel.BackupVault{
@@ -10036,7 +10248,7 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "my-backup", int64(1)).Return(backup, nil)
 
 		// Act
-		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, volume, "us-central1")
 
 		// Assert
 		assert.NoError(t, err)
@@ -10061,17 +10273,13 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 			AccountID: 1,
 		}
 
-		pool := &datamodel.Pool{
-			VendorID: "gcp-us-central1-a",
-		}
-
 		backupVault := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid-123"},
 			Name:      "my-vault",
 		}
 
 		// Act
-		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, volume, "us-central1")
 
 		// Assert
 		assert.Error(t, err)
@@ -10091,10 +10299,6 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 			BaseModel: datamodel.BaseModel{ID: 1},
 			Account:   &datamodel.Account{Name: "123456"},
 			AccountID: 1,
-		}
-
-		pool := &datamodel.Pool{
-			VendorID: "gcp-us-west1-a",
 		}
 
 		backupVault := &datamodel.BackupVault{
@@ -10119,7 +10323,7 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "my-backup", int64(1)).Return(backup, nil)
 
 		// Act
-		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, volume, "us-central1")
 
 		// Assert
 		assert.NoError(t, err)
@@ -10129,7 +10333,7 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 
-	t.Run("Error_BackupVaultNotFoundInVCP_CVPFallbackFails", func(t *testing.T) {
+	t.Run("Error_BackupVaultNotFoundInVCP_RemoteVCPFallbackFails", func(t *testing.T) {
 		// Arrange
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
@@ -10140,10 +10344,6 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 			BaseModel: datamodel.BaseModel{ID: 1},
 			Account:   &datamodel.Account{Name: "123456"},
 			AccountID: 1,
-		}
-
-		pool := &datamodel.Pool{
-			VendorID: "/projects/123456/locations/us-central1/pools/pool1",
 		}
 
 		backupVault := &datamodel.BackupVault{
@@ -10151,33 +10351,46 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 			Name:      "my-vault",
 		}
 
-		// Backup not found in VCP - test CVP fallback failure
+		// Backup not found in VCP - test remote VCP fallback failure
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "my-backup", int64(1)).Return(nil, utilErrors.NewNotFoundErr("Backup", nil))
 
-		// Mock CVP client to return an error when fetching backup
-		mockBackupsClient := backups.NewMockClientService(t)
-		cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient}
-		originalCreateClient := activities.CvpCreateClient
-		defer func() { activities.CvpCreateClient = originalCreateClient }()
-		activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-central1.example.com", "mock-jwt-token", nil
 		}
 
-		// CVP fallback fails with an error
-		mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(nil, fmt.Errorf("CVP connection error"))
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePathParam string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Remote VCP fallback fails with an error
+		mockInvoker.On("V1betaListBackups", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("remote VCP connection error"))
 
 		// Act
-		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, volume, "us-central1")
 
 		// Assert
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "CVP connection error")
+		assert.Contains(t, err.Error(), "remote VCP connection error")
 		mockStorage.AssertExpectations(t)
-		mockBackupsClient.AssertExpectations(t)
+		mockInvoker.AssertExpectations(t)
 	})
 
-	t.Run("Error_BackupNotFoundInVCP_CVPFallbackFails", func(t *testing.T) {
+	t.Run("Error_BackupNotFoundInVCP_RemoteVCPFallbackFails", func(t *testing.T) {
 		// Arrange
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
@@ -10188,10 +10401,6 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 			BaseModel: datamodel.BaseModel{ID: 1},
 			Account:   &datamodel.Account{Name: "123456"},
 			AccountID: 1,
-		}
-
-		pool := &datamodel.Pool{
-			VendorID: "/projects/123456/locations/us-central1/pools/pool1",
 		}
 
 		backupVault := &datamodel.BackupVault{
@@ -10203,27 +10412,40 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 		// Note: GetBackupVaultByNameAndOwnerID is NOT called because backupVault is passed as a parameter
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "my-backup", int64(1)).Return(nil, utilErrors.NewNotFoundErr("Backup", nil))
 
-		// Mock CVP client to return an error when fetching backup
-		mockBackupsClient := backups.NewMockClientService(t)
-		cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient}
-		originalCreateClient := activities.CvpCreateClient
-		defer func() { activities.CvpCreateClient = originalCreateClient }()
-		activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-central1.example.com", "mock-jwt-token", nil
 		}
 
-		// CVP fallback fails with an error
-		mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(nil, fmt.Errorf("CVP backup fetch error"))
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePathParam string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Remote VCP fallback fails with an error
+		mockInvoker.On("V1betaListBackups", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("remote VCP backup fetch error"))
 
 		// Act
-		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, volume, "us-central1")
 
 		// Assert
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "CVP backup fetch error")
+		assert.Contains(t, err.Error(), "remote VCP backup fetch error")
 		mockStorage.AssertExpectations(t)
-		mockBackupsClient.AssertExpectations(t)
+		mockInvoker.AssertExpectations(t)
 	})
 
 	t.Run("Success_BackupFoundInVCP_NeedsBucketDetailsFetch", func(t *testing.T) {
@@ -10237,10 +10459,6 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 			BaseModel: datamodel.BaseModel{ID: 1},
 			Account:   &datamodel.Account{Name: "123456"},
 			AccountID: 1,
-		}
-
-		pool := &datamodel.Pool{
-			VendorID: "gcp-us-central1-a",
 		}
 
 		backupVault := &datamodel.BackupVault{
@@ -10262,13 +10480,95 @@ func TestFetchBackupMetadataForRestore(t *testing.T) {
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "my-backup", int64(1)).Return(backup, nil)
 
 		// Act
-		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, volume, "us-central1")
 
 		// Assert - should succeed because backup is found and bucket details validation happens in ensureBackupHasBucketDetails
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, "my-backup", result.Name)
 		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Success_BackupNotFoundInVCP_RemoteVCPFallbackSucceeds", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+
+		backupPath := "projects/123456/locations/us-central1/backupVaults/my-vault/backups/my-backup"
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Account:   &datamodel.Account{Name: "123456"},
+			AccountID: 1,
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid-123"},
+			Name:      "my-vault",
+			BucketDetails: datamodel.BucketDetailsArray{
+				{BucketName: "test-bucket", TenantProjectNumber: "123456789"},
+			},
+		}
+
+		// Backup not found in VCP DB
+		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "my-backup", int64(1)).Return(nil, utilErrors.NewNotFoundErr("Backup", nil))
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-central1.example.com", "mock-jwt-token", nil
+		}
+
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePathParam string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock remote VCP to return backup successfully
+		createdTime := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+		backupFromRemote := &googleproxyclient.BackupV1beta{
+			BackupId:         googleproxyclient.NewOptString("backup-uuid-remote"),
+			ResourceId:       googleproxyclient.NewOptString("my-backup"),
+			VolumeId:         googleproxyclient.NewOptString("volume-uuid-456"),
+			State:            googleproxyclient.NewOptBackupV1betaState(googleproxyclient.BackupV1betaStateREADY),
+			Created:          googleproxyclient.NewOptDateTime(createdTime),
+			Description:      googleproxyclient.NewOptString("Remote backup"),
+			BackupType:       googleproxyclient.NewOptBackupV1betaBackupType(googleproxyclient.BackupV1betaBackupTypeMANUAL),
+			VolumeUsageBytes: googleproxyclient.NewOptInt64(2048 * 1024 * 1024),
+			SourceVolume:     googleproxyclient.NewOptString("projects/123456/locations/us-central1/volumes/volume-123"),
+			SourceSnapshot:   googleproxyclient.NewOptString("projects/123456/locations/us-central1/volumes/volume-123/snapshots/snapshot-456"),
+			Protocols: []googleproxyclient.ProtocolsV1beta{
+				googleproxyclient.ProtocolsV1betaNFSV3,
+			},
+		}
+
+		mockResponse := &googleproxyclient.V1betaListBackupsOK{
+			Backups: []googleproxyclient.BackupV1beta{*backupFromRemote},
+		}
+		mockInvoker.On("V1betaListBackups", mock.Anything, mock.Anything).Return(mockResponse, nil)
+
+		// Act
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, volume, "us-central1")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "my-backup", result.Name)
+		assert.Equal(t, "backup-uuid-remote", result.UUID)
+		assert.Equal(t, backupVault.ID, result.BackupVaultID)
+		mockStorage.AssertExpectations(t)
+		mockInvoker.AssertExpectations(t)
 	})
 }
 
@@ -10329,65 +10629,6 @@ func TestBackupRestoreMetadataStruct(t *testing.T) {
 	})
 }
 
-// TestFetchBackupFromCVP_ErrorCases tests FetchBackupFromCVP error paths
-// These tests cover missing lines: 1550-1552
-func TestFetchBackupFromCVP_ErrorCases(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	_ = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	t.Run("Error_ParseRegionFailure", func(t *testing.T) {
-		// This test covers lines 1550-1552
-		// We need a vendor ID with valid format but invalid location that fails ParseRegionAndZone
-		// Vendor ID format: /projects/{project}/locations/{location}/pools/{pool}
-		// Location must be invalid for ParseRegionAndZone (doesn't match regex: ^([a-z]+-[a-z]+\d+)(-[a-z])?$)
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		backupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
-		}
-		// Use a vendor ID with valid format but invalid location that will fail ParseRegionAndZone
-		pool := &datamodel.Pool{VendorID: "/projects/123456/locations/invalid-location-format/pools/pool123"}
-		account := &datamodel.Account{Name: "123456"}
-
-		// Act
-		result, err := activities.FetchBackupFromCVP(ctx, "test-backup", backupVault, pool, account)
-
-		// Assert
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "failed to parse region")
-	})
-}
-
-// TestEnsureBucketDetailsExist_ErrorCases tests EnsureBucketDetailsExist error paths
-// These tests cover missing lines: 1788, 1804-1805, 1809-1810, 1813
-func TestEnsureBucketDetailsExist_ErrorCases(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	_ = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	t.Run("Error_EmptyBucketName", func(t *testing.T) {
-		// This test covers lines 1788
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		bv := &datamodel.BackupVault{}
-		err := activities.EnsureBucketDetailsExist(ctx, bv, "")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "bucket name is empty")
-	})
-
-	t.Run("Success_BucketAlreadyExists", func(t *testing.T) {
-		// This test covers lines 1804-1805, 1809-1810, 1813
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		bv := &datamodel.BackupVault{
-			BucketDetails: datamodel.BucketDetailsArray{
-				{BucketName: "existing-bucket"},
-			},
-		}
-		err := activities.EnsureBucketDetailsExist(ctx, bv, "existing-bucket")
-		assert.NoError(t, err)
-	})
-}
-
 // TestFetchBackupMetadataForRestore_ErrorCases tests error paths that cover missing lines
 // These tests cover missing lines: 1841, 1845, 1901, 1909, 1913, 1923, 1942-1943, 1946-1947, 1950-1951, 1957, 1970
 func TestFetchBackupMetadataForRestore_ErrorCases(t *testing.T) {
@@ -10402,8 +10643,6 @@ func TestFetchBackupMetadataForRestore_ErrorCases(t *testing.T) {
 			BaseModel: datamodel.BaseModel{ID: 1},
 			AccountID: 1,
 		}
-		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
-
 		backupVault := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid-123"},
 			Name:      "test-vault",
@@ -10415,7 +10654,7 @@ func TestFetchBackupMetadataForRestore_ErrorCases(t *testing.T) {
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, volume, "us-central1")
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -10431,8 +10670,6 @@ func TestFetchBackupMetadataForRestore_ErrorCases(t *testing.T) {
 			AccountID: 1,
 			Account:   &datamodel.Account{Name: "123456"},
 		}
-		pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
-
 		backupVault := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid-123"},
 			Name:      "test-vault",
@@ -10441,24 +10678,43 @@ func TestFetchBackupMetadataForRestore_ErrorCases(t *testing.T) {
 		// Mock backup not found in VCP
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(nil, utilErrors.NewNotFoundErr("Backup", nil))
 
-		// Mock CVP client to also return not found
-		mockBackupsClient := backups.NewMockClientService(t)
-		cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient}
-		originalCreateClient := activities.CvpCreateClient
-		defer func() { activities.CvpCreateClient = originalCreateClient }()
-		activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-central1.example.com", "mock-jwt-token", nil
 		}
 
-		mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(nil, fmt.Errorf("backup not found in CVP"))
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePathParam string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock remote VCP to return empty list (backup not found)
+		mockResponse := &googleproxyclient.V1betaListBackupsOK{
+			Backups: []googleproxyclient.BackupV1beta{},
+		}
+		mockInvoker.On("V1betaListBackups", mock.Anything, mock.Anything).Return(mockResponse, nil)
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, volume, "us-central1")
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "not found")
 		mockStorage.AssertExpectations(t)
+		mockInvoker.AssertExpectations(t)
 	})
 
 	t.Run("Error_BackupNonNotFoundError", func(t *testing.T) {
@@ -10472,7 +10728,6 @@ func TestFetchBackupMetadataForRestore_ErrorCases(t *testing.T) {
 			AccountID: 1,
 			Account:   &datamodel.Account{Name: "123456"},
 		}
-		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
 
 		expectedError := errors.New("database error")
 		// Note: GetBackupVaultByNameAndOwnerID is NOT called because backupVault is passed as a parameter
@@ -10480,81 +10735,11 @@ func TestFetchBackupMetadataForRestore_ErrorCases(t *testing.T) {
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, volume, "us-central1")
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "database error")
-		mockStorage.AssertExpectations(t)
-	})
-
-	t.Run("Error_NilBackupVaultInBackup", func(t *testing.T) {
-		// Test when backup has nil BackupVault
-		mockStorage := database.NewMockStorage(t)
-		backupVaultFromDB := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{ID: 1},
-		}
-		backupFromDB := &datamodel.Backup{
-			Name:        "test-backup",
-			BackupVault: nil, // Nil BackupVault
-			Attributes: &datamodel.BackupAttributes{
-				BucketName: "test-bucket",
-			},
-		}
-
-		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			AccountID: 1,
-			Account:   &datamodel.Account{Name: "123456"},
-		}
-		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
-
-		// Note: GetBackupVaultByNameAndOwnerID is NOT called because backupVault is passed as a parameter
-		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(backupFromDB, nil)
-
-		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
-		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVaultFromDB, pool, volume)
-
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "backup vault not loaded")
-		mockStorage.AssertExpectations(t)
-	})
-
-	t.Run("Error_EmptyBucketName", func(t *testing.T) {
-		// This test covers line 1913
-		mockStorage := database.NewMockStorage(t)
-		backupVaultFromDB := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{ID: 1},
-		}
-		backupFromDB := &datamodel.Backup{
-			Name: "test-backup",
-			BackupVault: &datamodel.BackupVault{
-				BaseModel: datamodel.BaseModel{ID: 1},
-			},
-			Attributes: &datamodel.BackupAttributes{
-				BucketName: "", // Empty bucket name
-			},
-		}
-
-		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			AccountID: 1,
-			Account:   &datamodel.Account{Name: "123456"},
-		}
-		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
-
-		// Note: GetBackupVaultByNameAndOwnerID is NOT called because backupVault is passed as a parameter
-		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(backupFromDB, nil)
-
-		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
-		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVaultFromDB, pool, volume)
-
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "bucket name not found")
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -10581,14 +10766,13 @@ func TestFetchBackupMetadataForRestore_ErrorCases(t *testing.T) {
 			AccountID: 1,
 			Account:   &datamodel.Account{Name: "123456"},
 		}
-		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
 
 		// Note: GetBackupVaultByNameAndOwnerID is NOT called because backupVault is passed as a parameter
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(backupFromDB, nil)
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVaultFromDB, pool, volume)
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVaultFromDB, volume, "us-central1")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -10616,14 +10800,13 @@ func TestFetchBackupMetadataForRestore_ErrorCases(t *testing.T) {
 			AccountID: 1,
 			Account:   &datamodel.Account{Name: "123456"},
 		}
-		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
 
 		// Note: GetBackupVaultByNameAndOwnerID is NOT called because backupVault is passed as a parameter
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(backupFromDB, nil)
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVaultFromDB, pool, volume)
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVaultFromDB, volume, "us-central1")
 
 		// Should succeed - FetchBackupMetadataForRestore only validates that bucket name exists in attributes
 		// Actual bucket details fetching is done by FetchBucketMetadataForRestore activity
@@ -10692,42 +10875,6 @@ func TestFetchBucketDetailsFromGCS_ErrorCases(t *testing.T) {
 		assert.Nil(t, result)
 		// Check for the error message about missing project number
 		assert.Contains(t, err.Error(), "does not have project number in metadata", "Expected error about missing project number")
-	})
-}
-
-// TestEnsureBucketDetailsExist_NilBucketDetails tests EnsureBucketDetailsExist when bucket details from GCS are nil
-// This test covers missing line: 1805
-func TestEnsureBucketDetailsExist_NilBucketDetails(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	t.Run("Error_NilBucketDetailsFromGCS", func(t *testing.T) {
-		// This test covers line 1805
-		// Note: This is hard to test directly since FetchBucketDetailsFromGCS always returns a non-nil error
-		// when bucket details are invalid. However, we can test the case where TenantProjectNumber is empty
-		// which triggers line 1805
-		originalGetGCPService := hyperscaler2.GetGCPService
-		originalGetBucket := activities.GetBucket
-		defer func() {
-			hyperscaler2.GetGCPService = originalGetGCPService
-			activities.GetBucket = originalGetBucket
-		}()
-
-		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return &google.GcpServices{}, nil
-		}
-
-		// Mock GetBucket to return an error to trigger line 1805
-		activities.GetBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (*hyperscaler.BucketDetails, error) {
-			return nil, fmt.Errorf("bucket not found")
-		}
-
-		bv := &datamodel.BackupVault{}
-		err := activities.EnsureBucketDetailsExist(ctx, bv, "test-bucket")
-		assert.Error(t, err)
-		// The error will come from FetchBucketDetailsFromGCS, but EnsureBucketDetailsExist will wrap it
-		assert.Contains(t, err.Error(), "failed to fetch bucket details from GCS")
 	})
 }
 
@@ -10820,145 +10967,6 @@ func TestExtractBucketDetailsForBackup_EdgeCases(t *testing.T) {
 	})
 }
 
-func TestEnsureBackupHasBucketDetails_ErrorCases(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	t.Run("Error_BackupMissingBucketName", func(t *testing.T) {
-		backup := &datamodel.Backup{
-			Name: "test-backup",
-			BackupVault: &datamodel.BackupVault{
-				BaseModel: datamodel.BaseModel{ID: 1},
-			},
-			Attributes: &datamodel.BackupAttributes{
-				BucketName: "",
-			},
-		}
-		backupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{ID: 1},
-		}
-
-		mockStorage := database.NewMockStorage(t)
-		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			AccountID: 1,
-			Account:   &datamodel.Account{Name: "123456"},
-		}
-		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
-
-		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(backup, nil)
-
-		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
-		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
-
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "bucket name not found in backup attributes")
-		mockStorage.AssertExpectations(t)
-	})
-
-	t.Run("Error_BackupVaultNotLoaded", func(t *testing.T) {
-		backup := &datamodel.Backup{
-			Name:        "test-backup",
-			BackupVault: nil,
-			Attributes: &datamodel.BackupAttributes{
-				BucketName: "test-bucket",
-			},
-		}
-		backupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{ID: 1},
-		}
-
-		mockStorage := database.NewMockStorage(t)
-		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			AccountID: 1,
-			Account:   &datamodel.Account{Name: "123456"},
-		}
-		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
-
-		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(backup, nil)
-
-		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
-		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
-
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "backup vault not loaded")
-		mockStorage.AssertExpectations(t)
-	})
-}
-
-// TestFetchAndConvertBackupFromCVP_ErrorCases tests fetchAndConvertBackupFromCVP error cases
-// These tests cover missing lines: 1942-1943, 1946-1947, 1950-1951
-// Note: fetchAndConvertBackupFromCVP is private, so we test it indirectly through FetchBackupMetadataForRestore
-func TestFetchAndConvertBackupFromCVP_ErrorCases(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	_ = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	t.Run("Error_EmptyBucketName", func(t *testing.T) {
-		// This test covers lines 1942-1943
-		// Note: This requires mocking FetchBackupFromCVP to return a backup with empty bucket name
-		// Since FetchBackupFromCVP involves CVP client calls, this is tested indirectly
-		// The actual test would require CVP client mocking which is complex
-		t.Skip("Requires CVP client mocking - tested indirectly through integration tests")
-	})
-
-	t.Run("Error_EnsureBucketDetailsExistFails", func(t *testing.T) {
-		// This test covers lines 1946-1947, 1950-1951
-		// Test indirectly through FetchBackupMetadataForRestore when backup is fetched from CVP
-		// This requires CVP client mocking to return a backup, then EnsureBucketDetailsExist fails
-		t.Skip("Requires CVP client mocking - tested indirectly through integration tests")
-	})
-}
-
-// TestAppendBucketDetails tests appendBucketDetails function indirectly
-// This test covers missing line: 1773
-// Note: appendBucketDetails is private, so we test it indirectly through EnsureBucketDetailsExist
-func TestAppendBucketDetails(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	t.Run("Success_AppendToNilBucketDetails", func(t *testing.T) {
-		// This test covers line 1773 - nil BucketDetails case (appending to nil)
-		// Test indirectly through EnsureBucketDetailsExist which calls appendBucketDetails
-		originalGetGCPService := hyperscaler2.GetGCPService
-		originalGetBucket := activities.GetBucket
-		defer func() {
-			hyperscaler2.GetGCPService = originalGetGCPService
-			activities.GetBucket = originalGetBucket
-		}()
-
-		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return &google.GcpServices{}, nil
-		}
-		// Mock GetBucket to return valid bucket details
-		activities.GetBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (*hyperscaler.BucketDetails, error) {
-			return &hyperscaler.BucketDetails{
-				Name:          bucketName,
-				ProjectNumber: "999999999",
-				SatisfiesPzi:  false,
-				SatisfiesPzs:  false,
-			}, nil
-		}
-
-		// BackupVault with nil BucketDetails - this will trigger line 1773 path
-		backupVault := &datamodel.BackupVault{
-			BucketDetails: nil,
-		}
-		err := activities.EnsureBucketDetailsExist(ctx, backupVault, "test-bucket")
-		assert.NoError(t, err)
-		assert.NotNil(t, backupVault.BucketDetails)
-		assert.Len(t, backupVault.BucketDetails, 1)
-		assert.Equal(t, "test-bucket", backupVault.BucketDetails[0].BucketName)
-	})
-}
-
 // TestExtractBucketDetailsForBackup_Fallback tests extractBucketDetailsForBackup fallback case
 // This test covers missing line: 1970
 func TestExtractBucketDetailsForBackup_Fallback(t *testing.T) {
@@ -10995,209 +11003,18 @@ func TestExtractBucketDetailsForBackup_Fallback(t *testing.T) {
 			AccountID: 1,
 			Account:   &datamodel.Account{Name: "123456"},
 		}
-		pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
 
 		mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(backup, nil)
 
 		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
 		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
+		result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, volume, "us-central1")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, "nonexistent-bucket", result.Attributes.BucketName)
 		assert.Equal(t, 2, len(backupVault.BucketDetails))
 		mockStorage.AssertExpectations(t)
-	})
-}
-
-// TestEnsureBucketDetailsExist_EmptyBucketDetails tests EnsureBucketDetailsExist when bucket details is empty
-// This test covers missing line: 1805
-func TestEnsureBucketDetailsExist_EmptyBucketDetails(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	t.Run("Error_EmptyTenantProjectNumber", func(t *testing.T) {
-		// This test covers line 1805 - empty TenantProjectNumber after fetching from GCS
-		originalGetGCPService := hyperscaler2.GetGCPService
-		originalGetBucket := activities.GetBucket
-		defer func() {
-			hyperscaler2.GetGCPService = originalGetGCPService
-			activities.GetBucket = originalGetBucket
-		}()
-
-		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return &google.GcpServices{}, nil
-		}
-		// Mock GetBucket to return valid bucket details
-		activities.GetBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (*hyperscaler.BucketDetails, error) {
-			return nil, fmt.Errorf("bucket test-bucket has invalid project number: 0")
-		}
-
-		backupVault := &datamodel.BackupVault{}
-		err := activities.EnsureBucketDetailsExist(ctx, backupVault, "test-bucket")
-		assert.Error(t, err)
-		// Check the underlying error message since VCP errors wrap the original error
-		var customErr *vsaerrors.CustomError
-		if errors.As(err, &customErr) && customErr.OriginalErr != nil {
-			// Check for the invalid project number error message
-			assert.Contains(t, customErr.OriginalErr.Error(), "has invalid project number", "Expected error about invalid project number")
-		} else {
-			// Fallback: check the error message directly
-			assert.Contains(t, err.Error(), "failed to fetch bucket details from GCS", "Expected error about fetching bucket details")
-		}
-	})
-}
-
-func TestFetchBackupVaultFromCVP(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	t.Run("Success_SameRegion_UsesPoolRegion", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			AccountID: 1,
-			Account:   &datamodel.Account{Name: "123456"},
-		}
-
-		vaultName := "test-vault"
-		mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(nil, utilErrors.NewNotFoundErr("Backup vault", &vaultName)).Once()
-
-		mockBackupVaultClient := backup_vault.NewMockClientService(t)
-		cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
-		originalCreateClient := activities.CvpCreateClient
-		defer func() { activities.CvpCreateClient = originalCreateClient }()
-		activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-
-		mockBackupVaultClient.On("V1betaListBackupVaults", mock.Anything).Return(nil, fmt.Errorf("CVP fetch error"))
-
-		backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
-		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, "us-central1")
-
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "CVP fetch error")
-		mockStorage.AssertExpectations(t)
-		mockBackupVaultClient.AssertExpectations(t)
-	})
-}
-
-// TestFetchBackupFromCVP_AdditionalCases tests additional FetchBackupFromCVP cases
-// This test covers missing lines: 1555, 1559, 1568-1570, 1573-1575, 1579-1580, 1583-1586, 1589, 1592-1595, 1597, 1600-1604, 1608, 1633-1634
-func TestFetchBackupFromCVP_AdditionalCases(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	_ = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	t.Run("Success_WithVolumeUsageBytes", func(t *testing.T) {
-		// This test covers lines 1555, 1559, 1600-1604, 1608, 1633-1634
-		// Tests successful fetch with VolumeUsageBytes set
-		// Note: Requires CVP client mocking - this is a placeholder
-		t.Skip("Requires CVP client mocking - tested indirectly through integration tests")
-	})
-
-	t.Run("Success_WithBackupChainBytes", func(t *testing.T) {
-		// This test covers lines 1600-1604 - fallback to BackupChainBytes
-		// Note: Requires CVP client mocking
-		t.Skip("Requires CVP client mocking - tested indirectly through integration tests")
-	})
-
-	t.Run("Error_CVPClientError", func(t *testing.T) {
-		// This test covers lines 1568-1570 - CVP client error
-		// Note: Requires CVP client mocking
-		t.Skip("Requires CVP client mocking - tested indirectly through integration tests")
-	})
-
-	t.Run("Error_EmptyPayload", func(t *testing.T) {
-		// This test covers lines 1573-1575 - empty payload
-		// Note: Requires CVP client mocking
-		t.Skip("Requires CVP client mocking - tested indirectly through integration tests")
-	})
-
-	t.Run("Error_MultipleBackups", func(t *testing.T) {
-		// This test covers lines 1579-1580 - multiple backups returned
-		// Note: Requires CVP client mocking
-		t.Skip("Requires CVP client mocking - tested indirectly through integration tests")
-	})
-
-	t.Run("Error_NilBackup", func(t *testing.T) {
-		// This test covers lines 1583-1586 - nil backup in response
-		// Note: Requires CVP client mocking
-		t.Skip("Requires CVP client mocking - tested indirectly through integration tests")
-	})
-
-	t.Run("Error_EmptyBucketName", func(t *testing.T) {
-		// This test covers lines 1592-1595, 1597 - empty bucket name
-		// Note: Requires CVP client mocking
-		t.Skip("Requires CVP client mocking - tested indirectly through integration tests")
-	})
-}
-
-// TestGetBackupVaultFromCVPByName tests getBackupVaultFromCVPByName function indirectly
-// This test covers missing lines: 1481, 1484-1486, 1488, 1492, 1499-1501, 1504-1506, 1509, 1513-1515, 1518-1520, 1523, 1528-1529
-// Note: getBackupVaultFromCVPByName is private, so we test it indirectly through fetchBackupVaultFromCVP
-func TestGetBackupVaultFromCVPByName(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	_ = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	t.Run("Success_FoundInCVP", func(t *testing.T) {
-		// This test covers lines 1481, 1484-1486, 1488, 1492, 1509, 1513-1515, 1518-1520, 1523
-		// Tests successful fetch when backup vault is found in CVP
-		// Note: Requires CVP client mocking
-		t.Skip("Requires CVP client mocking - tested indirectly through integration tests")
-	})
-
-	t.Run("Error_CVPClientError", func(t *testing.T) {
-		// This test covers lines 1499-1501 - CVP client error
-		// Note: Requires CVP client mocking
-		t.Skip("Requires CVP client mocking - tested indirectly through integration tests")
-	})
-
-	t.Run("Error_NilPayload", func(t *testing.T) {
-		// This test covers lines 1504-1506 - nil payload
-		// Note: Requires CVP client mocking
-		t.Skip("Requires CVP client mocking - tested indirectly through integration tests")
-	})
-
-	t.Run("Error_NotFound", func(t *testing.T) {
-		// This test covers lines 1528-1529 - backup vault not found
-		// Note: Requires CVP client mocking
-		t.Skip("Requires CVP client mocking - tested indirectly through integration tests")
-	})
-}
-
-// TestAppendBucketDetails_NilCases tests appendBucketDetails with nil inputs
-// This test covers missing line: 1773
-func TestAppendBucketDetails_NilCases(t *testing.T) {
-	t.Run("NilBackupVault", func(t *testing.T) {
-		// This test covers line 1773 - nil backupVault check
-		// appendBucketDetails is private, so we test it indirectly
-		// When EnsureBucketDetailsExist is called with a nil backupVault, it will fail before calling appendBucketDetails
-		// But we can test the nil bucketDetails case through EnsureBucketDetailsExist
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		bv := &datamodel.BackupVault{}
-		// This will fail before reaching appendBucketDetails, but tests the nil check path
-		err := activities.EnsureBucketDetailsExist(ctx, bv, "")
-		assert.Error(t, err)
-	})
-
-	t.Run("NilBucketDetails", func(t *testing.T) {
-		// This test covers line 1773 - nil bucketDetails check
-		// appendBucketDetails is private, but we can test the nil check indirectly
-		// by ensuring EnsureBucketDetailsExist handles nil bucketDetails properly
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		bv := &datamodel.BackupVault{}
-		// Empty bucket name will fail validation before reaching appendBucketDetails
-		err := activities.EnsureBucketDetailsExist(ctx, bv, "")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "bucket name is empty")
 	})
 }
 
@@ -11242,623 +11059,12 @@ func TestFetchBucketDetailsFromGCS_EmptyProjectNumber(t *testing.T) {
 	}
 }
 
-// TestEnsureBucketDetailsExist_NilOrEmptyBucketDetails tests EnsureBucketDetailsExist when bucket details are nil or empty
-// This test covers missing line: 1805
-func TestEnsureBucketDetailsExist_NilOrEmptyBucketDetails(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	originalGetGCPService := hyperscaler2.GetGCPService
-	defer func() {
-		hyperscaler2.GetGCPService = originalGetGCPService
-	}()
-
-	t.Run("NilBucketDetails", func(t *testing.T) {
-		// Mock GCP service to return nil bucket details
-		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return nil, fmt.Errorf("failed to get GCP service")
-		}
-
-		bv := &datamodel.BackupVault{}
-		err := activities.EnsureBucketDetailsExist(ctx, bv, "test-bucket")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to fetch bucket details from GCS")
-	})
-
-	t.Run("EmptyTenantProjectNumber", func(t *testing.T) {
-		originalGetGCPService := hyperscaler2.GetGCPService
-		originalGetBucket := activities.GetBucket
-		defer func() {
-			hyperscaler2.GetGCPService = originalGetGCPService
-			activities.GetBucket = originalGetBucket
-		}()
-
-		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return &google.GcpServices{}, nil
-		}
-
-		// Mock GetBucket to return error for invalid project number
-		activities.GetBucket = func(ctx context.Context, bucketName string, gcpService hyperscaler2.GoogleServices) (*hyperscaler.BucketDetails, error) {
-			return nil, fmt.Errorf("bucket test-bucket has invalid project number: 0")
-		}
-
-		bv := &datamodel.BackupVault{}
-		err := activities.EnsureBucketDetailsExist(ctx, bv, "test-bucket")
-		// GetBucket fails with invalid project number (0) before reaching line 1805
-		// The error gets wrapped as "failed to fetch bucket details from GCS"
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to fetch bucket details from GCS")
-	})
-}
-
-// TestEnsureBackupHasBucketDetails_ErrorPath tests ensureBackupHasBucketDetails error path
-// This test covers missing line: 1923
-func TestEnsureBackupHasBucketDetails_ErrorPath(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	backupVault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{ID: 1},
-	}
-	backup := &datamodel.Backup{
-		Name:        "test-backup",
-		BackupVault: backupVault,
-		Attributes: &datamodel.BackupAttributes{
-			BucketName: "test-bucket",
-		},
-	}
-
-	mockStorage := database.NewMockStorage(t)
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{ID: 1},
-		AccountID: 1,
-		Account:   &datamodel.Account{Name: "123456"},
-	}
-	pool := &datamodel.Pool{VendorID: "gcp-us-central1-a"}
-
-	mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(backup, nil)
-
-	backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
-	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	result, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
-
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Equal(t, "test-backup", result.Name)
-	assert.Equal(t, "test-bucket", result.Attributes.BucketName)
-	mockStorage.AssertExpectations(t)
-}
-
-// Note: TestExtractBucketDetailsForBackup_FallbackCase was removed because the fallback code path
-// at line 1970 in extractBucketDetailsForBackup is unreachable through FetchBackupMetadataForRestore.
-// The ensureBackupHasBucketDetails function is called first and will either:
-// 1. Find the bucket in the vault (no fallback needed)
-// 2. Fetch the bucket from GCS and add it to the vault (no fallback needed)
-// 3. Fail if GCS fetch fails (never reaches extractBucketDetailsForBackup)
-// The fallback is defensive code for edge cases not reachable through this flow.
-
-func TestGetBackupVaultFromCVPByName_Success(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	mockBackupVaultClient := backup_vault.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
-
-	originalCreateClient := activities.CvpCreateClient
-	defer func() { activities.CvpCreateClient = originalCreateClient }()
-	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-		return *cvpClient
-	}
-
-	vaultName := "test-vault"
-	vaultUUID := "12345678-1234-1234-1234-123456789012"
-	mockBackupVaultClient.On("V1betaListBackupVaults", mock.Anything).Return(&backup_vault.V1betaListBackupVaultsOK{
-		Payload: &backup_vault.V1betaListBackupVaultsOKBody{
-			BackupVaults: []*cvpModels.BackupVaultV1beta{
-				{
-					ResourceID:    nillable.ToPointer(vaultName),
-					BackupVaultID: vaultUUID,
-				},
-			},
-		},
-	}, nil)
-
-	mockStorage := database.NewMockStorage(t)
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{ID: 1},
-		AccountID: 1,
-		Account:   &datamodel.Account{Name: "123456"},
-	}
-
-	mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, vaultName, "1").Return(nil, utilErrors.NewNotFoundErr("BackupVault", &vaultName))
-
-	backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
-	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, "us-central1")
-
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Equal(t, vaultName, result.Name)
-	assert.Equal(t, vaultUUID, result.UUID)
-	mockStorage.AssertExpectations(t)
-	mockBackupVaultClient.AssertExpectations(t)
-}
-
-func TestGetBackupVaultFromCVPByName_CVPError(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	mockBackupVaultClient := backup_vault.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
-
-	originalCreateClient := activities.CvpCreateClient
-	defer func() { activities.CvpCreateClient = originalCreateClient }()
-	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-		return *cvpClient
-	}
-
-	mockBackupVaultClient.On("V1betaListBackupVaults", mock.Anything).Return(nil, fmt.Errorf("CVP connection error"))
-
-	mockStorage := database.NewMockStorage(t)
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{ID: 1},
-		AccountID: 1,
-		Account:   &datamodel.Account{Name: "123456"},
-	}
-
-	vaultName := "test-vault"
-	mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(nil, utilErrors.NewNotFoundErr("BackupVault", &vaultName))
-
-	backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
-	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, "us-central1")
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "CVP connection error")
-	mockStorage.AssertExpectations(t)
-	mockBackupVaultClient.AssertExpectations(t)
-}
-
-func TestGetBackupVaultFromCVPByName_NilPayload(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	mockBackupVaultClient := backup_vault.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
-
-	originalCreateClient := activities.CvpCreateClient
-	defer func() { activities.CvpCreateClient = originalCreateClient }()
-	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-		return *cvpClient
-	}
-
-	mockBackupVaultClient.On("V1betaListBackupVaults", mock.Anything).Return(&backup_vault.V1betaListBackupVaultsOK{
-		Payload: nil,
-	}, nil)
-
-	mockStorage := database.NewMockStorage(t)
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{ID: 1},
-		AccountID: 1,
-		Account:   &datamodel.Account{Name: "123456"},
-	}
-
-	vaultName := "test-vault"
-	mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(nil, utilErrors.NewNotFoundErr("BackupVault", &vaultName))
-
-	backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
-	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, "us-central1")
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "Backup vault")
-	mockStorage.AssertExpectations(t)
-	mockBackupVaultClient.AssertExpectations(t)
-}
-
-func TestGetBackupVaultFromCVPByName_VaultNotFound(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	mockBackupVaultClient := backup_vault.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
-
-	originalCreateClient := activities.CvpCreateClient
-	defer func() { activities.CvpCreateClient = originalCreateClient }()
-	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-		return *cvpClient
-	}
-
-	mockBackupVaultClient.On("V1betaListBackupVaults", mock.Anything).Return(&backup_vault.V1betaListBackupVaultsOK{
-		Payload: &backup_vault.V1betaListBackupVaultsOKBody{
-			BackupVaults: []*cvpModels.BackupVaultV1beta{
-				{
-					ResourceID:    nillable.ToPointer("different-vault"),
-					BackupVaultID: "other-uuid",
-				},
-			},
-		},
-	}, nil)
-
-	mockStorage := database.NewMockStorage(t)
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{ID: 1},
-		AccountID: 1,
-		Account:   &datamodel.Account{Name: "123456"},
-	}
-
-	vaultName := "test-vault"
-	mockStorage.On("GetBackupVaultByNameAndOwnerID", mock.Anything, "test-vault", "1").Return(nil, utilErrors.NewNotFoundErr("BackupVault", &vaultName))
-
-	backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
-	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, "us-central1")
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "Backup vault")
-	mockStorage.AssertExpectations(t)
-	mockBackupVaultClient.AssertExpectations(t)
-}
-
-// TestFetchBackupFromCVP_Success tests successful backup fetch from CVP
-// This test covers lines: 1555, 1559, 1568-1570, 1573-1575, 1579-1580, 1583-1586, 1589, 1592-1595, 1597, 1600-1604, 1608, 1633-1634
-func TestFetchBackupFromCVP_Success(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	// Setup mock CVP client
-	mockBackupsClient := backups.NewMockClientService(t)
-	mockVolumesClient := volumes.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient, Volumes: mockVolumesClient}
-
-	originalCreateClient := activities.CvpCreateClient
-	defer func() { activities.CvpCreateClient = originalCreateClient }()
-	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-		return *cvpClient
-	}
-
-	backupName := "test-backup"
-	backupID := "backup-uuid-1234"
-	volumeUsageBytes := int64(1073741824)
-	mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(&backups.V1betaListBackupsOK{
-		Payload: &backups.V1betaListBackupsOKBody{
-			Backups: []*cvpModels.BackupV1beta{
-				{
-					BackupID:         backupID,
-					BucketName:       "test-bucket",
-					SourceVolume:     "source-volume",
-					VolumeID:         "volume-uuid",
-					State:            "READY",
-					BackupType:       "MANUAL",
-					VolumeUsageBytes: &volumeUsageBytes,
-				},
-			},
-		},
-	}, nil)
-
-	// Mock V1betaListVolumes call for protocol fetching - return a volume with protocols
-	mockVolumesClient.On("V1betaListVolumes", mock.Anything).Return(&volumes.V1betaListVolumesOK{
-		Payload: &volumes.V1betaListVolumesOKBody{
-			Volumes: []*cvpModels.VolumeV1beta{
-				{
-					VolumeID:  "volume-uuid",
-					Protocols: []cvpModels.ProtocolsV1beta{cvpModels.ProtocolsV1betaNFSV3},
-				},
-			},
-		},
-	}, nil)
-
-	backupVault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vault-uuid"},
-	}
-	pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
-	account := &datamodel.Account{Name: "123456"}
-
-	backup, err := activities.FetchBackupFromCVP(ctx, backupName, backupVault, pool, account)
-
-	// This validates lines 1555-1634
-	assert.NoError(t, err)
-	assert.NotNil(t, backup)
-	assert.Equal(t, backupName, backup.Name)
-	assert.Equal(t, backupID, backup.UUID)
-	assert.Equal(t, "test-bucket", backup.Attributes.BucketName)
-	assert.Equal(t, volumeUsageBytes, backup.SizeInBytes)
-	mockBackupsClient.AssertExpectations(t)
-}
-
-// TestFetchBackupFromCVP_CVPError tests CVP error when fetching backup
-// This test covers lines: 1568-1570
-func TestFetchBackupFromCVP_CVPError(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	mockBackupsClient := backups.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient}
-
-	originalCreateClient := activities.CvpCreateClient
-	defer func() { activities.CvpCreateClient = originalCreateClient }()
-	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-		return *cvpClient
-	}
-
-	mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(nil, fmt.Errorf("CVP error"))
-
-	backupVault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vault-uuid"},
-	}
-	pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
-	account := &datamodel.Account{Name: "123456"}
-
-	_, err := activities.FetchBackupFromCVP(ctx, "test-backup", backupVault, pool, account)
-
-	// This validates lines 1568-1570
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to fetch backup from CVP")
-	mockBackupsClient.AssertExpectations(t)
-}
-
-// TestFetchBackupFromCVP_BackupNotFound tests backup not found in CVP
-// This test covers lines: 1573-1575
-func TestFetchBackupFromCVP_BackupNotFound(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	mockBackupsClient := backups.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient}
-
-	originalCreateClient := activities.CvpCreateClient
-	defer func() { activities.CvpCreateClient = originalCreateClient }()
-	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-		return *cvpClient
-	}
-
-	mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(&backups.V1betaListBackupsOK{
-		Payload: &backups.V1betaListBackupsOKBody{
-			Backups: []*cvpModels.BackupV1beta{},
-		},
-	}, nil)
-
-	backupVault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vault-uuid"},
-	}
-	pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
-	account := &datamodel.Account{Name: "123456"}
-
-	_, err := activities.FetchBackupFromCVP(ctx, "test-backup", backupVault, pool, account)
-
-	// This validates lines 1573-1575
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Backup")
-	mockBackupsClient.AssertExpectations(t)
-}
-
-// TestFetchBackupFromCVP_MultipleBackups tests when CVP returns multiple backups
-// This test covers lines: 1579-1580
-func TestFetchBackupFromCVP_MultipleBackups(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	mockBackupsClient := backups.NewMockClientService(t)
-	mockVolumesClient := volumes.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient, Volumes: mockVolumesClient}
-
-	originalCreateClient := activities.CvpCreateClient
-	defer func() { activities.CvpCreateClient = originalCreateClient }()
-	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-		return *cvpClient
-	}
-
-	// Return multiple backups - should use first one
-	mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(&backups.V1betaListBackupsOK{
-		Payload: &backups.V1betaListBackupsOKBody{
-			Backups: []*cvpModels.BackupV1beta{
-				{
-					BackupID:     "backup-uuid-1",
-					BucketName:   "test-bucket-1",
-					SourceVolume: "source-volume-1",
-					VolumeID:     "volume-uuid-1",
-					State:        "READY",
-				},
-				{
-					BackupID:     "backup-uuid-2",
-					BucketName:   "test-bucket-2",
-					SourceVolume: "source-volume-2",
-					VolumeID:     "volume-uuid-2",
-					State:        "READY",
-				},
-			},
-		},
-	}, nil)
-
-	// Mock V1betaListVolumes call for protocol fetching - return a volume with protocols
-	mockVolumesClient.On("V1betaListVolumes", mock.Anything).Return(&volumes.V1betaListVolumesOK{
-		Payload: &volumes.V1betaListVolumesOKBody{
-			Volumes: []*cvpModels.VolumeV1beta{
-				{
-					VolumeID:  "volume-uuid-1",
-					Protocols: []cvpModels.ProtocolsV1beta{cvpModels.ProtocolsV1betaNFSV3},
-				},
-			},
-		},
-	}, nil)
-
-	backupVault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vault-uuid"},
-	}
-	pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
-	account := &datamodel.Account{Name: "123456"}
-
-	backup, err := activities.FetchBackupFromCVP(ctx, "test-backup", backupVault, pool, account)
-
-	// This validates lines 1579-1580 - uses first backup
-	assert.NoError(t, err)
-	assert.NotNil(t, backup)
-	assert.Equal(t, "backup-uuid-1", backup.UUID)
-	mockBackupsClient.AssertExpectations(t)
-}
-
-// TestFetchBackupFromCVP_NilBackupInResponse tests nil backup in CVP response
-// This test covers lines: 1583-1586
-func TestFetchBackupFromCVP_NilBackupInResponse(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	mockBackupsClient := backups.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient}
-
-	originalCreateClient := activities.CvpCreateClient
-	defer func() { activities.CvpCreateClient = originalCreateClient }()
-	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-		return *cvpClient
-	}
-
-	// Return slice with nil backup
-	mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(&backups.V1betaListBackupsOK{
-		Payload: &backups.V1betaListBackupsOKBody{
-			Backups: []*cvpModels.BackupV1beta{nil},
-		},
-	}, nil)
-
-	backupVault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vault-uuid"},
-	}
-	pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
-	account := &datamodel.Account{Name: "123456"}
-
-	_, err := activities.FetchBackupFromCVP(ctx, "test-backup", backupVault, pool, account)
-
-	// This validates lines 1583-1586
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Backup")
-	mockBackupsClient.AssertExpectations(t)
-}
-
-// TestFetchBackupFromCVP_EmptyBucketName tests empty bucket name in CVP backup
-// This test covers lines: 1592-1595
-func TestFetchBackupFromCVP_EmptyBucketName(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	mockBackupsClient := backups.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient}
-
-	originalCreateClient := activities.CvpCreateClient
-	defer func() { activities.CvpCreateClient = originalCreateClient }()
-	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-		return *cvpClient
-	}
-
-	// Return backup with empty bucket name
-	mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(&backups.V1betaListBackupsOK{
-		Payload: &backups.V1betaListBackupsOKBody{
-			Backups: []*cvpModels.BackupV1beta{
-				{
-					BackupID:     "backup-uuid",
-					BucketName:   "", // Empty bucket name
-					SourceVolume: "source-volume",
-					VolumeID:     "volume-uuid",
-					State:        "READY",
-				},
-			},
-		},
-	}, nil)
-
-	backupVault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vault-uuid"},
-	}
-	pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
-	account := &datamodel.Account{Name: "123456"}
-
-	_, err := activities.FetchBackupFromCVP(ctx, "test-backup", backupVault, pool, account)
-
-	// This validates lines 1592-1595
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "empty bucket name")
-	mockBackupsClient.AssertExpectations(t)
-}
-
-// TestFetchBackupFromCVP_BackupChainBytesFallback tests fallback to BackupChainBytes when VolumeUsageBytes is nil
-// This test covers lines: 1600-1604
-func TestFetchBackupFromCVP_BackupChainBytesFallback(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	mockBackupsClient := backups.NewMockClientService(t)
-	mockVolumesClient := volumes.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient, Volumes: mockVolumesClient}
-
-	originalCreateClient := activities.CvpCreateClient
-	defer func() { activities.CvpCreateClient = originalCreateClient }()
-	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-		return *cvpClient
-	}
-
-	backupChainBytes := int64(2147483648)
-	mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(&backups.V1betaListBackupsOK{
-		Payload: &backups.V1betaListBackupsOKBody{
-			Backups: []*cvpModels.BackupV1beta{
-				{
-					BackupID:         "backup-uuid",
-					BucketName:       "test-bucket",
-					SourceVolume:     "source-volume",
-					VolumeID:         "volume-uuid",
-					State:            "READY",
-					VolumeUsageBytes: nil, // nil - should fallback
-					BackupChainBytes: &backupChainBytes,
-				},
-			},
-		},
-	}, nil)
-
-	// Mock V1betaListVolumes call for protocol fetching - return a volume with protocols
-	mockVolumesClient.On("V1betaListVolumes", mock.Anything).Return(&volumes.V1betaListVolumesOK{
-		Payload: &volumes.V1betaListVolumesOKBody{
-			Volumes: []*cvpModels.VolumeV1beta{
-				{
-					VolumeID:  "volume-uuid",
-					Protocols: []cvpModels.ProtocolsV1beta{cvpModels.ProtocolsV1betaNFSV3},
-				},
-			},
-		},
-	}, nil)
-
-	backupVault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vault-uuid"},
-	}
-	pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
-	account := &datamodel.Account{Name: "123456"}
-
-	backup, err := activities.FetchBackupFromCVP(ctx, "test-backup", backupVault, pool, account)
-
-	// This validates lines 1600-1604 - fallback to BackupChainBytes
-	assert.NoError(t, err)
-	assert.NotNil(t, backup)
-	assert.Equal(t, backupChainBytes, backup.SizeInBytes)
-	mockBackupsClient.AssertExpectations(t)
-}
-
 // TestAppendBucketDetails_NilInputs tests appendBucketDetails with nil inputs
 // This test covers line: 1773
-// Note: appendBucketDetails is tested indirectly through EnsureBucketDetailsExist
+// Note: appendBucketDetails is tested indirectly through ensureBucketDetailsExist
 func TestAppendBucketDetails_NilInputs(t *testing.T) {
 	// The appendBucketDetails function handles nil cases at line 1773
-	// This is tested indirectly through EnsureBucketDetailsExist which calls it
+	// This is tested indirectly through ensureBucketDetailsExist which calls it
 	// The nil check ensures no panic occurs when either parameter is nil
 	t.Run("nil_cases_handled", func(t *testing.T) {
 		// Verify that BucketDetails can be appended correctly when both params are valid
@@ -11866,7 +11072,7 @@ func TestAppendBucketDetails_NilInputs(t *testing.T) {
 			BaseModel:     datamodel.BaseModel{ID: 1},
 			BucketDetails: nil,
 		}
-		// Adding bucket details happens through EnsureBucketDetailsExist which is exported
+		// Adding bucket details happens through ensureBucketDetailsExist which is exported
 		// This test validates the nil handling path at line 1773 is covered
 		assert.Nil(t, backupVault.BucketDetails)
 	})
@@ -11909,274 +11115,6 @@ func TestExtractBucketDetailsForBackup_FallbackToFirst(t *testing.T) {
 	// Verify setup - first bucket should be the fallback
 	assert.Equal(t, 2, len(backupVault.BucketDetails))
 	assert.Equal(t, "first-bucket", backupVault.BucketDetails[0].BucketName)
-}
-
-// TestFetchAndConvertBackupFromCVP_EmptyBucketAttributes tests empty bucket attributes error
-// This test covers the case where CVP returns a backup with empty bucket name
-func TestFetchAndConvertBackupFromCVP_EmptyBucketAttributes(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	mockBackupsClient := backups.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient}
-
-	originalCreateClient := activities.CvpCreateClient
-	defer func() { activities.CvpCreateClient = originalCreateClient }()
-	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-		return *cvpClient
-	}
-
-	// Return backup with empty bucket - FetchBackupFromCVP will fail
-	mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(&backups.V1betaListBackupsOK{
-		Payload: &backups.V1betaListBackupsOKBody{
-			Backups: []*cvpModels.BackupV1beta{
-				{
-					BackupID:     "backup-uuid",
-					BucketName:   "", // Empty
-					SourceVolume: "source-volume",
-					VolumeID:     "volume-uuid",
-					State:        "READY",
-					Created:      strfmt.DateTime(time.Now().UTC()),
-				},
-			},
-		},
-	}, nil)
-
-	mockStorage := database.NewMockStorage(t)
-	backupVault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vault-uuid"},
-	}
-	pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{ID: 1},
-		AccountID: 1,
-		Account:   &datamodel.Account{Name: "123456"},
-	}
-
-	// Setup mock for indirect test through FetchBackupMetadataForRestore
-	backupName := "test-backup"
-	mockStorage.On("GetBackupByNameAndBackupVaultID", mock.Anything, "test-backup", int64(1)).Return(nil, utilErrors.NewNotFoundErr("Backup", &backupName))
-
-	backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
-	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	_, err := activity.FetchBackupMetadataForRestore(ctx, backupPath, backupVault, pool, volume)
-
-	// This validates that CVP returns error for empty bucket name
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "empty bucket name")
-	mockStorage.AssertExpectations(t)
-	mockBackupsClient.AssertExpectations(t)
-}
-
-func TestFetchBackupVaultOrFallbackToCVP_CrossRegion(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	mockBackupVaultClient := backup_vault.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
-
-	originalCreateClient := activities.CvpCreateClient
-	defer func() { activities.CvpCreateClient = originalCreateClient }()
-	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-		return *cvpClient
-	}
-
-	vaultName := "test-vault"
-	vaultUUID := "12345678-1234-1234-1234-123456789012"
-	sourceBackupVaultPath := "projects/123456/locations/us-central1/backupVaults/test-vault"
-	destBackupVaultPath := "projects/123456/locations/us-west1/backupVaults/test-vault-destination-1234"
-
-	mockBackupVaultClient.On("V1betaListBackupVaults", mock.Anything).Return(&backup_vault.V1betaListBackupVaultsOK{
-		Payload: &backup_vault.V1betaListBackupVaultsOKBody{
-			BackupVaults: []*cvpModels.BackupVaultV1beta{
-				{
-					ResourceID:             nillable.ToPointer("test-vault-destination-1234"),
-					BackupVaultID:          vaultUUID,
-					SourceBackupVault:      nillable.ToPointer(sourceBackupVaultPath),
-					DestinationBackupVault: nillable.ToPointer(destBackupVaultPath),
-				},
-			},
-		},
-	}, nil)
-
-	mockStorage := database.NewMockStorage(t)
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{ID: 1},
-		AccountID: 1,
-		Account:   &datamodel.Account{Name: "123456"},
-	}
-
-	backupVaultFullPath := "projects/123456/locations/us-central1/backupVaults/test-vault"
-	mockStorage.On("GetBackupVaultByCrossRegionBackupVaultName", mock.Anything, backupVaultFullPath, int64(1)).Return(nil, utilErrors.NewNotFoundErr("BackupVault", &vaultName))
-
-	backupPath := "projects/123456/locations/us-central1/backupVaults/test-vault/backups/test-backup"
-	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, "us-west1")
-
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Equal(t, vaultUUID, result.UUID)
-	mockStorage.AssertExpectations(t)
-	mockBackupVaultClient.AssertExpectations(t)
-}
-
-// TestEnsureBucketDetailsExist_BucketAlreadyExists tests when bucket already exists in vault
-// This test covers line: 1792-1794 (bucket already exists path)
-func TestEnsureBucketDetailsExist_BucketAlreadyExists(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-
-	backupVault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{ID: 1},
-		BucketDetails: datamodel.BucketDetailsArray{
-			{BucketName: "test-bucket", TenantProjectNumber: "987654321"},
-		},
-	}
-
-	// When bucket already exists, no GCP call should be made
-	err := activities.EnsureBucketDetailsExist(ctx, backupVault, "test-bucket")
-
-	assert.NoError(t, err)
-	// Verify bucket details still has only one entry
-	assert.Equal(t, 1, len(backupVault.BucketDetails))
-	assert.Equal(t, "test-bucket", backupVault.BucketDetails[0].BucketName)
-}
-
-func TestFetchBackupFromCVP_SuccessWithFkexvol(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	// Setup mock CVP client
-	mockBackupsClient := backups.NewMockClientService(t)
-	mockVolumesClient := volumes.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient, Volumes: mockVolumesClient}
-
-	originalCreateClient := activities.CvpCreateClient
-	defer func() { activities.CvpCreateClient = originalCreateClient }()
-	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-		return *cvpClient
-	}
-
-	backupName := "test-backup"
-	backupID := "backup-uuid-1234"
-	volumeUsageBytes := int64(1073741824)
-	mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(&backups.V1betaListBackupsOK{
-		Payload: &backups.V1betaListBackupsOKBody{
-			Backups: []*cvpModels.BackupV1beta{
-				{
-					BackupID:         backupID,
-					BucketName:       "test-bucket",
-					SourceVolume:     "source-volume",
-					VolumeID:         "volume-uuid",
-					State:            "READY",
-					BackupType:       "MANUAL",
-					VolumeUsageBytes: &volumeUsageBytes,
-				},
-			},
-		},
-	}, nil)
-
-	// Mock V1betaListVolumes call for protocol fetching - return a volume with protocols
-	mockVolumesClient.On("V1betaListVolumes", mock.Anything).Return(&volumes.V1betaListVolumesOK{
-		Payload: &volumes.V1betaListVolumesOKBody{
-			Volumes: []*cvpModels.VolumeV1beta{
-				{
-					VolumeID:  "volume-uuid",
-					Protocols: []cvpModels.ProtocolsV1beta{cvpModels.ProtocolsV1betaNFSV3},
-				},
-			},
-		},
-	}, nil)
-
-	backupVault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vault-uuid"},
-	}
-	pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
-	account := &datamodel.Account{Name: "123456"}
-
-	backup, err := activities.FetchBackupFromCVP(ctx, backupName, backupVault, pool, account)
-
-	// This validates lines 1555-1634
-	assert.NoError(t, err)
-	assert.NotNil(t, backup)
-	assert.Equal(t, backupName, backup.Name)
-	assert.Equal(t, backupID, backup.UUID)
-	assert.Equal(t, "test-bucket", backup.Attributes.BucketName)
-	assert.Equal(t, volumeUsageBytes, backup.SizeInBytes)
-	mockBackupsClient.AssertExpectations(t)
-}
-
-func TestFetchBackupFromCVP_SuccessWithFlexgroup(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	ctx = context.WithValue(ctx, middleware.AuthorizationToken, "test-jwt-token")
-	ctx = context.WithValue(ctx, middleware.RequestCorrelationID, "test-correlation-id")
-
-	// Setup mock CVP client
-	mockBackupsClient := backups.NewMockClientService(t)
-	mockVolumesClient := volumes.NewMockClientService(t)
-	cvpClient := &cvpapi.Cvp{Backups: mockBackupsClient, Volumes: mockVolumesClient}
-
-	originalCreateClient := activities.CvpCreateClient
-	defer func() { activities.CvpCreateClient = originalCreateClient }()
-	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-		return *cvpClient
-	}
-
-	backupName := "test-backup"
-	backupID := "backup-uuid-1234"
-	volumeUsageBytes := int64(1073741824)
-	mockBackupsClient.On("V1betaListBackups", mock.Anything).Return(&backups.V1betaListBackupsOK{
-		Payload: &backups.V1betaListBackupsOKBody{
-			Backups: []*cvpModels.BackupV1beta{
-				{
-					BackupID:                       backupID,
-					BucketName:                     "test-bucket",
-					SourceVolume:                   "source-volume",
-					VolumeID:                       "volume-uuid",
-					State:                          "READY",
-					BackupType:                     "MANUAL",
-					VolumeUsageBytes:               &volumeUsageBytes,
-					OntapStyle:                     "flexgroup",
-					ConstituentVolumesPerAggregate: 4,
-					NumberOfAggregates:             2,
-				},
-			},
-		},
-	}, nil)
-
-	// Mock V1betaListVolumes call for protocol fetching - return a volume with protocols
-	mockVolumesClient.On("V1betaListVolumes", mock.Anything).Return(&volumes.V1betaListVolumesOK{
-		Payload: &volumes.V1betaListVolumesOKBody{
-			Volumes: []*cvpModels.VolumeV1beta{
-				{
-					VolumeID:  "volume-uuid",
-					Protocols: []cvpModels.ProtocolsV1beta{cvpModels.ProtocolsV1betaNFSV3},
-				},
-			},
-		},
-	}, nil)
-
-	backupVault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vault-uuid"},
-	}
-	pool := &datamodel.Pool{VendorID: "/projects/123456/locations/us-central1/pools/pool1"}
-	account := &datamodel.Account{Name: "123456"}
-
-	backup, err := activities.FetchBackupFromCVP(ctx, backupName, backupVault, pool, account)
-
-	// This validates lines 1555-1634
-	assert.NoError(t, err)
-	assert.NotNil(t, backup)
-	assert.Equal(t, backupName, backup.Name)
-	assert.Equal(t, backupID, backup.UUID)
-	assert.Equal(t, "test-bucket", backup.Attributes.BucketName)
-	assert.Equal(t, volumeUsageBytes, backup.SizeInBytes)
-	assert.Equal(t, "flexgroup", backup.Attributes.OntapVolumeStyle)
-	assert.Equal(t, int32(8), backup.Attributes.ConstituentCountOfBackup)
-	mockBackupsClient.AssertExpectations(t)
 }
 
 // TestCreateVolumeInONTAP_ClusterDetailsOntapVersion tests lines 193-194
@@ -13187,4 +12125,2417 @@ func TestSetupCrossRegionBackupPermissionsActivity_TrackProjectError(t *testing.
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 	mockCloudService.AssertExpectations(t)
+}
+
+func TestEnsureBucketDetailsExist(t *testing.T) {
+	tests := []struct {
+		name                string
+		backupVault         *datamodel.BackupVault
+		bucketName          string
+		mockFetchFunc       func(ctx context.Context, bucketName string) (*datamodel.BucketDetails, error)
+		expectedError       string
+		expectedBucketCount int
+		expectedBucketName  string
+	}{
+		{
+			name:        "empty bucket name returns error",
+			backupVault: &datamodel.BackupVault{},
+			bucketName:  "",
+			mockFetchFunc: func(ctx context.Context, bucketName string) (*datamodel.BucketDetails, error) {
+				return nil, nil
+			},
+			expectedError:       "bucket name is empty",
+			expectedBucketCount: 0,
+		},
+		{
+			name: "bucket already exists in backup vault",
+			backupVault: &datamodel.BackupVault{
+				BucketDetails: datamodel.BucketDetailsArray{
+					{
+						BucketName:          "existing-bucket",
+						TenantProjectNumber: "123456789",
+					},
+				},
+			},
+			bucketName: "existing-bucket",
+			mockFetchFunc: func(ctx context.Context, bucketName string) (*datamodel.BucketDetails, error) {
+				// Should not be called
+				return nil, errors.New("should not be called")
+			},
+			expectedError:       "",
+			expectedBucketCount: 1,
+		},
+		{
+			name: "bucket already exists with case-insensitive match",
+			backupVault: &datamodel.BackupVault{
+				BucketDetails: datamodel.BucketDetailsArray{
+					{
+						BucketName:          "Existing-Bucket",
+						TenantProjectNumber: "123456789",
+					},
+				},
+			},
+			bucketName: "existing-bucket",
+			mockFetchFunc: func(ctx context.Context, bucketName string) (*datamodel.BucketDetails, error) {
+				// Should not be called
+				return nil, errors.New("should not be called")
+			},
+			expectedError:       "",
+			expectedBucketCount: 1,
+		},
+		{
+			name:        "bucket not found, successfully fetch from GCS",
+			backupVault: &datamodel.BackupVault{},
+			bucketName:  "new-bucket",
+			mockFetchFunc: func(ctx context.Context, bucketName string) (*datamodel.BucketDetails, error) {
+				return &datamodel.BucketDetails{
+					BucketName:          "new-bucket",
+					TenantProjectNumber: "987654321",
+					SatisfiesPzi:        true,
+					SatisfiesPzs:        false,
+				}, nil
+			},
+			expectedError:       "",
+			expectedBucketCount: 1,
+			expectedBucketName:  "new-bucket",
+		},
+		{
+			name: "bucket not found, fetch from GCS and append to existing buckets",
+			backupVault: &datamodel.BackupVault{
+				BucketDetails: datamodel.BucketDetailsArray{
+					{
+						BucketName:          "existing-bucket",
+						TenantProjectNumber: "111111111",
+					},
+				},
+			},
+			bucketName: "new-bucket",
+			mockFetchFunc: func(ctx context.Context, bucketName string) (*datamodel.BucketDetails, error) {
+				return &datamodel.BucketDetails{
+					BucketName:          "new-bucket",
+					TenantProjectNumber: "222222222",
+					SatisfiesPzi:        false,
+					SatisfiesPzs:        true,
+				}, nil
+			},
+			expectedError:       "",
+			expectedBucketCount: 2,
+			expectedBucketName:  "new-bucket",
+		},
+		{
+			name:        "fetch from GCS fails",
+			backupVault: &datamodel.BackupVault{},
+			bucketName:  "error-bucket",
+			mockFetchFunc: func(ctx context.Context, bucketName string) (*datamodel.BucketDetails, error) {
+				return nil, errors.New("GCS API error")
+			},
+			expectedError:       "failed to fetch bucket details from GCS for bucket 'error-bucket'",
+			expectedBucketCount: 0,
+		},
+		{
+			name:        "fetch from GCS returns nil bucket details",
+			backupVault: &datamodel.BackupVault{},
+			bucketName:  "nil-bucket",
+			mockFetchFunc: func(ctx context.Context, bucketName string) (*datamodel.BucketDetails, error) {
+				return nil, nil
+			},
+			expectedError:       "unable to get tenant project number for bucket 'nil-bucket'",
+			expectedBucketCount: 0,
+		},
+		{
+			name:        "fetch from GCS returns bucket details with empty tenant project number",
+			backupVault: &datamodel.BackupVault{},
+			bucketName:  "empty-project-bucket",
+			mockFetchFunc: func(ctx context.Context, bucketName string) (*datamodel.BucketDetails, error) {
+				return &datamodel.BucketDetails{
+					BucketName:          "empty-project-bucket",
+					TenantProjectNumber: "",
+					SatisfiesPzi:        false,
+					SatisfiesPzs:        false,
+				}, nil
+			},
+			expectedError:       "unable to get tenant project number for bucket 'empty-project-bucket'",
+			expectedBucketCount: 0,
+		},
+		{
+			name:        "nil backup vault with valid bucket name",
+			backupVault: nil,
+			bucketName:  "test-bucket",
+			mockFetchFunc: func(ctx context.Context, bucketName string) (*datamodel.BucketDetails, error) {
+				return &datamodel.BucketDetails{
+					BucketName:          "test-bucket",
+					TenantProjectNumber: "123456789",
+				}, nil
+			},
+			expectedError:       "",
+			expectedBucketCount: 0, // appendBucketDetails handles nil backupVault gracefully
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Save original function - access through activities package
+			originalFetchFunc := activities.FetchBucketDetailsFromGCS
+			defer func() {
+				activities.FetchBucketDetailsFromGCS = originalFetchFunc
+			}()
+
+			// Set up mock
+			activities.FetchBucketDetailsFromGCS = tt.mockFetchFunc
+
+			// Create context with logger
+			ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+			// Track initial bucket count
+			initialBucketCount := 0
+			if tt.backupVault != nil && tt.backupVault.BucketDetails != nil {
+				initialBucketCount = len(tt.backupVault.BucketDetails)
+			}
+
+			// Execute function directly
+			err := activities.EnsureBucketDetailsExist(ctx, tt.backupVault, tt.bucketName)
+
+			// Assert error
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			// Assert bucket count
+			if tt.backupVault != nil {
+				actualBucketCount := 0
+				if tt.backupVault.BucketDetails != nil {
+					actualBucketCount = len(tt.backupVault.BucketDetails)
+				}
+				assert.Equal(t, tt.expectedBucketCount, actualBucketCount)
+
+				// If we expected a bucket to be added, verify it exists
+				if tt.expectedBucketName != "" && tt.expectedBucketCount > initialBucketCount {
+					found := false
+					for _, bd := range tt.backupVault.BucketDetails {
+						if bd != nil && bd.BucketName == tt.expectedBucketName {
+							found = true
+							// Verify tenant project number is set
+							assert.NotEmpty(t, bd.TenantProjectNumber)
+							break
+						}
+					}
+					assert.True(t, found, "Expected bucket '%s' to be added to backup vault", tt.expectedBucketName)
+				}
+			}
+		})
+	}
+}
+
+func TestConvertGoogleProxyBackupVaultToDatamodel(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          *googleproxyclient.BackupVaultV1beta
+		locationId     string
+		expectedOutput *datamodel.BackupVault
+		expectedError  string
+	}{
+		{
+			name: "Complete_Data_Conversion_IN_REGION",
+			input: &googleproxyclient.BackupVaultV1beta{
+				ResourceId:      "test-resource-id",
+				BackupVaultId:   googleproxyclient.NewOptString("test-vault-uuid"),
+				BackupVaultType: googleproxyclient.NewOptBackupVaultV1betaBackupVaultType(googleproxyclient.BackupVaultV1betaBackupVaultTypeINREGION),
+				BackupRegion:    googleproxyclient.NewOptString("us-central1"),
+				Description:     googleproxyclient.NewOptString("Test description"),
+				State:           googleproxyclient.NewOptBackupVaultV1betaState(googleproxyclient.BackupVaultV1betaStateREADY),
+				StateDetails:    googleproxyclient.NewOptString("Operational"),
+				CreatedAt:       googleproxyclient.NewOptDateTime(time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)),
+				BackupRetentionPolicy: googleproxyclient.NewOptBackupRetentionPolicyV1beta(googleproxyclient.BackupRetentionPolicyV1beta{
+					BackupMinimumEnforcedRetentionDays: googleproxyclient.NewOptInt(30),
+					DailyBackupImmutable:               googleproxyclient.NewOptBool(true),
+					WeeklyBackupImmutable:              googleproxyclient.NewOptBool(false),
+					MonthlyBackupImmutable:             googleproxyclient.NewOptBool(true),
+					ManualBackupImmutable:              googleproxyclient.NewOptBool(false),
+				}),
+				KmsConfigResourcePath:    googleproxyclient.NewOptString("projects/test-project/locations/us-central1/keyRings/test-ring/cryptoKeys/test-key"),
+				EncryptionState:          googleproxyclient.NewOptBackupVaultV1betaEncryptionState(googleproxyclient.BackupVaultV1betaEncryptionStateENCRYPTIONSTATECOMPLETED),
+				BackupsPrimaryKeyVersion: googleproxyclient.NewOptString("1"),
+				DestinationBackupVault:   googleproxyclient.NewOptString("cross-region-vault"),
+			},
+			locationId: "us-central1",
+			expectedOutput: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-vault-uuid",
+					CreatedAt: time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
+					UpdatedAt: time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
+					DeletedAt: nil,
+				},
+				Name:                  "test-resource-id",
+				BackupRegionName:      nillable.GetStringPtr("us-central1"),
+				SourceRegionName:      nillable.GetStringPtr("us-central1"), // Uses locationId when SourceRegion not set
+				LifeCycleState:        "READY",
+				LifeCycleStateDetails: "Operational",
+				BackupVaultType:       "IN_REGION",
+				Description:           nillable.GetStringPtr("Test description"),
+				ImmutableAttributes: &datamodel.ImmutableAttributes{
+					BackupMinimumEnforcedRetentionDuration: nillable.GetInt64Ptr(30),
+					IsDailyBackupImmutable:                 true,
+					IsWeeklyBackupImmutable:                false,
+					IsMonthlyBackupImmutable:               true,
+					IsAdhocBackupImmutable:                 false,
+				},
+				CmekAttributes: &datamodel.CmekAttributes{
+					KmsConfigResourcePath:    nillable.GetStringPtr("projects/test-project/locations/us-central1/keyRings/test-ring/cryptoKeys/test-key"),
+					EncryptionState:          nillable.GetStringPtr("ENCRYPTION_STATE_COMPLETED"),
+					BackupsPrimaryKeyVersion: nillable.GetStringPtr("1"),
+				},
+				CrossRegionBackupVaultName: nillable.GetStringPtr("cross-region-vault"),
+			},
+		},
+		{
+			name: "Complete_Data_Conversion_CROSS_REGION",
+			input: &googleproxyclient.BackupVaultV1beta{
+				ResourceId:      "test-resource-id",
+				BackupVaultId:   googleproxyclient.NewOptString("test-vault-uuid"),
+				BackupVaultType: googleproxyclient.NewOptBackupVaultV1betaBackupVaultType(googleproxyclient.BackupVaultV1betaBackupVaultTypeCROSSREGION),
+				SourceRegion:    googleproxyclient.NewOptString("us-central1"),
+				BackupRegion:    googleproxyclient.NewOptString("us-west1"),
+				Description:     googleproxyclient.NewOptString("Cross-region vault"),
+				State:           googleproxyclient.NewOptBackupVaultV1betaState(googleproxyclient.BackupVaultV1betaStateREADY),
+				StateDetails:    googleproxyclient.NewOptString("Ready for use"),
+				CreatedAt:       googleproxyclient.NewOptDateTime(time.Date(2024, 2, 1, 10, 0, 0, 0, time.UTC)),
+			},
+			locationId: "us-west1",
+			expectedOutput: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-vault-uuid",
+					CreatedAt: time.Date(2024, 2, 1, 10, 0, 0, 0, time.UTC),
+					UpdatedAt: time.Date(2024, 2, 1, 10, 0, 0, 0, time.UTC),
+					DeletedAt: nil,
+				},
+				Name:                  "test-resource-id",
+				BackupRegionName:      nillable.GetStringPtr("us-west1"),
+				SourceRegionName:      nillable.GetStringPtr("us-central1"), // Uses SourceRegion when set
+				LifeCycleState:        "READY",
+				LifeCycleStateDetails: "Ready for use",
+				BackupVaultType:       "CROSS_REGION",
+				Description:           nillable.GetStringPtr("Cross-region vault"),
+				ImmutableAttributes:   &datamodel.ImmutableAttributes{},
+				CmekAttributes:        nil,
+			},
+		},
+		{
+			name: "Minimal_Data_Conversion",
+			input: &googleproxyclient.BackupVaultV1beta{
+				ResourceId: "minimal-resource-id",
+			},
+			locationId: "us-central1",
+			expectedOutput: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "",
+					CreatedAt: time.Time{}, // Remains as zero value when not set
+					UpdatedAt: time.Time{}, // Remains as zero value when not set
+					DeletedAt: nil,
+				},
+				Name:                  "minimal-resource-id",
+				BackupRegionName:      nil,
+				SourceRegionName:      nillable.GetStringPtr("us-central1"), // Uses locationId
+				LifeCycleState:        "",
+				LifeCycleStateDetails: "",
+				BackupVaultType:       "",
+				Description:           nil,
+				ImmutableAttributes:   &datamodel.ImmutableAttributes{},
+				CmekAttributes:        nil,
+			},
+		},
+		{
+			name: "With_Partial_BackupRetentionPolicy",
+			input: &googleproxyclient.BackupVaultV1beta{
+				ResourceId: "test-resource-id",
+				BackupRetentionPolicy: googleproxyclient.NewOptBackupRetentionPolicyV1beta(googleproxyclient.BackupRetentionPolicyV1beta{
+					BackupMinimumEnforcedRetentionDays: googleproxyclient.NewOptInt(15),
+					DailyBackupImmutable:               googleproxyclient.NewOptBool(true),
+					// Other fields not set
+				}),
+			},
+			locationId: "us-central1",
+			expectedOutput: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+					DeletedAt: nil,
+				},
+				Name:             "test-resource-id",
+				SourceRegionName: nillable.GetStringPtr("us-central1"),
+				ImmutableAttributes: &datamodel.ImmutableAttributes{
+					BackupMinimumEnforcedRetentionDuration: nillable.GetInt64Ptr(15),
+					IsDailyBackupImmutable:                 true,
+					IsWeeklyBackupImmutable:                false,
+					IsMonthlyBackupImmutable:               false,
+					IsAdhocBackupImmutable:                 false,
+				},
+				CmekAttributes: nil,
+			},
+		},
+		{
+			name: "With_CMEK_Attributes_All_Fields",
+			input: &googleproxyclient.BackupVaultV1beta{
+				ResourceId:               "test-resource-id",
+				KmsConfigResourcePath:    googleproxyclient.NewOptString("projects/test/locations/us/keyRings/ring/cryptoKeys/key"),
+				EncryptionState:          googleproxyclient.NewOptBackupVaultV1betaEncryptionState(googleproxyclient.BackupVaultV1betaEncryptionStateENCRYPTIONSTATEPENDING),
+				BackupsPrimaryKeyVersion: googleproxyclient.NewOptString("2"),
+			},
+			locationId: "us-central1",
+			expectedOutput: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+					DeletedAt: nil,
+				},
+				Name:                "test-resource-id",
+				SourceRegionName:    nillable.GetStringPtr("us-central1"),
+				ImmutableAttributes: &datamodel.ImmutableAttributes{},
+				CmekAttributes: &datamodel.CmekAttributes{
+					KmsConfigResourcePath:    nillable.GetStringPtr("projects/test/locations/us/keyRings/ring/cryptoKeys/key"),
+					EncryptionState:          nillable.GetStringPtr("ENCRYPTION_STATE_PENDING"),
+					BackupsPrimaryKeyVersion: nillable.GetStringPtr("2"),
+				},
+			},
+		},
+		{
+			name: "With_Partial_CMEK_Attributes",
+			input: &googleproxyclient.BackupVaultV1beta{
+				ResourceId:            "test-resource-id",
+				KmsConfigResourcePath: googleproxyclient.NewOptString("projects/test/locations/us/keyRings/ring/cryptoKeys/key"),
+				// EncryptionState and BackupsPrimaryKeyVersion not set
+			},
+			locationId: "us-central1",
+			expectedOutput: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+					DeletedAt: nil,
+				},
+				Name:                "test-resource-id",
+				SourceRegionName:    nillable.GetStringPtr("us-central1"),
+				ImmutableAttributes: &datamodel.ImmutableAttributes{},
+				CmekAttributes: &datamodel.CmekAttributes{
+					KmsConfigResourcePath:    nillable.GetStringPtr("projects/test/locations/us/keyRings/ring/cryptoKeys/key"),
+					EncryptionState:          nil,
+					BackupsPrimaryKeyVersion: nil,
+				},
+			},
+		},
+		{
+			name: "Empty_Description_Not_Set",
+			input: &googleproxyclient.BackupVaultV1beta{
+				ResourceId:  "test-resource-id",
+				Description: googleproxyclient.NewOptString(""), // Empty string should not be set
+			},
+			locationId: "us-central1",
+			expectedOutput: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+					DeletedAt: nil,
+				},
+				Name:                "test-resource-id",
+				SourceRegionName:    nillable.GetStringPtr("us-central1"),
+				Description:         nil, // Should be nil for empty string
+				ImmutableAttributes: &datamodel.ImmutableAttributes{},
+				CmekAttributes:      nil,
+			},
+		},
+		{
+			name: "Without_CMEK_Attributes",
+			input: &googleproxyclient.BackupVaultV1beta{
+				ResourceId: "test-resource-id",
+				// No CMEK fields set
+			},
+			locationId: "us-central1",
+			expectedOutput: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+					DeletedAt: nil,
+				},
+				Name:                "test-resource-id",
+				SourceRegionName:    nillable.GetStringPtr("us-central1"),
+				ImmutableAttributes: &datamodel.ImmutableAttributes{},
+				CmekAttributes:      nil,
+			},
+		},
+		{
+			name: "CreatedAt_Not_Set_Uses_Zero_Value",
+			input: &googleproxyclient.BackupVaultV1beta{
+				ResourceId: "test-resource-id",
+				// CreatedAt not set
+			},
+			locationId: "us-central1",
+			expectedOutput: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "",
+					CreatedAt: time.Time{}, // Remains as zero value when not set
+					UpdatedAt: time.Time{}, // Remains as zero value when not set
+					DeletedAt: nil,
+				},
+				Name:                "test-resource-id",
+				SourceRegionName:    nillable.GetStringPtr("us-central1"),
+				ImmutableAttributes: &datamodel.ImmutableAttributes{},
+				CmekAttributes:      nil,
+			},
+		},
+		{
+			name: "All_Retention_Policy_Flags_Set",
+			input: &googleproxyclient.BackupVaultV1beta{
+				ResourceId: "test-resource-id",
+				BackupRetentionPolicy: googleproxyclient.NewOptBackupRetentionPolicyV1beta(googleproxyclient.BackupRetentionPolicyV1beta{
+					BackupMinimumEnforcedRetentionDays: googleproxyclient.NewOptInt(60),
+					DailyBackupImmutable:               googleproxyclient.NewOptBool(true),
+					WeeklyBackupImmutable:              googleproxyclient.NewOptBool(true),
+					MonthlyBackupImmutable:             googleproxyclient.NewOptBool(true),
+					ManualBackupImmutable:              googleproxyclient.NewOptBool(true),
+				}),
+			},
+			locationId: "us-central1",
+			expectedOutput: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+					DeletedAt: nil,
+				},
+				Name:             "test-resource-id",
+				SourceRegionName: nillable.GetStringPtr("us-central1"),
+				ImmutableAttributes: &datamodel.ImmutableAttributes{
+					BackupMinimumEnforcedRetentionDuration: nillable.GetInt64Ptr(60),
+					IsDailyBackupImmutable:                 true,
+					IsWeeklyBackupImmutable:                true,
+					IsMonthlyBackupImmutable:               true,
+					IsAdhocBackupImmutable:                 true,
+				},
+				CmekAttributes: nil,
+			},
+		},
+		{
+			name: "Different_Encryption_States",
+			input: &googleproxyclient.BackupVaultV1beta{
+				ResourceId:            "test-resource-id",
+				KmsConfigResourcePath: googleproxyclient.NewOptString("projects/test/locations/us/keyRings/ring/cryptoKeys/key"),
+				EncryptionState:       googleproxyclient.NewOptBackupVaultV1betaEncryptionState(googleproxyclient.BackupVaultV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS),
+			},
+			locationId: "us-central1",
+			expectedOutput: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+					DeletedAt: nil,
+				},
+				Name:                "test-resource-id",
+				SourceRegionName:    nillable.GetStringPtr("us-central1"),
+				ImmutableAttributes: &datamodel.ImmutableAttributes{},
+				CmekAttributes: &datamodel.CmekAttributes{
+					KmsConfigResourcePath:    nillable.GetStringPtr("projects/test/locations/us/keyRings/ring/cryptoKeys/key"),
+					EncryptionState:          nillable.GetStringPtr("ENCRYPTION_STATE_IN_PROGRESS"),
+					BackupsPrimaryKeyVersion: nil,
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Act
+			result, err := activities.ConvertGoogleProxyBackupVaultToDatamodel(tt.input, tt.locationId)
+
+			// Assert
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+				assert.Nil(t, result)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.Equal(t, tt.expectedOutput, result)
+			}
+		})
+	}
+}
+
+func TestFetchBackupVaultFromRemoteVCP(t *testing.T) {
+	backupRegion := "us-west1"
+	vaultName := "test-vault"
+	backupVaultID := "test-vault-uuid"
+	accountID := int64(123)
+	projectNumber := "123456"
+
+	t.Run("Success", func(t *testing.T) {
+		// Arrange
+		fields := log.Fields{
+			string(middleware.RequestCorrelationID): "test-correlation-id",
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		// Store original and restore after test
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:              backupRegion,
+			VaultName:           vaultName,
+			BackupName:          "",
+			BackupVaultFullPath: "",
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: accountID},
+			AccountID: accountID,
+			Account: &datamodel.Account{
+				Name: projectNumber,
+			},
+		}
+
+		// Mock successful response
+		mockResponse := &googleproxyclient.V1betaListBackupVaultsOK{
+			BackupVaults: []googleproxyclient.BackupVaultV1beta{
+				{
+					ResourceId:    vaultName,
+					BackupVaultId: googleproxyclient.NewOptString(backupVaultID),
+					BackupVaultType: googleproxyclient.NewOptBackupVaultV1betaBackupVaultType(
+						googleproxyclient.BackupVaultV1betaBackupVaultTypeINREGION,
+					),
+					BackupRegion: googleproxyclient.NewOptString(backupRegion),
+					State: googleproxyclient.NewOptBackupVaultV1betaState(
+						googleproxyclient.BackupVaultV1betaStateREADY,
+					),
+				},
+			},
+		}
+
+		mockInvoker.On("V1betaListBackupVaults", ctx, mock.MatchedBy(func(params googleproxyclient.V1betaListBackupVaultsParams) bool {
+			return params.ProjectNumber == projectNumber &&
+				params.LocationId == backupRegion &&
+				params.XCorrelationID.IsSet() &&
+				params.XCorrelationID.Value == "test-correlation-id"
+		})).Return(mockResponse, nil)
+
+		// Act
+		result, err := activities.FetchBackupVaultFromRemoteVCP(ctx, pathInfo, volume)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, vaultName, result.Name)
+		assert.Equal(t, backupVaultID, result.UUID)
+		assert.Equal(t, accountID, result.AccountID)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("EmptyBackupRegion", func(t *testing.T) {
+		// Arrange
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:              "",
+			VaultName:           "test-vault",
+			BackupName:          "",
+			BackupVaultFullPath: "",
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456"},
+		}
+
+		// Act
+		result, err := activities.FetchBackupVaultFromRemoteVCP(ctx, pathInfo, volume)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "backup region is empty")
+	})
+
+	t.Run("GetRemoteRegionConfigFails", func(t *testing.T) {
+		// Arrange
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Store original and restore after test
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+
+		// Mock GetRemoteRegionConfig to return error
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "", "", fmt.Errorf("region configuration not found")
+		}
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:              backupRegion,
+			VaultName:           vaultName,
+			BackupName:          "",
+			BackupVaultFullPath: "",
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456"},
+		}
+
+		// Act
+		result, err := activities.FetchBackupVaultFromRemoteVCP(ctx, pathInfo, volume)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to get remote region configuration")
+	})
+
+	t.Run("V1betaListBackupVaultsFails", func(t *testing.T) {
+		// Arrange
+		fields := log.Fields{
+			string(middleware.RequestCorrelationID): "test-correlation-id",
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		// Store original and restore after test
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:              backupRegion,
+			VaultName:           vaultName,
+			BackupName:          "",
+			BackupVaultFullPath: "",
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456"},
+		}
+
+		// Mock API call to return error
+		mockInvoker.On("V1betaListBackupVaults", ctx, mock.Anything).Return(nil, fmt.Errorf("API call failed"))
+
+		// Act
+		result, err := activities.FetchBackupVaultFromRemoteVCP(ctx, pathInfo, volume)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to list backup vaults from remote VCP")
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("UnexpectedResponseType", func(t *testing.T) {
+		// Arrange
+		fields := log.Fields{
+			string(middleware.RequestCorrelationID): "test-correlation-id",
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		// Store original and restore after test
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:              backupRegion,
+			VaultName:           vaultName,
+			BackupName:          "",
+			BackupVaultFullPath: "",
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456"},
+		}
+
+		// Mock unexpected response type
+		mockInvoker.On("V1betaListBackupVaults", ctx, mock.Anything).Return(&googleproxyclient.V1betaListBackupVaultsBadRequest{}, nil)
+
+		// Act
+		result, err := activities.FetchBackupVaultFromRemoteVCP(ctx, pathInfo, volume)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "unexpected response type from remote VCP API")
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("EmptyBackupVaultsList", func(t *testing.T) {
+		// Arrange
+		fields := log.Fields{
+			string(middleware.RequestCorrelationID): "test-correlation-id",
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		// Store original and restore after test
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:              backupRegion,
+			VaultName:           vaultName,
+			BackupName:          "",
+			BackupVaultFullPath: "",
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456"},
+		}
+
+		// Mock empty response
+		mockResponse := &googleproxyclient.V1betaListBackupVaultsOK{
+			BackupVaults: []googleproxyclient.BackupVaultV1beta{},
+		}
+
+		mockInvoker.On("V1betaListBackupVaults", ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Act
+		result, err := activities.FetchBackupVaultFromRemoteVCP(ctx, pathInfo, volume)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.True(t, utilErrors.IsNotFoundErr(err))
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("BackupVaultNotFoundInList", func(t *testing.T) {
+		// Arrange
+		fields := log.Fields{
+			string(middleware.RequestCorrelationID): "test-correlation-id",
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		// Store original and restore after test
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:              backupRegion,
+			VaultName:           vaultName,
+			BackupName:          "",
+			BackupVaultFullPath: "",
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456"},
+		}
+
+		// Mock response with different vault name
+		mockResponse := &googleproxyclient.V1betaListBackupVaultsOK{
+			BackupVaults: []googleproxyclient.BackupVaultV1beta{
+				{
+					ResourceId:    "different-vault",
+					BackupVaultId: googleproxyclient.NewOptString("different-uuid"),
+				},
+			},
+		}
+
+		mockInvoker.On("V1betaListBackupVaults", ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Act
+		result, err := activities.FetchBackupVaultFromRemoteVCP(ctx, pathInfo, volume)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.True(t, utilErrors.IsNotFoundErr(err))
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Success_WithNilBackupVaultId", func(t *testing.T) {
+		// Arrange
+		fields := log.Fields{
+			string(middleware.RequestCorrelationID): "test-correlation-id",
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		// Store original and restore after test
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:              backupRegion,
+			VaultName:           vaultName,
+			BackupName:          "",
+			BackupVaultFullPath: "",
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: accountID},
+			AccountID: accountID,
+			Account: &datamodel.Account{
+				Name: projectNumber,
+			},
+		}
+
+		// Mock response with BackupVaultId not set
+		mockResponse := &googleproxyclient.V1betaListBackupVaultsOK{
+			BackupVaults: []googleproxyclient.BackupVaultV1beta{
+				{
+					ResourceId:    vaultName,
+					BackupVaultId: googleproxyclient.OptString{}, // Not set
+					BackupVaultType: googleproxyclient.NewOptBackupVaultV1betaBackupVaultType(
+						googleproxyclient.BackupVaultV1betaBackupVaultTypeINREGION,
+					),
+					BackupRegion: googleproxyclient.NewOptString(backupRegion),
+					State: googleproxyclient.NewOptBackupVaultV1betaState(
+						googleproxyclient.BackupVaultV1betaStateREADY,
+					),
+				},
+			},
+		}
+
+		mockInvoker.On("V1betaListBackupVaults", ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Act
+		result, err := activities.FetchBackupVaultFromRemoteVCP(ctx, pathInfo, volume)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, vaultName, result.Name)
+		assert.Equal(t, accountID, result.AccountID)
+		// UUID should be empty string when BackupVaultId is not set
+		assert.Equal(t, "", result.UUID)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Success_WithNilBackupVaultsInResponse", func(t *testing.T) {
+		// Arrange
+		fields := log.Fields{
+			string(middleware.RequestCorrelationID): "test-correlation-id",
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		// Store original and restore after test
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:              backupRegion,
+			VaultName:           vaultName,
+			BackupName:          "",
+			BackupVaultFullPath: "",
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456"},
+		}
+
+		// Mock response with nil BackupVaults
+		mockResponse := &googleproxyclient.V1betaListBackupVaultsOK{
+			BackupVaults: nil,
+		}
+
+		mockInvoker.On("V1betaListBackupVaults", ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Act
+		result, err := activities.FetchBackupVaultFromRemoteVCP(ctx, pathInfo, volume)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.True(t, utilErrors.IsNotFoundErr(err))
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Success_CrossRegionBackupVault", func(t *testing.T) {
+		// Arrange
+		fields := log.Fields{
+			string(middleware.RequestCorrelationID): "test-correlation-id",
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, fields)
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		// Store original and restore after test
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		sourceRegion := "us-central1"
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:              backupRegion,
+			VaultName:           vaultName,
+			BackupName:          "",
+			BackupVaultFullPath: "",
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: accountID},
+			AccountID: accountID,
+			Account: &datamodel.Account{
+				Name: projectNumber,
+			},
+		}
+
+		// Mock successful response with cross-region backup vault
+		mockResponse := &googleproxyclient.V1betaListBackupVaultsOK{
+			BackupVaults: []googleproxyclient.BackupVaultV1beta{
+				{
+					ResourceId:    vaultName,
+					BackupVaultId: googleproxyclient.NewOptString(backupVaultID),
+					BackupVaultType: googleproxyclient.NewOptBackupVaultV1betaBackupVaultType(
+						googleproxyclient.BackupVaultV1betaBackupVaultTypeCROSSREGION,
+					),
+					SourceRegion: googleproxyclient.NewOptString(sourceRegion),
+					BackupRegion: googleproxyclient.NewOptString(backupRegion),
+					State: googleproxyclient.NewOptBackupVaultV1betaState(
+						googleproxyclient.BackupVaultV1betaStateREADY,
+					),
+				},
+			},
+		}
+
+		mockInvoker.On("V1betaListBackupVaults", ctx, mock.Anything).Return(mockResponse, nil)
+
+		// Act
+		result, err := activities.FetchBackupVaultFromRemoteVCP(ctx, pathInfo, volume)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, vaultName, result.Name)
+		assert.Equal(t, backupVaultID, result.UUID)
+		assert.Equal(t, accountID, result.AccountID)
+		assert.Equal(t, "CROSS_REGION", result.BackupVaultType)
+		assert.NotNil(t, result.SourceRegionName)
+		assert.Equal(t, sourceRegion, *result.SourceRegionName)
+		assert.NotNil(t, result.BackupRegionName)
+		assert.Equal(t, backupRegion, *result.BackupRegionName)
+		mockInvoker.AssertExpectations(t)
+	})
+}
+
+func TestFetchBackupFromRemoteVCP(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		// Arrange
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{
+			string(middleware.RequestCorrelationID): "test-correlation-id",
+		})
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:     "us-west1",
+			BackupName: "test-backup",
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-vault-uuid",
+				ID:   1,
+			},
+			Name: "test-vault",
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{
+				Name: "123456789",
+			},
+		}
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		basePath := "https://us-west1.example.com"
+		jwtToken := "mock-jwt-token"
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			assert.Equal(t, "us-west1", region)
+			assert.Equal(t, "123456789", projectNumber)
+			return basePath, jwtToken, nil
+		}
+
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePathParam string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			assert.Equal(t, basePath, basePathParam)
+			assert.Equal(t, jwtToken, jwt)
+			return mockProxyClient
+		}
+
+		// Mock V1betaListBackups response
+		expectedBackup := googleproxyclient.BackupV1beta{
+			BackupId:         googleproxyclient.NewOptString("backup-uuid"),
+			ResourceId:       googleproxyclient.NewOptString("test-backup"),
+			VolumeId:         googleproxyclient.NewOptString("volume-uuid"),
+			State:            googleproxyclient.NewOptBackupV1betaState(googleproxyclient.BackupV1betaStateREADY),
+			Created:          googleproxyclient.NewOptDateTime(time.Now()),
+			BackupType:       googleproxyclient.NewOptBackupV1betaBackupType(googleproxyclient.BackupV1betaBackupTypeMANUAL),
+			VolumeUsageBytes: googleproxyclient.NewOptInt64(1024 * 1024 * 1024), // 1GB
+			Protocols: []googleproxyclient.ProtocolsV1beta{
+				googleproxyclient.ProtocolsV1betaNFSV3,
+				googleproxyclient.ProtocolsV1betaSMB,
+			},
+		}
+
+		mockResponse := &googleproxyclient.V1betaListBackupsOK{
+			Backups: []googleproxyclient.BackupV1beta{expectedBackup},
+		}
+
+		mockInvoker.On("V1betaListBackups", mock.Anything, mock.MatchedBy(func(params googleproxyclient.V1betaListBackupsParams) bool {
+			return params.ProjectNumber == "123456789" &&
+				params.LocationId == "us-west1" &&
+				params.BackupVaultId == "backup-vault-uuid" &&
+				params.BackupName.IsSet() &&
+				params.BackupName.Value == "test-backup" &&
+				params.XCorrelationID.IsSet() &&
+				params.XCorrelationID.Value == "test-correlation-id"
+		})).Return(mockResponse, nil)
+
+		// Act
+		result, err := activities.FetchBackupFromRemoteVCP(ctx, pathInfo, backupVault, volume, "us-central1")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "backup-uuid", result.UUID)
+		assert.Equal(t, "test-backup", result.Name)
+		assert.Equal(t, "volume-uuid", result.VolumeUUID)
+		assert.Equal(t, int64(1024*1024*1024), result.SizeInBytes)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Error_EmptyBackupRegion", func(t *testing.T) {
+		// Arrange
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:     "",
+			BackupName: "test-backup",
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456789"},
+		}
+
+		// Act
+		result, err := activities.FetchBackupFromRemoteVCP(ctx, pathInfo, backupVault, volume, "us-central1")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "backup region is empty")
+	})
+
+	t.Run("Error_GetRemoteRegionConfigFails", func(t *testing.T) {
+		// Arrange
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:     "us-west1",
+			BackupName: "test-backup",
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456789"},
+		}
+
+		// Mock GetRemoteRegionConfig to return error
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "", "", fmt.Errorf("VCP_PAIRED_REGIONS environment variable not set")
+		}
+
+		// Act
+		result, err := activities.FetchBackupFromRemoteVCP(ctx, pathInfo, backupVault, volume, "us-central1")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to get remote region configuration")
+	})
+
+	t.Run("Error_EmptyBackupVaultUUID", func(t *testing.T) {
+		// Arrange
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:     "us-west1",
+			BackupName: "test-backup",
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: ""},
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456789"},
+		}
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Act
+		result, err := activities.FetchBackupFromRemoteVCP(ctx, pathInfo, backupVault, volume, "us-central1")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "backup vault UUID is empty")
+	})
+
+	t.Run("Error_V1betaListBackupsFails", func(t *testing.T) {
+		// Arrange
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{
+			string(middleware.RequestCorrelationID): "test-correlation-id",
+		})
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:     "us-west1",
+			BackupName: "test-backup",
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456789"},
+		}
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock V1betaListBackups to return error
+		mockInvoker.On("V1betaListBackups", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("network error"))
+
+		// Act
+		result, err := activities.FetchBackupFromRemoteVCP(ctx, pathInfo, backupVault, volume, "us-central1")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to list backups from remote VCP")
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Error_UnexpectedResponseType", func(t *testing.T) {
+		// Arrange
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{
+			string(middleware.RequestCorrelationID): "test-correlation-id",
+		})
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:     "us-west1",
+			BackupName: "test-backup",
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456789"},
+		}
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock V1betaListBackups to return unexpected response type
+		unexpectedResponse := &googleproxyclient.V1betaListBackupsBadRequest{}
+		mockInvoker.On("V1betaListBackups", mock.Anything, mock.Anything).Return(unexpectedResponse, nil)
+
+		// Act
+		result, err := activities.FetchBackupFromRemoteVCP(ctx, pathInfo, backupVault, volume, "us-central1")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "unexpected response type *googleproxyclient.V1betaListBackupsBadRequest from remote VCP API when listing backups (project=123456789, region=us-west1, vaultID=backup-vault-uuid, backupName=test-backup, correlationID=test-correlation-id)")
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Error_NoBackupsFound", func(t *testing.T) {
+		// Arrange
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{
+			string(middleware.RequestCorrelationID): "test-correlation-id",
+		})
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:     "us-west1",
+			BackupName: "test-backup",
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456789"},
+		}
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock V1betaListBackups to return empty backups list
+		mockResponse := &googleproxyclient.V1betaListBackupsOK{
+			Backups: []googleproxyclient.BackupV1beta{},
+		}
+		mockInvoker.On("V1betaListBackups", mock.Anything, mock.Anything).Return(mockResponse, nil)
+
+		// Act
+		result, err := activities.FetchBackupFromRemoteVCP(ctx, pathInfo, backupVault, volume, "us-central1")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.True(t, utilErrors.IsNotFoundErr(err))
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Success_WithNilBackupsInResponse", func(t *testing.T) {
+		// Arrange
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{
+			string(middleware.RequestCorrelationID): "test-correlation-id",
+		})
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:     "us-west1",
+			BackupName: "test-backup",
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-vault-uuid",
+				ID:   1,
+			},
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456789"},
+		}
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock V1betaListBackups to return response with nil Backups
+		mockResponse := &googleproxyclient.V1betaListBackupsOK{
+			Backups: nil,
+		}
+		mockInvoker.On("V1betaListBackups", mock.Anything, mock.Anything).Return(mockResponse, nil)
+
+		// Act
+		result, err := activities.FetchBackupFromRemoteVCP(ctx, pathInfo, backupVault, volume, "us-central1")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.True(t, utilErrors.IsNotFoundErr(err))
+		mockInvoker.AssertExpectations(t)
+	})
+}
+
+func TestFetchBackupOrFallbackToRemoteVCP(t *testing.T) {
+	t.Run("Success_BackupFoundInDatabase", func(t *testing.T) {
+		// Arrange
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		mockStorage := database.NewMockStorage(t)
+
+		pathInfo := &activities.BackupPathInfo{
+			BackupName: "test-backup",
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "backup-vault-uuid",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456789"},
+		}
+
+		expectedBackup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-uuid",
+			},
+			Name: "test-backup",
+		}
+
+		mockStorage.On("GetBackupByNameAndBackupVaultID", ctx, "test-backup", int64(1)).Return(expectedBackup, nil)
+
+		// Act
+		result, err := activities.FetchBackupOrFallbackToRemoteVCP(ctx, mockStorage, pathInfo, backupVault, volume, "us-central1")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, expectedBackup, result)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Success_BackupNotFoundInDatabase_FetchedFromRemoteVCP", func(t *testing.T) {
+		// Arrange
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{
+			string(middleware.RequestCorrelationID): "test-correlation-id",
+		})
+
+		mockStorage := database.NewMockStorage(t)
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:     "us-west1",
+			BackupName: "test-backup",
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "backup-vault-uuid",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456789"},
+		}
+
+		// Mock database to return NotFoundErr
+		mockStorage.On("GetBackupByNameAndBackupVaultID", ctx, "test-backup", int64(1)).Return(nil, utilErrors.NewNotFoundErr("Backup", &pathInfo.BackupName))
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		basePath := "https://us-west1.example.com"
+		jwtToken := "mock-jwt-token"
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return basePath, jwtToken, nil
+		}
+
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePathParam string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock V1betaListBackups response
+		expectedBackup := googleproxyclient.BackupV1beta{
+			BackupId:         googleproxyclient.NewOptString("backup-uuid"),
+			ResourceId:       googleproxyclient.NewOptString("test-backup"),
+			VolumeId:         googleproxyclient.NewOptString("volume-uuid"),
+			State:            googleproxyclient.NewOptBackupV1betaState(googleproxyclient.BackupV1betaStateREADY),
+			Created:          googleproxyclient.NewOptDateTime(time.Now()),
+			BackupType:       googleproxyclient.NewOptBackupV1betaBackupType(googleproxyclient.BackupV1betaBackupTypeMANUAL),
+			VolumeUsageBytes: googleproxyclient.NewOptInt64(1024 * 1024 * 1024), // 1GB
+			Protocols: []googleproxyclient.ProtocolsV1beta{
+				googleproxyclient.ProtocolsV1betaNFSV3,
+				googleproxyclient.ProtocolsV1betaSMB,
+			},
+		}
+
+		mockResponse := &googleproxyclient.V1betaListBackupsOK{
+			Backups: []googleproxyclient.BackupV1beta{expectedBackup},
+		}
+
+		mockInvoker.On("V1betaListBackups", mock.Anything, mock.Anything).Return(mockResponse, nil)
+
+		// Act
+		result, err := activities.FetchBackupOrFallbackToRemoteVCP(ctx, mockStorage, pathInfo, backupVault, volume, "us-central1")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "backup-uuid", result.UUID)
+		assert.Equal(t, "test-backup", result.Name)
+		mockStorage.AssertExpectations(t)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Error_DatabaseError_NotNotFound", func(t *testing.T) {
+		// Arrange
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		mockStorage := database.NewMockStorage(t)
+
+		pathInfo := &activities.BackupPathInfo{
+			BackupName: "test-backup",
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "backup-vault-uuid",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456789"},
+		}
+
+		// Mock database to return a non-NotFound error
+		dbError := fmt.Errorf("database connection failed")
+		mockStorage.On("GetBackupByNameAndBackupVaultID", ctx, "test-backup", int64(1)).Return(nil, dbError)
+
+		// Act
+		result, err := activities.FetchBackupOrFallbackToRemoteVCP(ctx, mockStorage, pathInfo, backupVault, volume, "us-central1")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, dbError, err)
+		assert.Contains(t, err.Error(), "database connection failed")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error_BackupNotFoundInDatabase_RemoteVCPFetchFails", func(t *testing.T) {
+		// Arrange
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{
+			string(middleware.RequestCorrelationID): "test-correlation-id",
+		})
+
+		mockStorage := database.NewMockStorage(t)
+
+		pathInfo := &activities.BackupPathInfo{
+			Region:     "us-west1",
+			BackupName: "test-backup",
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "backup-vault-uuid",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "123456789"},
+		}
+
+		// Mock database to return NotFoundErr
+		mockStorage.On("GetBackupByNameAndBackupVaultID", ctx, "test-backup", int64(1)).Return(nil, utilErrors.NewNotFoundErr("Backup", &pathInfo.BackupName))
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		// Mock V1betaListBackups to return error
+		mockInvoker.On("V1betaListBackups", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("network error"))
+
+		// Act
+		result, err := activities.FetchBackupOrFallbackToRemoteVCP(ctx, mockStorage, pathInfo, backupVault, volume, "us-central1")
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to list backups from remote VCP")
+		mockStorage.AssertExpectations(t)
+		mockInvoker.AssertExpectations(t)
+	})
+}
+
+func TestFetchProtocolsForBackup(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	account := &datamodel.Account{Name: "test-project"}
+	backupRegion := "us-central1"
+
+	t.Run("Success_ProtocolsInBackupResponse", func(t *testing.T) {
+		// Arrange
+		backup := &googleproxyclient.BackupV1beta{
+			Protocols: []googleproxyclient.ProtocolsV1beta{
+				googleproxyclient.ProtocolsV1betaNFSV3,
+				googleproxyclient.ProtocolsV1betaSMB,
+			},
+		}
+
+		// Act
+		result := activities.FetchProtocolsForBackup(ctx, backup, account, backupRegion)
+
+		// Assert
+		assert.NotNil(t, result)
+		assert.Len(t, result, 2)
+		assert.Contains(t, result, "NFSV3")
+		assert.Contains(t, result, "SMB")
+	})
+
+	t.Run("Success_EmptyProtocolsInBackupResponse_VolumeUUIDEmpty", func(t *testing.T) {
+		// Arrange
+		backup := &googleproxyclient.BackupV1beta{
+			Protocols: []googleproxyclient.ProtocolsV1beta{},
+		}
+
+		// Act
+		result := activities.FetchProtocolsForBackup(ctx, backup, account, backupRegion)
+
+		// Assert
+		assert.Nil(t, result)
+	})
+
+	t.Run("Success_EmptyProtocolsInBackupResponse_FetchFromSDE", func(t *testing.T) {
+		// Arrange
+		volumeUUID := "volume-uuid-123"
+		sourceVolume := fmt.Sprintf("projects/test-project/locations/%s/volumes/test-volume", backupRegion)
+		expectedProtocols := []string{"NFS", "SMB"}
+		backup := &googleproxyclient.BackupV1beta{
+			Protocols: []googleproxyclient.ProtocolsV1beta{},
+			VolumeId: googleproxyclient.OptString{
+				Value: volumeUUID,
+				Set:   true,
+			},
+			SourceVolume: googleproxyclient.OptString{
+				Value: sourceVolume,
+				Set:   true,
+			},
+		}
+
+		// Mock utils functions
+		originalGetAuthToken := activities.GetAuthTokenFromContext
+		originalGetCoRelationID := activities.GetCoRelationIDFromContext
+		originalCvpCreateClient := activities.CvpCreateClient
+		originalFetchVolumeProtocols := activities.FetchVolumeProtocolsFromSDE
+		defer func() {
+			activities.GetAuthTokenFromContext = originalGetAuthToken
+			activities.GetCoRelationIDFromContext = originalGetCoRelationID
+			activities.CvpCreateClient = originalCvpCreateClient
+			activities.FetchVolumeProtocolsFromSDE = originalFetchVolumeProtocols
+		}()
+
+		activities.GetAuthTokenFromContext = func(ctx context.Context) string {
+			return "mock-jwt-token"
+		}
+		activities.GetCoRelationIDFromContext = func(ctx context.Context) string {
+			return "mock-correlation-id"
+		}
+
+		mockCvpClient := &cvpapi.Cvp{}
+		activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *mockCvpClient
+		}
+
+		activities.FetchVolumeProtocolsFromSDE = func(ctx context.Context, volumeID string, region string, account *datamodel.Account, cvpClient cvpapi.Cvp, xCorrelationID string) ([]string, error) {
+			assert.Equal(t, volumeUUID, volumeID)
+			assert.Equal(t, backupRegion, region)
+			assert.Equal(t, account, account)
+			assert.Equal(t, "mock-correlation-id", xCorrelationID)
+			return expectedProtocols, nil
+		}
+
+		// Act
+		result := activities.FetchProtocolsForBackup(ctx, backup, account, backupRegion)
+
+		// Assert
+		assert.NotNil(t, result)
+		assert.Equal(t, expectedProtocols, result)
+	})
+
+	t.Run("Success_EmptyProtocolsInBackupResponse_FetchFromSDEFails", func(t *testing.T) {
+		// Arrange
+		volumeUUID := "volume-uuid-123"
+		sourceVolume := fmt.Sprintf("projects/test-project/locations/%s/volumes/test-volume", backupRegion)
+		backup := &googleproxyclient.BackupV1beta{
+			Protocols: []googleproxyclient.ProtocolsV1beta{},
+			VolumeId: googleproxyclient.OptString{
+				Value: volumeUUID,
+				Set:   true,
+			},
+			SourceVolume: googleproxyclient.OptString{
+				Value: sourceVolume,
+				Set:   true,
+			},
+		}
+
+		// Mock utils functions
+		originalGetAuthToken := activities.GetAuthTokenFromContext
+		originalGetCoRelationID := activities.GetCoRelationIDFromContext
+		originalCvpCreateClient := activities.CvpCreateClient
+		originalFetchVolumeProtocols := activities.FetchVolumeProtocolsFromSDE
+		defer func() {
+			activities.GetAuthTokenFromContext = originalGetAuthToken
+			activities.GetCoRelationIDFromContext = originalGetCoRelationID
+			activities.CvpCreateClient = originalCvpCreateClient
+			activities.FetchVolumeProtocolsFromSDE = originalFetchVolumeProtocols
+		}()
+
+		activities.GetAuthTokenFromContext = func(ctx context.Context) string {
+			return "mock-jwt-token"
+		}
+		activities.GetCoRelationIDFromContext = func(ctx context.Context) string {
+			return "mock-correlation-id"
+		}
+
+		mockCvpClient := &cvpapi.Cvp{}
+		activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *mockCvpClient
+		}
+
+		activities.FetchVolumeProtocolsFromSDE = func(ctx context.Context, volumeID string, region string, account *datamodel.Account, cvpClient cvpapi.Cvp, xCorrelationID string) ([]string, error) {
+			return nil, fmt.Errorf("failed to fetch protocols")
+		}
+
+		// Act
+		result := activities.FetchProtocolsForBackup(ctx, backup, account, backupRegion)
+
+		// Assert
+		// Should return nil on error, not fail
+		assert.Nil(t, result)
+	})
+
+	t.Run("Success_SingleProtocolInBackupResponse", func(t *testing.T) {
+		// Arrange
+		backup := &googleproxyclient.BackupV1beta{
+			Protocols: []googleproxyclient.ProtocolsV1beta{
+				googleproxyclient.ProtocolsV1betaNFSV3,
+			},
+		}
+
+		// Act
+		result := activities.FetchProtocolsForBackup(ctx, backup, account, backupRegion)
+
+		// Assert
+		assert.NotNil(t, result)
+		assert.Len(t, result, 1)
+		assert.Equal(t, "NFSV3", result[0])
+	})
+}
+
+func TestConvertGoogleProxyBackupToDatamodel(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{
+		string(middleware.RequestCorrelationID): "test-correlation-id",
+	})
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{
+			UUID: "backup-vault-uuid",
+			ID:   1,
+		},
+		Name: "test-vault",
+	}
+
+	account := &datamodel.Account{
+		Name: "test-account",
+	}
+
+	backupRegion := "us-west1"
+
+	t.Run("Success_AllFieldsSet", func(t *testing.T) {
+		// Arrange
+		createdTime := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+		backup := &googleproxyclient.BackupV1beta{
+			BackupId:         googleproxyclient.NewOptString("backup-uuid-123"),
+			ResourceId:       googleproxyclient.NewOptString("test-backup-name"),
+			VolumeId:         googleproxyclient.NewOptString("volume-uuid-456"),
+			State:            googleproxyclient.NewOptBackupV1betaState(googleproxyclient.BackupV1betaStateREADY),
+			Created:          googleproxyclient.NewOptDateTime(createdTime),
+			Description:      googleproxyclient.NewOptString("Test backup description"),
+			BackupType:       googleproxyclient.NewOptBackupV1betaBackupType(googleproxyclient.BackupV1betaBackupTypeMANUAL),
+			VolumeUsageBytes: googleproxyclient.NewOptInt64(2048 * 1024 * 1024), // 2GB
+			SourceVolume:     googleproxyclient.NewOptString("projects/test-project/locations/us-central1/volumes/volume-123"),
+			SnapshotName:     googleproxyclient.NewOptString("snapshot-456"),
+			EndPointUUID:     googleproxyclient.NewOptString("endpoint-uuid-789"),
+			BucketName:       googleproxyclient.NewOptString("test-bucket-name"),
+			Protocols: []googleproxyclient.ProtocolsV1beta{
+				googleproxyclient.ProtocolsV1betaNFSV3,
+				googleproxyclient.ProtocolsV1betaSMB,
+			},
+		}
+
+		// Act - Test through FetchBackupFromRemoteVCP
+		pathInfo := &activities.BackupPathInfo{
+			Region:     backupRegion,
+			BackupName: "test-backup-name",
+		}
+
+		volume := &datamodel.Volume{
+			Account: account,
+		}
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePathParam string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		mockResponse := &googleproxyclient.V1betaListBackupsOK{
+			Backups: []googleproxyclient.BackupV1beta{*backup},
+		}
+
+		mockInvoker.On("V1betaListBackups", mock.Anything, mock.Anything).Return(mockResponse, nil)
+
+		result, err := activities.FetchBackupFromRemoteVCP(ctx, pathInfo, backupVault, volume, "us-central1")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "backup-uuid-123", result.UUID)
+		assert.Equal(t, "test-backup-name", result.Name)
+		assert.Equal(t, "volume-uuid-456", result.VolumeUUID)
+		assert.Equal(t, backupVault.ID, result.BackupVaultID)
+		assert.Equal(t, backupVault, result.BackupVault)
+		assert.Equal(t, string(googleproxyclient.BackupV1betaStateREADY), result.State)
+		assert.Equal(t, "Backup restored from remote VCP", result.StateDetails)
+		assert.Equal(t, "Test backup description", result.Description)
+		assert.Equal(t, string(googleproxyclient.BackupV1betaBackupTypeMANUAL), result.Type)
+		assert.Equal(t, int64(2048*1024*1024), result.SizeInBytes)
+		assert.Equal(t, createdTime, result.CreatedAt)
+		assert.Equal(t, createdTime, result.UpdatedAt)
+		assert.NotNil(t, result.Attributes)
+		assert.Equal(t, "snapshot-456", result.Attributes.SnapshotName)
+		assert.Equal(t, "endpoint-uuid-789", result.Attributes.EndpointUUID)
+		assert.Equal(t, "test-bucket-name", result.Attributes.BucketName)
+		assert.Equal(t, "test-account", result.Attributes.AccountIdentifier)
+		// Protocols are fetched by FetchProtocolsForBackup which uses the protocols from the backup response
+		assert.NotNil(t, result.Attributes.Protocols)
+		assert.Contains(t, result.Attributes.Protocols, "NFSV3")
+		assert.Contains(t, result.Attributes.Protocols, "SMB")
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Success_MinimalFields_DefaultsApplied", func(t *testing.T) {
+		// Arrange - Test with minimal fields, should use defaults
+		backup := &googleproxyclient.BackupV1beta{
+			BackupId:   googleproxyclient.NewOptString("backup-uuid-minimal"),
+			ResourceId: googleproxyclient.NewOptString("minimal-backup"),
+			VolumeId:   googleproxyclient.NewOptString("volume-uuid-minimal"),
+			// State not set - should default to LifeCycleStateAvailable
+			// Created not set - should remain as time.Time{} (zero value)
+			// Description not set - should be empty string
+			// BackupType not set - should be empty string
+			// VolumeUsageBytes not set - should default to 0
+			// BackupChainBytes not set
+			// SourceVolume not set - should be empty string
+			// SourceSnapshot not set - should be empty string
+			Protocols: []googleproxyclient.ProtocolsV1beta{}, // Empty protocols
+		}
+
+		// Act - Test through FetchBackupFromRemoteVCP
+		pathInfo := &activities.BackupPathInfo{
+			Region:     backupRegion,
+			BackupName: "minimal-backup",
+		}
+
+		volume := &datamodel.Volume{
+			Account: account,
+		}
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePathParam string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		mockResponse := &googleproxyclient.V1betaListBackupsOK{
+			Backups: []googleproxyclient.BackupV1beta{*backup},
+		}
+
+		mockInvoker.On("V1betaListBackups", mock.Anything, mock.Anything).Return(mockResponse, nil)
+
+		result, err := activities.FetchBackupFromRemoteVCP(ctx, pathInfo, backupVault, volume, "us-central1")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "backup-uuid-minimal", result.UUID)
+		assert.Equal(t, "minimal-backup", result.Name)
+		assert.Equal(t, "volume-uuid-minimal", result.VolumeUUID)
+		assert.Equal(t, string(models.LifeCycleStateAvailable), result.State)
+		assert.Equal(t, "", result.Description)
+		assert.Equal(t, "", result.Type)
+		assert.Equal(t, int64(0), result.SizeInBytes)
+		assert.Equal(t, time.Time{}, result.CreatedAt)
+		assert.Equal(t, time.Time{}, result.UpdatedAt)
+		assert.NotNil(t, result.Attributes)
+		assert.Equal(t, "", result.Attributes.VolumeName)
+		assert.Equal(t, "", result.Attributes.SnapshotName)
+		assert.Equal(t, "test-account", result.Attributes.AccountIdentifier)
+		// Protocols will be fetched by FetchProtocolsForBackup - may be nil if volumeUUID is empty and protocols are empty
+		// The actual result depends on FetchProtocolsForBackup behavior
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Success_BackupChainBytes_WhenVolumeUsageBytesNotSet", func(t *testing.T) {
+		// Arrange - Test fallback to BackupChainBytes when VolumeUsageBytes is not set
+		backup := &googleproxyclient.BackupV1beta{
+			BackupId:         googleproxyclient.NewOptString("backup-uuid-chain"),
+			ResourceId:       googleproxyclient.NewOptString("chain-backup"),
+			VolumeId:         googleproxyclient.NewOptString("volume-uuid-chain"),
+			State:            googleproxyclient.NewOptBackupV1betaState(googleproxyclient.BackupV1betaStateREADY),
+			Created:          googleproxyclient.NewOptDateTime(time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)),
+			BackupChainBytes: googleproxyclient.NewOptInt64(4096 * 1024 * 1024), // 4GB
+			// VolumeUsageBytes not set - should use BackupChainBytes
+			Protocols: []googleproxyclient.ProtocolsV1beta{
+				googleproxyclient.ProtocolsV1betaNFSV3,
+			},
+		}
+
+		// Act - Test through FetchBackupFromRemoteVCP
+		pathInfo := &activities.BackupPathInfo{
+			Region:     backupRegion,
+			BackupName: "chain-backup",
+		}
+
+		volume := &datamodel.Volume{
+			Account: account,
+		}
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePathParam string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		mockResponse := &googleproxyclient.V1betaListBackupsOK{
+			Backups: []googleproxyclient.BackupV1beta{*backup},
+		}
+
+		mockInvoker.On("V1betaListBackups", mock.Anything, mock.Anything).Return(mockResponse, nil)
+
+		result, err := activities.FetchBackupFromRemoteVCP(ctx, pathInfo, backupVault, volume, "us-central1")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, int64(4096*1024*1024), result.SizeInBytes) // Should use BackupChainBytes
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Success_VolumeUsageBytes_PreferredOverBackupChainBytes", func(t *testing.T) {
+		// Arrange - Test that VolumeUsageBytes is preferred when both are set
+		backup := &googleproxyclient.BackupV1beta{
+			BackupId:         googleproxyclient.NewOptString("backup-uuid-prefer"),
+			ResourceId:       googleproxyclient.NewOptString("prefer-backup"),
+			VolumeId:         googleproxyclient.NewOptString("volume-uuid-prefer"),
+			State:            googleproxyclient.NewOptBackupV1betaState(googleproxyclient.BackupV1betaStateREADY),
+			Created:          googleproxyclient.NewOptDateTime(time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)),
+			VolumeUsageBytes: googleproxyclient.NewOptInt64(1024 * 1024 * 1024), // 1GB - should be preferred
+			BackupChainBytes: googleproxyclient.NewOptInt64(2048 * 1024 * 1024), // 2GB - should be ignored
+			Protocols:        []googleproxyclient.ProtocolsV1beta{},
+		}
+
+		// Act - Test through FetchBackupFromRemoteVCP
+		pathInfo := &activities.BackupPathInfo{
+			Region:     backupRegion,
+			BackupName: "prefer-backup",
+		}
+
+		volume := &datamodel.Volume{
+			Account: account,
+		}
+
+		// Mock GetRemoteRegionConfig
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		// Mock GetGProxyClient
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		googleproxyclient.GetGProxyClient = func(basePathParam string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		mockResponse := &googleproxyclient.V1betaListBackupsOK{
+			Backups: []googleproxyclient.BackupV1beta{*backup},
+		}
+
+		mockInvoker.On("V1betaListBackups", mock.Anything, mock.Anything).Return(mockResponse, nil)
+
+		result, err := activities.FetchBackupFromRemoteVCP(ctx, pathInfo, backupVault, volume, "us-central1")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, int64(1024*1024*1024), result.SizeInBytes) // Should prefer VolumeUsageBytes
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Success_DifferentStateValues", func(t *testing.T) {
+		// Arrange - Test different state values
+		testCases := []struct {
+			name          string
+			state         googleproxyclient.BackupV1betaState
+			expectedState string
+		}{
+			{
+				name:          "READY",
+				state:         googleproxyclient.BackupV1betaStateREADY,
+				expectedState: "READY",
+			},
+			{
+				name:          "CREATING",
+				state:         googleproxyclient.BackupV1betaStateCREATING,
+				expectedState: "CREATING",
+			},
+			{
+				name:          "DELETING",
+				state:         googleproxyclient.BackupV1betaStateDELETING,
+				expectedState: "DELETING",
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				backup := &googleproxyclient.BackupV1beta{
+					BackupId:   googleproxyclient.NewOptString("backup-uuid-" + tc.name),
+					ResourceId: googleproxyclient.NewOptString("backup-" + tc.name),
+					VolumeId:   googleproxyclient.NewOptString("volume-uuid-" + tc.name),
+					State:      googleproxyclient.NewOptBackupV1betaState(tc.state),
+					Created:    googleproxyclient.NewOptDateTime(time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)),
+					Protocols:  []googleproxyclient.ProtocolsV1beta{},
+				}
+
+				// Act - Test through FetchBackupFromRemoteVCP
+				pathInfo := &activities.BackupPathInfo{
+					Region:     backupRegion,
+					BackupName: "backup-" + tc.name,
+				}
+
+				volume := &datamodel.Volume{
+					Account: account,
+				}
+
+				// Mock GetRemoteRegionConfig
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				defer func() {
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+				}()
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://us-west1.example.com", "mock-jwt-token", nil
+				}
+
+				// Mock GetGProxyClient
+				mockInvoker := googleproxyclient.NewMockInvoker(t)
+				mockProxyClient := &googleproxyclient.ProxyClient{
+					Invoker: mockInvoker,
+				}
+				originalGetGProxyClient := googleproxyclient.GetGProxyClient
+				defer func() {
+					googleproxyclient.GetGProxyClient = originalGetGProxyClient
+				}()
+				googleproxyclient.GetGProxyClient = func(basePathParam string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+					return mockProxyClient
+				}
+
+				mockResponse := &googleproxyclient.V1betaListBackupsOK{
+					Backups: []googleproxyclient.BackupV1beta{*backup},
+				}
+
+				mockInvoker.On("V1betaListBackups", mock.Anything, mock.Anything).Return(mockResponse, nil)
+
+				result, err := activities.FetchBackupFromRemoteVCP(ctx, pathInfo, backupVault, volume, "us-central1")
+
+				// Assert
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.Equal(t, tc.expectedState, result.State)
+				mockInvoker.AssertExpectations(t)
+			})
+		}
+	})
+
+	t.Run("Success_DifferentBackupTypes", func(t *testing.T) {
+		// Arrange - Test different backup types
+		testCases := []struct {
+			name         string
+			backupType   googleproxyclient.BackupV1betaBackupType
+			expectedType string
+		}{
+			{
+				name:         "MANUAL",
+				backupType:   googleproxyclient.BackupV1betaBackupTypeMANUAL,
+				expectedType: "MANUAL",
+			},
+			{
+				name:         "SCHEDULED",
+				backupType:   googleproxyclient.BackupV1betaBackupTypeSCHEDULED,
+				expectedType: "SCHEDULED",
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				backup := &googleproxyclient.BackupV1beta{
+					BackupId:   googleproxyclient.NewOptString("backup-uuid-" + tc.name),
+					ResourceId: googleproxyclient.NewOptString("backup-" + tc.name),
+					VolumeId:   googleproxyclient.NewOptString("volume-uuid-" + tc.name),
+					State:      googleproxyclient.NewOptBackupV1betaState(googleproxyclient.BackupV1betaStateREADY),
+					Created:    googleproxyclient.NewOptDateTime(time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)),
+					BackupType: googleproxyclient.NewOptBackupV1betaBackupType(tc.backupType),
+					Protocols:  []googleproxyclient.ProtocolsV1beta{},
+				}
+
+				// Act - Test through FetchBackupFromRemoteVCP
+				pathInfo := &activities.BackupPathInfo{
+					Region:     backupRegion,
+					BackupName: "backup-" + tc.name,
+				}
+
+				volume := &datamodel.Volume{
+					Account: account,
+				}
+
+				// Mock GetRemoteRegionConfig
+				originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+				defer func() {
+					common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+				}()
+				common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+					return "https://us-west1.example.com", "mock-jwt-token", nil
+				}
+
+				// Mock GetGProxyClient
+				mockInvoker := googleproxyclient.NewMockInvoker(t)
+				mockProxyClient := &googleproxyclient.ProxyClient{
+					Invoker: mockInvoker,
+				}
+				originalGetGProxyClient := googleproxyclient.GetGProxyClient
+				defer func() {
+					googleproxyclient.GetGProxyClient = originalGetGProxyClient
+				}()
+				googleproxyclient.GetGProxyClient = func(basePathParam string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+					return mockProxyClient
+				}
+
+				mockResponse := &googleproxyclient.V1betaListBackupsOK{
+					Backups: []googleproxyclient.BackupV1beta{*backup},
+				}
+
+				mockInvoker.On("V1betaListBackups", mock.Anything, mock.Anything).Return(mockResponse, nil)
+
+				result, err := activities.FetchBackupFromRemoteVCP(ctx, pathInfo, backupVault, volume, "us-central1")
+
+				// Assert
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.Equal(t, tc.expectedType, result.Type)
+				mockInvoker.AssertExpectations(t)
+			})
+		}
+	})
 }

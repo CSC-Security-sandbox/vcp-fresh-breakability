@@ -1738,6 +1738,12 @@ paths:
           allowEmptyValue: true
           description: 'Volume ID for which the backups are to be listed. If not present, all backups will be returned'
         - in: query
+          name: backupName
+          schema:
+            type: string
+          allowEmptyValue: true
+          description: 'Backup name for which the backups are to be listed. If not present, all backups will be returned'
+        - in: query
           name: onlyOrphanedBackups
           schema:
             type: boolean
@@ -12485,6 +12491,39 @@ components:
           type: string
           description: Name of the backup region
           example: us-central1
+          x-nullable: true
+        bucketName:
+          title: bucketName
+          type: string
+          readOnly: true
+          description: Name of the bucket where the backup is stored
+          example: my-backup-bucket
+          x-nullable: true
+        snapshotName:
+          title: snapshotName
+          type: string
+          readOnly: true
+          description: Name of the snapshot used for the backup
+          example: snapshot-123
+          x-nullable: true
+        endPointUUID:
+          title: endPointUUID
+          type: string
+          readOnly: true
+          description: UUID v4 of the endpoint that was used to create the backup
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 53fb64d6-ae8d-4166-b054-9f601a62e9fb
+          x-nullable: true
+        protocols:
+          title: protocols
+          type: array
+          description: Protocol types supported by the source volume
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/protocols_v1beta'
           x-nullable: true
         assetLocationMetadata:
           $ref: '#/components/schemas/AssetLocationMetadata_v2'

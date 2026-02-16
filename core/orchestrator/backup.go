@@ -519,6 +519,11 @@ func convertDatastoreBackupToModel(backup *datamodel.Backup) *models.Backup {
 		backupVaultID = backup.BackupVault.UUID
 	}
 
+	protocols := []string{}
+	if backup.Attributes != nil && backup.Attributes.Protocols != nil {
+		protocols = backup.Attributes.Protocols
+	}
+
 	return &models.Backup{
 		BackupID:                         backup.UUID,
 		Name:                             backup.Name,
@@ -533,6 +538,7 @@ func convertDatastoreBackupToModel(backup *datamodel.Backup) *models.Backup {
 		SnapshotName:                     backup.Attributes.SnapshotName,
 		MinimumEnforcedRetentionDuration: &minimumEnforcedRetentionDuration,
 		IsBackupImmutable:                isBackupImmutable,
+		Protocols:                        protocols,
 	}
 }
 

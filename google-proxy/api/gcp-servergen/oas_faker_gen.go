@@ -783,6 +783,33 @@ func (s *BackupV1beta) SetFake() {
 	}
 	{
 		{
+			s.BucketName.SetFake()
+		}
+	}
+	{
+		{
+			s.SnapshotName.SetFake()
+		}
+	}
+	{
+		{
+			s.EndPointUUID.SetFake()
+		}
+	}
+	{
+		{
+			s.Protocols = nil
+			for i := 0; i < 0; i++ {
+				var elem ProtocolsV1beta
+				{
+					elem.SetFake()
+				}
+				s.Protocols = append(s.Protocols, elem)
+			}
+		}
+	}
+	{
+		{
 			s.AssetLocationMetadata.SetFake()
 		}
 	}
