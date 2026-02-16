@@ -144,7 +144,7 @@ func DeHydrateVolume(ctx context.Context, destVolume models.Volume, project stri
 		return err
 	}
 	// DeHydrate Volume to CFFE
-	err = hydrateVolumeDelete(ctx, logger, destVolume.UUID, destVolume.Region, project, callbackToken)
+	err = hydrateVolumeDelete(ctx, logger, destVolume.DisplayName, destVolume.Region, project, callbackToken)
 	if err != nil {
 		logger.Errorf("Error when hydrating replication: %v", err)
 		return err
