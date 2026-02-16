@@ -46,6 +46,16 @@ spec:
               echo "istio-proxy is ready!"
               {{- end }}
 
+              {{- if include "temporal.cloudSqlIamAuthEnabled" (list $) | toString | eq "true" }}
+              # Wait for cloud-sql-proxy to be ready (accepting connections on 5432)
+              echo "Waiting for cloud-sql-proxy to be ready..."
+              until nc -z localhost 5432 2>/dev/null; do
+                echo "Waiting for cloud-sql-proxy..."
+                sleep 2
+              done
+              echo "cloud-sql-proxy is ready!"
+              {{- end }}
+
               {{- if $.Values.schema.createDatabase.enabled }}
               # Create database for {{ $store }} store
               echo "Creating {{ $store }} store database..."

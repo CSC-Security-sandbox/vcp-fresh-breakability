@@ -351,22 +351,22 @@ Checks .Values.global.cloudSqlIamAuthEnabled first (for umbrella charts), then .
 {{- $instance := printf "%s-db-postgres" $project }}
 {{- $instanceConnectionName = printf "%s:%s:%s" $project $region $instance }}
 {{- end }}
+{{- $img := "" -}}
+{{- if hasKey .Values "global" -}}
+{{- if hasKey .Values.global "cloudSqlProxy" -}}
+{{- $img = .Values.global.cloudSqlProxy.image -}}
+{{- end -}}
+{{- end -}}
+{{- if eq $img "" -}}
+{{- if hasKey .Values "cloudSqlProxy" -}}
+{{- $img = .Values.cloudSqlProxy.image -}}
+{{- end -}}
+{{- end -}}
+{{- if eq $img "" -}}
+{{- $img = "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1" -}}
+{{- end }}
 - name: cloud-sql-proxy
-  image: {{- $img := "" -}}
-    {{- if hasKey .Values "global" -}}
-    {{- if hasKey .Values.global "cloudSqlProxy" -}}
-    {{- $img = .Values.global.cloudSqlProxy.image -}}
-    {{- end -}}
-    {{- end -}}
-    {{- if eq $img "" -}}
-    {{- if hasKey .Values "cloudSqlProxy" -}}
-    {{- $img = .Values.cloudSqlProxy.image -}}
-    {{- end -}}
-    {{- end -}}
-    {{- if eq $img "" -}}
-    {{- $img = "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1" -}}
-    {{- end -}}
-    {{ $img | quote }}
+  image: {{ $img | quote }}
   args:
     - "--private-ip"
     - "--auto-iam-authn"
