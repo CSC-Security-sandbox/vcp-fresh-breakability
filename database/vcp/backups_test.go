@@ -4597,3 +4597,204 @@ func Test_areBackupsInProgressForVolume(t *testing.T) {
 		assert.Error(tt, err)
 	})
 }
+
+func TestGetVolumeCountByBackupVaultID(t *testing.T) {
+	t.Run("Success_BothRegularAndExpertModeVolumes", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVaultUUID := "test-backup-vault-uuid"
+
+		// Create regular volumes with backup vault ID in data_protection
+		dataProtection1 := &datamodel.DataProtection{
+			BackupVaultID: backupVaultUUID,
+		}
+		volume1 := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: "volume-uuid-1"},
+			DataProtection: dataProtection1,
+		}
+		err = store.db.Create(volume1).Error()
+		assert.NoError(tt, err)
+
+		dataProtection2 := &datamodel.DataProtection{
+			BackupVaultID: backupVaultUUID,
+		}
+		volume2 := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: "volume-uuid-2"},
+			DataProtection: dataProtection2,
+		}
+		err = store.db.Create(volume2).Error()
+		assert.NoError(tt, err)
+
+		// Create expert mode volumes with backup vault ID in data_protection
+		expertDataProtection1 := &datamodel.DataProtection{
+			BackupVaultID: backupVaultUUID,
+		}
+		expertVolume1 := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "expert-volume-uuid-1"},
+			BackupConfig: expertDataProtection1,
+		}
+		err = store.db.Create(expertVolume1).Error()
+		assert.NoError(tt, err)
+
+		expertDataProtection2 := &datamodel.DataProtection{
+			BackupVaultID: backupVaultUUID,
+		}
+		expertVolume2 := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "expert-volume-uuid-2"},
+			BackupConfig: expertDataProtection2,
+		}
+		err = store.db.Create(expertVolume2).Error()
+		assert.NoError(tt, err)
+
+		// Create volumes with different backup vault ID (should not be counted)
+		differentDataProtection := &datamodel.DataProtection{
+			BackupVaultID: "different-backup-vault-uuid",
+		}
+		differentVolume := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: "different-volume-uuid"},
+			DataProtection: differentDataProtection,
+		}
+		err = store.db.Create(differentVolume).Error()
+		assert.NoError(tt, err)
+
+		count, err := store.GetVolumeCountByBackupVaultID(context.Background(), backupVaultUUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(4), count) // 2 regular + 2 expert mode
+	})
+
+	t.Run("Success_OnlyRegularVolumes", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVaultUUID := "test-backup-vault-uuid"
+
+		// Create regular volumes with backup vault ID
+		for i := 1; i <= 3; i++ {
+			dataProtection := &datamodel.DataProtection{
+				BackupVaultID: backupVaultUUID,
+			}
+			volume := &datamodel.Volume{
+				BaseModel:      datamodel.BaseModel{UUID: "volume-uuid-" + string(rune(i))},
+				DataProtection: dataProtection,
+			}
+			err = store.db.Create(volume).Error()
+			assert.NoError(tt, err)
+		}
+
+		count, err := store.GetVolumeCountByBackupVaultID(context.Background(), backupVaultUUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(3), count)
+	})
+
+	t.Run("Success_OnlyExpertModeVolumes", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVaultUUID := "test-backup-vault-uuid"
+
+		// Create expert mode volumes with backup vault ID
+		for i := 1; i <= 2; i++ {
+			expertDataProtection := &datamodel.DataProtection{
+				BackupVaultID: backupVaultUUID,
+			}
+			expertVolume := &datamodel.ExpertModeVolumes{
+				BaseModel:    datamodel.BaseModel{UUID: "expert-volume-uuid-" + string(rune(i))},
+				BackupConfig: expertDataProtection,
+			}
+			err = store.db.Create(expertVolume).Error()
+			assert.NoError(tt, err)
+		}
+
+		count, err := store.GetVolumeCountByBackupVaultID(context.Background(), backupVaultUUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(2), count)
+	})
+
+	t.Run("Success_NoVolumes", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVaultUUID := "non-existent-backup-vault-uuid"
+
+		count, err := store.GetVolumeCountByBackupVaultID(context.Background(), backupVaultUUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), count)
+	})
+
+	t.Run("Error_RegularVolumeQueryFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Simulate DB failure by closing the connection
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		_, err = store.GetVolumeCountByBackupVaultID(context.Background(), "test-backup-vault-uuid")
+		assert.Error(tt, err)
+	})
+
+	t.Run("Error_ExpertModeVolumeQueryFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVaultUUID := "test-backup-vault-uuid"
+
+		// Create regular volume first (to get past first query)
+		dataProtection := &datamodel.DataProtection{
+			BackupVaultID: backupVaultUUID,
+		}
+		volume := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: "volume-uuid-1"},
+			DataProtection: dataProtection,
+		}
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err)
+
+		// Close connection after first query succeeds
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		// The second query (expert mode volumes) should fail
+		_, err = store.GetVolumeCountByBackupVaultID(context.Background(), backupVaultUUID)
+		assert.Error(tt, err)
+	})
+}

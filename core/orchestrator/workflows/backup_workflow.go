@@ -555,6 +555,12 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(err)
 	}
 
+	var isExpertModeVolume bool
+	err = workflow.ExecuteActivity(ctx, backupActivity.IsExpertModeVolume, dbBackup.VolumeUUID).Get(ctx, &isExpertModeVolume)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+
 	var volume *datamodel.Volume
 	var node *models.Node
 	var smSourcePath string
@@ -657,13 +663,15 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			}
 
 			// Try to delete snapshot from DB, but don't fail the workflow if this fails
-			snapshotErr := workflow.ExecuteActivity(ctx, backupActivity.DeleteBackupSnapshotFromDB, dbBackup).Get(ctx, nil)
-			if snapshotErr != nil {
-				wf.Logger.Error("Failed to delete snapshot from database", "error", snapshotErr)
+			if !isExpertModeVolume {
+				snapshotErr := workflow.ExecuteActivity(ctx, backupActivity.DeleteBackupSnapshotFromDB, dbBackup).Get(ctx, nil)
+				if snapshotErr != nil {
+					wf.Logger.Error("Failed to delete snapshot from database", "error", snapshotErr)
+				}
 			}
 
 			// Hydrate snapshot deletion to CCFE
-			if dbBackup.Attributes != nil && volume != nil && account != nil {
+			if dbBackup.Attributes != nil && volume != nil && account != nil && !isExpertModeVolume {
 				snapshot := &datamodel.Snapshot{
 					BaseModel: datamodel.BaseModel{
 						UUID:      dbBackup.Attributes.SnapshotID,
@@ -728,6 +736,31 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			*dbBackupVault.BackupRegionName).Get(ctx, nil)
 		if remoteBackupErr != nil {
 			wf.Logger.Errorf("Failed to delete remote backup from VCP for backup %s: %v", dbBackup.UUID, remoteBackupErr)
+		}
+	}
+
+	// Detach backup vault from expert mode volume if this is the last backup deletion
+	var currentBackupCount int64
+	if !isVolumeDeleted && volume != nil {
+		if isExpertModeVolume {
+			countErr := workflow.ExecuteActivity(ctx, backupActivity.GetBackupCountByVolumeUUID, dbBackup.VolumeUUID).Get(ctx, &currentBackupCount)
+			if countErr != nil {
+				wf.Logger.Errorf("Failed to get current backup count for volume %s: %v", dbBackup.VolumeUUID, countErr)
+			} else if currentBackupCount == 0 {
+				// This was the last backup, detach the backup vault from the volume
+				detachErr := workflow.ExecuteActivity(ctx, backupActivity.DetachBackupVaultFromVolume, volume, dbBackupVault).Get(ctx, nil)
+				if detachErr != nil {
+					wf.Logger.Errorf("Failed to detach backup vault from expert mode volume %s: %v", volume.UUID, detachErr)
+				}
+			}
+		}
+	}
+
+	// Try to delete snapshot from DB, but don't fail the workflow if this fails
+	if !isExpertModeVolume {
+		snapshotErr := workflow.ExecuteActivity(ctx, backupActivity.DeleteBackupSnapshotFromDB, dbBackup).Get(ctx, nil)
+		if snapshotErr != nil {
+			workflow.GetLogger(ctx).Error("Failed to delete snapshot from database", "error", snapshotErr)
 		}
 	}
 

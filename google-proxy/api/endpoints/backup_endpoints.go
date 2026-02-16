@@ -405,6 +405,12 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 				Message: err.Error(),
 			}, nil
 		}
+		if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaCreateBackupConflict{
+				Code:    409,
+				Message: err.Error(),
+			}, nil
+		}
 
 		logger.Error("Failed to create backup", "error", err.Error())
 		return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err

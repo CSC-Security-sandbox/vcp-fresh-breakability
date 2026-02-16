@@ -5964,3 +5964,167 @@ func TestDeleteBackup_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 		store.AssertExpectations(t)
 	})
 }
+
+func TestValidateCreateBackupParams_ExpertModeVolume_Success(t *testing.T) {
+	ctx := context.Background()
+	store := database.NewMockStorage(t)
+
+	params := &common.CreateBackupParams{
+		VolumeUUID:         "test-volume-uuid",
+		BackupVaultID:      "test-vault-id",
+		BackupName:         "test-backup",
+		AccountName:        "test-account",
+		IsExpertModeVolume: true,
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+		Name:      "test-account",
+	}
+
+	// Mock IsBackupInCreatingorDeletingStateByVolume to return false
+	store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
+	// Mock GetAccount
+	store.On("GetAccount", ctx, params.AccountName).Return(account, nil)
+	// Mock GetBackupsByBackupVaultOwnerIDAndFilter to return empty list (no duplicate)
+	filters := [][]interface{}{{"name = ?", params.BackupName}}
+	store.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, params.BackupVaultID, account.ID, filters).Return([]*datamodel.Backup{}, nil)
+
+	err := _validateCreateBackupParams(ctx, store, params)
+
+	assert.NoError(t, err)
+	store.AssertExpectations(t)
+}
+
+func TestValidateCreateBackupParams_ExpertModeVolume_BackupInProgress(t *testing.T) {
+	ctx := context.Background()
+	store := database.NewMockStorage(t)
+
+	params := &common.CreateBackupParams{
+		VolumeUUID:         "test-volume-uuid",
+		BackupVaultID:      "test-vault-id",
+		BackupName:         "test-backup",
+		AccountName:        "test-account",
+		IsExpertModeVolume: true,
+	}
+
+	// Mock IsBackupInCreatingorDeletingStateByVolume to return true
+	store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(true, nil)
+
+	err := _validateCreateBackupParams(ctx, store, params)
+
+	assert.EqualError(t, err, "A backup operation from the same volume is currently in progress. Please wait for it to complete before starting a new backup")
+	store.AssertExpectations(t)
+}
+
+func TestValidateCreateBackupParams_ExpertModeVolume_DuplicateBackupName(t *testing.T) {
+	ctx := context.Background()
+	store := database.NewMockStorage(t)
+
+	params := &common.CreateBackupParams{
+		VolumeUUID:         "test-volume-uuid",
+		BackupVaultID:      "test-vault-id",
+		BackupName:         "existing-backup",
+		AccountName:        "test-account",
+		IsExpertModeVolume: true,
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+		Name:      "test-account",
+	}
+
+	existingBackup := &datamodel.Backup{
+		BaseModel:     datamodel.BaseModel{UUID: "existing-backup-uuid"},
+		Name:          "existing-backup",
+		BackupVaultID: 1,
+	}
+
+	// Mock IsBackupInCreatingorDeletingStateByVolume to return false
+	store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
+	// Mock GetAccount
+	store.On("GetAccount", ctx, params.AccountName).Return(account, nil)
+	// Mock GetBackupsByBackupVaultOwnerIDAndFilter to return existing backup
+	filters := [][]interface{}{{"name = ?", params.BackupName}}
+	store.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, params.BackupVaultID, account.ID, filters).Return([]*datamodel.Backup{existingBackup}, nil)
+
+	err := _validateCreateBackupParams(ctx, store, params)
+
+	assert.EqualError(t, err, "Backup with the same name already exists in the specified backup vault")
+	store.AssertExpectations(t)
+}
+
+func TestValidateCreateBackupParams_ExpertModeVolume_GetAccountError(t *testing.T) {
+	ctx := context.Background()
+	store := database.NewMockStorage(t)
+
+	params := &common.CreateBackupParams{
+		VolumeUUID:         "test-volume-uuid",
+		BackupVaultID:      "test-vault-id",
+		BackupName:         "test-backup",
+		AccountName:        "test-account",
+		IsExpertModeVolume: true,
+	}
+
+	// Mock IsBackupInCreatingorDeletingStateByVolume to return false
+	store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
+	// Mock GetAccount to return error
+	store.On("GetAccount", ctx, params.AccountName).Return(nil, errors.New("database connection error"))
+
+	err := _validateCreateBackupParams(ctx, store, params)
+
+	assert.EqualError(t, err, "database connection error")
+	store.AssertExpectations(t)
+}
+
+func TestValidateCreateBackupParams_ExpertModeVolume_GetBackupsError(t *testing.T) {
+	ctx := context.Background()
+	store := database.NewMockStorage(t)
+
+	params := &common.CreateBackupParams{
+		VolumeUUID:         "test-volume-uuid",
+		BackupVaultID:      "test-vault-id",
+		BackupName:         "test-backup",
+		AccountName:        "test-account",
+		IsExpertModeVolume: true,
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+		Name:      "test-account",
+	}
+
+	// Mock IsBackupInCreatingorDeletingStateByVolume to return false
+	store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
+	// Mock GetAccount
+	store.On("GetAccount", ctx, params.AccountName).Return(account, nil)
+	// Mock GetBackupsByBackupVaultOwnerIDAndFilter to return error
+	filters := [][]interface{}{{"name = ?", params.BackupName}}
+	store.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, params.BackupVaultID, account.ID, filters).Return(nil, errors.New("query execution error"))
+
+	err := _validateCreateBackupParams(ctx, store, params)
+
+	assert.EqualError(t, err, "query execution error")
+	store.AssertExpectations(t)
+}
+
+func TestValidateCreateBackupParams_ExpertModeVolume_BackupTransitionCheckError(t *testing.T) {
+	ctx := context.Background()
+	store := database.NewMockStorage(t)
+
+	params := &common.CreateBackupParams{
+		VolumeUUID:         "test-volume-uuid",
+		BackupVaultID:      "test-vault-id",
+		BackupName:         "test-backup",
+		AccountName:        "test-account",
+		IsExpertModeVolume: true,
+	}
+
+	// Mock IsBackupInCreatingorDeletingStateByVolume to return error
+	store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, errors.New("database query failed"))
+
+	err := _validateCreateBackupParams(ctx, store, params)
+
+	assert.EqualError(t, err, "database query failed")
+	store.AssertExpectations(t)
+}

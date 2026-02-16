@@ -91,13 +91,22 @@ func (d *DataStoreRepository) GetBackupCountByBackupVaultID(ctx context.Context,
 
 func (d *DataStoreRepository) GetVolumeCountByBackupVaultID(ctx context.Context, backupVaultUUID string) (int64, error) {
 	var volumeCount int64
+	var expertModeVolumeCount int64
 	err := d.db.GORM().WithContext(ctx).Model(&datamodel.Volume{}).
 		Where("data_protection->>'backup_vault_id' = ?", backupVaultUUID).
 		Count(&volumeCount).Error
 	if err != nil {
 		return 0, err
 	}
-	return volumeCount, nil
+
+	// fetch count from expert mode volumes as well
+	err = d.db.GORM().WithContext(ctx).Model(&datamodel.ExpertModeVolumes{}).
+		Where("data_protection->>'backup_vault_id' = ?", backupVaultUUID).
+		Count(&expertModeVolumeCount).Error
+	if err != nil {
+		return 0, err
+	}
+	return volumeCount + expertModeVolumeCount, nil
 }
 
 func (d *DataStoreRepository) GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.Context, backupVaultUUID string, accountID int64, filters [][]interface{}) ([]*datamodel.Backup, error) {

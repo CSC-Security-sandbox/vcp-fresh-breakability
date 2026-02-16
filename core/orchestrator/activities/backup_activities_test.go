@@ -1227,7 +1227,7 @@ func TestIsVolumeDeleted(t *testing.T) {
 		volumeUUID := "test-volume-uuid"
 		store.On("GetVolume", ctx, volumeUUID).Return(nil, utilerrors.NewNotFoundErr("volume", nil))
 		// When volume is not found in regular table, it checks expert mode volumes
-		store.On("GetExpertModeVolumeByUUID", ctx, volumeUUID).Return(nil, utilerrors.NewNotFoundErr("expert mode volume", nil))
+		store.On("GetExpertModeVolumeByExternalUUID", ctx, volumeUUID).Return(nil, utilerrors.NewNotFoundErr("expert mode volume", nil))
 		isDeleted, err := activity.IsVolumeDeleted(ctx, volumeUUID)
 		assert.NoError(t, err)
 		assert.True(t, isDeleted)
@@ -1243,7 +1243,7 @@ func TestIsVolumeDeleted(t *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{
 			BaseModel: datamodel.BaseModel{UUID: volumeUUID},
 		}
-		store.On("GetExpertModeVolumeByUUID", ctx, volumeUUID).Return(expertModeVolume, nil)
+		store.On("GetExpertModeVolumeByExternalUUID", ctx, volumeUUID).Return(expertModeVolume, nil)
 		isDeleted, err := activity.IsVolumeDeleted(ctx, volumeUUID)
 		assert.NoError(t, err)
 		assert.False(t, isDeleted) // Volume exists in expert mode table, so not deleted
@@ -1267,7 +1267,7 @@ func TestIsVolumeDeleted(t *testing.T) {
 		// Volume not found in regular table
 		store.On("GetVolume", ctx, volumeUUID).Return(nil, utilerrors.NewNotFoundErr("volume", nil))
 		// Error when checking expert mode volumes
-		store.On("GetExpertModeVolumeByUUID", ctx, volumeUUID).Return(nil, errors.New("failed to check expert mode volume"))
+		store.On("GetExpertModeVolumeByExternalUUID", ctx, volumeUUID).Return(nil, errors.New("failed to check expert mode volume"))
 		isDeleted, err := activity.IsVolumeDeleted(ctx, volumeUUID)
 		assert.Error(t, err)
 		assert.False(t, isDeleted)
@@ -10286,10 +10286,16 @@ func TestUpdateVolumeLatestLogicalBackupSize_Success(t *testing.T) {
 			UUID: "volume-uuid-123",
 		},
 		Name: "test-volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid-123",
+		},
 		DataProtection: &datamodel.DataProtection{
 			BackupChainBytes: nil, // Will be updated
 		},
 	}
+
+	// Mock IsExpertModeVolume check - return false for regular volume
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", ctx, volume.VolumeAttributes.ExternalUUID).Return(nil, utilerrors.NewNotFoundErr("expert mode volume", nil))
 
 	// Mock the UpdateVolumeFields call
 	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
@@ -10323,12 +10329,18 @@ func TestUpdateVolumeLatestLogicalBackupSize_UpdateVolumeFieldsError(t *testing.
 			UUID: "volume-uuid-456",
 		},
 		Name: "test-volume-error",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid-456",
+		},
 		DataProtection: &datamodel.DataProtection{
 			BackupChainBytes: nil,
 		},
 	}
 
 	expectedError := errors.New("database connection error")
+
+	// Mock IsExpertModeVolume check - return false for regular volume
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", ctx, volume.VolumeAttributes.ExternalUUID).Return(nil, utilerrors.NewNotFoundErr("expert mode volume", nil))
 
 	// Mock the UpdateVolumeFields call to return an error
 	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, mock.Anything).Return(expectedError)
@@ -10358,10 +10370,16 @@ func TestUpdateVolumeLatestLogicalBackupSize_ZeroSize(t *testing.T) {
 			UUID: "volume-uuid-zero",
 		},
 		Name: "test-volume-zero-size",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid-zero",
+		},
 		DataProtection: &datamodel.DataProtection{
 			BackupChainBytes: nillable.GetInt64Ptr(1000000), // Previously had a value
 		},
 	}
+
+	// Mock IsExpertModeVolume check - return false for regular volume
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", ctx, volume.VolumeAttributes.ExternalUUID).Return(nil, utilerrors.NewNotFoundErr("expert mode volume", nil))
 
 	// Mock the UpdateVolumeFields call
 	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
@@ -10395,10 +10413,16 @@ func TestUpdateVolumeLatestLogicalBackupSize_LargeSize(t *testing.T) {
 			UUID: "volume-uuid-large",
 		},
 		Name: "test-volume-large-size",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid-large",
+		},
 		DataProtection: &datamodel.DataProtection{
 			BackupChainBytes: nil,
 		},
 	}
+
+	// Mock IsExpertModeVolume check - return false for regular volume
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", ctx, volume.VolumeAttributes.ExternalUUID).Return(nil, utilerrors.NewNotFoundErr("expert mode volume", nil))
 
 	// Mock the UpdateVolumeFields call
 	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
@@ -10433,10 +10457,16 @@ func TestUpdateVolumeLatestLogicalBackupSize_UpdateExistingValue(t *testing.T) {
 			UUID: "volume-uuid-update",
 		},
 		Name: "test-volume-update",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid-update",
+		},
 		DataProtection: &datamodel.DataProtection{
 			BackupChainBytes: &oldSize,
 		},
 	}
+
+	// Mock IsExpertModeVolume check - return false for regular volume
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", ctx, volume.VolumeAttributes.ExternalUUID).Return(nil, utilerrors.NewNotFoundErr("expert mode volume", nil))
 
 	// Mock the UpdateVolumeFields call
 	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
@@ -10470,12 +10500,18 @@ func TestUpdateVolumeLatestLogicalBackupSize_TemporalErrorWrapping(t *testing.T)
 			UUID: "volume-uuid-temporal",
 		},
 		Name: "test-volume-temporal-error",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid-temporal",
+		},
 		DataProtection: &datamodel.DataProtection{
 			BackupChainBytes: nil,
 		},
 	}
 
 	dbError := errors.New("database timeout error")
+
+	// Mock IsExpertModeVolume check - return false for regular volume
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", ctx, volume.VolumeAttributes.ExternalUUID).Return(nil, utilerrors.NewNotFoundErr("expert mode volume", nil))
 
 	// Mock the UpdateVolumeFields call to return an error
 	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, mock.Anything).Return(dbError)
@@ -10503,10 +10539,16 @@ func TestUpdateVolumeLatestLogicalBackupSize_NegativeSize(t *testing.T) {
 			UUID: "volume-uuid-negative",
 		},
 		Name: "test-volume-negative-size",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid-negative",
+		},
 		DataProtection: &datamodel.DataProtection{
 			BackupChainBytes: nil,
 		},
 	}
+
+	// Mock IsExpertModeVolume check - return false for regular volume
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", ctx, volume.VolumeAttributes.ExternalUUID).Return(nil, utilerrors.NewNotFoundErr("expert mode volume", nil))
 
 	// Mock the UpdateVolumeFields call
 	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
@@ -11884,4 +11926,327 @@ func TestCheckAndAttachBackupVaultToVolume(t *testing.T) {
 		}
 		mockStorage.AssertExpectations(t)
 	})
+}
+
+func TestIsExpertModeVolume_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeUUID := "test-volume-uuid"
+
+	expertModeVolume := &datamodel.ExpertModeVolumes{
+		BaseModel: datamodel.BaseModel{
+			UUID: volumeUUID,
+		},
+		Name: "test-expert-volume",
+	}
+
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", ctx, volumeUUID).Return(expertModeVolume, nil)
+
+	// Act
+	result, err := activity.IsExpertModeVolume(ctx, volumeUUID)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.True(t, result)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestIsExpertModeVolume_NotExpertMode(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeUUID := "test-volume-uuid"
+
+	// Mock returns NotFoundErr indicating volume is not in expert mode table
+	notFoundErr := utilerrors.NewNotFoundErr("expert mode volume", &volumeUUID)
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", ctx, volumeUUID).Return(nil, notFoundErr)
+
+	// Act
+	result, err := activity.IsExpertModeVolume(ctx, volumeUUID)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.False(t, result)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestIsExpertModeVolume_RecordNotFound(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeUUID := "test-volume-uuid"
+
+	// Mock returns gorm.ErrRecordNotFound
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", ctx, volumeUUID).Return(nil, gorm.ErrRecordNotFound)
+
+	// Act
+	result, err := activity.IsExpertModeVolume(ctx, volumeUUID)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.False(t, result)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestIsExpertModeVolume_UnexpectedError(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeUUID := "test-volume-uuid"
+
+	// Mock returns unexpected error
+	unexpectedErr := errors.New("database connection error")
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", ctx, volumeUUID).Return(nil, unexpectedErr)
+
+	// Act
+	result, err := activity.IsExpertModeVolume(ctx, volumeUUID)
+
+	// Assert
+	assert.Error(t, err)
+	assert.False(t, result)
+	// The error is returned as-is since it's not a CustomError
+	assert.Equal(t, unexpectedErr, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetachBackupVaultFromVolume_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volumeUUID := "volume-uuid"
+	backupVaultUUID := "backup-vault-uuid"
+	externalUUID := "external-uuid"
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: externalUUID,
+		},
+	}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: backupVaultUUID},
+	}
+
+	expertModeVolume := &datamodel.ExpertModeVolumes{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+		BackupConfig: &datamodel.DataProtection{
+			BackupVaultID: backupVaultUUID,
+		},
+	}
+
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", ctx, externalUUID).Return(expertModeVolume, nil)
+	mockStorage.On("UpdateExpertModeVolumeDataProtection", ctx, mock.MatchedBy(func(emv *datamodel.ExpertModeVolumes) bool {
+		// Verify that BackupVaultID is cleared
+		return emv.BackupConfig.BackupVaultID == ""
+	})).Return(nil)
+
+	// Act
+	err := activity.DetachBackupVaultFromVolume(ctx, volume, backupVault)
+
+	// Assert
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetachBackupVaultFromVolume_NoBackupConfigAttached(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volumeUUID := "volume-uuid"
+	backupVaultUUID := "backup-vault-uuid"
+	externalUUID := "external-uuid"
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: externalUUID,
+		},
+	}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: backupVaultUUID},
+	}
+
+	expertModeVolume := &datamodel.ExpertModeVolumes{
+		BaseModel:    datamodel.BaseModel{UUID: volumeUUID},
+		BackupConfig: nil, // No backup config
+	}
+
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", ctx, externalUUID).Return(expertModeVolume, nil)
+
+	// Act
+	err := activity.DetachBackupVaultFromVolume(ctx, volume, backupVault)
+
+	// Assert
+	assert.NoError(t, err)
+	// UpdateExpertModeVolumeDataProtection should not be called
+	mockStorage.AssertExpectations(t)
+	mockStorage.AssertNotCalled(t, "UpdateExpertModeVolumeDataProtection")
+}
+
+func TestDetachBackupVaultFromVolume_EmptyBackupVaultID(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volumeUUID := "volume-uuid"
+	backupVaultUUID := "backup-vault-uuid"
+	externalUUID := "external-uuid"
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: externalUUID,
+		},
+	}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: backupVaultUUID},
+	}
+
+	expertModeVolume := &datamodel.ExpertModeVolumes{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+		BackupConfig: &datamodel.DataProtection{
+			BackupVaultID: "", // Empty backup vault ID
+		},
+	}
+
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", ctx, externalUUID).Return(expertModeVolume, nil)
+
+	// Act
+	err := activity.DetachBackupVaultFromVolume(ctx, volume, backupVault)
+
+	// Assert
+	assert.NoError(t, err)
+	// UpdateExpertModeVolumeDataProtection should not be called
+	mockStorage.AssertExpectations(t)
+	mockStorage.AssertNotCalled(t, "UpdateExpertModeVolumeDataProtection")
+}
+
+func TestDetachBackupVaultFromVolume_BackupVaultMismatch(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volumeUUID := "volume-uuid"
+	backupVaultUUID := "backup-vault-uuid"
+	differentBackupVaultUUID := "different-backup-vault-uuid"
+	externalUUID := "external-uuid"
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: externalUUID,
+		},
+	}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: backupVaultUUID},
+	}
+
+	expertModeVolume := &datamodel.ExpertModeVolumes{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+		BackupConfig: &datamodel.DataProtection{
+			BackupVaultID: differentBackupVaultUUID, // Different backup vault attached
+		},
+	}
+
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", ctx, externalUUID).Return(expertModeVolume, nil)
+
+	// Act
+	err := activity.DetachBackupVaultFromVolume(ctx, volume, backupVault)
+
+	// Assert
+	assert.NoError(t, err) // Should succeed but not update
+	// UpdateExpertModeVolumeDataProtection should not be called due to mismatch
+	mockStorage.AssertExpectations(t)
+	mockStorage.AssertNotCalled(t, "UpdateExpertModeVolumeDataProtection")
+}
+
+func TestDetachBackupVaultFromVolume_GetExpertModeVolumeFails(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volumeUUID := "volume-uuid"
+	backupVaultUUID := "backup-vault-uuid"
+	externalUUID := "external-uuid"
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: externalUUID,
+		},
+	}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: backupVaultUUID},
+	}
+
+	dbError := errors.New("database error")
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", ctx, externalUUID).Return(nil, dbError)
+
+	// Act
+	err := activity.DetachBackupVaultFromVolume(ctx, volume, backupVault)
+
+	// Assert
+	assert.Error(t, err)
+	// The error is returned as-is since it's not a CustomError
+	assert.Equal(t, dbError, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDetachBackupVaultFromVolume_UpdateFails(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volumeUUID := "volume-uuid"
+	backupVaultUUID := "backup-vault-uuid"
+	externalUUID := "external-uuid"
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: externalUUID,
+		},
+	}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: backupVaultUUID},
+	}
+
+	expertModeVolume := &datamodel.ExpertModeVolumes{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+		BackupConfig: &datamodel.DataProtection{
+			BackupVaultID: backupVaultUUID,
+		},
+	}
+
+	updateError := errors.New("update failed")
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", ctx, externalUUID).Return(expertModeVolume, nil)
+	mockStorage.On("UpdateExpertModeVolumeDataProtection", ctx, mock.Anything).Return(updateError)
+
+	// Act
+	err := activity.DetachBackupVaultFromVolume(ctx, volume, backupVault)
+
+	// Assert
+	assert.Error(t, err)
+	// The error is returned as-is since it's not a CustomError
+	assert.Equal(t, updateError, err)
+	mockStorage.AssertExpectations(t)
 }

@@ -436,6 +436,18 @@ func _validateCreateBackupParams(ctx context.Context, se database.Storage, param
 		return customerrors.NewUserInputValidationErr("A backup operation from the same volume is currently in progress. Please wait for it to complete before starting a new backup")
 	}
 	if params.IsExpertModeVolume {
+		account, err := se.GetAccount(ctx, params.AccountName)
+		if err != nil {
+			return err
+		}
+		filters := [][]interface{}{{"name = ?", params.BackupName}}
+		backups, err := se.GetBackupsByBackupVaultOwnerIDAndFilter(ctx, params.BackupVaultID, account.ID, filters)
+		if err != nil {
+			return err
+		}
+		if len(backups) > 0 {
+			return customerrors.NewConflictErr("Backup with the same name already exists in the specified backup vault")
+		}
 		return nil
 	} else {
 		vol, err := se.GetVolume(ctx, params.VolumeUUID)

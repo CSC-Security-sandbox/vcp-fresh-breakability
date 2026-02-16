@@ -5052,3 +5052,171 @@ func TestV1betaCreateBackup_PoolAndExpertModeVolumeHandling(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
+// TestV1betaCreateBackup_ConflictError tests the conflict error handling when creating a backup
+func TestV1betaCreateBackup_ConflictError(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	t.Run("WhenCreateBackupReturnsConflictErr", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		ctx := context.Background()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+
+		volumeId := "volume-123"
+		resourceId := "backup-123"
+		projectNumber := "proj-123"
+		backupVaultId := "vault-123"
+
+		req := &gcpgenserver.BackupCreateV1beta{
+			VolumeId:   volumeId,
+			ResourceId: resourceId,
+		}
+
+		params := gcpgenserver.V1betaCreateBackupParams{
+			LocationId:     "us-east4",
+			ProjectNumber:  projectNumber,
+			BackupVaultId:  backupVaultId,
+			XCorrelationID: gcpgenserver.NewOptString("corr-id"),
+		}
+
+		// Mock utils.ParseAndValidateRegionAndZone to succeed
+		originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+		defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4-a", nil
+		}
+
+		// Mock GetVolume to succeed (volume exists in VSA)
+		vol := &coremodels.Volume{
+			BaseModel: coremodels.BaseModel{
+				UUID: volumeId,
+			},
+		}
+		mockOrch.EXPECT().
+			GetVolume(ctx, volumeId, false).
+			Return(vol, nil)
+
+		// Mock checkIfBackupExistInCVP to return false
+		originalCheckIfBackupExistInCVP := checkIfBackupExistInCVP
+		defer func() { checkIfBackupExistInCVP = originalCheckIfBackupExistInCVP }()
+		checkIfBackupExistInCVP = func(ctx context.Context, backupID *string, params gcpgenserver.V1betaCreateBackupParams) (bool, error) {
+			return false, nil
+		}
+
+		// Mock CreateBackup to return a conflict error
+		conflictErr := errors.NewConflictErr("Backup with the same name already exists in the specified backup vault")
+		mockOrch.EXPECT().
+			CreateBackup(ctx, mock.AnythingOfType("*common.CreateBackupParams")).
+			Return(nil, "", conflictErr)
+
+		result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+		// Assertions
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		conflictResp, ok := result.(*gcpgenserver.V1betaCreateBackupConflict)
+		assert.True(t, ok, "Expected V1betaCreateBackupConflict response")
+		assert.Equal(t, float64(409), conflictResp.Code)
+		assert.Contains(t, conflictResp.Message, "Backup with the same name already exists")
+	})
+
+	t.Run("WhenCreateBackupReturnsConflictErr_ExpertMode", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		ctx := context.Background()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+		// Enable expert mode backups
+		origExpertModeEnabled := ExpertModeBackupEnabled
+		defer func() { ExpertModeBackupEnabled = origExpertModeEnabled }()
+		ExpertModeBackupEnabled = true
+
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+
+		volumeId := "expert-volume-123"
+		resourceId := "backup-456"
+		projectNumber := "proj-456"
+		backupVaultId := "vault-456"
+		poolId := "pool-expert"
+
+		req := &gcpgenserver.BackupCreateV1beta{
+			VolumeId:   volumeId,
+			ResourceId: resourceId,
+			PoolId:     gcpgenserver.NewOptString(poolId),
+		}
+
+		params := gcpgenserver.V1betaCreateBackupParams{
+			LocationId:     "us-central1",
+			ProjectNumber:  projectNumber,
+			BackupVaultId:  backupVaultId,
+			XCorrelationID: gcpgenserver.NewOptString("corr-id-2"),
+		}
+
+		// Mock utils.ParseAndValidateRegionAndZone to succeed
+		originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+		defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1-a", nil
+		}
+
+		// Mock pool description to return ONTAP mode
+		pool := &coremodels.Pool{
+			BaseModel: coremodels.BaseModel{
+				UUID: poolId,
+			},
+			APIAccessMode: ONTAPMode,
+		}
+		mockOrch.EXPECT().
+			DescribePool(ctx, poolId, projectNumber).
+			Return(pool, nil)
+
+		// Mock GetExpertModeVolumeByExternalUUID to succeed
+		expertModeVol := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{
+				UUID: volumeId,
+			},
+			BackupConfig: &datamodel.DataProtection{
+				BackupVaultID: backupVaultId,
+			},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{
+					UUID: "account-uuid",
+				},
+				Name: projectNumber,
+			},
+		}
+		mockOrch.EXPECT().
+			GetExpertModeVolumeByExternalUUID(ctx, volumeId).
+			Return(expertModeVol, nil)
+
+		// Mock checkIfBackupExistInCVP to return false
+		originalCheckIfBackupExistInCVP := checkIfBackupExistInCVP
+		defer func() { checkIfBackupExistInCVP = originalCheckIfBackupExistInCVP }()
+		checkIfBackupExistInCVP = func(ctx context.Context, backupID *string, params gcpgenserver.V1betaCreateBackupParams) (bool, error) {
+			return false, nil
+		}
+
+		// Mock CreateBackup to return a conflict error
+		conflictErr := errors.NewConflictErr("Backup with the same name already exists in the specified backup vault")
+		mockOrch.EXPECT().
+			CreateBackup(ctx, mock.AnythingOfType("*common.CreateBackupParams")).
+			Return(nil, "", conflictErr)
+
+		result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+		// Assertions
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		conflictResp, ok := result.(*gcpgenserver.V1betaCreateBackupConflict)
+		assert.True(t, ok, "Expected V1betaCreateBackupConflict response")
+		assert.Equal(t, float64(409), conflictResp.Code)
+		assert.Contains(t, conflictResp.Message, "Backup with the same name already exists")
+	})
+}

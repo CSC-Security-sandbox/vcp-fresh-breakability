@@ -3,6 +3,7 @@ package activities
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
@@ -479,10 +480,23 @@ func (a *BackupActivity) UpdateVolumeLatestLogicalBackupSize(ctx context.Context
 	// LatestLogicalBackupSize(backup datamodel) is equivalent to BackupChainBytes(volume datamodel) and chainStorageBytes
 	volume.DataProtection.BackupChainBytes = &logicalSize
 	volumeUpdates["data_protection"] = volume.DataProtection
-	err := a.SE.UpdateVolumeFields(ctx, volume.UUID, volumeUpdates)
+	isExpertModeVolume, err := a.IsExpertModeVolume(ctx, volume.VolumeAttributes.ExternalUUID)
 	if err != nil {
-		logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volume.Name, err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return err
+	}
+	if isExpertModeVolume {
+		// Update the expert mode volume's LatestLogicalBackupSize field
+		err := a.SE.UpdateExpertModeVolumeFields(ctx, volume.VolumeAttributes.ExternalUUID, volumeUpdates)
+		if err != nil {
+			logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volume.Name, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+	} else {
+		err := a.SE.UpdateVolumeFields(ctx, volume.UUID, volumeUpdates)
+		if err != nil {
+			logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volume.Name, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
 	}
 	logger.Infof("Successfully updated logical size %d for volume %s",
 		logicalSize, volume.Name)
@@ -760,7 +774,7 @@ func (a BackupActivity) IsVolumeDeleted(ctx context.Context, volumeUUID string) 
 	}
 
 	// Not found in regular table, try expert mode volumes
-	_, err = se.GetExpertModeVolumeByUUID(ctx, volumeUUID)
+	_, err = se.GetExpertModeVolumeByExternalUUID(ctx, volumeUUID)
 	if err == nil {
 		return false, nil // Found in expert mode table
 	}
@@ -776,11 +790,16 @@ func (a BackupActivity) GetVolume(ctx context.Context, volumeUUID string) (*data
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
 			// Volume not found in regular table, try expert mode volumes
-			expertModeVol, err := se.GetExpertModeVolumeByUUID(ctx, volumeUUID)
+			expertModeVol, err := se.GetExpertModeVolumeByExternalUUID(ctx, volumeUUID)
 			if err != nil {
 				return nil, err
 			}
 			volume := ConvertExpertModeVolumeToVolume(expertModeVol)
+			pool, err := se.GetPoolByID(ctx, expertModeVol.PoolID)
+			if err != nil {
+				return nil, err
+			}
+			volume.VolumeAttributes.VendorSubnetID = pool.Network
 			return volume, nil
 		}
 		return nil, err
@@ -2095,4 +2114,57 @@ func (b *BackupActivity) GetVolumesAndConstituentCountActivity(ctx context.Conte
 	}
 
 	return backupActivitiesContext, nil
+}
+
+// IsExpertModeVolume checks if a volume is an expert mode volume
+func (a BackupActivity) IsExpertModeVolume(ctx context.Context, volumeUUID string) (bool, error) {
+	se := a.SE
+	// Try to get from expert mode volumes table
+	_, err := se.GetExpertModeVolumeByExternalUUID(ctx, volumeUUID)
+	if err == nil {
+		return true, nil // Found in expert mode table
+	}
+	if errors.IsNotFoundErr(err) || strings.Contains(err.Error(), "record not found") {
+		return false, nil // Not found in expert mode table
+	}
+	return false, vsaerrors.WrapAsTemporalApplicationError(err) // Unexpected error
+}
+
+// DetachBackupVaultFromVolume detaches a backup vault from an expert mode volume
+func (a BackupActivity) DetachBackupVaultFromVolume(ctx context.Context, volume *datamodel.Volume, backupVault *datamodel.BackupVault) error {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+
+	// Get the expert mode volume
+	expertModeVolume, err := se.GetExpertModeVolumeByExternalUUID(ctx, volume.VolumeAttributes.ExternalUUID)
+	if err != nil {
+		logger.Errorf("Failed to get expert mode volume %s: %v", volume.UUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Check if BackupConfig exists and has the backup vault attached
+	if expertModeVolume.BackupConfig == nil || expertModeVolume.BackupConfig.BackupVaultID == "" {
+		logger.Infof("No backup vault attached to expert mode volume %s, nothing to detach", expertModeVolume.UUID)
+		return nil
+	}
+
+	// Verify the attached backup vault matches the one being detached
+	if expertModeVolume.BackupConfig.BackupVaultID != backupVault.UUID {
+		logger.Warnf("Backup vault mismatch on volume %s: expected %s, found %s",
+			expertModeVolume.UUID, backupVault.UUID, expertModeVolume.BackupConfig.BackupVaultID)
+		return nil
+	}
+
+	// Clear the BackupVaultID to detach the backup vault
+	expertModeVolume.BackupConfig.BackupVaultID = ""
+
+	// Update the expert mode volume in the database
+	err = se.UpdateExpertModeVolumeDataProtection(ctx, expertModeVolume)
+	if err != nil {
+		logger.Errorf("Failed to detach backup vault from expert mode volume %s: %v", expertModeVolume.UUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Successfully detached backup vault %s from expert mode volume %s", backupVault.UUID, expertModeVolume.UUID)
+	return nil
 }
