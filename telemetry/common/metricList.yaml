@@ -1,3 +1,13 @@
+# List of telemetry metrics collected by the VSA Control Plane for Google Cloud monitoring.
+# Each entry defines a metric name, its resource type, and its classification (usage or performance).
+#
+# Fields:
+#   metric:        The unique metric identifier (string)
+#   resourceType:  The GCP resource type (usually custom.googleapis.com)
+#   metricType:    The metric's category (usage or performance)
+#
+# Add new metrics as needed, following the structure below.
+# NOTE: Ensure that any new metrics added here are also added to prometheus/tenant section in kubernetes/vsa-harvest-otel/templates/otel-configmap.yaml.
 metrics:
   - metric: volume_space_logical_used
     resourceType: custom.googleapis.com
