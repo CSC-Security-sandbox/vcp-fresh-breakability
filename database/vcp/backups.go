@@ -29,6 +29,79 @@ const (
 	OntapFgVolumeStyle  = "flexgroup"
 )
 
+// backupChainHistoryParams holds parameters for creating/updating backup chain history
+type backupChainHistoryParams struct {
+	ResourceName   string
+	VolumeUUID     string
+	Size           int64
+	ConsumerID     string
+	DeploymentName string
+	Timestamp      time.Time
+}
+
+// createBackupChainHistoryEntry creates a new backup chain history entry
+func createBackupChainHistoryEntry(tx *gorm.DB, params backupChainHistoryParams) error {
+	history := &datamodel.BackupChainHistory{
+		BaseModel: datamodel.BaseModel{
+			UUID:      utils.RandomUUID(),
+			CreatedAt: params.Timestamp,
+			UpdatedAt: params.Timestamp,
+			DeletedAt: nil,
+		},
+		ResourceName:   params.ResourceName,
+		ResourceUUID:   params.VolumeUUID,
+		Size:           params.Size,
+		ConsumerID:     params.ConsumerID,
+		DeploymentName: params.DeploymentName,
+	}
+	return tx.Create(history).Error
+}
+
+// supersedePreviousBackupChainHistory marks old entries as deleted and creates a new one if size changed
+func supersedePreviousBackupChainHistory(ctx context.Context, tx *gorm.DB, volumeUUID string, newSize int64, now time.Time) error {
+	var currentHistory datamodel.BackupChainHistory
+	err := tx.Where("resource_uuid = ?", volumeUUID).
+		Where("deleted_at IS NULL").
+		First(&currentHistory).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil // No history to supersede
+		}
+		return err
+	}
+
+	// Skip if size unchanged
+	if currentHistory.Size == newSize {
+		util.GetLogger(ctx).Debugf("Backup chain history size unchanged for volume %s (size: %d)", volumeUUID, newSize)
+		return nil
+	}
+
+	// Mark current as deleted
+	err = tx.Model(&datamodel.BackupChainHistory{}).
+		Where("id = ?", currentHistory.ID).
+		Update("deleted_at", now).Error
+	if err != nil {
+		return err
+	}
+
+	// Create new entry with updated size
+	err = createBackupChainHistoryEntry(tx, backupChainHistoryParams{
+		ResourceName:   currentHistory.ResourceName,
+		VolumeUUID:     volumeUUID,
+		Size:           newSize,
+		ConsumerID:     currentHistory.ConsumerID,
+		DeploymentName: currentHistory.DeploymentName,
+		Timestamp:      now,
+	})
+	if err != nil {
+		return err
+	}
+
+	util.GetLogger(ctx).Infof("Updated backup chain history for volume %s: old size %d -> new size %d",
+		volumeUUID, currentHistory.Size, newSize)
+	return nil
+}
+
 func (d *DataStoreRepository) GetBackupByNameAndBackupVaultID(ctx context.Context, backupName string, backupVaultID int64) (*datamodel.Backup, error) {
 	return getBackupVaultByNameAndBackupVaultID(d.db.GORM().WithContext(ctx), &datamodel.Backup{Name: backupName, BackupVaultID: backupVaultID})
 }
@@ -66,9 +139,55 @@ func (d *DataStoreRepository) CreateBackup(ctx context.Context, backup *datamode
 		if err != nil {
 			return nil, err
 		}
+
+		// Handle backup chain history: mark previous entries as deleted and create new entry
+		// Mark previous backup chain history entries for this volume as deleted
+		err = markPreviousBackupChainHistoryAsDeleted(tx, dbBackup.VolumeUUID, dbBackup.CreatedAt)
+		if err != nil {
+			util.GetLogger(ctx).Warnf("Failed to mark previous backup chain history as deleted for volume %s: %v", dbBackup.VolumeUUID, err)
+			// Don't fail the entire backup creation if history update fails
+		}
+
+		volumeName := ""
+		// Create backup chain history entry for this new backup
+		if dbBackup.Attributes != nil && dbBackup.Attributes.VolumeName != "" {
+			volumeName = dbBackup.Attributes.VolumeName
+		}
+		deploymentName := ""
+		if dbBackup.BackupVault != nil {
+			deploymentName = dbBackup.BackupVault.Name
+		}
+
+		consumerID := ""
+		if dbBackup.Attributes != nil {
+			consumerID = dbBackup.Attributes.AccountIdentifier
+		}
+		
+		err = createBackupChainHistoryEntry(tx, backupChainHistoryParams{
+			ResourceName:   volumeName,
+			VolumeUUID:     dbBackup.VolumeUUID,
+			Size:           0, // Will be updated later when backup completes
+			ConsumerID:     consumerID,
+			DeploymentName: deploymentName,
+			Timestamp:      dbBackup.CreatedAt,
+		})
+		if err != nil {
+			util.GetLogger(ctx).Warnf("Failed to create backup chain history for backup %s: %v", backup.UUID, err)
+			// Don't fail the entire backup creation if history creation fails
+		}
+
 		return dbBackup, nil
 	}
 	return nil, customerrors.NewUserInputValidationErr("backup already exists")
+}
+
+// markPreviousBackupChainHistoryAsDeleted marks all previous backup chain history entries
+// for a volume as deleted when a new backup is created
+func markPreviousBackupChainHistoryAsDeleted(tx *gorm.DB, volumeUUID string, newBackupCreatedAt time.Time) error {
+	return tx.Model(&datamodel.BackupChainHistory{}).
+		Where("resource_uuid = ?", volumeUUID).
+		Where("deleted_at IS NULL").
+		Update("deleted_at", newBackupCreatedAt).Error
 }
 
 func _getBackupWithDetails(db *gorm.DB, query *datamodel.Backup) (*datamodel.Backup, error) {
@@ -287,6 +406,21 @@ func (d *DataStoreRepository) FinishBackup(ctx context.Context, backup *datamode
 	}).Error
 	if err != nil {
 		return nil, err
+	}
+
+	// Update backup chain history size if backup has a volume and size
+	if dbBackup.VolumeUUID != "" && backup.LatestLogicalBackupSize > 0 {
+		err = tx.Model(&datamodel.BackupChainHistory{}).
+			Where("resource_uuid = ?", dbBackup.VolumeUUID).
+			Where("deleted_at IS NULL").
+			Updates(map[string]interface{}{
+				"size":       backup.LatestLogicalBackupSize,
+				"updated_at": time.Now(),
+			}).Error
+		if err != nil {
+			util.GetLogger(ctx).Warnf("Failed to update backup chain history size for backup %s: %v", dbBackup.UUID, err)
+			// Don't fail the entire operation if history update fails
+		}
 	}
 
 	return dbBackup, nil
@@ -598,6 +732,13 @@ func (d *DataStoreRepository) UpdateLatestBackupLogicalSize(ctx context.Context,
 		return err
 	}
 
+	// Update backup chain history
+	err = supersedePreviousBackupChainHistory(ctx, tx, volumeUUID, newLogicalSize, time.Now())
+	if err != nil {
+		util.GetLogger(ctx).Warnf("Failed to update backup chain history for volume %s: %v", volumeUUID, err)
+		// Don't fail the entire operation if history update fails
+	}
+
 	return nil
 }
 
@@ -847,4 +988,22 @@ func (d *DataStoreRepository) GetSfrMetricsByTimeRange(ctx context.Context, star
 	}
 
 	return sfrMetricsMap, nil
+}
+
+// UpdateBackupChainHistory updates the backup chain history with a new size for the active backup
+// It marks the current active entry as deleted and creates a new entry with the updated size
+func (d *DataStoreRepository) UpdateBackupChainHistory(ctx context.Context, volumeUUID string, newSize int64) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
+
+	err = supersedePreviousBackupChainHistory(ctx, tx, volumeUUID, newSize, time.Now())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

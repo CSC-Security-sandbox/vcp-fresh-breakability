@@ -1344,3 +1344,12 @@ type VolumeTieringUpdate struct {
 	HotTierSizeGib  uint64 `json:"hot_tier_size_gib"`
 	ColdTierSizeGib uint64 `json:"cold_tier_size_gib"`
 }
+
+type BackupChainHistory struct {
+	BaseModel
+	ResourceName   string `gorm:"column:resource_name;type:text" json:"resource_name"`
+	Size           int64  `gorm:"column:size;not null;default:0" json:"size"`
+	ResourceUUID   string `gorm:"column:resource_uuid;size:255" json:"resource_uuid"`
+	ConsumerID     string `gorm:"column:consumer_id;type:text" json:"consumer_id"`
+	DeploymentName string `gorm:"column:deployment_name;type:text" json:"deployment_name"`
+}

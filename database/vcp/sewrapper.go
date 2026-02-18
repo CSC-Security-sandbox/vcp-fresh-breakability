@@ -3790,6 +3790,21 @@ func (re *retryEngine) UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.C
 	return err
 }
 
+func (re *retryEngine) UpdateBackupChainHistory(ctx context.Context, volumeUUID string, newSize int64) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateBackupChainHistory(ctx, volumeUUID, newSize)
+		if err != nil {
+			re.logError("UpdateBackupChainHistory", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
 func (re *retryEngine) GetBackupMetrics(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {
 	var var0 []*datamodel.Backup
 	err := retry.Do(func(attempt int) (bool, error) {

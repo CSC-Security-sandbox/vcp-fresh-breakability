@@ -1306,6 +1306,10 @@ func (s *PersistenceStore) UpdateLatestBackupLogicalSize(ctx context.Context, vo
 	return s.dataStore.UpdateLatestBackupLogicalSize(ctx, volumeUUID, newLogicalSize)
 }
 
+func (s *PersistenceStore) UpdateBackupChainHistory(ctx context.Context, volumeUUID string, newSize int64) error {
+	return s.dataStore.UpdateBackupChainHistory(ctx, volumeUUID, newSize)
+}
+
 func (s *PersistenceStore) GetNextSerialNumberInRegion(ctx context.Context, prefix string) (string, error) {
 	return s.dataStore.GetNextSerialNumberInRegion(ctx, prefix)
 }

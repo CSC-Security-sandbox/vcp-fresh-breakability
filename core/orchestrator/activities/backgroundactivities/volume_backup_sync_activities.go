@@ -3,6 +3,7 @@ package backgroundactivities
 import (
 	"context"
 	"fmt"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -46,8 +47,8 @@ func (a *VolumeBackupSyncActivity) getObjectStoreEndpointInfo(ctx context.Contex
 		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("pool credentials not found for pool %d", volumeBackup.Volume.PoolID)))
 	}
 	nodeProviderInput := hyperscaler.NodeProviderInput{
-		Nodes:          dbNodes,
-		DeploymentName: volumeBackup.Volume.Pool.DeploymentName,
+		Nodes:            dbNodes,
+		DeploymentName:   volumeBackup.Volume.Pool.DeploymentName,
 		OntapCredentials: volumeBackup.Volume.Pool.PoolCredentials,
 	}
 
@@ -124,6 +125,13 @@ func (a *VolumeBackupSyncActivity) UpdateBackupAndVolumeActivity(ctx context.Con
 	if err != nil {
 		logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volumeBackup.Volume.Name, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Update backup chain history (method checks if size actually changed)
+	err = a.SE.UpdateBackupChainHistory(ctx, volumeBackup.Volume.UUID, logicalSize)
+	if err != nil {
+		logger.Warnf("Failed to update backup chain history for volume %s: %v", volumeBackup.Volume.Name, err)
+		// Don't fail the entire operation if history update fails
 	}
 
 	logger.Infof("Successfully updated logical size %d for volume %s and backup %s",

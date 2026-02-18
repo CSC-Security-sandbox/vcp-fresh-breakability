@@ -252,6 +252,277 @@ func TestCreateBackup_Errors(t *testing.T) {
 		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(tt, err)
 
+		// Close the database connection
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-vault-uuid"},
+			Name:      "test-vault",
+		}
+		backup := &datamodel.Backup{
+			Name:          "test-backup",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "volume-uuid-1",
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:        "test-volume",
+				AccountIdentifier: "account-123",
+			},
+		}
+
+		_, err = store.CreateBackup(context.Background(), backup)
+		assert.Error(tt, err)
+	})
+
+	t.Run("HandlesBackupChainHistoryCreationGracefully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-vault-uuid"},
+			Name:      "test-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create a backup - the backup chain history creation might log warnings but backup should succeed
+		backup := &datamodel.Backup{
+			Name:          "test-backup-with-history",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "volume-uuid-1",
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:        "test-volume",
+				AccountIdentifier: "account-123",
+			},
+		}
+
+		createdBackup, err := store.CreateBackup(context.Background(), backup)
+		assert.NoError(tt, err) // Should succeed even if history creation has issues (lines 147, 154, 175)
+		assert.NotNil(tt, createdBackup)
+		assert.NotEmpty(tt, createdBackup.UUID)
+
+		// Verify backup chain history was created
+		var history datamodel.BackupChainHistory
+		err = store.db.GORM().Where("resource_uuid = ?", createdBackup.VolumeUUID).First(&history).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, "test-volume", history.ResourceName)
+		assert.Equal(tt, "account-123", history.ConsumerID)
+		assert.Equal(tt, int64(0), history.Size) // Initial size is 0
+	})
+}
+
+func TestFinishBackup_BackupChainHistoryUpdate(t *testing.T) {
+	t.Run("UpdatesBackupChainHistoryWithLogicalSize", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault and backup
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-vault-uuid"},
+			Name:      "test-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		backup := &datamodel.Backup{
+			Name:          "test-backup",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "volume-uuid-1",
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:        "test-volume",
+				AccountIdentifier: "account-123",
+			},
+		}
+
+		createdBackup, err := store.CreateBackup(context.Background(), backup)
+		assert.NoError(tt, err)
+
+		// Finish backup with logical size
+		logicalSize := int64(1024 * 1024 * 1024) // 1GB
+		finishBackup := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: createdBackup.UUID},
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: logicalSize,
+		}
+
+		_, err = store.FinishBackup(context.Background(), finishBackup)
+		assert.NoError(tt, err)
+
+		// Verify backup chain history was updated with the size (lines 413, 420-421)
+		var history datamodel.BackupChainHistory
+		err = store.db.GORM().Where("resource_uuid = ?", "volume-uuid-1").First(&history).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, logicalSize, history.Size)
+	})
+
+	t.Run("HandlesBackupChainHistoryUpdateFailureGracefully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create backup vault and backup without volume UUID
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-vault-uuid"},
+			Name:      "test-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		backup := &datamodel.Backup{
+			Name:          "test-backup-no-volume",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    "", // Empty volume UUID
+		}
+
+		createdBackup, err := store.CreateBackup(context.Background(), backup)
+		assert.NoError(tt, err)
+
+		// Finish backup - should succeed even without updating backup chain history
+		finishBackup := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: createdBackup.UUID},
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: 1024,
+		}
+
+		_, err = store.FinishBackup(context.Background(), finishBackup)
+		assert.NoError(tt, err) // Should succeed even if history update is skipped
+	})
+}
+
+func TestUpdateLatestBackupLogicalSize_BackupChainHistory(t *testing.T) {
+	t.Run("UpdatesBackupChainHistorySuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create account, pool, and volume
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+			Name:      "test-pool",
+			AccountID: account.ID,
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"},
+			Name:      "test-volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err)
+
+		// Create backup vault and backup
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-vault-uuid"},
+			Name:      "test-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		backup := &datamodel.Backup{
+			Name:          "test-backup",
+			BackupVaultID: backupVault.ID,
+			VolumeUUID:    volume.UUID,
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:        volume.Name,
+				AccountIdentifier: "account-123",
+			},
+		}
+
+		createdBackup, err := store.CreateBackup(context.Background(), backup)
+		assert.NoError(tt, err)
+
+		// Finish the backup to make it AVAILABLE
+		finishBackup := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: createdBackup.UUID},
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: 1024 * 1024 * 1024, // 1GB initial size
+		}
+		_, err = store.FinishBackup(context.Background(), finishBackup)
+		assert.NoError(tt, err)
+
+		// Update latest backup logical size
+		newLogicalSize := int64(2 * 1024 * 1024 * 1024) // 2GB
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), volume.UUID, newLogicalSize)
+		assert.NoError(tt, err)
+
+		// Verify backup chain history was updated (line 738)
+		var histories []datamodel.BackupChainHistory
+		err = store.db.GORM().Unscoped().Where("resource_uuid = ?", volume.UUID).Order("created_at DESC").Find(&histories).Error
+		assert.NoError(tt, err)
+
+		// Should have at least 1 entry
+		assert.GreaterOrEqual(tt, len(histories), 1)
+
+		// The active (non-deleted) entry should have the new size
+		var activeHistory datamodel.BackupChainHistory
+		err = store.db.GORM().Where("resource_uuid = ? AND deleted_at IS NULL", volume.UUID).First(&activeHistory).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, newLogicalSize, activeHistory.Size)
+	})
+
+	t.Run("HandlesBackupChainHistoryFailureGracefully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create a volume without creating backup - UpdateLatestBackupLogicalSize will fail early
+		volumeUUID := "volume-without-history"
+
+		// This should fail because no AVAILABLE backup exists
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, int64(1024*1024*1024))
+		assert.Error(tt, err) // Should fail - no backup found
+	})
+}
+
+func TestCreateBackup_Errors_Old(t *testing.T) {
+	t.Run("ReturnsErrorWhenDBFails_Old", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
 		backup := &datamodel.Backup{
 			Name:          "test_backup",
 			BackupVaultID: 1,
@@ -1845,6 +2116,21 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 		err = store.db.Create(backup2).Error()
 		assert.NoError(tt, err)
 
+		// Create initial backup chain history
+		initialHistory := &datamodel.BackupChainHistory{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "history-uuid-1",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				DeletedAt: nil,
+			},
+			ResourceName: "test-volume",
+			ResourceUUID: "volume-uuid-1",
+			Size:         2048,
+		}
+		err = store.db.Create(initialHistory).Error()
+		assert.NoError(tt, err)
+
 		// Test: update the latest backup's logical size
 		newLogicalSize := int64(4096)
 		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", newLogicalSize)
@@ -2023,6 +2309,21 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 		err = store.db.Create(backup3).Error()
 		assert.NoError(tt, err)
 
+		// Create initial backup chain history
+		initialHistory := &datamodel.BackupChainHistory{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "history-uuid-1",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				DeletedAt: nil,
+			},
+			ResourceName: "test-volume",
+			ResourceUUID: "volume-uuid-1",
+			Size:         3072,
+		}
+		err = store.db.Create(initialHistory).Error()
+		assert.NoError(tt, err)
+
 		// Test: update the latest backup's logical size
 		newLogicalSize := int64(8192)
 		err = store.UpdateLatestBackupLogicalSize(context.Background(), "volume-uuid-1", newLogicalSize)
@@ -2044,6 +2345,210 @@ func TestUpdateLatestBackupLogicalSize(t *testing.T) {
 		err = store.db.GORM().Where("uuid = ?", "backup-uuid-2").First(&unchangedBackup2).Error
 		assert.NoError(tt, err)
 		assert.Equal(tt, int64(2048), unchangedBackup2.LatestLogicalBackupSize)
+	})
+
+	t.Run("CreatesBackupChainHistoryWhenSizeChanges", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		volumeUUID := "volume-uuid-test"
+		volumeName := "test-volume"
+
+		// Create initial backup
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-1",
+				CreatedAt: time.Now(),
+			},
+			VolumeUUID:              volumeUUID,
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: 1024,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Create initial backup chain history
+		initialHistory := &datamodel.BackupChainHistory{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "history-uuid-1",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				DeletedAt: nil,
+			},
+			ResourceName: volumeName,
+			ResourceUUID: volumeUUID,
+			Size:         1024,
+		}
+		err = store.db.Create(initialHistory).Error()
+		assert.NoError(tt, err)
+
+		// Update with new size - should trigger backup chain history update
+		newSize := int64(2048)
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, newSize)
+		assert.NoError(tt, err)
+
+		// Verify backup was updated
+		var updatedBackup datamodel.Backup
+		err = store.db.GORM().Where("uuid = ?", "backup-uuid-1").First(&updatedBackup).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, newSize, updatedBackup.LatestLogicalBackupSize)
+
+		// Verify old history entry was marked as deleted
+		var oldHistory datamodel.BackupChainHistory
+		err = store.db.GORM().Unscoped().Where("uuid = ?", "history-uuid-1").First(&oldHistory).Error
+		assert.NoError(tt, err)
+		assert.NotNil(tt, oldHistory.DeletedAt, "Old history entry should be marked as deleted")
+
+		// Verify new history entry was created
+		var newHistories []datamodel.BackupChainHistory
+		err = store.db.GORM().Where("resource_uuid = ? AND deleted_at IS NULL", volumeUUID).Find(&newHistories).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, 1, len(newHistories), "Should have exactly one active history entry")
+		assert.Equal(tt, newSize, newHistories[0].Size, "New history should have updated size")
+		assert.Equal(tt, volumeName, newHistories[0].ResourceName)
+	})
+
+	t.Run("DoesNotCreateHistoryWhenSizeUnchanged", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		volumeUUID := "volume-uuid-test"
+		volumeName := "test-volume"
+
+		// Create backup
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-1",
+				CreatedAt: time.Now(),
+			},
+			VolumeUUID:              volumeUUID,
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: 1024,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Create backup chain history
+		initialHistory := &datamodel.BackupChainHistory{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "history-uuid-1",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				DeletedAt: nil,
+			},
+			ResourceName: volumeName,
+			ResourceUUID: volumeUUID,
+			Size:         1024,
+		}
+		err = store.db.Create(initialHistory).Error()
+		assert.NoError(tt, err)
+
+		// Update with same size - should NOT trigger new history entry
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, 1024)
+		assert.NoError(tt, err)
+
+		// Verify old history entry is still active (not deleted)
+		var oldHistory datamodel.BackupChainHistory
+		err = store.db.GORM().Where("uuid = ?", "history-uuid-1").First(&oldHistory).Error
+		assert.NoError(tt, err)
+		assert.Nil(tt, oldHistory.DeletedAt, "History entry should still be active")
+
+		// Verify no new history entries were created
+		var allHistories []datamodel.BackupChainHistory
+		err = store.db.GORM().Where("resource_uuid = ?", volumeUUID).Find(&allHistories).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, 1, len(allHistories), "Should still have only one history entry")
+	})
+
+	t.Run("HandlesMultipleSizeChanges", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		volumeUUID := "volume-uuid-test"
+		volumeName := "test-volume"
+
+		// Create backup
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid-1",
+				CreatedAt: time.Now(),
+			},
+			VolumeUUID:              volumeUUID,
+			State:                   models.LifeCycleStateAvailable,
+			LatestLogicalBackupSize: 1024,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Create initial history
+		initialHistory := &datamodel.BackupChainHistory{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "history-uuid-1",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				DeletedAt: nil,
+			},
+			ResourceName: volumeName,
+			ResourceUUID: volumeUUID,
+			Size:         1024,
+		}
+		err = store.db.Create(initialHistory).Error()
+		assert.NoError(tt, err)
+
+		// First size change
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, 2048)
+		assert.NoError(tt, err)
+
+		// Second size change
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, 4096)
+		assert.NoError(tt, err)
+
+		// Third size change
+		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, 8192)
+		assert.NoError(tt, err)
+
+		// Verify all history entries exist
+		var allHistories []datamodel.BackupChainHistory
+		err = store.db.GORM().Unscoped().Where("resource_uuid = ?", volumeUUID).Order("created_at asc").Find(&allHistories).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, 4, len(allHistories), "Should have 4 history entries (1 initial + 3 updates)")
+
+		// Verify only the latest is active
+		var activeHistories []datamodel.BackupChainHistory
+		err = store.db.GORM().Where("resource_uuid = ? AND deleted_at IS NULL", volumeUUID).Find(&activeHistories).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, 1, len(activeHistories), "Should have only one active history entry")
+		assert.Equal(tt, int64(8192), activeHistories[0].Size, "Active history should have the latest size")
+
+		// Verify progression of sizes in history
+		assert.Equal(tt, int64(1024), allHistories[0].Size)
+		assert.Equal(tt, int64(2048), allHistories[1].Size)
+		assert.Equal(tt, int64(4096), allHistories[2].Size)
+		assert.Equal(tt, int64(8192), allHistories[3].Size)
+
+		// Verify first 3 are marked as deleted
+		assert.NotNil(tt, allHistories[0].DeletedAt)
+		assert.NotNil(tt, allHistories[1].DeletedAt)
+		assert.NotNil(tt, allHistories[2].DeletedAt)
+		assert.Nil(tt, allHistories[3].DeletedAt)
 	})
 }
 
@@ -4795,6 +5300,146 @@ func TestGetVolumeCountByBackupVaultID(t *testing.T) {
 
 		// The second query (expert mode volumes) should fail
 		_, err = store.GetVolumeCountByBackupVaultID(context.Background(), backupVaultUUID)
+		assert.Error(tt, err)
+	})
+}
+
+func TestUpdateBackupChainHistory(t *testing.T) {
+	t.Run("Success_CreatesNewHistoryEntry", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+		volumeUUID := "test-volume-uuid"
+		newSize := int64(1024 * 1024 * 1024) // 1GB
+
+		// Call UpdateBackupChainHistory
+		err = store.UpdateBackupChainHistory(ctx, volumeUUID, newSize)
+		assert.NoError(tt, err)
+
+		// Verify no history was created because there was no existing history to supersede
+		var histories []datamodel.BackupChainHistory
+		err = store.db.GORM().Unscoped().Where("resource_uuid = ?", volumeUUID).Find(&histories).Error
+		assert.NoError(tt, err)
+		assert.Len(tt, histories, 0)
+	})
+
+	t.Run("Success_SupersedesExistingHistory", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+		volumeUUID := "test-volume-uuid"
+		oldSize := int64(500 * 1024 * 1024)  // 500MB
+		newSize := int64(1024 * 1024 * 1024) // 1GB
+
+		// Create initial history entry
+		initialHistory := &datamodel.BackupChainHistory{
+			BaseModel:      datamodel.BaseModel{UUID: "history-1"},
+			ResourceName:   "test-volume",
+			Size:           oldSize,
+			ResourceUUID:   volumeUUID,
+			ConsumerID:     "consumer-1",
+			DeploymentName: "deployment-1",
+		}
+		err = store.db.Create(initialHistory).Error()
+		assert.NoError(tt, err)
+
+		// Call UpdateBackupChainHistory with new size
+		err = store.UpdateBackupChainHistory(ctx, volumeUUID, newSize)
+		assert.NoError(tt, err)
+
+		// Verify old history was soft-deleted
+		var oldHistory datamodel.BackupChainHistory
+		err = store.db.GORM().Unscoped().Where("uuid = ?", "history-1").First(&oldHistory).Error
+		assert.NoError(tt, err)
+		assert.NotNil(tt, oldHistory.DeletedAt)
+
+		// Verify new history was created
+		var newHistory datamodel.BackupChainHistory
+		err = store.db.GORM().Where("resource_uuid = ? AND deleted_at IS NULL", volumeUUID).First(&newHistory).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, newSize, newHistory.Size)
+		assert.Equal(tt, volumeUUID, newHistory.ResourceUUID)
+		assert.Equal(tt, "test-volume", newHistory.ResourceName)
+		assert.Equal(tt, "consumer-1", newHistory.ConsumerID)
+		assert.Equal(tt, "deployment-1", newHistory.DeploymentName)
+	})
+
+	t.Run("Success_SkipsWhenSizeUnchanged", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+		volumeUUID := "test-volume-uuid"
+		size := int64(1024 * 1024 * 1024) // 1GB
+
+		// Create initial history entry
+		initialHistory := &datamodel.BackupChainHistory{
+			BaseModel:      datamodel.BaseModel{UUID: "history-1"},
+			ResourceName:   "test-volume",
+			Size:           size,
+			ResourceUUID:   volumeUUID,
+			ConsumerID:     "consumer-1",
+			DeploymentName: "deployment-1",
+		}
+		err = store.db.Create(initialHistory).Error()
+		assert.NoError(tt, err)
+
+		// Call UpdateBackupChainHistory with same size
+		err = store.UpdateBackupChainHistory(ctx, volumeUUID, size)
+		assert.NoError(tt, err)
+
+		// Verify history was NOT deleted (size unchanged)
+		var history datamodel.BackupChainHistory
+		err = store.db.GORM().Where("uuid = ? AND deleted_at IS NULL", "history-1").First(&history).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, size, history.Size)
+
+		// Verify no new history entry was created
+		var allHistories []datamodel.BackupChainHistory
+		err = store.db.GORM().Unscoped().Where("resource_uuid = ?", volumeUUID).Find(&allHistories).Error
+		assert.NoError(tt, err)
+		assert.Len(tt, allHistories, 1)
+	})
+
+	t.Run("Error_TransactionFailure", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+
+		// Close the database connection to cause transaction failure
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		// This should fail because the database connection is closed
+		err = store.UpdateBackupChainHistory(ctx, "test-volume-uuid", 1024)
 		assert.Error(tt, err)
 	})
 }

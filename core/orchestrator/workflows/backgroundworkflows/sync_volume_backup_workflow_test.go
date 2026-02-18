@@ -638,6 +638,9 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Single
 		return ok && dp.BackupChainBytes != nil && *dp.BackupChainBytes == updatedLogicalSize
 	})).Return(nil).Once()
 
+	// 5. UpdateBackupAndVolumeActivity will also call UpdateBackupChainHistory
+	s.mockStorage.On("UpdateBackupChainHistory", mock.Anything, "test-volume-uuid", updatedLogicalSize).Return(nil).Once()
+
 	// Execute workflow
 	s.env.ExecuteWorkflow(SyncLatestBackupLogicalSizeWorkflow)
 
@@ -805,6 +808,7 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Multip
 	// Volume 1: Both backup and volume updates succeed
 	s.mockStorage.On("UpdateBackupFields", mock.Anything, "backup-success-uuid", mock.Anything).Return(nil).Once()
 	s.mockStorage.On("UpdateVolumeFields", mock.Anything, "volume-success-uuid", mock.Anything).Return(nil).Once()
+	s.mockStorage.On("UpdateBackupChainHistory", mock.Anything, "volume-success-uuid", successLogicalSize).Return(nil).Once()
 
 	// Volume 2: Backup update fails
 	s.mockStorage.On("UpdateBackupFields", mock.Anything, "backup-fail-uuid", mock.Anything).Return(errors.New("backup update failed")).Times(3) // Retry policy causes 3 attempts
@@ -813,6 +817,7 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_Multip
 	// Volume 3: Backup update succeeds but volume update fails
 	s.mockStorage.On("UpdateBackupFields", mock.Anything, "backup-vol-fail-uuid", mock.Anything).Return(nil).Times(3)                                // Will be called 3 times due to retries
 	s.mockStorage.On("UpdateVolumeFields", mock.Anything, "volume-vol-fail-uuid", mock.Anything).Return(errors.New("volume update failed")).Times(3) // Retry policy causes 3 attempts
+	// UpdateBackupChainHistory won't be called for volume 3 because UpdateVolumeFields fails
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(SyncLatestBackupLogicalSizeWorkflow)
@@ -882,6 +887,94 @@ func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_NoVolu
 	s.mockStorage.AssertNumberOfCalls(s.T(), "GetNodesByPoolID", 0)
 	s.mockStorage.AssertNumberOfCalls(s.T(), "UpdateBackupFields", 0)
 	s.mockStorage.AssertNumberOfCalls(s.T(), "UpdateVolumeFields", 0)
+}
+
+// TestRealDatabaseSync_BackupChainHistoryFailure tests when UpdateBackupChainHistory fails
+// This should not fail the entire operation - it logs a warning and continues
+func (s *BackupLogicalSizeSyncRealDatabaseTestSuite) TestRealDatabaseSync_BackupChainHistoryFailure() {
+	// Override getter function to return true
+	getBackupLogicalSizeSyncEnabled = func() bool { return true }
+
+	// Setup test data
+	updatedLogicalSize := int64(1024 * 1024 * 1024) // 1GB
+
+	volumeBackupMap := map[int64]*datamodel.VolumeLatestBackup{
+		1: {
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
+				Name:      "test-volume",
+				State:     models.LifeCycleStateREADY,
+				PoolID:    1,
+				Pool: &datamodel.Pool{
+					BaseModel:      datamodel.BaseModel{ID: 1},
+					DeploymentName: "test-deployment",
+					PoolCredentials: &datamodel.PoolCredentials{
+						Password:      "test-password",
+						SecretID:      "test-secret",
+						CertificateID: "test-cert",
+						AuthType:      1,
+					},
+				},
+				DataProtection: &datamodel.DataProtection{
+					BackupChainBytes: nillable.ToPointer(int64(100 * 1024 * 1024)),
+				},
+			},
+			LatestBackup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "test-backup-uuid"},
+				Name:      "test-backup",
+				State:     models.LifeCycleStateAvailable,
+				Attributes: &datamodel.BackupAttributes{
+					ObjectStoreUUID: "test-object-store-uuid",
+					EndpointUUID:    "test-endpoint-uuid",
+				},
+			},
+		},
+	}
+
+	// Mock database calls
+	s.mockStorage.On("GetVolumeLatestBackupMap", mock.Anything).Return(volumeBackupMap, nil).Once()
+
+	mockNodes := []*datamodel.Node{
+		{
+			BaseModel:       datamodel.BaseModel{ID: 1},
+			EndpointAddress: "192.168.1.1",
+		},
+	}
+	s.mockStorage.On("GetNodesByPoolID", mock.Anything, int64(1)).Return(mockNodes, nil).Once()
+
+	// Setup hyperscaler provider mock
+	objStoreEndpoint := &vsa.SmObjectStoreEndpointt{
+		LogicalSize: &updatedLogicalSize,
+	}
+
+	originalGetProvider := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return s.mockProvider, nil
+	}
+	defer func() {
+		hyperscaler.GetProviderByNode = originalGetProvider
+	}()
+
+	s.mockProvider.On("ObjectStoreEndpointInfoGet", "test-object-store-uuid", "test-endpoint-uuid").Return(objStoreEndpoint, nil).Once()
+
+	// Mock successful backup and volume updates
+	s.mockStorage.On("UpdateBackupFields", mock.Anything, "test-backup-uuid", mock.Anything).Return(nil).Once()
+	s.mockStorage.On("UpdateVolumeFields", mock.Anything, "test-volume-uuid", mock.Anything).Return(nil).Once()
+
+	// Mock UpdateBackupChainHistory to return an error (this should be logged but not fail the operation)
+	s.mockStorage.On("UpdateBackupChainHistory", mock.Anything, "test-volume-uuid", updatedLogicalSize).Return(errors.New("backup chain history update failed")).Once()
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(SyncLatestBackupLogicalSizeWorkflow)
+
+	// Verify workflow still completes successfully despite UpdateBackupChainHistory failure
+	s.True(s.env.IsWorkflowCompleted())
+	s.NoError(s.env.GetWorkflowError())
+
+	// Verify all expected calls were made
+	s.mockStorage.AssertExpectations(s.T())
+	s.mockProvider.AssertExpectations(s.T())
+	s.mockStorage.AssertCalled(s.T(), "UpdateBackupChainHistory", mock.Anything, "test-volume-uuid", updatedLogicalSize)
 }
 
 // BackupLogicalSizeSyncIntegrationTestSuite provides comprehensive integration testing
@@ -1703,6 +1796,9 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 		return ok && dp.BackupChainBytes != nil && *dp.BackupChainBytes == updatedLogicalSize
 	})).Return(nil).Once()
 
+	// Mock backup chain history update
+	s.mockStorage.On("UpdateBackupChainHistory", mock.Anything, "test-volume-uuid", updatedLogicalSize).Return(nil).Once()
+
 	// Execute workflow - NO activity mocking, let real activities run
 	s.env.ExecuteWorkflow(SyncLatestBackupLogicalSizeWorkflow)
 
@@ -1867,6 +1963,7 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 	// Volume 1: Both backup and volume updates succeed
 	s.mockStorage.On("UpdateBackupFields", mock.Anything, "backup-success-uuid", mock.Anything).Return(nil)
 	s.mockStorage.On("UpdateVolumeFields", mock.Anything, "volume-success-uuid", mock.Anything).Return(nil)
+	s.mockStorage.On("UpdateBackupChainHistory", mock.Anything, "volume-success-uuid", successLogicalSize).Return(nil)
 
 	// Volume 2: Backup update fails (may be retried)
 	s.mockStorage.On("UpdateBackupFields", mock.Anything, "backup-fail-uuid", mock.Anything).Return(errors.New("backup update failed"))
@@ -1875,6 +1972,7 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 	// Volume 3: Backup update succeeds but volume update fails (may be retried)
 	s.mockStorage.On("UpdateBackupFields", mock.Anything, "backup-vol-fail-uuid", mock.Anything).Return(nil)
 	s.mockStorage.On("UpdateVolumeFields", mock.Anything, "volume-vol-fail-uuid", mock.Anything).Return(errors.New("volume update failed"))
+	// UpdateBackupChainHistory won't be called because UpdateVolumeFields fails first
 
 	// Execute workflow - NO activity mocking, let real activities run
 	s.env.ExecuteWorkflow(SyncLatestBackupLogicalSizeWorkflow)
@@ -1993,6 +2091,9 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 		return ok && dp.BackupChainBytes != nil && *dp.BackupChainBytes == int64(0)
 	})).Return(nil).Once()
 
+	// Mock backup chain history update for zero size
+	s.mockStorage.On("UpdateBackupChainHistory", mock.Anything, "volume-zero-size-uuid", int64(0)).Return(nil).Once()
+
 	// Execute workflow - NO activity mocking, let real activities run
 	s.env.ExecuteWorkflow(SyncLatestBackupLogicalSizeWorkflow)
 
@@ -2084,6 +2185,9 @@ func (s *BackupLogicalSizeSyncDatabaseVerificationTestSuite) TestDatabaseSyncVer
 		dp, ok := dataProtection.(*datamodel.DataProtection)
 		return ok && dp.BackupChainBytes != nil && *dp.BackupChainBytes == largeLogicalSize
 	})).Return(nil).Once()
+
+	// Mock backup chain history update for large size
+	s.mockStorage.On("UpdateBackupChainHistory", mock.Anything, "volume-large-size-uuid", largeLogicalSize).Return(nil).Once()
 
 	// Execute workflow - NO activity mocking, let real activities run
 	s.env.ExecuteWorkflow(SyncLatestBackupLogicalSizeWorkflow)

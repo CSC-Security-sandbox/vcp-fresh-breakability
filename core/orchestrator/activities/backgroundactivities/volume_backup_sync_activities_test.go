@@ -531,6 +531,9 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 					dataProtection, ok := updates["data_protection"].(*datamodel.DataProtection)
 					return ok && dataProtection.BackupChainBytes != nil && *dataProtection.BackupChainBytes == int64(1024*1024*1024)
 				})).Return(nil)
+
+				// Mock backup chain history update
+				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", int64(1024*1024*1024)).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -618,6 +621,9 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 					dataProtection, ok := updates["data_protection"].(*datamodel.DataProtection)
 					return ok && dataProtection.BackupChainBytes != nil && *dataProtection.BackupChainBytes == int64(0)
 				})).Return(nil)
+
+				// Mock backup chain history update
+				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", int64(0)).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -646,6 +652,9 @@ func (s *VolumeBackupSyncActivityUnitTestSuite) TestUpdateBackupAndVolumeActivit
 					dataProtection, ok := updates["data_protection"].(*datamodel.DataProtection)
 					return ok && dataProtection.BackupChainBytes != nil && *dataProtection.BackupChainBytes == int64(2*1024*1024*1024*1024)
 				})).Return(nil)
+
+				// Mock backup chain history update
+				s.mockStorage.On("UpdateBackupChainHistory", s.ctx, "volume-uuid", int64(2*1024*1024*1024*1024)).Return(nil)
 			},
 			expectedError: false,
 		},

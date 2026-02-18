@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"go.temporal.io/sdk/activity"
 	"io"
 	"net/http"
 	"net/url"
@@ -20,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"github.com/xyproto/randomstring"
+	"go.temporal.io/sdk/activity"
 	"k8s.io/client-go/rest"
 )
 
