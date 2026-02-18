@@ -13522,6 +13522,79 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 		mockRESTClient.AssertExpectations(tt)
 		mockNetworkingClient.AssertExpectations(tt)
 	})
+
+	t.Run("WhenNodeHasEndpointAddressesToHostNameMap_ThenDeepCopyIsCreated", func(tt *testing.T) {
+		// Save original function
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() {
+			hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		mockProvider := new(vsa.MockProvider)
+		mockRESTClient := new(ontap_rest.MockRESTClient)
+		mockNetworkingClient := new(ontap_rest.MockNetworkingClient)
+
+		// Capture the node passed to GetProviderByNode to verify the map was deep copied
+		var capturedNode *coremodel.Node
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			capturedNode = node
+			// Simulate GetProviderByNode potentially modifying the map (as it does in real code)
+			// Add a new entry to verify it doesn't affect the original
+			if node.EndpointAddressesToHostNameMap != nil {
+				node.EndpointAddressesToHostNameMap["192.168.1.3"] = "node3.example.com"
+			}
+			return mockProvider, nil
+		}
+
+		mockProvider.On("CreateRESTClient").Return(mockRESTClient, nil)
+		mockRESTClient.On("Networking").Return(mockNetworkingClient)
+		output := "wafl.maxvolclonehier updated successfully"
+		cliExecuteOK := &networkpriv.CliExecuteOK{
+			Payload: &privmodels.CliExecuteResponse{
+				Output: output,
+			},
+		}
+		mockNetworkingClient.On("CliExecute", mock.Anything).Return(cliExecuteOK, nil)
+
+		// Create a node with a non-nil EndpointAddressesToHostNameMap
+		originalMap := map[string]string{
+			"192.168.1.1": "node1.example.com",
+			"192.168.1.2": "node2.example.com",
+		}
+		node := &coremodel.Node{
+			EndpointAddress:                "127.0.0.1",
+			AuthType:                       env.USERNAME_PWD,
+			Password:                       "test-password",
+			EndpointAddressesToHostNameMap: originalMap,
+		}
+
+		// Create a copy of the original map to verify it's not modified
+		originalMapCopy := make(map[string]string)
+		for k, v := range originalMap {
+			originalMapCopy[k] = v
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		}
+
+		_, err := testEnv.ExecuteActivity(activity.SetWaflMaxVolCloneHier, node, pool)
+		assert.NoError(tt, err)
+
+		// Verify that the original node's map was not modified (deep copy was created)
+		// The original map should still have only 2 entries
+		assert.Equal(tt, 2, len(node.EndpointAddressesToHostNameMap), "Original node's EndpointAddressesToHostNameMap should not be modified")
+		assert.Equal(tt, originalMapCopy, node.EndpointAddressesToHostNameMap, "Original node's EndpointAddressesToHostNameMap should remain unchanged")
+		
+		// Verify that the captured node (copy) has the modified map with 3 entries
+		assert.NotNil(tt, capturedNode)
+		assert.Equal(tt, 3, len(capturedNode.EndpointAddressesToHostNameMap), "Captured node's map should have the new entry added by GetProviderByNode")
+		assert.Contains(tt, capturedNode.EndpointAddressesToHostNameMap, "192.168.1.3", "Captured node's map should contain the new entry")
+
+		mockProvider.AssertExpectations(tt)
+		mockRESTClient.AssertExpectations(tt)
+		mockNetworkingClient.AssertExpectations(tt)
+	})
 }
 
 func TestPoolActivity_GetRbacHash(t *testing.T) {

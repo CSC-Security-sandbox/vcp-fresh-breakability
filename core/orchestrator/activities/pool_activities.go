@@ -343,7 +343,16 @@ func (j *PoolActivity) SetWaflMaxVolCloneHier(ctx context.Context, node *models.
 		return nil
 	}
 
-	if node.AuthType == env.USER_CERTIFICATE {
+	nodeCopy := *node
+	// Deep copy the EndpointAddressesToHostNameMap to avoid sharing the map reference
+	if node.EndpointAddressesToHostNameMap != nil {
+		nodeCopy.EndpointAddressesToHostNameMap = make(map[string]string)
+		for k, v := range node.EndpointAddressesToHostNameMap {
+			nodeCopy.EndpointAddressesToHostNameMap[k] = v
+		}
+	}
+
+	if nodeCopy.AuthType == env.USER_CERTIFICATE {
 		activity.RecordHeartbeat(ctx, "Using password-based auth for admin CLI command")
 		logger.Debugf("SetWaflMaxVolCloneHier: Certificate auth detected, falling back to password auth for admin command")
 
@@ -358,14 +367,14 @@ func (j *PoolActivity) SetWaflMaxVolCloneHier(ctx context.Context, node *models.
 			return fmt.Errorf("failed to get password for cert-auth fallback: %w", err)
 		}
 
-		// Override AuthType and set password on the node
-		node.AuthType = env.USERNAME_PWD
-		node.Password = password
+		// Override AuthType and set password on the node copy
+		nodeCopy.AuthType = env.USERNAME_PWD
+		nodeCopy.Password = password
 		logger.Debugf("SetWaflMaxVolCloneHier: Overridden node AuthType to USERNAME_PWD for admin CLI command")
 	}
 
 	activity.RecordHeartbeat(ctx, "Getting ONTAP provider")
-	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	provider, err := hyperscaler2.GetProviderByNode(ctx, &nodeCopy)
 	if err != nil {
 		logger.Errorf("SetWaflMaxVolCloneHier failed to get provider: %v", err)
 		return nil
