@@ -1891,39 +1891,38 @@ func getExportPath(junctionPath, protocol string) gcpgenserver.OptString {
 
 func getFilesMountInstructions(ipAddress, junctionPath, fileDir, protocol, fqdn string) gcpgenserver.OptString {
 	var instructions string
+	exportFull := ipAddress + ":" + junctionPath
 	switch protocol {
 	case string(gcpgenserver.ProtocolsV1betaNFSV3):
-		instructions = fmt.Sprintf(`Mount Instructions for NFSv3
-Setting up your instance
-1. Open an SSH client and connect to your instance.
-2. Install the nfs client on your instance.
+		instructions = fmt.Sprintf(`Setting up your instance
+Open an SSH client and connect to your instance.
+Install the nfs client on your instance.
 On Red Hat Enterprise Linux or SuSE Linux instance:
-$sudo yum install -y nfs-utils
+sudo yum install -y nfs-utils
 On an Ubuntu or Debian instance:
-$sudo apt-get install nfs-common
-Mounting your volume for NFSv3
-1. Create a new directory on your instance, such as %s:
-$sudo mkdir %s
-2. Mount your volume using the example command below:
-$sudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=3,tcp %s:%s %s
-3. Repeat the above two steps for future mount targets.
-Note. Please use mount options appropriate for your specific workloads when known.`, fileDir, fileDir, ipAddress, junctionPath, fileDir)
+sudo apt-get install nfs-common
+
+Mounting your volume
+Create a new directory on your instance, such as "%s":
+sudo mkdir %s
+Mount your volume using the example command below:
+sudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=3,tcp %s %s
+Note. Please use mount options appropriate for your specific workloads when known.`, junctionPath, junctionPath, exportFull, junctionPath)
 	case string(gcpgenserver.ProtocolsV1betaNFSV4):
-		instructions = fmt.Sprintf(`Mount Instructions for NFSv4
-Setting up your instance
-1. Open an SSH client and connect to your instance.
-2. Install the nfs client on your instance.
+		instructions = fmt.Sprintf(`Setting up your instance
+Open an SSH client and connect to your instance.
+Install the nfs client on your instance.
 On Red Hat Enterprise Linux or SuSE Linux instance:
-$sudo yum install -y nfs-utils
+sudo yum install -y nfs-utils
 On an Ubuntu or Debian instance:
-$sudo apt-get install nfs-common
-Mounting your volume for NFSv4
-1. Create a new directory on your instance, such as %s:
-$sudo mkdir %s
-2. Mount your volume using the example command below:
-$sudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=4.1,tcp %s:%s %s
-3. Repeat the above two steps for future mount targets.
-Note. Please use mount options appropriate for your specific workloads when known.`, fileDir, fileDir, ipAddress, junctionPath, fileDir)
+sudo apt-get install nfs-common
+
+Mounting your volume
+Create a new directory on your instance, such as "%s":
+sudo mkdir %s
+Mount your volume using the example command below:
+sudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=4.1,tcp %s %s
+Note. Please use mount options appropriate for your specific workloads when known.`, junctionPath, junctionPath, exportFull, junctionPath)
 	case string(gcpgenserver.ProtocolsV1betaSMB):
 		exportFull := fmt.Sprintf(`\\%s\%s`, fqdn, strings.TrimPrefix(junctionPath, "/"))
 		instructions = fmt.Sprintf(`Mapping your network drive

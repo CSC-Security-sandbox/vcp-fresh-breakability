@@ -11210,13 +11210,12 @@ func TestGetFilesMountInstructions(t *testing.T) {
 
 		assert.True(tt, result.IsSet())
 		instructions := result.Value
-		assert.Contains(tt, instructions, "Mount Instructions for NFSv3")
+		assert.Contains(tt, instructions, "Setting up your instance")
 		assert.Contains(tt, instructions, "vers=3")
 		assert.Contains(tt, instructions, ipAddress)
 		assert.Contains(tt, instructions, junctionPath)
-		assert.Contains(tt, instructions, fileDir)
-		assert.Contains(tt, instructions, "sudo mkdir "+fileDir)
-		assert.Contains(tt, instructions, fmt.Sprintf("sudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=3,tcp %s:%s %s", ipAddress, junctionPath, fileDir))
+		assert.Contains(tt, instructions, "sudo mkdir "+junctionPath)
+		assert.Contains(tt, instructions, fmt.Sprintf("sudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=3,tcp %s:%s %s", ipAddress, junctionPath, junctionPath))
 	})
 
 	t.Run("NFSv4_Protocol_ShouldReturnNFSv4Instructions", func(tt *testing.T) {
@@ -11229,13 +11228,12 @@ func TestGetFilesMountInstructions(t *testing.T) {
 
 		assert.True(tt, result.IsSet())
 		instructions := result.Value
-		assert.Contains(tt, instructions, "Mount Instructions for NFSv4")
+		assert.Contains(tt, instructions, "Setting up your instance")
 		assert.Contains(tt, instructions, "vers=4.1")
 		assert.Contains(tt, instructions, ipAddress)
 		assert.Contains(tt, instructions, junctionPath)
-		assert.Contains(tt, instructions, fileDir)
-		assert.Contains(tt, instructions, "sudo mkdir "+fileDir)
-		assert.Contains(tt, instructions, fmt.Sprintf("sudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=4.1,tcp %s:%s %s", ipAddress, junctionPath, fileDir))
+		assert.Contains(tt, instructions, "sudo mkdir "+junctionPath)
+		assert.Contains(tt, instructions, fmt.Sprintf("sudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=4.1,tcp %s:%s %s", ipAddress, junctionPath, junctionPath))
 	})
 
 	t.Run("SMB_Protocol_ShouldReturnSMBInstructions", func(tt *testing.T) {
@@ -11273,7 +11271,7 @@ func TestGetFilesMountInstructions(t *testing.T) {
 
 		assert.True(tt, result.IsSet())
 		instructions := result.Value
-		assert.Contains(tt, instructions, "Mount Instructions for NFSv3")
+		assert.Contains(tt, instructions, "Setting up your instance")
 		// Should still contain the basic structure even with empty parameters
 	})
 }
@@ -11461,7 +11459,7 @@ func TestConvertModelToVCPVolume_NFSMountPoints(t *testing.T) {
 		assert.Len(tt, result.MountPoints, 1)
 		assert.Equal(tt, "192.168.1.100", result.MountPoints[0].IpAddress.Value)
 		assert.Equal(tt, gcpgenserver.ProtocolsV1betaNFSV3, result.MountPoints[0].Protocol.Value)
-		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "Mount Instructions for NFSv3")
+		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "Setting up your instance")
 		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "vers=3")
 		// Verify Export and ExportFull fields
 		assert.Equal(tt, "/testvolume", result.MountPoints[0].Export.Value)
@@ -11499,7 +11497,7 @@ func TestConvertModelToVCPVolume_NFSMountPoints(t *testing.T) {
 		assert.Len(tt, result.MountPoints, 1)
 		assert.Equal(tt, "10.0.0.50", result.MountPoints[0].IpAddress.Value)
 		assert.Equal(tt, gcpgenserver.ProtocolsV1betaNFSV4, result.MountPoints[0].Protocol.Value)
-		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "Mount Instructions for NFSv4")
+		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "Setting up your instance")
 		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "vers=4.1")
 		// Verify Export and ExportFull fields
 		assert.Equal(tt, "/vol1", result.MountPoints[0].Export.Value)
@@ -11539,7 +11537,7 @@ func TestConvertModelToVCPVolume_NFSMountPoints(t *testing.T) {
 		// Verify first mount point (NFSv3)
 		assert.Equal(tt, "192.168.1.100", result.MountPoints[0].IpAddress.Value)
 		assert.Equal(tt, gcpgenserver.ProtocolsV1betaNFSV3, result.MountPoints[0].Protocol.Value)
-		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "Mount Instructions for NFSv3")
+		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "Setting up your instance")
 		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "vers=3")
 		// Verify Export and ExportFull for NFSv3
 		assert.Equal(tt, "/dualprotocol", result.MountPoints[0].Export.Value)
@@ -11548,7 +11546,7 @@ func TestConvertModelToVCPVolume_NFSMountPoints(t *testing.T) {
 		// Verify second mount point (NFSv4)
 		assert.Equal(tt, "192.168.1.100", result.MountPoints[1].IpAddress.Value)
 		assert.Equal(tt, gcpgenserver.ProtocolsV1betaNFSV4, result.MountPoints[1].Protocol.Value)
-		assert.Contains(tt, result.MountPoints[1].Instructions.Value, "Mount Instructions for NFSv4")
+		assert.Contains(tt, result.MountPoints[1].Instructions.Value, "Setting up your instance")
 		assert.Contains(tt, result.MountPoints[1].Instructions.Value, "vers=4.1")
 		// Verify Export and ExportFull for NFSv4
 		assert.Equal(tt, "/dualprotocol", result.MountPoints[1].Export.Value)
