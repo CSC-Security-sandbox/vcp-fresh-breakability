@@ -474,7 +474,9 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 			return res, nil
 		}
 		done = false
-	case coremodel.LifeCycleStateCreated, coremodel.LifeCycleStateInUse:
+	default:
+		// For all other states (READY, CREATED, IN_USE, DISABLED, etc.), a KMS config already exists.
+		// Verify resource ID to ensure idempotent creates succeed but conflicting creates are rejected.
 		if res, ok := checkResourceID(); !ok {
 			return res, nil
 		}
