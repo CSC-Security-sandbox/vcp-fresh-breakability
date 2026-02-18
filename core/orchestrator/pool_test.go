@@ -1969,6 +1969,205 @@ func TestDeletePool(t *testing.T) {
 		assert.Equal(tt, pool.UUID, result.UUID)
 		mockStorage.AssertExpectations(tt)
 	})
+	t.Run("DeletePool_WhenLargeCapacityPoolInCreatingStateWithMatchingCorrelationID_UsesCreateLargePoolJobType", func(tt *testing.T) {
+		// Test that large capacity pools in CREATING state use CREATE_LARGE_POOL job type
+		ctx, store, _, temporal := setup(tt)
+		pools, account := createDBPools(t, store)
+		pool := pools[0]
+		correlationID := "test-correlation-id-large"
+
+		params := &common.DeletePoolParams{
+			AccountName: account.Name,
+			PoolID:      pool.UUID,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		// Add correlation ID to context
+		ctx = context.WithValue(ctx, middleware.CorrelationContextKey, correlationID)
+
+		// Mock GetPool to return a large capacity pool in CREATING state
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:    datamodel.BaseModel{UUID: pool.UUID},
+				Name:         pool.Name,
+				AccountID:    account.ID,
+				State:        models.LifeCycleStateCreating,
+				LargeCapacity: true, // Large capacity pool
+				Account:      account, // Required for convertDatastorePoolToModel
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone:     "us-central1-a",
+					SecondaryZone:   "us-central1-b",
+					ThroughputMibps: 64,
+					Iops:            1024,
+				},
+			},
+			VolumeCount: 0,
+		}, nil)
+
+		// Mock GetJobByResourceUUID for DELETE_LARGE_POOL (called first in ValidateCorrelationIDForCreatingResource)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeleteLargePool)).Return(nil, nil)
+
+		// Mock GetJobByResourceUUID to return a CREATE_LARGE_POOL job with matching correlation ID
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreateLargePool)).Return(&datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "create-large-pool-job-uuid"},
+			CorrelationID: correlationID,
+			Type:          string(models.JobTypeCreateLargePool),
+		}, nil)
+
+		// Mock CreateJob
+		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			// Verify that the delete job type is DELETE_LARGE_POOL
+			return job.Type == string(models.JobTypeDeleteLargePool)
+		})).Return(&datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "delete-large-pool-job-uuid"},
+			WorkflowID: "test-workflow-id",
+		}, nil)
+
+		// Mock ExecuteWorkflow
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("DeletePool_WhenLargeCapacityPoolInCreatingStateWithExistingDeleteJob_UsesDeleteLargePoolJobType", func(tt *testing.T) {
+		// Test that large capacity pools in CREATING state with existing delete job use DELETE_LARGE_POOL
+		ctx, store, _, temporal := setup(tt)
+		pools, account := createDBPools(t, store)
+		pool := pools[0]
+		correlationID := "test-correlation-id-large-delete"
+
+		params := &common.DeletePoolParams{
+			AccountName: account.Name,
+			PoolID:      pool.UUID,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		// Add correlation ID to context
+		ctx = context.WithValue(ctx, middleware.CorrelationContextKey, correlationID)
+
+		existingDeleteJob := &datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "existing-delete-large-pool-job-uuid"},
+			CorrelationID: correlationID,
+			Type:          string(models.JobTypeDeleteLargePool),
+			State:         string(models.JobsStatePROCESSING),
+		}
+
+		// Mock GetPool to return a large capacity pool in CREATING state
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:    datamodel.BaseModel{UUID: pool.UUID},
+				Name:         pool.Name,
+				AccountID:    account.ID,
+				State:        models.LifeCycleStateCreating,
+				LargeCapacity: true, // Large capacity pool
+				Account:      account, // Required for convertDatastorePoolToModel
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone:     "us-central1-a",
+					SecondaryZone:   "us-central1-b",
+					ThroughputMibps: 64,
+					Iops:            1024,
+				},
+			},
+			VolumeCount: 0,
+		}, nil)
+
+		// ValidateCorrelationIDForCreatingResource returns existingDeleteJobUUID when delete job is in progress
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeleteLargePool)).Return(existingDeleteJob, nil)
+
+		result, jobUUID, err := _deletePool(ctx, temporal, mockStorage, params)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "existing-delete-large-pool-job-uuid", jobUUID)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, pool.UUID, result.UUID)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("DeletePool_WhenStandardPoolInCreatingState_UsesCreatePoolJobType", func(tt *testing.T) {
+		// Test that standard pools in CREATING state use CREATE_POOL job type (explicit verification)
+		ctx, store, _, temporal := setup(tt)
+		pools, account := createDBPools(t, store)
+		pool := pools[0]
+		correlationID := "test-correlation-id-standard"
+
+		params := &common.DeletePoolParams{
+			AccountName: account.Name,
+			PoolID:      pool.UUID,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+		}()
+
+		// Add correlation ID to context
+		ctx = context.WithValue(ctx, middleware.CorrelationContextKey, correlationID)
+
+		// Mock GetPool to return a standard pool (LargeCapacity=false) in CREATING state
+		mockStorage := new(database.MockStorage)
+		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:    datamodel.BaseModel{UUID: pool.UUID},
+				Name:         pool.Name,
+				AccountID:    account.ID,
+				State:        models.LifeCycleStateCreating,
+				LargeCapacity: false, // Standard pool
+				Account:      account, // Required for convertDatastorePoolToModel
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone:     "us-central1-a",
+					SecondaryZone:   "us-central1-b",
+					ThroughputMibps: 64,
+					Iops:            1024,
+				},
+			},
+			VolumeCount: 0,
+		}, nil)
+
+		// Mock GetJobByResourceUUID for DELETE_POOL (called first in ValidateCorrelationIDForCreatingResource)
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeDeletePool)).Return(nil, nil)
+
+		// Mock GetJobByResourceUUID to return a CREATE_POOL job with matching correlation ID
+		mockStorage.On("GetJobByResourceUUID", ctx, pool.UUID, string(models.JobTypeCreatePool)).Return(&datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "create-pool-job-uuid"},
+			CorrelationID: correlationID,
+			Type:          string(models.JobTypeCreatePool),
+		}, nil)
+
+		// Mock CreateJob - verify it uses DELETE_POOL job type
+		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
+			// Verify that the delete job type is DELETE_POOL for standard pools
+			return job.Type == string(models.JobTypeDeletePool)
+		})).Return(&datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "delete-pool-job-uuid"},
+			WorkflowID: "test-workflow-id",
+		}, nil)
+
+		// Mock ExecuteWorkflow
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		_, _, err := _deletePool(ctx, temporal, mockStorage, params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
 
 	t.Run("DeletePool_WhenPoolInTransitionalState_ReturnsConflictError", func(tt *testing.T) {
 		// Test for lines 598-599: When pool is in transitional state (not DELETING), return error

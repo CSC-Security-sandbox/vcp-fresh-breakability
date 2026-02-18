@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	coreerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	coreerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/validators"
@@ -597,10 +597,11 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 
 	poolCategory := models.GetPoolCategory(pool.LargeCapacity)
 	deleteJobType := models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationDelete, poolCategory)
+	createJobType := models.GetResourceJobType(models.ResourceTypePool, models.ResourceOperationCreate, poolCategory)
 	var existingDeleteJobUUID string
 	if pool.State == models.LifeCycleStateCreating {
 		existingDeleteJobUUID, _, err = database.ValidateCorrelationIDForCreatingResource(
-			ctx, se, pool.UUID, "pool", models.JobTypeCreatePool, deleteJobType, logger)
+			ctx, se, pool.UUID, "pool", createJobType, deleteJobType, logger)
 		if err != nil {
 			logger.Warnf("Pool %s cannot be deleted: existing create job not present and state is in CREATING", pool.UUID)
 			return nil, "", err
