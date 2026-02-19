@@ -344,6 +344,9 @@ type UpdatePoolParams struct {
 	Zone                      string
 	Labels                    *datamodel.JSONB
 	ActiveDirectoryConfigId   string
+	ActiveDirectoryId         string
+	ActiveDirectory           *models.ActiveDirectory
+	XCorrelationID            string
 	HotTierSizeInBytes        uint64
 	EnableHotTierAutoResize   bool
 	CustomPerformanceEnabled  bool
@@ -351,6 +354,7 @@ type UpdatePoolParams struct {
 	TotalIops                 *int64
 	LargeCapacity             *bool
 	AutoResizeTriggeredUpdate bool
+	IfADExistsInVCP           bool
 }
 
 // VolumeCountRange defines the volume count range for auto pool scaling

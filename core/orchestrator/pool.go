@@ -310,7 +310,11 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 		return nil, "", err
 	}
 
-	if params.ActiveDirectoryConfigId != "" {
+	if params.ActiveDirectoryConfigId != "" && dbPool.ActiveDirectoryID.Valid {
+		return nil, "", customerrors.NewUserInputValidationErr("Active Directory configuration cannot be changed for pools already associated with an Active Directory")
+	}
+
+	if params.ActiveDirectoryConfigId != "" && params.IfADExistsInVCP {
 		activeDir, adErr := se.GetActiveDirectoryByUuidAndAccountId(ctx, params.ActiveDirectoryConfigId, account.ID)
 		if adErr != nil {
 			var notFoundErr *customerrors.NotFoundErr

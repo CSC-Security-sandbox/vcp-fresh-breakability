@@ -10,24 +10,36 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
 )
 
 func TestSyncActiveDirectoryInVcp(t *testing.T) {
-	params := &common.CreatePoolParams{
-		ActiveDirectoryId: "ad-id",
+	input := adSyncInput{
+		ActiveDirectoryID: "ad-id",
 		AccountName:       "acct",
 		Region:            "loc",
 		XCorrelationID:    "corr",
 		ActiveDirectory:   &models.ActiveDirectory{AdName: "ad-name"},
-		ADExistsInVCP:     false,
+		LargeCapacity:     false,
 	}
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
 	}
+
+	t.Run("ReturnsErrorWhenActiveDirectoryIsNil", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.RegisterWorkflow(testSyncADWorkflow)
+
+		invalid := input
+		invalid.ActiveDirectory = nil
+
+		env.ExecuteWorkflow(testSyncADWorkflow, invalid, pool)
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+	})
 
 	t.Run("ReturnsErrorWhenCreatedADIsNil", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
@@ -36,7 +48,7 @@ func TestSyncActiveDirectoryInVcp(t *testing.T) {
 		env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.GetAuthJWTToken)
-		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountName).Return("test-jwt-token", nil)
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, input.AccountName).Return("test-jwt-token", nil)
 		env.OnActivity("PushActiveDirectoryPasswordActivity", mock.Anything, mock.Anything).Return(&active_directory_activities.PushActiveDirectoryPasswordResult{
 			Operation:  &cvpmodels.OperationV1beta{Name: "op"},
 			SecretName: "secret-path",
@@ -46,7 +58,7 @@ func TestSyncActiveDirectoryInVcp(t *testing.T) {
 		env.OnActivity("UpdatePoolActiveDirectoryIDActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.RegisterWorkflow(testSyncADWorkflow)
 
-		env.ExecuteWorkflow(testSyncADWorkflow, params, pool)
+		env.ExecuteWorkflow(testSyncADWorkflow, input, pool)
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.Error(tt, env.GetWorkflowError())
 	})
@@ -58,11 +70,11 @@ func TestSyncActiveDirectoryInVcp(t *testing.T) {
 		env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.GetAuthJWTToken)
-		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountName).Return("test-jwt-token", nil)
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, input.AccountName).Return("test-jwt-token", nil)
 		env.OnActivity("PushActiveDirectoryPasswordActivity", mock.Anything, mock.Anything).Return((*active_directory_activities.PushActiveDirectoryPasswordResult)(nil), nil)
 		env.RegisterWorkflow(testSyncADWorkflow)
 
-		env.ExecuteWorkflow(testSyncADWorkflow, params, pool)
+		env.ExecuteWorkflow(testSyncADWorkflow, input, pool)
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.Error(tt, env.GetWorkflowError())
 	})
@@ -74,7 +86,7 @@ func TestSyncActiveDirectoryInVcp(t *testing.T) {
 		env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity.GetAuthJWTToken)
-		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountName).Return("test-jwt-token", nil)
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, input.AccountName).Return("test-jwt-token", nil)
 		env.OnActivity("PushActiveDirectoryPasswordActivity", mock.Anything, mock.Anything).Return(&active_directory_activities.PushActiveDirectoryPasswordResult{
 			Operation:  &cvpmodels.OperationV1beta{Name: "op"},
 			SecretName: "secret-path",
@@ -84,12 +96,12 @@ func TestSyncActiveDirectoryInVcp(t *testing.T) {
 		env.OnActivity("UpdatePoolActiveDirectoryIDActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.RegisterWorkflow(testSyncADWorkflow)
 
-		env.ExecuteWorkflow(testSyncADWorkflow, params, pool)
+		env.ExecuteWorkflow(testSyncADWorkflow, input, pool)
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.NoError(tt, env.GetWorkflowError())
 	})
 }
 
-func testSyncADWorkflow(ctx workflow.Context, params *common.CreatePoolParams, pool *datamodel.Pool) error {
-	return syncActiveDirectoryInVcp(ctx, params, pool)
+func testSyncADWorkflow(ctx workflow.Context, input adSyncInput, pool *datamodel.Pool) error {
+	return syncActiveDirectoryInVcp(ctx, input, pool)
 }

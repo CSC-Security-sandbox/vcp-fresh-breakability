@@ -6843,7 +6843,7 @@ func TestV1betaCreatePool_WithActiveDirectoryConfigId(t *testing.T) {
 			},
 		}
 		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.MatchedBy(func(params *commonparams.CreatePoolParams) bool {
-			return params.ActiveDirectoryId == "ad-config-uuid" && params.ActiveDirectory != nil
+			return params.ActiveDirectoryId == "ad-config-uuid" && params.ActiveDirectory != nil && params.ADExistsInVCP
 		})).Return(createdPool, "op-123", nil)
 
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -6974,6 +6974,12 @@ func TestV1betaCreatePool_WithActiveDirectoryConfigId(t *testing.T) {
 func TestV1betaUpdatePool_WithActiveDirectoryConfigId(t *testing.T) {
 	t.Run("WhenActiveDirectoryConfigIdIsValid", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		adConfig := &models.ActiveDirectory{
+			BaseModel: models.BaseModel{
+				UUID: "ad-config-uuid",
+			},
+			AdName: "test-ad",
+		}
 
 		// Mock parseAndValidateRegionAndZone
 		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
@@ -6996,6 +7002,11 @@ func TestV1betaUpdatePool_WithActiveDirectoryConfigId(t *testing.T) {
 			},
 		}
 
+		// Mock AD fetch
+		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.MatchedBy(func(params *commonparams.GetADParams) bool {
+			return params.UUID == "ad-config-uuid" && params.AccountName == "test-project"
+		})).Return(adConfig, nil)
+
 		// Mock pool description
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-uuid", "test-project").Return(existingPool, nil)
 
@@ -7017,7 +7028,10 @@ func TestV1betaUpdatePool_WithActiveDirectoryConfigId(t *testing.T) {
 			},
 		}
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.MatchedBy(func(params *commonparams.UpdatePoolParams) bool {
-			return params.ActiveDirectoryConfigId == "ad-config-uuid"
+			return params.ActiveDirectoryConfigId == "ad-config-uuid" &&
+				params.ActiveDirectoryId == "ad-config-uuid" &&
+				params.ActiveDirectory != nil &&
+				params.IfADExistsInVCP
 		})).Return(updatedPool, "op-123", nil)
 
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -7043,6 +7057,163 @@ func TestV1betaUpdatePool_WithActiveDirectoryConfigId(t *testing.T) {
 		assert.Equal(tt, "pool-uuid", updatedPool.UUID)
 		assert.Equal(tt, "ad-config-uuid", updatedPool.ActiveDirectoryConfigId)
 		assert.Equal(tt, "test-ad", updatedPool.ActiveDirectoryResourceId)
+	})
+
+	t.Run("WhenActiveDirectoryConfigIdIsNotFound_ReturnsBadRequest", func(tt *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1-a", nil
+		}
+
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Name: "test-pool",
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 64,
+				Iops:       1024,
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-central1-a",
+			},
+		}
+
+		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("Active Directory", nil))
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-uuid", "test-project").Return(existingPool, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		req := &gcpgenserver.PoolUpdateV1beta{
+			ActiveDirectoryConfigId: gcpgenserver.NewOptNilString("missing-ad"),
+		}
+		params := gcpgenserver.V1betaUpdatePoolParams{
+			ProjectNumber:   "test-project",
+			LocationId:      "us-central1-a",
+			PoolId:          "pool-uuid",
+			XCorrelationID:  gcpgenserver.NewOptString("corr-id"),
+		}
+
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(http.StatusBadRequest), badReq.Code)
+		assert.Contains(tt, badReq.Message, "missing-ad")
+	})
+
+	t.Run("WhenActiveDirectoryConfigIdIsValid_PropagatesCorrelationID", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		adConfig := &models.ActiveDirectory{
+			BaseModel: models.BaseModel{
+				UUID: "ad-config-uuid",
+			},
+			AdName: "test-ad",
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1-a", nil
+		}
+
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Name: "test-pool",
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 64,
+				Iops:       1024,
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-central1-a",
+			},
+		}
+
+		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.MatchedBy(func(params *commonparams.GetADParams) bool {
+			return params.UUID == "ad-config-uuid"
+		})).Return(adConfig, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-uuid", "test-project").Return(existingPool, nil)
+
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.MatchedBy(func(params *commonparams.UpdatePoolParams) bool {
+			return params.ActiveDirectoryConfigId == "ad-config-uuid" &&
+				params.ActiveDirectoryId == "ad-config-uuid" &&
+				params.ActiveDirectory != nil &&
+				params.IfADExistsInVCP &&
+				params.XCorrelationID == "corr-id"
+		})).Return(existingPool, "op-123", nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			ActiveDirectoryConfigId: gcpgenserver.NewOptNilString("ad-config-uuid"),
+		}
+		params := gcpgenserver.V1betaUpdatePoolParams{
+			ProjectNumber:  "test-project",
+			LocationId:     "us-central1-a",
+			PoolId:         "pool-uuid",
+			XCorrelationID: gcpgenserver.NewOptString("corr-id"),
+		}
+
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		_, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+	})
+
+	t.Run("WhenActiveDirectoryConfigIdInternalError_UpdateReturnsInternal", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1-a", nil
+		}
+
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Name: "test-pool",
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 64,
+				Iops:       1024,
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-central1-a",
+			},
+		}
+
+		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(nil, stderrors.New("database error"))
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-uuid", "test-project").Return(existingPool, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			ActiveDirectoryConfigId: gcpgenserver.NewOptNilString("ad-config-uuid"),
+		}
+		params := gcpgenserver.V1betaUpdatePoolParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-central1-a",
+			PoolId:        "pool-uuid",
+		}
+
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaUpdatePoolInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(http.StatusInternalServerError), internalErr.Code)
+		assert.Equal(tt, "database error", internalErr.Message)
 	})
 
 	t.Run("WhenActiveDirectoryConfigIdIsEmpty", func(tt *testing.T) {
@@ -7217,14 +7388,12 @@ func TestGetAndSyncAdConfigForPool(t *testing.T) {
 			ActiveDirectoryConfigId: gcpgenserver.NewOptNilString(""),
 		}
 
-		params := &commonparams.CreatePoolParams{
-			AccountName: "test-project",
-			Region:      "us-central1",
-		}
+		accountName := "test-project"
+		region := "us-central1"
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 
-		adConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req, params, mockOrchestrator)
+		adConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req.ActiveDirectoryConfigId, accountName, region, "", mockOrchestrator)
 
 		assert.Nil(tt, adConfig)
 		assert.Nil(tt, errResp)
@@ -7242,17 +7411,15 @@ func TestGetAndSyncAdConfigForPool(t *testing.T) {
 			ActiveDirectoryConfigId: gcpgenserver.NewOptNilString("ad-config-uuid"),
 		}
 
-		params := &commonparams.CreatePoolParams{
-			AccountName: "test-project",
-			Region:      "us-central1",
-		}
+		accountName := "test-project"
+		region := "us-central1"
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.MatchedBy(func(getParams *commonparams.GetADParams) bool {
 			return getParams.UUID == "ad-config-uuid" && getParams.AccountName == "test-project"
 		})).Return(adConfig, nil)
 
-		resultAdConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req, params, mockOrchestrator)
+		resultAdConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req.ActiveDirectoryConfigId, accountName, region, "", mockOrchestrator)
 
 		assert.Nil(tt, errResp)
 		assert.NotNil(tt, resultAdConfig)
@@ -7265,19 +7432,18 @@ func TestGetAndSyncAdConfigForPool(t *testing.T) {
 			ActiveDirectoryConfigId: gcpgenserver.NewOptNilString("non-existent-ad-uuid"),
 		}
 
-		params := &commonparams.CreatePoolParams{
-			AccountName: "test-project",
-			Region:      "us-central1",
-		}
+		accountName := "test-project"
+		region := "us-central1"
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("Active Directory", nil))
 
-		adConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req, params, mockOrchestrator)
+		adConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req.ActiveDirectoryConfigId, accountName, region, "", mockOrchestrator)
 
 		assert.Nil(tt, adConfig)
 		assert.NotNil(tt, errResp)
-		badRequest, ok := errResp.(*gcpgenserver.V1betaCreatePoolBadRequest)
+		resp := errResp.toCreateResponse()
+		badRequest, ok := resp.(*gcpgenserver.V1betaCreatePoolBadRequest)
 		assert.True(tt, ok)
 		assert.Equal(tt, float64(http.StatusBadRequest), badRequest.Code)
 		assert.Contains(tt, badRequest.Message, "Active Directory Config with ID non-existent-ad-uuid not found")
@@ -7288,19 +7454,18 @@ func TestGetAndSyncAdConfigForPool(t *testing.T) {
 			ActiveDirectoryConfigId: gcpgenserver.NewOptNilString("ad-config-uuid"),
 		}
 
-		params := &commonparams.CreatePoolParams{
-			AccountName: "test-project",
-			Region:      "us-central1",
-		}
+		accountName := "test-project"
+		region := "us-central1"
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(nil, stderrors.New("database error"))
 
-		adConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req, params, mockOrchestrator)
+		adConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req.ActiveDirectoryConfigId, accountName, region, "", mockOrchestrator)
 
 		assert.Nil(tt, adConfig)
 		assert.NotNil(tt, errResp)
-		internalError, ok := errResp.(*gcpgenserver.V1betaCreatePoolInternalServerError)
+		resp := errResp.toCreateResponse()
+		internalError, ok := resp.(*gcpgenserver.V1betaCreatePoolInternalServerError)
 		assert.True(tt, ok)
 		assert.Equal(tt, float64(http.StatusInternalServerError), internalError.Code)
 		assert.Equal(tt, "database error", internalError.Message)
@@ -7368,15 +7533,13 @@ func TestGetAndSyncAdConfigForPool(t *testing.T) {
 		req := &gcpgenserver.PoolV1beta{
 			ActiveDirectoryConfigId: gcpgenserver.NewOptNilString("ad-config-uuid"),
 		}
-		params := &commonparams.CreatePoolParams{
-			AccountName: "test-project",
-			Region:      "us-central1",
-		}
+		accountName := "test-project"
+		region := "us-central1"
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("Active Directory", nil))
 
-		adConfig, existsInVCP, errResp := getAndSyncAdConfigForPool(context.Background(), req, params, mockOrchestrator)
+		adConfig, existsInVCP, errResp := getAndSyncAdConfigForPool(context.Background(), req.ActiveDirectoryConfigId, accountName, region, "", mockOrchestrator)
 
 		assert.Nil(tt, errResp)
 		assert.False(tt, existsInVCP)
@@ -7428,19 +7591,18 @@ func TestGetAndSyncAdConfigForPool(t *testing.T) {
 		req := &gcpgenserver.PoolV1beta{
 			ActiveDirectoryConfigId: gcpgenserver.NewOptNilString("ad-config-uuid"),
 		}
-		params := &commonparams.CreatePoolParams{
-			AccountName: "test-project",
-			Region:      "us-central1",
-		}
+		accountName := "test-project"
+		region := "us-central1"
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("Active Directory", nil))
 
-		adConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req, params, mockOrchestrator)
+		adConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req.ActiveDirectoryConfigId, accountName, region, "", mockOrchestrator)
 
 		assert.Nil(tt, adConfig)
 		assert.NotNil(tt, errResp)
-		badRequest, ok := errResp.(*gcpgenserver.V1betaCreatePoolBadRequest)
+		resp := errResp.toCreateResponse()
+		badRequest, ok := resp.(*gcpgenserver.V1betaCreatePoolBadRequest)
 		assert.True(tt, ok)
 		assert.Equal(tt, float64(http.StatusBadRequest), badRequest.Code)
 		assert.Contains(tt, badRequest.Message, "Active Directory Config with ID ad-config-uuid not found")

@@ -1010,6 +1010,7 @@ func TestUpdatePool_ActiveDirectoryConfigId(t *testing.T) {
 			AccountName:             "test_account",
 			PoolId:                  "test-pool-uuid1",
 			ActiveDirectoryConfigId: "550e8400-e29b-41d4-a716-446655440000",
+			IfADExistsInVCP:         true,
 			SizeInBytes:             uint64(2 * utils.TiBInBytes), // Set a valid size
 			QosType:                 "auto",                       // Set a valid QOS type
 			TotalThroughputMibps:    128,                          // Set a valid throughput
@@ -1054,6 +1055,7 @@ func TestUpdatePool_ActiveDirectoryConfigId(t *testing.T) {
 			AccountName:             "test_account",
 			PoolId:                  "test-pool-uuid1",
 			ActiveDirectoryConfigId: "non-existent-ad-uuid",
+			IfADExistsInVCP:         true,
 			SizeInBytes:             uint64(2 * utils.TiBInBytes), // Set a valid size
 			QosType:                 "auto",                       // Set a valid QOS type
 			TotalThroughputMibps:    128,                          // Set a valid throughput
@@ -1110,9 +1112,10 @@ func TestUpdatePool_ActiveDirectoryConfigId(t *testing.T) {
 			AccountName:             "test_account",
 			PoolId:                  "test-pool-uuid1",
 			ActiveDirectoryConfigId: "550e8400-e29b-41d4-a716-446655440001", // Different AD
-			SizeInBytes:             uint64(2 * utils.TiBInBytes),           // Set a valid size
-			QosType:                 "auto",                                 // Set a valid QOS type
-			TotalThroughputMibps:    128,                                    // Set a valid throughput
+			IfADExistsInVCP:         true,
+			SizeInBytes:             uint64(2 * utils.TiBInBytes), // Set a valid size
+			QosType:                 "auto",                       // Set a valid QOS type
+			TotalThroughputMibps:    128,                          // Set a valid throughput
 		}
 
 		originalGetAccountWithName := getAccountWithName
@@ -1166,6 +1169,43 @@ func TestUpdatePool_ActiveDirectoryConfigId(t *testing.T) {
 		assert.NoError(tt, err, "Expected no error when ActiveDirectoryConfigId is empty")
 		assert.Equal(tt, "test-pool-uuid1", pool.UUID)
 		assert.Equal(tt, models.LifeCycleStateUpdating, pool.State)
+	})
+
+	t.Run("WhenActiveDirectoryConfigIdProvidedButNotCheckedInVCP", func(tt *testing.T) {
+		ctx, store, _, temporal := setup(tt)
+		_, account := createDBPools(tt, store)
+
+		params := &common.UpdatePoolParams{
+			AccountName:             "test_account",
+			PoolId:                  "test-pool-uuid1",
+			ActiveDirectoryConfigId: "non-existent-ad-uuid",
+			IfADExistsInVCP:         false, // should skip VCP lookup
+			SizeInBytes:             uint64(2 * utils.TiBInBytes),
+			QosType:                 "auto",
+			TotalThroughputMibps:    128,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		originalValidateAndSetUpdatePoolParams := ValidateAndSetUpdatePoolParams
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		ValidateAndSetUpdatePoolParams = func(params *common.UpdatePoolParams, pool *datamodel.Pool) error {
+			return nil
+		}
+
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, params, mock.Anything, mock.Anything).
+			Return(nil, nil)
+
+		defer func() {
+			getAccountWithName = originalGetAccountWithName
+			ValidateAndSetUpdatePoolParams = originalValidateAndSetUpdatePoolParams
+		}()
+
+		pool, _, err := _updatePool(ctx, store, temporal, params)
+		assert.NoError(tt, err, "Expected no error when AD check is skipped")
+		assert.Equal(tt, "test-pool-uuid1", pool.UUID)
 	})
 }
 

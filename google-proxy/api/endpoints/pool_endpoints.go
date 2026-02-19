@@ -180,9 +180,9 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 	}
 
 	// Set AD related params
-	adConfig, ifADExistsInVCP, adErrResp := getAndSyncAdConfigForPool(ctx, req, createPoolParams, h.Orchestrator)
-	if adErrResp != nil {
-		return adErrResp, nil
+	adConfig, ifADExistsInVCP, adErr := getAndSyncAdConfigForPool(ctx, req.ActiveDirectoryConfigId, createPoolParams.AccountName, createPoolParams.Region, createPoolParams.XCorrelationID, h.Orchestrator)
+	if adErr != nil {
+		return adErr.toCreateResponse(), nil
 	}
 	createPoolParams.ADExistsInVCP = ifADExistsInVCP
 	if adConfig != nil {
@@ -768,7 +768,17 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 	}
 
 	if req.ActiveDirectoryConfigId.IsSet() {
+		adConfig, ifADExistsInVCP, adErr := getAndSyncAdConfigForPool(ctx, req.ActiveDirectoryConfigId, params.ProjectNumber, params.LocationId, params.XCorrelationID.Value, h.Orchestrator)
+		if adErr != nil {
+			return adErr.toUpdateResponse(), nil
+		}
 		param.ActiveDirectoryConfigId = req.ActiveDirectoryConfigId.Value
+		param.ActiveDirectoryId = req.ActiveDirectoryConfigId.Value
+		param.ActiveDirectory = adConfig
+		param.IfADExistsInVCP = ifADExistsInVCP
+		if params.XCorrelationID.IsSet() {
+			param.XCorrelationID = params.XCorrelationID.Value
+		}
 	}
 
 	updatedPool, operationID, err := h.Orchestrator.UpdatePool(ctx, param)
@@ -1444,51 +1454,83 @@ func _getAndSyncKmsConfigForPool(ctx context.Context, req *gcpgenserver.PoolV1be
 	return kmsConfig, nil
 }
 
-func getAndSyncAdConfigForPool(ctx context.Context, req *gcpgenserver.PoolV1beta, params *commonparams.CreatePoolParams, orchestrator orchestrator.OrchestratorFactory) (*models.ActiveDirectory, bool, gcpgenserver.V1betaCreatePoolRes) {
+// adSyncError captures AD sync failures and can be mapped to different API responses.
+type adSyncError struct {
+	kind    adSyncErrorKind
+	code    float64
+	message string
+}
+
+type adSyncErrorKind int
+
+const (
+	adSyncErrorKindBadRequest adSyncErrorKind = iota
+	adSyncErrorKindInternal
+)
+
+func (e *adSyncError) toCreateResponse() gcpgenserver.V1betaCreatePoolRes {
+	switch e.kind {
+	case adSyncErrorKindBadRequest:
+		return &gcpgenserver.V1betaCreatePoolBadRequest{Code: e.code, Message: e.message}
+	default:
+		return &gcpgenserver.V1betaCreatePoolInternalServerError{Code: e.code, Message: e.message}
+	}
+}
+
+func (e *adSyncError) toUpdateResponse() gcpgenserver.V1betaUpdatePoolRes {
+	switch e.kind {
+	case adSyncErrorKindBadRequest:
+		return &gcpgenserver.V1betaUpdatePoolBadRequest{Code: e.code, Message: e.message}
+	default:
+		return &gcpgenserver.V1betaUpdatePoolInternalServerError{Code: e.code, Message: e.message}
+	}
+}
+
+func newAdSyncBadRequest(code float64, message string) *adSyncError {
+	return &adSyncError{kind: adSyncErrorKindBadRequest, code: code, message: message}
+}
+
+func newAdSyncInternal(code float64, message string) *adSyncError {
+	return &adSyncError{kind: adSyncErrorKindInternal, code: code, message: message}
+}
+
+func getAndSyncAdConfigForPool(ctx context.Context, activeDirectoryConfigId gcpgenserver.OptNilString, accountName, region, xCorrelationID string, orchestrator orchestrator.OrchestratorFactory) (*models.ActiveDirectory, bool, *adSyncError) {
 	log := util.GetLogger(ctx)
 	ifADExistsInVCP := false
-	if req.ActiveDirectoryConfigId.Value == "" {
+	if activeDirectoryConfigId.Value == "" {
 		return nil, ifADExistsInVCP, nil
 	}
+	activeDirectoryUUID := activeDirectoryConfigId.Value
 
 	getADParams := &commonparams.GetADParams{
-		UUID:          req.ActiveDirectoryConfigId.Value,
-		AccountName:   params.AccountName,
-		LocationID:    params.Region,
-		ProjectNumber: params.AccountName,
+		UUID:          activeDirectoryUUID,
+		AccountName:   accountName,
+		LocationID:    region,
+		ProjectNumber: accountName,
 	}
 	adConfig, err := orchestrator.GetADConfig(ctx, getADParams)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
-			log.Warnf("Active Directory config with ID %s not found in VCP, trying CVP", req.ActiveDirectoryConfigId.Value)
+			log.Warnf("Active Directory config with ID %s not found in VCP, trying CVP", activeDirectoryUUID)
 
 			// Try to fetch AD from CVP if CVP_HOST is set
 			if cvp.CVP_HOST != "" && !utils.CreateCommonResourcesInVCP {
-				cvpAd, cvpErr := getActiveDirectoryFromCVP(ctx, req.ActiveDirectoryConfigId.Value, params.AccountName, params.Region, params.XCorrelationID)
+				cvpAd, cvpErr := getActiveDirectoryFromCVP(ctx, activeDirectoryUUID, accountName, region, xCorrelationID)
 				if cvpErr != nil {
 					log.Errorf("Failed to fetch Active Directory from CVP: %v", cvpErr)
-					return nil, ifADExistsInVCP, &gcpgenserver.V1betaCreatePoolBadRequest{
-						Code:    http.StatusBadRequest,
-						Message: fmt.Sprintf("Active Directory Config with ID %s not found", req.ActiveDirectoryConfigId.Value),
-					}
+					return nil, ifADExistsInVCP, newAdSyncBadRequest(http.StatusBadRequest, fmt.Sprintf("Active Directory Config with ID %s not found", activeDirectoryUUID))
 				}
 				if cvpAd != nil {
-					log.Infof("Active Directory found in CVP, syncing to VCP", "adUUID", req.ActiveDirectoryConfigId.Value)
+					log.Infof("Active Directory found in CVP, syncing to VCP, adUUID: %s", activeDirectoryUUID)
 					// Convert CVP AD to models.ActiveDirectory and return
 					adConfig = convertCVPActiveDirectoryToModel(cvpAd)
 					return adConfig, ifADExistsInVCP, nil
 				}
 			}
 
-			return nil, ifADExistsInVCP, &gcpgenserver.V1betaCreatePoolBadRequest{
-				Code:    http.StatusBadRequest,
-				Message: fmt.Sprintf("Active Directory Config with ID %s not found", req.ActiveDirectoryConfigId.Value),
-			}
+			return nil, ifADExistsInVCP, newAdSyncBadRequest(http.StatusBadRequest, fmt.Sprintf("Active Directory Config with ID %s not found", activeDirectoryUUID))
 		}
-		return nil, ifADExistsInVCP, &gcpgenserver.V1betaCreatePoolInternalServerError{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		}
+		return nil, ifADExistsInVCP, newAdSyncInternal(http.StatusInternalServerError, err.Error())
 	}
 	ifADExistsInVCP = true
 	return adConfig, ifADExistsInVCP, nil

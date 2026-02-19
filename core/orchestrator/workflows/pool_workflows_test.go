@@ -496,6 +496,7 @@ func TestCreatePoolWorkflow_ValidateImageDigestFailure(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
@@ -1253,6 +1254,8 @@ func TestCreatePoolWorkflow_CreateDeleteDataSubnetJobFailure(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	adSyncActivity := &active_directory_activities.ActiveDirectorySyncActivity{}
+	env.RegisterActivity(adSyncActivity)
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 
 	// Set up test data
@@ -1875,7 +1878,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
-	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
+		env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 		env.RegisterWorkflowWithOptions(
 			func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 				return nil
@@ -2937,16 +2940,23 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
 
 	// Setup test input data for update workflow.
 	params := &common.UpdatePoolParams{
-		AccountName:          "test-account",
-		PoolId:               "test-pool-id",
-		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024, // For example: 2 TB
-		TotalThroughputMibps: 128,
-		TotalIops:            nillable.ToPointer(int64(2048)),
-		QosType:              "Manual",
-		Description:          "Updated pool description",
+		AccountName:             "test-account",
+		PoolId:                  "test-pool-id",
+		Region:                  "test-region",
+		SizeInBytes:             2 * 1024 * 1024 * 1024 * 1024, // For example: 2 TB
+		TotalThroughputMibps:    128,
+		TotalIops:               nillable.ToPointer(int64(2048)),
+		QosType:                 "Manual",
+		Description:             "Updated pool description",
+		ActiveDirectoryConfigId: "ad-config-id",
+		ActiveDirectoryId:       "ad-config-id",
+		ActiveDirectory:         &models.ActiveDirectory{BaseModel: models.BaseModel{UUID: "ad-config-id"}},
+		IfADExistsInVCP:         true,
+		XCorrelationID:          "corr-id",
 	}
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{
@@ -3032,6 +3042,16 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 	// Mock UpdateNodesInstanceTypeActivity since instance type is changing (foo-bar -> c3-new-instance-type)
 	env.OnActivity("UpdateNodesInstanceTypeActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
+	// AD sync expectations
+	env.OnActivity("GetAuthJWTToken", mock.Anything, params.AccountName).Return("test-jwt-token", nil).Maybe()
+	env.OnActivity("PushActiveDirectoryPasswordActivity", mock.Anything, mock.Anything).Return(&active_directory_activities.PushActiveDirectoryPasswordResult{
+		Operation:  &cvpModels.OperationV1beta{Name: "op"},
+		SecretName: "secret-path",
+	}, nil).Maybe()
+	env.OnActivity("PollPushPasswordOperationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("CreateActiveDirectoryInVCPActivity", mock.Anything, mock.Anything, "secret-path").Return(&datamodel.ActiveDirectory{BaseModel: datamodel.BaseModel{ID: 11}}, nil).Maybe()
+	env.OnActivity("UpdatePoolActiveDirectoryIDActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
 	}
@@ -3068,6 +3088,7 @@ func TestUpdatePoolWorkflowNoVLM(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
 
 	// Setup test input data for update workflow.
 	params := &common.UpdatePoolParams{
@@ -3674,6 +3695,7 @@ func TestUpdatePoolWorkflowWithHydrationSuccess(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
 
 	// Setup test input data for update workflow.
 	params := &common.UpdatePoolParams{
@@ -3769,6 +3791,16 @@ func TestUpdatePoolWorkflowWithHydrationSuccess(t *testing.T) {
 	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Mock UpdateNodesInstanceTypeActivity since instance type is changing (foo-bar -> c3-new-instance-type)
 	env.OnActivity("UpdateNodesInstanceTypeActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// AD sync expectations
+	env.OnActivity("GetAuthJWTToken", mock.Anything, params.AccountName).Return("test-jwt-token", nil).Maybe()
+	env.OnActivity("PushActiveDirectoryPasswordActivity", mock.Anything, mock.Anything).Return(&active_directory_activities.PushActiveDirectoryPasswordResult{
+		Operation:  &cvpModels.OperationV1beta{Name: "op"},
+		SecretName: "secret-path",
+	}, nil).Maybe()
+	env.OnActivity("PollPushPasswordOperationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("CreateActiveDirectoryInVCPActivity", mock.Anything, mock.Anything, "secret-path").Return(&datamodel.ActiveDirectory{BaseModel: datamodel.BaseModel{ID: 11}}, nil).Maybe()
+	env.OnActivity("UpdatePoolActiveDirectoryIDActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("HydrateUpdatedPoolToCCFE", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
@@ -3784,6 +3816,268 @@ func TestUpdatePoolWorkflowWithHydrationSuccess(t *testing.T) {
 	}
 
 	// Assert the workflow has completed successfully.
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func TestUpdatePoolWorkflow_WithActiveDirectorySync_NilActiveDirectory(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	originalVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	defer func() {
+		GetNewVSAClientWorkflowManager = originalVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+
+	params := &common.UpdatePoolParams{
+		AccountName:               "test-account",
+		PoolId:                    "test-pool-id",
+		SizeInBytes:               2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps:      128,
+		TotalIops:                 nillable.ToPointer(int64(2048)),
+		QosType:                   "Manual",
+		Description:               "Updated pool description",
+		HotTierSizeInBytes:        1024 * 1024 * 1024 * 1024,
+		AutoResizeTriggeredUpdate: true,
+		ActiveDirectoryConfigId:   "ad-config-id",
+		ActiveDirectoryId:         "",
+		IfADExistsInVCP:           false,
+		LargeCapacity:             nillable.ToPointer(true),
+		XCorrelationID:            "corr-id",
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-id-foobar-rchilaka",
+		},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
+		},
+		SizeInBytes: 456,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:     "test-primary-zone",
+			SecondaryZone:   "test-secondary-zone",
+			Iops:            10,
+			ThroughputMibps: 6,
+		},
+		KmsConfig: &datamodel.KmsConfig{
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountEmail: "test-sa-email",
+			},
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			BucketName: "test-auto-tier-bucket",
+		},
+		VLMConfig: "{\"deployment\": {\"vsa_instance_type\": \"foo-bar\"}}",
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			NumHAPair:       1,
+			VSAInstanceType: "c3-new-instance-type",
+			SPConfig: vlm.SPConfig{
+				IOps:       2048,
+				Throughput: 128,
+				Size:       "1TiB",
+			},
+		},
+	}, nil)
+	env.OnActivity("ValidateZonesForMachineTypes", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(&vlm.UpdateVSAClusterDeploymentResponse{}, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-node-1",
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 2},
+			Name:      "test-node-2",
+		},
+	}, nil)
+	env.OnActivity("ModifyQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnActivity("DetermineVMScalingDirection", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("UpdateNodesInstanceTypeActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("HydrateUpdatedPoolToCCFE", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	// The workflow should fail before attempting AD sync because ActiveDirectory is nil.
+	env.AssertNotCalled(t, "PushActiveDirectoryPasswordActivity", mock.Anything, mock.Anything)
+	env.AssertNotCalled(t, "CreateActiveDirectoryInVCPActivity", mock.Anything, mock.Anything, mock.Anything)
+	env.AssertNotCalled(t, "UpdatePoolActiveDirectoryIDActivity", mock.Anything, mock.Anything, mock.Anything)
+	env.AssertExpectations(t)
+}
+
+func TestUpdatePoolWorkflow_WithActiveDirectorySync_SucceedsWhenMissingInVCP(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	originalVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	defer func() {
+		GetNewVSAClientWorkflowManager = originalVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+
+	params := &common.UpdatePoolParams{
+		AccountName:               "test-account",
+		PoolId:                    "test-pool-id",
+		SizeInBytes:               2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps:      128,
+		TotalIops:                 nillable.ToPointer(int64(2048)),
+		QosType:                   "Manual",
+		Description:               "Updated pool description",
+		HotTierSizeInBytes:        1024 * 1024 * 1024 * 1024,
+		AutoResizeTriggeredUpdate: true,
+		ActiveDirectoryConfigId:   "ad-config-id",
+		ActiveDirectoryId:         "ad-config-id",
+		ActiveDirectory: &models.ActiveDirectory{
+			BaseModel: models.BaseModel{UUID: "ad-config-id"},
+			AdName:    "ad-name",
+		},
+		IfADExistsInVCP: false,
+		LargeCapacity:   nillable.ToPointer(true),
+		XCorrelationID:  "corr-id",
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-id-foobar-rchilaka",
+		},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		BuildInfo: &datamodel.PoolBuildInfo{
+			OntapVersion: "9.18.1",
+		},
+		SizeInBytes: 456,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:     "test-primary-zone",
+			SecondaryZone:   "test-secondary-zone",
+			Iops:            10,
+			ThroughputMibps: 6,
+		},
+		KmsConfig: &datamodel.KmsConfig{
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountEmail: "test-sa-email",
+			},
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			BucketName: "test-auto-tier-bucket",
+		},
+		VLMConfig: "{\"deployment\": {\"vsa_instance_type\": \"foo-bar\"}}",
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			NumHAPair:       1,
+			VSAInstanceType: "c3-new-instance-type",
+			SPConfig: vlm.SPConfig{
+				IOps:       2048,
+				Throughput: 128,
+				Size:       "1TiB",
+			},
+		},
+	}, nil)
+	env.OnActivity("ValidateZonesForMachineTypes", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(&vlm.UpdateVSAClusterDeploymentResponse{}, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-node-1",
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 2},
+			Name:      "test-node-2",
+		},
+	}, nil)
+	env.OnActivity("ModifyQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DetermineVMScalingDirection", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("UpdateNodesInstanceTypeActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("HydrateUpdatedPoolToCCFE", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.OnActivity("GetAuthJWTToken", mock.Anything, params.AccountName).Return("test-jwt-token", nil).Maybe()
+	env.OnActivity("PushActiveDirectoryPasswordActivity", mock.Anything, mock.Anything).Return(&active_directory_activities.PushActiveDirectoryPasswordResult{
+		Operation:  &cvpModels.OperationV1beta{Name: "op"},
+		SecretName: "secret-path",
+	}, nil).Maybe()
+	env.OnActivity("PollPushPasswordOperationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("CreateActiveDirectoryInVCPActivity", mock.Anything, mock.Anything, "secret-path").Return(&datamodel.ActiveDirectory{BaseModel: datamodel.BaseModel{ID: 11}}, nil).Maybe()
+	env.OnActivity("UpdatePoolActiveDirectoryIDActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
@@ -4610,7 +4904,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
-	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
+		env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 		poolEmpty := &datamodel.Pool{
@@ -4688,7 +4982,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
-	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
+		env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 
 		poolNonEmpty := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 123},
@@ -4768,7 +5062,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
-	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
+		env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 
 		poolNilBuildInfo := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 123},
@@ -4844,7 +5138,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 		env.RegisterWorkflow(DataSubnetSequentialPoller)
 		env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
-	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
+		env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 
 		// Pool with BuildInfo.OntapVersion that extracts to empty string (e.g., invalid format)
 		// and has DeploymentName set to trigger the VSA cleanup path
@@ -5317,7 +5611,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
 		env.RegisterWorkflow(RegisterNodeToHarvestFarmWorkflow)
 		env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
-	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
+		env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PSCActivity{SE: mockStorage})
@@ -11314,7 +11608,7 @@ func TestServiceAccountBackwardCompatibility(t *testing.T) {
 			env.RegisterWorkflow(DataSubnetSequentialPoller)
 			env.RegisterWorkflow(UnRegisterNodeFromHarvestFarmWorkflow)
 			env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
-	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
+			env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
 			env.RegisterActivity(&activities.PoolActivity{})
 			env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 

@@ -670,7 +670,16 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 	// Sync Active Directory from CVP to VCP if AD exists in CVP but not in VCP
 	if params.ActiveDirectoryId != "" && !params.ADExistsInVCP {
-		err = syncActiveDirectoryInVcp(ctx, params, dbPool)
+		adSyncParams := adSyncInput{
+			ActiveDirectoryID: params.ActiveDirectoryId,
+			AccountName:       params.AccountName,
+			Region:            params.Region,
+			XCorrelationID:    params.XCorrelationID,
+			ActiveDirectory:   params.ActiveDirectory,
+			LargeCapacity:     params.LargeCapacity,
+		}
+
+		err = syncActiveDirectoryInVcp(ctx, adSyncParams, dbPool)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -1080,6 +1089,27 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			wf.Logger.Errorf("Failed to hydrate pool to CCFE as part of auto-tiering hot tier auto-resize, error: %v", err)
 			// TODO: Add error handling for hydration failure when auto-tiering feature integration is complete
 			// return nil, ConvertToVSAError(err)
+		}
+	}
+
+	if updatePoolParams.ActiveDirectoryConfigId != "" && !updatePoolParams.IfADExistsInVCP {
+		adLargeCapacity := false
+		if updatePoolParams.LargeCapacity != nil {
+			adLargeCapacity = *updatePoolParams.LargeCapacity
+		}
+		adSyncParams := adSyncInput{
+			ActiveDirectoryID: updatePoolParams.ActiveDirectoryConfigId,
+			AccountName:       updatePoolParams.AccountName,
+			Region:            updatePoolParams.Region,
+			XCorrelationID:    updatePoolParams.XCorrelationID,
+			ActiveDirectory:   updatePoolParams.ActiveDirectory,
+			LargeCapacity:     adLargeCapacity,
+		}
+		if adSyncParams.ActiveDirectory == nil {
+			return nil, ConvertToVSAError(vsaerrors.New("ActiveDirectory is nil, cannot sync"))
+		}
+		if err = syncActiveDirectoryInVcp(ctx, adSyncParams, dbPool); err != nil {
+			return nil, ConvertToVSAError(err)
 		}
 	}
 
@@ -2473,16 +2503,25 @@ func getPoolAttributesAccountName(poolAttributes *datamodel.PoolAttributes) stri
 	return poolAttributes.AccountName
 }
 
-// syncActiveDirectoryInVcp syncs Active Directory from CVP to VCP when AD exists in CVP but not in VCP
-func syncActiveDirectoryInVcp(ctx workflow.Context, params *common.CreatePoolParams, pool *datamodel.Pool) error {
-	logger := util.GetLogger(ctx)
-	logger.Infof("Syncing Active Directory from CVP to VCP for pool: %s, AD ID: %s", pool.Name, params.ActiveDirectoryId)
+type adSyncInput struct {
+	ActiveDirectoryID string
+	AccountName       string
+	Region            string
+	XCorrelationID    string
+	ActiveDirectory   *models.ActiveDirectory
+	LargeCapacity     bool
+}
 
-	if params.ActiveDirectory == nil {
+// syncActiveDirectoryInVcp syncs Active Directory from CVP to VCP when AD exists in CVP but not in VCP
+func syncActiveDirectoryInVcp(ctx workflow.Context, input adSyncInput, pool *datamodel.Pool) error {
+	logger := util.GetLogger(ctx)
+	logger.Infof("Syncing Active Directory from CVP to VCP for pool: %s, AD ID: %s", pool.Name, input.ActiveDirectoryID)
+
+	if input.ActiveDirectory == nil {
 		return vsaerrors.New("ActiveDirectory is nil, cannot sync")
 	}
 
-	retryPolicy, err := PopulateRetryPolicyParams(params.LargeCapacity)
+	retryPolicy, err := PopulateRetryPolicyParams(input.LargeCapacity)
 	if err != nil {
 		return ConvertToVSAError(err)
 	}
@@ -2499,7 +2538,7 @@ func syncActiveDirectoryInVcp(ctx workflow.Context, params *common.CreatePoolPar
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
-	ctx, err = FetchAndSetAuthToken(ctx, params.AccountName, logger)
+	ctx, err = FetchAndSetAuthToken(ctx, input.AccountName, logger)
 	if err != nil {
 		return ConvertToVSAError(err)
 	}
@@ -2508,12 +2547,12 @@ func syncActiveDirectoryInVcp(ctx workflow.Context, params *common.CreatePoolPar
 
 	// Prepare sync parameters
 	syncParams := &active_directory_activities.SyncActiveDirectoryParams{
-		ActiveDirectoryID: params.ActiveDirectoryId,
-		AccountName:       params.AccountName,
-		LocationID:        params.Region,
-		XCorrelationID:    params.XCorrelationID,
+		ActiveDirectoryID: input.ActiveDirectoryID,
+		AccountName:       input.AccountName,
+		LocationID:        input.Region,
+		XCorrelationID:    input.XCorrelationID,
 		PoolUUID:          pool.UUID,
-		ActiveDirectory:   params.ActiveDirectory,
+		ActiveDirectory:   input.ActiveDirectory,
 	}
 
 	// Step 1: Call CVP API V1betaPushActiveDirectoryPassword
