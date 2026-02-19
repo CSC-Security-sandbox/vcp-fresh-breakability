@@ -138,6 +138,14 @@ func (wf *flexCacheVolumeDeleteWorkflow) Run(ctx workflow.Context, args ...inter
 		}
 	}()
 
+	// Cancel any active prepopulate jobs for this volume to prevent orphaned jobs
+	if cancelErr := workflow.ExecuteActivity(ctx, fcDeleteActivity.CancelPrepopulateJobsForVolume, dbVolume.UUID).Get(ctx, nil); cancelErr != nil {
+		log.Warnf("Failed to cancel prepopulate jobs for volume %s: %v, continuing with delete", dbVolume.UUID, cancelErr)
+		// Don't fail delete if cleanup fails - prepopulate is best-effort
+	} else {
+		log.Infof("Successfully cancelled prepopulate jobs for volume %s", dbVolume.UUID)
+	}
+
 	var dbNodes []*datamodel.Node
 	if err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbVolume.Pool.ID).Get(ctx, &dbNodes); err != nil {
 		return nil, workflows.ConvertToVSAError(err)

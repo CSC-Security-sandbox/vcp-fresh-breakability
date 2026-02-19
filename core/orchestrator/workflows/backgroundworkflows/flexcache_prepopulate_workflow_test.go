@@ -582,3 +582,160 @@ func TestSyncFlexCachePrepopulateWorkflow_Success_LimitsToMaxJobs(t *testing.T) 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
 }
+
+func TestSyncFlexCachePrepopulateWorkflow_OrphanedJob_MarkSuccess(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	activity := &backgroundactivities.FlexCachePrepopulateActivity{}
+	env.RegisterActivity(activity)
+
+	jobUUID := "job-uuid-1"
+	resourceName := "test-volume-1"
+	ontapJobUUID := "ontap-job-uuid-1"
+
+	jobs := []*datamodel.Job{
+		{
+			BaseModel:    datamodel.BaseModel{UUID: jobUUID},
+			ResourceName: resourceName,
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: ontapJobUUID,
+			},
+		},
+	}
+
+	// Activity returns (nil, nil) for not-found volume → triggers orphan detection
+	env.OnActivity(activity.GetActivePrepopulateJobs, mock.Anything).Return(jobs, nil)
+	env.OnActivity(activity.GetVolumeByResourceName, mock.Anything, resourceName).Return(nil, nil)
+	env.OnActivity(activity.MarkOrphanedPrepopulateJob, mock.Anything, jobUUID, resourceName).Return(nil)
+
+	env.ExecuteWorkflow(SyncFlexCachePrepopulateWorkflow)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestSyncFlexCachePrepopulateWorkflow_OrphanedJob_MarkFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	activity := &backgroundactivities.FlexCachePrepopulateActivity{}
+	env.RegisterActivity(activity)
+
+	jobUUID := "job-uuid-1"
+	resourceName := "test-volume-1"
+	ontapJobUUID := "ontap-job-uuid-1"
+
+	jobs := []*datamodel.Job{
+		{
+			BaseModel:    datamodel.BaseModel{UUID: jobUUID},
+			ResourceName: resourceName,
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: ontapJobUUID,
+			},
+		},
+	}
+
+	// Volume not found (orphan) — activity returns (nil, nil), but marking also fails
+	env.OnActivity(activity.GetActivePrepopulateJobs, mock.Anything).Return(jobs, nil)
+	env.OnActivity(activity.GetVolumeByResourceName, mock.Anything, resourceName).Return(nil, nil)
+	env.OnActivity(activity.MarkOrphanedPrepopulateJob, mock.Anything, jobUUID, resourceName).Return(errors.New("database error"))
+
+	env.ExecuteWorkflow(SyncFlexCachePrepopulateWorkflow)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	// Workflow should continue despite marking failure
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestSyncFlexCachePrepopulateWorkflow_OrphanedJob_ContinuesWithOtherJobs(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	activity := &backgroundactivities.FlexCachePrepopulateActivity{}
+	env.RegisterActivity(activity)
+
+	jobUUID1 := "job-uuid-1"
+	jobUUID2 := "job-uuid-2"
+	volumeUUID2 := "volume-uuid-2"
+	resourceName1 := "deleted-volume"
+	resourceName2 := "existing-volume"
+	ontapJobUUID1 := "ontap-job-uuid-1"
+	ontapJobUUID2 := "ontap-job-uuid-2"
+
+	jobs := []*datamodel.Job{
+		{
+			BaseModel:    datamodel.BaseModel{UUID: jobUUID1},
+			ResourceName: resourceName1,
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: ontapJobUUID1,
+			},
+		},
+		{
+			BaseModel:    datamodel.BaseModel{UUID: jobUUID2},
+			ResourceName: resourceName2,
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: ontapJobUUID2,
+			},
+		},
+	}
+
+	volume2 := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID2},
+		Name:      resourceName2,
+	}
+
+	jobStatus2 := &common.PrepopulateJobStatus{
+		JobUUID: ontapJobUUID2,
+		State:   "success",
+	}
+
+	env.OnActivity(activity.GetActivePrepopulateJobs, mock.Anything).Return(jobs, nil)
+
+	// Job 1: orphaned (volume deleted) - activity returns (nil, nil) for not-found
+	env.OnActivity(activity.GetVolumeByResourceName, mock.Anything, resourceName1).Return(nil, nil)
+	env.OnActivity(activity.MarkOrphanedPrepopulateJob, mock.Anything, jobUUID1, resourceName1).Return(nil)
+
+	// Job 2: normal flow, completes successfully
+	env.OnActivity(activity.GetVolumeByResourceName, mock.Anything, resourceName2).Return(volume2, nil)
+	env.OnActivity(activity.PollPrepopulateJobStatus, mock.Anything, volume2, jobs[1]).Return(jobStatus2, nil)
+	env.OnActivity(activity.UpdateJobAndVolumeStatus, mock.Anything, jobUUID2, volumeUUID2, jobStatus2).Return(nil)
+
+	env.ExecuteWorkflow(SyncFlexCachePrepopulateWorkflow)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestSyncFlexCachePrepopulateWorkflow_GetVolumeFails_NonNotFoundError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	activity := &backgroundactivities.FlexCachePrepopulateActivity{}
+	env.RegisterActivity(activity)
+
+	jobUUID := "job-uuid-1"
+	resourceName := "test-volume-1"
+	ontapJobUUID := "ontap-job-uuid-1"
+
+	jobs := []*datamodel.Job{
+		{
+			BaseModel:    datamodel.BaseModel{UUID: jobUUID},
+			ResourceName: resourceName,
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: ontapJobUUID,
+			},
+		},
+	}
+
+	// Non-NotFound error (e.g. database error) — should NOT trigger orphan marking
+	env.OnActivity(activity.GetActivePrepopulateJobs, mock.Anything).Return(jobs, nil)
+	env.OnActivity(activity.GetVolumeByResourceName, mock.Anything, resourceName).Return(nil, errors.New("database connection error"))
+	// MarkOrphanedPrepopulateJob should NOT be called
+
+	env.ExecuteWorkflow(SyncFlexCachePrepopulateWorkflow)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	// Workflow should continue despite individual job errors
+	assert.NoError(t, env.GetWorkflowError())
+}

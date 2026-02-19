@@ -34,7 +34,7 @@ func (a *FlexCachePrepopulateActivity) GetActivePrepopulateJobs(ctx context.Cont
 	return jobs, nil
 }
 
-// GetVolumeByResourceName retrieves a volume by its UUID stored in job.ResourceName
+// GetVolumeByResourceName retrieves a volume by its UUID stored in job.ResourceName.
 func (a *FlexCachePrepopulateActivity) GetVolumeByResourceName(
 	ctx context.Context,
 	volumeUUID string,
@@ -43,6 +43,13 @@ func (a *FlexCachePrepopulateActivity) GetVolumeByResourceName(
 
 	volume, err := a.SE.GetVolume(ctx, volumeUUID)
 	if err != nil {
+		// Volume not found is expected when the volume was deleted.
+		// Return (nil, nil) so the workflow can handle it with a simple nil check
+		// instead of trying to detect error types across the Temporal boundary.
+		if errors.IsNotFoundErr(err) {
+			logger.Warnf("Volume %s not found (likely deleted)", volumeUUID)
+			return nil, nil
+		}
 		logger.Errorf("Failed to get volume %s: %v", volumeUUID, err)
 		return nil, fmt.Errorf("failed to get volume: %w", err)
 	}
@@ -178,5 +185,26 @@ func (a *FlexCachePrepopulateActivity) UpdateJobAndVolumeStatus(
 		return fmt.Errorf("failed to update job: %w", err)
 	}
 
+	return nil
+}
+
+// MarkOrphanedPrepopulateJob marks a prepopulate job as ERROR when the associated volume is not found
+// This handles the case where a volume was deleted but the prepopulate job remains in NEW state
+func (a *FlexCachePrepopulateActivity) MarkOrphanedPrepopulateJob(
+	ctx context.Context,
+	jobUUID string,
+	volumeUUID string,
+) error {
+	logger := util.GetLogger(ctx)
+	logger.Infof("Marking prepopulate job %s as orphaned (volume %s not found)", jobUUID, volumeUUID)
+
+	errorDetails := fmt.Sprintf("Volume %s was deleted, prepopulate job cannot complete", volumeUUID)
+	err := a.SE.UpdateJob(ctx, jobUUID, string(models.JobsStateERROR), 0, errorDetails)
+	if err != nil {
+		logger.Errorf("Failed to mark orphaned job %s: %v", jobUUID, err)
+		return fmt.Errorf("failed to mark orphaned job: %w", err)
+	}
+
+	logger.Infof("Successfully marked prepopulate job %s as orphaned", jobUUID)
 	return nil
 }

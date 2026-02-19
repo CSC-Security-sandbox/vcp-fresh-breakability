@@ -7542,3 +7542,68 @@ func TestDeleteVolumePerformanceGroup_PersistenceStore(t *testing.T) {
 		assert.Contains(tt, err.Error(), "not found", "Error should indicate VPG was not found")
 	})
 }
+
+func TestCancelPrepopulateJobsForVolume_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	volumeUUID := "vol-prepop-cancel-uuid"
+
+	// Create prepopulate jobs in various states for this volume
+	newJob := &datamodel.Job{
+		ResourceName: volumeUUID,
+		Type:         string(models.JobTypeFlexCachePrePopulate),
+		State:        string(models.JobsStateNEW),
+	}
+	processingJob := &datamodel.Job{
+		ResourceName: volumeUUID,
+		Type:         string(models.JobTypeFlexCachePrePopulate),
+		State:        string(models.JobsStatePROCESSING),
+	}
+	doneJob := &datamodel.Job{
+		ResourceName: volumeUUID,
+		Type:         string(models.JobTypeFlexCachePrePopulate),
+		State:        string(models.JobsStateDONE),
+	}
+
+	createdNew, err := store.CreateJob(ctx, newJob)
+	assert.NoError(t, err)
+	createdProcessing, err := store.CreateJob(ctx, processingJob)
+	assert.NoError(t, err)
+	createdDone, err := store.CreateJob(ctx, doneJob)
+	assert.NoError(t, err)
+
+	// Cancel active prepopulate jobs for the volume
+	err = store.CancelPrepopulateJobsForVolume(ctx, volumeUUID)
+	assert.NoError(t, err)
+
+	// Verify NEW job was cancelled (moved to ERROR)
+	found, err := store.GetJob(ctx, createdNew.UUID)
+	assert.NoError(t, err)
+	assert.Equal(t, string(models.JobsStateERROR), found.State)
+	assert.Contains(t, found.ErrorDetails, volumeUUID)
+
+	// Verify PROCESSING job was cancelled (moved to ERROR)
+	found, err = store.GetJob(ctx, createdProcessing.UUID)
+	assert.NoError(t, err)
+	assert.Equal(t, string(models.JobsStateERROR), found.State)
+	assert.Contains(t, found.ErrorDetails, volumeUUID)
+
+	// Verify DONE job was NOT affected
+	found, err = store.GetJob(ctx, createdDone.UUID)
+	assert.NoError(t, err)
+	assert.Equal(t, string(models.JobsStateDONE), found.State)
+}
+
+func TestCancelPrepopulateJobsForVolume_NoActiveJobs_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Call with a volume that has no jobs at all — should succeed (no-op)
+	err := store.CancelPrepopulateJobsForVolume(ctx, "non-existent-volume-uuid")
+	assert.NoError(t, err)
+}

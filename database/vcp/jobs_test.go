@@ -898,6 +898,170 @@ func TestCheckAndFetchDuplicateJobs(t *testing.T) {
 	})
 }
 
+func TestCancelPrepopulateJobsForVolume(t *testing.T) {
+	t.Run("WhenActiveJobsExist_CancelsOnlyMatchingJobs", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		volumeUUID := "test-volume-uuid"
+
+		// NEW prepopulate job for target volume - should be cancelled
+		job1 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "job-1-uuid"},
+			ResourceName: volumeUUID,
+			State:        string(models.JobsStateNEW),
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+		}
+		// PROCESSING prepopulate job for target volume - should be cancelled
+		job2 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{ID: 2, UUID: "job-2-uuid"},
+			ResourceName: volumeUUID,
+			State:        string(models.JobsStatePROCESSING),
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+		}
+		// DONE prepopulate job for target volume - should NOT be changed
+		job3 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{ID: 3, UUID: "job-3-uuid"},
+			ResourceName: volumeUUID,
+			State:        string(models.JobsStateDONE),
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+		}
+		// NEW prepopulate job for different volume - should NOT be changed
+		job4 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{ID: 4, UUID: "job-4-uuid"},
+			ResourceName: "other-volume-uuid",
+			State:        string(models.JobsStateNEW),
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+		}
+		// NEW job of different type for target volume - should NOT be changed
+		job5 := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{ID: 5, UUID: "job-5-uuid"},
+			ResourceName: volumeUUID,
+			State:        string(models.JobsStateNEW),
+			Type:         string(models.JobTypeCreatePool),
+		}
+
+		_, err = store.CreateJob(context.Background(), job1)
+		assert.NoError(tt, err)
+		_, err = store.CreateJob(context.Background(), job2)
+		assert.NoError(tt, err)
+		_, err = store.CreateJob(context.Background(), job3)
+		assert.NoError(tt, err)
+		_, err = store.CreateJob(context.Background(), job4)
+		assert.NoError(tt, err)
+		_, err = store.CreateJob(context.Background(), job5)
+		assert.NoError(tt, err)
+
+		err = store.CancelPrepopulateJobsForVolume(context.Background(), volumeUUID)
+		assert.NoError(tt, err)
+
+		expectedErrorDetails := "Volume test-volume-uuid was deleted, prepopulate job cannot complete"
+
+		// job1 (NEW prepopulate, target volume) → ERROR
+		updated1, err := store.GetJob(context.Background(), job1.UUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, string(models.JobsStateERROR), updated1.State)
+		assert.Equal(tt, expectedErrorDetails, updated1.ErrorDetails)
+
+		// job2 (PROCESSING prepopulate, target volume) → ERROR
+		updated2, err := store.GetJob(context.Background(), job2.UUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, string(models.JobsStateERROR), updated2.State)
+		assert.Equal(tt, expectedErrorDetails, updated2.ErrorDetails)
+
+		// job3 (DONE prepopulate, target volume) → unchanged
+		updated3, err := store.GetJob(context.Background(), job3.UUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, string(models.JobsStateDONE), updated3.State)
+
+		// job4 (NEW prepopulate, different volume) → unchanged
+		updated4, err := store.GetJob(context.Background(), job4.UUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, string(models.JobsStateNEW), updated4.State)
+
+		// job5 (NEW different type, target volume) → unchanged
+		updated5, err := store.GetJob(context.Background(), job5.UUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, string(models.JobsStateNEW), updated5.State)
+	})
+
+	t.Run("WhenNoActiveJobsExist_NoError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// No jobs in DB at all
+		err = store.CancelPrepopulateJobsForVolume(context.Background(), "non-existent-volume")
+		assert.NoError(tt, err, "Expected no error when no jobs match")
+	})
+
+	t.Run("WhenOnlyNonActiveJobsExist_NoneChanged", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		volumeUUID := "test-volume-uuid"
+
+		// DONE and ERROR jobs should not be affected
+		doneJob := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "done-job-uuid"},
+			ResourceName: volumeUUID,
+			State:        string(models.JobsStateDONE),
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+		}
+		errorJob := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{ID: 2, UUID: "error-job-uuid"},
+			ResourceName: volumeUUID,
+			State:        string(models.JobsStateERROR),
+			Type:         string(models.JobTypeFlexCachePrePopulate),
+		}
+
+		_, err = store.CreateJob(context.Background(), doneJob)
+		assert.NoError(tt, err)
+		_, err = store.CreateJob(context.Background(), errorJob)
+		assert.NoError(tt, err)
+
+		err = store.CancelPrepopulateJobsForVolume(context.Background(), volumeUUID)
+		assert.NoError(tt, err)
+
+		// Verify neither was changed
+		updatedDone, err := store.GetJob(context.Background(), doneJob.UUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, string(models.JobsStateDONE), updatedDone.State)
+
+		updatedError, err := store.GetJob(context.Background(), errorJob.UUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, string(models.JobsStateERROR), updatedError.State)
+	})
+
+	t.Run("WhenDBIsClosed_ReturnsError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		sqlDB, _ := db.DB()
+		err = sqlDB.Close()
+		assert.NoError(tt, err, "Failed to close test database")
+
+		err = store.CancelPrepopulateJobsForVolume(context.Background(), "test-volume-uuid")
+		assert.Error(tt, err, "Expected an error due to closed DB")
+	})
+}
+
 func TestCancelRunningJobsForResource(t *testing.T) {
 	t.Run("WhenRunningJobsExistForResource", func(tt *testing.T) {
 		db, err := SetupTestDB()

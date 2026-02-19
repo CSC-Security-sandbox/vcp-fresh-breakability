@@ -118,10 +118,26 @@ func (wf *syncFlexCachePrepopulateWorkflow) Run(ctx workflow.Context, args ...in
 		workflowErr = workflow.ExecuteActivity(ctx, flexCacheActivity.GetVolumeByResourceName,
 			job.ResourceName).Get(ctx, &volume)
 		if workflowErr != nil {
+			// Real error (database error, etc.) - log and continue
 			wf.Logger.Errorf("Failed to get volume %s for job %s: %v",
 				job.ResourceName, job.UUID, workflowErr)
 			failureCount++
 			failedJobs = append(failedJobs, job.UUID)
+			continue
+		}
+
+		// Volume not found (deleted) - the activity returns (nil, nil) for NotFound.
+		// Mark the prepopulate job as orphaned so it stops being retried.
+		if volume == nil {
+			wf.Logger.Warnf("Volume %s not found for prepopulate job %s, marking as orphaned",
+				job.ResourceName, job.UUID)
+			workflowErr = workflow.ExecuteActivity(ctx, flexCacheActivity.MarkOrphanedPrepopulateJob,
+				job.UUID, job.ResourceName).Get(ctx, nil)
+			if workflowErr != nil {
+				wf.Logger.Errorf("Failed to mark orphaned job %s: %v", job.UUID, workflowErr)
+				failureCount++
+				failedJobs = append(failedJobs, job.UUID)
+			}
 			continue
 		}
 

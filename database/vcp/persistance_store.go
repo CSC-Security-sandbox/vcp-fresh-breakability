@@ -1557,6 +1557,10 @@ func (s *PersistenceStore) GetActivePrepopulateJobs(ctx context.Context) ([]*dat
 	return s.dataStore.GetActivePrepopulateJobs(ctx)
 }
 
+func (s *PersistenceStore) CancelPrepopulateJobsForVolume(ctx context.Context, volumeUUID string) error {
+	return s.dataStore.CancelPrepopulateJobsForVolume(ctx, volumeUUID)
+}
+
 func (s *PersistenceStore) CreatingQuotaRule(ctx context.Context, quotaRule *datamodel.QuotaRule) (*datamodel.QuotaRule, error) {
 	return s.dataStore.CreatingQuotaRule(ctx, quotaRule)
 }

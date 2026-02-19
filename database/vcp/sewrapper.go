@@ -1606,6 +1606,21 @@ func (re *retryEngine) GetActivePrepopulateJobs(ctx context.Context) ([]*datamod
 	return var0, err
 }
 
+func (re *retryEngine) CancelPrepopulateJobsForVolume(ctx context.Context, volumeUUID string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.CancelPrepopulateJobsForVolume(ctx, volumeUUID)
+		if err != nil {
+			re.logError("CancelPrepopulateJobsForVolume", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
 func (re *retryEngine) GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error) {
 	var var0 *datamodel.Svm
 	err := retry.Do(func(attempt int) (bool, error) {

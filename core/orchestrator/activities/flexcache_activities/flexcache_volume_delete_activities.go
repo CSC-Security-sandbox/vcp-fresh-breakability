@@ -199,3 +199,21 @@ func (a FlexCacheVolumeDeleteActivity) UpdateClusterPeeringRowStateDeletedInDBAc
 	logger.Infof("Cluster peering row with UUID %s updated to state %s", clusterPeeringRow.UUID, clusterPeeringRow.State)
 	return result, nil
 }
+
+// CancelPrepopulateJobsForVolume cancels all active prepopulate jobs for a volume.
+// This is called during volume deletion to prevent orphaned prepopulate jobs.
+// Active jobs (NEW/PROCESSING) are moved to ERROR state, which effectively cancels them
+// since jobs in a terminal state (DONE/ERROR) are no longer processed by the background sync workflow.
+func (a FlexCacheVolumeDeleteActivity) CancelPrepopulateJobsForVolume(ctx context.Context, volumeUUID string) error {
+	logger := utilGetLogger(ctx)
+	logger.Infof("Cancelling prepopulate jobs for volume %s", volumeUUID)
+
+	err := a.SE.CancelPrepopulateJobsForVolume(ctx, volumeUUID)
+	if err != nil {
+		logger.Errorf("Failed to cancel prepopulate jobs for volume %s: %v", volumeUUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Successfully cancelled prepopulate jobs for volume %s", volumeUUID)
+	return nil
+}

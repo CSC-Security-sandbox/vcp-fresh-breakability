@@ -847,3 +847,58 @@ func TestFlexCacheVolumeDeleteActivity_GetClusterPeeringFromDBActivity(t *testin
 		mockStorage.AssertExpectations(tt)
 	})
 }
+
+func TestFlexCacheVolumeDeleteActivity_CancelPrepopulateJobsForVolume(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Success", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockStorage := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		volumeUUID := "volume-uuid-123"
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		logger.EXPECT().Infof("Cancelling prepopulate jobs for volume %s", volumeUUID)
+		mockStorage.EXPECT().CancelPrepopulateJobsForVolume(ctx, volumeUUID).Return(nil).Once()
+		logger.EXPECT().Infof("Successfully cancelled prepopulate jobs for volume %s", volumeUUID)
+
+		err := activity.CancelPrepopulateJobsForVolume(ctx, volumeUUID)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCancelFails", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockStorage := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		volumeUUID := "volume-uuid-456"
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		logger.EXPECT().Infof("Cancelling prepopulate jobs for volume %s", volumeUUID)
+		mockStorage.EXPECT().CancelPrepopulateJobsForVolume(ctx, volumeUUID).Return(assert.AnError).Once()
+		logger.EXPECT().Errorf("Failed to cancel prepopulate jobs for volume %s: %v", volumeUUID, assert.AnError)
+
+		err := activity.CancelPrepopulateJobsForVolume(ctx, volumeUUID)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WithEmptyVolumeUUID", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		logger := log.NewMockLogger(tt)
+		mockStorage := database.NewMockStorage(tt)
+		activity := &FlexCacheVolumeDeleteActivity{SE: mockStorage}
+		volumeUUID := ""
+
+		mm.EXPECT().utilGetLogger(ctx).Return(logger)
+		logger.EXPECT().Infof("Cancelling prepopulate jobs for volume %s", volumeUUID)
+		mockStorage.EXPECT().CancelPrepopulateJobsForVolume(ctx, volumeUUID).Return(nil).Once()
+		logger.EXPECT().Infof("Successfully cancelled prepopulate jobs for volume %s", volumeUUID)
+
+		err := activity.CancelPrepopulateJobsForVolume(ctx, volumeUUID)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}

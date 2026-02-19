@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -205,6 +206,29 @@ func (d *DataStoreRepository) CancelRunningJobsForResource(ctx context.Context, 
 	err := db.Model(&datamodel.Job{}).
 		Where("job_attributes ->> 'resource_uuid' = ? AND state = ?", resourceUUID, models.JobsStatePROCESSING).
 		Update("state", string(models.JobsStateCANCELLED)).Error
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+	return nil
+}
+
+// CancelPrepopulateJobsForVolume cancels all active prepopulate jobs for a given volume UUID
+// This is called when a volume is deleted to prevent orphaned prepopulate jobs
+func (d *DataStoreRepository) CancelPrepopulateJobsForVolume(ctx context.Context, volumeUUID string) error {
+	db := d.db.GORM().WithContext(ctx)
+	errorDetails := fmt.Sprintf("Volume %s was deleted, prepopulate job cannot complete", volumeUUID)
+
+	// Update all active prepopulate jobs for this volume to ERROR state
+	err := db.Model(&datamodel.Job{}).
+		Where("type = ? AND resource_name = ? AND state IN ?",
+			models.JobTypeFlexCachePrePopulate,
+			volumeUUID,
+			[]string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}).
+		Updates(map[string]interface{}{
+			"state":         string(models.JobsStateERROR),
+			"error_details": errorDetails,
+		}).Error
+
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}

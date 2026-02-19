@@ -15,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	errorsutil "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -119,14 +120,15 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestGetVolumeByResourceName_Succ
 
 func (s *FlexCachePrepopulateActivityTestSuite) TestGetVolumeByResourceName_VolumeNotFound() {
 	volumeUUID := "non-existent-uuid"
-	expectedError := errors.New("volume not found")
-	s.mockStorage.On("GetVolume", s.ctx, volumeUUID).Return(nil, expectedError)
+	// Simulate the real DB layer returning a NotFoundErr (via VCPError wrapping)
+	notFoundErr := errorsutil.NewNotFoundErr("volume", nil)
+	s.mockStorage.On("GetVolume", s.ctx, volumeUUID).Return(nil, notFoundErr)
 
 	result, err := s.activity.GetVolumeByResourceName(s.ctx, volumeUUID)
 
-	assert.Error(s.T(), err)
+	// Activity should return (nil, nil) for volume not found — no error crosses Temporal boundary
+	assert.NoError(s.T(), err)
 	assert.Nil(s.T(), result)
-	assert.Contains(s.T(), err.Error(), "failed to get volume")
 }
 
 func (s *FlexCachePrepopulateActivityTestSuite) TestGetVolumeByResourceName_DatabaseError() {
@@ -774,6 +776,72 @@ func (s *FlexCachePrepopulateActivityTestSuite) TestUpdateJobAndVolumeStatus_Suc
 	s.mockStorage.On("UpdateVolumeFields", s.ctx, volumeUUID, mock.Anything).Return(nil)
 
 	err := s.activity.UpdateJobAndVolumeStatus(s.ctx, jobUUID, volumeUUID, jobStatus)
+
+	assert.NoError(s.T(), err)
+}
+
+func (s *FlexCachePrepopulateActivityTestSuite) TestMarkOrphanedPrepopulateJob_Success() {
+	jobUUID := "job-uuid-123"
+	volumeUUID := "volume-uuid-456"
+	expectedErrorDetails := "Volume volume-uuid-456 was deleted, prepopulate job cannot complete"
+
+	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(models.JobsStateERROR), 0, expectedErrorDetails).Return(nil)
+
+	err := s.activity.MarkOrphanedPrepopulateJob(s.ctx, jobUUID, volumeUUID)
+
+	assert.NoError(s.T(), err)
+}
+
+func (s *FlexCachePrepopulateActivityTestSuite) TestMarkOrphanedPrepopulateJob_UpdateJobError() {
+	jobUUID := "job-uuid-123"
+	volumeUUID := "volume-uuid-456"
+	expectedErrorDetails := "Volume volume-uuid-456 was deleted, prepopulate job cannot complete"
+
+	expectedError := errors.New("database connection error")
+	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(models.JobsStateERROR), 0, expectedErrorDetails).Return(expectedError)
+
+	err := s.activity.MarkOrphanedPrepopulateJob(s.ctx, jobUUID, volumeUUID)
+
+	assert.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "failed to mark orphaned job")
+}
+
+func (s *FlexCachePrepopulateActivityTestSuite) TestMarkOrphanedPrepopulateJob_SetsCorrectJobState() {
+	jobUUID := "job-uuid"
+	volumeUUID := "volume-uuid"
+
+	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(models.JobsStateERROR), 0, mock.MatchedBy(func(errorDetails string) bool {
+		return errorDetails == "Volume volume-uuid was deleted, prepopulate job cannot complete"
+	})).Return(nil)
+
+	err := s.activity.MarkOrphanedPrepopulateJob(s.ctx, jobUUID, volumeUUID)
+
+	assert.NoError(s.T(), err)
+	s.mockStorage.AssertCalled(s.T(), "UpdateJob", s.ctx, jobUUID, string(models.JobsStateERROR), 0, "Volume volume-uuid was deleted, prepopulate job cannot complete")
+}
+
+func (s *FlexCachePrepopulateActivityTestSuite) TestMarkOrphanedPrepopulateJob_EmptyJobUUID() {
+	jobUUID := ""
+	volumeUUID := "volume-uuid-456"
+	expectedErrorDetails := "Volume volume-uuid-456 was deleted, prepopulate job cannot complete"
+
+	expectedError := errors.New("job not found")
+	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(models.JobsStateERROR), 0, expectedErrorDetails).Return(expectedError)
+
+	err := s.activity.MarkOrphanedPrepopulateJob(s.ctx, jobUUID, volumeUUID)
+
+	assert.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "failed to mark orphaned job")
+}
+
+func (s *FlexCachePrepopulateActivityTestSuite) TestMarkOrphanedPrepopulateJob_EmptyVolumeUUID() {
+	jobUUID := "job-uuid-123"
+	volumeUUID := ""
+	expectedErrorDetails := "Volume  was deleted, prepopulate job cannot complete"
+
+	s.mockStorage.On("UpdateJob", s.ctx, jobUUID, string(models.JobsStateERROR), 0, expectedErrorDetails).Return(nil)
+
+	err := s.activity.MarkOrphanedPrepopulateJob(s.ctx, jobUUID, volumeUUID)
 
 	assert.NoError(s.T(), err)
 }
