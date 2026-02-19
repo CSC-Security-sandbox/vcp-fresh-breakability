@@ -203,7 +203,6 @@ func TestCLIRuleConditions(t *testing.T) {
 		Condition: CLIAnd(
 			CLIHasArgs("-vserver", "-volume"),
 			CLIIfPresentThenValue("-space-guarantee", "none", "volume"),
-			CLIIfPresentThenValue("-snaplock-type", "enterprise", "non-snaplock"),
 		),
 	}
 
@@ -290,44 +289,12 @@ func TestCLIRuleConditions(t *testing.T) {
 		}
 	})
 
-	t.Run("valid snaplock type", func(t *testing.T) {
-		cmd := &CLICommand{
-			Arguments: map[string]string{
-				"-vserver":       "vs1",
-				"-volume":        "vol1",
-				"-snaplock-type": "enterprise",
-			},
-		}
-
-		allowed, reason := EvaluateRule(volumeCreateRule, cmd)
-
-		if !allowed {
-			t.Errorf("Expected allowed, got denied: %s", reason)
-		}
-	})
-
-	t.Run("invalid snaplock type", func(t *testing.T) {
-		cmd := &CLICommand{
-			Arguments: map[string]string{
-				"-vserver":       "vs1",
-				"-volume":        "vol1",
-				"-snaplock-type": "invalid",
-			},
-		}
-
-		allowed, _ := EvaluateRule(volumeCreateRule, cmd)
-
-		if allowed {
-			t.Error("Expected denied for invalid snaplock type")
-		}
-	})
-
 	t.Run("CLIIfPresentThenValue passes when arg not present", func(t *testing.T) {
 		cmd := &CLICommand{
 			Arguments: map[string]string{
 				"-vserver": "vs1",
 				"-volume":  "vol1",
-				// No -space-guarantee or -snaplock-type - should still pass
+				// No -space-guarantee - should still pass
 			},
 		}
 
@@ -337,6 +304,46 @@ func TestCLIRuleConditions(t *testing.T) {
 			t.Errorf("Expected allowed when optional args not present, got denied: %s", reason)
 		}
 	})
+
+	t.Run("snaplock-type compliance allowed by rule condition", func(t *testing.T) {
+		// Volume CLI rules no longer validate -snaplock-type; previously-denied values
+		// (e.g. compliance) must not be rejected by the local rule condition.
+		cmd := &CLICommand{
+			Arguments: map[string]string{
+				"-vserver":       "vs1",
+				"-volume":        "vol1",
+				"-snaplock-type": "compliance",
+			},
+		}
+
+		allowed, reason := EvaluateRule(volumeCreateRule, cmd)
+
+		if !allowed {
+			t.Errorf("Expected allowed with -snaplock-type compliance (rule condition does not validate snaplock-type), got denied: %s", reason)
+		}
+	})
+}
+
+func TestVolumeCreateRule_SnaplockTypeNotValidated(t *testing.T) {
+	// Asserts that the real volume create rule (from rules.go) does not reject
+	// commands based on -snaplock-type. A previously-denied value like "compliance"
+	// or an unknown value must pass the rule condition (EvaluateRule does not run
+	// ExternalValidator).
+	input := "volume create -vserver vs1 -volume vol1 -size 100g -aggregate aggr1 -snaplock-type compliance"
+	cmd, err := ParseCLICommand(input)
+	if err != nil {
+		t.Fatalf("ParseCLICommand: %v", err)
+	}
+
+	rule, found := MatchCLIRule(cmd)
+	if !found {
+		t.Fatal("Expected to find a matching rule for volume create")
+	}
+
+	allowed, reason := EvaluateRule(rule, cmd)
+	if !allowed {
+		t.Errorf("Rule condition should allow -snaplock-type compliance (snaplock-type is no longer validated); got denied: %s", reason)
+	}
 }
 
 func TestCLIConditionBuilders(t *testing.T) {

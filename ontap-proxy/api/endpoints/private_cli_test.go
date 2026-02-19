@@ -245,7 +245,8 @@ func TestV1PrivateCli_RuleConditions(t *testing.T) {
 		assert.Equal(t, 403, forbidden.Code)
 	})
 
-	t.Run("WhenVolumeCreateWithInvalidSnaplockType_ShouldReturnForbidden", func(t *testing.T) {
+	// snaplock-type is no longer allowlist-validated; previously-denied values (e.g. compliance) must not be forbidden by rule conditions.
+	t.Run("WhenVolumeCreateWithSnaplockTypeCompliance_ShouldNotReturnForbidden", func(t *testing.T) {
 		req := &oasgenserver.CLIExecuteRequest{
 			Input: "volume create -vserver vs1 -volume vol1 -size 100g -snaplock-type compliance",
 		}
@@ -258,9 +259,8 @@ func TestV1PrivateCli_RuleConditions(t *testing.T) {
 		res, err := h.V1PrivateCli(ctx, req, params)
 		require.NoError(t, err)
 
-		forbidden, ok := res.(*oasgenserver.V1PrivateCliForbidden)
-		require.True(t, ok, "Expected forbidden for invalid snaplock-type")
-		assert.Equal(t, 403, forbidden.Code)
+		_, isForbidden := res.(*oasgenserver.V1PrivateCliForbidden)
+		assert.False(t, isForbidden, "snaplock-type is not validated; volume create with -snaplock-type compliance should not be forbidden by rule condition (got %T)", res)
 	})
 
 	t.Run("WhenVolumeCreateWithWrongSpaceEnforcementValue_ShouldReturnForbidden", func(t *testing.T) {

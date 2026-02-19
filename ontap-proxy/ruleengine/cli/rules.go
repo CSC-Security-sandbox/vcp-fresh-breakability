@@ -94,7 +94,6 @@ var cliRules = []CLIRule{
 		Condition: CLIAnd(
 			CLIHasArgs("-vserver", "-volume", "-size"),
 			CLIIfPresentThenValue("-space-guarantee", "none"),
-			CLIIfPresentThenValue("-snaplock-type", "enterprise", "non-snaplock"),
 			// Enforce logical space settings - user cannot override
 			CLIIfPresentThenEquals("-is-space-enforcement-logical", "true"),
 			CLIIfPresentThenEquals("-is-space-reporting-logical", "true"),
@@ -111,8 +110,6 @@ var cliRules = []CLIRule{
 		Condition: CLIAnd(
 			CLIHasArgs("-vserver", "-volume", "-size"),
 			CLIIfPresentThenValue("-space-guarantee", "none"),
-			CLIIfPresentThenValue("-snaplock-type", "enterprise", "non-snaplock"),
-			// Enforce logical space settings - user cannot override
 			CLIIfPresentThenEquals("-is-space-enforcement-logical", "true"),
 			CLIIfPresentThenEquals("-is-space-reporting-logical", "true"),
 		),
@@ -128,7 +125,6 @@ var cliRules = []CLIRule{
 		Condition: CLIAnd(
 			CLIHasArgs("-vserver", "-volume"),
 			CLIIfPresentThenValue("-space-guarantee", "none"),
-			CLIIfPresentThenValue("-snaplock-type", "enterprise", "non-snaplock"),
 			// Enforce logical space settings - user cannot override
 			CLIIfPresentThenEquals("-is-space-enforcement-logical", "true"),
 			CLIIfPresentThenEquals("-is-space-reporting-logical", "true"),
@@ -141,7 +137,6 @@ var cliRules = []CLIRule{
 		Condition: CLIAnd(
 			CLIHasArgs("-vserver", "-volume"),
 			CLIIfPresentThenValue("-space-guarantee", "none"),
-			CLIIfPresentThenValue("-snaplock-type", "enterprise", "non-snaplock"),
 			// Enforce logical space settings - user cannot override
 			CLIIfPresentThenEquals("-is-space-enforcement-logical", "true"),
 			CLIIfPresentThenEquals("-is-space-reporting-logical", "true"),

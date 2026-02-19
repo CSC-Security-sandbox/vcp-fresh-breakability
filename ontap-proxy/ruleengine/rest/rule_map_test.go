@@ -144,6 +144,21 @@ func TestPrivateCLIVolumeRule(t *testing.T) {
 		assert.NotEmpty(t, reason)
 	})
 
+	// snaplock_type is no longer allowlist-validated; previously-denied values must be allowed (regression guard).
+	t.Run("WhenPOSTWithPreviouslyDeniedSnaplockTypeCompliance_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume"]
+		body := bytes.NewBufferString(`{"volume":"vol1","vserver":"vs0","size":1073741824,"snaplock_type":"compliance"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST with snaplock_type=compliance should be allowed (snaplock type not validated); got reason: %s", reason)
+	})
+
 	t.Run("WhenPATCHWithQueryParams_ShouldAllow", func(t *testing.T) {
 		rules := GetProxyRules()
 		rule := rules["/api/private/cli/volume"]
@@ -156,6 +171,21 @@ func TestPrivateCLIVolumeRule(t *testing.T) {
 		assert.NotNil(t, action)
 		allowed, _ := action.ShouldAllow(req)
 		assert.True(t, allowed, "PATCH with vserver and volume query params should be allowed")
+	})
+
+	// snaplock_type is no longer allowlist-validated; previously-denied values must be allowed (regression guard).
+	t.Run("WhenPATCHWithPreviouslyDeniedSnaplockTypeCompliance_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume"]
+		body := bytes.NewBufferString(`{"snaplock_type":"compliance"}`)
+		req := httptest.NewRequest(http.MethodPatch, "/api/private/cli/volume?vserver=vs1&volume=vol1", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, "PATCH with snaplock_type=compliance should be allowed (snaplock type not validated); got reason: %s", reason)
 	})
 
 	t.Run("WhenDELETEWithQueryParams_ShouldAllow", func(t *testing.T) {
@@ -311,35 +341,8 @@ func TestStorageVolumesRule(t *testing.T) {
 		assert.NotEmpty(t, reason)
 	})
 
-	t.Run("WhenPOSTWithValidSnaplockTypeEnterprise_ShouldAllow", func(t *testing.T) {
-		rules := GetProxyRules()
-		rule := rules["/api/storage/volumes"]
-		body := bytes.NewBufferString(`{"size": 1073741824, "name": "test-volume", "snaplock": {"type": "enterprise"}}`)
-		req := httptest.NewRequest(http.MethodPost, "/api/storage/volumes", body)
-		req.Header.Set("Content-Type", "application/json")
-
-		action := rule.GetAction(req)
-
-		assert.NotNil(t, action)
-		allowed, _ := action.ShouldAllow(req)
-		assert.True(t, allowed, "POST with snaplock.type='enterprise' should be allowed")
-	})
-
-	t.Run("WhenPOSTWithValidSnaplockTypeNonSnaplock_ShouldAllow", func(t *testing.T) {
-		rules := GetProxyRules()
-		rule := rules["/api/storage/volumes"]
-		body := bytes.NewBufferString(`{"size": 1073741824, "name": "test-volume", "snaplock": {"type": "non_snaplock"}}`)
-		req := httptest.NewRequest(http.MethodPost, "/api/storage/volumes", body)
-		req.Header.Set("Content-Type", "application/json")
-
-		action := rule.GetAction(req)
-
-		assert.NotNil(t, action)
-		allowed, _ := action.ShouldAllow(req)
-		assert.True(t, allowed, "POST with snaplock.type='non_snaplock' should be allowed")
-	})
-
-	t.Run("WhenPOSTWithInvalidSnaplockType_ShouldDeny", func(t *testing.T) {
+	// snaplock.type is no longer allowlist-validated; previously-denied values must be allowed (regression guard).
+	t.Run("WhenPOSTWithPreviouslyDeniedSnaplockTypeCompliance_ShouldAllow", func(t *testing.T) {
 		rules := GetProxyRules()
 		rule := rules["/api/storage/volumes"]
 		body := bytes.NewBufferString(`{"size": 1073741824, "name": "test-volume", "snaplock": {"type": "compliance"}}`)
@@ -350,8 +353,7 @@ func TestStorageVolumesRule(t *testing.T) {
 
 		assert.NotNil(t, action)
 		allowed, reason := action.ShouldAllow(req)
-		assert.False(t, allowed, "POST with snaplock.type='compliance' should be denied")
-		assert.NotEmpty(t, reason)
+		assert.True(t, allowed, "POST with snaplock.type=compliance should be allowed (snaplock type not validated); got reason: %s", reason)
 	})
 
 	t.Run("WhenPOSTWithoutSizeField_ShouldDeny", func(t *testing.T) {
@@ -480,35 +482,8 @@ func TestStorageVolumesUUIDRule(t *testing.T) {
 		assert.NotEmpty(t, reason)
 	})
 
-	t.Run("WhenPATCHWithValidSnaplockTypeEnterprise_ShouldAllow", func(t *testing.T) {
-		rules := GetProxyRules()
-		rule := rules["/api/storage/volumes/{uuid}"]
-		body := bytes.NewBufferString(`{"size": 2147483648, "snaplock": {"type": "enterprise"}}`)
-		req := httptest.NewRequest(http.MethodPatch, "/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000", body)
-		req.Header.Set("Content-Type", "application/json")
-
-		action := rule.GetAction(req)
-
-		assert.NotNil(t, action)
-		allowed, _ := action.ShouldAllow(req)
-		assert.True(t, allowed, "PATCH with snaplock.type='enterprise' should be allowed")
-	})
-
-	t.Run("WhenPATCHWithValidSnaplockTypeNonSnaplock_ShouldAllow", func(t *testing.T) {
-		rules := GetProxyRules()
-		rule := rules["/api/storage/volumes/{uuid}"]
-		body := bytes.NewBufferString(`{"size": 2147483648, "snaplock": {"type": "non_snaplock"}}`)
-		req := httptest.NewRequest(http.MethodPatch, "/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000", body)
-		req.Header.Set("Content-Type", "application/json")
-
-		action := rule.GetAction(req)
-
-		assert.NotNil(t, action)
-		allowed, _ := action.ShouldAllow(req)
-		assert.True(t, allowed, "PATCH with snaplock.type='non_snaplock' should be allowed")
-	})
-
-	t.Run("WhenPATCHWithInvalidSnaplockType_ShouldDeny", func(t *testing.T) {
+	// snaplock.type is no longer allowlist-validated; previously-denied values must be allowed (regression guard).
+	t.Run("WhenPATCHWithPreviouslyDeniedSnaplockTypeCompliance_ShouldAllow", func(t *testing.T) {
 		rules := GetProxyRules()
 		rule := rules["/api/storage/volumes/{uuid}"]
 		body := bytes.NewBufferString(`{"size": 2147483648, "snaplock": {"type": "compliance"}}`)
@@ -519,8 +494,7 @@ func TestStorageVolumesUUIDRule(t *testing.T) {
 
 		assert.NotNil(t, action)
 		allowed, reason := action.ShouldAllow(req)
-		assert.False(t, allowed, "PATCH with snaplock.type='compliance' should be denied")
-		assert.NotEmpty(t, reason)
+		assert.True(t, allowed, "PATCH with snaplock.type=compliance should be allowed (snaplock type not validated); got reason: %s", reason)
 	})
 
 	t.Run("WhenPATCHWithOnlyComment_ShouldAllow", func(t *testing.T) {

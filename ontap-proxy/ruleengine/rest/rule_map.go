@@ -27,7 +27,6 @@ func GetProxyRules() map[string]Rule {
 				Condition: And(
 					HasFields("size", "name"),
 					IfPresentThenValue("guarantee.type", "none"),
-					IfPresentThenValue("snaplock.type", "enterprise", "non_snaplock"),
 					IfPresentThenEquals("space.logical_space.enforcement", true),
 					IfPresentThenEquals("space.logical_space.reporting", true),
 					validateVolumeCreation, // Returns specific error from core API
@@ -71,7 +70,6 @@ func GetProxyRules() map[string]Rule {
 				Name: "Volume modification validation",
 				Condition: And(
 					IfPresentThenValue("guarantee.type", "none"),
-					IfPresentThenValue("snaplock.type", "enterprise", "non_snaplock"),
 					IfPresentThenEquals("space.logical_space.enforcement", true),
 					validateVolumeModification,
 				),
@@ -143,7 +141,6 @@ func GetProxyRules() map[string]Rule {
 				Condition: And(
 					HasFields("size", "volume", "vserver"),
 					IfPresentThenValue("space_guarantee", "none"),
-					IfPresentThenValue("snaplock_type", "enterprise", "non_snaplock"),
 					IfPresentThenEquals("is_space_enforcement_logical", true),
 					IfPresentThenEquals("is_space_reporting_logical", true),
 					validatePrivateCLIVolumeCreation,
@@ -162,7 +159,6 @@ func GetProxyRules() map[string]Rule {
 				Name: "Private CLI volume modification validation",
 				Condition: And(
 					IfPresentThenValue("space_guarantee", "none"),
-					IfPresentThenValue("snaplock_type", "enterprise", "non_snaplock"),
 					IfPresentThenEquals("is_space_enforcement_logical", true),
 					validatePrivateCLIVolumeModification,
 				),
