@@ -162,7 +162,7 @@ func (d *DataStoreRepository) CreateBackup(ctx context.Context, backup *datamode
 		if dbBackup.Attributes != nil {
 			consumerID = dbBackup.Attributes.AccountIdentifier
 		}
-		
+
 		err = createBackupChainHistoryEntry(tx, backupChainHistoryParams{
 			ResourceName:   volumeName,
 			VolumeUUID:     dbBackup.VolumeUUID,
@@ -181,13 +181,13 @@ func (d *DataStoreRepository) CreateBackup(ctx context.Context, backup *datamode
 	return nil, customerrors.NewUserInputValidationErr("backup already exists")
 }
 
-// markPreviousBackupChainHistoryAsDeleted marks all previous backup chain history entries
-// for a volume as deleted when a new backup is created
-func markPreviousBackupChainHistoryAsDeleted(tx *gorm.DB, volumeUUID string, newBackupCreatedAt time.Time) error {
+// markPreviousBackupChainHistoryAsDeleted marks backup chain history entries as deleted for a volume
+// Can be used when creating new backups or when deleting the last backup for a volume
+func markPreviousBackupChainHistoryAsDeleted(tx *gorm.DB, volumeUUID string, timeStamp time.Time) error {
 	return tx.Model(&datamodel.BackupChainHistory{}).
 		Where("resource_uuid = ?", volumeUUID).
 		Where("deleted_at IS NULL").
-		Update("deleted_at", newBackupCreatedAt).Error
+		Update("deleted_at", timeStamp).Error
 }
 
 func _getBackupWithDetails(db *gorm.DB, query *datamodel.Backup) (*datamodel.Backup, error) {
@@ -372,12 +372,33 @@ func _deleteBackup(ctx context.Context, db *gorm.DB, backupUUID string) (*datamo
 	if err != nil {
 		return nil, err
 	}
+
+	// Check if this is the last backup for the volume before deleting
+	var remainingBackupCount int64
+	if backup.VolumeUUID != "" {
+		err = tx.Model(&datamodel.Backup{}).
+			Where("volume_uuid = ? AND uuid != ? AND deleted_at IS NULL", backup.VolumeUUID, backupUUID).
+			Count(&remainingBackupCount).Error
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	backup.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
 	backup.State = models.LifeCycleStateDeleted
 	backup.StateDetails = ""
 	err = tx.Save(backup).Error
 	if err != nil {
 		return nil, err
+	}
+
+	// If this was the last backup for the volume, mark backup chain history as deleted
+	if remainingBackupCount == 0 {
+		err = markPreviousBackupChainHistoryAsDeleted(tx, backup.VolumeUUID, backup.DeletedAt.Time)
+		if err != nil {
+			util.GetLogger(ctx).Warnf("Failed to mark backup chain history as deleted for volume %s: %v", backup.VolumeUUID, err)
+			// Don't fail the entire backup deletion if history update fails
+		}
 	}
 
 	return backup, nil

@@ -241,6 +241,215 @@ func TestDeleteBackup(t *testing.T) {
 	})
 }
 
+func TestDeleteBackup_BackupChainHistory(t *testing.T) {
+	t.Run("MarksBackupChainHistoryDeletedWhenLastBackup", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create a volume UUID for testing
+		volumeUUID := "test-volume-uuid"
+
+		// Create backup chain history entry
+		backupChainHistory := &datamodel.BackupChainHistory{
+			BaseModel:      datamodel.BaseModel{UUID: "history-uuid"},
+			ResourceName:   "test-volume",
+			Size:           1073741824, // 1GB
+			ResourceUUID:   volumeUUID,
+			ConsumerID:     "account-123",
+			DeploymentName: "test-deployment",
+		}
+		err = store.db.Create(backupChainHistory).Error()
+		assert.NoError(tt, err)
+
+		// Create a single backup (this will be the last backup)
+		backup := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "test-backup-uuid"},
+			VolumeUUID: volumeUUID,
+			State:      models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Verify backup chain history is not deleted before backup deletion
+		var historyBeforeDeletion datamodel.BackupChainHistory
+		err = store.db.GORM().Unscoped().First(&historyBeforeDeletion, "uuid = ?", backupChainHistory.UUID).Error
+		assert.NoError(tt, err)
+		assert.Nil(tt, historyBeforeDeletion.DeletedAt)
+
+		// Delete the backup (should mark backup chain history as deleted)
+		result, err := store.DeleteBackup(context.Background(), backup.UUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, backup.UUID, result.UUID)
+		assert.Equal(tt, models.LifeCycleStateDeleted, result.State)
+
+		// Verify backup chain history is now marked as deleted
+		var historyAfterDeletion datamodel.BackupChainHistory
+		err = store.db.GORM().Unscoped().First(&historyAfterDeletion, "uuid = ?", backupChainHistory.UUID).Error
+		assert.NoError(tt, err)
+		assert.NotNil(tt, historyAfterDeletion.DeletedAt)
+	})
+
+	t.Run("DoesNotMarkBackupChainHistoryDeletedWhenOtherBackupsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create a volume UUID for testing
+		volumeUUID := "test-volume-uuid"
+
+		// Create backup chain history entry
+		backupChainHistory := &datamodel.BackupChainHistory{
+			BaseModel:      datamodel.BaseModel{UUID: "history-uuid"},
+			ResourceName:   "test-volume",
+			Size:           1073741824, // 1GB
+			ResourceUUID:   volumeUUID,
+			ConsumerID:     "account-123",
+			DeploymentName: "test-deployment",
+		}
+		err = store.db.Create(backupChainHistory).Error()
+		assert.NoError(tt, err)
+
+		// Create multiple backups for the same volume
+		backup1 := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "backup-1-uuid"},
+			VolumeUUID: volumeUUID,
+			State:      models.LifeCycleStateAvailable,
+		}
+		backup2 := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "backup-2-uuid"},
+			VolumeUUID: volumeUUID,
+			State:      models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		// Delete one backup (should NOT mark backup chain history as deleted)
+		result, err := store.DeleteBackup(context.Background(), backup1.UUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, backup1.UUID, result.UUID)
+		assert.Equal(tt, models.LifeCycleStateDeleted, result.State)
+
+		// Verify backup chain history is still NOT deleted
+		var historyAfterDeletion datamodel.BackupChainHistory
+		err = store.db.GORM().Unscoped().First(&historyAfterDeletion, "uuid = ?", backupChainHistory.UUID).Error
+		assert.NoError(tt, err)
+		assert.Nil(tt, historyAfterDeletion.DeletedAt)
+	})
+
+	t.Run("HandlesBackupChainHistoryDeletionError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create a backup without backup chain history
+		backup := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "test-backup-uuid"},
+			VolumeUUID: "test-volume-uuid",
+			State:      models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Delete the backup - should succeed even without backup chain history
+		result, err := store.DeleteBackup(context.Background(), backup.UUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, backup.UUID, result.UUID)
+		assert.Equal(tt, models.LifeCycleStateDeleted, result.State)
+	})
+
+	t.Run("HandlesBackupCountQueryError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create a backup
+		backup := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "test-backup-uuid"},
+			VolumeUUID: "test-volume-uuid",
+			State:      models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Close the database connection to force count query error
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		// Delete the backup - should fail due to count query error (covers line 383)
+		_, err = store.DeleteBackup(context.Background(), backup.UUID)
+		assert.Error(tt, err)
+	})
+
+	t.Run("HandlesBackupChainHistoryUpdateError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create a volume UUID for testing
+		volumeUUID := "test-volume-uuid"
+
+		// Create backup chain history entry
+		backupChainHistory := &datamodel.BackupChainHistory{
+			BaseModel:      datamodel.BaseModel{UUID: "history-uuid"},
+			ResourceName:   "test-volume",
+			Size:           1073741824, // 1GB
+			ResourceUUID:   volumeUUID,
+			ConsumerID:     "account-123",
+			DeploymentName: "test-deployment",
+		}
+		err = store.db.Create(backupChainHistory).Error()
+		assert.NoError(tt, err)
+
+		// Create a single backup (this will be the last backup)
+		backup := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "test-backup-uuid"},
+			VolumeUUID: volumeUUID,
+			State:      models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Drop the backup_chain_histories table to force an error in markPreviousBackupChainHistoryAsDeleted
+		err = store.db.GORM().Exec("DROP TABLE backup_chain_histories").Error
+		assert.NoError(tt, err)
+
+		// Delete the backup - should succeed despite backup chain history update error (covers line 399)
+		result, err := store.DeleteBackup(context.Background(), backup.UUID)
+		assert.NoError(tt, err) // Should not fail even if history update fails
+		assert.Equal(tt, backup.UUID, result.UUID)
+		assert.Equal(tt, models.LifeCycleStateDeleted, result.State)
+	})
+}
+
 func TestCreateBackup_Errors(t *testing.T) {
 	t.Run("ReturnsErrorWhenDBFails", func(tt *testing.T) {
 		db, err := SetupTestDB()
