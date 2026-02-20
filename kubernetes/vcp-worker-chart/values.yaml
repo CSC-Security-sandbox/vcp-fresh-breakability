@@ -230,6 +230,13 @@ workerConfig:
   maxLvHotTierPoolCapacity: "2792232327315456"
   minLvThroughput: 64
   maxLvThroughput: 60000
+  minCustomThroughput: "64"
+  maxCustomThroughput: "5120"
+  minCustomIops: "1024"
+  maxCustomIops: "160000"
+  iopsPerMibps: "16"
+  minLvCustomIops: "1024"
+  maxLvCustomIops: "750000"
   minHotTierSize: "1099511627776"
   minHotTierSizeLV: "6597069766656"
   createCommonResourcesInVCP: true

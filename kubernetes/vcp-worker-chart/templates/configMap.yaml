@@ -218,6 +218,13 @@ data:
   MAX_LV_HOT_TIER_POOL_CAPACITY: {{$.Values.workerConfig.maxLvHotTierPoolCapacity | quote }}
   MIN_LV_THROUGHPUT: {{$.Values.workerConfig.minLvThroughput | quote }}
   MAX_LV_THROUGHPUT: {{$.Values.workerConfig.maxLvThroughput | quote }}
+  MIN_CUSTOM_THROUGHPUT: {{$.Values.workerConfig.minCustomThroughput | quote }}
+  MAX_CUSTOM_THROUGHPUT: {{$.Values.workerConfig.maxCustomThroughput | quote }}
+  MIN_CUSTOM_IOPS: {{$.Values.workerConfig.minCustomIops | quote }}
+  MAX_CUSTOM_IOPS: {{$.Values.workerConfig.maxCustomIops | quote }}
+  IOPS_PER_MIBPS: {{$.Values.workerConfig.iopsPerMibps | quote }}
+  MIN_LV_CUSTOM_IOPS: {{$.Values.workerConfig.minLvCustomIops | quote }}
+  MAX_LV_CUSTOM_IOPS: {{$.Values.workerConfig.maxLvCustomIops | quote }}
   MIN_HOT_TIER_SIZE: {{$.Values.workerConfig.minHotTierSize | quote }}
   MIN_HOT_TIER_SIZE_LARGE_VOLUMES: {{$.Values.workerConfig.minHotTierSizeLV | quote }}
   CREATE_COMMON_RESOURCES_IN_VCP:  {{$.Values.workerConfig.createCommonResourcesInVCP | quote }}

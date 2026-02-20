@@ -47,13 +47,13 @@ func TestNewLeastCostLargeVolumeClusterDecisionMaker(t *testing.T) {
 			},
 			expectedError: "",
 			expectedDecision: &vmrs.Decision{
-				ChosenVMs: []string{"c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd", "c3-standard-22-lssd"},
+				ChosenVMs: []string{"c3-standard-8-lssd", "c3-standard-8-lssd", "c3-standard-8-lssd", "c3-standard-8-lssd", "c3-standard-8-lssd", "c3-standard-8-lssd", "c3-standard-8-lssd", "c3-standard-8-lssd", "c3-standard-8-lssd", "c3-standard-8-lssd", "c3-standard-8-lssd", "c3-standard-8-lssd"},
 				ClusterMetadata: &vmrs.ClusterMetadata{
 					NumHAPairs:    6,
 					NumNodes:      12,
 					NumLIFs:       6, // Active-passive mode: only active nodes have LIFs
 					IsHomogeneous: true,
-					VMType:        "c3-standard-22-lssd", // With 2 HA pairs, needs higher capacity VM
+					VMType:        "c3-standard-8-lssd", // With 4.8 scaling, per-node throughput fits c3-standard-8-lssd
 				},
 			},
 		},
@@ -203,7 +203,7 @@ func TestNewLeastCostLargeVolumeClusterBoundaryDecisionMaker(t *testing.T) {
 			name:           "C3Standard4LSSD_MaxIOPS_BoundaryTest",
 			configFilename: "testdata/valid_large_capacity3.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
-				DesiredIOPS:             33840, // Near max IOPS (33,840) for c3-standard-4-lssd
+				DesiredIOPS:             40608, // Near max IOPS (40,608) for c3-standard-4-lssd
 				DesiredThroughputInMiBs: 100,   // Low throughput
 				DesiredCapacityInGiB:    50000, // Moderate capacity
 			},
@@ -244,7 +244,7 @@ func TestNewLeastCostLargeVolumeClusterBoundaryDecisionMaker(t *testing.T) {
 			configFilename: "testdata/valid_large_capacity3.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
 				DesiredIOPS:             5000,  // Low IOPS
-				DesiredThroughputInMiBs: 337,   // Near max throughput (337.5) for c3-standard-4-lssd
+				DesiredThroughputInMiBs: 360,   // Near max throughput (360) for c3-standard-4-lssd
 				DesiredCapacityInGiB:    50000, // Moderate capacity
 			},
 			expectedError: "",
@@ -304,8 +304,8 @@ func TestNewLeastCostLargeVolumeClusterBoundaryDecisionMaker(t *testing.T) {
 			name:           "C3Standard8LSSD_MinIOPS_BoundaryTest",
 			configFilename: "testdata/valid_large_capacity3.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
-				DesiredIOPS:             33841, // Minimum IOPS
-				DesiredThroughputInMiBs: 337,   // Moderate throughput
+				DesiredIOPS:             40609, // Minimum IOPS
+				DesiredThroughputInMiBs: 360,   // Moderate throughput
 				DesiredCapacityInGiB:    50000, // Moderate capacity
 			},
 			expectedError: "",
@@ -324,7 +324,7 @@ func TestNewLeastCostLargeVolumeClusterBoundaryDecisionMaker(t *testing.T) {
 			name:           "C3Standard8LSSD_MaxIOPS_BoundaryTest",
 			configFilename: "testdata/valid_large_capacity3.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
-				DesiredIOPS:             70980,  // max IOPS (70,980) for c3-standard-8-lssd
+				DesiredIOPS:             85176,  // max IOPS (85,176) for c3-standard-8-lssd
 				DesiredThroughputInMiBs: 500,    // Moderate throughput
 				DesiredCapacityInGiB:    100000, // Moderate capacity
 			},
@@ -345,7 +345,7 @@ func TestNewLeastCostLargeVolumeClusterBoundaryDecisionMaker(t *testing.T) {
 			configFilename: "testdata/valid_large_capacity3.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
 				DesiredIOPS:             10000, // Moderate IOPS
-				DesiredThroughputInMiBs: 338,   // Minimum throughput
+				DesiredThroughputInMiBs: 361,   // Minimum throughput
 				DesiredCapacityInGiB:    50000, // Moderate capacity
 			},
 			expectedError: "",
@@ -365,7 +365,7 @@ func TestNewLeastCostLargeVolumeClusterBoundaryDecisionMaker(t *testing.T) {
 			configFilename: "testdata/valid_large_capacity3.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
 				DesiredIOPS:             10000,  // Moderate IOPS
-				DesiredThroughputInMiBs: 1561,   // Near max throughput (1,561.5) for c3-standard-8-lssd
+				DesiredThroughputInMiBs: 1665,   // Near max throughput (1,665) for c3-standard-8-lssd
 				DesiredCapacityInGiB:    100000, // Moderate capacity
 			},
 			expectedError: "",
@@ -385,7 +385,7 @@ func TestNewLeastCostLargeVolumeClusterBoundaryDecisionMaker(t *testing.T) {
 			name:           "C3Standard22LSSD_MinIOPS_BoundaryTest",
 			configFilename: "testdata/valid_large_capacity3.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
-				DesiredIOPS:             70981,  // Minimum IOPS
+				DesiredIOPS:             85177,  // Minimum IOPS
 				DesiredThroughputInMiBs: 1000,   // Moderate throughput
 				DesiredCapacityInGiB:    100000, // Moderate capacity
 			},
@@ -405,7 +405,7 @@ func TestNewLeastCostLargeVolumeClusterBoundaryDecisionMaker(t *testing.T) {
 			name:           "C3Standard22LSSD_MaxIOPS_BoundaryTest",
 			configFilename: "testdata/valid_large_capacity3.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
-				DesiredIOPS:             125870, // Near max IOPS (125,872) for c3-standard-22-lssd
+				DesiredIOPS:             151046, // Near max IOPS (151,046) for c3-standard-22-lssd
 				DesiredThroughputInMiBs: 1000,   // Moderate throughput
 				DesiredCapacityInGiB:    200000, // Moderate capacity
 			},
@@ -426,7 +426,7 @@ func TestNewLeastCostLargeVolumeClusterBoundaryDecisionMaker(t *testing.T) {
 			configFilename: "testdata/valid_large_capacity3.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
 				DesiredIOPS:             20000,  // Moderate IOPS
-				DesiredThroughputInMiBs: 1562,   // Minimum throughput
+				DesiredThroughputInMiBs: 1666,   // Minimum throughput
 				DesiredCapacityInGiB:    100000, // Moderate capacity
 			},
 			expectedError: "",
@@ -446,7 +446,7 @@ func TestNewLeastCostLargeVolumeClusterBoundaryDecisionMaker(t *testing.T) {
 			configFilename: "testdata/valid_large_capacity3.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
 				DesiredIOPS:             20000,  // Moderate IOPS
-				DesiredThroughputInMiBs: 2682,   // max throughput (2,682) for c3-standard-22-lssd
+				DesiredThroughputInMiBs: 2860,   // max throughput (2,860) for c3-standard-22-lssd
 				DesiredCapacityInGiB:    200000, // Moderate capacity
 			},
 			expectedError: "",
@@ -466,7 +466,7 @@ func TestNewLeastCostLargeVolumeClusterBoundaryDecisionMaker(t *testing.T) {
 			name:           "C3Standard44LSSD_MinIOPS_BoundaryTest",
 			configFilename: "testdata/valid_large_capacity3.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
-				DesiredIOPS:             125873, // Minimum IOPS
+				DesiredIOPS:             151047, // Minimum IOPS
 				DesiredThroughputInMiBs: 2000,   // Moderate throughput
 				DesiredCapacityInGiB:    500000, // Moderate capacity
 			},
@@ -486,7 +486,7 @@ func TestNewLeastCostLargeVolumeClusterBoundaryDecisionMaker(t *testing.T) {
 			name:           "C3Standard44LSSD_MaxIOPS_BoundaryTest",
 			configFilename: "testdata/valid_large_capacity3.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
-				DesiredIOPS:             254328,  // Near max IOPS (254,328) for c3-standard-44-lssd
+				DesiredIOPS:             305193,  // Near max IOPS (305,193) for c3-standard-44-lssd
 				DesiredThroughputInMiBs: 2000,    // Moderate throughput
 				DesiredCapacityInGiB:    1000000, // Moderate capacity
 			},
@@ -507,7 +507,7 @@ func TestNewLeastCostLargeVolumeClusterBoundaryDecisionMaker(t *testing.T) {
 			configFilename: "testdata/valid_large_capacity3.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
 				DesiredIOPS:             50000,  // Moderate IOPS
-				DesiredThroughputInMiBs: 2683,   // Minimum throughput
+				DesiredThroughputInMiBs: 2861,   // Minimum throughput
 				DesiredCapacityInGiB:    500000, // Moderate capacity
 			},
 			expectedError: "",
@@ -527,7 +527,7 @@ func TestNewLeastCostLargeVolumeClusterBoundaryDecisionMaker(t *testing.T) {
 			configFilename: "testdata/valid_large_capacity3.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
 				DesiredIOPS:             50000,   // Moderate IOPS
-				DesiredThroughputInMiBs: 4716,    // max throughput (4,716) for c3-standard-44-lssd
+				DesiredThroughputInMiBs: 5030,    // max throughput (5,030) for c3-standard-44-lssd
 				DesiredCapacityInGiB:    1000000, // Moderate capacity
 			},
 			expectedError: "",
@@ -587,8 +587,8 @@ func TestNewLeastCostLargeVolumeClusterBoundaryDecisionMaker(t *testing.T) {
 			name:           "C3Standard88LSSD_MinIOPS_BoundaryTest",
 			configFilename: "testdata/valid_large_capacity3.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
-				DesiredIOPS:             254329,  // Minimum IOPS
-				DesiredThroughputInMiBs: 5000,    // High throughput
+				DesiredIOPS:             305194,  // Minimum IOPS
+				DesiredThroughputInMiBs: 5031,    // High throughput
 				DesiredCapacityInGiB:    1000000, // High capacity
 			},
 			expectedError: "",
@@ -607,7 +607,7 @@ func TestNewLeastCostLargeVolumeClusterBoundaryDecisionMaker(t *testing.T) {
 			name:           "C3Standard88LSSD_MaxIOPS_BoundaryTest",
 			configFilename: "testdata/valid_large_capacity3.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
-				DesiredIOPS:             644000,  // Near max IOPS (644,000) for c3-standard-88-lssd
+				DesiredIOPS:             772800,  // Near max IOPS (772,800) for c3-standard-88-lssd
 				DesiredThroughputInMiBs: 10000,   // High throughput
 				DesiredCapacityInGiB:    2000000, // High capacity
 			},
@@ -628,7 +628,7 @@ func TestNewLeastCostLargeVolumeClusterBoundaryDecisionMaker(t *testing.T) {
 			configFilename: "testdata/valid_large_capacity3.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
 				DesiredIOPS:             100000,  // High IOPS
-				DesiredThroughputInMiBs: 4717,    // Minimum throughput
+				DesiredThroughputInMiBs: 5031,    // Minimum throughput
 				DesiredCapacityInGiB:    1000000, // High capacity
 			},
 			expectedError: "",
@@ -648,7 +648,7 @@ func TestNewLeastCostLargeVolumeClusterBoundaryDecisionMaker(t *testing.T) {
 			configFilename: "testdata/valid_large_capacity3.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{
 				DesiredIOPS:             100000,  // High IOPS
-				DesiredThroughputInMiBs: 23625,   // Near max throughput (23,625) for c3-standard-88-lssd
+				DesiredThroughputInMiBs: 25200,   // Near max throughput (25,200) for c3-standard-88-lssd
 				DesiredCapacityInGiB:    2000000, // High capacity
 			},
 			expectedError: "",
@@ -856,8 +856,8 @@ func TestLargeVolumeClusterApplyNonLinearScaling(t *testing.T) {
 			haPairs:            6,
 			originalIOPS:       10000,
 			originalThroughput: 100,
-			expectedIOPS:       2500, // ceil(10000 / 4.0) = 2500
-			expectedThroughput: 23,   // ceil(100 / 4.5) = 23
+			expectedIOPS:       2084, // ceil(10000 / 4.8) = 2084
+			expectedThroughput: 21,   // ceil(100 / 4.8) = 21
 		},
 		{
 			name:               "TwelveHAPairs_MaxScaling",
@@ -952,8 +952,8 @@ func TestFindOptimalVMs_NonLinearScaling(t *testing.T) {
 	dm := NewLeastCostLargeVolumeClusterDecisionMaker(config)
 
 	customerRequest := vmrs.CustomerRequestedPerformance{
-		DesiredIOPS:             16000,  // Will be scaled down by 4.0 for 6 HA pairs
-		DesiredThroughputInMiBs: 1000,   // Will be scaled down by 4.5 for 6 HA pairs
+		DesiredIOPS:             16000,  // Will be scaled down by 4.8 for 6 HA pairs
+		DesiredThroughputInMiBs: 1000,   // Will be scaled down by 4.8 for 6 HA pairs
 		DesiredCapacityInGiB:    100000, // Should NOT be scaled during VM selection
 	}
 
@@ -962,7 +962,7 @@ func TestFindOptimalVMs_NonLinearScaling(t *testing.T) {
 	assert.NotNil(t, decision, "decision should not be nil")
 
 	// Verify that non-linear scaling was applied (IOPS and throughput scaled down)
-	// For 6 HA pairs: IOPS scaled to 4000, throughput scaled to 223
+	// For 6 HA pairs: IOPS scaled to 3334, throughput scaled to 209
 	// The VM selection should use these scaled values
 	assert.NotEmpty(t, decision.ChosenVMs, "should have chosen VMs")
 	assert.NotNil(t, decision.ClusterMetadata, "should have cluster metadata")
