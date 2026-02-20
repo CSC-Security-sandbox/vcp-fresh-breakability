@@ -25,6 +25,19 @@ type replicationCleanupWorkflow struct {
 
 var _ workflows.WorkflowInterface = &replicationCleanupWorkflow{}
 
+// shouldStopReplicationBeforeDelete checks if the destination replication needs to be stopped
+// before deletion based on its mirror state. Returns true if the replication is in a state
+// that requires stopping (MIRRORED, BASELINETRANSFERRING, or MIRRORSTATEUNSPECIFIED).
+func shouldStopReplicationBeforeDelete(dstReplication *googleproxyclient.VolumeReplicationInternalV1beta) bool {
+	if dstReplication == nil {
+		return false
+	}
+	mirrorState := dstReplication.MirrorState.Value
+	return mirrorState == googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED ||
+		mirrorState == googleproxyclient.VolumeReplicationInternalV1betaMirrorStateBASELINETRANSFERRING ||
+		mirrorState == googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED
+}
+
 func ReplicationCleanupWorkflow(ctx workflow.Context, params *commonparams.DeleteReplicationParams, event *replication.DeleteReplicationEvent) (*vsa.VolumeReplication, error) {
 	repWf := new(replicationCleanupWorkflow)
 	err := repWf.Setup(ctx, params)
@@ -164,7 +177,7 @@ func (wf *replicationCleanupWorkflow) Run(ctx workflow.Context, args ...interfac
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	if replicationResult.DstReplication != nil && (replicationResult.DstReplication.MirrorState.Value == googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED || replicationResult.DstReplication.MirrorState.Value == googleproxyclient.VolumeReplicationInternalV1betaMirrorStateBASELINETRANSFERRING) {
+	if shouldStopReplicationBeforeDelete(replicationResult.DstReplication) {
 		err = workflow.ExecuteActivity(ctx, replicationActivity.StopReplicationOnDestinationForCleanup, &replicationResult).Get(ctx, &replicationResult)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
