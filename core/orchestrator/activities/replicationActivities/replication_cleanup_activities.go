@@ -186,7 +186,7 @@ func (a *CleanupVolumeReplicationActivity) UpdateReplicationOnSourceToErrorState
 
 func (a *CleanupVolumeReplicationActivity) updateReplicationToErrorStateForCleanup(ctx context.Context, result *replication.DeleteReplicationResult, target string) (*replication.DeleteReplicationResult, error) {
 	logger := util.GetLogger(ctx)
-	logger.Debugf("Release ReplicationOn %s", target)
+	logger.Infof("Release ReplicationOn %s", target)
 
 	var basePath, jwtToken, projectNumber, locationId, replicationUUID string
 	if target == "source" {
@@ -201,6 +201,11 @@ func (a *CleanupVolumeReplicationActivity) updateReplicationToErrorStateForClean
 		projectNumber = *result.DstProjectNumber
 		locationId = result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation
 		replicationUUID = result.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID
+	}
+
+	if target == "destination" && replicationUUID == "" {
+		logger.Infof("DestinationReplicationUUID is empty, skipping replication state update")
+		return result, nil
 	}
 
 	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, jwtToken, logger)
@@ -222,6 +227,10 @@ func (a *CleanupVolumeReplicationActivity) updateReplicationToErrorStateForClean
 	case *googleproxyclient.VolumeReplicationUpdateStateInternalV1beta:
 		return result, nil
 	case *googleproxyclient.V1betaInternalUpdateStateBadRequest:
+		if strings.Contains(strings.ToLower(r.Message), "volume replication not found") {
+			logger.Infof("Volume replication not found, treating as successful no-op: %s", r.Message)
+			return result, nil
+		}
 		return nil, errors.NewVCPError(errors.ErrGoogleProxyUpdateReplicationState, errors.New(r.Message))
 	case *googleproxyclient.V1betaInternalUpdateStateInternalServerError:
 		return nil, errors.NewVCPError(errors.ErrGoogleProxyUpdateReplicationState, errors.New(r.Message))

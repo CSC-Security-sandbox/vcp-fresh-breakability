@@ -4063,4 +4063,78 @@ func TestUpdateReplicationOnDestinationToErrorStateForCleanup(t *testing.T) {
 		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "Failed to update volume replication state on")
 	})
+
+	t.Run("WhenDestinationReplicationUUIDIsEmpty", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "",
+						},
+					},
+				},
+			},
+		}
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.UpdateReplicationOnDestinationToErrorStateForCleanup(context.Background(), inputResult)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, inputResult, result)
+	})
+
+	t.Run("WhenBadRequestWithVolumeReplicationNotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		badRequestResp := &googleproxyclient.V1betaInternalUpdateStateBadRequest{
+			Message: "volume replication not found",
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:        "location-id",
+							DestinationReplicationUUID: "replication-uuid",
+						},
+					},
+				},
+			},
+		}
+		updateRequest := googleproxyclient.VolumeReplicationUpdateStateInternalV1beta{
+			State:        googleproxyclient.NewOptString(models.LifeCycleStateError),
+			StateDetails: googleproxyclient.NewOptString(models.LifeCycleStateDeletionErrorDetails),
+		}
+		updateParams := googleproxyclient.V1betaInternalUpdateStateParams{
+			ProjectNumber:       *inputResult.DstProjectNumber,
+			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+			XCorrelationID:      googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalUpdateState(ctx, &updateRequest, updateParams).Return(badRequestResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.UpdateReplicationOnDestinationToErrorStateForCleanup(context.Background(), inputResult)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, inputResult, result)
+	})
 }
