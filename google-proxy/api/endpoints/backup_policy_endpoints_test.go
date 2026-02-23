@@ -1061,6 +1061,53 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteBackupPolicyInternalServerError).Message)
 	})
 
+	t.Run("WhenDeleteBackupPolicyFailsWithConflictNotFoundInVCP", func(t *testing.T) {
+		// Create a mock client
+		mockClient := backup_policy.NewMockClientService(t)
+
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+		// Define mock error
+		errorMessage := "Conflict error"
+		errorCode := float64(409)
+		mockError := &backup_policy.V1betaDeleteBackupPolicyConflict{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaDeleteBackupPolicy(mock.Anything).
+			Return(nil, nil, mockError)
+
+		// Set up the mock client behavior
+		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
+
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.EXPECT().
+			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
+			Return(nil, utilerrors.NewNotFoundErr("backup policy", &params.BackupPolicyId))
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		result, err := handler.V1betaDeleteBackupPolicy(context.Background(), params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		// Check if the code is as expected
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteBackupPolicyConflict).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteBackupPolicyConflict).Message)
+	})
+
 	t.Run("WhenDeleteBackupPolicySucceedsFoundInVCP", func(t *testing.T) {
 		oldValidateRegionAndZone := parseAndValidateRegionAndZone
 		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()

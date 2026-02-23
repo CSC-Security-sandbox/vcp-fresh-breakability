@@ -692,6 +692,13 @@ func _deleteBackupPolicyInSDE(ctx context.Context, params gcpgenserver.V1betaDel
 				Code:    code,
 				Message: msg,
 			}
+		case *backup_policy.V1betaDeleteBackupPolicyConflict:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDeleteBackupPolicyConflict{
+				Code:    code,
+				Message: msg,
+			}
 		default:
 			logger.Errorf("Failed to delete backup policy in SDE: %s", err.Error())
 			return &gcpgenserver.V1betaDeleteBackupPolicyInternalServerError{
