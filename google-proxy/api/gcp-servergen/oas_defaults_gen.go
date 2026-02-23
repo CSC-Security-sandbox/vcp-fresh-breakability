@@ -123,6 +123,22 @@ func (s *BackupV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *BackupVaultCreateV1beta) setDefaults() {
+	{
+		val := ServiceTypeV1beta("GCNV")
+		s.ServiceType.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *BackupVaultV1beta) setDefaults() {
+	{
+		val := ServiceTypeV1beta("GCNV")
+		s.ServiceType.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *CloneDetailsV1beta) setDefaults() {
 	{
 		val := float64(0)

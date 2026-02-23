@@ -900,6 +900,7 @@ type BackupVault struct {
 	CrossRegionBackupVaultName *string              `json:"crossRegionBackupVaultName" gorm:"type:text"`
 	ExternalUUID               *string              `json:"externalUuid" gorm:"column:external_uuid;type:text;index"`
 	BucketDetails              BucketDetailsArray   `gorm:"column:bucket_details;type:jsonb"`
+	ServiceType                string               `json:"serviceType" gorm:"type:varchar(50);default:'GCNV'"`
 }
 
 type BucketDetails struct {

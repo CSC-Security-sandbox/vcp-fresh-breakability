@@ -2017,7 +2017,10 @@ type BackupVaultCreateV1beta struct {
 	// Complete resource path of the KMS config.
 	KmsConfigResourcePath OptString `json:"kmsConfigResourcePath"`
 	// Key version used to encrypt backups in the vault.
-	BackupsPrimaryKeyVersion OptString `json:"backupsPrimaryKeyVersion"`
+	BackupsPrimaryKeyVersion OptString            `json:"backupsPrimaryKeyVersion"`
+	ServiceType              OptServiceTypeV1beta `json:"serviceType"`
+	// Tenant project number. Required when serviceType is GCBDR.
+	TenantProject OptString `json:"tenantProject"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -2050,6 +2053,16 @@ func (s *BackupVaultCreateV1beta) GetBackupsPrimaryKeyVersion() OptString {
 	return s.BackupsPrimaryKeyVersion
 }
 
+// GetServiceType returns the value of ServiceType.
+func (s *BackupVaultCreateV1beta) GetServiceType() OptServiceTypeV1beta {
+	return s.ServiceType
+}
+
+// GetTenantProject returns the value of TenantProject.
+func (s *BackupVaultCreateV1beta) GetTenantProject() OptString {
+	return s.TenantProject
+}
+
 // SetResourceId sets the value of ResourceId.
 func (s *BackupVaultCreateV1beta) SetResourceId(val OptString) {
 	s.ResourceId = val
@@ -2078,6 +2091,16 @@ func (s *BackupVaultCreateV1beta) SetKmsConfigResourcePath(val OptString) {
 // SetBackupsPrimaryKeyVersion sets the value of BackupsPrimaryKeyVersion.
 func (s *BackupVaultCreateV1beta) SetBackupsPrimaryKeyVersion(val OptString) {
 	s.BackupsPrimaryKeyVersion = val
+}
+
+// SetServiceType sets the value of ServiceType.
+func (s *BackupVaultCreateV1beta) SetServiceType(val OptServiceTypeV1beta) {
+	s.ServiceType = val
+}
+
+// SetTenantProject sets the value of TenantProject.
+func (s *BackupVaultCreateV1beta) SetTenantProject(val OptString) {
+	s.TenantProject = val
 }
 
 // Ref: #/components/schemas/BackupVaultInternalUpdate_v1beta
@@ -2964,7 +2987,8 @@ type BackupVaultV1beta struct {
 	// Current state of CMEK encryption for the backup vault.
 	EncryptionState OptBackupVaultV1betaEncryptionState `json:"encryptionState"`
 	// KMS grant.
-	KmsGrant OptString `json:"kmsGrant"`
+	KmsGrant    OptString            `json:"kmsGrant"`
+	ServiceType OptServiceTypeV1beta `json:"serviceType"`
 }
 
 // GetBackupVaultId returns the value of BackupVaultId.
@@ -3052,6 +3076,11 @@ func (s *BackupVaultV1beta) GetKmsGrant() OptString {
 	return s.KmsGrant
 }
 
+// GetServiceType returns the value of ServiceType.
+func (s *BackupVaultV1beta) GetServiceType() OptServiceTypeV1beta {
+	return s.ServiceType
+}
+
 // SetBackupVaultId sets the value of BackupVaultId.
 func (s *BackupVaultV1beta) SetBackupVaultId(val OptString) {
 	s.BackupVaultId = val
@@ -3135,6 +3164,11 @@ func (s *BackupVaultV1beta) SetEncryptionState(val OptBackupVaultV1betaEncryptio
 // SetKmsGrant sets the value of KmsGrant.
 func (s *BackupVaultV1beta) SetKmsGrant(val OptString) {
 	s.KmsGrant = val
+}
+
+// SetServiceType sets the value of ServiceType.
+func (s *BackupVaultV1beta) SetServiceType(val OptServiceTypeV1beta) {
+	s.ServiceType = val
 }
 
 func (*BackupVaultV1beta) v1betaDescribeBackupVaultRes() {}
@@ -12850,6 +12884,52 @@ func (o OptReplicationVolumeInformationV1beta) Or(d ReplicationVolumeInformation
 	return d
 }
 
+// NewOptServiceTypeV1beta returns new OptServiceTypeV1beta with value set to v.
+func NewOptServiceTypeV1beta(v ServiceTypeV1beta) OptServiceTypeV1beta {
+	return OptServiceTypeV1beta{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptServiceTypeV1beta is optional ServiceTypeV1beta.
+type OptServiceTypeV1beta struct {
+	Value ServiceTypeV1beta
+	Set   bool
+}
+
+// IsSet returns true if OptServiceTypeV1beta was set.
+func (o OptServiceTypeV1beta) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptServiceTypeV1beta) Reset() {
+	var v ServiceTypeV1beta
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptServiceTypeV1beta) SetTo(v ServiceTypeV1beta) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptServiceTypeV1beta) Get() (v ServiceTypeV1beta, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptServiceTypeV1beta) Or(d ServiceTypeV1beta) ServiceTypeV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptSnapshotPolicyV1beta returns new OptSnapshotPolicyV1beta with value set to v.
 func NewOptSnapshotPolicyV1beta(v SnapshotPolicyV1beta) OptSnapshotPolicyV1beta {
 	return OptSnapshotPolicyV1beta{
@@ -18628,6 +18708,49 @@ func (s *ServiceLevelQueryParameterItem) UnmarshalText(data []byte) error {
 	switch ServiceLevelQueryParameterItem(data) {
 	case ServiceLevelQueryParameterItemFlex:
 		*s = ServiceLevelQueryParameterItemFlex
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Service type of the backup vault.
+// Ref: #/components/schemas/ServiceType_v1beta
+type ServiceTypeV1beta string
+
+const (
+	ServiceTypeV1betaGCNV  ServiceTypeV1beta = "GCNV"
+	ServiceTypeV1betaGCBDR ServiceTypeV1beta = "GCBDR"
+)
+
+// AllValues returns all ServiceTypeV1beta values.
+func (ServiceTypeV1beta) AllValues() []ServiceTypeV1beta {
+	return []ServiceTypeV1beta{
+		ServiceTypeV1betaGCNV,
+		ServiceTypeV1betaGCBDR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ServiceTypeV1beta) MarshalText() ([]byte, error) {
+	switch s {
+	case ServiceTypeV1betaGCNV:
+		return []byte(s), nil
+	case ServiceTypeV1betaGCBDR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ServiceTypeV1beta) UnmarshalText(data []byte) error {
+	switch ServiceTypeV1beta(data) {
+	case ServiceTypeV1betaGCNV:
+		*s = ServiceTypeV1betaGCNV
+		return nil
+	case ServiceTypeV1betaGCBDR:
+		*s = ServiceTypeV1betaGCBDR
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
