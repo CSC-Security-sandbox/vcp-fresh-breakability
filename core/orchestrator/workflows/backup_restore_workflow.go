@@ -306,6 +306,11 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 		return nil, ConvertToVSAError(err)
 	}
 
+	err = workflow.Sleep(ctx, 30*time.Second)
+	if err != nil {
+		return nil, ConvertToVSAError(fmt.Errorf("failed to sleep before getting snapmirror: %w", err))
+	}
+
 	// Get snapmirror relationship to check health status
 	var smRelationship *common.SnapmirrorRelationship
 	err = workflow.ExecuteActivity(ctx, backupActivity.GetSnapmirror, backupActivitiesContext.Node, smSourcePath, smDestinationPath).Get(ctx, &smRelationship)

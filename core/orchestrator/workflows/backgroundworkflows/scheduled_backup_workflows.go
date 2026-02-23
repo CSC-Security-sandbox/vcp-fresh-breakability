@@ -547,6 +547,12 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	// Wait for 60 seconds before proceeding
+	err = workflow.Sleep(ctx, 30*time.Second)
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to sleep before getting the snapmirror: %w", err))
+	}
+
 	// Get snapmirror relationship to check health status
 	var smRelationship *common.SnapmirrorRelationship
 	err = workflow.ExecuteActivity(ctx, backupActivities.GetSnapmirror, scheduledBackupContext.Node, scheduledBackupContext.SmSourcePath, scheduledBackupContext.SmDestinationPath).Get(ctx, &smRelationship)

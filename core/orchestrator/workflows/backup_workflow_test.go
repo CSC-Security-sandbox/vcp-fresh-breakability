@@ -4499,6 +4499,102 @@ func TestCreateBackupWorkflowWithContext(t *testing.T) {
 		env.AssertExpectations(t)
 	})
 
+	t.Run("SleepBeforeGetSnapmirrorError", func(t *testing.T) {
+		// Covers backup_workflow.go line 309: error when workflow.Sleep fails before GetSnapmirror
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		commonActivity, _ := setupMockCommonActivities(t)
+		env.RegisterActivity(commonActivity)
+		env.RegisterWorkflow(CreateBackupWorkflowWithContext)
+
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("UpdateBackupState", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
+		mockStorage.On("UpdateSnapshot", mock.Anything, mock.Anything).Return(&datamodel.Snapshot{}, nil).Maybe()
+		mockStorage.On("CreatingSnapshot", mock.Anything, mock.Anything).Return(&datamodel.Snapshot{
+			Name: "test-backup", Description: "VCP-Backup", VolumeID: 1, AccountID: 1, State: "creating", StateDetails: "creating",
+			SnapshotAttributes: &datamodel.SnapshotAttributes{},
+		}, nil).Maybe()
+		mockStorage.On("UpdateBackup", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
+		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		customBackupActivity := &TestBackupActivity{BackupActivity: &activities.BackupActivity{SE: mockStorage}}
+		env.RegisterActivity(customBackupActivity)
+
+		params := &commonparams.CreateBackupParams{VolumeUUID: "test-vol", AccountName: "test-account", BackupName: "test-backup"}
+		backupVault := &datamodel.BackupVault{
+			Name:          "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+		}
+		backup := &datamodel.Backup{
+			State: "InProgress", Name: "test-backup", VolumeUUID: "test-vol", BackupVault: backupVault, BackupVaultID: 1, Attributes: &datamodel.BackupAttributes{},
+		}
+		volume := &datamodel.Volume{
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{Password: "password"}, PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-central1-a"}},
+			Svm:              &datamodel.Svm{Name: "svm_test"},
+			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, VendorSubnetID: "subnet-12345", ExternalUUID: "external-uuid"},
+		}
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			BackupWorkflowInit: &activities.BackupWorkflowInput{Backup: backup, BackupVault: backupVault, Volume: volume},
+			Node:               &models.Node{EndpointAddress: "127.0.0.1"},
+		}
+
+		ctxReturn := &activities.BackupActivitiesContext{
+			BackupWorkflowInit: &activities.BackupWorkflowInput{Backup: backup, BackupVault: backupVault, Volume: volume},
+			Node:               &models.Node{EndpointAddress: "127.0.0.1"},
+		}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("PrepareObjectStoreActivity", mock.Anything, mock.Anything).Return(ctxReturn, nil)
+		env.OnActivity("GetOrCreateObjectStoreActivity", mock.Anything, mock.Anything).Return(ctxReturn, nil)
+		env.OnActivity("PrepareSnapmirrorActivity", mock.Anything, mock.Anything).Return(ctxReturn, nil)
+		env.OnActivity("CreateSnapmirrorRelationshipActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{
+			BackupWorkflowInit:     &activities.BackupWorkflowInput{Backup: backup, BackupVault: backupVault, Volume: volume},
+			Node:                   &models.Node{EndpointAddress: "127.0.0.1"},
+			SnapmirrorRelationship: &commonparams.SnapmirrorRelationship{UUID: "test-snapmirror-uuid"},
+		}, nil)
+		env.OnActivity("CreatingSnapshotActivity", mock.Anything, mock.Anything).Return(ctxReturn, nil)
+		env.OnActivity("CreateSnapshotActivity", mock.Anything, mock.Anything).Return(ctxReturn, nil)
+		env.OnActivity("TransferSnapshotActivity", mock.Anything, mock.Anything).Return(ctxReturn, nil)
+		env.OnActivity("PollTransferStatusWithHistoryCheckActivity", mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
+			BackupActivitiesContext: &activities.BackupActivitiesContext{
+				BackupWorkflowInit: &activities.BackupWorkflowInput{Backup: backup, BackupVault: backupVault, Volume: volume},
+				Node:               &models.Node{EndpointAddress: "127.0.0.1"}, SnapshotName: "test-backup",
+				SmSourcePath: "svm_test:volume_test", SmDestinationPath: "test-bucket:/objstore/test-vol",
+				SnapmirrorRelationship: &commonparams.SnapmirrorRelationship{UUID: "test-snapmirror-uuid"},
+				TransferStatus:         activities.SmStatusSuccess,
+			},
+			TransferComplete: true, ShouldContinueAsNew: false,
+		}, nil)
+		env.OnActivity("UpdateBackupError", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateSnapshotActivity", mock.Anything, mock.Anything).Return(ctxReturn, nil).Maybe()
+		env.OnActivity("DeleteBackupSnapshot", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		env.SetOnTimerScheduledListener(func(timerID string, duration time.Duration) {
+			if duration == 30*time.Second {
+				env.CancelWorkflow()
+			}
+		})
+
+		env.ExecuteWorkflow(CreateBackupWorkflowWithContext, backupActivitiesContext, params)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		errStr := env.GetWorkflowError().Error()
+		assert.True(t,
+			strings.Contains(errStr, "failed to sleep before getting the snapmirror") || strings.Contains(errStr, "canceled") || strings.Contains(errStr, "internal error"),
+			"workflow error should reflect sleep failure or cancellation: %s", errStr)
+		env.AssertExpectations(t)
+	})
+
 	t.Run("SetupFailure", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()

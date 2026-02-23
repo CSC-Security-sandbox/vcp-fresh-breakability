@@ -583,6 +583,12 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 		}
 	}
 
+	// Wait for 60 seconds before proceeding
+	err = workflow.Sleep(ctx, 30*time.Second)
+	if err != nil {
+		return nil, ConvertToVSAError(fmt.Errorf("failed to sleep before getting the snapmirror: %w", err))
+	}
+
 	// Get snapmirror relationship to check health status
 	var smRelationship *commonparams.SnapmirrorRelationship
 	err = workflow.ExecuteActivity(ctx, backupActivity.GetSnapmirror, node, smSourcePath, smDestinationPath).Get(ctx, &smRelationship)
