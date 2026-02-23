@@ -1196,6 +1196,30 @@ func TestSnapshotCreate(t *testing.T) {
 		assert.Nil(tt, response)
 		assert.Nil(tt, job)
 	})
+
+	t.Run("WhenInsufficientSpaceErrorReturned_ThenReturnRawError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("Snapshot operation failed: No space left on device. Additional space required: 268KB.")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		response, job, err := client.SnapshotCreate(&SnapshotCreateParams{})
+		assert.Error(tt, err)
+		assert.Nil(tt, response)
+		assert.Nil(tt, job)
+		// storage_client.go returns raw errors; wrapping happens in vsa/snapshot.go
+		assert.Contains(tt, err.Error(), "No space left on device")
+	})
+
+	t.Run("WhenMaximumSnapshotLimitExceededErrorReturned_ThenReturnRawError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("Cannot exceed maximum number of snapshots.")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		response, job, err := client.SnapshotCreate(&SnapshotCreateParams{})
+		assert.Error(tt, err)
+		assert.Nil(tt, response)
+		assert.Nil(tt, job)
+		// storage_client.go returns raw errors; wrapping happens in vsa/snapshot.go
+		assert.Contains(tt, err.Error(), "Cannot exceed maximum number of snapshots")
+	})
 }
 
 func TestSnapshotGet(t *testing.T) {

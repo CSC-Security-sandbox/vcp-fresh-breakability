@@ -251,6 +251,154 @@ func TestCreateSnapshot(t *testing.T) {
 		mockClient.AssertExpectations(t)
 	})
 
+	t.Run("CreateSnapshotInsufficientSpaceError", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		params := CreateSnapshotParams{
+			VolumeUUID: "testVolumeUUID",
+			Name:       "testSnapshot",
+			Comment:    "testComment",
+		}
+
+		// Return ONTAP insufficient space error
+		insufficientSpaceErr := errors.New("Snapshot operation failed: No space left on device. Additional space required: 268KB.")
+		mockStorage.On("SnapshotCreate", mock.Anything).Return(nil, nil, insufficientSpaceErr)
+
+		resp, err := rc.CreateSnapshot(params)
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+
+		// Verify it's a VCPError with ErrSnapshotInsufficientSpace
+		var customErr *vsaerrors.CustomError
+		assert.ErrorAs(t, err, &customErr)
+		assert.Equal(t, vsaerrors.ErrSnapshotInsufficientSpace, customErr.TrackingID)
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("CreateSnapshotInsufficientSpaceErrorOnPoll", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		params := CreateSnapshotParams{
+			VolumeUUID: "testVolumeUUID",
+			Name:       "testSnapshot",
+			Comment:    "testComment",
+		}
+
+		mockSnapshot := &ontaprest.Snapshot{}
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+
+		mockStorage.On("SnapshotCreate", mock.Anything).Return(mockSnapshot, mockJob, nil)
+		// Return ONTAP insufficient space error during polling
+		mockClient.On("Poll", mockJob.JobUUID).Return(errors.New("Snapshot operation failed: No space left on device. Additional space required: 268KB."))
+
+		resp, err := rc.CreateSnapshot(params)
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+
+		// Verify it's a VCPError with ErrSnapshotInsufficientSpace
+		var customErr *vsaerrors.CustomError
+		assert.ErrorAs(t, err, &customErr)
+		assert.Equal(t, vsaerrors.ErrSnapshotInsufficientSpace, customErr.TrackingID)
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("CreateSnapshotMaximumLimitExceededError", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		params := CreateSnapshotParams{
+			VolumeUUID: "testVolumeUUID",
+			Name:       "testSnapshot",
+			Comment:    "testComment",
+		}
+
+		// Return ONTAP maximum limit exceeded error
+		maxLimitErr := errors.New("Cannot exceed maximum number of snapshots.")
+		mockStorage.On("SnapshotCreate", mock.Anything).Return(nil, nil, maxLimitErr)
+
+		resp, err := rc.CreateSnapshot(params)
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+
+		// Verify it's a VCPError with ErrSnapshotMaximumLimitExceeded
+		var customErr *vsaerrors.CustomError
+		assert.ErrorAs(t, err, &customErr)
+		assert.Equal(t, vsaerrors.ErrSnapshotMaximumLimitExceeded, customErr.TrackingID)
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("CreateSnapshotMaximumLimitExceededErrorOnPoll", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		params := CreateSnapshotParams{
+			VolumeUUID: "testVolumeUUID",
+			Name:       "testSnapshot",
+			Comment:    "testComment",
+		}
+
+		mockSnapshot := &ontaprest.Snapshot{}
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+
+		mockStorage.On("SnapshotCreate", mock.Anything).Return(mockSnapshot, mockJob, nil)
+		// Return ONTAP maximum limit exceeded error during polling
+		mockClient.On("Poll", mockJob.JobUUID).Return(errors.New("Cannot exceed maximum number of snapshots."))
+
+		resp, err := rc.CreateSnapshot(params)
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+
+		// Verify it's a VCPError with ErrSnapshotMaximumLimitExceeded
+		var customErr *vsaerrors.CustomError
+		assert.ErrorAs(t, err, &customErr)
+		assert.Equal(t, vsaerrors.ErrSnapshotMaximumLimitExceeded, customErr.TrackingID)
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
 	t.Run("CreateSnapshotInvalidResponse", func(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockStorage := new(ontaprest.MockStorageClient)

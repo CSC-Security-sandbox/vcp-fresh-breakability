@@ -4621,6 +4621,84 @@ func TestCreateSnapshotSyncWithDirectPolling_ErrorPaths(t *testing.T) {
 		assert.Equal(tt, snapshotLogicalSize, result.LogicalSizeInBytes)
 		mockStorageClient.AssertExpectations(tt)
 	})
+
+	t.Run("InsufficientSpaceError", func(tt *testing.T) {
+		mockRESTClient := new(ontapRest.MockRESTClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+
+		cleanup := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockRESTClient, nil
+			},
+		})
+		defer cleanup()
+
+		mockRESTClient.On("Storage").Return(mockStorageClient)
+
+		insufficientSpaceErr := errors.New("Snapshot operation failed: No space left on device. Additional space required: 268KB.")
+		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(nil, nil, insufficientSpaceErr)
+
+		provider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			Name: "test_snapshot",
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-uuid",
+				},
+			},
+		}
+
+		_, err := createSnapshotSyncWithDirectPolling(ctx, provider, dbSnapshot, mockLogger)
+		assert.Error(tt, err)
+
+		// Verify it's a VCPError with ErrSnapshotInsufficientSpace
+		var customErr *vsaerrors.CustomError
+		assert.ErrorAs(tt, err, &customErr)
+		assert.Equal(tt, vsaerrors.ErrSnapshotInsufficientSpace, customErr.TrackingID)
+		mockStorageClient.AssertExpectations(tt)
+	})
+
+	t.Run("MaximumLimitExceededError", func(tt *testing.T) {
+		mockRESTClient := new(ontapRest.MockRESTClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+
+		cleanup := vsa.SetTestHooks(vsa.TestHooks{
+			GetOntapClient: func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+				return mockRESTClient, nil
+			},
+		})
+		defer cleanup()
+
+		mockRESTClient.On("Storage").Return(mockStorageClient)
+
+		maxLimitErr := errors.New("Cannot exceed maximum number of snapshots.")
+		mockStorageClient.On("SnapshotCreate", mock.Anything).Return(nil, nil, maxLimitErr)
+
+		provider := &vsa.OntapRestProvider{
+			ClientParams: ontapRest.RESTClientParams{},
+		}
+
+		dbSnapshot := &datamodel.Snapshot{
+			Name: "test_snapshot",
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "external-uuid",
+				},
+			},
+		}
+
+		_, err := createSnapshotSyncWithDirectPolling(ctx, provider, dbSnapshot, mockLogger)
+		assert.Error(tt, err)
+
+		// Verify it's a VCPError with ErrSnapshotMaximumLimitExceeded
+		var customErr *vsaerrors.CustomError
+		assert.ErrorAs(tt, err, &customErr)
+		assert.Equal(tt, vsaerrors.ErrSnapshotMaximumLimitExceeded, customErr.TrackingID)
+		mockStorageClient.AssertExpectations(tt)
+	})
 }
 
 // TestCreateSnapshotSync_AdditionalPaths tests additional paths in createSnapshotSync

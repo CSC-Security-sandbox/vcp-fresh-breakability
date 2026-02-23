@@ -911,6 +911,18 @@
     "retriable": false,
     "http_code": 400
   },
+  "7014": {
+    "description": "Insufficient space available for snapshot creation",
+    "message": "Error creating snapshot - Insufficient storage space. Please increase the volume size and try again",
+    "retriable": false,
+    "http_code": 400
+  },
+  "7015": {
+    "description": "Maximum number of snapshots limit exceeded",
+    "message": "Error creating snapshot - Maximum snapshot limit reached for this volume. Please delete existing snapshots and try again.",
+    "retriable": false,
+    "http_code": 400
+  },
   "6100": {
     "description": "Replication Schedule Unspecified",
     "message": "Replication schedule must be specified",

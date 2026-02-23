@@ -83,11 +83,19 @@ func (h Handler) V1CreateSnapshot(ctx context.Context, req *oasgenserver.VolumeS
 
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
-			if hasCode, httpCode := customErr.GetHttpCode(); hasCode && httpCode == 400 {
-				return &oasgenserver.V1CreateSnapshotBadRequest{
-					Code:    400,
-					Message: customErr.OriginalErr.Error(),
-				}, nil
+			if hasCode, httpCode := customErr.GetHttpCode(); hasCode {
+				message := customErr.GetMessage()
+				if httpCode == 400 {
+					return &oasgenserver.V1CreateSnapshotBadRequest{
+						Code:    400,
+						Message: message,
+					}, nil
+				} else if httpCode == 409 {
+					return &oasgenserver.V1CreateSnapshotConflict{
+						Code:    409,
+						Message: message,
+					}, nil
+				}
 			}
 		}
 

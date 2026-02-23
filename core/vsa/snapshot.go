@@ -57,6 +57,12 @@ func (rc *OntapRestProvider) CreateSnapshot(params CreateSnapshotParams) (*Snaps
 			strings.Contains(err.Error(), "snapshot creation operation not allowed") {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrSnapshotNotAllowedForVolume, errors.New("snapshot creation operation not allowed for this volume"))
 		}
+		if strings.Contains(err.Error(), "No space left on device") {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrSnapshotInsufficientSpace, err)
+		}
+		if strings.Contains(err.Error(), "Cannot exceed maximum number of snapshots") {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrSnapshotMaximumLimitExceeded, err)
+		}
 		if !errors.IsNotFoundErr(err) {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 		}
@@ -73,6 +79,12 @@ func (rc *OntapRestProvider) CreateSnapshot(params CreateSnapshotParams) (*Snaps
 				if strings.Contains(err.Error(), "Snapshots can only be created on read/write") ||
 					strings.Contains(err.Error(), "snapshot creation operation not allowed") {
 					return nil, vsaerrors.NewVCPError(vsaerrors.ErrSnapshotNotAllowedForVolume, errors.New("snapshot creation operation not allowed for this volume"))
+				}
+				if strings.Contains(err.Error(), "No space left on device") {
+					return nil, vsaerrors.NewVCPError(vsaerrors.ErrSnapshotInsufficientSpace, err)
+				}
+				if strings.Contains(err.Error(), "Cannot exceed maximum number of snapshots") {
+					return nil, vsaerrors.NewVCPError(vsaerrors.ErrSnapshotMaximumLimitExceeded, err)
 				}
 				return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 			}

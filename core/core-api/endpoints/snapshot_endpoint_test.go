@@ -547,4 +547,136 @@ func TestV1CreateSnapshot(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 	})
+
+	t.Run("WhenVCPErrorWithInsufficientSpaceReturned_ThenReturn400", func(t *testing.T) {
+		// Setup
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		// Mock parseAndValidateRegionAndZone to return success
+		originalParseAndValidate := parseAndValidateRegionAndZone
+		defer func() {
+			parseAndValidateRegionAndZone = originalParseAndValidate
+		}()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east1", "", nil
+		}
+
+		req := &oasgenserver.VolumeSnapshotCreateV1{
+			ResourceId: "my-snapshot",
+		}
+		params := oasgenserver.V1CreateSnapshotParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			VolumeId:      "volume-uuid",
+		}
+
+		// VCPError with ErrSnapshotInsufficientSpace tracking ID (HTTP 400)
+		insufficientSpaceError := vsaerrors.NewVCPError(vsaerrors.ErrSnapshotInsufficientSpace, stderrors.New("No space left on device"))
+
+		// Set up expectations
+		mockOrch.EXPECT().CreateSnapshot(mock.Anything, mock.Anything).Return(nil, "", insufficientSpaceError)
+
+		// Execute
+		ctx := context.Background()
+		result, err := handler.V1CreateSnapshot(ctx, req, params)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequestResponse, ok := result.(*oasgenserver.V1CreateSnapshotBadRequest)
+		assert.True(t, ok)
+		assert.Equal(t, http.StatusBadRequest, int(badRequestResponse.Code))
+		// Verify customer-friendly message is returned
+		assert.Contains(t, badRequestResponse.Message, "Insufficient storage space")
+	})
+
+	t.Run("WhenVCPErrorWithMaximumLimitExceededReturned_ThenReturn400", func(t *testing.T) {
+		// Setup
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		// Mock parseAndValidateRegionAndZone to return success
+		originalParseAndValidate := parseAndValidateRegionAndZone
+		defer func() {
+			parseAndValidateRegionAndZone = originalParseAndValidate
+		}()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east1", "", nil
+		}
+
+		req := &oasgenserver.VolumeSnapshotCreateV1{
+			ResourceId: "my-snapshot",
+		}
+		params := oasgenserver.V1CreateSnapshotParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			VolumeId:      "volume-uuid",
+		}
+
+		// VCPError with ErrSnapshotMaximumLimitExceeded tracking ID (HTTP 400)
+		maxLimitError := vsaerrors.NewVCPError(vsaerrors.ErrSnapshotMaximumLimitExceeded, stderrors.New("Cannot exceed maximum number of snapshots"))
+
+		// Set up expectations
+		mockOrch.EXPECT().CreateSnapshot(mock.Anything, mock.Anything).Return(nil, "", maxLimitError)
+
+		// Execute
+		ctx := context.Background()
+		result, err := handler.V1CreateSnapshot(ctx, req, params)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequestResponse, ok := result.(*oasgenserver.V1CreateSnapshotBadRequest)
+		assert.True(t, ok)
+		assert.Equal(t, http.StatusBadRequest, int(badRequestResponse.Code))
+		// Verify customer-friendly message is returned
+		assert.Contains(t, badRequestResponse.Message, "Error creating snapshot - Maximum snapshot limit reached for this volume. Please delete existing snapshots and try again.")
+	})
+
+	t.Run("WhenVCPErrorWithConflictReturned_ThenReturn409", func(t *testing.T) {
+		// Setup
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		// Mock parseAndValidateRegionAndZone to return success
+		originalParseAndValidate := parseAndValidateRegionAndZone
+		defer func() {
+			parseAndValidateRegionAndZone = originalParseAndValidate
+		}()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east1", "", nil
+		}
+
+		req := &oasgenserver.VolumeSnapshotCreateV1{
+			ResourceId: "my-snapshot",
+		}
+		params := oasgenserver.V1CreateSnapshotParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			VolumeId:      "volume-uuid",
+		}
+
+		// VCPError with ErrCreateSnapshotConflict tracking ID (HTTP 409)
+		conflictError := vsaerrors.NewVCPError(vsaerrors.ErrCreateSnapshotConflict, stderrors.New("snapshot already exists"))
+
+		// Set up expectations
+		mockOrch.EXPECT().CreateSnapshot(mock.Anything, mock.Anything).Return(nil, "", conflictError)
+
+		// Execute
+		ctx := context.Background()
+		result, err := handler.V1CreateSnapshot(ctx, req, params)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		conflictResponse, ok := result.(*oasgenserver.V1CreateSnapshotConflict)
+		assert.True(t, ok)
+		assert.Equal(t, http.StatusConflict, int(conflictResponse.Code))
+		// Verify customer-friendly message is returned
+		assert.Contains(t, conflictResponse.Message, "snapshot already exists")
+	})
 }

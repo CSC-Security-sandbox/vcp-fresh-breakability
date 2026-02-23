@@ -160,6 +160,8 @@ const (
 	ErrNestedCloneLimitExceeded           = 7011
 	ErrSnapshotNotAllowedForVolume        = 7012
 	ErrParentVolumeNotFound               = 7013
+	ErrSnapshotInsufficientSpace          = 7014
+	ErrSnapshotMaximumLimitExceeded       = 7015
 
 	// CMEK Error Codes
 	ErrDescribingSDEJob                            = 6057

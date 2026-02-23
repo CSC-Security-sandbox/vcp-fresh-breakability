@@ -426,6 +426,12 @@ func createSnapshotSyncWithDirectPolling(ctx context.Context, provider vsa.Provi
 		if customerrors.IsBadRequestErr(err) || strings.Contains(err.Error(), "Snapshots can only be created on read/write") {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrSnapshotNotAllowedForVolume, fmt.Errorf("snapshot creation operation not allowed for this volume"))
 		}
+		if strings.Contains(err.Error(), "No space left on device") {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrSnapshotInsufficientSpace, err)
+		}
+		if strings.Contains(err.Error(), "Cannot exceed maximum number of snapshots") {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrSnapshotMaximumLimitExceeded, err)
+		}
 		if !customerrors.IsNotFoundErr(err) {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 		}
@@ -442,6 +448,12 @@ func createSnapshotSyncWithDirectPolling(ctx context.Context, provider vsa.Provi
 			if err != nil {
 				if strings.Contains(err.Error(), "Snapshots can only be created on read/write") {
 					return nil, vsaerrors.NewVCPError(vsaerrors.ErrSnapshotNotAllowedForVolume, fmt.Errorf("snapshot creation operation not allowed for this volume"))
+				}
+				if strings.Contains(err.Error(), "No space left on device") {
+					return nil, vsaerrors.NewVCPError(vsaerrors.ErrSnapshotInsufficientSpace, err)
+				}
+				if strings.Contains(err.Error(), "Cannot exceed maximum number of snapshots") {
+					return nil, vsaerrors.NewVCPError(vsaerrors.ErrSnapshotMaximumLimitExceeded, err)
 				}
 				return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 			}
