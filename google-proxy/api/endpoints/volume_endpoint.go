@@ -2753,7 +2753,6 @@ func convertToFlexCacheV1(cp *models.CacheParameters) gcpgenserver.FlexCacheV1be
 	cacheState := gcpgenserver.FlexCacheV1betaCacheState(cp.CacheState)
 	prevCacheState := gcpgenserver.FlexCacheV1betaPreviousCacheState(cp.CacheState)
 	cacheParameters := gcpgenserver.FlexCacheV1beta{
-		PeerIpAddresses:    cp.PeerIPAddresses,
 		CacheState:         gcpgenserver.NewOptFlexCacheV1betaCacheState(cacheState),
 		PreviousCacheState: gcpgenserver.NewOptFlexCacheV1betaPreviousCacheState(prevCacheState),
 	}
@@ -3087,6 +3086,10 @@ func validateFlexCacheRequest(req *gcpgenserver.VolumeCreateV1beta) error {
 
 	if vol.LargeCapacity.IsSet() && vol.LargeCapacity.Value {
 		return fmt.Errorf("large capacity is not allowed for FlexCache volumes")
+	}
+
+	if vol.UnixPermissions.IsSet() && vol.UnixPermissions.Value != "" {
+		return fmt.Errorf("unix permissions are not allowed during FlexCache volume creation")
 	}
 
 	return nil

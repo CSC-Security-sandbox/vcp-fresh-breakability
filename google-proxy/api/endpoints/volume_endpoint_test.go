@@ -5653,8 +5653,8 @@ func TestConvertToFlexCacheV1(t *testing.T) {
 		assert.Equal(tt, "test-peer-cluster", result.PeerClusterName.Value)
 		assert.True(tt, result.PeerSvmName.IsSet())
 		assert.Equal(tt, "test-peer-svm", result.PeerSvmName.Value)
-		assert.Equal(tt, []string{"192.168.1.1", "192.168.1.2"}, result.PeerIpAddresses)
 		assert.True(tt, result.CacheConfig.IsSet())
+		assert.Nil(tt, result.PeerIpAddresses)
 		assert.True(tt, result.CacheConfig.Value.CachePrePopulate.IsSet())
 	})
 	t.Run("WhenPrepopulateNotSet", func(tt *testing.T) {
@@ -5743,7 +5743,6 @@ func TestConvertToFlexCacheV1(t *testing.T) {
 		assert.Equal(tt, "test-peer-cluster", result.PeerClusterName.Value)
 		assert.True(tt, result.PeerSvmName.IsSet())
 		assert.Equal(tt, "test-peer-svm", result.PeerSvmName.Value)
-		assert.Equal(tt, []string{"192.168.1.1"}, result.PeerIpAddresses)
 		assert.True(tt, result.Command.IsSet())
 		assert.Equal(tt, "peer-command", result.Command.Value)
 		assert.True(tt, result.StateDetails.IsSet())
@@ -5801,6 +5800,7 @@ func TestConvertToFlexCacheV1(t *testing.T) {
 		assert.False(tt, result.StateDetailsCode.IsSet())
 		assert.False(tt, result.Passphrase.IsSet())
 		assert.False(tt, result.PeeringCommandExpiryTime.IsSet())
+		assert.Nil(tt, result.PeerIpAddresses)
 	})
 
 	t.Run("WhenCachePrePopulateStateEmpty", func(tt *testing.T) {
@@ -12919,6 +12919,22 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 			errorMsg:    "large capacity is not allowed for FlexCache volumes",
 		},
 		{
+			name: "Invalid FlexCache request - unix permissions set",
+			req: &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					CacheParameters: gcpgenserver.NewOptFlexCacheV1beta(gcpgenserver.FlexCacheV1beta{
+						PeerSvmName:     gcpgenserver.NewOptString("svm_test"),
+						PeerVolumeName:  gcpgenserver.NewOptString("vol_test"),
+						PeerClusterName: gcpgenserver.NewOptString("cluster_test"),
+						PeerIpAddresses: []string{"10.0.0.0"},
+					}),
+					UnixPermissions: gcpgenserver.NewOptNilString("0755"),
+				},
+			},
+			expectError: true,
+			errorMsg:    "unix permissions are not allowed during FlexCache volume creation",
+		},
+		{
 			name: "FlexCache request without required fields - accepted by OpenAPI, validated by application",
 			req: &gcpgenserver.VolumeCreateV1beta{
 				Volume: gcpgenserver.VolumeV1beta{
@@ -14672,7 +14688,7 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:        "Valid - update request with completely empty FlexCache (no required fields, no cacheConfig)",
+			name: "Valid - update request with completely empty FlexCache (no required fields, no cacheConfig)",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
 				// All fields are missing - this should pass validation for updates
 			},
