@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/metricsinterface"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -1506,6 +1507,80 @@ func TestRotateKmsSAKeyActivity_CreateServiceAccountKeyActivity(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.False(tt, result.KeyExists)
 		assert.Equal(tt, "new-key-id", result.NewKeyID)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("CreateServiceAccountKeyActivity_TooManyKeysPendingDeletion_WithMetricsEmitter", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{
+			SE:             mockSE,
+			MetricsEmitter: &metricsinterface.NoOpKmsMetricsEmitter{},
+		}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "kms-uuid"}}
+
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "test@test.iam.gserviceaccount.com",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "primary-key", IsPrimary: true, IsActive: true},
+					{KeyID: "delete-key-1", IsPrimary: false, IsActive: false},
+					{KeyID: "delete-key-2", IsPrimary: false, IsActive: false},
+					{KeyID: "delete-key-3", IsPrimary: false, IsActive: false},
+					{KeyID: "delete-key-4", IsPrimary: false, IsActive: false},
+					{KeyID: "delete-key-5", IsPrimary: false, IsActive: false},
+				},
+			},
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+
+		result, err := activity.CreateServiceAccountKeyActivity(ctx, "sa-uuid", kmsConfig, "primary-key")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		customErr, ok := err.(*vsaerrors.CustomError)
+		assert.True(tt, ok, "error should be of type *CustomError")
+		assert.True(tt, customErr.IsError(vsaerrors.ErrResourceStateConflictError))
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("CreateServiceAccountKeyActivity_TooManyTotalKeys_WithMetricsEmitter", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateKmsSAKeyActivity{
+			SE:             mockSE,
+			MetricsEmitter: &metricsinterface.NoOpKmsMetricsEmitter{},
+		}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "kms-uuid"}}
+
+		// 8 total keys, but only 4 pending deletion (below maxPendingDeletionKeysAllowed=5)
+		// so we skip the first check and hit the total keys check (>= maxTotalKeysBeforeRotation=8)
+		serviceAccount := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "test@test.iam.gserviceaccount.com",
+			ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+				Keys: []datamodel.ServiceAccountKey{
+					{KeyID: "primary-key", IsPrimary: true, IsActive: true},
+					{KeyID: "other-primary-1", IsPrimary: true, IsActive: true},
+					{KeyID: "other-primary-2", IsPrimary: true, IsActive: true},
+					{KeyID: "other-primary-3", IsPrimary: true, IsActive: true},
+					{KeyID: "delete-key-1", IsPrimary: false, IsActive: false},
+					{KeyID: "delete-key-2", IsPrimary: false, IsActive: false},
+					{KeyID: "delete-key-3", IsPrimary: false, IsActive: false},
+					{KeyID: "delete-key-4", IsPrimary: false, IsActive: false},
+				},
+			},
+		}
+
+		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
+
+		result, err := activity.CreateServiceAccountKeyActivity(ctx, "sa-uuid", kmsConfig, "primary-key")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		customErr, ok := err.(*vsaerrors.CustomError)
+		assert.True(tt, ok, "error should be of type *CustomError")
+		assert.True(tt, customErr.IsError(vsaerrors.ErrResourceStateConflictError))
 		mockSE.AssertExpectations(tt)
 	})
 

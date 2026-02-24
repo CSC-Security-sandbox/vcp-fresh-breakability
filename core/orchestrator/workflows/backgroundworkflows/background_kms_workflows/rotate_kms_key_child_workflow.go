@@ -9,6 +9,11 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+const (
+	// Failure type labels for metrics
+	failureTypePoolMigration = "pool_migration"
+)
+
 // RotateKmsKeyChildWorkflow is a child workflow that orchestrates KMS key rotation
 // It is idempotent and can resume from any failure point
 // Each activity is idempotent and checks actual state (DB, GCP) before performing work
@@ -73,6 +78,7 @@ func RotateKmsKeyChildWorkflow(ctx workflow.Context, serviceAccount *datamodel.S
 	err = workflow.ExecuteActivity(ctx, rotateKmsSAKeyActivity.CreateServiceAccountKeyActivity, serviceAccount.UUID, kmsConfig, currentKeyID).Get(ctx, &createKeyResult)
 	if err != nil {
 		logger.Error("CreateServiceAccountKeyActivity failed", "Error", err)
+		// Note: Key limit metrics are emitted directly in CreateServiceAccountKeyActivity
 		return err
 	}
 
@@ -176,6 +182,8 @@ func RotateKmsKeyChildWorkflow(ctx workflow.Context, serviceAccount *datamodel.S
 			"failedPools", failedMigrations,
 			"totalPools", len(pools))
 		logger.Info("Keeping both keys active - failed pools can retry later. Rotation will remain in progress.")
+		// Emit rotation failure metric for this KMS config
+		_ = workflow.ExecuteActivity(ctx, backgroundactivities.EmitKmsRotationFailureMetric, kmsConfig.UUID, serviceAccount.ServiceAccountEmail, failureTypePoolMigration).Get(ctx, nil)
 		return nil // Exit without completing - both keys remain active
 	}
 

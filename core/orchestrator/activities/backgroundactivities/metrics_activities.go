@@ -23,3 +23,18 @@ func EmitPasswordRotationFailureMetric(ctx context.Context, poolUUID, poolName, 
 	return nil
 }
 
+// EmitKmsKeyLimitReachedMetric emits a Prometheus metric when KMS key rotation is blocked due to key limit
+func EmitKmsKeyLimitReachedMetric(ctx context.Context, kmsConfigUUID, limitType string) error {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("Emitting KMS key limit reached metric: kmsConfigUUID=%s, limitType=%s", kmsConfigUUID, limitType)
+	metrics.EmitKmsKeyLimitReached(kmsConfigUUID, limitType)
+	return nil
+}
+
+// EmitKmsRotationFailureMetric emits a Prometheus metric when KMS key rotation fails for a KMS config
+func EmitKmsRotationFailureMetric(ctx context.Context, kmsConfigUUID, serviceAccountEmail, failureType string) error {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("Emitting KMS rotation failure metric: kmsConfigUUID=%s, serviceAccountEmail=%s, failureType=%s", kmsConfigUUID, serviceAccountEmail, failureType)
+	metrics.EmitKmsRotationFailure(kmsConfigUUID, serviceAccountEmail, failureType)
+	return nil
+}

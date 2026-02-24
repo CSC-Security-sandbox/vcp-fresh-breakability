@@ -81,6 +81,8 @@ func main() {
 	metrics.RegisterBackupSizeGauge()
 	metrics.RegisterCertificateRotationFailureCounter()
 	metrics.RegisterPasswordRotationFailureCounter()
+	metrics.RegisterKmsKeyLimitReachedCounter()
+	metrics.RegisterKmsRotationFailureCounter()
 	// Start metrics HTTP server
 	metricsPort := os.Getenv("METRICS_PORT")
 	if metricsPort == "" {
@@ -377,7 +379,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterActivity(&activities.BackupPolicyActivity{SE: dbcon, Scheduler: temporalScheduler})
 	worker.RegisterActivity(&resource_events_activities.ResourceEventsActivity{SE: dbcon, Scheduler: temporalScheduler})
 	worker.RegisterActivity(&resource_events_activities.FinishProjectEventActivity{SE: dbcon})
-	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: dbcon})
+	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: dbcon, MetricsEmitter: metrics.NewPrometheusKmsMetricsEmitter()})
 	worker.RegisterActivity(ontaprest.PollOntapJobActivity)
 	worker.RegisterActivity(&replicationActivities.CleanupVolumeReplicationActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.UpdateVolumeReplicationAttributesActivity{SE: dbcon})
@@ -394,6 +396,8 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterActivity(backgroundactivities.EmitCertificateRotationFailureMetric)
 	worker.RegisterActivity(backgroundactivities.EmitPasswordRotationFailureMetric)
 	worker.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{SE: dbcon, Scheduler: temporalScheduler})
+	worker.RegisterActivity(backgroundactivities.EmitKmsKeyLimitReachedMetric)
+	worker.RegisterActivity(backgroundactivities.EmitKmsRotationFailureMetric)
 }
 
 func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, temporal client.Client, conn database.Storage, telemetryDBConn metricsdb.Storage) {
@@ -454,7 +458,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&backgroundactivities.ResourceDeleteActivity{SE: conn})
 	worker.RegisterActivity(&activities.BackupActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.ScheduledBackupActivity{SE: conn})
-	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: conn})
+	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: conn, MetricsEmitter: metrics.NewPrometheusKmsMetricsEmitter()})
 	worker.RegisterActivity(&backgroundactivities.OrphanJobActivity{SE: conn})
 	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: conn, Scheduler: temporalScheduler})
 	worker.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: conn})
@@ -476,4 +480,6 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&expertmodeactivities.ExpertModeVolumeActivity{SE: conn})
 	worker.RegisterActivity(backgroundactivities.EmitCertificateRotationFailureMetric)
 	worker.RegisterActivity(backgroundactivities.EmitPasswordRotationFailureMetric)
+	worker.RegisterActivity(backgroundactivities.EmitKmsKeyLimitReachedMetric)
+	worker.RegisterActivity(backgroundactivities.EmitKmsRotationFailureMetric)
 }

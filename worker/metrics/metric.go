@@ -50,6 +50,24 @@ var PasswordRotationFailureCounter = prometheus.NewCounterVec(
 	[]string{"pool_uuid", "pool_name", "failure_type", "error_type"},
 )
 
+// KmsKeyLimitReachedCounter Counter for KMS key limit reached (rotation blocked due to too many keys)
+var KmsKeyLimitReachedCounter = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "vcp_kms_key_rotation_key_limit_reached_total",
+		Help: "Total times KMS key rotation was blocked due to key limit reached",
+	},
+	[]string{"kms_config_uuid", "limit_type"},
+)
+
+// KmsRotationFailureCounter Counter for KMS key rotation failures per KMS config
+var KmsRotationFailureCounter = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "vcp_kms_key_rotation_failure_total",
+		Help: "Total KMS key rotation failures per KMS config",
+	},
+	[]string{"kms_config_uuid", "service_account_email", "failure_type"},
+)
+
 // Gauge for AutoTier enabled
 var autoTierEnabledGauge = prometheus.NewGaugeVec(
 	prometheus.GaugeOpts{
@@ -240,6 +258,47 @@ func EmitPasswordRotationFailure(poolUUID, poolName, failureType, errorType stri
 		poolName,
 		failureType,
 		errorType,
+	).Inc()
+}
+
+// RegisterKmsKeyLimitReachedCounter registers the KMS key limit reached counter
+func RegisterKmsKeyLimitReachedCounter() {
+	err := prometheus.Register(KmsKeyLimitReachedCounter)
+	if err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			KmsKeyLimitReachedCounter = are.ExistingCollector.(*prometheus.CounterVec)
+		} else {
+			log.Printf("Failed to register KmsKeyLimitReachedCounter: %v", err)
+		}
+	}
+}
+
+// RegisterKmsRotationFailureCounter registers the KMS rotation failure counter
+func RegisterKmsRotationFailureCounter() {
+	err := prometheus.Register(KmsRotationFailureCounter)
+	if err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			KmsRotationFailureCounter = are.ExistingCollector.(*prometheus.CounterVec)
+		} else {
+			log.Printf("Failed to register KmsRotationFailureCounter: %v", err)
+		}
+	}
+}
+
+// EmitKmsKeyLimitReached emits a metric when KMS key rotation is blocked due to key limit
+func EmitKmsKeyLimitReached(kmsConfigUUID, limitType string) {
+	KmsKeyLimitReachedCounter.WithLabelValues(
+		kmsConfigUUID,
+		limitType,
+	).Inc()
+}
+
+// EmitKmsRotationFailure emits a metric when KMS key rotation fails for a KMS config
+func EmitKmsRotationFailure(kmsConfigUUID, serviceAccountEmail, failureType string) {
+	KmsRotationFailureCounter.WithLabelValues(
+		kmsConfigUUID,
+		serviceAccountEmail,
+		failureType,
 	).Inc()
 }
 

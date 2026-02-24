@@ -10,6 +10,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/metricsinterface"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -45,7 +46,8 @@ const (
 )
 
 type RotateKmsSAKeyActivity struct {
-	SE database.Storage
+	SE             database.Storage
+	MetricsEmitter metricsinterface.KmsMetricsEmitter
 }
 
 func (a *RotateKmsSAKeyActivity) ListKmsConfigs(ctx context.Context) ([]*datamodel.KmsConfig, error) {
@@ -280,6 +282,10 @@ func (a *RotateKmsSAKeyActivity) CreateServiceAccountKeyActivity(ctx context.Con
 		// Block rotation if too many keys are pending deletion
 		if keysMarkedForDeletion >= maxPendingDeletionKeysAllowed {
 			logger.Errorf("KMS_KEY_ROTATION: Too many keys pending deletion (%d) - cleanup required before rotation", keysMarkedForDeletion)
+			// Emit metric for alerting (if metrics emitter is configured)
+			if a.MetricsEmitter != nil {
+				a.MetricsEmitter.EmitKmsKeyLimitReached(kmsConfig.UUID, "pending_deletion")
+			}
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError,
 				fmt.Errorf("too many keys pending deletion (%d >= %d) - DeleteOldSAKeyFromGCPActivity may be failing repeatedly; investigate and cleanup before rotation",
 					keysMarkedForDeletion, maxPendingDeletionKeysAllowed))
@@ -288,6 +294,10 @@ func (a *RotateKmsSAKeyActivity) CreateServiceAccountKeyActivity(ctx context.Con
 		// Block rotation if approaching GCP's 10-key limit
 		if totalKeys >= maxTotalKeysBeforeRotation {
 			logger.Errorf("KMS_KEY_ROTATION: Too many total keys (%d) - cleanup required before rotation", totalKeys)
+			// Emit metric for alerting (if metrics emitter is configured)
+			if a.MetricsEmitter != nil {
+				a.MetricsEmitter.EmitKmsKeyLimitReached(kmsConfig.UUID, "total_keys")
+			}
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError,
 				fmt.Errorf("too many keys in service account (%d >= %d) - approaching GCP's 10-key limit; cleanup required",
 					totalKeys, maxTotalKeysBeforeRotation))

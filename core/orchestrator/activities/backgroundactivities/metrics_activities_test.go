@@ -253,3 +253,171 @@ func TestEmitPasswordRotationFailureMetric_MultipleCalls(t *testing.T) {
 	assert.True(t, found, "PasswordRotationFailureCounter should be incremented multiple times")
 }
 
+func TestEmitKmsKeyLimitReachedMetric(t *testing.T) {
+	// Register the metric first
+	metrics.RegisterKmsKeyLimitReachedCounter()
+	// Clean up after test
+	defer prometheus.Unregister(metrics.KmsKeyLimitReachedCounter)
+
+	ctx := context.Background()
+	kmsConfigUUID := "test-kms-config-uuid-activity"
+	limitType := "pending_deletion"
+
+	// Execute the activity
+	err := EmitKmsKeyLimitReachedMetric(ctx, kmsConfigUUID, limitType)
+
+	// Verify no error
+	assert.NoError(t, err)
+
+	// Gather metrics and verify
+	metricsCollected, err := prometheus.DefaultGatherer.Gather()
+	assert.NoError(t, err)
+
+	found := false
+	for _, mf := range metricsCollected {
+		if *mf.Name == "vcp_kms_key_rotation_key_limit_reached_total" {
+			for _, m := range mf.Metric {
+				expected := map[string]string{
+					"kms_config_uuid": kmsConfigUUID,
+					"limit_type":      limitType,
+				}
+				if metricHasLabels(m.Label, expected) {
+					found = true
+					// Verify counter value is incremented
+					if m.Counter != nil && *m.Counter.Value >= 1.0 {
+						break
+					}
+				}
+			}
+		}
+	}
+
+	assert.True(t, found, "KmsKeyLimitReachedCounter metric should be emitted with correct labels")
+}
+
+func TestEmitKmsKeyLimitReachedMetric_WithEmptyValues(t *testing.T) {
+	// Register the metric first
+	metrics.RegisterKmsKeyLimitReachedCounter()
+	// Clean up after test
+	defer prometheus.Unregister(metrics.KmsKeyLimitReachedCounter)
+
+	ctx := context.Background()
+	kmsConfigUUID := ""
+	limitType := ""
+
+	// Execute the activity - should not panic
+	err := EmitKmsKeyLimitReachedMetric(ctx, kmsConfigUUID, limitType)
+
+	// Verify no error
+	assert.NoError(t, err)
+}
+
+func TestEmitKmsRotationFailureMetric(t *testing.T) {
+	// Register the metric first
+	metrics.RegisterKmsRotationFailureCounter()
+	// Clean up after test
+	defer prometheus.Unregister(metrics.KmsRotationFailureCounter)
+
+	ctx := context.Background()
+	kmsConfigUUID := "test-kms-config-uuid-failure"
+	serviceAccountEmail := "test-sa@project.iam.gserviceaccount.com"
+	failureType := "pool_migration"
+
+	// Execute the activity
+	err := EmitKmsRotationFailureMetric(ctx, kmsConfigUUID, serviceAccountEmail, failureType)
+
+	// Verify no error
+	assert.NoError(t, err)
+
+	// Gather metrics and verify
+	metricsCollected, err := prometheus.DefaultGatherer.Gather()
+	assert.NoError(t, err)
+
+	found := false
+	for _, mf := range metricsCollected {
+		if *mf.Name == "vcp_kms_key_rotation_failure_total" {
+			for _, m := range mf.Metric {
+				expected := map[string]string{
+					"kms_config_uuid":       kmsConfigUUID,
+					"service_account_email": serviceAccountEmail,
+					"failure_type":          failureType,
+				}
+				if metricHasLabels(m.Label, expected) {
+					found = true
+					// Verify counter value is incremented
+					if m.Counter != nil && *m.Counter.Value >= 1.0 {
+						break
+					}
+				}
+			}
+		}
+	}
+
+	assert.True(t, found, "KmsRotationFailureCounter metric should be emitted with correct labels")
+}
+
+func TestEmitKmsRotationFailureMetric_WithEmptyValues(t *testing.T) {
+	// Register the metric first
+	metrics.RegisterKmsRotationFailureCounter()
+	// Clean up after test
+	defer prometheus.Unregister(metrics.KmsRotationFailureCounter)
+
+	ctx := context.Background()
+	kmsConfigUUID := ""
+	serviceAccountEmail := ""
+	failureType := ""
+
+	// Execute the activity - should not panic
+	err := EmitKmsRotationFailureMetric(ctx, kmsConfigUUID, serviceAccountEmail, failureType)
+
+	// Verify no error
+	assert.NoError(t, err)
+}
+
+func TestEmitKmsRotationFailureMetric_MultipleCalls(t *testing.T) {
+	// Register the metric first
+	metrics.RegisterKmsRotationFailureCounter()
+	// Clean up after test
+	defer prometheus.Unregister(metrics.KmsRotationFailureCounter)
+
+	ctx := context.Background()
+	kmsConfigUUID := "test-kms-config-uuid-multi"
+	serviceAccountEmail := "test-multi-sa@project.iam.gserviceaccount.com"
+	failureType := "pool_migration"
+
+	// Execute the activity multiple times
+	err1 := EmitKmsRotationFailureMetric(ctx, kmsConfigUUID, serviceAccountEmail, failureType)
+	err2 := EmitKmsRotationFailureMetric(ctx, kmsConfigUUID, serviceAccountEmail, failureType)
+	err3 := EmitKmsRotationFailureMetric(ctx, kmsConfigUUID, serviceAccountEmail, failureType)
+
+	// Verify no errors
+	assert.NoError(t, err1)
+	assert.NoError(t, err2)
+	assert.NoError(t, err3)
+
+	// Gather metrics and verify counter is incremented
+	metricsCollected, err := prometheus.DefaultGatherer.Gather()
+	assert.NoError(t, err)
+
+	found := false
+	for _, mf := range metricsCollected {
+		if *mf.Name == "vcp_kms_key_rotation_failure_total" {
+			for _, m := range mf.Metric {
+				expected := map[string]string{
+					"kms_config_uuid":       kmsConfigUUID,
+					"service_account_email": serviceAccountEmail,
+					"failure_type":          failureType,
+				}
+				if metricHasLabels(m.Label, expected) {
+					found = true
+					// Verify counter value is at least 3 (called three times)
+					if m.Counter != nil && *m.Counter.Value >= 3.0 {
+						break
+					}
+				}
+			}
+		}
+	}
+
+	assert.True(t, found, "KmsRotationFailureCounter should be incremented multiple times")
+}
