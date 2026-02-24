@@ -139,6 +139,7 @@ type OrchestratorFactory interface {
 	// Cluster upgrade methods
 	UpgradeCluster(ctx context.Context, params *commonparams.UpgradeClusterParams) (*models.ClusterUpgradeResponse, string, error)
 	GetClusterUpgradeStatus(ctx context.Context, jobUUID string) (*models.UpgradeProgress, error)
+	HasActiveClusterUpgrade(ctx context.Context, clusterID string) (bool, error)
 	ListAvailableVersions(ctx context.Context) (*models.ListAvailableVersionsResponse, error)
 	CreateImageVersion(ctx context.Context, ontapVersion, vsaImagePath, vsaName, mediatorName string, isActive bool) (*datamodel.ImageVersion, error)
 	DeleteImageVersion(ctx context.Context, ontapVersion string) error

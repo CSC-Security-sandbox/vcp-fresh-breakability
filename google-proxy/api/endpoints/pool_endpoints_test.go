@@ -2777,6 +2777,7 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 				},
 				State: "READY",
 			}, nil)
+			// HasActiveClusterUpgrade is not called for validation-error cases; it runs only after validateUpdatePoolParams passes
 
 			handler := Handler{
 				Orchestrator: mockOrchestrator,
@@ -2823,6 +2824,7 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 			SizeInBytes: 1099511627776, // 1 TiB
 			State:       "UPDATING",
 		}, nil)
+		// HasActiveClusterUpgrade not called: validateUpdatePoolParams returns 409 for UPDATING state first
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -2874,6 +2876,7 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 			},
 			State: models.LifeCycleStateDegraded,
 		}, nil)
+		// HasActiveClusterUpgrade not called: validateUpdatePoolParams returns 409 for DEGRADED state first
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -2889,6 +2892,71 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 		assert.True(tt, ok, "Expected V1betaUpdatePoolConflict response")
 		assert.Equal(tt, float64(409), conflict.Code)
 		assert.Equal(tt, "Update operation is not allowed when the pool is in degraded state", conflict.Message)
+	})
+
+	t.Run("TestClusterUpgradeInProgressPoolUpdateBlocked", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaUpdatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-id",
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel: models.BaseModel{UUID: "pool-uuid"},
+			State:     models.LifeCycleStateREADY,
+		}, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(true, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), &gcpgenserver.PoolUpdateV1beta{
+			SizeInBytes: gcpgenserver.NewOptNilFloat64(2199023255552),
+		}, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		conflict, ok := result.(*gcpgenserver.V1betaUpdatePoolConflict)
+		assert.True(tt, ok, "Expected V1betaUpdatePoolConflict response")
+		assert.Equal(tt, float64(409), conflict.Code)
+		assert.Equal(tt, "Storage pool is temporarily unavailable, please try again later", conflict.Message)
+	})
+
+	t.Run("WhenHasActiveClusterUpgradeReturnsError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaUpdatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-id",
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel: models.BaseModel{UUID: "pool-uuid"},
+			State:     models.LifeCycleStateREADY,
+		}, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, fmt.Errorf("db unavailable"))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaUpdatePool(context.Background(), &gcpgenserver.PoolUpdateV1beta{
+			SizeInBytes: gcpgenserver.NewOptNilFloat64(2199023255552),
+		}, params)
+
+		assert.Error(tt, err)
+		assert.NotNil(tt, result)
+		_, ok := result.(*gcpgenserver.V1betaUpdatePoolInternalServerError)
+		assert.True(tt, ok, "Expected V1betaUpdatePoolInternalServerError when upgrade check fails")
 	})
 }
 
@@ -3249,6 +3317,7 @@ func TestV1betaUpdatePool(t *testing.T) {
 			},
 			State: "READY",
 		}, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		// Set orchestrator to return an error when UpdatePool is called.
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
 			Return(nil, "", fmt.Errorf("update failed"))
@@ -3294,6 +3363,7 @@ func TestV1betaUpdatePool(t *testing.T) {
 				PrimaryZone: "us-east4-a",
 			},
 		}, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		// Set orchestrator to return an error when UpdatePool is called.
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
 			Return(nil, "", errors.NewConflictErr("Pool is already transitioning between states"))
@@ -3340,6 +3410,7 @@ func TestV1betaUpdatePool(t *testing.T) {
 			},
 			State: "READY",
 		}, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		// Set orchestrator to return a user input validation error when UpdatePool is called.
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
 			Return(nil, "", errors.NewUserInputValidationErr("Invalid input: size too small"))
@@ -3393,6 +3464,7 @@ func TestV1betaUpdatePool(t *testing.T) {
 				PrimaryZone: "us-east4-a",
 			},
 		}, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
 			Return(updatedPool, "op-123", nil)
 
@@ -5834,6 +5906,7 @@ func TestV1betaUpdatePool_ThroughputOnlyUpdate(t *testing.T) {
 				PrimaryZone: "us-east4-a",
 			},
 		}, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 
 		// Set orchestrator to return success when UpdatePool is called.
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
@@ -5901,6 +5974,7 @@ func TestV1betaUpdatePool_ManualQos_IopsOnlyUpdate(t *testing.T) {
 				PrimaryZone: "us-east4-a",
 			},
 		}, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 
 		// Set orchestrator to return success when UpdatePool is called.
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
@@ -5960,6 +6034,7 @@ func TestV1betaUpdatePool_ManualQos_IopsOnlyUpdate(t *testing.T) {
 				PrimaryZone: "us-east4-a",
 			},
 		}, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 
 		params := gcpgenserver.V1betaUpdatePoolParams{
 			LocationId:    "us-east4",
@@ -6002,6 +6077,7 @@ func TestV1betaUpdatePool_ManualQos_IopsOnlyUpdate(t *testing.T) {
 				PrimaryZone: "us-east4-a",
 			},
 		}, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 
 		// Set orchestrator to return success when UpdatePool is called.
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
@@ -6279,6 +6355,7 @@ func TestV1betaUpdatePool_AutoTieringValidation(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{
 				UUID: "updated-pool-uuid",
@@ -6411,6 +6488,7 @@ func TestV1betaUpdatePool_AutoTieringValidation(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(poolWithAutoTiering, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{
 				UUID: "updated-pool-uuid",
@@ -6509,6 +6587,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{
 				UUID: "updated-pool-uuid",
@@ -6576,6 +6655,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{
 				UUID: "updated-pool-uuid",
@@ -6638,6 +6718,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{
 				UUID: "updated-pool-uuid",
@@ -6693,6 +6774,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{
 				UUID: "updated-pool-uuid",
@@ -6747,6 +6829,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPoolWithAutoTiering, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{
 				UUID: "updated-pool-uuid",
@@ -7009,6 +7092,7 @@ func TestV1betaUpdatePool_WithActiveDirectoryConfigId(t *testing.T) {
 
 		// Mock pool description
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-uuid", "test-project").Return(existingPool, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 
 		// Mock pool update
 		updatedPool := &models.Pool{
@@ -7086,8 +7170,9 @@ func TestV1betaUpdatePool_WithActiveDirectoryConfigId(t *testing.T) {
 			},
 		}
 
-		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("Active Directory", nil))
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-uuid", "test-project").Return(existingPool, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
+		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("Active Directory", nil))
 
 		handler := Handler{Orchestrator: mockOrchestrator}
 		req := &gcpgenserver.PoolUpdateV1beta{
@@ -7138,11 +7223,11 @@ func TestV1betaUpdatePool_WithActiveDirectoryConfigId(t *testing.T) {
 			},
 		}
 
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-uuid", "test-project").Return(existingPool, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.MatchedBy(func(params *commonparams.GetADParams) bool {
 			return params.UUID == "ad-config-uuid"
 		})).Return(adConfig, nil)
-		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-uuid", "test-project").Return(existingPool, nil)
-
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.MatchedBy(func(params *commonparams.UpdatePoolParams) bool {
 			return params.ActiveDirectoryConfigId == "ad-config-uuid" &&
 				params.ActiveDirectoryId == "ad-config-uuid" &&
@@ -7193,8 +7278,9 @@ func TestV1betaUpdatePool_WithActiveDirectoryConfigId(t *testing.T) {
 			},
 		}
 
-		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(nil, stderrors.New("database error"))
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-uuid", "test-project").Return(existingPool, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
+		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(nil, stderrors.New("database error"))
 
 		handler := Handler{Orchestrator: mockOrchestrator}
 
@@ -7244,6 +7330,7 @@ func TestV1betaUpdatePool_WithActiveDirectoryConfigId(t *testing.T) {
 
 		// Mock pool description
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-uuid", "test-project").Return(existingPool, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 
 		// Mock pool update with empty ActiveDirectoryConfigId
 		updatedPool := &models.Pool{
@@ -7339,6 +7426,7 @@ func TestV1betaUpdatePool_LargeCapacityPropagation(t *testing.T) {
 
 		existingPool := buildExistingPool()
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-uuid", "test-project").Return(existingPool, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.MatchedBy(func(params *commonparams.UpdatePoolParams) bool {
 			return params.LargeCapacity != nil && *params.LargeCapacity
@@ -7366,6 +7454,7 @@ func TestV1betaUpdatePool_LargeCapacityPropagation(t *testing.T) {
 
 		existingPool := buildExistingPool()
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, "pool-uuid", "test-project").Return(existingPool, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.MatchedBy(func(params *commonparams.UpdatePoolParams) bool {
 			return params.LargeCapacity == nil

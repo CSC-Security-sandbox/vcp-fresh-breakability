@@ -5558,6 +5558,63 @@ func (_c *MockOrchestratorFactory_GetVolumePerformanceGroup_Call) RunAndReturn(r
 	return _c
 }
 
+// HasActiveClusterUpgrade provides a mock function with given fields: ctx, clusterID
+func (_m *MockOrchestratorFactory) HasActiveClusterUpgrade(ctx context.Context, clusterID string) (bool, error) {
+	ret := _m.Called(ctx, clusterID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for HasActiveClusterUpgrade")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (bool, error)); ok {
+		return rf(ctx, clusterID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) bool); ok {
+		r0 = rf(ctx, clusterID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, clusterID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_HasActiveClusterUpgrade_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HasActiveClusterUpgrade'
+type MockOrchestratorFactory_HasActiveClusterUpgrade_Call struct {
+	*mock.Call
+}
+
+// HasActiveClusterUpgrade is a helper method to define mock.On call
+//   - ctx context.Context
+//   - clusterID string
+func (_e *MockOrchestratorFactory_Expecter) HasActiveClusterUpgrade(ctx interface{}, clusterID interface{}) *MockOrchestratorFactory_HasActiveClusterUpgrade_Call {
+	return &MockOrchestratorFactory_HasActiveClusterUpgrade_Call{Call: _e.mock.On("HasActiveClusterUpgrade", ctx, clusterID)}
+}
+
+func (_c *MockOrchestratorFactory_HasActiveClusterUpgrade_Call) Run(run func(ctx context.Context, clusterID string)) *MockOrchestratorFactory_HasActiveClusterUpgrade_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_HasActiveClusterUpgrade_Call) Return(_a0 bool, _a1 error) *MockOrchestratorFactory_HasActiveClusterUpgrade_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_HasActiveClusterUpgrade_Call) RunAndReturn(run func(context.Context, string) (bool, error)) *MockOrchestratorFactory_HasActiveClusterUpgrade_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IsBackupVaultAttachedToVolume provides a mock function with given fields: ctx, backupVaultUUID
 func (_m *MockOrchestratorFactory) IsBackupVaultAttachedToVolume(ctx context.Context, backupVaultUUID string) (bool, error) {
 	ret := _m.Called(ctx, backupVaultUUID)

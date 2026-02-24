@@ -18697,9 +18697,15 @@ func (s *PoolInternalV1beta) encodeFields(e *jx.Encoder) {
 			e.ArrEnd()
 		}
 	}
+	{
+		if s.HasActiveClusterUpgrade.Set {
+			e.FieldStart("hasActiveClusterUpgrade")
+			s.HasActiveClusterUpgrade.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfPoolInternalV1beta = [47]string{
+var jsonFieldsNameOfPoolInternalV1beta = [48]string{
 	0:  "activeDirectoryConfigId",
 	1:  "activeDirectoryResourceId",
 	2:  "kmsConfigId",
@@ -18747,6 +18753,7 @@ var jsonFieldsNameOfPoolInternalV1beta = [47]string{
 	44: "mode",
 	45: "clusterName",
 	46: "interclusterLifs",
+	47: "hasActiveClusterUpgrade",
 }
 
 // Decode decodes PoolInternalV1beta from json.
@@ -19243,6 +19250,16 @@ func (s *PoolInternalV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"interclusterLifs\"")
+			}
+		case "hasActiveClusterUpgrade":
+			if err := func() error {
+				s.HasActiveClusterUpgrade.Reset()
+				if err := s.HasActiveClusterUpgrade.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hasActiveClusterUpgrade\"")
 			}
 		default:
 			return d.Skip()

@@ -8491,6 +8491,11 @@ components:
                 type: string
                 description: IP addresses of the intercluster LIFs
               example: ['10.0.0.1', '10.0.0.2']
+            hasActiveClusterUpgrade:
+              title: hasActiveClusterUpgrade
+              type: boolean
+              readOnly: true
+              description: True if the pool's cluster has an active upgrade job (PENDING or IN_PROGRESS).
     ServiceLevel_v1beta:
       title: ServiceLevel
       type: object

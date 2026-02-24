@@ -311,7 +311,7 @@ func TestCheckActiveUpgradeJob(t *testing.T) {
 		mockStorage.On("GetClusterUpgradeJobsByClusterID", ctx, clusterID).Return([]*datamodel.ClusterUpgradeJob{}, nil)
 
 		// Execute
-		result, err := _checkActiveUpgradeJob(ctx, mockStorage, clusterID)
+		result, err := CheckActiveUpgradeJob(ctx, mockStorage, clusterID)
 
 		// Assert
 		assert.NoError(t, err)
@@ -336,7 +336,7 @@ func TestCheckActiveUpgradeJob(t *testing.T) {
 		mockStorage.On("GetClusterUpgradeJobsByClusterID", ctx, clusterID).Return([]*datamodel.ClusterUpgradeJob{activeJob}, nil)
 
 		// Execute
-		result, err := _checkActiveUpgradeJob(ctx, mockStorage, clusterID)
+		result, err := CheckActiveUpgradeJob(ctx, mockStorage, clusterID)
 
 		// Assert
 		assert.NoError(t, err)
@@ -355,11 +355,78 @@ func TestCheckActiveUpgradeJob(t *testing.T) {
 		mockStorage.On("GetClusterUpgradeJobsByClusterID", ctx, clusterID).Return(nil, errors.New("database error"))
 
 		// Execute
-		result, err := _checkActiveUpgradeJob(ctx, mockStorage, clusterID)
+		result, err := CheckActiveUpgradeJob(ctx, mockStorage, clusterID)
 
 		// Assert
 		assert.Error(t, err)
 		assert.Nil(t, result)
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+func TestHasActiveClusterUpgrade(t *testing.T) {
+	t.Run("ReturnsFalseWhenNoActiveJob", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+		clusterID := "test-cluster-id"
+		mockStorage.On("GetClusterUpgradeJobsByClusterID", ctx, clusterID).Return([]*datamodel.ClusterUpgradeJob{}, nil)
+
+		hasUpgrade, err := HasActiveClusterUpgrade(ctx, mockStorage, clusterID)
+
+		assert.NoError(t, err)
+		assert.False(t, hasUpgrade)
+		mockStorage.AssertExpectations(t)
+	})
+	t.Run("ReturnsTrueWhenJobInProgress", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+		clusterID := "test-cluster-id"
+		activeJob := &datamodel.ClusterUpgradeJob{ClusterID: clusterID, Status: string(models.UpgradeStatusInProgress)}
+		mockStorage.On("GetClusterUpgradeJobsByClusterID", ctx, clusterID).Return([]*datamodel.ClusterUpgradeJob{activeJob}, nil)
+
+		hasUpgrade, err := HasActiveClusterUpgrade(ctx, mockStorage, clusterID)
+
+		assert.NoError(t, err)
+		assert.True(t, hasUpgrade)
+		mockStorage.AssertExpectations(t)
+	})
+	t.Run("ReturnsTrueWhenJobPending", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+		clusterID := "test-cluster-id"
+		pendingJob := &datamodel.ClusterUpgradeJob{ClusterID: clusterID, Status: string(models.UpgradeStatusPending)}
+		mockStorage.On("GetClusterUpgradeJobsByClusterID", ctx, clusterID).Return([]*datamodel.ClusterUpgradeJob{pendingJob}, nil)
+
+		hasUpgrade, err := HasActiveClusterUpgrade(ctx, mockStorage, clusterID)
+
+		assert.NoError(t, err)
+		assert.True(t, hasUpgrade)
+		mockStorage.AssertExpectations(t)
+	})
+	t.Run("ReturnsFalseWhenOnlyCompletedJobs", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+		clusterID := "test-cluster-id"
+		completedJob := &datamodel.ClusterUpgradeJob{ClusterID: clusterID, Status: string(models.UpgradeStatusCompleted)}
+		mockStorage.On("GetClusterUpgradeJobsByClusterID", ctx, clusterID).Return([]*datamodel.ClusterUpgradeJob{completedJob}, nil)
+
+		hasUpgrade, err := HasActiveClusterUpgrade(ctx, mockStorage, clusterID)
+
+		assert.NoError(t, err)
+		assert.False(t, hasUpgrade)
+		mockStorage.AssertExpectations(t)
+	})
+	t.Run("OrchestratorMethodDelegatesToPackageFunction", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+		clusterID := "pool-uuid-123"
+		mockStorage.On("GetClusterUpgradeJobsByClusterID", ctx, clusterID).Return([]*datamodel.ClusterUpgradeJob{}, nil)
+
+		o := &Orchestrator{storage: mockStorage}
+		hasUpgrade, err := o.HasActiveClusterUpgrade(ctx, clusterID)
+
+		assert.NoError(t, err)
+		assert.False(t, hasUpgrade)
 		mockStorage.AssertExpectations(t)
 	})
 }

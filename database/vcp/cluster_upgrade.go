@@ -25,7 +25,7 @@ func (d *DataStoreRepository) GetClusterUpgradeJobByUUID(ctx context.Context, jo
 	return &upgradeJob, nil
 }
 
-// GetClusterUpgradeJobsByClusterID retrieves all cluster upgrade jobs for a given cluster ID (including soft-deleted)
+// GetClusterUpgradeJobsByClusterID retrieves all cluster upgrade jobs for a given cluster ID
 func (d *DataStoreRepository) GetClusterUpgradeJobsByClusterID(ctx context.Context, clusterID string) ([]*datamodel.ClusterUpgradeJob, error) {
 	var upgradeJobs []*datamodel.ClusterUpgradeJob
 	err := d.db.GORM().WithContext(ctx).Where("cluster_id = ?", clusterID).Find(&upgradeJobs).Error

@@ -47,7 +47,14 @@ func (h Handler) V1betaInternalDescribePool(ctx context.Context, params gcpgense
 		}, err
 	}
 
-	return convertToPoolInternalV1Beta(pool), nil
+	resp := convertToPoolInternalV1Beta(pool)
+	hasActive, err := h.Orchestrator.HasActiveClusterUpgrade(ctx, pool.UUID)
+	if err != nil {
+		logger.Warn("Failed to check cluster upgrade status for pool, assuming no active upgrade", "poolUUID", pool.UUID, "error", err)
+		hasActive = false
+	}
+	resp.HasActiveClusterUpgrade = gcpgenserver.NewOptBool(hasActive)
+	return resp, nil
 }
 
 func (h Handler) V1betaGetMultipleReplicationsInternal(ctx context.Context, req *gcpgenserver.ReplicationIDListV1beta, params gcpgenserver.V1betaGetMultipleReplicationsInternalParams) (gcpgenserver.V1betaGetMultipleReplicationsInternalRes, error) {

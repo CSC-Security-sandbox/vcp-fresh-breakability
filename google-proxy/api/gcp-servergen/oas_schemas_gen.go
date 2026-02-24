@@ -14438,6 +14438,8 @@ type PoolInternalV1beta struct {
 	ClusterName OptString `json:"clusterName"`
 	// Intercluster Lifs.
 	InterclusterLifs []string `json:"interclusterLifs"`
+	// True if the pool's cluster has an active upgrade job (PENDING or IN_PROGRESS).
+	HasActiveClusterUpgrade OptBool `json:"hasActiveClusterUpgrade"`
 }
 
 // GetActiveDirectoryConfigId returns the value of ActiveDirectoryConfigId.
@@ -14675,6 +14677,11 @@ func (s *PoolInternalV1beta) GetInterclusterLifs() []string {
 	return s.InterclusterLifs
 }
 
+// GetHasActiveClusterUpgrade returns the value of HasActiveClusterUpgrade.
+func (s *PoolInternalV1beta) GetHasActiveClusterUpgrade() OptBool {
+	return s.HasActiveClusterUpgrade
+}
+
 // SetActiveDirectoryConfigId sets the value of ActiveDirectoryConfigId.
 func (s *PoolInternalV1beta) SetActiveDirectoryConfigId(val OptNilString) {
 	s.ActiveDirectoryConfigId = val
@@ -14908,6 +14915,11 @@ func (s *PoolInternalV1beta) SetClusterName(val OptString) {
 // SetInterclusterLifs sets the value of InterclusterLifs.
 func (s *PoolInternalV1beta) SetInterclusterLifs(val []string) {
 	s.InterclusterLifs = val
+}
+
+// SetHasActiveClusterUpgrade sets the value of HasActiveClusterUpgrade.
+func (s *PoolInternalV1beta) SetHasActiveClusterUpgrade(val OptBool) {
+	s.HasActiveClusterUpgrade = val
 }
 
 func (*PoolInternalV1beta) v1betaInternalDescribePoolRes() {}

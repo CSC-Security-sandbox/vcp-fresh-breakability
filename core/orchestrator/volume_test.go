@@ -27374,6 +27374,57 @@ func TestImmutableBackupPolicyErrorHandling(t *testing.T) {
 	})
 }
 
+// TestValidateCreateVolumeParams_CMEKPoolUpgradeCheck covers the CMEK-gated upgrade check in _validateCreateVolumeParams (lines 1585-1594).
+func TestValidateCreateVolumeParams_CMEKPoolUpgradeCheck(t *testing.T) {
+	ctx := context.Background()
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"}}
+
+	cmekPool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-cmek-uuid"},
+			AccountID:   account.ID,
+			Account:     account,
+			State:       models.LifeCycleStateREADY,
+			Network:     "default",
+			SizeInBytes: 10 * utils.TiBInBytes,
+			KmsConfigID: sql.NullInt64{Valid: true, Int64: 1},
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 100,
+				Iops:            1600,
+			},
+		},
+	}
+	params := &common.CreateVolumeParams{
+		Name:             "vol",
+		QuotaInBytes:     utils.GiBInBytes,
+		Protocols:        []string{utils.ProtocolNFS},
+		BlockProperties:  &common.BlockPropertiesRequest{OSType: "LINUX"},
+	}
+
+	t.Run("WhenUpgradeCheckReturnsError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		upgradeErr := errors2.New("db unavailable")
+		mockStorage.On("GetClusterUpgradeJobsByClusterID", ctx, cmekPool.UUID).Return(([]*datamodel.ClusterUpgradeJob)(nil), upgradeErr)
+
+		err := _validateCreateVolumeParams(ctx, mockStorage, params, cmekPool)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "db unavailable")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenPoolHasActiveUpgrade", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activeJob := &datamodel.ClusterUpgradeJob{ClusterID: cmekPool.UUID, Status: string(models.UpgradeStatusInProgress)}
+		mockStorage.On("GetClusterUpgradeJobsByClusterID", ctx, cmekPool.UUID).Return([]*datamodel.ClusterUpgradeJob{activeJob}, nil)
+
+		err := _validateCreateVolumeParams(ctx, mockStorage, params, cmekPool)
+		assert.Error(t, err)
+		assert.True(t, customerrors.IsConflictErr(err))
+		assert.Contains(t, err.Error(), "Storage pool is temporarily unavailable, please try again later")
+		mockStorage.AssertExpectations(t)
+	})
+}
+
 func TestValidateUpdateVolumeRequest_ImmutableBackupValidation_ExistingDataProtection_ErrorMapping(t *testing.T) {
 	// Enable immutable backup feature flag for these tests
 	utils.SetImmutableBackupEnabledForTest(true)

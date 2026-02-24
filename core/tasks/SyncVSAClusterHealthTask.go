@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/inmemotasksprocessor"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -147,6 +148,16 @@ func _syncVSAClusterHealthTask(imtpCtx interface{}, inputs ...interface{}) {
 	logger := util.GetLogger(bgCtx)
 
 	logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Processing pool %s", correlationID, poolIdentifier.UUID)
+
+	// Skip JSWAP and DB state update when cluster upgrade is in progress for this pool
+	hasUpgrade, err := orchestrator.HasActiveClusterUpgrade(bgCtx, se, poolIdentifier.UUID)
+	if err != nil {
+		logger.Warnf("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Failed to check cluster upgrade jobs, skipping health sync: %v", correlationID, poolIdentifier.UUID, err)
+	}
+	if hasUpgrade {
+		logger.Infof("[SyncVSAClusterHealthTask] CorrelationID: %s - Pool %s - Skipping JSWAP and DB state update (cluster upgrade in progress)", correlationID, poolIdentifier.UUID)
+		return
+	}
 
 	// Get VSA Provider
 	providerResult := ctx.RunUnit(GetVSAProviderUnit, inmemotasksprocessor.UnitOptions{}, poolIdentifier, se, bgCtx)

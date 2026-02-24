@@ -686,6 +686,13 @@ func Test_getVolume(t *testing.T) {
 	})
 }
 
+// setupMockNoActiveClusterUpgrade sets GetClusterUpgradeJobsByClusterID to return no active upgrade for any cluster (used by tests that reach hasActiveClusterUpgrade).
+// It also mocks GetPoolByUUID so destination-pool UUID resolution for the upgrade check returns a pool (tests use destination pool id "pool-1").
+func setupMockNoActiveClusterUpgrade(mockStorage *database.MockStorage) {
+	mockStorage.On("GetClusterUpgradeJobsByClusterID", mock.Anything, mock.Anything).Return([]*datamodel.ClusterUpgradeJob{}, nil)
+	mockStorage.On("GetPoolByUUID", mock.Anything, mock.Anything).Return(&datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-1"}}, nil)
+}
+
 // Unit tests for _validateCreateReplicationParams
 func Test_validateCreateReplicationParams(t *testing.T) {
 	ctx := context.Background()
@@ -739,7 +746,11 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mockStorage.On("GetAccount", ctx, projectNumber).Return(&datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acc-1"}}, nil)
+		// hasActiveClusterUpgrade checks source and destination pool
+		mockStorage.On("GetClusterUpgradeJobsByClusterID", mock.Anything, "pool-uuid").Return([]*datamodel.ClusterUpgradeJob{}, nil)
+		mockStorage.On("GetClusterUpgradeJobsByClusterID", mock.Anything, "pool-1").Return([]*datamodel.ClusterUpgradeJob{}, nil)
 		ValidateReplicationResourceId = func(ctx context.Context, projectNumber string, paramReplicationResourceId string, paramsVolumeResourceId string, se database.Storage) error {
 			return nil
 		}
@@ -820,6 +831,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		eventCopy.CreateReplicationParams = &paramsCopy
 
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		_, err := _validateCreateReplicationParams(ctx, &eventCopy, mockStorage)
 		assert.Error(t, err)
 	})
@@ -854,6 +866,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		eventCopy.CreateReplicationParams = paramsCopy
 
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		_, err := _validateCreateReplicationParams(ctx, eventCopy, mockStorage)
 		assert.Error(t, err)
 		assert.Equal(t, err.Error(), "Auto-Tiering feature is currently not enabled.")
@@ -870,6 +883,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		eventCopy.CreateReplicationParams = &paramsCopy
 
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		_, err := _validateCreateReplicationParams(ctx, &eventCopy, mockStorage)
 		assert.Error(t, err)
 	})
@@ -879,6 +893,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		eventCopy.DestinationProjectNumber = "proj-2" // Different from source project
 
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Test(t)
 		mm.Patch()
@@ -902,6 +917,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		eventCopy.DestinationLocationID = "us-east1" // Same region as source
 
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Test(t)
 		mm.Patch()
@@ -922,6 +938,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("Fails when GetSignedToken fails", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		origGetSignedJwtToken := InternalUtilGetSignedToken
 		InternalUtilGetSignedToken = func(p string) (string, error) { return "", errors.New("token error") }
 		defer func() { InternalUtilGetSignedToken = origGetSignedJwtToken }()
@@ -933,6 +950,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	// More negative test cases can be added for each error path as needed
 	t.Run("WhenInternalUtilGetSignedTokenFailsForDestinationPool", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Test(t)
 		mm.Patch()
@@ -946,6 +964,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	})
 	t.Run("WhenInternalParseRegionAndZoneFailsForSourceLocation", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Test(t)
 		mm.Patch()
@@ -960,6 +979,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	})
 	t.Run("WhenInternalUtilGetPairedRegionURIFailsForSourceLocation", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Test(t)
 		mm.Patch()
@@ -975,6 +995,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	})
 	t.Run("WhenInternalParseRegionAndZoneFailsForDestinationLocation", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Test(t)
 		mm.Patch()
@@ -991,6 +1012,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	})
 	t.Run("WhenInternalUtilGetPairedRegionURIFailsForDestinationLocation", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Test(t)
 		mm.Patch()
@@ -1008,6 +1030,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	})
 	t.Run("WhenValidateReplicationResourceIdFails", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Test(t)
 		mm.Patch()
@@ -1026,6 +1049,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	})
 	t.Run("WhenVolumeIsDataProtectionVolume", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Test(t)
 		mm.Patch()
@@ -1048,6 +1072,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenSourceVolumeNotReady", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Test(t)
 		mm.Patch()
@@ -1115,6 +1140,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenValidateStoragePoolUriFails", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Test(t)
 		mm.Patch()
@@ -1140,6 +1166,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenGetDestinationPoolFails", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1167,6 +1194,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenDestinationPoolInONTAPMode", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1203,6 +1231,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenDestinationPoolInTransitionState", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1238,6 +1267,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenDestinationPoolUnhealthy", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1273,6 +1303,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenSourcePoolDegraded", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Test(t)
 		mm.Patch()
@@ -1304,6 +1335,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenDestinationPoolDegraded", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1337,8 +1369,67 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.AssertExpectations(t)
 	})
 
+	t.Run("WhenSourcePoolHasActiveClusterUpgrade", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.SourcePool.State = string(googleproxyclient.PoolV1betaStoragePoolStateREADY)
+
+		// Source pool has active cluster upgrade (maintenance)
+		mockStorage.On("GetClusterUpgradeJobsByClusterID", mock.Anything, event.SourcePool.UUID).Return([]*datamodel.ClusterUpgradeJob{{Status: string(coreModels.UpgradeStatusInProgress)}}, nil).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrStoragePoolTemporarilyUnavailable, errors.New("storage pool is temporarily unavailable, please try again later")), err)
+		mm.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenSourcePoolUpgradeCheckReturnsError", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.SourcePool.State = string(googleproxyclient.PoolV1betaStoragePoolStateREADY)
+
+		upgradeCheckErr := errors.New("db unavailable")
+		mockStorage.On("GetClusterUpgradeJobsByClusterID", mock.Anything, event.SourcePool.UUID).Return(([]*datamodel.ClusterUpgradeJob)(nil), upgradeCheckErr).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.NotNil(t, vsaErrors.ExtractCustomError(err))
+		mm.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+
+	// Destination pool cluster upgrade is no longer checked here; it is enforced in GetDestinationPoolDetails (replication create workflow).
+
+	// WhenDestinationPoolUpgradeCheckReturnsError removed: destination cluster upgrade is no longer checked in validation (see GetDestinationPoolDetails).
+
 	t.Run("WhenDestinationPoolSizeExceeded", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1381,6 +1472,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 			event.CreateReplicationParams.DestinationVolumeParameters.TieringPolicy = nil
 		}()
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1430,6 +1522,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 			event.CreateReplicationParams.DestinationVolumeParameters.TieringPolicy = nil
 		}()
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1474,6 +1567,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenServiceLevelMismatch", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1510,6 +1604,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenLargeCapacityMismatch", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1550,6 +1645,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenLargeCapacityMismatch_Reverse", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1590,6 +1686,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenLargeCapacityMatch", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1637,6 +1734,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenLargeCapacityNotSet", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1684,6 +1782,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenLargeCapacityMatch_BothFalse", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1731,6 +1830,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenReplicationJobInProcessFails", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1768,6 +1868,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenGetCallbackTokenFails", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1807,6 +1908,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenGetReplicationQuotaLimitFails", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1847,6 +1949,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	})
 	t.Run("WhenGetReplicationCountFails", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1889,6 +1992,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	})
 	t.Run("WhenReplicationQuotaLimitExceeded", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1931,6 +2035,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	})
 	t.Run("WhenGetVolumeQuotaLimitFails", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -1975,6 +2080,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	})
 	t.Run("WhenInternalGetVolumeCountFails", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -2021,6 +2127,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	})
 	t.Run("WhenVolumeQuotaLimitExceeded", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -2067,6 +2174,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	})
 	t.Run("WhenGetVolumeFails", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -2120,6 +2228,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	})
 	t.Run("WhenDestinationVolumeAlreadyExists", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -2173,6 +2282,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	})
 	t.Run("WhenCreateReplicationObjectsFails", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -2225,6 +2335,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenDestinationVolumeShareNameConflict", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -2279,6 +2390,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 
 	t.Run("WhenDestinationVolumeUsesDefaultValues", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -2334,6 +2446,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	})
 	t.Run("WhenCrossProjectReplicationIsEnabled", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()
@@ -2399,6 +2512,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	})
 	t.Run("WhenCrossZoneReplicationIsEnabled", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
 		mm := &monkeyMock{}
 		mm.Patch()
 		defer mm.Unpatch()

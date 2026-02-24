@@ -659,9 +659,23 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 		return &gcpgenserver.V1betaUpdatePoolInternalServerError{}, err
 	}
 
+	// Validate request shape and pool state first so malformed requests get 4xx (400/409) without calling the upgrade backend
 	validateErr := validateUpdatePoolParams(req, existingPool)
 	if validateErr != nil {
 		return validateErr, nil
+	}
+
+	// Block pool update when cluster upgrade is in progress (same as degraded mode); runs after validation so request-shape errors stay 400
+	hasUpgrade, err := h.Orchestrator.HasActiveClusterUpgrade(ctx, existingPool.UUID)
+	if err != nil {
+		logger.Error("Failed to check cluster upgrade status", "error", err.Error())
+		return &gcpgenserver.V1betaUpdatePoolInternalServerError{}, err
+	}
+	if hasUpgrade {
+		return &gcpgenserver.V1betaUpdatePoolConflict{
+			Code:    http.StatusConflict,
+			Message: "Storage pool is temporarily unavailable, please try again later",
+		}, nil
 	}
 
 	param := &commonparams.UpdatePoolParams{

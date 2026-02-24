@@ -88,7 +88,7 @@ func _upgradeCluster(ctx context.Context, se database.Storage, temporal client.C
 	}
 
 	// Check if there's already an active upgrade job for this cluster
-	activeJob, err := _checkActiveUpgradeJob(ctx, se, params.ClusterID)
+	activeJob, err := CheckActiveUpgradeJob(ctx, se, params.ClusterID)
 	if err != nil {
 		logger.Error("Failed to check for active upgrade jobs", "clusterId", params.ClusterID, "error", err)
 		return nil, "", customerrors.NewUnavailableErr("Failed to check for active upgrade jobs")
@@ -298,22 +298,24 @@ func _createUpgradeJobInDB(ctx context.Context, se database.Storage, params *com
 	return createdJob, nil
 }
 
-// _checkActiveUpgradeJob checks if there's an active upgrade job for the given cluster
-func _checkActiveUpgradeJob(ctx context.Context, se database.Storage, clusterID string) (*datamodel.ClusterUpgradeJob, error) {
-	// Get all upgrade jobs for this cluster
-	upgradeJobs, err := se.GetClusterUpgradeJobsByClusterID(ctx, clusterID)
+// CheckActiveUpgradeJob returns the active upgrade job if one exists for the given cluster (pool UUID).
+func CheckActiveUpgradeJob(ctx context.Context, se database.Storage, clusterID string) (*datamodel.ClusterUpgradeJob, error) {
+	jobs, err := se.GetClusterUpgradeJobsByClusterID(ctx, clusterID)
 	if err != nil {
 		return nil, err
 	}
-
-	// Check for active jobs (PENDING or IN_PROGRESS status)
-	for _, job := range upgradeJobs {
+	for _, job := range jobs {
 		if job.Status == string(models.UpgradeStatusPending) || job.Status == string(models.UpgradeStatusInProgress) {
 			return job, nil
 		}
 	}
-
 	return nil, nil
+}
+
+// HasActiveClusterUpgrade returns true if the given cluster (pool UUID) has an active upgrade job (PENDING or IN_PROGRESS).
+func HasActiveClusterUpgrade(ctx context.Context, se database.Storage, clusterID string) (bool, error) {
+	job, err := CheckActiveUpgradeJob(ctx, se, clusterID)
+	return job != nil, err
 }
 
 // _updateUpgradeJobStatus updates the status of an upgrade job
@@ -394,6 +396,11 @@ func (o *Orchestrator) GetClusterUpgradeStatus(ctx context.Context, jobUUID stri
 		Clusters: clusters,
 		Errors:   errors,
 	}, nil
+}
+
+// HasActiveClusterUpgrade returns true if the cluster (pool UUID) has an active upgrade job (PENDING or IN_PROGRESS).
+func (o *Orchestrator) HasActiveClusterUpgrade(ctx context.Context, clusterID string) (bool, error) {
+	return HasActiveClusterUpgrade(ctx, o.storage, clusterID)
 }
 
 // ListAvailableVersions lists all available ONTAP versions for upgrade

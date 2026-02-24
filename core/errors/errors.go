@@ -319,6 +319,7 @@ const (
 	ErrValidateSourceStoragePoolStateDegraded                                                = 6223
 	ErrValidateDestinationStoragePoolStateDegraded                                           = 6224
 	ErrUpdateVolume                                                                          = 6225
+	ErrStoragePoolTemporarilyUnavailable                                                     = 6226
 
 	ErrKMSRotate                        = 8001
 	ErrServiceAccountNotFound           = 8002

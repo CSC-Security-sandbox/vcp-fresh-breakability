@@ -76,6 +76,58 @@ func TestGetDestinationPoolDetails(t *testing.T) {
 		assert.NotNil(tt, poolDetails)
 		assert.Equal(tt, poolDetails.DstIps, icLifs)
 	})
+	t.Run("WhenDestinationPoolHasActiveClusterUpgrade", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				XCorrelationID:        nillable.GetStringPtr("test-xcorrelation-id"),
+				DestinationPoolName:   "pool1",
+				DestinationLocationID: "us-est1",
+			},
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+			DstProjectNumber: &dstProj,
+		}
+
+		describePoolParams := &googleproxyclient.V1betaInternalDescribePoolParams{
+			PoolName:       replicationResult.Event.DestinationPoolName,
+			ProjectNumber:  *replicationResult.DstProjectNumber,
+			LocationId:     replicationResult.Event.DestinationLocationID,
+			XCorrelationID: googleproxyclient.NewOptString("test-xcorrelation-id"),
+		}
+
+		res := &googleproxyclient.PoolInternalV1beta{
+			InterclusterLifs:         []string{"10.1.1.1"},
+			HasActiveClusterUpgrade:  googleproxyclient.NewOptBool(true),
+		}
+
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDescribePool(ctx, *describePoolParams).Return(res, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		poolDetails, err := activity.GetDestinationPoolDetails(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, poolDetails)
+		appErr, ok := err.(*temporal.ApplicationError)
+		assert.True(tt, ok, "expected Temporal ApplicationError, got %T", err)
+		if ok && appErr.Type() == vsaerrors.CustomErrorType {
+			var trackingID int
+			var errorDetails string
+			errDetails := appErr.Details(&trackingID, &errorDetails)
+			assert.NoError(tt, errDetails)
+			assert.Equal(tt, vsaerrors.ErrStoragePoolTemporarilyUnavailable, trackingID)
+		}
+	})
 	t.Run("WhenError", func(tt *testing.T) {
 		ctx := context.Background()
 		mockStorage := &database.MockStorage{}

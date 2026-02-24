@@ -4332,6 +4332,11 @@ func (s *PoolInternalV1beta) SetFake() {
 			}
 		}
 	}
+	{
+		{
+			s.HasActiveClusterUpgrade.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

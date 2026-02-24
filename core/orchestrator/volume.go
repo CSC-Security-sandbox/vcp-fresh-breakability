@@ -1582,6 +1582,17 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		}
 	}
 
+	// Block CMEK volume create when cluster upgrade is in progress (same as degraded mode). Only check when CMEK is enabled to avoid extra DB read for non-CMEK pools.
+	if pool.KmsConfigID.Valid {
+		hasUpgrade, err := HasActiveClusterUpgrade(ctx, se, pool.UUID)
+		if err != nil {
+			return err
+		}
+		if hasUpgrade {
+			return customerrors.NewConflictErr("Storage pool is temporarily unavailable, please try again later")
+		}
+	}
+
 	if params.Network == "" {
 		params.Network = pool.Network
 	} else if params.Network != pool.Network {

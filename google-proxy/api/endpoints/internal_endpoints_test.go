@@ -87,6 +87,7 @@ func TestInternalDescribePool(t *testing.T) {
 		}
 
 		mockOrchestrator.EXPECT().GetPoolByName(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(pool, nil)
+		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, pool.UUID).Return(false, nil)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -123,6 +124,7 @@ func TestInternalDescribePool(t *testing.T) {
 			TotalIops:                gcpgenserver.NewOptNilFloat64(float64(pool.CustomPerformanceParams.Iops)),
 			SatisfiesPzs:             gcpgenserver.NewOptNilBool(false),
 			SatisfiesPzi:             gcpgenserver.NewOptNilBool(false),
+			HasActiveClusterUpgrade:  gcpgenserver.NewOptBool(false),
 		}
 		resp, err := handler.V1betaInternalDescribePool(context.Background(), params)
 		assert.NoError(tt, err)

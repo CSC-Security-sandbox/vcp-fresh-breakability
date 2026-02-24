@@ -1697,6 +1697,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "6226": {
+    "description": "Storage pool temporarily unavailable (e.g. cluster upgrade in progress)",
+    "message": "Storage pool is temporarily unavailable, please try again later",
+    "retriable": false,
+    "http_code": 409
+  },
   "8001": {
     "description": "Kms key rotation failure",
     "message": "Error rotating kms key",

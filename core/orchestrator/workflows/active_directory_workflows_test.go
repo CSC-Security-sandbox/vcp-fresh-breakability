@@ -3,6 +3,7 @@ package workflows
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -76,6 +77,7 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity(adCreateActivity.CreateVcpActiveDirectory, mock.Anything, params, adRecord).Return(nil)
 		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
+		env.SetTestTimeout(1 * time.Minute)
 		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adRecord)
 
 		assert.True(t, env.IsWorkflowCompleted())
@@ -133,6 +135,7 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity(adCreateActivity.CreateSdeActiveDirectory, mock.Anything, params).Return(nil)
 		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
+		env.SetTestTimeout(1 * time.Minute)
 		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adRecord)
 
 		assert.True(t, env.IsWorkflowCompleted())
@@ -185,6 +188,7 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity(adCreateActivity.CreateVcpActiveDirectory, mock.Anything, params, adRecord).Return(expectedError)
 		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
+		env.SetTestTimeout(1 * time.Minute)
 		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adRecord)
 	})
 
@@ -234,6 +238,7 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity(adCreateActivity.CreateSdeActiveDirectory, mock.Anything, params).Return(expectedError)
 		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
+		env.SetTestTimeout(1 * time.Minute)
 		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adRecord)
 	})
 
@@ -264,6 +269,7 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 			AccountId: 123,
 		}
 
+		env.SetTestTimeout(1 * time.Minute)
 		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, invalidParams, adRecord)
 	})
 
@@ -302,6 +308,7 @@ func TestCreateActiveDirectoryWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("job status update failed"))
 
+		env.SetTestTimeout(1 * time.Minute)
 		env.ExecuteWorkflow(CreateActiveDirectoryWorkflow, params, adRecord)
 	})
 }
@@ -1742,6 +1749,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
+		env.SetTestTimeout(1 * time.Minute)
 		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
@@ -1795,6 +1803,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
+		env.SetTestTimeout(1 * time.Minute)
 		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
@@ -1848,6 +1857,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
+		env.SetTestTimeout(1 * time.Minute)
 		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
@@ -1892,6 +1902,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
+		env.SetTestTimeout(1 * time.Minute)
 		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
@@ -1939,6 +1950,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(nil, errors.New("database error"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
+		env.SetTestTimeout(1 * time.Minute)
 		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
@@ -1984,6 +1996,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(errors.New("VCP deletion failed"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
+		env.SetTestTimeout(1 * time.Minute)
 		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
@@ -2036,6 +2049,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(errors.New("SDE deletion failed"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
+		env.SetTestTimeout(1 * time.Minute)
 		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
@@ -2074,6 +2088,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.NewUserInputValidationErr("job status update failed"))
 
+		env.SetTestTimeout(1 * time.Minute)
 		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
@@ -2128,6 +2143,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(errors.New("VCP deletion failed in SDE mode"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
+		env.SetTestTimeout(1 * time.Minute)
 		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())
@@ -2182,6 +2198,7 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(errors.New("SDE deletion failed"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
+		env.SetTestTimeout(1 * time.Minute)
 		env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
 
 		assert.True(t, env.IsWorkflowCompleted())

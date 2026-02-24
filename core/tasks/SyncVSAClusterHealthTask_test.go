@@ -965,6 +965,46 @@ func TestGetClusterHealthStatusUnit(t *testing.T) {
 	})
 }
 
+func TestSyncVSAClusterHealthTask_SkipsWhenClusterUpgradeInProgress(t *testing.T) {
+	// When cluster has an active upgrade job (PENDING/IN_PROGRESS), the task must return early
+	// without running JSWAP or updating pool state in DB. HasActiveClusterUpgrade (which uses GetClusterUpgradeJobsByClusterID) is called; only ListPoolUUIDs and that storage call for that pool.
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.Background()
+	correlationID := "test-cid"
+	poolUUID := "pool-under-upgrade"
+	pools := []*database.PoolIdentifier{{UUID: poolUUID, AccountID: 1}}
+
+	mockStorage.On("ListPoolUUIDs", mock.Anything, mock.Anything).Return(pools, nil)
+	activeJob := &datamodel.ClusterUpgradeJob{
+		ClusterID: poolUUID,
+		Status:    string(models.UpgradeStatusInProgress),
+	}
+	mockStorage.On("GetClusterUpgradeJobsByClusterID", mock.Anything, poolUUID).Return([]*datamodel.ClusterUpgradeJob{activeJob}, nil)
+
+	SyncVSAClusterHealth(ctx, mockStorage, correlationID)
+
+	mockStorage.AssertExpectations(t)
+	// GetPoolByUUID, GetPoolStateByUUID, UpdatePoolFields, GetNodesByPoolID must never be called (task returns early)
+}
+
+func TestSyncVSAClusterHealthTask_LogsAndContinuesWhenUpgradeCheckFails(t *testing.T) {
+	// When HasActiveClusterUpgrade returns an error we log and continue (no early return).
+	// We then run GetVSAProviderUnit which calls GetPoolByUUID; mock it to return an error so the task exits without further mocks.
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.Background()
+	correlationID := "test-cid"
+	poolUUID := "pool-1"
+	pools := []*database.PoolIdentifier{{UUID: poolUUID, AccountID: 1}}
+
+	mockStorage.On("ListPoolUUIDs", mock.Anything, mock.Anything).Return(pools, nil)
+	mockStorage.On("GetClusterUpgradeJobsByClusterID", mock.Anything, poolUUID).Return(([]*datamodel.ClusterUpgradeJob)(nil), fmt.Errorf("db unavailable"))
+	mockStorage.On("GetPoolByUUID", mock.Anything, poolUUID).Return(nil, fmt.Errorf("pool fetch error"))
+
+	SyncVSAClusterHealth(ctx, mockStorage, correlationID)
+
+	mockStorage.AssertExpectations(t)
+}
+
 func TestSyncVSAClusterHealth(t *testing.T) {
 	t.Run("SyncVSAClusterHealth_With_Successful_Execution", func(t *testing.T) {
 		// Arrange
@@ -1078,6 +1118,9 @@ func TestSyncVSAClusterHealth(t *testing.T) {
 		ontapVersion := "9.18.1"
 		mockProvider.On("GetONTAPVersion").Return(&ontapVersion, nil).Times(2)
 
+		// Mock GetClusterUpgradeJobsByClusterID - no active upgrade so task proceeds (once per pool = 2 calls)
+		mockStorage.On("GetClusterUpgradeJobsByClusterID", mock.Anything, "pool-1").Return([]*datamodel.ClusterUpgradeJob{}, nil)
+		mockStorage.On("GetClusterUpgradeJobsByClusterID", mock.Anything, "pool-2").Return([]*datamodel.ClusterUpgradeJob{}, nil)
 		// Mock GetPoolStateByUUID for updatePoolState (updatePoolState now calls GetPoolStateByUUID first)
 		// Called once per pool (2 pools = 2 calls) - pools are already in READY state
 		mockStorage.On("GetPoolStateByUUID", mock.Anything, "pool-1").Return(models.LifeCycleStateREADY, nil)

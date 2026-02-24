@@ -84,6 +84,9 @@ func (a *VolumeReplicationCreateActivity) GetDestinationPoolDetails(ctx context.
 	}
 	switch r := res.(type) {
 	case *googleproxyclient.PoolInternalV1beta:
+		if r.GetHasActiveClusterUpgrade().IsSet() && r.GetHasActiveClusterUpgrade().Value {
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrStoragePoolTemporarilyUnavailable, errors.New("storage pool is temporarily unavailable, please try again later")))
+		}
 		result.DstPool = r
 		result.DstIps = r.InterclusterLifs
 		return result, nil

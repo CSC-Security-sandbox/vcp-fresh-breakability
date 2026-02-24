@@ -113,6 +113,20 @@ const (
 
 var compiledRegex = regexp.MustCompile(dstVolumeNameRegex)
 
+// hasActiveClusterUpgrade returns true if the given cluster (pool UUID) has an active upgrade job (PENDING or IN_PROGRESS).
+func hasActiveClusterUpgrade(ctx context.Context, se database.Storage, clusterID string) (bool, error) {
+	jobs, err := se.GetClusterUpgradeJobsByClusterID(ctx, clusterID)
+	if err != nil {
+		return false, err
+	}
+	for _, job := range jobs {
+		if job.Status == string(coreModels.UpgradeStatusPending) || job.Status == string(coreModels.UpgradeStatusInProgress) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicationEvent, se database.Storage) (*datamodel.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debug("Starting validateCreateReplicationParams")
@@ -220,6 +234,19 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		return nil, typeErr
 	}
 
+	// Block replication when source pool has cluster upgrade in progress (same as degraded mode)
+	hasActive, err := hasActiveClusterUpgrade(ctx, se, event.SourcePool.UUID)
+	if err != nil {
+		logger.Error("Failed to check source pool cluster upgrade status", "error", err)
+		return nil, errors.NewVCPError(errors.ErrWorkflowConfigurationError, err)
+	}
+	if hasActive {
+		typeErr := errors.NewVCPError(
+			errors.ErrStoragePoolTemporarilyUnavailable, errors.New("storage pool is temporarily unavailable, please try again later"))
+		logger.Error("Source pool is temporarily unavailable (cluster upgrade in progress)", "error", typeErr)
+		return nil, typeErr
+	}
+
 	err = validateStoragePoolUri(*event.CreateReplicationParams.DestinationVolumeParameters.StoragePool)
 	if err != nil {
 		logger.Error("validateStoragePoolUri error", "error", err)
@@ -252,7 +279,6 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		logger.Error("Destination pool is in unhealthy state, Please try after some time", "error", typeErr)
 		return nil, typeErr
 	}
-
 	bytesNeeded := float64(event.SourceVolume.SizeInBytes) + destPool.AllocatedBytes.Value
 	if bytesNeeded > destPool.SizeInBytes {
 		typeErr := errors.NewVCPError(errors.ErrDestPoolSize, errors.New("Volume exceeds destination pool size"))
