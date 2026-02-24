@@ -155,6 +155,19 @@ var cliRules = []CLIRule{
 		Condition:         CLIHasArgs("-vserver", "-volume"),
 		ExternalValidator: validateVolumeDelete,
 	},
+	// "volume destroy" / "vol destroy" — same as delete; triggers reconciliation on volume delete
+	{
+		Pattern:           "volume destroy",
+		Allow:             true,
+		Condition:         CLIHasArgs("-vserver", "-volume"),
+		ExternalValidator: validateVolumeDelete,
+	},
+	{
+		Pattern:           "vol destroy",
+		Allow:             true,
+		Condition:         CLIHasArgs("-vserver", "-volume"),
+		ExternalValidator: validateVolumeDelete,
+	},
 	{
 		Pattern:           "volume rename",
 		Allow:             true,

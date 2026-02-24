@@ -34,6 +34,16 @@ func TestMatchCLIRule(t *testing.T) {
 				input:     "volume delete -vserver vs1 -volume vol1",
 				wantAllow: true,
 			},
+			{
+				name:      "volume destroy allowed",
+				input:     "volume destroy -vserver vs1 -volume vol1",
+				wantAllow: true,
+			},
+			{
+				name:      "vol destroy allowed",
+				input:     "vol destroy -vserver vs1 -volume vol1",
+				wantAllow: true,
+			},
 		}
 
 		for _, tt := range tests {
