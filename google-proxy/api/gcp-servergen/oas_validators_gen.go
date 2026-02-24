@@ -2207,24 +2207,6 @@ func (s *BackupVaultCreateV1beta) Validate() error {
 			Error: err,
 		})
 	}
-	if err := func() error {
-		if value, ok := s.ServiceType.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "serviceType",
-			Error: err,
-		})
-	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -2824,24 +2806,6 @@ func (s *BackupVaultV1beta) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "encryptionState",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.ServiceType.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "serviceType",
 			Error: err,
 		})
 	}
@@ -8945,17 +8909,6 @@ func (s SMBSettingsV1betaItem) Validate() error {
 func (s ServiceLevelQueryParameterItem) Validate() error {
 	switch s {
 	case "flex":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s ServiceTypeV1beta) Validate() error {
-	switch s {
-	case "GCNV":
-		return nil
-	case "GCBDR":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

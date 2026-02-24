@@ -3806,29 +3806,15 @@ func (s *BackupVaultCreateV1beta) encodeFields(e *jx.Encoder) {
 			s.BackupsPrimaryKeyVersion.Encode(e)
 		}
 	}
-	{
-		if s.ServiceType.Set {
-			e.FieldStart("serviceType")
-			s.ServiceType.Encode(e)
-		}
-	}
-	{
-		if s.TenantProject.Set {
-			e.FieldStart("tenantProject")
-			s.TenantProject.Encode(e)
-		}
-	}
 }
 
-var jsonFieldsNameOfBackupVaultCreateV1beta = [8]string{
+var jsonFieldsNameOfBackupVaultCreateV1beta = [6]string{
 	0: "resourceId",
 	1: "description",
 	2: "backupRegion",
 	3: "backupRetentionPolicy",
 	4: "kmsConfigResourcePath",
 	5: "backupsPrimaryKeyVersion",
-	6: "serviceType",
-	7: "tenantProject",
 }
 
 // Decode decodes BackupVaultCreateV1beta from json.
@@ -3836,7 +3822,6 @@ func (s *BackupVaultCreateV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode BackupVaultCreateV1beta to nil")
 	}
-	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -3899,26 +3884,6 @@ func (s *BackupVaultCreateV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"backupsPrimaryKeyVersion\"")
-			}
-		case "serviceType":
-			if err := func() error {
-				s.ServiceType.Reset()
-				if err := s.ServiceType.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"serviceType\"")
-			}
-		case "tenantProject":
-			if err := func() error {
-				s.TenantProject.Reset()
-				if err := s.TenantProject.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"tenantProject\"")
 			}
 		default:
 			return d.Skip()
@@ -5563,15 +5528,9 @@ func (s *BackupVaultV1beta) encodeFields(e *jx.Encoder) {
 			s.KmsGrant.Encode(e)
 		}
 	}
-	{
-		if s.ServiceType.Set {
-			e.FieldStart("serviceType")
-			s.ServiceType.Encode(e)
-		}
-	}
 }
 
-var jsonFieldsNameOfBackupVaultV1beta = [18]string{
+var jsonFieldsNameOfBackupVaultV1beta = [17]string{
 	0:  "backupVaultId",
 	1:  "resourceId",
 	2:  "description",
@@ -5589,7 +5548,6 @@ var jsonFieldsNameOfBackupVaultV1beta = [18]string{
 	14: "backupsPrimaryKeyVersion",
 	15: "encryptionState",
 	16: "kmsGrant",
-	17: "serviceType",
 }
 
 // Decode decodes BackupVaultV1beta from json.
@@ -5598,7 +5556,6 @@ func (s *BackupVaultV1beta) Decode(d *jx.Decoder) error {
 		return errors.New("invalid: unable to decode BackupVaultV1beta to nil")
 	}
 	var requiredBitSet [3]uint8
-	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -5773,16 +5730,6 @@ func (s *BackupVaultV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kmsGrant\"")
-			}
-		case "serviceType":
-			if err := func() error {
-				s.ServiceType.Reset()
-				if err := s.ServiceType.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"serviceType\"")
 			}
 		default:
 			return d.Skip()
@@ -17325,39 +17272,6 @@ func (s *OptReplicationVolumeInformationV1beta) UnmarshalJSON(data []byte) error
 	return s.Decode(d)
 }
 
-// Encode encodes ServiceTypeV1beta as json.
-func (o OptServiceTypeV1beta) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes ServiceTypeV1beta from json.
-func (o *OptServiceTypeV1beta) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptServiceTypeV1beta to nil")
-	}
-	o.Set = true
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptServiceTypeV1beta) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptServiceTypeV1beta) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode encodes SnapshotPolicyV1beta as json.
 func (o OptSnapshotPolicyV1beta) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -24747,46 +24661,6 @@ func (s SMBSettingsV1betaItem) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *SMBSettingsV1betaItem) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes ServiceTypeV1beta as json.
-func (s ServiceTypeV1beta) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes ServiceTypeV1beta from json.
-func (s *ServiceTypeV1beta) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ServiceTypeV1beta to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch ServiceTypeV1beta(v) {
-	case ServiceTypeV1betaGCNV:
-		*s = ServiceTypeV1betaGCNV
-	case ServiceTypeV1betaGCBDR:
-		*s = ServiceTypeV1betaGCBDR
-	default:
-		*s = ServiceTypeV1beta(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s ServiceTypeV1beta) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ServiceTypeV1beta) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

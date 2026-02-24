@@ -15600,54 +15600,6 @@ func (_c *MockStorage_UpdateBackup_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
-// UpdateBackupChainHistory provides a mock function with given fields: ctx, volumeUUID, newSize
-func (_m *MockStorage) UpdateBackupChainHistory(ctx context.Context, volumeUUID string, newSize int64) error {
-	ret := _m.Called(ctx, volumeUUID, newSize)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateBackupChainHistory")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, int64) error); ok {
-		r0 = rf(ctx, volumeUUID, newSize)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// MockStorage_UpdateBackupChainHistory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBackupChainHistory'
-type MockStorage_UpdateBackupChainHistory_Call struct {
-	*mock.Call
-}
-
-// UpdateBackupChainHistory is a helper method to define mock.On call
-//   - ctx context.Context
-//   - volumeUUID string
-//   - newSize int64
-func (_e *MockStorage_Expecter) UpdateBackupChainHistory(ctx interface{}, volumeUUID interface{}, newSize interface{}) *MockStorage_UpdateBackupChainHistory_Call {
-	return &MockStorage_UpdateBackupChainHistory_Call{Call: _e.mock.On("UpdateBackupChainHistory", ctx, volumeUUID, newSize)}
-}
-
-func (_c *MockStorage_UpdateBackupChainHistory_Call) Run(run func(ctx context.Context, volumeUUID string, newSize int64)) *MockStorage_UpdateBackupChainHistory_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(int64))
-	})
-	return _c
-}
-
-func (_c *MockStorage_UpdateBackupChainHistory_Call) Return(_a0 error) *MockStorage_UpdateBackupChainHistory_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *MockStorage_UpdateBackupChainHistory_Call) RunAndReturn(run func(context.Context, string, int64) error) *MockStorage_UpdateBackupChainHistory_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // UpdateBackupConstituentCountFromVolume provides a mock function with given fields: ctx, backup, volume
 func (_m *MockStorage) UpdateBackupConstituentCountFromVolume(ctx context.Context, backup *datamodel.Backup, volume *datamodel.Volume) (*datamodel.Backup, error) {
 	ret := _m.Called(ctx, backup, volume)
@@ -17040,6 +16992,54 @@ func (_c *MockStorage_UpdateLatestBackupLogicalSize_Call) Return(_a0 error) *Moc
 }
 
 func (_c *MockStorage_UpdateLatestBackupLogicalSize_Call) RunAndReturn(run func(context.Context, string, int64) error) *MockStorage_UpdateLatestBackupLogicalSize_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateBackupChainHistory provides a mock function with given fields: ctx, volumeUUID, newSize
+func (_m *MockStorage) UpdateBackupChainHistory(ctx context.Context, volumeUUID string, newSize int64) error {
+	ret := _m.Called(ctx, volumeUUID, newSize)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateBackupChainHistory")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) error); ok {
+		r0 = rf(ctx, volumeUUID, newSize)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_UpdateBackupChainHistory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBackupChainHistory'
+type MockStorage_UpdateBackupChainHistory_Call struct {
+	*mock.Call
+}
+
+// UpdateBackupChainHistory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+//   - newSize int64
+func (_e *MockStorage_Expecter) UpdateBackupChainHistory(ctx interface{}, volumeUUID interface{}, newSize interface{}) *MockStorage_UpdateBackupChainHistory_Call {
+	return &MockStorage_UpdateBackupChainHistory_Call{Call: _e.mock.On("UpdateBackupChainHistory", ctx, volumeUUID, newSize)}
+}
+
+func (_c *MockStorage_UpdateBackupChainHistory_Call) Run(run func(ctx context.Context, volumeUUID string, newSize int64)) *MockStorage_UpdateBackupChainHistory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdateBackupChainHistory_Call) Return(_a0 error) *MockStorage_UpdateBackupChainHistory_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_UpdateBackupChainHistory_Call) RunAndReturn(run func(context.Context, string, int64) error) *MockStorage_UpdateBackupChainHistory_Call {
 	_c.Call.Return(run)
 	return _c
 }

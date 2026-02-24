@@ -857,16 +857,6 @@ func (s *BackupVaultCreateV1beta) SetFake() {
 			s.BackupsPrimaryKeyVersion.SetFake()
 		}
 	}
-	{
-		{
-			s.ServiceType.SetFake()
-		}
-	}
-	{
-		{
-			s.TenantProject.SetFake()
-		}
-	}
 }
 
 // SetFake set fake values.
@@ -1272,11 +1262,6 @@ func (s *BackupVaultV1beta) SetFake() {
 	{
 		{
 			s.KmsGrant.SetFake()
-		}
-	}
-	{
-		{
-			s.ServiceType.SetFake()
 		}
 	}
 }
@@ -3809,15 +3794,6 @@ func (s *OptReplicationVolumeInformationV1beta) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *OptServiceTypeV1beta) SetFake() {
-	var elem ServiceTypeV1beta
-	{
-		elem.SetFake()
-	}
-	s.SetTo(elem)
-}
-
-// SetFake set fake values.
 func (s *OptSnapshotPolicyV1beta) SetFake() {
 	var elem SnapshotPolicyV1beta
 	{
@@ -5383,11 +5359,6 @@ func (s *SMBSettingsV1beta) SetFake() {
 // SetFake set fake values.
 func (s *SMBSettingsV1betaItem) SetFake() {
 	*s = SMBSettingsV1betaItemSMBSETTINGSUNSPECIFIED
-}
-
-// SetFake set fake values.
-func (s *ServiceTypeV1beta) SetFake() {
-	*s = ServiceTypeV1betaGCNV
 }
 
 // SetFake set fake values.

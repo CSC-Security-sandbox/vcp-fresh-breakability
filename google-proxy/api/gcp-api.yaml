@@ -8700,14 +8700,6 @@ components:
         - WINDOWS
         - ESXI
       example: LINUX
-    ServiceType_v1beta:
-      title: ServiceType
-      type: string
-      description: Service type of the backup vault
-      default: GCNV
-      enum:
-        - GCNV
-        - GCBDR
     HostGroup_v1beta:
       title: HostGroup
       type: object
@@ -13348,8 +13340,6 @@ components:
           type: string
           description: KMS grant
           x-nullable: true
-        serviceType:
-          $ref: '#/components/schemas/ServiceType_v1beta'
     BackupVaultInternal_v1beta:
       type: object
       title: BackupVaultInternal
@@ -13670,13 +13660,6 @@ components:
           readOnly: true
           description: key version used to encrypt backups in the vault
           example: projects/my-project-1/locations/eu-west-1/keyRings/my-keyring/cryptoKeys/my-key/cryptoKeyVersions/1
-          x-nullable: true
-        serviceType:
-          $ref: '#/components/schemas/ServiceType_v1beta'
-        tenantProject:
-          title: tenantProject
-          type: string
-          description: Tenant project number. Required when serviceType is GCBDR.
           x-nullable: true
     BackupVaultUpdate_v1beta:
       title: BackupVaultUpdateRequest

@@ -4163,18 +4163,6 @@ func TestSMBSettingsV1betaItem_Examples(t *testing.T) {
 		})
 	}
 }
-func TestServiceTypeV1beta_EncodeDecode(t *testing.T) {
-	var typ ServiceTypeV1beta
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 ServiceTypeV1beta
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
 func TestSimpleExportPolicyRuleV1beta_EncodeDecode(t *testing.T) {
 	var typ SimpleExportPolicyRuleV1beta
 	typ.SetFake()
