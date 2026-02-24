@@ -227,22 +227,22 @@ func convertCvpClientUpdateKmsConfigErrorToVcpError(cvpErr error) gcpgenserver.V
 func convertCvpClientDeleteKmsConfigErrorToVcpError(cvpErr error) error {
 	switch e := cvpErr.(type) {
 	case *kms_configurations.V1betaDeleteKmsConfigurationUnprocessableEntity:
-		return vsaerrors.NewVCPError(vsaerrors.ErrKMSDeleteSDE, vsaerrors.New(e.Payload.Message))
+		return vsaerrors.NewVCPError(vsaerrors.ErrUnprocessableEntity, vsaerrors.New(e.Payload.Message))
 
 	case *kms_configurations.V1betaDeleteKmsConfigurationConflict:
-		return vsaerrors.NewVCPError(vsaerrors.ErrKMSDeleteSDE, vsaerrors.New(e.Payload.Message))
+		return vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, vsaerrors.New(e.Payload.Message))
 
 	case *kms_configurations.V1betaDeleteKmsConfigurationBadRequest:
-		return vsaerrors.NewVCPError(vsaerrors.ErrKMSDeleteSDE, vsaerrors.New(e.Payload.Message))
+		return vsaerrors.NewVCPError(vsaerrors.ErrBadRequest, vsaerrors.New(e.Payload.Message))
 
 	case *kms_configurations.V1betaDeleteKmsConfigurationForbidden:
-		return vsaerrors.NewVCPError(vsaerrors.ErrKMSDeleteSDE, vsaerrors.New(e.Payload.Message))
+		return vsaerrors.NewVCPError(vsaerrors.ErrForbidden, vsaerrors.New(e.Payload.Message))
 
 	case *kms_configurations.V1betaDeleteKmsConfigurationUnauthorized:
-		return vsaerrors.NewVCPError(vsaerrors.ErrKMSDeleteSDE, vsaerrors.New(e.Payload.Message))
+		return vsaerrors.NewVCPError(vsaerrors.ErrUnauthorized, vsaerrors.New(e.Payload.Message))
 
 	case *kms_configurations.V1betaDeleteKmsConfigurationTooManyRequests:
-		return vsaerrors.NewVCPError(vsaerrors.ErrKMSDeleteSDE, vsaerrors.New(e.Payload.Message))
+		return vsaerrors.NewVCPError(vsaerrors.ErrTooManyRequests, vsaerrors.New(e.Payload.Message))
 
 	case *kms_configurations.V1betaDeleteKmsConfigurationDefault:
 		return vsaerrors.NewVCPError(vsaerrors.ErrKMSDeleteSDE, vsaerrors.New(e.Payload.Message))

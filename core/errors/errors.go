@@ -42,6 +42,10 @@ const (
 	ErrCSRGenerationError         = 1016
 	ErrWorkflowNotLaunched        = 1017
 	ErrWorkflowSupervisorTimeout  = 1018
+	ErrUnauthorized               = 1019
+	ErrForbidden                  = 1020
+	ErrTooManyRequests            = 1021
+	ErrUnprocessableEntity        = 1022
 
 	ErrDatabaseConnectionClosed                = 2001
 	ErrDatabaseTransactionError                = 2002

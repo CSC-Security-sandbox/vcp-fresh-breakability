@@ -107,6 +107,30 @@
     "retriable": false,
     "http_code": 504
   },
+  "1019": {
+    "description": "Unauthorized error",
+    "message": "Unauthorized",
+    "retriable": false,
+    "http_code": 401
+  },
+  "1020": {
+    "description": "Forbidden error",
+    "message": "Forbidden",
+    "retriable": false,
+    "http_code": 403
+  },
+  "1021": {
+    "description": "Too many requests error",
+    "message": "Too many requests",
+    "retriable": true,
+    "http_code": 429
+  },
+  "1022": {
+    "description": "Unprocessable entity error",
+    "message": "Unprocessable entity",
+    "retriable": false,
+    "http_code": 422
+  },
   "2001": {
     "description": "Database Connection Closed",
     "message": "An internal error occurred.",

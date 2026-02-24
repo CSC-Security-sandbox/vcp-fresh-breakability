@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -838,5 +839,129 @@ func TestDescribeSDEJob(t *testing.T) {
 		}
 		err := DescribeSDEJob(context.Background(), "op-id", "region", "account", "corr-id")
 		assert.Error(t, err)
+	})
+}
+
+func TestConvertCvpClientDeleteKmsConfigErrorToVcpError(t *testing.T) {
+	t.Run("WhenConflictError", func(t *testing.T) {
+		errorMessage := "Conflict error"
+		mockError := &kms_configurations.V1betaDeleteKmsConfigurationConflict{
+			Payload: &models.Error{
+				Code:    409,
+				Message: errorMessage,
+			},
+		}
+		result := convertCvpClientDeleteKmsConfigErrorToVcpError(mockError)
+		require.NotNil(t, result)
+		customErr, ok := result.(*vsaerrors.CustomError)
+		require.True(t, ok, "Expected CustomError")
+		assert.Equal(t, vsaerrors.ErrResourceStateConflictError, customErr.TrackingID)
+		assert.Equal(t, errorMessage, customErr.OriginalErr.Error())
+	})
+
+	t.Run("WhenBadRequestError", func(t *testing.T) {
+		errorMessage := "Bad Request"
+		mockError := &kms_configurations.V1betaDeleteKmsConfigurationBadRequest{
+			Payload: &models.Error{
+				Code:    400,
+				Message: errorMessage,
+			},
+		}
+		result := convertCvpClientDeleteKmsConfigErrorToVcpError(mockError)
+		require.NotNil(t, result)
+		customErr, ok := result.(*vsaerrors.CustomError)
+		require.True(t, ok, "Expected CustomError")
+		assert.Equal(t, vsaerrors.ErrBadRequest, customErr.TrackingID)
+		assert.Equal(t, errorMessage, customErr.OriginalErr.Error())
+	})
+
+	t.Run("WhenUnauthorizedError", func(t *testing.T) {
+		errorMessage := "Unauthorized"
+		mockError := &kms_configurations.V1betaDeleteKmsConfigurationUnauthorized{
+			Payload: &models.Error{
+				Code:    401,
+				Message: errorMessage,
+			},
+		}
+		result := convertCvpClientDeleteKmsConfigErrorToVcpError(mockError)
+		require.NotNil(t, result)
+		customErr, ok := result.(*vsaerrors.CustomError)
+		require.True(t, ok, "Expected CustomError")
+		assert.Equal(t, vsaerrors.ErrUnauthorized, customErr.TrackingID)
+		assert.Equal(t, errorMessage, customErr.OriginalErr.Error())
+	})
+
+	t.Run("WhenForbiddenError", func(t *testing.T) {
+		errorMessage := "Forbidden"
+		mockError := &kms_configurations.V1betaDeleteKmsConfigurationForbidden{
+			Payload: &models.Error{
+				Code:    403,
+				Message: errorMessage,
+			},
+		}
+		result := convertCvpClientDeleteKmsConfigErrorToVcpError(mockError)
+		require.NotNil(t, result)
+		customErr, ok := result.(*vsaerrors.CustomError)
+		require.True(t, ok, "Expected CustomError")
+		assert.Equal(t, vsaerrors.ErrForbidden, customErr.TrackingID)
+		assert.Equal(t, errorMessage, customErr.OriginalErr.Error())
+	})
+
+	t.Run("WhenTooManyRequestsError", func(t *testing.T) {
+		errorMessage := "Too many requests"
+		mockError := &kms_configurations.V1betaDeleteKmsConfigurationTooManyRequests{
+			Payload: &models.Error{
+				Code:    429,
+				Message: errorMessage,
+			},
+		}
+		result := convertCvpClientDeleteKmsConfigErrorToVcpError(mockError)
+		require.NotNil(t, result)
+		customErr, ok := result.(*vsaerrors.CustomError)
+		require.True(t, ok, "Expected CustomError")
+		assert.Equal(t, vsaerrors.ErrTooManyRequests, customErr.TrackingID)
+		assert.Equal(t, errorMessage, customErr.OriginalErr.Error())
+	})
+
+	t.Run("WhenUnprocessableEntityError", func(t *testing.T) {
+		errorMessage := "Unprocessable Entity"
+		mockError := &kms_configurations.V1betaDeleteKmsConfigurationUnprocessableEntity{
+			Payload: &models.Error{
+				Code:    422,
+				Message: errorMessage,
+			},
+		}
+		result := convertCvpClientDeleteKmsConfigErrorToVcpError(mockError)
+		require.NotNil(t, result)
+		customErr, ok := result.(*vsaerrors.CustomError)
+		require.True(t, ok, "Expected CustomError")
+		assert.Equal(t, vsaerrors.ErrUnprocessableEntity, customErr.TrackingID)
+		assert.Equal(t, errorMessage, customErr.OriginalErr.Error())
+	})
+
+	t.Run("WhenDefaultError", func(t *testing.T) {
+		errorMessage := "Default error"
+		mockError := &kms_configurations.V1betaDeleteKmsConfigurationDefault{
+			Payload: &models.Error{
+				Code:    500,
+				Message: errorMessage,
+			},
+		}
+		result := convertCvpClientDeleteKmsConfigErrorToVcpError(mockError)
+		require.NotNil(t, result)
+		customErr, ok := result.(*vsaerrors.CustomError)
+		require.True(t, ok, "Expected CustomError")
+		assert.Equal(t, vsaerrors.ErrKMSDeleteSDE, customErr.TrackingID)
+		assert.Equal(t, errorMessage, customErr.OriginalErr.Error())
+	})
+
+	t.Run("WhenUnknownError", func(t *testing.T) {
+		unknownError := errors2.New("unknown error type")
+		result := convertCvpClientDeleteKmsConfigErrorToVcpError(unknownError)
+		require.NotNil(t, result)
+		customErr, ok := result.(*vsaerrors.CustomError)
+		require.True(t, ok, "Expected CustomError")
+		assert.Equal(t, vsaerrors.ErrKMSDeleteSDE, customErr.TrackingID)
+		assert.Equal(t, "unknown error during the delete kms configurations", customErr.OriginalErr.Error())
 	})
 }

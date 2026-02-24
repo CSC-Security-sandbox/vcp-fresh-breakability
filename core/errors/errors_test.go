@@ -2,10 +2,14 @@ package errors
 
 import (
 	"context"
+	_ "embed"
 	"testing"
 
 	"go.temporal.io/sdk/temporal"
 )
+
+//go:embed errors.json
+var embeddedErrorsJSON []byte
 
 var validJSON = `{"1001":{"message":"Input is invalid.","retriable":false,"http_code":400},"1002":{"message":"The requested resource was not found.","retriable":false,"http_code":404},"1003":{"message":"An internal error occurred.","retriable":true,"http_code":500}}`
 
@@ -1100,5 +1104,161 @@ func TestErrCrossRegionBackupVaultAssignmentMapping(t *testing.T) {
 	}
 	if *msg.Retriable {
 		t.Errorf("Expected ErrCrossRegionBackupVaultAssignmentToDestinationRegion to be non-retriable")
+	}
+}
+
+// TestErrUnauthorizedMapping verifies that ErrUnauthorized (1019) is properly mapped
+// to HTTP 401 for unauthorized errors. This test validates the mapping loaded from
+// the embedded errors.json file.
+func TestErrUnauthorizedMapping(t *testing.T) {
+	// Preserve global state so this test does not interfere with others.
+	originalErrorMap := make(map[int]ErrorMessage)
+	for k, v := range errorMap {
+		originalErrorMap[k] = v
+	}
+	originalErrorsJSON := make([]byte, len(errorsJSON))
+	copy(originalErrorsJSON, errorsJSON)
+	defer func() {
+		errorMap = originalErrorMap
+		errorsJSON = originalErrorsJSON
+	}()
+
+	// Reload errorMap from the embedded JSON to ensure we test against the actual mappings.
+	errorsJSON = embeddedErrorsJSON
+	handler := &ErrorHandler{}
+	if err := handler.loadErrorMessages(); err != nil {
+		t.Fatalf("failed to load error messages from embedded JSON: %v", err)
+	}
+
+	msg := GetErrorMessageByTrackingID(ErrUnauthorized)
+	if msg == nil {
+		t.Fatalf("Expected non-nil ErrorMessage for ErrUnauthorized (1019)")
+	}
+
+	if msg.Message == "undefined error" {
+		t.Fatalf("ErrUnauthorized (1019) is not defined in errors.json - got 'undefined error'")
+	}
+
+	expectedMessage := "Unauthorized"
+	if msg.Message != expectedMessage {
+		t.Errorf("Expected message '%s', got '%s'", expectedMessage, msg.Message)
+	}
+
+	if msg.HttpCode == nil {
+		t.Fatalf("Expected non-nil HTTP code for ErrUnauthorized")
+	}
+	if *msg.HttpCode != 401 {
+		t.Errorf("Expected HTTP code 401, got %d", *msg.HttpCode)
+	}
+
+	if msg.Retriable == nil {
+		t.Fatalf("Expected non-nil Retriable for ErrUnauthorized")
+	}
+	if *msg.Retriable {
+		t.Errorf("Expected ErrUnauthorized to be non-retriable")
+	}
+}
+
+// TestErrForbiddenMapping verifies that ErrForbidden (1020) is properly mapped
+// to HTTP 403 for forbidden errors. This test validates the mapping loaded from
+// the embedded errors.json file.
+func TestErrForbiddenMapping(t *testing.T) {
+	// Preserve global state so this test does not interfere with others.
+	originalErrorMap := make(map[int]ErrorMessage)
+	for k, v := range errorMap {
+		originalErrorMap[k] = v
+	}
+	originalErrorsJSON := make([]byte, len(errorsJSON))
+	copy(originalErrorsJSON, errorsJSON)
+	defer func() {
+		errorMap = originalErrorMap
+		errorsJSON = originalErrorsJSON
+	}()
+
+	// Reload errorMap from the embedded JSON to ensure we test against the actual mappings.
+	errorsJSON = embeddedErrorsJSON
+	handler := &ErrorHandler{}
+	if err := handler.loadErrorMessages(); err != nil {
+		t.Fatalf("failed to load error messages from embedded JSON: %v", err)
+	}
+
+	msg := GetErrorMessageByTrackingID(ErrForbidden)
+	if msg == nil {
+		t.Fatalf("Expected non-nil ErrorMessage for ErrForbidden (1020)")
+	}
+
+	if msg.Message == "undefined error" {
+		t.Fatalf("ErrForbidden (1020) is not defined in errors.json - got 'undefined error'")
+	}
+
+	expectedMessage := "Forbidden"
+	if msg.Message != expectedMessage {
+		t.Errorf("Expected message '%s', got '%s'", expectedMessage, msg.Message)
+	}
+
+	if msg.HttpCode == nil {
+		t.Fatalf("Expected non-nil HTTP code for ErrForbidden")
+	}
+	if *msg.HttpCode != 403 {
+		t.Errorf("Expected HTTP code 403, got %d", *msg.HttpCode)
+	}
+
+	if msg.Retriable == nil {
+		t.Fatalf("Expected non-nil Retriable for ErrForbidden")
+	}
+	if *msg.Retriable {
+		t.Errorf("Expected ErrForbidden to be non-retriable")
+	}
+}
+
+// TestErrTooManyRequestsMapping verifies that ErrTooManyRequests (1021) is properly mapped
+// to HTTP 429 for rate limiting errors. This test validates the mapping loaded from
+// the embedded errors.json file.
+func TestErrTooManyRequestsMapping(t *testing.T) {
+	// Preserve global state so this test does not interfere with others.
+	originalErrorMap := make(map[int]ErrorMessage)
+	for k, v := range errorMap {
+		originalErrorMap[k] = v
+	}
+	originalErrorsJSON := make([]byte, len(errorsJSON))
+	copy(originalErrorsJSON, errorsJSON)
+	defer func() {
+		errorMap = originalErrorMap
+		errorsJSON = originalErrorsJSON
+	}()
+
+	// Reload errorMap from the embedded JSON to ensure we test against the actual mappings.
+	errorsJSON = embeddedErrorsJSON
+	handler := &ErrorHandler{}
+	if err := handler.loadErrorMessages(); err != nil {
+		t.Fatalf("failed to load error messages from embedded JSON: %v", err)
+	}
+
+	msg := GetErrorMessageByTrackingID(ErrTooManyRequests)
+	if msg == nil {
+		t.Fatalf("Expected non-nil ErrorMessage for ErrTooManyRequests (1021)")
+	}
+
+	if msg.Message == "undefined error" {
+		t.Fatalf("ErrTooManyRequests (1021) is not defined in errors.json - got 'undefined error'")
+	}
+
+	expectedMessage := "Too many requests"
+	if msg.Message != expectedMessage {
+		t.Errorf("Expected message '%s', got '%s'", expectedMessage, msg.Message)
+	}
+
+	if msg.HttpCode == nil {
+		t.Fatalf("Expected non-nil HTTP code for ErrTooManyRequests")
+	}
+	if *msg.HttpCode != 429 {
+		t.Errorf("Expected HTTP code 429, got %d", *msg.HttpCode)
+	}
+
+	if msg.Retriable == nil {
+		t.Fatalf("Expected non-nil Retriable for ErrTooManyRequests")
+	}
+	if !*msg.Retriable {
+		t.Errorf("Expected ErrTooManyRequests to be retriable")
 	}
 }
