@@ -653,6 +653,7 @@ func _getMultipleVolumes(db *gorm.DB) ([]*datamodel.Volume, error) {
 		Preload("Pool.ActiveDirectory").
 		Preload("Svm").
 		Preload("Pool.KmsConfig").
+		Preload("VolumePerformanceGroup").
 		Find(&volumes).Error
 	if err != nil {
 		return nil, err

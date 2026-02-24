@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -6754,11 +6755,10 @@ func TestCreatePoolIntegration_ActiveDirectoryConfigId(t *testing.T) {
 			AccountId: account.ID,
 		}
 		err = store.DB().Create(ad).Error
-		assert.NoError(tt, err)
+		require.NoError(tt, err)
 		ad, err := store.GetActiveDirectoryByUuidAndAccountId(ctx, ad.UUID, account.ID)
-		if err != nil {
-			return
-		} // Cache it
+		require.NoError(tt, err)
+		require.NotNil(tt, ad, "ActiveDirectory should be found after create")
 		// Test the complete flow
 		iopsValue := int64(1024)
 		params := &common.CreatePoolParams{
@@ -6800,8 +6800,9 @@ func TestCreatePoolIntegration_ActiveDirectoryConfigId(t *testing.T) {
 		}
 
 		pool, err := CreatePoolInDB(ctx, store, params, account, mockLogger, nil)
-		assert.NoError(tt, err)
-		assert.NotNil(tt, pool)
+		require.NoError(tt, err)
+		require.NotNil(tt, pool)
+		require.NotNil(tt, pool.ActiveDirectory, "pool.ActiveDirectory should be loaded when AD exists in VCP")
 
 		// Verify the ActiveDirectoryID was set correctly
 		assert.Equal(tt, ad.ID, pool.ActiveDirectory.ID)
@@ -6811,7 +6812,8 @@ func TestCreatePoolIntegration_ActiveDirectoryConfigId(t *testing.T) {
 		// Verify the pool was created in the database
 		var dbPool datamodel.Pool
 		err = store.DB().Preload("ActiveDirectory").First(&dbPool, "uuid = ?", pool.UUID).Error
-		assert.NoError(tt, err)
+		require.NoError(tt, err)
+		require.NotNil(tt, dbPool.ActiveDirectory, "dbPool.ActiveDirectory should be preloaded")
 		assert.Equal(tt, params.Name, dbPool.Name)
 		assert.Equal(tt, ad.ID, dbPool.ActiveDirectoryID.Int64)
 		assert.Equal(tt, ad.UUID, dbPool.ActiveDirectory.UUID)
@@ -6851,8 +6853,8 @@ func TestCreatePoolIntegration_ActiveDirectoryConfigId(t *testing.T) {
 		}
 
 		pool, err := CreatePoolInDB(ctx, store, params, account, mockLogger, nil)
-		assert.NoError(tt, err)
-		assert.NotNil(tt, pool)
+		require.NoError(tt, err)
+		require.NotNil(tt, pool)
 
 		// Verify the ActiveDirectoryID is 0 (null in database)
 		assert.Equal(tt, int64(0), pool.ActiveDirectoryID.Int64)
@@ -6860,7 +6862,7 @@ func TestCreatePoolIntegration_ActiveDirectoryConfigId(t *testing.T) {
 		// Verify the pool was created in the database
 		var dbPool datamodel.Pool
 		err = store.DB().Preload("ActiveDirectory").First(&dbPool, "uuid = ?", pool.UUID).Error
-		assert.NoError(tt, err)
+		require.NoError(tt, err)
 		assert.Equal(tt, int64(0), dbPool.ActiveDirectoryID.Int64)
 	})
 
@@ -6910,8 +6912,8 @@ func TestCreatePoolIntegration_ActiveDirectoryConfigId(t *testing.T) {
 		}
 
 		pool, err := CreatePoolInDB(ctx, store, params, account, mockLogger, nil)
-		assert.NoError(tt, err)
-		assert.NotNil(tt, pool)
+		require.NoError(tt, err)
+		require.NotNil(tt, pool)
 
 		// Verify the ActiveDirectoryID is NOT set (should be null/invalid)
 		// This is the key assertion - when AD is from SDE, we should NOT set the FK
@@ -6921,7 +6923,7 @@ func TestCreatePoolIntegration_ActiveDirectoryConfigId(t *testing.T) {
 		// Verify the pool was created in the database without AD reference
 		var dbPool datamodel.Pool
 		err = store.DB().First(&dbPool, "uuid = ?", pool.UUID).Error
-		assert.NoError(tt, err)
+		require.NoError(tt, err)
 		assert.Equal(tt, params.Name, dbPool.Name)
 		assert.False(tt, dbPool.ActiveDirectoryID.Valid, "DB ActiveDirectoryID should not be valid when AD is from SDE")
 	})
