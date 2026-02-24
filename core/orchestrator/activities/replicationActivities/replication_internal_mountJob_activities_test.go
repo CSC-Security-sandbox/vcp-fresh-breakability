@@ -721,10 +721,11 @@ func TestGetLunDetailsFromOntap(t *testing.T) {
 			Size:         1073741824,
 			SerialNumber: "123412214",
 		}
+		// GetLunDetailsFromOntap only passes SvmName and VolumeName to LunList (LunName is not set)
 		lunParams := vsa.LunGetParams{
 			SvmName:    "svm-name",
 			VolumeName: "volume-name",
-			LunName:    "lun_source-volume-name1",
+			LunName:    "",
 		}
 		mockProvider.On("LunList", lunParams).Return([]*vsa.LunResponse{lunDetails}, nil)
 		activity := &MountJobActivity{SE: mockStorage}

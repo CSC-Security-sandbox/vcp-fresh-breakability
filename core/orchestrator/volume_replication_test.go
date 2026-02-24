@@ -8978,6 +8978,146 @@ func TestDeleteReplication(t *testing.T) {
 		assert.NotNil(tt, err) // Should fail because ValidateOperationUri fails
 		assert.Contains(tt, err.Error(), "OperationURIs should match")
 	})
+	t.Run("WhenHybridReplicationUpdateStateSucceeds", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			VerifyReplicationDelete = replication.VerifyReplication
+		}()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		dbReplication := &datamodel.VolumeReplication{
+			Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+			BaseModel: datamodel.BaseModel{
+				UUID: "1234567890",
+			},
+			Volume: &datamodel.Volume{
+				Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: "src",
+			},
+		}
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			event.ReplicationModel = dbReplication
+			return nil, nil, nil
+		}
+
+		VerifyReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+			return &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{
+					EndpointType: "destination",
+				},
+				HybridReplicationAttributes: &models.HybridReplicationParameters{},
+			}, nil
+		}
+
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid",
+			},
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.MatchedBy(func(repl *datamodel.VolumeReplication) bool {
+			return repl.State == models.LifeCycleStateDeleting && repl.StateDetails == models.LifeCycleStateDeletingDetails
+		})).Return(nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.DeleteReplicationParams{
+			AccountName: "account-name",
+		}
+
+		resp, jobuuid, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, "", false)
+		assert.Nil(tt, err)
+		assert.Equal(tt, jobResponse.UUID, jobuuid)
+		assert.NotNil(tt, resp)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenHybridReplicationUpdateStateFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			VerifyReplicationDelete = replication.VerifyReplication
+		}()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		dbReplication := &datamodel.VolumeReplication{
+			Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+			BaseModel: datamodel.BaseModel{
+				UUID: "1234567890",
+			},
+			Volume: &datamodel.Volume{
+				Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType: "src",
+			},
+		}
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage, isCleanup bool, jobType string) (*models.VolumeReplication, *string, error) {
+			event.ReplicationModel = dbReplication
+			return nil, nil, nil
+		}
+
+		VerifyReplicationDelete = func(ctx context.Context, event *replication.DeleteReplicationEvent) (*models.VolumeReplication, error) {
+			return &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{
+					EndpointType: "destination",
+				},
+				HybridReplicationAttributes: &models.HybridReplicationParameters{},
+			}, nil
+		}
+
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid",
+			},
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.MatchedBy(func(repl *datamodel.VolumeReplication) bool {
+			return repl.State == models.LifeCycleStateDeleting && repl.StateDetails == models.LifeCycleStateDeletingDetails
+		})).Return(errors.New("failed to update replication state"))
+
+		params := &commonparams.DeleteReplicationParams{
+			AccountName: "account-name",
+		}
+
+		_, _, err := _deleteReplication(ctx, mockStorage, mockTemporal, params, "", false)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "failed to update replication state", err.Error())
+		mockStorage.AssertExpectations(tt)
+	})
 }
 
 func TestSyncReplication(t *testing.T) {

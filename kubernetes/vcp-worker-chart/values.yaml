@@ -248,7 +248,7 @@ workerConfig:
   hardDeleteResources: "true"
   scheduleHardDelete: "false"
   replicationJobsRetryMaxAttempts: 10
-  ontapTransientErrorRetryMinutes: 20
+  ontapTransientErrorRetryMinutes: 90
   updateRemoteVolumeJobsRetryMaxAttempts: 10
   quotaRuleSync: "true"
   expertModeRbacBucketName: "gcnv-autopush-images-bucket"

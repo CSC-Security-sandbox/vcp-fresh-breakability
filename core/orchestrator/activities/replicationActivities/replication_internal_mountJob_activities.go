@@ -22,9 +22,8 @@ import (
 )
 
 var (
-	failedStates             = []string{models.SnapmirrorRelationshipFailed, models.SnapmirrorRelationshipAborted, models.SnapmirrorRelationshipHardAborted}
-	hybridReplicationEnabled = env.GetBool("HYBRID_REPLICATION_ENABLED", false)
-	mountJobRetryWindow      = time.Duration(env.GetInt("ONTAP_TRANSIENT_ERROR_RETRY_MINUTES", 20)) * time.Minute
+	failedStates        = []string{models.SnapmirrorRelationshipFailed, models.SnapmirrorRelationshipAborted, models.SnapmirrorRelationshipHardAborted}
+	mountJobRetryWindow = time.Duration(env.GetInt("ONTAP_TRANSIENT_ERROR_RETRY_MINUTES", 90)) * time.Minute
 )
 
 type MountJobActivity struct {
@@ -129,24 +128,9 @@ func (j *MountJobActivity) GetLunDetailsFromOntap(ctx context.Context, replicati
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	var lunName string
-	// For hybrid replication, lunName should be empty
-	if !(hybridReplicationEnabled && replication.HybridReplicationAttributes != nil) {
-		if replication.Volume.VolumeAttributes != nil && replication.Volume.VolumeAttributes.BlockDevices != nil {
-			blockDevices := *replication.Volume.VolumeAttributes.BlockDevices
-			if len(blockDevices) > 0 {
-				lunName = blockDevices[0].Name
-			}
-		}
-		if lunName == "" {
-			lunName = "lun_" + replication.ReplicationAttributes.SourceVolumeName
-		}
-	}
-
 	lunParams := vsa.LunGetParams{
 		SvmName:    replication.ReplicationAttributes.DestinationSvmName,
 		VolumeName: replication.ReplicationAttributes.DestinationVolumeName,
-		LunName:    lunName,
 	}
 	lunDetails, err := provider.LunList(lunParams)
 	if err != nil {

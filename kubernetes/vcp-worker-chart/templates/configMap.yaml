@@ -238,7 +238,7 @@ data:
   HARD_DELETE_RESOURCES: {{$.Values.workerConfig.hardDeleteResources | quote }}
   SCHEDULED_HARD_DELETE: {{$.Values.workerConfig.scheduleHardDelete | quote }}
   REPLICATION_JOBS_RETRY_MAX_ATTEMPTS: {{ $.Values.workerConfig.replicationJobsRetryMaxAttempts | quote }}
-  ONTAP_TRANSIENT_RETRY_MINUTES: {{ $.Values.workerConfig.checkMountJobRetryMinutes | quote }}
+  ONTAP_TRANSIENT_ERROR_RETRY_MINUTES: {{ $.Values.workerConfig.ontapTransientErrorRetryMinutes | quote }}
   UPDATE_REMOTE_VOLUME_JOBS_RETRY_MAX_ATTEMPTS: {{ $.Values.workerConfig.updateRemoteVolumeJobsRetryMaxAttempts | quote }}
   QUOTA_RULE_SYNC: {{ $.Values.workerConfig.quotaRuleSync | quote }}
   EXPERT_MODE_RBAC_BUCKET_NAME: {{$.Values.workerConfig.expertModeRbacBucketName | quote }}
