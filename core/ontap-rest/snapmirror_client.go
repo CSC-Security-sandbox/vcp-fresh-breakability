@@ -168,6 +168,10 @@ func (s *snapmirrorClient) SnapmirrorRelationshipTransferCreate(params *Snapmirr
 }
 
 func (s *snapmirrorClient) SnapmirrorRelationshipTransferGet(params *SnapmirrorRelationshipTransferGetParams) (*SnapmirrorTransfer, error) {
+	// Ensure we request all necessary fields if not already specified
+	if params != nil && params.Fields == nil {
+		params.Fields = []string{"state", "bytes_transferred", "total_duration", "snapshot", "uuid"}
+	}
 	transfer, err := s.api.SnapmirrorRelationshipTransfersGet(snapmirrorRelationshipTransferGetParamsToONTAP(params), nil)
 	if err != nil {
 		return nil, err

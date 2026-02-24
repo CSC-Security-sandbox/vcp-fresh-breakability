@@ -65,6 +65,9 @@ var (
 	SARetryMaximumInterval     = env.GetString("SA_RETRY_MAXIMUM_INTERVAL", "60s")
 	SARetryBackoffCoefficient  = env.GetString("SA_RETRY_BACKOFF_COEFFICIENT", "2.0")
 
+	// Timeout for when transfer is stuck (no progress in bytes transferred)
+	snapmirrorTransferStuckTimeout = time.Duration(env.GetUint64("SNAPMIRROR_TRANSFER_STUCK_TIMEOUT_MINUTES", 10)) * time.Minute // Default 10 minutes
+
 	executeActivity = workflow.ExecuteActivity
 )
 
@@ -451,6 +454,11 @@ func PollTransferStatusWithContinueAsNewCommon(ctx workflow.Context, backupActiv
 	pollCount := 0
 	logger := util.GetLogger(ctx)
 
+	// Track transfer progress for stuck detection
+	var lastBytesTransferred *int64
+	var lastProgressTime time.Time         // Time when we last saw progress (zero value means not set)
+	transferStartTime := workflow.Now(ctx) // Track overall transfer start time for fallback timeout
+
 	for !done {
 		pollCount++
 
@@ -489,11 +497,102 @@ func PollTransferStatusWithContinueAsNewCommon(ctx workflow.Context, backupActiv
 			return workflow.NewContinueAsNewError(ctx, continueAsNewFunc, continueAsNewArgs...)
 		}
 
-		// Check if transfer is complete
+		// Check if transfer is complete first (skip progress tracking if already complete)
 		if pollOutput.TransferComplete {
 			done = true
 			logger.Info("Transfer completed successfully", "snapshotName", backupActivitiesContext.SnapshotName)
 		} else {
+			// Log current transfer state for debugging
+			var transferStatus string
+			var bytesTransferred *int64
+			if pollOutput.TransferStatus != nil {
+				transferStatus = pollOutput.TransferStatus.Status
+				bytesTransferred = pollOutput.TransferStatus.BytesTransferred
+			}
+			logger.Info("Transfer in progress",
+				"pollCount", pollCount,
+				"status", transferStatus,
+				"bytesTransferred", bytesTransferred,
+				"timeSinceStart", workflow.Now(ctx).Sub(transferStartTime))
+
+			// Transfer still in progress - check for stuck transfer via bytes progress tracking
+			// Only check progress if transfer status indicates it's still transferring
+			if pollOutput.TransferStatus != nil && pollOutput.TransferStatus.Status == activities.SmStatusTransferring {
+				if pollOutput.TransferStatus.BytesTransferred != nil {
+					// We have bytes transferred - check if transfer is making progress
+					currentBytes := pollOutput.TransferStatus.BytesTransferred
+					if lastBytesTransferred == nil || *currentBytes != *lastBytesTransferred {
+						// Transfer is making progress (first time seeing bytes or bytes changed) - reset the stuck timeout
+						// Any change (increase or decrease) is treated as progress to reset the timeout
+						if lastBytesTransferred != nil {
+							logger.Info("Transfer progress", "bytesDelta", *currentBytes-*lastBytesTransferred)
+						}
+						lastBytesTransferred = currentBytes
+						lastProgressTime = workflow.Now(ctx)
+					} else {
+						// Transfer size hasn't changed - check if it's stuck
+						// lastProgressTime should already be set from when we first saw this value
+						logger.Debug("Bytes transferred unchanged", "bytes", *currentBytes)
+						if !lastProgressTime.IsZero() {
+							// Check if transfer has been stuck for too long
+							timeSinceLastProgress := workflow.Now(ctx).Sub(lastProgressTime)
+							if timeSinceLastProgress > snapmirrorTransferStuckTimeout {
+								logger.Errorf("Transfer stuck - no progress for %v (bytes: %d). Continuing to poll...", timeSinceLastProgress, *currentBytes)
+							} else {
+								logger.Info("No bytes progress", "timeSinceLastProgress", timeSinceLastProgress, "stuckTimeout", snapmirrorTransferStuckTimeout)
+							}
+						} else {
+							// First time we see this value, set the progress time
+							lastProgressTime = workflow.Now(ctx)
+							logger.Debug("Initialized progress tracking", "bytes", *currentBytes)
+						}
+					}
+				} else {
+					// BytesTransferred not available during active transfer
+					// Initialize progress tracking on first nil encounter
+					if lastProgressTime.IsZero() {
+						lastProgressTime = workflow.Now(ctx)
+						logger.Debug("BytesTransferred is nil, starting stuck timeout tracking")
+					} else {
+						// Check if we've been stuck with nil bytes for too long
+						timeSinceNil := workflow.Now(ctx).Sub(lastProgressTime)
+						if timeSinceNil > snapmirrorTransferStuckTimeout {
+							logger.Errorf("Transfer stuck - BytesTransferred remains nil for %v. Continuing to poll...", timeSinceNil)
+						} else {
+							logger.Info("BytesTransferred still nil", "timeSinceNil", timeSinceNil, "stuckTimeout", snapmirrorTransferStuckTimeout)
+						}
+					}
+
+					// Also apply global fallback timeout
+					timeSinceTransferStart := workflow.Now(ctx).Sub(transferStartTime)
+					globalFallbackTimeout := snapmirrorTransferStuckTimeout * 6 // 60 minutes by default
+					if timeSinceTransferStart > globalFallbackTimeout {
+						logger.Errorf("Transfer exceeded fallback timeout: %v. Continuing to poll...", timeSinceTransferStart)
+					} else {
+						logger.Debug("BytesTransferred not available during active transfer, relying on global timeout",
+							"timeSinceStart", timeSinceTransferStart,
+							"globalFallbackTimeout", globalFallbackTimeout)
+					}
+				}
+			} else {
+				// Transfer status is not "transferring" (e.g., "queued", "idle", nil, etc.)
+				// Apply global fallback timeout to prevent infinite loops in unexpected states
+				timeSinceTransferStart := workflow.Now(ctx).Sub(transferStartTime)
+				globalFallbackTimeout := snapmirrorTransferStuckTimeout * 6 // 60 minutes by default
+				var statusStr string
+				if pollOutput.TransferStatus != nil {
+					statusStr = pollOutput.TransferStatus.Status
+				}
+				if timeSinceTransferStart > globalFallbackTimeout {
+					logger.Errorf("Transfer in unexpected state '%v' for %v. Continuing to poll...", statusStr, timeSinceTransferStart)
+				} else {
+					logger.Debug("Transfer in non-transferring state, monitoring with fallback timeout",
+						"status", statusStr,
+						"timeSinceStart", timeSinceTransferStart,
+						"timeoutLimit", globalFallbackTimeout)
+				}
+			}
+
 			// Transfer still in progress, sleep with exponential backoff
 			err = workflow.Sleep(ctx, waitTime)
 			if err != nil {

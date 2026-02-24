@@ -29,6 +29,7 @@ const (
 var (
 	WaitForRestore                           = time.Duration(10) * time.Second
 	backupRestoreWorkflowHeartbeatTimeoutSec = env.GetUint64("BACKUP_RESTORE_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 600)
+	restoredVolumeDPToRWTimeout              = time.Duration(env.GetUint64("RESTORED_VOLUME_DP_TO_RW_TIMEOUT_MINUTES", 30)) * time.Minute
 )
 
 type restoreBackupWorkflow struct {
@@ -331,8 +332,18 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 	}
 
 	volResponse := &vsa.VolumeResponse{}
-	volumeTypeUpdateDone := false // reset for polling volume state change to RW
+	volumeTypeUpdateDone := false  // reset for polling volume state change to RW
+	startTime := workflow.Now(ctx) // Track start time for timeout
 	for !volumeTypeUpdateDone {
+		// Check if the timeout has been reached
+		if workflow.Now(ctx).Sub(startTime) > restoredVolumeDPToRWTimeout {
+			log.Errorf("Volume %s failed to transition from DP/LS to RW state within timeout period of %v",
+				backupActivitiesContext.BackupWorkflowInit.Volume.UUID, restoredVolumeDPToRWTimeout)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrTimeLimitExceeded,
+				fmt.Errorf("volume %s failed to transition from DP/LS to RW state within timeout period of %v",
+					backupActivitiesContext.BackupWorkflowInit.Volume.UUID, restoredVolumeDPToRWTimeout))
+		}
+
 		if errors.Is(ctx.Err(), workflow.ErrCanceled) {
 			return nil, ConvertToVSAError(err)
 		}

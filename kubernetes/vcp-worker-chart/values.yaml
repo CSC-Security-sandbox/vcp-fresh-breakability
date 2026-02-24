@@ -270,7 +270,7 @@ workerConfig:
   revertVolumeWorkflowTimeoutMinutes: "95" # Revert volume workflow run timeout in minutes
   volumeRefreshWorkflowTimeoutMinutes: "20" # Volume refresh workflow run timeout in minutes
   workflowGlobalTimeoutForReplicationMinutes: 10
-  # Default cancellation timeouts 
+  # Default cancellation timeouts
   workflowCancellationTimeout: 5 # Default timeout (in minutes) for cancellation acknowledgment
   workflowForceCancelWaitTimeout: 30 # Default timeout (in seconds) for force termination acknowledgment
   poolWorkflowCancellationAckTimeout: 5 # Timeout (in minutes)
@@ -384,6 +384,8 @@ workerConfig:
   #Backup workflow timeout configuration
   adcWorkflowHeartbeatTimeoutSec : "600"     # 10 minutes
   backupRestoreWorkflowHeartbeatTimeoutSec : "600"     # 10 minutes
+  restoredVolumeDPToRWTimeoutMinutes : "30"     # 30 minutes
+  snapmirrorTransferStuckTimeoutMinutes : "10"     # 10 minutes
   createBackupWorkflowHeartbeatTimeoutSec : "600"     # 10 minutes
   deleteBackupWorkflowHeartbeatTimeoutSec : "600"     # 10 minutes
   updateBackupWorkflowHeartbeatTimeoutSec : "600"     # 10 minutes

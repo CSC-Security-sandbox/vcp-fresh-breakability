@@ -551,7 +551,7 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 	}
 
 	// Step 11: Poll transfer status
-	var transferStatus string
+	var transferStatus *activities.SnapmirrorTransferStatus
 	waitTime := time.Second * 10
 	maxWaitTime := time.Hour * 24
 	startTime := workflow.Now(ctx)
@@ -563,12 +563,12 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 			return nil, ConvertToVSAError(err)
 		}
 
-		if transferStatus == activities.SmStatusSuccess {
+		if transferStatus != nil && transferStatus.Status == activities.SmStatusSuccess {
 			log.Infof("Snapmirror transfer completed successfully")
 			break
 		}
 
-		if transferStatus == activities.SmStatusFailed {
+		if transferStatus != nil && transferStatus.Status == activities.SmStatusFailed {
 			return nil, ConvertToVSAError(fmt.Errorf("snapmirror transfer failed"))
 		}
 

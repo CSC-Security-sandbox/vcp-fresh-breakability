@@ -9,12 +9,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
@@ -815,6 +817,10 @@ func TestPollTransferStatusWithContinueAsNewCommon(t *testing.T) {
 				ShouldContinueAsNew:     false,
 				ContinueAsNewReason:     "",
 				NextWaitTime:            5 * time.Second,
+				TransferStatus: &activities.SnapmirrorTransferStatus{
+					Status:           activities.SmStatusSuccess,
+					BytesTransferred: nil,
+				},
 			}, nil)
 
 		// Execute the workflow
@@ -1098,6 +1104,394 @@ func TestPollTransferStatusWithContinueAsNewCommon(t *testing.T) {
 		assert.NoError(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
+
+	t.Run("WhenTransferStuck_ContinuesPollingUntilCompletion", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		// Register the BackupActivity
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		// Create test data
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			Node: &coreModels.Node{},
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "sm-uuid",
+			},
+			SnapshotName: "test-snapshot",
+		}
+
+		// Fixed bytes (same every call = stuck transfer). The code only logs this, it does not return an error.
+		fixedBytes := int64(1000)
+		callCount := 0
+		env.OnActivity("PollTransferStatusWithHistoryCheckActivity", mock.Anything, mock.AnythingOfType("*activities.PollTransferStatusInput"), mock.AnythingOfType("time.Time")).
+			Return(func(ctx context.Context, input *activities.PollTransferStatusInput, currentTime time.Time) (*activities.PollTransferStatusOutput, error) {
+				callCount++
+				if callCount >= 4 {
+					// Eventually complete after several "stuck" iterations
+					return &activities.PollTransferStatusOutput{
+						BackupActivitiesContext: backupActivitiesContext,
+						TransferComplete:        true,
+						ShouldContinueAsNew:     false,
+					}, nil
+				}
+				// Transfer appears stuck (same bytes) - code logs and continues polling
+				return &activities.PollTransferStatusOutput{
+					BackupActivitiesContext: backupActivitiesContext,
+					TransferComplete:        false,
+					ShouldContinueAsNew:     false,
+					TransferStatus: &activities.SnapmirrorTransferStatus{
+						Status:           activities.SmStatusTransferring,
+						BytesTransferred: &fixedBytes, // Same bytes every time = stuck
+					},
+				}, nil
+			})
+
+		// Execute the workflow
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			return PollTransferStatusWithContinueAsNewCommon(ctx, backupActivitiesContext, "TestWorkflow", "arg1", "arg2")
+		})
+
+		// Stuck transfer does not cause an error; the workflow logs and continues polling until completion
+		assert.NoError(t, env.GetWorkflowError())
+		assert.Equal(t, 4, callCount)
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenTransferMakesProgress", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		// Register the BackupActivity
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		// Create test data
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			Node: &coreModels.Node{},
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "sm-uuid",
+			},
+			SnapshotName: "test-snapshot",
+		}
+
+		// Mock the polling activity to return transfer incomplete initially, then complete with increasing bytes
+		callCount := 0
+		env.OnActivity("PollTransferStatusWithHistoryCheckActivity", mock.Anything, mock.AnythingOfType("*activities.PollTransferStatusInput"), mock.AnythingOfType("time.Time")).
+			Return(func(ctx context.Context, input *activities.PollTransferStatusInput, currentTime time.Time) (*activities.PollTransferStatusOutput, error) {
+				callCount++
+				bytes := int64(1000 * callCount) // Increasing bytes to simulate progress
+				if callCount >= 3 {
+					// Transfer completes after a few iterations
+					return &activities.PollTransferStatusOutput{
+						BackupActivitiesContext: backupActivitiesContext,
+						TransferComplete:        true,
+						ShouldContinueAsNew:     false,
+						ContinueAsNewReason:     "",
+						NextWaitTime:            5 * time.Second,
+						TransferStatus: &activities.SnapmirrorTransferStatus{
+							Status:           activities.SmStatusSuccess,
+							BytesTransferred: &bytes,
+						},
+					}, nil
+				}
+				return &activities.PollTransferStatusOutput{
+					BackupActivitiesContext: backupActivitiesContext,
+					TransferComplete:        false,
+					ShouldContinueAsNew:     false,
+					ContinueAsNewReason:     "",
+					NextWaitTime:            5 * time.Second,
+					TransferStatus: &activities.SnapmirrorTransferStatus{
+						Status:           activities.SmStatusTransferring,
+						BytesTransferred: &bytes, // Increasing bytes = progress
+					},
+				}, nil
+			})
+
+		// Execute the workflow
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			return PollTransferStatusWithContinueAsNewCommon(ctx, backupActivitiesContext, "TestWorkflow", "arg1", "arg2")
+		})
+
+		// Verify no error occurred - transfer completed successfully
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenBytesNotAvailable", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		// Register the BackupActivity
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		// Create test data
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			Node: &coreModels.Node{},
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "sm-uuid",
+			},
+			SnapshotName: "test-snapshot",
+		}
+
+		// Mock the polling activity to return transfer complete after a few iterations with nil bytes
+		callCount := 0
+		env.OnActivity("PollTransferStatusWithHistoryCheckActivity", mock.Anything, mock.AnythingOfType("*activities.PollTransferStatusInput"), mock.AnythingOfType("time.Time")).
+			Return(func(ctx context.Context, input *activities.PollTransferStatusInput, currentTime time.Time) (*activities.PollTransferStatusOutput, error) {
+				callCount++
+				if callCount >= 2 {
+					return &activities.PollTransferStatusOutput{
+						BackupActivitiesContext: backupActivitiesContext,
+						TransferComplete:        true,
+						ShouldContinueAsNew:     false,
+						ContinueAsNewReason:     "",
+						NextWaitTime:            5 * time.Second,
+						TransferStatus: &activities.SnapmirrorTransferStatus{
+							Status:           activities.SmStatusSuccess,
+							BytesTransferred: nil, // Bytes not available
+						},
+					}, nil
+				}
+				return &activities.PollTransferStatusOutput{
+					BackupActivitiesContext: backupActivitiesContext,
+					TransferComplete:        false,
+					ShouldContinueAsNew:     false,
+					ContinueAsNewReason:     "",
+					NextWaitTime:            5 * time.Second,
+					TransferStatus: &activities.SnapmirrorTransferStatus{
+						Status:           activities.SmStatusTransferring,
+						BytesTransferred: nil, // Bytes not available
+					},
+				}, nil
+			})
+
+		// Execute the workflow
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			return PollTransferStatusWithContinueAsNewCommon(ctx, backupActivitiesContext, "TestWorkflow", "arg1", "arg2")
+		})
+
+		// Verify no error occurred - workflow should continue with status check only and complete quickly
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenNonTransferringStatus_ContinuesPollingUntilCompletion", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		// Register the BackupActivity
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		// Create test data
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			Node: &coreModels.Node{},
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "sm-uuid",
+			},
+			SnapshotName: "test-snapshot",
+		}
+
+		// Transfer in a non-transferring state ("queued") with nil bytes.
+		// The code only logs this situation; it does not return an error.
+		callCount := 0
+		env.OnActivity("PollTransferStatusWithHistoryCheckActivity", mock.Anything, mock.AnythingOfType("*activities.PollTransferStatusInput"), mock.AnythingOfType("time.Time")).
+			Return(func(ctx context.Context, input *activities.PollTransferStatusInput, currentTime time.Time) (*activities.PollTransferStatusOutput, error) {
+				callCount++
+				if callCount >= 3 {
+					// Eventually complete
+					return &activities.PollTransferStatusOutput{
+						BackupActivitiesContext: backupActivitiesContext,
+						TransferComplete:        true,
+						ShouldContinueAsNew:     false,
+					}, nil
+				}
+				// Non-transferring status - code logs and continues polling
+				return &activities.PollTransferStatusOutput{
+					BackupActivitiesContext: backupActivitiesContext,
+					TransferComplete:        false,
+					ShouldContinueAsNew:     false,
+					TransferStatus: &activities.SnapmirrorTransferStatus{
+						Status:           "queued", // Not "transferring", so fine-grained check won't apply
+						BytesTransferred: nil,
+					},
+				}, nil
+			})
+
+		// Execute the workflow
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			return PollTransferStatusWithContinueAsNewCommon(ctx, backupActivitiesContext, "TestWorkflow", "arg1", "arg2")
+		})
+
+		// Non-transferring status does not cause an error; the workflow logs and continues polling until completion
+		assert.NoError(t, env.GetWorkflowError())
+		assert.Equal(t, 3, callCount)
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenGetBytesFails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		// Register the BackupActivity
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		// Create test data
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			Node: &coreModels.Node{},
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "sm-uuid",
+			},
+			SnapshotName: "test-snapshot",
+		}
+
+		// Mock the polling activity to return transfer complete after a few iterations with nil bytes (error case)
+		callCount := 0
+		env.OnActivity("PollTransferStatusWithHistoryCheckActivity", mock.Anything, mock.AnythingOfType("*activities.PollTransferStatusInput"), mock.AnythingOfType("time.Time")).
+			Return(func(ctx context.Context, input *activities.PollTransferStatusInput, currentTime time.Time) (*activities.PollTransferStatusOutput, error) {
+				callCount++
+				if callCount >= 2 {
+					return &activities.PollTransferStatusOutput{
+						BackupActivitiesContext: backupActivitiesContext,
+						TransferComplete:        true,
+						ShouldContinueAsNew:     false,
+						ContinueAsNewReason:     "",
+						NextWaitTime:            5 * time.Second,
+						TransferStatus: &activities.SnapmirrorTransferStatus{
+							Status:           activities.SmStatusSuccess,
+							BytesTransferred: nil, // Bytes not available (error case handled in activity)
+						},
+					}, nil
+				}
+				return &activities.PollTransferStatusOutput{
+					BackupActivitiesContext: backupActivitiesContext,
+					TransferComplete:        false,
+					ShouldContinueAsNew:     false,
+					ContinueAsNewReason:     "",
+					NextWaitTime:            5 * time.Second,
+					TransferStatus: &activities.SnapmirrorTransferStatus{
+						Status:           activities.SmStatusTransferring,
+						BytesTransferred: nil, // Bytes not available (error case handled in activity)
+					},
+				}, nil
+			})
+
+		// Execute the workflow
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			return PollTransferStatusWithContinueAsNewCommon(ctx, backupActivitiesContext, "TestWorkflow", "arg1", "arg2")
+		})
+
+		// Verify no error occurred - workflow should continue with status check only when bytes fail
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenBytesNilDuringTransferring_ContinuesPollingUntilCompletion", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		// Register the BackupActivity
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		// Create test data
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			Node: &coreModels.Node{},
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "sm-uuid",
+			},
+			SnapshotName: "test-snapshot",
+		}
+
+		// Status is "transferring" but BytesTransferred is nil.
+		// The code only logs this situation; it does not return an error.
+		callCount := 0
+		env.OnActivity("PollTransferStatusWithHistoryCheckActivity", mock.Anything, mock.AnythingOfType("*activities.PollTransferStatusInput"), mock.AnythingOfType("time.Time")).
+			Return(func(ctx context.Context, input *activities.PollTransferStatusInput, currentTime time.Time) (*activities.PollTransferStatusOutput, error) {
+				callCount++
+				if callCount >= 3 {
+					// Eventually complete
+					return &activities.PollTransferStatusOutput{
+						BackupActivitiesContext: backupActivitiesContext,
+						TransferComplete:        true,
+						ShouldContinueAsNew:     false,
+					}, nil
+				}
+				// Transferring status but bytes unavailable - code logs and continues polling
+				return &activities.PollTransferStatusOutput{
+					BackupActivitiesContext: backupActivitiesContext,
+					TransferComplete:        false,
+					ShouldContinueAsNew:     false,
+					TransferStatus: &activities.SnapmirrorTransferStatus{
+						Status:           activities.SmStatusTransferring,
+						BytesTransferred: nil, // Bytes not available
+					},
+				}, nil
+			})
+
+		// Execute the workflow
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			return PollTransferStatusWithContinueAsNewCommon(ctx, backupActivitiesContext, "TestWorkflow", "arg1", "arg2")
+		})
+
+		// Nil bytes during transferring does not cause an error; the workflow logs and continues polling until completion
+		assert.NoError(t, env.GetWorkflowError())
+		assert.Equal(t, 3, callCount)
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenTransferStatusIsNil_NoPanic", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+		// Register the BackupActivity
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		// Create test data
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			Node: &coreModels.Node{},
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "sm-uuid",
+			},
+			SnapshotName: "test-snapshot",
+		}
+
+		// TransferStatus is nil (no status info available at all) - must not cause a nil pointer panic.
+		callCount := 0
+		env.OnActivity("PollTransferStatusWithHistoryCheckActivity", mock.Anything, mock.AnythingOfType("*activities.PollTransferStatusInput"), mock.AnythingOfType("time.Time")).
+			Return(func(ctx context.Context, input *activities.PollTransferStatusInput, currentTime time.Time) (*activities.PollTransferStatusOutput, error) {
+				callCount++
+				if callCount >= 2 {
+					// Eventually complete
+					return &activities.PollTransferStatusOutput{
+						BackupActivitiesContext: backupActivitiesContext,
+						TransferComplete:        true,
+						ShouldContinueAsNew:     false,
+					}, nil
+				}
+				// Nil TransferStatus - code must guard against nil dereference
+				return &activities.PollTransferStatusOutput{
+					BackupActivitiesContext: backupActivitiesContext,
+					TransferComplete:        false,
+					ShouldContinueAsNew:     false,
+					TransferStatus:          nil,
+				}, nil
+			})
+
+		// Execute the workflow
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			return PollTransferStatusWithContinueAsNewCommon(ctx, backupActivitiesContext, "TestWorkflow", "arg1", "arg2")
+		})
+
+		// Nil TransferStatus must not cause a panic; the workflow should complete successfully
+		assert.NoError(t, env.GetWorkflowError())
+		assert.Equal(t, 2, callCount)
+		env.AssertExpectations(t)
+	})
 }
 
 func TestWrapErrorForChildWorkflow(t *testing.T) {
@@ -1298,4 +1692,228 @@ func testFetchAndSetAuthTokenWorkflow(ctx workflow.Context, accountId string) er
 
 	_, err := FetchAndSetAuthToken(ctx, accountId, logger)
 	return err
+}
+
+func TestWaitForONTAPJob(t *testing.T) {
+	t.Run("WhenJobResponseIsNil_ReturnsNil", func(tt *testing.T) {
+		var suite testsuite.WorkflowTestSuite
+		env := suite.NewTestWorkflowEnvironment()
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			return WaitForONTAPJob(ctx, nil, &coreModels.Node{EndpointAddress: "127.0.0.1"}, 5*time.Minute)
+		})
+
+		require.True(tt, env.IsWorkflowCompleted())
+		require.NoError(tt, env.GetWorkflowError())
+	})
+
+	t.Run("WhenJobResponseHasEmptyJobUUID_ReturnsNil", func(tt *testing.T) {
+		var suite testsuite.WorkflowTestSuite
+		env := suite.NewTestWorkflowEnvironment()
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			jobResponse := &vsa.OntapAsyncResponse{JobUUID: ""}
+			return WaitForONTAPJob(ctx, jobResponse, &coreModels.Node{EndpointAddress: "127.0.0.1"}, 5*time.Minute)
+		})
+
+		require.True(tt, env.IsWorkflowCompleted())
+		require.NoError(tt, env.GetWorkflowError())
+	})
+
+	t.Run("WhenJobCompletesSuccessfully_ReturnsNil", func(tt *testing.T) {
+		var suite testsuite.WorkflowTestSuite
+		env := suite.NewTestWorkflowEnvironment()
+		commonActivity := &activities.CommonActivities{}
+		env.RegisterActivity(commonActivity.GetOntapJob)
+
+		jobResponse := &vsa.OntapAsyncResponse{JobUUID: "test-job-uuid"}
+		node := &coreModels.Node{EndpointAddress: "127.0.0.1"}
+
+		// Mock the activity to return success
+		env.OnActivity(commonActivity.GetOntapJob, mock.Anything, "test-job-uuid", node).Return(&vsa.OntapJob{
+			UUID:  "test-job-uuid",
+			State: "success",
+		}, nil)
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			ao := workflow.ActivityOptions{
+				StartToCloseTimeout: 30 * time.Second,
+				RetryPolicy: &temporal.RetryPolicy{
+					NonRetryableErrorTypes: []string{"PanicError"},
+				},
+			}
+			ctx = workflow.WithActivityOptions(ctx, ao)
+			return WaitForONTAPJob(ctx, jobResponse, node, 5*time.Minute)
+		})
+
+		require.True(tt, env.IsWorkflowCompleted())
+		require.NoError(tt, env.GetWorkflowError())
+	})
+
+	t.Run("WhenJobFailsWithError_ReturnsError", func(tt *testing.T) {
+		var suite testsuite.WorkflowTestSuite
+		env := suite.NewTestWorkflowEnvironment()
+		commonActivity := &activities.CommonActivities{}
+		env.RegisterActivity(commonActivity.GetOntapJob)
+
+		jobResponse := &vsa.OntapAsyncResponse{JobUUID: "test-job-uuid"}
+		node := &coreModels.Node{EndpointAddress: "127.0.0.1"}
+
+		errorMessage := "Job execution failed"
+		errorCode := "500"
+		// Mock the activity to return failure with error
+		env.OnActivity(commonActivity.GetOntapJob, mock.Anything, "test-job-uuid", node).Return(&vsa.OntapJob{
+			UUID:  "test-job-uuid",
+			State: "failure",
+			Error: &vsa.OntapError{
+				Message: errorMessage,
+				Code:    errorCode,
+			},
+		}, nil)
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			ao := workflow.ActivityOptions{
+				StartToCloseTimeout: 30 * time.Second,
+				RetryPolicy: &temporal.RetryPolicy{
+					NonRetryableErrorTypes: []string{"PanicError"},
+				},
+			}
+			ctx = workflow.WithActivityOptions(ctx, ao)
+			return WaitForONTAPJob(ctx, jobResponse, node, 5*time.Minute)
+		})
+
+		require.True(tt, env.IsWorkflowCompleted())
+		require.Error(tt, env.GetWorkflowError())
+		assert.Contains(tt, env.GetWorkflowError().Error(), "Job execution failed")
+	})
+
+	t.Run("WhenJobFailsWithoutErrorMessage_ReturnsError", func(tt *testing.T) {
+		var suite testsuite.WorkflowTestSuite
+		env := suite.NewTestWorkflowEnvironment()
+		commonActivity := &activities.CommonActivities{}
+		env.RegisterActivity(commonActivity.GetOntapJob)
+
+		jobResponse := &vsa.OntapAsyncResponse{JobUUID: "test-job-uuid"}
+		node := &coreModels.Node{EndpointAddress: "127.0.0.1"}
+
+		// Mock the activity to return failure without error message
+		env.OnActivity(commonActivity.GetOntapJob, mock.Anything, "test-job-uuid", node).Return(&vsa.OntapJob{
+			UUID:  "test-job-uuid",
+			State: "failure",
+			Error: nil,
+		}, nil)
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			ao := workflow.ActivityOptions{
+				StartToCloseTimeout: 30 * time.Second,
+				RetryPolicy: &temporal.RetryPolicy{
+					NonRetryableErrorTypes: []string{"PanicError"},
+				},
+			}
+			ctx = workflow.WithActivityOptions(ctx, ao)
+			return WaitForONTAPJob(ctx, jobResponse, node, 5*time.Minute)
+		})
+
+		require.True(tt, env.IsWorkflowCompleted())
+		require.Error(tt, env.GetWorkflowError())
+		assert.Contains(tt, env.GetWorkflowError().Error(), "ontap job test-job-uuid failed with no error message")
+	})
+
+	t.Run("WhenGetOntapJobActivityFails_ReturnsError", func(tt *testing.T) {
+		var suite testsuite.WorkflowTestSuite
+		env := suite.NewTestWorkflowEnvironment()
+		commonActivity := &activities.CommonActivities{}
+		env.RegisterActivity(commonActivity.GetOntapJob)
+
+		jobResponse := &vsa.OntapAsyncResponse{JobUUID: "test-job-uuid"}
+		node := &coreModels.Node{EndpointAddress: "127.0.0.1"}
+
+		// Mock the activity to return an error
+		env.OnActivity(commonActivity.GetOntapJob, mock.Anything, "test-job-uuid", node).Return(nil, errors.New("failed to get ONTAP job"))
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			ao := workflow.ActivityOptions{
+				StartToCloseTimeout: 30 * time.Second,
+				RetryPolicy: &temporal.RetryPolicy{
+					NonRetryableErrorTypes: []string{"PanicError"},
+				},
+			}
+			ctx = workflow.WithActivityOptions(ctx, ao)
+			return WaitForONTAPJob(ctx, jobResponse, node, 5*time.Minute)
+		})
+
+		require.True(tt, env.IsWorkflowCompleted())
+		require.Error(tt, env.GetWorkflowError())
+		assert.Contains(tt, env.GetWorkflowError().Error(), "failed to get ONTAP job")
+	})
+
+	t.Run("WhenJobIsStillRunning_ThenSucceeds_ReturnsNil", func(tt *testing.T) {
+		var suite testsuite.WorkflowTestSuite
+		env := suite.NewTestWorkflowEnvironment()
+		commonActivity := &activities.CommonActivities{}
+		env.RegisterActivity(commonActivity.GetOntapJob)
+
+		jobResponse := &vsa.OntapAsyncResponse{JobUUID: "test-job-uuid"}
+		node := &coreModels.Node{EndpointAddress: "127.0.0.1"}
+
+		// First call returns running state, second call returns success
+		env.OnActivity(commonActivity.GetOntapJob, mock.Anything, "test-job-uuid", node).Return(&vsa.OntapJob{
+			UUID:  "test-job-uuid",
+			State: "running",
+		}, nil).Once()
+
+		env.OnActivity(commonActivity.GetOntapJob, mock.Anything, "test-job-uuid", node).Return(&vsa.OntapJob{
+			UUID:  "test-job-uuid",
+			State: "success",
+		}, nil).Once()
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			ao := workflow.ActivityOptions{
+				StartToCloseTimeout: 30 * time.Second,
+				RetryPolicy: &temporal.RetryPolicy{
+					NonRetryableErrorTypes: []string{"PanicError"},
+				},
+			}
+			ctx = workflow.WithActivityOptions(ctx, ao)
+			return WaitForONTAPJob(ctx, jobResponse, node, 5*time.Minute)
+		})
+
+		require.True(tt, env.IsWorkflowCompleted())
+		require.NoError(tt, env.GetWorkflowError())
+	})
+
+	t.Run("WhenSleepFails_ReturnsError", func(tt *testing.T) {
+		var suite testsuite.WorkflowTestSuite
+		env := suite.NewTestWorkflowEnvironment()
+		commonActivity := &activities.CommonActivities{}
+		env.RegisterActivity(commonActivity.GetOntapJob)
+
+		jobResponse := &vsa.OntapAsyncResponse{JobUUID: "test-job-uuid"}
+		node := &coreModels.Node{EndpointAddress: "127.0.0.1"}
+
+		// Mock the activity to return running state to trigger sleep
+		env.OnActivity(commonActivity.GetOntapJob, mock.Anything, "test-job-uuid", node).Return(&vsa.OntapJob{
+			UUID:  "test-job-uuid",
+			State: "running",
+		}, nil)
+
+		// Set up workflow to fail on sleep by cancelling the context
+		env.RegisterDelayedCallback(func() {
+			env.CancelWorkflow()
+		}, 100*time.Millisecond)
+
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			ao := workflow.ActivityOptions{
+				StartToCloseTimeout: 30 * time.Second,
+				RetryPolicy: &temporal.RetryPolicy{
+					NonRetryableErrorTypes: []string{"PanicError"},
+				},
+			}
+			ctx = workflow.WithActivityOptions(ctx, ao)
+			return WaitForONTAPJob(ctx, jobResponse, node, 5*time.Minute)
+		})
+
+		require.True(tt, env.IsWorkflowCompleted())
+		require.Error(tt, env.GetWorkflowError())
+	})
 }

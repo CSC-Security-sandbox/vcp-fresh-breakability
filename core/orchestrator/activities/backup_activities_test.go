@@ -727,10 +727,11 @@ func TestSnapshotActivities(t *testing.T) {
 		encodedValue, err := env.ExecuteActivity(activity.GetSnapmirrorTransferStatus, node, snapmirrorUUID, snapshotName)
 
 		assert.NoError(tt, err)
-		var status string
-		err = encodedValue.Get(&status)
+		var transferStatus *SnapmirrorTransferStatus
+		err = encodedValue.Get(&transferStatus)
 		assert.NoError(tt, err)
-		assert.Equal(tt, state, status)
+		assert.NotNil(tt, transferStatus)
+		assert.Equal(tt, state, transferStatus.Status)
 		mockProvider.AssertExpectations(tt)
 	})
 
@@ -769,6 +770,101 @@ func TestSnapshotActivities(t *testing.T) {
 	})
 
 	t.Run("DeleteSnapshot_WhenDeleteSucceeds_ThenReturnNil", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		node := &models.Node{}
+		snapmirrorUUID := "snapmirror-uuid"
+		snapshotName := "snapshot-name"
+		expectedBytes := int64(1024000)
+		status := SmStatusTransferring
+
+		mockProvider.On("SnapmirrorRelationshipTransferGet", snapmirrorUUID, snapshotName).
+			Return(&ontap_rest.SnapmirrorTransfer{
+				SnapmirrorTransfer: oModels.SnapmirrorTransfer{
+					State:           &status,
+					BytesTransferred: &expectedBytes,
+				},
+			}, nil)
+
+		encodedValue, err := env.ExecuteActivity(activity.GetSnapmirrorTransferStatus, node, snapmirrorUUID, snapshotName)
+
+		assert.NoError(tt, err)
+		var transferStatus *SnapmirrorTransferStatus
+		err = encodedValue.Get(&transferStatus)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, transferStatus)
+		assert.Equal(tt, status, transferStatus.Status)
+		assert.NotNil(tt, transferStatus.BytesTransferred)
+		assert.Equal(tt, expectedBytes, *transferStatus.BytesTransferred)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenBytesNotAvailable_ThenReturnStatusWithNilBytes", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		activity := BackupActivity{}
+		env.RegisterActivity(&activity)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		node := &models.Node{}
+		snapmirrorUUID := "snapmirror-uuid"
+		snapshotName := "snapshot-name"
+		status := SmStatusSuccess
+
+		// Case 1: Response is nil
+		mockProvider.On("SnapmirrorRelationshipTransferGet", snapmirrorUUID, snapshotName).
+			Return(nil, nil).Once()
+
+		encodedValue, err := env.ExecuteActivity(activity.GetSnapmirrorTransferStatus, node, snapmirrorUUID, snapshotName)
+
+		assert.NoError(tt, err)
+		var transferStatus *SnapmirrorTransferStatus
+		err = encodedValue.Get(&transferStatus)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, transferStatus)
+		assert.Equal(tt, SmStatusSuccess, transferStatus.Status)
+		assert.Nil(tt, transferStatus.BytesTransferred)
+
+		// Case 2: Response exists but BytesTransferred is nil
+		mockProvider.On("SnapmirrorRelationshipTransferGet", snapmirrorUUID, snapshotName).
+			Return(&ontap_rest.SnapmirrorTransfer{
+				SnapmirrorTransfer: oModels.SnapmirrorTransfer{
+					State:           &status,
+					BytesTransferred: nil,
+				},
+			}, nil).Once()
+
+		encodedValue, err = env.ExecuteActivity(activity.GetSnapmirrorTransferStatus, node, snapmirrorUUID, snapshotName)
+
+		assert.NoError(tt, err)
+		err = encodedValue.Get(&transferStatus)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, transferStatus)
+		assert.Equal(tt, status, transferStatus.Status)
+		assert.Nil(tt, transferStatus.BytesTransferred)
+
+		mockProvider.AssertExpectations(tt)
+	})
+}
+
+func TestSnapshotActivities_DeleteSnapshot(t *testing.T) {
+	t.Run("WhenDeleteSucceeds_ThenReturnNil", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestActivityEnvironment()
 

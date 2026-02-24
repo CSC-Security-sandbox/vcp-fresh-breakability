@@ -639,3 +639,63 @@ func TestSnapmirrorRelationshipTransferModify(t *testing.T) {
 		assert.NoError(tt, err)
 	})
 }
+
+func TestSnapmirrorRelationshipModify(t *testing.T) {
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		_, response, err := client.SnapmirrorRelationshipModify(&SnapmirrorRelationshipModifyParams{
+			UUID: "test-uuid",
+		})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenSyncResponseSuccessful", func(tt *testing.T) {
+		ontapResponse := &snapmirror.SnapmirrorRelationshipModifyOK{
+			Payload: &models.SnapmirrorRelationshipJobLinkResponse{
+				Records: []*models.SnapmirrorRelationship{
+					{
+						UUID: nillable.ToPointer(strfmt.UUID("snapmirror-uuid")),
+					},
+				},
+			},
+		}
+		transport := &mockTransport{response: ontapResponse}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		result, asyncResponse, err := client.SnapmirrorRelationshipModify(&SnapmirrorRelationshipModifyParams{
+			UUID: "test-uuid",
+		})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, ontapResponse.Payload.Records[0].UUID, result.UUID)
+		assert.Nil(tt, asyncResponse)
+	})
+
+	t.Run("WhenAsyncResponseSuccessful", func(tt *testing.T) {
+		ontapResponse := &snapmirror.SnapmirrorRelationshipModifyAccepted{
+			Payload: &models.SnapmirrorRelationshipJobLinkResponse{
+				Records: []*models.SnapmirrorRelationship{
+					{
+						UUID: nillable.ToPointer(strfmt.UUID("snapmirror-uuid")),
+					},
+				},
+				Job: &models.JobLink{
+					UUID: nillable.ToPointer(strfmt.UUID("job-uuid")),
+				},
+			},
+		}
+		transport := &mockTransport{response: ontapResponse}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		result, asyncResponse, err := client.SnapmirrorRelationshipModify(&SnapmirrorRelationshipModifyParams{
+			UUID: "test-uuid",
+		})
+		assert.NoError(tt, err)
+		assert.Nil(tt, result)
+		assert.NotNil(tt, asyncResponse)
+		assert.Equal(tt, ontapResponse.Payload.Job.UUID.String(), asyncResponse.JobUUID)
+	})
+}

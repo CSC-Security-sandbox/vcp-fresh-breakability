@@ -2071,6 +2071,7 @@ type SnapmirrorRelationshipTransferCreateParams struct {
 
 // SnapmirrorRelationshipTransferGetParams describes the params to invoke snapmirror relationship transfer get
 type SnapmirrorRelationshipTransferGetParams struct {
+	BaseParams
 	SnapmirrorUUID string
 	SnapshotName   string
 }
@@ -3744,6 +3745,9 @@ func snapmirrorRelationshipTransferGetParamsToONTAP(params *SnapmirrorRelationsh
 	otParams.SetRelationshipUUID(params.SnapmirrorUUID)
 	if params.SnapshotName != "" {
 		otParams.SetSnapshot(&params.SnapshotName)
+	}
+	if params.Fields != nil {
+		otParams.SetFields(params.Fields)
 	}
 	return otParams
 }

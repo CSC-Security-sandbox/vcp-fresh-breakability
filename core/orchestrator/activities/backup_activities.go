@@ -93,6 +93,12 @@ type PollTransferStatusInput struct {
 	NextWaitTime            time.Duration
 }
 
+// SnapmirrorTransferStatus represents the status and progress of a snapmirror transfer
+type SnapmirrorTransferStatus struct {
+	Status           string // Transfer status: "transferring", "success", "failed"
+	BytesTransferred *int64 // Bytes transferred (nil if not available)
+}
+
 // PollTransferStatusOutput represents the output of the polling activity
 type PollTransferStatusOutput struct {
 	BackupActivitiesContext *BackupActivitiesContext
@@ -100,6 +106,7 @@ type PollTransferStatusOutput struct {
 	ShouldContinueAsNew     bool
 	ContinueAsNewReason     string
 	NextWaitTime            time.Duration
+	TransferStatus          *SnapmirrorTransferStatus // Includes status and bytes transferred
 }
 
 func (a BackupActivity) CreateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
@@ -365,14 +372,14 @@ func (b *BackupActivity) TransferSnapshotActivity(ctx context.Context, backupAct
 
 // CheckTransferStatusActivity checks transfer status
 func (b *BackupActivity) CheckTransferStatusActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
-	status, err := b.GetSnapmirrorTransferStatus(ctx, backupActivitiesContext.Node, backupActivitiesContext.SnapmirrorRelationship.UUID, backupActivitiesContext.SnapshotName)
+	transferStatus, err := b.GetSnapmirrorTransferStatus(ctx, backupActivitiesContext.Node, backupActivitiesContext.SnapmirrorRelationship.UUID, backupActivitiesContext.SnapshotName)
 	if err != nil {
 		return nil, err
 	}
-	if status == SmStatusSuccess {
+	if transferStatus.Status == SmStatusSuccess {
 		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotCreationTime = time.Now().String()
 	}
-	backupActivitiesContext.TransferStatus = status
+	backupActivitiesContext.TransferStatus = transferStatus.Status
 	return backupActivitiesContext, nil
 }
 
@@ -709,38 +716,54 @@ func (a BackupActivity) SnapmirrorTransfer(ctx context.Context, node *models.Nod
 	return err
 }
 
-func (a BackupActivity) GetSnapmirrorTransferStatus(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string) (string, error) {
+func (a BackupActivity) GetSnapmirrorTransferStatus(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string) (*SnapmirrorTransferStatus, error) {
 	activity.RecordHeartbeat(ctx, "GetSnapmirrorTransferStatus started")
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
-		return SmStatusFailed, vsaerrors.WrapAsTemporalApplicationError(err)
+		return &SnapmirrorTransferStatus{Status: SmStatusFailed}, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	rsp, err := provider.SnapmirrorRelationshipTransferGet(snapmirrorUUID, snapshotName)
 	if err != nil {
 		logger.Errorf("Snapmirror transfer failed with error: %v", err)
+		status := SmStatusFailed
 		if rsp != nil && rsp.State != nil {
 			logger.Errorf("Snapmirror transfer failed with status: %s", *rsp.State)
+			status = *rsp.State
 		}
-		return SmStatusFailed, err
+		return &SnapmirrorTransferStatus{Status: status}, err
 	}
 	if rsp == nil {
 		logger.Infof("snapmirror transfer response is nil for uuid: %s and snapshot: %s", snapmirrorUUID, snapshotName)
-		return SmStatusSuccess, nil
+		return &SnapmirrorTransferStatus{Status: SmStatusSuccess, BytesTransferred: nil}, nil
 	}
+
+	result := &SnapmirrorTransferStatus{
+		BytesTransferred: rsp.BytesTransferred,
+	}
+
 	if rsp.State != nil {
 		if *rsp.State == SmStatusFailed {
-			return SmStatusFailed, errors.New("Snapmirror transfer failed with status: " + SmStatusFailed)
+			result.Status = SmStatusFailed
+			activity.RecordHeartbeat(ctx, "SnapmirrorTransferStatus failed")
+			return result, errors.New("Snapmirror transfer failed with status: " + SmStatusFailed)
 		}
 		if *rsp.State == SmStatusSuccess {
-			return SmStatusSuccess, nil
+			result.Status = SmStatusSuccess
+			activity.RecordHeartbeat(ctx, "SnapmirrorTransferStatus completed")
+			return result, nil
 		}
 		if *rsp.State == SmStatusTransferring {
-			return SmStatusTransferring, nil
+			result.Status = SmStatusTransferring
+			activity.RecordHeartbeat(ctx, "SnapmirrorTransferStatus transferring")
+			return result, nil
 		}
+		result.Status = *rsp.State
+	} else {
+		result.Status = SmStatusFailed
 	}
 	activity.RecordHeartbeat(ctx, "SnapmirrorTransferStatus completed")
-	return SmStatusFailed, errors.New("Snapmirror transfer failed with status: " + *rsp.State)
+	return result, errors.New("Snapmirror transfer failed with status: " + result.Status)
 }
 
 func (a BackupActivity) DeleteBackupSnapshot(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string) error {
@@ -1307,15 +1330,15 @@ func (b *BackupActivity) PollTransferStatusWithHistoryCheckActivity(ctx context.
 
 	// Check transfer status using existing GetSnapmirrorTransferStatus logic
 	// This works for both backup and restore workflows
-	status, err := b.GetSnapmirrorTransferStatus(ctx, input.Node, input.SnapmirrorRelationship.UUID, input.SnapshotName)
+	transferStatus, err := b.GetSnapmirrorTransferStatus(ctx, input.Node, input.SnapmirrorRelationship.UUID, input.SnapshotName)
 	if err != nil {
 		return nil, err
 	}
-	logger.Info("Polled snapmirror transfer status", "snapshotName", input.SnapshotName, "status", status)
+	logger.Info("Polled snapmirror transfer status", "snapshotName", input.SnapshotName, "status", transferStatus.Status, "bytesTransferred", transferStatus.BytesTransferred)
 	activity.RecordHeartbeat(ctx, "Polled snapmirror transfer status")
 
 	// Update the context with the new status
-	input.BackupActivitiesContext.TransferStatus = status
+	input.BackupActivitiesContext.TransferStatus = transferStatus.Status
 
 	// Check if we need to trigger ContinueAsNew based on event history
 	shouldContinueAsNew := false
@@ -1329,7 +1352,7 @@ func (b *BackupActivity) PollTransferStatusWithHistoryCheckActivity(ctx context.
 
 	// Check if transfer is complete
 	transferComplete := false
-	switch status {
+	switch transferStatus.Status {
 	case SmStatusSuccess:
 		if input.BackupActivitiesContext.ScheduledBackupParams != nil {
 			for _, bkp := range input.BackupActivitiesContext.ScheduledBackupParams.Backups {
@@ -1343,7 +1366,7 @@ func (b *BackupActivity) PollTransferStatusWithHistoryCheckActivity(ctx context.
 		activity.RecordHeartbeat(ctx, "Transfer completed successfully")
 	case SmStatusFailed:
 		activity.RecordHeartbeat(ctx, "Transfer failed")
-		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(fmt.Errorf("snapmirror transfer failed for snapshot %s with status: %s", input.SnapshotName, status))
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(fmt.Errorf("snapmirror transfer failed for snapshot %s with status: %s", input.SnapshotName, transferStatus.Status))
 	}
 
 	return &PollTransferStatusOutput{
@@ -1352,6 +1375,7 @@ func (b *BackupActivity) PollTransferStatusWithHistoryCheckActivity(ctx context.
 		ShouldContinueAsNew:     shouldContinueAsNew,
 		ContinueAsNewReason:     continueAsNewReason,
 		NextWaitTime:            input.NextWaitTime,
+		TransferStatus:          transferStatus, // Include full transfer status with bytes
 	}, nil
 }
 

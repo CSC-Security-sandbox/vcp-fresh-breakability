@@ -361,6 +361,8 @@ data:
 
   ADC_WORKFLOW_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.adcWorkflowHeartbeatTimeoutSec | quote }}
   BACKUP_RESTORE_WORKFLOW_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.backupRestoreWorkflowHeartbeatTimeoutSec | quote }}
+  RESTORED_VOLUME_DP_TO_RW_TIMEOUT_MINUTES: {{$.Values.workerConfig.restoredVolumeDPToRWTimeoutMinutes | quote }}
+  SNAPMIRROR_TRANSFER_STUCK_TIMEOUT_MINUTES: {{$.Values.workerConfig.snapmirrorTransferStuckTimeoutMinutes | quote }}
   CREATE_BACKUP_WORKFLOW_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.createBackupWorkflowHeartbeatTimeoutSec | quote }}
   DELETE_BACKUP_WORKFLOW_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.deleteBackupWorkflowHeartbeatTimeoutSec | quote }}
   UPDATE_BACKUP_WORKFLOW_HEARTBEAT_TIMEOUT_SEC: {{$.Values.workerConfig.updateBackupWorkflowHeartbeatTimeoutSec | quote }}
