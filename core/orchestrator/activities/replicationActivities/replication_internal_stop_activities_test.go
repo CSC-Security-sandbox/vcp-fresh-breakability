@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"go.temporal.io/sdk/temporal"
 )
 
 func TestUpdateVolumeToNonDPVolume(t *testing.T) {
@@ -223,7 +224,7 @@ func TestBreakVolumeReplication(t *testing.T) {
 		mockProvider.On("GetVolumeReplication", mock.Anything).Return(testReplication, nil)
 		mockProvider.On("BreakVolumeReplication", mock.Anything).Return(testReplication, nil)
 
-		snapmirror, err := activity.BreakVolumeReplication(ctx, replication, node)
+		snapmirror, err := activity.BreakVolumeReplication(ctx, replication, node, false)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, snapmirror)
 		assert.Equal(tt, models.OntapBrokenOff, snapmirror.MirrorState)
@@ -252,7 +253,7 @@ func TestBreakVolumeReplication(t *testing.T) {
 
 		mockProvider.On("GetVolumeReplication", mock.Anything).Return(testReplication, nil)
 
-		snapmirror, err := activity.BreakVolumeReplication(ctx, replication, node)
+		snapmirror, err := activity.BreakVolumeReplication(ctx, replication, node, false)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, snapmirror)
 		assert.Equal(tt, models.OntapUninitialized, snapmirror.MirrorState)
@@ -276,7 +277,7 @@ func TestBreakVolumeReplication(t *testing.T) {
 
 		mockProvider.On("GetVolumeReplication", mock.Anything).Return(nil, errors.New("failed to get details"))
 
-		snapmirror, err := activity.BreakVolumeReplication(ctx, replication, node)
+		snapmirror, err := activity.BreakVolumeReplication(ctx, replication, node, false)
 		assert.Error(tt, err)
 		assert.Nil(tt, snapmirror)
 		// Check that the error is a VCPError with ErrProviderGetVolumeReplication
@@ -309,13 +310,56 @@ func TestBreakVolumeReplication(t *testing.T) {
 		mockProvider.On("GetVolumeReplication", mock.Anything).Return(testReplication, nil)
 		mockProvider.On("BreakVolumeReplication", mock.Anything).Return(nil, errors.New("failed to break replication"))
 
-		snapmirror, err := activity.BreakVolumeReplication(ctx, replication, node)
+		snapmirror, err := activity.BreakVolumeReplication(ctx, replication, node, false)
 		assert.Error(tt, err)
 		assert.Nil(tt, snapmirror)
-		// Check that the error is a VCPError with ErrProviderBreakVolumeReplication
-		var customErr *vsaerrors.CustomError
-		assert.True(tt, vsaerrors.As(err, &customErr))
-		assert.Equal(tt, vsaerrors.ErrProviderBreakVolumeReplication, customErr.TrackingID)
+		// Break failure is retryable (wrapped as Temporal ApplicationError with tracking ID)
+		var appErr *temporal.ApplicationError
+		assert.True(tt, vsaerrors.As(err, &appErr))
+		var trackingID int
+		var errorDetails string
+		_ = appErr.Details(&trackingID, &errorDetails)
+		assert.Equal(tt, vsaerrors.ErrProviderBreakVolumeReplication, trackingID)
+		assert.False(tt, appErr.NonRetryable())
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("BreakVolumeReplicationFailsToBreakWithForceStopAndTransferringCallsAbort", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		activity := InternalStopVolumeReplicationActivity{SE: mockStorage}
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		replication := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "external-uuid",
+			},
+		}
+		node := &models.Node{}
+		transferringReplication := &vsa.VolumeReplication{
+			ExternalUUID:       "external-uuid",
+			RelationshipID:     "rel-id",
+			TransferUUID:       "transfer-uuid",
+			RelationshipStatus: models.SnapmirrorRelationshipTransferring,
+		}
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("GetVolumeReplication", mock.Anything).Return(transferringReplication, nil).Once()
+		mockProvider.On("AbortVolumeReplication", mock.MatchedBy(func(v *vsa.VolumeReplication) bool {
+			return v.RelationshipID == "rel-id" && v.TransferUUID == "transfer-uuid" && v.RelationshipStatus == models.SnapmirrorRelationshipAborted
+		})).Return(transferringReplication, nil).Once()
+
+		snapmirror, err := activity.BreakVolumeReplication(ctx, replication, node, true)
+		assert.Error(tt, err)
+		assert.Nil(tt, snapmirror)
+		var appErr *temporal.ApplicationError
+		assert.True(tt, vsaerrors.As(err, &appErr))
+		var trackingID int
+		var errorDetails string
+		_ = appErr.Details(&trackingID, &errorDetails)
+		assert.Equal(tt, vsaerrors.ErrBreakReplicationStateTransferring, trackingID)
 		mockProvider.AssertExpectations(tt)
 	})
 
@@ -324,7 +368,7 @@ func TestBreakVolumeReplication(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := InternalStopVolumeReplicationActivity{SE: mockStorage}
 
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{}) // Ensure logger is added to context
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		replication := &datamodel.VolumeReplication{
 			ReplicationAttributes: &datamodel.ReplicationDetails{
 				ExternalUUID: "external-uuid",
@@ -341,13 +385,15 @@ func TestBreakVolumeReplication(t *testing.T) {
 
 		mockProvider.On("GetVolumeReplication", mock.Anything).Return(testReplication, nil)
 
-		snapmirror, err := activity.BreakVolumeReplication(ctx, replication, node)
+		snapmirror, err := activity.BreakVolumeReplication(ctx, replication, node, false)
 		assert.Error(tt, err)
 		assert.Nil(tt, snapmirror)
-		// Check that the error is a VCPError with ErrProviderBreakVolumeReplication
-		var customErr *vsaerrors.CustomError
-		assert.True(tt, vsaerrors.As(err, &customErr))
-		assert.Equal(tt, vsaerrors.ErrBreakReplicationStateTransferring, customErr.TrackingID)
+		var appErr *temporal.ApplicationError
+		assert.True(tt, vsaerrors.As(err, &appErr))
+		var trackingID int
+		var errorDetails string
+		_ = appErr.Details(&trackingID, &errorDetails)
+		assert.Equal(tt, vsaerrors.ErrBreakReplicationStateTransferring, trackingID)
 		mockProvider.AssertExpectations(tt)
 	})
 }

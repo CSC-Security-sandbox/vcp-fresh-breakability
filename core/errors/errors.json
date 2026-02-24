@@ -1489,8 +1489,8 @@
   },
   "6191": {
     "description": "Provider Break Volume Replication Error",
-    "message": "Failed to break volume replication",
-    "retriable": false,
+    "message": "Failed to break volume replication. Please try again",
+    "retriable": true,
     "http_code": 500
   },
   "6192": {
@@ -1646,7 +1646,7 @@
   "6217": {
     "description": "Replication is in transferring state, cannot stop replication",
     "message": "Replication is in transferring state, cannot stop replication",
-    "retriable": false,
+    "retriable": true,
     "http_code": 400
   },
   "6218": {

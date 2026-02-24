@@ -335,22 +335,53 @@ func TestPoll_PollOntapJobWorkflow_Error(t *testing.T) {
 	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
 
 	origFetchTemporalClient := fetchTemporalClient
-	// Patch fetchTemporalClient to return mockOntap
 	fetchTemporalClient = func(ctx context.Context) client.Client {
 		return mockTemp
 	}
+	origStartMaxRetries := pollWorkflowStartMaxRetries
+	pollWorkflowStartMaxRetries = 1
 	defer func() {
 		fetchTemporalClient = origFetchTemporalClient
+		pollWorkflowStartMaxRetries = origStartMaxRetries
 	}()
 
 	mockTemp.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("test error"))
 
-	// Register the workflow
 	env.RegisterActivity(activityTest)
 	env.ExecuteWorkflow(workflowTest, RESTClientParams{}, "job-uuid")
 
 	require.True(t, env.IsWorkflowCompleted())
 	require.Error(t, env.GetWorkflowError())
+}
+
+func TestPoll_PollOntapJobWorkflow_StartRetriesAndSucceeds(t *testing.T) {
+	var suite testsuite.WorkflowTestSuite
+	env := suite.NewTestWorkflowEnvironment()
+	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
+
+	origFetchTemporalClient := fetchTemporalClient
+	fetchTemporalClient = func(ctx context.Context) client.Client {
+		return mockTemp
+	}
+	origStartMaxRetries := pollWorkflowStartMaxRetries
+	pollWorkflowStartMaxRetries = 3
+	origStartRetryWait := pollWorkflowStartRetryWait
+	pollWorkflowStartRetryWait = 0
+	defer func() {
+		fetchTemporalClient = origFetchTemporalClient
+		pollWorkflowStartMaxRetries = origStartMaxRetries
+		pollWorkflowStartRetryWait = origStartRetryWait
+	}()
+
+	var successFut *mockFuture
+	mockTemp.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("transient error")).Once()
+	mockTemp.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(successFut, nil).Once()
+
+	env.RegisterActivity(activityTest)
+	env.ExecuteWorkflow(workflowTest, RESTClientParams{}, "job-uuid")
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
 }
 
 func TestPoll_PollOntapJobWorkflow_FutureError(t *testing.T) {
@@ -359,7 +390,6 @@ func TestPoll_PollOntapJobWorkflow_FutureError(t *testing.T) {
 	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
 
 	origFetchTemporalClient := fetchTemporalClient
-	// Patch fetchTemporalClient to return mockOntap
 	fetchTemporalClient = func(ctx context.Context) client.Client {
 		return mockTemp
 	}
@@ -372,7 +402,6 @@ func TestPoll_PollOntapJobWorkflow_FutureError(t *testing.T) {
 	}
 	mockTemp.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockFut, nil)
 
-	// Register the workflow
 	env.RegisterActivity(activityTest)
 	env.ExecuteWorkflow(workflowTest, RESTClientParams{}, "job-uuid")
 

@@ -158,6 +158,8 @@ workerConfig:
   experimentalVersionAllowlistedAccounts: ""
   flexcacheForceEncryption: "false"
   ontapRestAsyncPollTimeoutMinutes: 30
+  ontapRestPollWorkflowMaxRetries: 3
+  ontapRestPollWorkflowRetryWaitSeconds: 10
   vsaImageName: "x-9-18-1"
   vsaImageChecksums:
     VSA_IMAGE_CHECKSUM: ""

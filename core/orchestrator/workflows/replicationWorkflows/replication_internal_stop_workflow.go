@@ -153,7 +153,7 @@ func (wf *internalVolumeReplicationStopWorkflow) Run(ctx workflow.Context, args 
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.BreakVolumeReplication, dbReplication, node).Get(ctx, &vsaReplication)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.BreakVolumeReplication, dbReplication, node, forceStop).Get(ctx, &vsaReplication)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}

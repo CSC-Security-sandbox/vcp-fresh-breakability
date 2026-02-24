@@ -113,6 +113,8 @@ data:
   ONTAP_VERSION_DETAILS_EXPERIMENTAL: {{$.Values.workerConfig.ontapVersionDetailsExperimental | quote }}
   FILE_SUPPORT_ONTAP_VERSION: {{$.Values.workerConfig.fileSupportOntapVersion | quote }}
   ONTAP_REST_ASYNC_POLL_TIMEOUT_MINUTES: {{$.Values.workerConfig.ontapRestAsyncPollTimeoutMinutes | quote }}
+  ONTAP_REST_POLL_WORKFLOW_MAX_RETRIES: {{$.Values.workerConfig.ontapRestPollWorkflowMaxRetries | quote }}
+  ONTAP_REST_POLL_WORKFLOW_RETRY_WAIT_SECONDS: {{$.Values.workerConfig.ontapRestPollWorkflowRetryWaitSeconds | quote }}
   ENFORCE_MIN_SP_CONFIG: {{$.Values.workerConfig.enforceMinSpConfig | quote }}
   MAX_NODES_PER_GROUP: {{$.Values.workerConfig.maxNodesPerGroup | quote }}
   MAX_NESTED_CLONE_LIMIT: {{$.Values.workerConfig.maxNestedCloneLimit | quote }}

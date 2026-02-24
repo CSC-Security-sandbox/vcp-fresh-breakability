@@ -297,7 +297,7 @@ func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...int
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.AcceptSvmPeer, &replicationResult).Get(ctx, &replicationResult)
+	err = workflow.ExecuteActivity(ctx1, replicationActivity.AcceptSvmPeer, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}

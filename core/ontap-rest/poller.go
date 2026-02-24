@@ -25,7 +25,9 @@ var (
 	// Note: Temporal SDK throttles heartbeats to send at most once per (HeartbeatTimeout * 0.8).
 	// With the default HeartbeatTimeout of 5 minutes (VOLUME_ACTIVITIES_HEARTBEAT_TIMEOUT_SEC=300),
 	// actual heartbeats will be sent every ~4 minutes regardless of this interval.
-	pollerHeartbeatInterval = 1 * time.Minute
+	pollerHeartbeatInterval     = 1 * time.Minute
+	pollWorkflowStartMaxRetries = int(env.GetUint("ONTAP_REST_POLL_WORKFLOW_MAX_RETRIES", 3))
+	pollWorkflowStartRetryWait  = time.Duration(env.GetUint("ONTAP_REST_POLL_WORKFLOW_RETRY_WAIT_SECONDS", 10)) * time.Second
 )
 
 // Poller describes a poller that polls a job
@@ -59,19 +61,29 @@ func (p *poller) Poll(UUID string) error {
 
 	tempClient := fetchTemporalClient(ctx)
 
-	fut, err := tempClient.ExecuteWorkflow(
-		ctx,
-		client.StartWorkflowOptions{
-			ID:                       "ontap-rest-job-poll-" + UUID,
-			TaskQueue:                temporal.CustomerTaskQueue,
-			WorkflowExecutionTimeout: timeout,
-		},
-		PollOntapJob,
-		p.clientParams,
-		UUID,
-	)
+	startOpts := client.StartWorkflowOptions{
+		ID:                       "ontap-rest-job-poll-" + UUID,
+		TaskQueue:                temporal.CustomerTaskQueue,
+		WorkflowExecutionTimeout: timeout,
+	}
+
+	var fut client.WorkflowRun
+	var err error
+	for attempt := 1; attempt <= pollWorkflowStartMaxRetries; attempt++ {
+		fut, err = tempClient.ExecuteWorkflow(ctx, startOpts, PollOntapJob, p.clientParams, UUID)
+		if err == nil {
+			break
+		}
+		p.logger.Errorf("Failed to start job poll workflow for UUID %s (attempt %d/%d), error: %v", UUID, attempt, pollWorkflowStartMaxRetries, err)
+		if attempt < pollWorkflowStartMaxRetries {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(pollWorkflowStartRetryWait):
+			}
+		}
+	}
 	if err != nil {
-		p.logger.Errorf("Failed to start job poll workflow for UUID %s, error: %v", UUID, err)
 		return errors.New("failed to start ontap-rest job poll workflow")
 	}
 
@@ -100,6 +112,7 @@ func (p *poller) Poll(UUID string) error {
 	}()
 
 	// Non-blocking wait for the workflow to complete.
+	// Temporal automatically retries the workflow per the RetryPolicy above.
 	err = fut.Get(ctx, nil)
 	close(done) // Stop heartbeat goroutine
 	if err != nil {

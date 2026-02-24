@@ -27,7 +27,7 @@ func (j *InternalStopVolumeReplicationActivity) GetReplicationFromDB(ctx context
 	return replication, nil
 }
 
-func (j *InternalStopVolumeReplicationActivity) BreakVolumeReplication(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node) (*vsa.VolumeReplication, error) {
+func (j *InternalStopVolumeReplicationActivity) BreakVolumeReplication(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node, forceStop bool) (*vsa.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
 	provider, err := activitiesGetProviderByNode(ctx, node)
 	if err != nil {
@@ -43,7 +43,20 @@ func (j *InternalStopVolumeReplicationActivity) BreakVolumeReplication(ctx conte
 		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrProviderGetVolumeReplication, err))
 	}
 	if snapmirror.RelationshipStatus == models.SnapmirrorRelationshipTransferring {
-		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrBreakReplicationStateTransferring, errors.New("Replication is in transferring state, cannot stop replication. Please retry with force.")))
+		if forceStop {
+			if snapmirror.TransferUUID != "" {
+				abortVolRep := &vsa.VolumeReplication{
+					RelationshipID:     snapmirror.RelationshipID,
+					TransferUUID:       snapmirror.TransferUUID,
+					RelationshipStatus: models.SnapmirrorRelationshipAborted,
+				}
+				if _, abortErr := provider.AbortVolumeReplication(abortVolRep); abortErr != nil {
+					logger.Error("Failed to abort volume replication after break failure", "error", abortErr)
+					return nil, vsaerror.WrapAsTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrProviderAbortVolumeReplication, errors.New("An abort of the active transfer was attempted and failed; please retry.")))
+				}
+			}
+		}
+		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrBreakReplicationStateTransferring, errors.New("Replication is in transferring state, cannot stop replication.")))
 	}
 	if snapmirror.MirrorState == models.OntapUninitialized {
 		return snapmirror, nil
@@ -52,7 +65,7 @@ func (j *InternalStopVolumeReplicationActivity) BreakVolumeReplication(ctx conte
 	_, err = provider.BreakVolumeReplication(snapmirror)
 	if err != nil {
 		logger.Error("Failed to break volume replication", "error", err)
-		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrProviderBreakVolumeReplication, err))
+		return nil, vsaerror.WrapAsTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrProviderBreakVolumeReplication, err))
 	}
 	return snapmirror, nil
 }

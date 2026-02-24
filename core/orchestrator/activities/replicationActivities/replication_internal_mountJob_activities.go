@@ -159,7 +159,7 @@ func (j *MountJobActivity) AbortVolumeReplicationForMount(ctx context.Context, r
 
 func (j *MountJobActivity) BreakVolumeReplicationForMount(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node) error {
 	stopActivity := &InternalStopVolumeReplicationActivity{SE: j.SE}
-	if _, err := stopActivity.BreakVolumeReplication(ctx, replication, node); err != nil {
+	if _, err := stopActivity.BreakVolumeReplication(ctx, replication, node, true); err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return nil
