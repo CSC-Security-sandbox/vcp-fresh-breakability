@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"unicode/utf8"
 
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/ontap-proxy-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/handlers"
@@ -12,6 +14,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
+
+// cliInputAllowedChars is the allowlist for CLI command input (OWASP: define allowed characters).
+// Covers ONTAP CLI: alphanumeric, hyphen, underscore, path chars, operators, quotes, space, tab.
+var cliInputAllowedChars = regexp.MustCompile(`^[a-zA-Z0-9\-_.,:;/*><=!@+%'" \t]+$`)
 
 // V1PrivateCli executes an ONTAP CLI command through the private CLI API.
 func (h Handler) V1PrivateCli(
@@ -41,6 +47,20 @@ func (h Handler) V1PrivateCli(
 		}, nil
 	}
 
+	if !utf8.ValidString(req.Input) {
+		return &oasgenserver.V1PrivateCliBadRequest{
+			Code:    400,
+			Message: "CLI command input contains invalid UTF-8",
+		}, nil
+	}
+
+	if !cliInputAllowedChars.MatchString(req.Input) {
+		return &oasgenserver.V1PrivateCliBadRequest{
+			Code:    400,
+			Message: "CLI command input contains disallowed characters",
+		}, nil
+	}
+
 	cliCmd, err := cli.ParseCLICommand(req.Input)
 	if err != nil {
 		logger.WarnContext(ctx, "Failed to parse CLI command", "input", log.Sanitize(req.Input), "error", err)
@@ -60,8 +80,8 @@ func (h Handler) V1PrivateCli(
 				"pattern", rule.Pattern,
 				"reason", reason,
 			)
-			return &oasgenserver.V1PrivateCliForbidden{
-				Code:    403,
+			return &oasgenserver.V1PrivateCliBadRequest{
+				Code:    400,
 				Message: reason,
 			}, nil
 		}

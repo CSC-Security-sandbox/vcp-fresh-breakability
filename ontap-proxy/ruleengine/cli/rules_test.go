@@ -75,6 +75,51 @@ func TestMatchCLIRule(t *testing.T) {
 		}
 	})
 
+	t.Run("volume show-footprint commands - denied", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			input     string
+			wantAllow bool
+		}{
+			{
+				name:      "volume show-footprint denied",
+				input:     "volume show-footprint -vserver vs1 -volume vol1",
+				wantAllow: false,
+			},
+			{
+				name:      "vol show-footprint denied",
+				input:     "vol show-footprint -vserver vs1",
+				wantAllow: false,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				cmd, err := ParseCLICommand(tt.input)
+				if err != nil {
+					t.Fatalf("Failed to parse command: %v", err)
+				}
+
+				rule, found := MatchCLIRule(cmd)
+				if !found {
+					t.Error("Expected to find a matching rule")
+				}
+
+				if rule.Allow != tt.wantAllow {
+					t.Errorf("Allow = %v, want %v", rule.Allow, tt.wantAllow)
+				}
+
+				allowed, reason := EvaluateRule(rule, cmd)
+				if allowed {
+					t.Error("Expected command to be denied")
+				}
+				if reason != "not allowed" {
+					t.Errorf("Reason = %q, want %q", reason, "not allowed")
+				}
+			})
+		}
+	})
+
 	t.Run("security certificate commands - corresponds to /api/security/certificates", func(t *testing.T) {
 		tests := []struct {
 			input     string
@@ -621,6 +666,54 @@ func TestVolumeShowRemoveFields(t *testing.T) {
 			if volShowRule.RemoveFields[i] != want {
 				t.Errorf("vol show RemoveFields[%d] = %q, want %q", i, volShowRule.RemoveFields[i], want)
 			}
+		}
+	})
+}
+
+func TestVolumeShowFootprintDenied(t *testing.T) {
+	rules := GetCLIRules()
+
+	t.Run("WhenVolumeShowFootprintRule_ShouldBeDenied", func(t *testing.T) {
+		var rule *CLIRule
+		for i := range rules {
+			if rules[i].Pattern == "volume show-footprint" {
+				rule = &rules[i]
+				break
+			}
+		}
+		if rule == nil {
+			t.Fatal("volume show-footprint rule not found")
+		}
+		if rule.Allow {
+			t.Error("volume show-footprint should be denied")
+		}
+		if rule.Reason != "not allowed" {
+			t.Errorf("Reason = %q, want %q", rule.Reason, "not allowed")
+		}
+		if len(rule.RemoveFields) != 0 {
+			t.Errorf("Denied rule should have no RemoveFields, got %d", len(rule.RemoveFields))
+		}
+	})
+
+	t.Run("WhenVolShowFootprintRule_ShouldBeDenied", func(t *testing.T) {
+		var rule *CLIRule
+		for i := range rules {
+			if rules[i].Pattern == "vol show-footprint" {
+				rule = &rules[i]
+				break
+			}
+		}
+		if rule == nil {
+			t.Fatal("vol show-footprint rule not found")
+		}
+		if rule.Allow {
+			t.Error("vol show-footprint should be denied")
+		}
+		if rule.Reason != "not allowed" {
+			t.Errorf("Reason = %q, want %q", rule.Reason, "not allowed")
+		}
+		if len(rule.RemoveFields) != 0 {
+			t.Errorf("Denied rule should have no RemoveFields, got %d", len(rule.RemoveFields))
 		}
 	})
 }

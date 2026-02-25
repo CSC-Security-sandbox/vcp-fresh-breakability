@@ -90,7 +90,7 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 		assert.Contains(t, badReq.Message, "required")
 	})
 
-	t.Run("denied command returns forbidden", func(t *testing.T) {
+	t.Run("denied command returns bad request", func(t *testing.T) {
 		// Use a command that has an explicit deny rule
 		req := &oasgenserver.CLIExecuteRequest{
 			Input: "security certificate delete -vserver vs1",
@@ -104,9 +104,9 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 		res, err := h.V1PrivateCli(ctx, req, params)
 		require.NoError(t, err)
 
-		forbidden, ok := res.(*oasgenserver.V1PrivateCliForbidden)
-		require.True(t, ok)
-		assert.Equal(t, 403, forbidden.Code)
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "Expected V1PrivateCliBadRequest for denied command, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
 	})
 }
 
@@ -207,7 +207,7 @@ func TestV1PrivateCli_RuleConditions(t *testing.T) {
 	ctx := context.Background()
 	poolId := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 
-	t.Run("WhenVolumeCreateMissingRequiredArgs_ShouldReturnForbidden", func(t *testing.T) {
+	t.Run("WhenVolumeCreateMissingRequiredArgs_ShouldReturnBadRequest", func(t *testing.T) {
 		// volume create requires -vserver, -volume, -size
 		req := &oasgenserver.CLIExecuteRequest{
 			Input: "volume create -vserver vs1",
@@ -221,13 +221,13 @@ func TestV1PrivateCli_RuleConditions(t *testing.T) {
 		res, err := h.V1PrivateCli(ctx, req, params)
 		require.NoError(t, err)
 
-		forbidden, ok := res.(*oasgenserver.V1PrivateCliForbidden)
-		require.True(t, ok, "Expected forbidden for missing required args")
-		assert.Equal(t, 403, forbidden.Code)
-		assert.Contains(t, forbidden.Message, "Missing required argument")
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "Expected bad request for missing required args, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "Missing required argument")
 	})
 
-	t.Run("WhenVolumeCreateWithInvalidSpaceGuarantee_ShouldReturnForbidden", func(t *testing.T) {
+	t.Run("WhenVolumeCreateWithInvalidSpaceGuarantee_ShouldReturnBadRequest", func(t *testing.T) {
 		req := &oasgenserver.CLIExecuteRequest{
 			Input: "volume create -vserver vs1 -volume vol1 -size 100g -space-guarantee invalid",
 		}
@@ -240,9 +240,9 @@ func TestV1PrivateCli_RuleConditions(t *testing.T) {
 		res, err := h.V1PrivateCli(ctx, req, params)
 		require.NoError(t, err)
 
-		forbidden, ok := res.(*oasgenserver.V1PrivateCliForbidden)
-		require.True(t, ok, "Expected forbidden for invalid space-guarantee")
-		assert.Equal(t, 403, forbidden.Code)
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "Expected bad request for invalid space-guarantee, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
 	})
 
 	// snaplock-type is no longer allowlist-validated; previously-denied values (e.g. compliance) must not be forbidden by rule conditions.
@@ -263,7 +263,7 @@ func TestV1PrivateCli_RuleConditions(t *testing.T) {
 		assert.False(t, isForbidden, "snaplock-type is not validated; volume create with -snaplock-type compliance should not be forbidden by rule condition (got %T)", res)
 	})
 
-	t.Run("WhenVolumeCreateWithWrongSpaceEnforcementValue_ShouldReturnForbidden", func(t *testing.T) {
+	t.Run("WhenVolumeCreateWithWrongSpaceEnforcementValue_ShouldReturnBadRequest", func(t *testing.T) {
 		req := &oasgenserver.CLIExecuteRequest{
 			Input: "volume create -vserver vs1 -volume vol1 -size 100g -is-space-enforcement-logical false",
 		}
@@ -276,9 +276,9 @@ func TestV1PrivateCli_RuleConditions(t *testing.T) {
 		res, err := h.V1PrivateCli(ctx, req, params)
 		require.NoError(t, err)
 
-		forbidden, ok := res.(*oasgenserver.V1PrivateCliForbidden)
-		require.True(t, ok, "Expected forbidden for wrong is-space-enforcement-logical value")
-		assert.Equal(t, 403, forbidden.Code)
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "Expected bad request for wrong is-space-enforcement-logical value, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
 	})
 }
 

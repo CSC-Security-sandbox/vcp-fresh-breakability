@@ -89,6 +89,16 @@ var cliRules = []CLIRule{
 		},
 	},
 	{
+		Pattern: "volume show-footprint",
+		Allow:   false,
+		Reason:  "not allowed",
+	},
+	{
+		Pattern: "vol show-footprint",
+		Allow:   false,
+		Reason:  "not allowed",
+	},
+	{
 		Pattern: "volume create",
 		Allow:   true,
 		Condition: CLIAnd(

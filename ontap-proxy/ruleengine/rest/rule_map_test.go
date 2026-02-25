@@ -35,6 +35,16 @@ func TestGetProxyRules(t *testing.T) {
 		assert.NotNil(t, rule.DELETE)
 	})
 
+	t.Run("ShouldContainPrivateCLIVolumeShowFootprintRule", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule, ok := rules["/api/private/cli/volume/show-footprint"]
+		assert.True(t, ok, "Should have rule for /api/private/cli/volume/show-footprint")
+		assert.NotNil(t, rule.GET)
+		assert.NotNil(t, rule.POST)
+		assert.NotNil(t, rule.PATCH)
+		assert.NotNil(t, rule.DELETE)
+	})
+
 	t.Run("ShouldContainStorageVolumesRule", func(t *testing.T) {
 		rules := GetProxyRules()
 		rule, ok := rules["/api/storage/volumes"]
@@ -274,6 +284,60 @@ func TestPrivateCLIVolumeRenameRule(t *testing.T) {
 		assert.NotNil(t, action)
 		allowed, reason := action.ShouldAllow(req)
 		assert.False(t, allowed, "DELETE should be denied for volume rename")
+		assert.NotEmpty(t, reason)
+	})
+}
+
+func TestPrivateCLIVolumeShowFootprintRule(t *testing.T) {
+	t.Run("WhenGET_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume/show-footprint"]
+		req := httptest.NewRequest(http.MethodGet, "/api/private/cli/volume/show-footprint?vserver=vs1&volume=vol1", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "GET should be denied for private CLI volume show-footprint")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenPOST_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume/show-footprint"]
+		req := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume/show-footprint", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "POST should be denied for volume show-footprint")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenPATCH_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume/show-footprint"]
+		req := httptest.NewRequest(http.MethodPatch, "/api/private/cli/volume/show-footprint", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "PATCH should be denied for volume show-footprint")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenDELETE_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume/show-footprint"]
+		req := httptest.NewRequest(http.MethodDelete, "/api/private/cli/volume/show-footprint", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "DELETE should be denied for volume show-footprint")
 		assert.NotEmpty(t, reason)
 	})
 }

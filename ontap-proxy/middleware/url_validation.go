@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 	ontapproxyutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
@@ -52,33 +53,16 @@ var (
 
 	pathParamsExtractPattern = regexp.MustCompile(`/v1beta/projects/([^/]+)/locations/([^/]+)/pools/([^/]+)`)
 
-	obviousSQLInPathPattern = regexp.MustCompile(`(?i)(['"]\s*(or|and)\s*\d+\s*=\s*\d+)`)
-
-	shellOperatorPattern = regexp.MustCompile(`[;&|` + "`" + `$]`)
-	commandPattern       = regexp.MustCompile(`(?i)(\b(cat|ls|pwd|whoami|id|uname|ps|kill|rm|mv|cp|chmod|chown|python|perl|ruby|bash|sh|zsh|csh|ksh|eval|exec|system|popen|shell_exec|passthru|proc_open)\b)`)
-
 	pathTraversalCombinedPattern = regexp.MustCompile(`(?i)(\.\./|\.\.\\|\.\.%2f|\.\.%5c|%2e%2e%2f|%2e%2e%5c)`)
 
-	sqlInjectionPatterns = []*regexp.Regexp{
-		regexp.MustCompile(`(?i)(\b(union|select|insert|update|delete|drop|create|alter|exec|execute)\b.*\b(from|into|table|database|where|having)\b)`),
-		regexp.MustCompile(`['"]\s*(\bor\b|\band\b)\s*\d+\s*=\s*\d+`),
-		regexp.MustCompile(`['"]\s*(\bor\b|\band\b)\s*['"]\s*=\s*['"]`),
-		regexp.MustCompile(`(?i)(--|\#|/\*|\*/)`),
-	}
-
-	suspiciousSQLKeywords = regexp.MustCompile(`(?i)^(select|union|insert|update|delete|drop|create|alter|exec|execute|from|into|table|database|where|having|or|and)$`)
+	// Allowlist regexes (OWASP: define allowed characters; reject everything else)
+	ontapPathAllowedChars       = regexp.MustCompile(`^[a-zA-Z0-9\-_./]+$`)
+	queryParamNameAllowedChars  = regexp.MustCompile(`^[a-zA-Z0-9_.\-]+$`)
+	queryParamValueAllowedChars = regexp.MustCompile(`^[a-zA-Z0-9\-_.,;:/*><=!@+% ]+$`)
 
 	// blockedQueryParams contains query parameter names that are not allowed
 	blockedQueryParams = map[string]string{
 		"privilege_level": "privilege_level query parameter is not allowed",
-	}
-
-	xssPatterns = []*regexp.Regexp{
-		regexp.MustCompile(`(?is)(<script[^>]*>.*</script>)`),
-		regexp.MustCompile(`(?i)(javascript\s*:)`),
-		regexp.MustCompile(`(?i)(on\w+\s*=)`),
-		regexp.MustCompile(`(?i)(<iframe[^>]*>)`),
-		regexp.MustCompile(`(?i)(<img[^>]*src\s*=\s*[^>]*>)`),
 	}
 )
 
@@ -262,6 +246,14 @@ func validateOntapPath(value string) error {
 		return nil
 	}
 
+	if !utf8.ValidString(value) {
+		return &URLValidationError{
+			Type:    "INVALID_ENCODING",
+			Context: "ONTAP path",
+			Pattern: "invalid UTF-8",
+		}
+	}
+
 	if strings.Contains(value, "\x00") {
 		return &URLValidationError{
 			Type:    "NULL_BYTE",
@@ -270,7 +262,6 @@ func validateOntapPath(value string) error {
 		}
 	}
 
-	// Check for path traversal using combined pattern (faster than iterating)
 	if pathTraversalCombinedPattern.MatchString(value) {
 		return &URLValidationError{
 			Type:    "PATH_TRAVERSAL",
@@ -279,11 +270,11 @@ func validateOntapPath(value string) error {
 		}
 	}
 
-	if obviousSQLInPathPattern.MatchString(value) {
+	if !ontapPathAllowedChars.MatchString(value) {
 		return &URLValidationError{
-			Type:    "SQL_INJECTION",
+			Type:    "INVALID_CHARS",
 			Context: "ONTAP path",
-			Pattern: "SQL injection pattern",
+			Pattern: "contains disallowed characters",
 		}
 	}
 
@@ -292,7 +283,6 @@ func validateOntapPath(value string) error {
 
 func validateQueryParams(r *http.Request) error {
 	for key, values := range r.URL.Query() {
-		// Check for blocked query parameters
 		if reason, blocked := blockedQueryParams[key]; blocked {
 			return &URLValidationError{
 				Type:    "BLOCKED_PARAM",
@@ -301,20 +291,12 @@ func validateQueryParams(r *http.Request) error {
 			}
 		}
 
-		if suspiciousSQLKeywords.MatchString(key) {
-			return &URLValidationError{
-				Type:    "SQL_INJECTION",
-				Context: "query parameter name",
-				Pattern: "suspicious SQL keyword: " + key,
-			}
-		}
-
-		if err := validateQueryParam(key); err != nil {
+		if err := validateQueryParamName(key); err != nil {
 			return err
 		}
 
 		for _, value := range values {
-			if err := validateQueryParam(value); err != nil {
+			if err := validateQueryParamValue(value); err != nil {
 				return err
 			}
 		}
@@ -323,9 +305,49 @@ func validateQueryParams(r *http.Request) error {
 	return nil
 }
 
-func validateQueryParam(value string) error {
+func validateQueryParamName(name string) error {
+	if name == "" {
+		return nil
+	}
+
+	if !utf8.ValidString(name) {
+		return &URLValidationError{
+			Type:    "INVALID_ENCODING",
+			Context: "query parameter name",
+			Pattern: "invalid UTF-8",
+		}
+	}
+
+	if strings.Contains(name, "\x00") {
+		return &URLValidationError{
+			Type:    "NULL_BYTE",
+			Context: "query parameter name",
+			Pattern: "null byte",
+		}
+	}
+
+	if !queryParamNameAllowedChars.MatchString(name) {
+		return &URLValidationError{
+			Type:    "INVALID_CHARS",
+			Context: "query parameter name",
+			Pattern: "contains disallowed characters",
+		}
+	}
+
+	return nil
+}
+
+func validateQueryParamValue(value string) error {
 	if value == "" {
 		return nil
+	}
+
+	if !utf8.ValidString(value) {
+		return &URLValidationError{
+			Type:    "INVALID_ENCODING",
+			Context: "query parameter",
+			Pattern: "invalid UTF-8",
+		}
 	}
 
 	if strings.Contains(value, "\x00") {
@@ -344,31 +366,11 @@ func validateQueryParam(value string) error {
 		}
 	}
 
-	for _, pattern := range sqlInjectionPatterns {
-		if pattern.MatchString(value) {
-			return &URLValidationError{
-				Type:    "SQL_INJECTION",
-				Context: "query parameter",
-				Pattern: pattern.String(),
-			}
-		}
-	}
-
-	if shellOperatorPattern.MatchString(value) && commandPattern.MatchString(value) {
+	if !queryParamValueAllowedChars.MatchString(value) {
 		return &URLValidationError{
-			Type:    "COMMAND_INJECTION",
+			Type:    "INVALID_CHARS",
 			Context: "query parameter",
-			Pattern: "command injection",
-		}
-	}
-
-	for _, pattern := range xssPatterns {
-		if pattern.MatchString(value) {
-			return &URLValidationError{
-				Type:    "XSS",
-				Context: "query parameter",
-				Pattern: pattern.String(),
-			}
+			Pattern: "contains disallowed characters",
 		}
 	}
 

@@ -324,7 +324,7 @@ func TestURLValidationMiddleware(t *testing.T) {
 	})
 }
 
-func TestValidateQueryParam(t *testing.T) {
+func TestValidateQueryParamValue(t *testing.T) {
 	tests := []struct {
 		name    string
 		value   string
@@ -336,39 +336,39 @@ func TestValidateQueryParam(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "SQL injection - union select",
+			name:    "disallowed chars - quote in value",
 			value:   "test' UNION SELECT * FROM users--",
 			wantErr: true,
 		},
 		{
-			name:    "SQL injection - select from",
+			name:    "valid - select from (allowed chars only)",
 			value:   "test SELECT * FROM users",
-			wantErr: true,
+			wantErr: false,
 		},
 		{
-			name:    "SQL injection - quote based or 1=1",
+			name:    "disallowed chars - quote based or 1=1",
 			value:   "test' OR 1=1--",
 			wantErr: true,
 		},
 		{
-			name:    "SQL injection - SQL comment",
+			name:    "valid - SQL comment style (hyphens allowed)",
 			value:   "test--comment",
-			wantErr: true,
+			wantErr: false,
 		},
 		{
-			name:    "SQL injection - SQL comment hash",
+			name:    "disallowed chars - SQL comment hash",
 			value:   "test#comment",
 			wantErr: true,
 		},
 		{
-			name:    "SQL injection - SQL comment block",
+			name:    "valid - comment block style ( * / allowed)",
 			value:   "test comment*/",
-			wantErr: true,
+			wantErr: false,
 		},
 		{
-			name:    "command injection - semicolon with command",
+			name:    "valid - semicolon and path (all in allowlist)",
 			value:   "test; cat /etc/passwd",
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name:    "path traversal",
@@ -401,17 +401,17 @@ func TestValidateQueryParam(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "XSS - script tag",
+			name:    "disallowed chars - script tag",
 			value:   "<script>alert('xss')</script>",
 			wantErr: true,
 		},
 		{
-			name:    "XSS - script tag with newlines (bypass attempt)",
+			name:    "disallowed chars - script tag with newlines",
 			value:   "<script>\nalert(1)\n</script>",
 			wantErr: true,
 		},
 		{
-			name:    "XSS - script tag with URL-encoded newlines (bypass attempt)",
+			name:    "disallowed chars - script tag with URL-encoded newlines",
 			value:   "<script>%0aalert(1)%0a</script>",
 			wantErr: true,
 		},
@@ -435,13 +435,57 @@ func TestValidateQueryParam(t *testing.T) {
 			value:   "test cat value",
 			wantErr: false,
 		},
+		{
+			name:    "invalid UTF-8",
+			value:   "test\x80\x81",
+			wantErr: true,
+		},
+		{
+			name:    "disallowed backtick",
+			value:   "test`id`",
+			wantErr: true,
+		},
+		{
+			name:    "disallowed dollar",
+			value:   "test$HOME",
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateQueryParam(tt.value)
+			err := validateQueryParamValue(tt.value)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("validateQueryParam() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("validateQueryParamValue() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateQueryParamName(t *testing.T) {
+	tests := []struct {
+		name    string
+		param   string
+		wantErr bool
+	}{
+		{"valid name", "fields", false},
+		{"valid name with underscore", "max_records", false},
+		{"valid name with dot", "svm.name", false},
+		{"valid name with hyphen", "my-param", false},
+		{"valid ONTAP hyphenated param - relationship-group-type", "relationship-group-type", false},
+		{"valid ONTAP hyphenated param - destination-volume-node", "destination-volume-node", false},
+		{"valid ONTAP hyphenated param - source-path", "source-path", false},
+		{"empty string", "", false},
+		{"disallowed space in name", "my param", true},
+		{"disallowed semicolon in name", "my;param", true},
+		{"disallowed angle bracket in name", "my<param", true},
+		{"invalid UTF-8", "field\x80", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateQueryParamName(tt.param)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateQueryParamName() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -715,24 +759,29 @@ func TestValidateQueryParams_SuspiciousSQLKeywords(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "select as parameter name",
+			name:    "select as parameter name - allowed with allowlist",
 			query:   "select=value",
-			wantErr: true,
+			wantErr: false,
 		},
 		{
-			name:    "union as parameter name",
+			name:    "union as parameter name - allowed with allowlist",
 			query:   "union=value",
-			wantErr: true,
+			wantErr: false,
 		},
 		{
-			name:    "from as parameter name",
+			name:    "from as parameter name - allowed with allowlist",
 			query:   "from=value",
-			wantErr: true,
+			wantErr: false,
 		},
 		{
-			name:    "where as parameter name",
+			name:    "where as parameter name - allowed with allowlist",
 			query:   "where=value",
-			wantErr: true,
+			wantErr: false,
+		},
+		{
+			name:    "parameter name with hyphen - allowed for ONTAP REST",
+			query:   "my-param=value",
+			wantErr: false,
 		},
 		{
 			name:    "normal parameter name",
@@ -762,12 +811,11 @@ func TestValidateQueryParams_SuspiciousSQLKeywords(t *testing.T) {
 				}
 			}
 			if err != nil && tt.wantErr {
-				// Verify it's the right error type
 				validationErr, ok := err.(*URLValidationError)
 				if !ok {
 					t.Errorf("Expected URLValidationError, got %T", err)
 				} else {
-					assert.Equal(t, "SQL_INJECTION", validationErr.Type)
+					assert.Equal(t, "INVALID_CHARS", validationErr.Type)
 					assert.Contains(t, validationErr.Context, "query parameter name")
 				}
 			}
@@ -1095,13 +1143,11 @@ func TestURLValidationMiddleware_ValidRequest(t *testing.T) {
 
 func TestURLValidationMiddleware_QueryParamValidation(t *testing.T) {
 	t.Run("WhenQueryParamHasSQLInjection_ShouldReject", func(t *testing.T) {
-		// Save original package-level variable value and restore after test
 		originalLocalRegion := localRegion
 		defer func() {
 			localRegion = originalLocalRegion
 		}()
 
-		// Directly modify the package-level variable
 		localRegion = "us-east1"
 
 		nextCalled := false
@@ -1112,10 +1158,10 @@ func TestURLValidationMiddleware_QueryParamValidation(t *testing.T) {
 		middleware := URLValidationMiddleware()
 		handler := middleware(nextHandler)
 
-		// Properly URL-encode the query parameter
+		// Value contains quote (disallowed by allowlist) - rejected as INVALID_CHARS
 		baseURL := "/v1beta/projects/123456789/locations/us-east1/pools/550e8400-e29b-41d4-a716-446655440000/ontap/api/storage/volumes"
 		params := url.Values{}
-		params.Set("query", "SELECT * FROM users")
+		params.Set("query", "test' OR 1=1--")
 		fullURL := baseURL + "?" + params.Encode()
 
 		req := httptest.NewRequest("GET", fullURL, nil)
@@ -1125,17 +1171,15 @@ func TestURLValidationMiddleware_QueryParamValidation(t *testing.T) {
 
 		assert.False(t, nextCalled)
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
-		assert.Contains(t, rr.Body.String(), "SQL_INJECTION")
+		assert.Contains(t, rr.Body.String(), "INVALID_CHARS")
 	})
 
-	t.Run("WhenQueryParamNameIsSuspiciousSQLKeyword_ShouldReject", func(t *testing.T) {
-		// Save original package-level variable value and restore after test
+	t.Run("WhenQueryParamNameIsSuspiciousSQLKeyword_ShouldPass", func(t *testing.T) {
 		originalLocalRegion := localRegion
 		defer func() {
 			localRegion = originalLocalRegion
 		}()
 
-		// Directly modify the package-level variable
 		localRegion = "us-east1"
 
 		nextCalled := false
@@ -1146,24 +1190,22 @@ func TestURLValidationMiddleware_QueryParamValidation(t *testing.T) {
 		middleware := URLValidationMiddleware()
 		handler := middleware(nextHandler)
 
+		// Param name "SELECT" is allowed by character allowlist (no longer rejected as SQL keyword)
 		req := httptest.NewRequest("GET", "/v1beta/projects/123456789/locations/us-east1/pools/550e8400-e29b-41d4-a716-446655440000/ontap/api/storage/volumes?SELECT=value", nil)
 		rr := httptest.NewRecorder()
 
 		handler.ServeHTTP(rr, req)
 
-		assert.False(t, nextCalled)
-		assert.Equal(t, http.StatusBadRequest, rr.Code)
-		assert.Contains(t, rr.Body.String(), "SQL_INJECTION")
+		assert.True(t, nextCalled)
+		assert.Equal(t, http.StatusOK, rr.Code)
 	})
 
 	t.Run("WhenQueryParamHasXSS_ShouldReject", func(t *testing.T) {
-		// Save original package-level variable value and restore after test
 		originalLocalRegion := localRegion
 		defer func() {
 			localRegion = originalLocalRegion
 		}()
 
-		// Directly modify the package-level variable
 		localRegion = "us-east1"
 
 		nextCalled := false
@@ -1174,6 +1216,7 @@ func TestURLValidationMiddleware_QueryParamValidation(t *testing.T) {
 		middleware := URLValidationMiddleware()
 		handler := middleware(nextHandler)
 
+		// Value contains < > ( ) ' - disallowed by allowlist, rejected as INVALID_CHARS
 		req := httptest.NewRequest("GET", "/v1beta/projects/123456789/locations/us-east1/pools/550e8400-e29b-41d4-a716-446655440000/ontap/api/storage/volumes?xss=<script>alert('xss')</script>", nil)
 		rr := httptest.NewRecorder()
 
@@ -1181,17 +1224,15 @@ func TestURLValidationMiddleware_QueryParamValidation(t *testing.T) {
 
 		assert.False(t, nextCalled)
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
-		assert.Contains(t, rr.Body.String(), "XSS")
+		assert.Contains(t, rr.Body.String(), "INVALID_CHARS")
 	})
 
 	t.Run("WhenQueryParamHasCommandInjection_ShouldReject", func(t *testing.T) {
-		// Save original package-level variable value and restore after test
 		originalLocalRegion := localRegion
 		defer func() {
 			localRegion = originalLocalRegion
 		}()
 
-		// Directly modify the package-level variable
 		localRegion = "us-east1"
 
 		nextCalled := false
@@ -1202,10 +1243,10 @@ func TestURLValidationMiddleware_QueryParamValidation(t *testing.T) {
 		middleware := URLValidationMiddleware()
 		handler := middleware(nextHandler)
 
-		// Properly URL-encode the query parameter - use space between commands to ensure word boundaries work
+		// Value contains $ (disallowed by allowlist) - rejected as INVALID_CHARS
 		baseURL := "/v1beta/projects/123456789/locations/us-east1/pools/550e8400-e29b-41d4-a716-446655440000/ontap/api/storage/volumes"
 		params := url.Values{}
-		params.Set("cmd", "ls; cat")
+		params.Set("cmd", "ls $HOME")
 		fullURL := baseURL + "?" + params.Encode()
 
 		req := httptest.NewRequest("GET", fullURL, nil)
@@ -1215,7 +1256,7 @@ func TestURLValidationMiddleware_QueryParamValidation(t *testing.T) {
 
 		assert.False(t, nextCalled)
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
-		assert.Contains(t, rr.Body.String(), "COMMAND_INJECTION")
+		assert.Contains(t, rr.Body.String(), "INVALID_CHARS")
 	})
 
 	t.Run("WhenBlockedQueryParamPrivilegeLevel_ShouldReject", func(t *testing.T) {
@@ -1319,6 +1360,71 @@ func TestURLValidationMiddleware_QueryParamValidation(t *testing.T) {
 		assert.True(t, nextCalled)
 		assert.Equal(t, http.StatusOK, rr.Code)
 	})
+
+	t.Run("WhenHyphenatedONTAPQueryParams_ShouldPass", func(t *testing.T) {
+		originalLocalRegion := localRegion
+		defer func() {
+			localRegion = originalLocalRegion
+		}()
+
+		localRegion = "us-east1"
+
+		nextCalled := false
+		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			nextCalled = true
+			w.WriteHeader(http.StatusOK)
+		})
+
+		middleware := URLValidationMiddleware()
+		handler := middleware(nextHandler)
+
+		baseURL := "/v1beta/projects/123456789/locations/us-east1/pools/550e8400-e29b-41d4-a716-446655440000/ontap/api/snapmirror/relationships"
+		params := url.Values{}
+		params.Set("relationship-group-type", "none")
+		params.Set("destination-volume-node", "node1")
+		params.Set("source-path", "svm1:vol1")
+		fullURL := baseURL + "?" + params.Encode()
+
+		req := httptest.NewRequest("GET", fullURL, nil)
+		rr := httptest.NewRecorder()
+
+		handler.ServeHTTP(rr, req)
+
+		assert.True(t, nextCalled, "Hyphenated ONTAP query param names should be accepted")
+		assert.Equal(t, http.StatusOK, rr.Code)
+	})
+
+	t.Run("WhenPrivilegeLevelWithHyphenatedParams_ShouldStillBlock", func(t *testing.T) {
+		originalLocalRegion := localRegion
+		defer func() {
+			localRegion = originalLocalRegion
+		}()
+
+		localRegion = "us-east1"
+
+		nextCalled := false
+		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			nextCalled = true
+		})
+
+		middleware := URLValidationMiddleware()
+		handler := middleware(nextHandler)
+
+		baseURL := "/v1beta/projects/123456789/locations/us-east1/pools/550e8400-e29b-41d4-a716-446655440000/ontap/api/snapmirror/relationships"
+		params := url.Values{}
+		params.Set("relationship-group-type", "none")
+		params.Set("privilege_level", "admin")
+		fullURL := baseURL + "?" + params.Encode()
+
+		req := httptest.NewRequest("GET", fullURL, nil)
+		rr := httptest.NewRecorder()
+
+		handler.ServeHTTP(rr, req)
+
+		assert.False(t, nextCalled, "privilege_level should still be blocked")
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+		assert.Contains(t, rr.Body.String(), "privilege_level query parameter is not allowed")
+	})
 }
 
 func TestValidateOntapPath(t *testing.T) {
@@ -1342,12 +1448,24 @@ func TestValidateOntapPath(t *testing.T) {
 	t.Run("WhenOntapPathHasSQLInjection_ShouldFail", func(t *testing.T) {
 		err := validateOntapPath("api/storage/volumes' OR 1=1--")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "SQL_INJECTION")
+		assert.Contains(t, err.Error(), "INVALID_CHARS")
 	})
 
 	t.Run("WhenOntapPathIsValid_ShouldPass", func(t *testing.T) {
 		err := validateOntapPath("api/storage/volumes")
 		assert.NoError(t, err)
+	})
+
+	t.Run("WhenOntapPathHasInvalidUTF8_ShouldFail", func(t *testing.T) {
+		err := validateOntapPath("api/storage/volumes\x80\x81")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "INVALID_ENCODING")
+	})
+
+	t.Run("WhenOntapPathHasDisallowedChars_ShouldFail", func(t *testing.T) {
+		err := validateOntapPath("api/storage/volumes?uuid=123")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "INVALID_CHARS")
 	})
 }
 
@@ -1382,7 +1500,7 @@ func TestValidatePathParams_OntapPathExtraction(t *testing.T) {
 
 		assert.False(t, nextCalled)
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
-		assert.Contains(t, rr.Body.String(), "SQL_INJECTION")
+		assert.Contains(t, rr.Body.String(), "INVALID_CHARS")
 	})
 }
 
