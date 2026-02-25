@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_nodes_pool_id_id ON nodes(pool_id, id);
