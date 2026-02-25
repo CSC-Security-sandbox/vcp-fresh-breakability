@@ -3580,6 +3580,25 @@ func (s *EstablishPeeringRequestV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := (validate.String{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    0,
+			MaxLengthSet: false,
+			Email:        false,
+			Hostname:     false,
+			Regex:        regexMap["^[a-zA-Z_][a-zA-Z0-9_]{0,202}$"],
+		}).Validate(string(s.PeerVolumeName)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "peerVolumeName",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.PeerIpAddresses.Get(); ok {
 			if err := func() error {
 				if value == nil {
@@ -4258,6 +4277,25 @@ func (s *HybridReplicationParametersV1beta) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "hybridReplicationType",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    0,
+			MaxLengthSet: false,
+			Email:        false,
+			Hostname:     false,
+			Regex:        regexMap["^[a-zA-Z_][a-zA-Z0-9_]{0,202}$"],
+		}).Validate(string(s.PeerVolumeName)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "peerVolumeName",
 			Error: err,
 		})
 	}

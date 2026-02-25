@@ -10846,6 +10846,7 @@ components:
         peerVolumeName:
           title: peerVolumeName
           type: string
+          pattern: "^[a-zA-Z_][a-zA-Z0-9_]{0,202}$"
           description: Name of source (origin) volume.
           example: volume_myvolname
         peerIpAddresses:
@@ -10896,6 +10897,7 @@ components:
         peerVolumeName:
           title: peerVolumeName
           type: string
+          pattern: "^[a-zA-Z_][a-zA-Z0-9_]{0,202}$"
           description: Name of local source volume to be migrated
         peerClusterName:
           title: peerClusterName
