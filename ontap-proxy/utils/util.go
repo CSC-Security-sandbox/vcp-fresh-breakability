@@ -51,10 +51,14 @@ func WriteErrorResponse(w http.ResponseWriter, code int, message string) {
 
 // ParseSizeString parses a size string (e.g. "10g", "100m", "1024", "10.5GB") into bytes.
 // Supports units: K/KB, M/MB, G/GB, T/TB, P/PB (case-insensitive, base-1024).
-// Decimal numbers are allowed (e.g. "10.5g"). If invalid, returns 0.
+// Decimal numbers are allowed (e.g. "10.5g"). Leading + or - is not allowed; size must be positive.
+// If invalid, returns 0.
 func ParseSizeString(s string) float64 {
 	s = strings.TrimSpace(s)
 	if s == "" {
+		return 0
+	}
+	if len(s) > 0 && (s[0] == '+' || s[0] == '-') {
 		return 0
 	}
 	var numPart string
@@ -90,5 +94,9 @@ func ParseSizeString(s string) float64 {
 	default:
 		return 0
 	}
-	return val * mult
+	result := val * mult
+	if result <= 0 {
+		return 0
+	}
+	return result
 }

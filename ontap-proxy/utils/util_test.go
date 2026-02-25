@@ -311,6 +311,9 @@ func TestParseSizeString(t *testing.T) {
 		{"invalid", 0},
 		{"", 0},
 		{"10x", 0}, // unknown unit
+		{"+10g", 0}, // leading + not allowed
+		{"-10g", 0}, // leading - not allowed
+		{"-10", 0}, // negative size not allowed
 		{"10.5g", 10.5 * 1024 * 1024 * 1024},
 		{"1.5MB", 1.5 * 1024 * 1024},
 		{"1p", 1 * 1024 * 1024 * 1024 * 1024 * 1024},

@@ -365,6 +365,58 @@ func Test_validateVolumeUpdate(t *testing.T) {
 		}
 	})
 
+	t.Run("WhenNewSizePlus10g_ShouldReturnNotAllowed", func(t *testing.T) {
+		cacheKey := "test-pool-key-update-plus-size"
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, cacheKey)
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+		})
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		cmd := &CLICommand{
+			FullCommand: "volume size",
+			Arguments: map[string]string{
+				"-vserver":  "vs1",
+				"-volume":   "vol1",
+				"-new-size": "+10g",
+			},
+		}
+		allowed, reason := _validateVolumeUpdate(ctx, cmd)
+		if allowed {
+			t.Error("Expected not allowed for -new-size +10g")
+		}
+		if reason != `"+10g" is an invalid value for argument "-new-size"` {
+			t.Errorf("Reason = %q", reason)
+		}
+	})
+
+	t.Run("WhenNewSizeMinus10g_ShouldReturnNotAllowed", func(t *testing.T) {
+		cacheKey := "test-pool-key-update-minus-size"
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, cacheKey)
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+		})
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		cmd := &CLICommand{
+			FullCommand: "volume size",
+			Arguments: map[string]string{
+				"-vserver":  "vs1",
+				"-volume":   "vol1",
+				"-new-size": "-10g",
+			},
+		}
+		allowed, reason := _validateVolumeUpdate(ctx, cmd)
+		if allowed {
+			t.Error("Expected not allowed for -new-size -10g")
+		}
+		if reason != `"-10g" is an invalid value for argument "-new-size"` {
+			t.Errorf("Reason = %q", reason)
+		}
+	})
+
 	t.Run("WhenCoreSucceeds_ShouldReturnAllowed", func(t *testing.T) {
 		origSubmit := submitExpertModeVolumeOperation
 		defer func() { submitExpertModeVolumeOperation = origSubmit }()

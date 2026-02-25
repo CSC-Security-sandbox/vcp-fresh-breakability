@@ -98,10 +98,17 @@ func _validateVolumeDelete(ctx context.Context, cmd *CLICommand) (bool, string) 
 	return true, ""
 }
 
-// _validateVolumeUpdate validates volume modify when -size is present: validates the size and submits
-// an Update operation to the core API. If -size is not present, the command is allowed without submission.
+// _validateVolumeUpdate validates volume modify/size when -size or -new-size is present: validates the size and submits
+// an Update operation to the core API. If neither is present, the command is allowed without submission.
+// Supports both "volume modify -size" and "volume size -new-size" (-size takes precedence when both exist).
 func _validateVolumeUpdate(ctx context.Context, cmd *CLICommand) (bool, string) {
+	sizeArg := "-new-size"
 	sizeStr := cmd.GetArgument("-size")
+	if sizeStr != "" {
+		sizeArg = "-size"
+	} else {
+		sizeStr = cmd.GetArgument("-new-size")
+	}
 	if sizeStr == "" {
 		return true, "" // No size change requested, allow without submitting
 	}
@@ -117,8 +124,8 @@ func _validateVolumeUpdate(ctx context.Context, cmd *CLICommand) (bool, string) 
 	}
 
 	sizeInBytes := proxyutils.ParseSizeString(sizeStr)
-	if sizeInBytes == 0 {
-		return false, fmt.Sprintf("%q is an invalid value for argument \"-size\"", sizeStr)
+	if sizeInBytes <= 0 {
+		return false, fmt.Sprintf("%q is an invalid value for argument %q", sizeStr, sizeArg)
 	}
 
 	volumeName := cmd.GetArgument("-volume")

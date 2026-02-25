@@ -44,6 +44,16 @@ func TestMatchCLIRule(t *testing.T) {
 				input:     "vol destroy -vserver vs1 -volume vol1",
 				wantAllow: true,
 			},
+			{
+				name:      "volume size allowed",
+				input:     "volume size -vserver vs1 -volume vol1 -new-size 200g",
+				wantAllow: true,
+			},
+			{
+				name:      "vol size allowed",
+				input:     "vol size -vserver vs1 -volume vol1 -new-size 100g",
+				wantAllow: true,
+			},
 		}
 
 		for _, tt := range tests {
@@ -332,6 +342,36 @@ func TestCLIRuleConditions(t *testing.T) {
 			t.Errorf("Expected allowed with -snaplock-type compliance (rule condition does not validate snaplock-type), got denied: %s", reason)
 		}
 	})
+}
+
+func TestVolumeSizeRule_RequiresVserverVolumeNewSize(t *testing.T) {
+	// volume size rule requires -vserver, -volume, -new-size
+	input := "volume size -vserver vs1 -volume vol1 -new-size 200g"
+	cmd, err := ParseCLICommand(input)
+	if err != nil {
+		t.Fatalf("ParseCLICommand: %v", err)
+	}
+	rule, found := MatchCLIRule(cmd)
+	if !found {
+		t.Fatal("Expected to find volume size rule")
+	}
+	allowed, reason := EvaluateRule(rule, cmd)
+	if !allowed {
+		t.Errorf("Expected allowed with all required args, got denied: %s", reason)
+	}
+
+	// Missing -new-size must fail
+	cmdMissingNewSize := &CLICommand{
+		FullCommand: "volume size",
+		Arguments:   map[string]string{"-vserver": "vs1", "-volume": "vol1"},
+	}
+	allowed, reason = EvaluateRule(rule, cmdMissingNewSize)
+	if allowed {
+		t.Error("Expected denied when -new-size missing")
+	}
+	if reason != "Missing required argument: -new-size" {
+		t.Errorf("Reason = %q, want Missing required argument: -new-size", reason)
+	}
 }
 
 func TestVolumeCreateRule_SnaplockTypeNotValidated(t *testing.T) {
