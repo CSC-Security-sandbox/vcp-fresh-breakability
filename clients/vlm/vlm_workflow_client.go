@@ -217,7 +217,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 					CloudProvider: VLMCloudProvider,
 				}
 
-				ontapVersion := utils.GetOntapVersionBasedOnAllowlisting(accountID)
+				ontapVersion := utils.ExtractOntapVersion(utils.GetOntapVersionBasedOnAllowlisting(accountID))
 
 				deleteErr := vlmManager.DeleteVSAClusterDeployment(ctx, deleteRequest, ontapVersion)
 				if deleteErr == nil {
