@@ -44,6 +44,7 @@ var (
 	WaitForGCPNetworkOperationStatus     = _waitForGCPNetworkOperationStatus
 	verifyKmsConfigReachability          = _verifyKmsConfigReachability
 	syncPoolZIZSDetailsWorkflow          = _syncPoolZIZSDetailsWorkflow
+	syncActiveDirectoryInVcp             = _syncActiveDirectoryInVcp
 )
 
 var (
@@ -883,6 +884,26 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	// Check if expert mode pool is enabling auto-tiering (needs VLM call for bucket attachment)
 	needsBucketAttachment := pool.APIAccessMode == common.ONTAPMode && updatePoolParams.AllowAutoTiering && !pool.AllowAutoTiering
 
+	if updatePoolParams.ActiveDirectoryConfigId != "" && !pool.ActiveDirectoryID.Valid && !updatePoolParams.IfADExistsInVCP {
+		adLargeCapacity := false
+		if updatePoolParams.LargeCapacity != nil {
+			adLargeCapacity = *updatePoolParams.LargeCapacity
+		}
+		adSyncParams := adSyncInput{
+			ActiveDirectoryID: updatePoolParams.ActiveDirectoryConfigId,
+			AccountName:       updatePoolParams.AccountName,
+			Region:            updatePoolParams.Region,
+			XCorrelationID:    updatePoolParams.XCorrelationID,
+			ActiveDirectory:   updatePoolParams.ActiveDirectory,
+			LargeCapacity:     adLargeCapacity,
+		}
+		if adSyncParams.ActiveDirectory == nil {
+			return nil, ConvertToVSAError(vsaerrors.New("ActiveDirectory is nil, cannot sync"))
+		}
+		if err = syncActiveDirectoryInVcp(ctx, adSyncParams, dbPool); err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	}
 	// if there is no need of vlm workflow, just perform update pool in db
 	// Note: For expert mode pools enabling auto-tiering, we must call VLM to attach the bucket
 	if currentProvisionedSize == int64(toProvisionPoolSizeInBytes) &&
@@ -1089,27 +1110,6 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			wf.Logger.Errorf("Failed to hydrate pool to CCFE as part of auto-tiering hot tier auto-resize, error: %v", err)
 			// TODO: Add error handling for hydration failure when auto-tiering feature integration is complete
 			// return nil, ConvertToVSAError(err)
-		}
-	}
-
-	if updatePoolParams.ActiveDirectoryConfigId != "" && !updatePoolParams.IfADExistsInVCP {
-		adLargeCapacity := false
-		if updatePoolParams.LargeCapacity != nil {
-			adLargeCapacity = *updatePoolParams.LargeCapacity
-		}
-		adSyncParams := adSyncInput{
-			ActiveDirectoryID: updatePoolParams.ActiveDirectoryConfigId,
-			AccountName:       updatePoolParams.AccountName,
-			Region:            updatePoolParams.Region,
-			XCorrelationID:    updatePoolParams.XCorrelationID,
-			ActiveDirectory:   updatePoolParams.ActiveDirectory,
-			LargeCapacity:     adLargeCapacity,
-		}
-		if adSyncParams.ActiveDirectory == nil {
-			return nil, ConvertToVSAError(vsaerrors.New("ActiveDirectory is nil, cannot sync"))
-		}
-		if err = syncActiveDirectoryInVcp(ctx, adSyncParams, dbPool); err != nil {
-			return nil, ConvertToVSAError(err)
 		}
 	}
 
@@ -2512,8 +2512,8 @@ type adSyncInput struct {
 	LargeCapacity     bool
 }
 
-// syncActiveDirectoryInVcp syncs Active Directory from CVP to VCP when AD exists in CVP but not in VCP
-func syncActiveDirectoryInVcp(ctx workflow.Context, input adSyncInput, pool *datamodel.Pool) error {
+// _syncActiveDirectoryInVcp syncs Active Directory from CVP to VCP when AD exists in CVP but not in VCP
+func _syncActiveDirectoryInVcp(ctx workflow.Context, input adSyncInput, pool *datamodel.Pool) error {
 	logger := util.GetLogger(ctx)
 	logger.Infof("Syncing Active Directory from CVP to VCP for pool: %s, AD ID: %s", pool.Name, input.ActiveDirectoryID)
 

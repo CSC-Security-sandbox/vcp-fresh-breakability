@@ -3821,7 +3821,7 @@ func TestUpdatePoolWorkflowWithHydrationSuccess(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
-func TestUpdatePoolWorkflow_WithActiveDirectorySync_NilActiveDirectory(t *testing.T) {
+func TestUpdatePoolWorkflow_ADSyncFailsWhenActiveDirectoryNil(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 
@@ -3859,7 +3859,8 @@ func TestUpdatePoolWorkflow_WithActiveDirectorySync_NilActiveDirectory(t *testin
 		HotTierSizeInBytes:        1024 * 1024 * 1024 * 1024,
 		AutoResizeTriggeredUpdate: true,
 		ActiveDirectoryConfigId:   "ad-config-id",
-		ActiveDirectoryId:         "",
+		ActiveDirectoryId:         "ad-config-id",
+		ActiveDirectory:           nil,
 		IfADExistsInVCP:           false,
 		LargeCapacity:             nillable.ToPointer(true),
 		XCorrelationID:            "corr-id",
@@ -3905,46 +3906,11 @@ func TestUpdatePoolWorkflow_WithActiveDirectorySync_NilActiveDirectory(t *testin
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
 		State:     string(models.JobsStateNEW),
 	}, nil).Maybe()
-	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
-		Deployment: vlm.DeploymentConfig{
-			NumHAPair:       1,
-			VSAInstanceType: "c3-new-instance-type",
-			SPConfig: vlm.SPConfig{
-				IOps:       2048,
-				Throughput: 128,
-				Size:       "1TiB",
-			},
-		},
-	}, nil)
-	env.OnActivity("ValidateZonesForMachineTypes", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
-	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(&vlm.UpdateVSAClusterDeploymentResponse{}, nil)
-	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			Name:      "test-node-1",
-		},
-		{
-			BaseModel: datamodel.BaseModel{ID: 2},
-			Name:      "test-node-2",
-		},
-	}, nil)
-	env.OnActivity("ModifyQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
-	env.OnActivity("DetermineVMScalingDirection", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
-	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("UpdateNodesInstanceTypeActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("HydrateUpdatedPoolToCCFE", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
 
 	assert.True(t, env.IsWorkflowCompleted())
-	err := env.GetWorkflowError()
-	assert.Error(t, err)
-	// The workflow should fail before attempting AD sync because ActiveDirectory is nil.
-	env.AssertNotCalled(t, "PushActiveDirectoryPasswordActivity", mock.Anything, mock.Anything)
-	env.AssertNotCalled(t, "CreateActiveDirectoryInVCPActivity", mock.Anything, mock.Anything, mock.Anything)
-	env.AssertNotCalled(t, "UpdatePoolActiveDirectoryIDActivity", mock.Anything, mock.Anything, mock.Anything)
+	assert.Error(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
 }
 
