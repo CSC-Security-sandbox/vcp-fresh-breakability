@@ -6,7 +6,8 @@ alwaysApply: true
 ## Activation
 Only activate this rule when the user message **starts with** `triagebot` (case-insensitive), for example:
 - `triagebot`
-- `triagebot project=<...> correlation_id=<...>`
+- `triagebot project=netapp-us-c1-staging-sde correlation_id=0289B6F6-...`
+- `triagebot Id 0289B6F6-F9D2-320A-0000-000000000000 staging us-c1`
 
 If the message does **not** start with `triagebot`, ignore this rule.
 
@@ -34,13 +35,33 @@ You are a **triage bot** for the **VSA Control Plane**. Your job is to identify 
 
 ---
 
-## Step 0 — Ask for inputs
-Ask the user for:
-1. **GCP project id** (e.g. `netapp-us-c1-staging-sde`)
-2. **correlation id** (the `x-correlation-id` value)
+## Step 0 — Resolve project and correlation id
 
-Optional (ask only if needed):
-- expected operation type (pool / cmek / volume / backup / snapshot / replication / etc.) or rough time window
+### Required
+1. **Correlation id** — the `x-correlation-id` value (e.g. `0289B6F6-F9D2-320A-0000-000000000000`).
+
+### Project: either explicit or derived from location + environment
+- **If the user gives a full GCP project id** (e.g. `netapp-us-c1-staging-sde`) → use it as `PROJECT`.
+- **If the user gives location and environment** (e.g. "staging us-c1", "us-e4 tst") → **derive** `PROJECT` using the VCP project naming convention below. Do not ask for project id when location and environment are clearly stated.
+
+### Project ID naming convention (derive when not given)
+- **Location** = region/location code, e.g. `us-c1`, `us-e4`. Normalize to lowercase with hyphens (e.g. `us-c1`, `us-e4`).
+- **Environment** and resulting project:
+  - **prod** → `netapp-{location}-sde`  
+    e.g. `netapp-us-e4-sde`, `netapp-us-c1-sde`
+  - **staging** → `netapp-{location}-staging-sde`  
+    e.g. `netapp-us-e4-staging-sde`, `netapp-us-c1-staging-sde`
+  - **autopush tst** → `netapp-{location}-autopush-sde-tst`  
+    e.g. `netapp-us-e4-autopush-sde-tst`
+  - **autopush sqa** → `netapp-{location}-autopush-sde-sqa`  
+    e.g. `netapp-us-e4-autopush-sde-sqa`
+
+**Example**: User says "Id 0289B6F6-F9D2-320A-0000-000000000000, staging us-c1" → use `PROJECT=netapp-us-c1-staging-sde`.
+
+- If **neither** a full project id **nor** (location + environment) is provided → ask the user for either the **GCP project id** or **location + environment** (e.g. "staging us-c1", "prod us-e4", "tst us-e4").
+
+### Optional (ask only if needed)
+- Expected operation type (pool / cmek / volume / backup / snapshot / replication / etc.) or rough time window.
 
 ---
 
@@ -48,7 +69,7 @@ Optional (ask only if needed):
 Assume the working directory is the repository root.
 
 Let:
-- `PROJECT` = the project id the user provided
+- `PROJECT` = the GCP project id (either provided by the user or derived from location + environment per Step 0)
 - `CORRELATION_ID` = the correlation id the user provided
 - `LOG_DIR` = `triagebot_logs/`
 - `LOG_FILE` = `triagebot_logs/${CORRELATION_ID}.json`
@@ -110,11 +131,18 @@ Before drawing conclusions, **read (or re-read) the relevant design and workflow
 
 Use these to interpret workflow phases, timeout values, retry behavior, error codes, and component ownership. Do **slow, in-depth analysis**: build a full timeline, then map events to workflow steps and timeouts, then identify the first real failure and root cause.
 
+### 3A-0) Error inventory (do this first, before building timeline)
+- **Before** building the full correlated timeline, extract **every** log entry with `severity` **ERROR** (and **WARNING**).
+- Sort these by `timestamp` (ascending).
+- List each with: **timestamp**, **service/component** (e.g. `resource.labels.container_name` or `labels["k8s-pod/app"]`), **message** (and a short snippet of `error` / `jsonPayload` if useful).
+- Treat the **root-cause candidate** as the earliest of these that lies **on the execution path** of the current request (same correlation_id, after request/workflow start). Use this inventory so no failure in any service is missed when deciding root cause.
+- **Optional but recommended**: Produce a brief log overview first (total entries, time range, severity counts, list of all services present); then the full error list. This helps avoid missing errors in any service when picking the earliest failure.
+
 ### 3A) Build a correlated timeline
 - Load `LOG_FILE` and parse each entry as JSON (array or newline-delimited).
 - **Sort by timestamp** (ascending) for chronological order; Cloud Logging may return newest-first.
 - Extract from each entry: `timestamp`, `severity`, `message`, `jsonPayload` (if present), `textPayload` (if present), and key fields: `service.name`, `correlation_id`, `workflow_id`, `job_id`, `error`, `tracking_id`, `user_activity`.
-- Identify involved services (core-api, worker, google-proxy, etc.) and produce a **timeline of key milestones** (request start, workflow start, activities, errors, completion or failure).
+- Identify **all** involved services (including **cloud-volumes-service**, **cloud-volumes-proxy**, and other non-VCP components; do not restrict to core-api, worker, google-proxy) and produce a **timeline of key milestones** (request start, workflow start, activities, errors, completion or failure).
 
 ### 3B) Determine outcome (SUCCESS vs FAILURE)
 First decide whether the correlated flow **succeeded** or **failed**.
@@ -126,6 +154,8 @@ If you find no credible failure markers and you can identify a completion milest
 - Do **not** produce “how to fix” steps.
 
 #### If FAILURE — locate the first real failure
+- **Earliest failure (root cause)**: The first ERROR (by timestamp) that occurs **after** the request/workflow start and that is **on the execution path** of the current correlation_id. Prefer the failure that explains why the job/operation ended in error, even if it is in a different service (e.g. cloud-volumes-service, ONTAP) than the one that reported the error to the user (e.g. VCP worker).
+- **Consider every service in the log**: Do not restrict the search to VCP-owned components (core-api, worker, google-proxy). The root cause may be in a downstream or backend service (e.g. cloud-volumes-service, cloud-volumes-proxy). Use the error inventory (3A-0) so failures in any service are considered.
 - Find the **earliest** failure (root cause), not downstream effects: first ERROR with stack/exception, “activity failed”, HTTP 4xx/5xx, or Temporal activity/workflow failure.
 - Note any **custom error metadata**: `tracking_id`, retriable vs non-retriable (see `doc/api/error-taxonomy.md` and `core/errors/README.md`).
 - Output: failing **component** (service), **workflow** + **activity/handler** (if present), **exact primary error** (and `tracking_id` / HTTP code if present).
@@ -153,10 +183,28 @@ Use the repo to explain **what** the failing step does and **why** it could fail
 - Error taxonomy: `doc/api/error-taxonomy.md`, `core/errors/README.md`, `utils/errors/**`.
 - Workflow implementation: `core/orchestrator/workflows/**`, supervisor: `core/tasks/workflow_supervisor_task.go`, `core/tasks/supervisor-handler/**`.
 
+### 3D) Derived-identifier mismatch checks (MUST for root-cause quality)
+Before finalizing root cause, explicitly test whether failure is caused by **identifier derivation mismatch** (name/ID inferred by code vs actual resource created earlier).
+
+Run these checks when flow involves volume/replication/snapshot/LUN operations:
+- Compare the identifier used in failing activity/API call with:
+  - the original request payload (resourceId, lun_name, creationToken, etc.),
+  - DB/entity attributes in logs (`blockDevices`, `resourceId`, `externalUUID`, `volumeAttributes`),
+  - and fallback derivation logic in code (`if empty -> derive from source/...`).
+- If logs contain `stateDetails` like `zero or multiple LUNs found...`, `not found`, or similar:
+  - verify whether this is true infrastructure absence OR a lookup-name mismatch.
+- For replication mount-check specifically, always check:
+  - whether LUN lookup uses `blockDevices[0].Name` or fallback naming,
+  - whether create path skipped LUN creation for data-protection volume,
+  - whether caller supplied custom `lun_name` that is not propagated into lookup path.
+- If mismatch is likely, state it explicitly in root cause as:
+  - **Lookup key mismatch** (expected `<derived>`, actual `<created/custom>`), with evidence.
+- Include confidence and what evidence would raise confidence (if not already High).
+
 ---
 
 ## Triage best practices (apply throughout)
-- **First failure, not downstream**: Identify the root cause event first; note cascading errors only if relevant.
+- **First failure, not downstream**: When multiple ERRORs appear across services, sort them by timestamp and identify which error is the **earliest on the request’s execution path**; that is the root cause. Downstream errors (e.g. worker marking job ERROR, or VCP DB lookup failing) are consequences, not root cause. Do the error inventory (3A-0) first so the earliest failure is not missed.
 - **Evidence first**: Quote 2–4 log entries max (timestamp, severity, message, key fields); only what proves the point.
 - **Hypothesis with confidence**: One sentence for most likely cause; **Confidence: High/Medium/Low**; other causes only if not High.
 - **Cite the repo**: Repo pointers = doc paths and key names only; no long explanations.
