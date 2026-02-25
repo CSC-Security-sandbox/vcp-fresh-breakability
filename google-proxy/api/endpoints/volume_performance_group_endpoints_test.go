@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
@@ -197,7 +198,7 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 	})
 }
 
-func TestV1betaListVolumePerformanceGroups_NotImplemented(t *testing.T) {
+func TestV1betaListVolumePerformanceGroups(t *testing.T) {
 	t.Run("WhenVpgEndpointsDisabled", func(tt *testing.T) {
 		origEnableMqos := enableMqos
 		origEnableVpgEndpoints := enableVpgEndpoints
@@ -279,7 +280,7 @@ func TestV1betaListVolumePerformanceGroups_NotImplemented(t *testing.T) {
 		assert.Equal(t, "Internal server error", res.(*gcpgenserver.V1betaListVolumePerformanceGroupsInternalServerError).Message)
 	})
 
-	t.Run("WhenNotFound", func(tt *testing.T) {
+	t.Run("WhenPoolNotFound", func(tt *testing.T) {
 		origEnableMqos := enableMqos
 		origEnableVpgEndpoints := enableVpgEndpoints
 		defer func() {
@@ -335,6 +336,43 @@ func TestV1betaListVolumePerformanceGroups_NotImplemented(t *testing.T) {
 		assert.NotNil(t, res)
 		assert.Equal(t, float64(http.StatusBadRequest), res.(*gcpgenserver.V1betaListVolumePerformanceGroupsBadRequest).Code)
 		assert.Equal(t, "invalid pool", res.(*gcpgenserver.V1betaListVolumePerformanceGroupsBadRequest).Message)
+	})
+
+	t.Run("WhenNoVPGs", func(tt *testing.T) {
+		origEnableMqos := enableMqos
+		origEnableVpgEndpoints := enableVpgEndpoints
+		defer func() {
+			enableMqos = origEnableMqos
+			enableVpgEndpoints = origEnableVpgEndpoints
+		}()
+		enableMqos = true
+		enableVpgEndpoints = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		ctx := context.Background()
+		params := gcpgenserver.V1betaListVolumePerformanceGroupsParams{
+			ProjectNumber: "12345",
+			LocationId:    "us-central1",
+			PoolId:        "pool-id",
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		mockOrchestrator.EXPECT().ListVolumePerformanceGroups(
+			mock.Anything,
+			mock.MatchedBy(func(p *common.ListVolumePerformanceGroupsParams) bool {
+				return p != nil &&
+					p.AccountName == params.ProjectNumber &&
+					p.PoolID == params.PoolId
+			}),
+		).Return([]*models.VolumePerformanceGroup{}, nil)
+		res, err := handler.V1betaListVolumePerformanceGroups(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+		okRes, ok := res.(*gcpgenserver.V1betaListVolumePerformanceGroupsOK)
+		assert.True(t, ok)
+		assert.NotNil(t, okRes.VolumePerformanceGroups)
+		assert.Len(t, okRes.VolumePerformanceGroups, 0)
 	})
 
 	t.Run("WhenSuccessful", func(tt *testing.T) {

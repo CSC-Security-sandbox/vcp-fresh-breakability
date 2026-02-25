@@ -66,7 +66,12 @@ func (h Handler) V1betaListVolumePerformanceGroups(ctx context.Context, params g
 		}, nil
 	}
 	logger := util.GetLogger(ctx)
-	listParams := &common.ListVolumePerformanceGroupsParams{}
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	listParams := &common.ListVolumePerformanceGroupsParams{
+		AccountName: params.ProjectNumber,
+		PoolID:      params.PoolId,
+	}
 	vpgs, err := h.Orchestrator.ListVolumePerformanceGroups(ctx, listParams)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {

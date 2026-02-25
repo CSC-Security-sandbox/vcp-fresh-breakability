@@ -42,9 +42,17 @@ func (o *Orchestrator) ListVolumePerformanceGroups(ctx context.Context, params *
 		return nil, err
 	}
 
-	// Convert datamodel to models
-	result := make([]*models.VolumePerformanceGroup, 0, len(vpgs))
+	// Filter out automatically generated VPGs
+	filteredVpgs := make([]*datamodel.VolumePerformanceGroup, 0)
 	for _, vpg := range vpgs {
+		if !vpg.IsAutoGen {
+			filteredVpgs = append(filteredVpgs, vpg)
+		}
+	}
+
+	// Convert datamodel to models
+	result := make([]*models.VolumePerformanceGroup, 0, len(filteredVpgs))
+	for _, vpg := range filteredVpgs {
 		result = append(result, convertDatastoreVPGToModel(vpg))
 	}
 
