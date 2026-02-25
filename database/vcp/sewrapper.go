@@ -3820,6 +3820,22 @@ func (re *retryEngine) UpdateBackupChainHistory(ctx context.Context, volumeUUID 
 	return err
 }
 
+func (re *retryEngine) DeleteBackupChainHistoryOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.DeleteBackupChainHistoryOlderThan(ctx, olderThan)
+		if err != nil {
+			re.logError("DeleteBackupChainHistoryOlderThan", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetBackupMetrics(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {
 	var var0 []*datamodel.Backup
 	err := retry.Do(func(attempt int) (bool, error) {

@@ -5652,3 +5652,270 @@ func TestUpdateBackupChainHistory(t *testing.T) {
 		assert.Error(tt, err)
 	})
 }
+
+func TestDeleteBackupChainHistoryOlderThan(t *testing.T) {
+	t.Run("Success_DeletesOldSoftDeletedRecords", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+
+		// Create soft-deleted history entries with old deleted_at timestamps
+		oldTime := time.Now().AddDate(0, 0, -10) // 10 days ago
+		oldHistory1 := &datamodel.BackupChainHistory{
+			BaseModel:      datamodel.BaseModel{UUID: "old-history-1"},
+			ResourceName:   "old-volume-1",
+			Size:           1024,
+			ResourceUUID:   "volume-uuid-1",
+			ConsumerID:     "consumer-1",
+			DeploymentName: "deployment-1",
+		}
+		err = store.db.Create(oldHistory1).Error()
+		assert.NoError(tt, err)
+
+		// Soft delete the record and set deleted_at to old time
+		err = store.db.GORM().Unscoped().Model(&datamodel.BackupChainHistory{}).
+			Where("uuid = ?", "old-history-1").
+			Update("deleted_at", oldTime).Error
+		assert.NoError(tt, err)
+
+		oldHistory2 := &datamodel.BackupChainHistory{
+			BaseModel:      datamodel.BaseModel{UUID: "old-history-2"},
+			ResourceName:   "old-volume-2",
+			Size:           2048,
+			ResourceUUID:   "volume-uuid-2",
+			ConsumerID:     "consumer-2",
+			DeploymentName: "deployment-2",
+		}
+		err = store.db.Create(oldHistory2).Error()
+		assert.NoError(tt, err)
+
+		// Soft delete the record and set deleted_at to old time
+		err = store.db.GORM().Unscoped().Model(&datamodel.BackupChainHistory{}).
+			Where("uuid = ?", "old-history-2").
+			Update("deleted_at", oldTime).Error
+		assert.NoError(tt, err)
+
+		// Create a recent soft-deleted record (should NOT be deleted)
+		recentTime := time.Now().AddDate(0, 0, -1) // 1 day ago
+		recentHistory := &datamodel.BackupChainHistory{
+			BaseModel:      datamodel.BaseModel{UUID: "recent-history"},
+			ResourceName:   "recent-volume",
+			Size:           4096,
+			ResourceUUID:   "volume-uuid-3",
+			ConsumerID:     "consumer-3",
+			DeploymentName: "deployment-3",
+		}
+		err = store.db.Create(recentHistory).Error()
+		assert.NoError(tt, err)
+
+		// Soft delete the record and set deleted_at to recent time
+		err = store.db.GORM().Unscoped().Model(&datamodel.BackupChainHistory{}).
+			Where("uuid = ?", "recent-history").
+			Update("deleted_at", recentTime).Error
+		assert.NoError(tt, err)
+
+		// Create an active record (not soft-deleted, should NOT be deleted)
+		activeHistory := &datamodel.BackupChainHistory{
+			BaseModel:      datamodel.BaseModel{UUID: "active-history"},
+			ResourceName:   "active-volume",
+			Size:           8192,
+			ResourceUUID:   "volume-uuid-4",
+			ConsumerID:     "consumer-4",
+			DeploymentName: "deployment-4",
+		}
+		err = store.db.Create(activeHistory).Error()
+		assert.NoError(tt, err)
+
+		// Delete records older than 7 days
+		cutoffTime := time.Now().AddDate(0, 0, -7)
+		rowsDeleted, err := store.DeleteBackupChainHistoryOlderThan(ctx, cutoffTime)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(2), rowsDeleted)
+
+		// Verify old records are hard deleted
+		var count int64
+		err = store.db.GORM().Unscoped().Model(&datamodel.BackupChainHistory{}).
+			Where("uuid IN ?", []string{"old-history-1", "old-history-2"}).
+			Count(&count).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), count)
+
+		// Verify recent soft-deleted record still exists
+		var recentCount int64
+		err = store.db.GORM().Unscoped().Model(&datamodel.BackupChainHistory{}).
+			Where("uuid = ?", "recent-history").
+			Count(&recentCount).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(1), recentCount)
+
+		// Verify active record still exists
+		var activeCount int64
+		err = store.db.GORM().Model(&datamodel.BackupChainHistory{}).
+			Where("uuid = ?", "active-history").
+			Count(&activeCount).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(1), activeCount)
+	})
+
+	t.Run("Success_NoRecordsToDelete", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+
+		// Create only active records (not soft-deleted)
+		activeHistory := &datamodel.BackupChainHistory{
+			BaseModel:      datamodel.BaseModel{UUID: "active-history"},
+			ResourceName:   "active-volume",
+			Size:           1024,
+			ResourceUUID:   "volume-uuid-1",
+			ConsumerID:     "consumer-1",
+			DeploymentName: "deployment-1",
+		}
+		err = store.db.Create(activeHistory).Error()
+		assert.NoError(tt, err)
+
+		// Delete records older than 7 days
+		cutoffTime := time.Now().AddDate(0, 0, -7)
+		rowsDeleted, err := store.DeleteBackupChainHistoryOlderThan(ctx, cutoffTime)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), rowsDeleted)
+
+		// Verify active record still exists
+		var count int64
+		err = store.db.GORM().Model(&datamodel.BackupChainHistory{}).
+			Where("uuid = ?", "active-history").
+			Count(&count).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(1), count)
+	})
+
+	t.Run("Success_EmptyTable", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+
+		// Delete records older than 7 days from empty table
+		cutoffTime := time.Now().AddDate(0, 0, -7)
+		rowsDeleted, err := store.DeleteBackupChainHistoryOlderThan(ctx, cutoffTime)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), rowsDeleted)
+	})
+
+	t.Run("Success_DeletesOnlyRecordsOlderThanCutoff", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+
+		// Create soft-deleted record exactly at cutoff (should NOT be deleted)
+		cutoffTime := time.Now().AddDate(0, 0, -7)
+		exactCutoffHistory := &datamodel.BackupChainHistory{
+			BaseModel:      datamodel.BaseModel{UUID: "exact-cutoff-history"},
+			ResourceName:   "exact-volume",
+			Size:           1024,
+			ResourceUUID:   "volume-uuid-1",
+			ConsumerID:     "consumer-1",
+			DeploymentName: "deployment-1",
+		}
+		err = store.db.Create(exactCutoffHistory).Error()
+		assert.NoError(tt, err)
+
+		err = store.db.GORM().Unscoped().Model(&datamodel.BackupChainHistory{}).
+			Where("uuid = ?", "exact-cutoff-history").
+			Update("deleted_at", cutoffTime).Error
+		assert.NoError(tt, err)
+
+		// Create soft-deleted record just before cutoff (should be deleted)
+		beforeCutoffTime := cutoffTime.Add(-time.Hour)
+		beforeCutoffHistory := &datamodel.BackupChainHistory{
+			BaseModel:      datamodel.BaseModel{UUID: "before-cutoff-history"},
+			ResourceName:   "before-volume",
+			Size:           2048,
+			ResourceUUID:   "volume-uuid-2",
+			ConsumerID:     "consumer-2",
+			DeploymentName: "deployment-2",
+		}
+		err = store.db.Create(beforeCutoffHistory).Error()
+		assert.NoError(tt, err)
+
+		err = store.db.GORM().Unscoped().Model(&datamodel.BackupChainHistory{}).
+			Where("uuid = ?", "before-cutoff-history").
+			Update("deleted_at", beforeCutoffTime).Error
+		assert.NoError(tt, err)
+
+		// Delete records older than cutoff
+		rowsDeleted, err := store.DeleteBackupChainHistoryOlderThan(ctx, cutoffTime)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(1), rowsDeleted)
+
+		// Verify exact cutoff record still exists
+		var exactCount int64
+		err = store.db.GORM().Unscoped().Model(&datamodel.BackupChainHistory{}).
+			Where("uuid = ?", "exact-cutoff-history").
+			Count(&exactCount).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(1), exactCount)
+
+		// Verify before cutoff record is deleted
+		var beforeCount int64
+		err = store.db.GORM().Unscoped().Model(&datamodel.BackupChainHistory{}).
+			Where("uuid = ?", "before-cutoff-history").
+			Count(&beforeCount).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), beforeCount)
+	})
+
+	t.Run("Error_DatabaseConnectionClosed", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		ctx := context.Background()
+
+		// Close the database connection to cause failure
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		// This should fail because the database connection is closed
+		cutoffTime := time.Now().AddDate(0, 0, -7)
+		_, err = store.DeleteBackupChainHistoryOlderThan(ctx, cutoffTime)
+		assert.Error(tt, err)
+	})
+}

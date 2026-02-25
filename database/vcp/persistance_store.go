@@ -1310,6 +1310,10 @@ func (s *PersistenceStore) UpdateBackupChainHistory(ctx context.Context, volumeU
 	return s.dataStore.UpdateBackupChainHistory(ctx, volumeUUID, newSize)
 }
 
+func (s *PersistenceStore) DeleteBackupChainHistoryOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
+	return s.dataStore.DeleteBackupChainHistoryOlderThan(ctx, olderThan)
+}
+
 func (s *PersistenceStore) GetNextSerialNumberInRegion(ctx context.Context, prefix string) (string, error) {
 	return s.dataStore.GetNextSerialNumberInRegion(ctx, prefix)
 }

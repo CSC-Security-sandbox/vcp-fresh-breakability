@@ -122,6 +122,7 @@ var JobTypeToWorkflow = map[string]interface{}{
 | CLEANUP_HYDRATED_METRICS_TABLE | Daily at midnight | Cleanup metrics data |
 | CLEANUP_AGGREGATED_USAGE_TABLE | Daily at 3 AM | Cleanup usage data |
 | CLEANUP_JOBS_TABLE | Daily at 1 AM | Cleanup jobs data |
+| CLEANUP_BACKUP_CHAIN_HISTORY | Daily at 2 AM | Cleanup backup chain history data |
 | SYNC_VSA_AUTO_TIERING | Every 5 minutes | Sync auto-tiering data |
 | DELETE_RESOURCES | Daily at midnight | Delete resources |
 | SYNC_BACKUP_ZIZS_METADATA | Every 12 hours | Sync backup metadata |
@@ -163,6 +164,7 @@ if !env.GetBool("METRICS_DB_CLEANUP_ENABLED", false) {
     delete(adminJobSpecs, "CLEANUP_HYDRATED_METRICS_TABLE")
     delete(adminJobSpecs, "CLEANUP_AGGREGATED_USAGE_TABLE")
     delete(adminJobSpecs, "CLEANUP_JOBS_TABLE")
+    delete(adminJobSpecs, "CLEANUP_BACKUP_CHAIN_HISTORY")
 }
 ```
 

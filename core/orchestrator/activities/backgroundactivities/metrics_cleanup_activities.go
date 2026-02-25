@@ -98,3 +98,31 @@ func (m *MetricsCleanupActivity) CleanupJobsTableActivity(ctx context.Context) e
 	logger.Infof("Number of Jobs Records Deleted %d and Query execution time: %v", rowsAffected, queryDuration)
 	return nil
 }
+
+// CleanupBackupChainHistoryActivity removes backup_chain_history records with deleted_at older than 7 days
+func (m *MetricsCleanupActivity) CleanupBackupChainHistoryActivity(ctx context.Context) error {
+	logger := util.GetLogger(ctx)
+
+	// Record start time and timestamp
+	startTime := time.Now()
+	logger.Infof("Starting cleanup of backup_chain_history table - Start timestamp: %s", startTime.Format("2006-01-02 15:04:05.000 MST"))
+
+	// Calculate cutoff time (7 days ago) and record time range for deletion
+	cutoffTime := time.Now().AddDate(0, 0, -7) // 7 days ago
+	logger.Infof("Cleanup configuration - Deleting records with deleted_at older than: %s", cutoffTime.Format("2006-01-02 15:04:05.000 MST"))
+
+	// Perform deletion
+	queryStartTime := time.Now()
+	logger.Info("Executing DELETE query for backup_chain_history table...")
+	rowsAffected, err := m.SE.DeleteBackupChainHistoryOlderThan(ctx, cutoffTime)
+	queryDuration := time.Since(queryStartTime)
+	if err != nil {
+		logger.Errorf("Failed to perform cleanup of backup_chain_history table after %v: %v", queryDuration, err)
+		return err
+	}
+
+	// Log comprehensive cleanup results
+	logger.Infof("Backup chain history table cleanup completed successfully:")
+	logger.Infof("Number of Backup Chain History Records Deleted %d and Query execution time: %v", rowsAffected, queryDuration)
+	return nil
+}

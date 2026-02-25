@@ -56,6 +56,7 @@ func LoadJobSpecs() error {
 		delete(adminJobSpecs, "CLEANUP_HYDRATED_METRICS_TABLE")
 		delete(adminJobSpecs, "CLEANUP_AGGREGATED_USAGE_TABLE")
 		delete(adminJobSpecs, "CLEANUP_JOBS_TABLE")
+		delete(adminJobSpecs, "CLEANUP_BACKUP_CHAIN_HISTORY")
 	}
 
 	return nil

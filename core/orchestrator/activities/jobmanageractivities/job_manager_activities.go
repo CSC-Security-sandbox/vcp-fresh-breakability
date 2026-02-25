@@ -15,44 +15,46 @@ import (
 )
 
 const (
-	SyncVsaSnapshots              = "SYNC_VSA_SNAPSHOTS"
-	RotateKmsServiceAccounts      = "ROTATE_KMS_SERVICE_ACCOUNTS"
+	SyncVsaSnapshots                = "SYNC_VSA_SNAPSHOTS"
+	RotateKmsServiceAccounts        = "ROTATE_KMS_SERVICE_ACCOUNTS"
 	RotateVsaCertificateAndPassword = "ROTATE_VSA_CERTIFICATE_AND_PASSWORD"
-	VolumeDetailsTotal            = "VOLUME_DETAILS_TOTAL"
-	OrphanJobScheduler            = "ORPHANED_JOB_SCHEDULER"
-	SyncLatestBackupLogicalSize   = "SYNC_LATEST_BACKUP_LOGICAL_SIZE"
-	HardDeleteResourcesAndAccount = "HARD_DELETE_RESOURCES_AND_ACCOUNT"
-	CleanupHydratedMetricsTable   = "CLEANUP_HYDRATED_METRICS_TABLE"
-	CleanupAggregatedUsageTable   = "CLEANUP_AGGREGATED_USAGE_TABLE"
-	CleanupJobsTable              = "CLEANUP_JOBS_TABLE"
-	SyncVsaAutoTiering            = "SYNC_VSA_AUTO_TIERING"
-	DeleteResources               = "DELETE_RESOURCES"
-	SyncBackupZiZsMetadata        = "SYNC_BACKUP_ZIZS_METADATA"
-	SyncPoolCompliance            = "SYNC_POOL_COMPLIANCE"
-	EligibilityStringJob          = "ELIGIBILITY_STRING_JOB"
-	FlexCachePrepopulate          = "SYNC_FLEXCACHE_PREPOPULATE_JOBS"
-	BackupSizeJob                 = "BACKUP_SIZE_JOB"
+	VolumeDetailsTotal              = "VOLUME_DETAILS_TOTAL"
+	OrphanJobScheduler              = "ORPHANED_JOB_SCHEDULER"
+	SyncLatestBackupLogicalSize     = "SYNC_LATEST_BACKUP_LOGICAL_SIZE"
+	HardDeleteResourcesAndAccount   = "HARD_DELETE_RESOURCES_AND_ACCOUNT"
+	CleanupHydratedMetricsTable     = "CLEANUP_HYDRATED_METRICS_TABLE"
+	CleanupAggregatedUsageTable     = "CLEANUP_AGGREGATED_USAGE_TABLE"
+	CleanupJobsTable                = "CLEANUP_JOBS_TABLE"
+	CleanupBackupChainHistory       = "CLEANUP_BACKUP_CHAIN_HISTORY"
+	SyncVsaAutoTiering              = "SYNC_VSA_AUTO_TIERING"
+	DeleteResources                 = "DELETE_RESOURCES"
+	SyncBackupZiZsMetadata          = "SYNC_BACKUP_ZIZS_METADATA"
+	SyncPoolCompliance              = "SYNC_POOL_COMPLIANCE"
+	EligibilityStringJob            = "ELIGIBILITY_STRING_JOB"
+	FlexCachePrepopulate            = "SYNC_FLEXCACHE_PREPOPULATE_JOBS"
+	BackupSizeJob                   = "BACKUP_SIZE_JOB"
 )
 
 // JobTypeToWorkflow maps job types to their corresponding workflow functions.
 var JobTypeToWorkflow = map[string]interface{}{
-	SyncVsaSnapshots:              backgroundworkflows.SnapshotsSyncParentWorkflow,
-	RotateKmsServiceAccounts:      background_kms_workflows.RotateKmsSAKeyWorkflow,
+	SyncVsaSnapshots:                backgroundworkflows.SnapshotsSyncParentWorkflow,
+	RotateKmsServiceAccounts:        background_kms_workflows.RotateKmsSAKeyWorkflow,
 	RotateVsaCertificateAndPassword: backgroundworkflows.RotateVsaCertificateAndPasswordWorkflow,
-	VolumeDetailsTotal:            backgroundworkflows.VolumeDetailsWorkflow,
-	OrphanJobScheduler:            backgroundworkflows.OrphanJobSchedulerWorkflow,
-	SyncLatestBackupLogicalSize:   backgroundworkflows.SyncLatestBackupLogicalSizeWorkflow,
-	HardDeleteResourcesAndAccount: backgroundworkflows.HardDeleteResourcesAndAccountWorkflow,
-	CleanupHydratedMetricsTable:   backgroundworkflows.CleanupHydratedMetricsTableWorkflow,
-	CleanupAggregatedUsageTable:   backgroundworkflows.CleanupAggregatedUsageTableWorkflow,
-	CleanupJobsTable:              backgroundworkflows.CleanupJobsTableWorkflow,
-	SyncVsaAutoTiering:            backgroundworkflows.SyncVSAAutoTieringWorkflow,
-	DeleteResources:               backgroundworkflows.ResourceCleanupParentWorkflow,
-	SyncBackupZiZsMetadata:        backgroundworkflows.SyncBackupZiZsWorkflow,
-	SyncPoolCompliance:            backgroundworkflows.SyncPoolZIZSDetailsWorkflow,
-	EligibilityStringJob:          backgroundworkflows.EligibilityStringWorkflow,
-	FlexCachePrepopulate:          backgroundworkflows.SyncFlexCachePrepopulateWorkflow,
-	BackupSizeJob:                 backgroundworkflows.BackupSizeDetailsWorkflow,
+	VolumeDetailsTotal:              backgroundworkflows.VolumeDetailsWorkflow,
+	OrphanJobScheduler:              backgroundworkflows.OrphanJobSchedulerWorkflow,
+	SyncLatestBackupLogicalSize:     backgroundworkflows.SyncLatestBackupLogicalSizeWorkflow,
+	HardDeleteResourcesAndAccount:   backgroundworkflows.HardDeleteResourcesAndAccountWorkflow,
+	CleanupHydratedMetricsTable:     backgroundworkflows.CleanupHydratedMetricsTableWorkflow,
+	CleanupAggregatedUsageTable:     backgroundworkflows.CleanupAggregatedUsageTableWorkflow,
+	CleanupJobsTable:                backgroundworkflows.CleanupJobsTableWorkflow,
+	CleanupBackupChainHistory:       backgroundworkflows.CleanupBackupChainHistoryWorkflow,
+	SyncVsaAutoTiering:              backgroundworkflows.SyncVSAAutoTieringWorkflow,
+	DeleteResources:                 backgroundworkflows.ResourceCleanupParentWorkflow,
+	SyncBackupZiZsMetadata:          backgroundworkflows.SyncBackupZiZsWorkflow,
+	SyncPoolCompliance:              backgroundworkflows.SyncPoolZIZSDetailsWorkflow,
+	EligibilityStringJob:            backgroundworkflows.EligibilityStringWorkflow,
+	FlexCachePrepopulate:            backgroundworkflows.SyncFlexCachePrepopulateWorkflow,
+	BackupSizeJob:                   backgroundworkflows.BackupSizeDetailsWorkflow,
 }
 
 type JobManagerActivity struct {

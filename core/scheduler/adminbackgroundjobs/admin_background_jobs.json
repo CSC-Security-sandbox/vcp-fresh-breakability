@@ -49,6 +49,11 @@
     "cronExpression": "0 1 * * *",
     "state": "CREATING"
   },
+  "CLEANUP_BACKUP_CHAIN_HISTORY": {
+    "jobType": "CLEANUP_BACKUP_CHAIN_HISTORY",
+    "cronExpression": "0 2 * * *",
+    "state": "CREATING"
+  },
   "SYNC_VSA_AUTO_TIERING": {
     "jobType": "SYNC_VSA_AUTO_TIERING",
     "cronExpression": "*/5 * * * *",

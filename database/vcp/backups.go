@@ -9,6 +9,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -1027,4 +1028,27 @@ func (d *DataStoreRepository) UpdateBackupChainHistory(ctx context.Context, volu
 	}
 
 	return nil
+}
+
+// DeleteBackupChainHistoryOlderThan removes backup chain history records that have been soft deleted and are older than the specified time
+// Uses batch deletion to avoid long-running transactions and lock contention
+func (d *DataStoreRepository) DeleteBackupChainHistoryOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
+	db := d.db.GORM().WithContext(ctx)
+
+	batchSize := common.LoadConfig().PageSize
+	var totalDeleted int64
+
+	// Batch delete in chunks to avoid long-running transactions and lock contention
+	for {
+		result := db.Unscoped().Where("deleted_at IS NOT NULL AND deleted_at < ?", olderThan).Limit(int(batchSize)).Delete(&datamodel.BackupChainHistory{})
+		if result.Error != nil {
+			return totalDeleted, result.Error
+		}
+		if result.RowsAffected == 0 {
+			break
+		}
+		totalDeleted += result.RowsAffected
+	}
+
+	return totalDeleted, nil
 }

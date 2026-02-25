@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	metricsdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 )
 
 func TestMetricsCleanupActivity_CleanupHydratedMetricsTableActivity_Success(t *testing.T) {
@@ -144,4 +145,71 @@ func TestMetricsCleanupActivity_CleanupJobsTableActivity_Error(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, expectedError, err)
 	mockDB.AssertExpectations(t)
+}
+
+func TestMetricsCleanupActivity_CleanupBackupChainHistoryActivity_Success(t *testing.T) {
+	// Setup
+	mockSE := database.NewMockStorage(t)
+	activity := &MetricsCleanupActivity{SE: mockSE}
+	ctx := context.Background()
+
+	// Expected cutoff time (approximately 7 days ago)
+	expectedRowsDeleted := int64(25)
+
+	// Mock the delete operation
+	mockSE.On("DeleteBackupChainHistoryOlderThan", mock.Anything, mock.MatchedBy(func(cutoff time.Time) bool {
+		// Verify cutoff is approximately 7 days ago (within 1 minute tolerance)
+		weekAgo := time.Now().AddDate(0, 0, -7)
+		diff := cutoff.Sub(weekAgo).Abs()
+		return diff < time.Minute
+	})).Return(expectedRowsDeleted, nil)
+
+	// Execute
+	err := activity.CleanupBackupChainHistoryActivity(ctx)
+
+	// Assert
+	assert.NoError(t, err)
+	mockSE.AssertExpectations(t)
+}
+
+func TestMetricsCleanupActivity_CleanupBackupChainHistoryActivity_Error(t *testing.T) {
+	// Setup
+	mockSE := database.NewMockStorage(t)
+	activity := &MetricsCleanupActivity{SE: mockSE}
+	ctx := context.Background()
+
+	expectedError := errors.New("database error")
+
+	// Mock the delete operation to return error
+	mockSE.On("DeleteBackupChainHistoryOlderThan", mock.Anything, mock.AnythingOfType("time.Time")).Return(int64(0), expectedError)
+
+	// Execute
+	err := activity.CleanupBackupChainHistoryActivity(ctx)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Equal(t, expectedError, err)
+	mockSE.AssertExpectations(t)
+}
+
+func TestMetricsCleanupActivity_CleanupBackupChainHistoryActivity_ZeroRecordsDeleted(t *testing.T) {
+	// Setup
+	mockSE := database.NewMockStorage(t)
+	activity := &MetricsCleanupActivity{SE: mockSE}
+	ctx := context.Background()
+
+	// Mock the delete operation with zero records deleted
+	mockSE.On("DeleteBackupChainHistoryOlderThan", mock.Anything, mock.MatchedBy(func(cutoff time.Time) bool {
+		// Verify cutoff is approximately 7 days ago (within 1 minute tolerance)
+		weekAgo := time.Now().AddDate(0, 0, -7)
+		diff := cutoff.Sub(weekAgo).Abs()
+		return diff < time.Minute
+	})).Return(int64(0), nil)
+
+	// Execute
+	err := activity.CleanupBackupChainHistoryActivity(ctx)
+
+	// Assert
+	assert.NoError(t, err)
+	mockSE.AssertExpectations(t)
 }
