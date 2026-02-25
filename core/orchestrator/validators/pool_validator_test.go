@@ -431,6 +431,8 @@ func TestValidateCommonPoolParams(t *testing.T) {
 	})
 
 	t.Run("QosTypeManual", func(t *testing.T) {
+		// Explicitly set false: previous subtests may have restored enableMqos to origEnableMqos (true when ENABLE_MQOS env is set).
+		enableMqos = false
 		perf := &CustomPerformance{
 			SizeInBytes:      2 * utils.TiBInBytes,
 			QosType:          utils.QosTypeManual,
@@ -440,8 +442,10 @@ func TestValidateCommonPoolParams(t *testing.T) {
 
 		err := ValidateCommonPoolParams(perf)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Manual QoS is not enabled")
-		assert.Contains(t, err.Error(), "Supported QoS type is auto")
+		if err != nil {
+			assert.Contains(t, err.Error(), "Manual QoS is not enabled")
+			assert.Contains(t, err.Error(), "Supported QoS type is auto")
+		}
 	})
 
 	t.Run("QosTypeManualWhenEnableMqosTrue", func(t *testing.T) {

@@ -79,7 +79,7 @@ global:
     fileSupportOntapVersion: "9.18.1"
     skipOntapImageVersionMatch: "false"
     gcpKmsKeyRotationEnabled: "false"
-    enableMqos: "false"
+    enableMqos: "true"
     enableJSwapVersionCheck: "false"
     vsaDeploymentPollInterval: "15s"
     vsaDeploymentTimeout: "10m"

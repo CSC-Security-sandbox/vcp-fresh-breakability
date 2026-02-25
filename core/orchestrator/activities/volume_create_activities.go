@@ -223,7 +223,7 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 	}
 
 	// Handle QoS policy assignment if volume has a VPG (only if MQOS is enabled)
-	enableMqos := env.GetBool("ENABLE_MQOS", false)
+	enableMqos := env.GetBool("ENABLE_MQOS", true)
 	logger.Debug("QoS policy assignment check",
 		"enable_mqos", enableMqos,
 		"volume_id", volume.UUID,

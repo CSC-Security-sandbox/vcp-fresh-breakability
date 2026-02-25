@@ -1197,7 +1197,7 @@ func TestCreateVolumeInONTAP_WithoutQoSPolicy_EnableMQOSDisabled(t *testing.T) {
 			_ = os.Unsetenv("ENABLE_MQOS")
 		}
 	}()
-	_ = os.Unsetenv("ENABLE_MQOS") // MQOS disabled
+	_ = os.Setenv("ENABLE_MQOS", "false") // Explicitly disable MQOS (default is true)
 
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode

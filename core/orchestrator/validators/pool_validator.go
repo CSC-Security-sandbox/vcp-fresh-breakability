@@ -34,7 +34,7 @@ var (
 	minLvCustomIops       = utils.MinLvCustomIops
 	maxLvCustomIops       = utils.MaxLvCustomIops
 	AutoTieringEnabled    = utils.AutoTieringEnabled
-	enableMqos            = env.GetBool("ENABLE_MQOS", false)
+	enableMqos            = env.GetBool("ENABLE_MQOS", true)
 )
 
 // CustomPerformance represents performance parameters that can be used for both create and update operations

@@ -3846,13 +3846,14 @@ func TestValidatePoolParams(t *testing.T) {
 			Iops:               nillable.ToPointer(int64(2048)),
 			AllowAutoTiering:   false,
 			HotTierSizeInBytes: 0,
-			QosType:            "Manual", // Invalid QoS type
+			QosType:            "Manual", // Invalid QoS type (or unsupported when enableMqos is false)
 			LargeCapacity:      false,
 		}
 
 		err := _validatePoolParams(perf, ServiceLevelNameFLEX)
 		assert.Error(tt, err)
-		assert.EqualError(tt, err, "Given QoS type not supported for Unified Flex Storage Pool. Supported QoS type is "+utils.QosTypeAuto)
+		// Message varies by ENABLE_MQOS: "Supported QoS type is auto" vs "Supported QoS types are auto and manual"
+		assert.Contains(tt, err.Error(), "QoS type not supported")
 	})
 
 	t.Run("InvalidThroughput_ReturnsError", func(tt *testing.T) {

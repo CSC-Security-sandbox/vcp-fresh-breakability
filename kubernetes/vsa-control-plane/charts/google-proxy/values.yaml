@@ -124,10 +124,9 @@ enableUnixPermissions: true
 enableSmbCaShare: true
 enableMultiAd: true
 maxNumberOfAdPerAccount: 5
-enableMqos: false
+enableMqos: true
 enableInferredIops: true
 enableVpgEndpoints: false
-enableInferredIops: true
 enableVolumePerformanceGroupAssignment: false
 exportPolicyRulesLimit: 20
 autoPoolScalingLimits:
