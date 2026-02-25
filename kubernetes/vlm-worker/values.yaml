@@ -53,8 +53,8 @@ ontapVersionVlmImageMappings:
     pullPolicy: IfNotPresent
   - ontapVersion: "9.18.1"
     vlmImageName: "vlm-worker"
-    vlmImageTag: "R9.18.1x_7966003"
-    vlmImageDigest: "sha256:9f341969850af4444f59126bcc50a44b50044e17f1c1a53181f8ef343627630e"
+    vlmImageTag: "R9.18.1x_7984401"
+    vlmImageDigest: "sha256:5e3ec2191da5bfa53029acfb483c61365f74373d5dbe811f6cc9c0fe88f8ba0b"
     secondary: true
     pullPolicy: IfNotPresent
 
