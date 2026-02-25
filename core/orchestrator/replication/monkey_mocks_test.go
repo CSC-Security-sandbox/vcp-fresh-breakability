@@ -323,23 +323,23 @@ func (_c *monkeyMock_createReplicationObjects_Call) RunAndReturn(run func(*Creat
 }
 
 // getDestinationPool provides a mock function with given fields: ctx, destBasePath, dstToken, remoteLocationID, projectNumber, xCorrelationID, name
-func (_m *monkeyMock) getDestinationPool(ctx context.Context, destBasePath string, dstToken string, remoteLocationID string, projectNumber string, xCorrelationID *string, name string) (*googleproxyclient.PoolV1beta, error) {
+func (_m *monkeyMock) getDestinationPool(ctx context.Context, destBasePath string, dstToken string, remoteLocationID string, projectNumber string, xCorrelationID *string, name string) (*googleproxyclient.PoolInternalV1beta, error) {
 	ret := _m.Called(ctx, destBasePath, dstToken, remoteLocationID, projectNumber, xCorrelationID, name)
 
 	if len(ret) == 0 {
 		panic("no return value specified for getDestinationPool")
 	}
 
-	var r0 *googleproxyclient.PoolV1beta
+	var r0 *googleproxyclient.PoolInternalV1beta
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, *string, string) (*googleproxyclient.PoolV1beta, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, *string, string) (*googleproxyclient.PoolInternalV1beta, error)); ok {
 		return rf(ctx, destBasePath, dstToken, remoteLocationID, projectNumber, xCorrelationID, name)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, *string, string) *googleproxyclient.PoolV1beta); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, *string, string) *googleproxyclient.PoolInternalV1beta); ok {
 		r0 = rf(ctx, destBasePath, dstToken, remoteLocationID, projectNumber, xCorrelationID, name)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*googleproxyclient.PoolV1beta)
+			r0 = ret.Get(0).(*googleproxyclient.PoolInternalV1beta)
 		}
 	}
 
@@ -376,12 +376,12 @@ func (_c *monkeyMock_getDestinationPool_Call) Run(run func(ctx context.Context, 
 	return _c
 }
 
-func (_c *monkeyMock_getDestinationPool_Call) Return(_a0 *googleproxyclient.PoolV1beta, _a1 error) *monkeyMock_getDestinationPool_Call {
+func (_c *monkeyMock_getDestinationPool_Call) Return(_a0 *googleproxyclient.PoolInternalV1beta, _a1 error) *monkeyMock_getDestinationPool_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *monkeyMock_getDestinationPool_Call) RunAndReturn(run func(context.Context, string, string, string, string, *string, string) (*googleproxyclient.PoolV1beta, error)) *monkeyMock_getDestinationPool_Call {
+func (_c *monkeyMock_getDestinationPool_Call) RunAndReturn(run func(context.Context, string, string, string, string, *string, string) (*googleproxyclient.PoolInternalV1beta, error)) *monkeyMock_getDestinationPool_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -19,7 +19,7 @@ type monkeyMethods interface {
 	InternalParseRegionAndZone(location string) (string, string, error)
 	validateReplicationResourceId(ctx context.Context, projectNumber string, paramReplicationResourceId string, paramsVolumeResourceId string, se database.Storage) error
 	validateStoragePoolUri(uri string) error
-	getDestinationPool(ctx context.Context, destBasePath string, dstToken string, remoteLocationID string, projectNumber string, xCorrelationID *string, name string) (*googleproxyclient.PoolV1beta, error)
+	getDestinationPool(ctx context.Context, destBasePath string, dstToken string, remoteLocationID string, projectNumber string, xCorrelationID *string, name string) (*googleproxyclient.PoolInternalV1beta, error)
 	replicationJobInProcess(ctx context.Context, srcProjectNumber string, destProjectNumber string, srcBasePath string, destBasePath string, srcLocationID string, destLocationId, srcToken string, destToken string, ccfeUri string, remoteCcfeUri string, srcPoolId, dstPoolId string, correlationId *string) error
 	getQuotaLimit(ctx context.Context, logger log.Logger, region string, projectId string, token string, resourceType common.ResourceType) (int, error)
 	internalGetReplicationCount(ctx context.Context, basePath string, projectNumber string, locationID string, poolID string, jwt string, storageClass, serviceLevel string) (int, error)

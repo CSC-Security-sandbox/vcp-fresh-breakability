@@ -73,17 +73,25 @@ func (wf *clusterPeerWorkflow) Run(ctx workflow.Context, args ...interface{}) (i
 	params := args[0].(*common.ClusterPeerParams)
 	pool := args[1].(*datamodel.Pool)
 	clusterPeerActivity := &activities.ClusterPeerActivity{}
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: time.Duration(StartToCloseTimeoutForReplicationActivities) * time.Second,
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    time.Duration(adcWorkflowHeartbeatTimeoutSec) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
-			MaximumAttempts:        1,
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
 			NonRetryableErrorTypes: []string{"PanicError"},
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
 	var dbNodes []*datamodel.Node
-	err := workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, pool.ID).Get(ctx, &dbNodes)
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, pool.ID).Get(ctx, &dbNodes)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}

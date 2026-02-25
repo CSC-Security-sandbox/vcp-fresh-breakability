@@ -474,11 +474,9 @@ func Test_getDestinationPool(t *testing.T) {
 	poolName := "pool-1"
 
 	t.Run("Returns pool when found", func(t *testing.T) {
-		mockPool := googleproxyclient.PoolV1beta{ResourceId: poolName}
+		mockPool := &googleproxyclient.PoolInternalV1beta{ResourceId: poolName, Network: "network"}
 		mockClient := googleproxyclient.NewMockInvoker(t)
-		mockClient.EXPECT().V1betaListPools(ctx, mock.Anything).Return(&googleproxyclient.V1betaListPoolsOK{
-			Pools: []googleproxyclient.PoolV1beta{mockPool},
-		}, nil)
+		mockClient.EXPECT().V1betaInternalDescribePool(ctx, mock.Anything).Return(mockPool, nil)
 
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
@@ -495,9 +493,7 @@ func Test_getDestinationPool(t *testing.T) {
 
 	t.Run("Returns not found error when pool does not exist", func(t *testing.T) {
 		mockClient := googleproxyclient.NewMockInvoker(t)
-		mockClient.EXPECT().V1betaListPools(ctx, mock.Anything).Return(&googleproxyclient.V1betaListPoolsOK{
-			Pools: []googleproxyclient.PoolV1beta{},
-		}, nil)
+		mockClient.EXPECT().V1betaInternalDescribePool(ctx, mock.Anything).Return(&googleproxyclient.V1betaInternalDescribePoolNotFound{}, nil)
 
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
@@ -514,7 +510,7 @@ func Test_getDestinationPool(t *testing.T) {
 
 	t.Run("Returns error when Invoker returns error", func(t *testing.T) {
 		mockClient := googleproxyclient.NewMockInvoker(t)
-		mockClient.EXPECT().V1betaListPools(ctx, mock.Anything).Return(nil, errors.New("api error"))
+		mockClient.EXPECT().V1betaInternalDescribePool(ctx, mock.Anything).Return(nil, errors.New("api error"))
 
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
@@ -526,6 +522,94 @@ func Test_getDestinationPool(t *testing.T) {
 		pool, err := _getDestinationPool(ctx, destBasePath, token, remoteLocationID, projectNumber, xCorrelationID, poolName)
 		assert.Error(t, err)
 		assert.Nil(t, pool)
+	})
+
+	t.Run("Returns error when describe pool returns internal server error", func(t *testing.T) {
+		serverErr := &googleproxyclient.V1betaInternalDescribePoolInternalServerError{
+			Message: "something went wrong",
+		}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		mockClient.EXPECT().V1betaInternalDescribePool(ctx, mock.Anything).Return(serverErr, nil)
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		pool, err := _getDestinationPool(ctx, destBasePath, token, remoteLocationID, projectNumber, xCorrelationID, poolName)
+		assert.Error(t, err)
+		assert.Nil(t, pool)
+		var customErr *vsaErrors.CustomError
+		assert.True(t, vsaErrors.As(err, &customErr))
+		assert.Equal(t, vsaErrors.ErrInternalServerError, customErr.TrackingID)
+		assert.Contains(t, customErr.OriginalErr.Error(), "something went wrong")
+	})
+
+	t.Run("Returns error when destination pool has active cluster upgrade", func(t *testing.T) {
+		mockPool := &googleproxyclient.PoolInternalV1beta{
+			ResourceId:             poolName,
+			HasActiveClusterUpgrade: googleproxyclient.OptBool{Value: true, Set: true},
+		}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		mockClient.EXPECT().V1betaInternalDescribePool(ctx, mock.Anything).Return(mockPool, nil)
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		pool, err := _getDestinationPool(ctx, destBasePath, token, remoteLocationID, projectNumber, xCorrelationID, poolName)
+		assert.Error(t, err)
+		assert.Nil(t, pool)
+		var customErr *vsaErrors.CustomError
+		assert.True(t, vsaErrors.As(err, &customErr))
+		assert.Equal(t, vsaErrors.ErrStoragePoolTemporarilyUnavailable, customErr.TrackingID)
+	})
+
+	t.Run("Returns pool when HasActiveClusterUpgrade is false", func(t *testing.T) {
+		mockPool := &googleproxyclient.PoolInternalV1beta{
+			ResourceId:             poolName,
+			HasActiveClusterUpgrade: googleproxyclient.OptBool{Value: false, Set: true},
+		}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		mockClient.EXPECT().V1betaInternalDescribePool(ctx, mock.Anything).Return(mockPool, nil)
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		pool, err := _getDestinationPool(ctx, destBasePath, token, remoteLocationID, projectNumber, xCorrelationID, poolName)
+		assert.NoError(t, err)
+		assert.NotNil(t, pool)
+		assert.Equal(t, poolName, pool.ResourceId)
+	})
+
+	t.Run("Returns pool when HasActiveClusterUpgrade is not set", func(t *testing.T) {
+		mockPool := &googleproxyclient.PoolInternalV1beta{
+			ResourceId:             poolName,
+			HasActiveClusterUpgrade: googleproxyclient.OptBool{Set: false},
+		}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		mockClient.EXPECT().V1betaInternalDescribePool(ctx, mock.Anything).Return(mockPool, nil)
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		mc := &googleproxyclient.ProxyClient{Invoker: mockClient}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		pool, err := _getDestinationPool(ctx, destBasePath, token, remoteLocationID, projectNumber, xCorrelationID, poolName)
+		assert.NoError(t, err)
+		assert.NotNil(t, pool)
+		assert.Equal(t, poolName, pool.ResourceId)
 	})
 }
 
@@ -776,14 +860,15 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		defer func() { InternalUtilGetCallbackToken = origGetCallbackToken }()
 
 		origGetDestinationPool := getDestinationPool
-		getDestinationPool = func(ctx context.Context, destBasePath, token, remoteLocationID, projectNumber string, xCorrelationID *string, name string) (*googleproxyclient.PoolV1beta, error) {
-			return &googleproxyclient.PoolV1beta{
+		getDestinationPool = func(ctx context.Context, destBasePath, token, remoteLocationID, projectNumber string, xCorrelationID *string, name string) (*googleproxyclient.PoolInternalV1beta, error) {
+			return &googleproxyclient.PoolInternalV1beta{
+				Network:          "network",
 				ResourceId:       destPoolID,
 				PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 				AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 				SizeInBytes:      200,
-				ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-				StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+				ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+				StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 			}, nil
 		}
 		defer func() { getDestinationPool = origGetDestinationPool }()
@@ -1212,14 +1297,15 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
 		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
 
-		ontapModePool := &googleproxyclient.PoolV1beta{
+		ontapModePool := &googleproxyclient.PoolInternalV1beta{
+			Network:          "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
-			Mode:             googleproxyclient.OptPoolV1betaMode{Value: googleproxyclient.PoolV1betaMode(common.ONTAPMode), Set: true},
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
+			Mode:             googleproxyclient.OptPoolInternalV1betaMode{Value: googleproxyclient.PoolInternalV1betaModeONTAP, Set: true},
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(ontapModePool, nil).Once()
 
@@ -1249,13 +1335,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
 		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
 
-		transitioningPool := &googleproxyclient.PoolV1beta{
+		transitioningPool := &googleproxyclient.PoolInternalV1beta{
+			Network:          "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateCREATING),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateCREATING),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(transitioningPool, nil).Once()
 
@@ -1285,13 +1372,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
 		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
 
-		unhealthyPool := &googleproxyclient.PoolV1beta{
+		unhealthyPool := &googleproxyclient.PoolInternalV1beta{
+			Network:          "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateERROR),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateERROR),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(unhealthyPool, nil).Once()
 
@@ -1353,13 +1441,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
 		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
 
-		degradedPool := &googleproxyclient.PoolV1beta{
+		degradedPool := &googleproxyclient.PoolInternalV1beta{
+			Network:          "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateDEGRADED),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateDEGRADED),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(degradedPool, nil).Once()
 
@@ -1448,13 +1537,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
 
 		// Set a small destination pool that can't accommodate the volume
-		smallPool := &googleproxyclient.PoolV1beta{
+		smallPool := &googleproxyclient.PoolInternalV1beta{
+			Network:          "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(50),
 			SizeInBytes:      100, // Smaller than source volume size (100) + allocated bytes (50)
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(smallPool, nil).Once()
 
@@ -1498,13 +1588,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 			CoolingThresholdDays: googleproxyclient.OptNilInt32{Value: 2},
 		}
 		// Set a Autotiering disabled destination pool
-		nonATPool := &googleproxyclient.PoolV1beta{
+		nonATPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(50),
 			SizeInBytes:      1000, // Smaller than source volume size (100) + allocated bytes (50)
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(nonATPool, nil).Once()
 
@@ -1548,13 +1639,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 			CoolingThresholdDays: googleproxyclient.OptNilInt32{Value: 1},
 		}
 
-		atPool := &googleproxyclient.PoolV1beta{
+		atPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(50),
 			SizeInBytes:      1000,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 			AllowAutoTiering: googleproxyclient.OptNilBool{Value: true, Set: true},
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(atPool, nil).Once()
@@ -1586,13 +1678,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
 
 		// Set different service level for destination pool
-		differentServiceLevelPool := &googleproxyclient.PoolV1beta{
+		differentServiceLevelPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelEXTREME, // Different from source (FLEX)
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelEXTREME, // Different from source (FLEX)
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(differentServiceLevelPool, nil).Once()
 
@@ -1626,14 +1719,15 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.Pool.LargeCapacity = true
 
 		// Set different LargeCapacity for destination pool (false)
-		differentLargeCapacityPool := &googleproxyclient.PoolV1beta{
+		differentLargeCapacityPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
 			LargeCapacity:    googleproxyclient.OptBool{Value: false, Set: true}, // Different from source (true)
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(differentLargeCapacityPool, nil).Once()
 
@@ -1667,14 +1761,15 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.Pool.LargeCapacity = false
 
 		// Set different LargeCapacity for destination pool (true)
-		differentLargeCapacityPool := &googleproxyclient.PoolV1beta{
+		differentLargeCapacityPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
 			LargeCapacity:    googleproxyclient.OptBool{Value: true, Set: true}, // Different from source (false)
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(differentLargeCapacityPool, nil).Once()
 
@@ -1708,14 +1803,15 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.Pool.LargeCapacity = true
 
 		// Set matching LargeCapacity for destination pool (true)
-		matchingLargeCapacityPool := &googleproxyclient.PoolV1beta{
+		matchingLargeCapacityPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
 			LargeCapacity:    googleproxyclient.OptBool{Value: true, Set: true}, // Matches source (true)
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(matchingLargeCapacityPool, nil).Once()
 		mm.On("replicationJobInProcess", ctx, event.SourceProjectNumber, event.DestinationProjectNumber, "basePath", "basePath", event.LocationID, event.DestinationLocationID, "token", "token", mock.Anything, "", mock.Anything, destPoolID, event.XCorrelationID).Return(nil).Once()
@@ -1756,14 +1852,15 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.Pool.LargeCapacity = true
 
 		// Set LargeCapacity not set for destination pool (Set: false)
-		poolWithUnsetLargeCapacity := &googleproxyclient.PoolV1beta{
+		poolWithUnsetLargeCapacity := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
 			LargeCapacity:    googleproxyclient.OptBool{Value: false, Set: false}, // Not set - should skip validation
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(poolWithUnsetLargeCapacity, nil).Once()
 		mm.On("replicationJobInProcess", ctx, event.SourceProjectNumber, event.DestinationProjectNumber, "basePath", "basePath", event.LocationID, event.DestinationLocationID, "token", "token", mock.Anything, "", mock.Anything, destPoolID, event.XCorrelationID).Return(nil).Once()
@@ -1804,14 +1901,15 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.Pool.LargeCapacity = false
 
 		// Set matching LargeCapacity for destination pool (false) - both are normal capacity pools
-		matchingNormalCapacityPool := &googleproxyclient.PoolV1beta{
+		matchingNormalCapacityPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
 			LargeCapacity:    googleproxyclient.OptBool{Value: false, Set: true}, // Matches source (false) - both normal capacity
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(matchingNormalCapacityPool, nil).Once()
 		mm.On("replicationJobInProcess", ctx, event.SourceProjectNumber, event.DestinationProjectNumber, "basePath", "basePath", event.LocationID, event.DestinationLocationID, "token", "token", mock.Anything, "", mock.Anything, destPoolID, event.XCorrelationID).Return(nil).Once()
@@ -1848,13 +1946,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
 		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
 
-		validPool := &googleproxyclient.PoolV1beta{
+		validPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
 
@@ -1886,13 +1985,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
 		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
 
-		validPool := &googleproxyclient.PoolV1beta{
+		validPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
 
@@ -1926,13 +2026,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
 		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
 
-		validPool := &googleproxyclient.PoolV1beta{
+		validPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
 
@@ -1967,13 +2068,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
 		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
 
-		validPool := &googleproxyclient.PoolV1beta{
+		validPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
 
@@ -2010,13 +2112,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
 		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
 
-		validPool := &googleproxyclient.PoolV1beta{
+		validPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
 
@@ -2053,13 +2156,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
 		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
 
-		validPool := &googleproxyclient.PoolV1beta{
+		validPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
 
@@ -2098,13 +2202,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
 		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
 
-		validPool := &googleproxyclient.PoolV1beta{
+		validPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
 
@@ -2145,13 +2250,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
 		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
 
-		validPool := &googleproxyclient.PoolV1beta{
+		validPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
 
@@ -2192,13 +2298,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
 		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
 
-		validPool := &googleproxyclient.PoolV1beta{
+		validPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
 
@@ -2246,13 +2353,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
 		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
 
-		validPool := &googleproxyclient.PoolV1beta{
+		validPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
 
@@ -2300,13 +2408,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
 		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
 
-		validPool := &googleproxyclient.PoolV1beta{
+		validPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
 
@@ -2353,13 +2462,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
 		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
 
-		validPool := &googleproxyclient.PoolV1beta{
+		validPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
 
@@ -2412,13 +2522,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.CreateReplicationParams.DestinationVolumeParameters.VolumeID = ""
 		event.CreateReplicationParams.DestinationVolumeParameters.ShareName = ""
 
-		validPool := &googleproxyclient.PoolV1beta{
+		validPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
 
@@ -2478,13 +2589,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.CreateReplicationParams.DestinationVolumeParameters.VolumeID = ""
 		event.CreateReplicationParams.DestinationVolumeParameters.ShareName = ""
 
-		validPool := &googleproxyclient.PoolV1beta{
+		validPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
 
@@ -2543,13 +2655,14 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		event.CreateReplicationParams.DestinationVolumeParameters.VolumeID = ""
 		event.CreateReplicationParams.DestinationVolumeParameters.ShareName = ""
 
-		validPool := &googleproxyclient.PoolV1beta{
+		validPool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
 			ResourceId:       destPoolID,
 			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
 			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
 			SizeInBytes:      200,
-			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
-			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+			ServiceLevel:     googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
 
@@ -7748,29 +7861,33 @@ func TestConvertReplicationResponseToModels(t *testing.T) {
 
 func TestIsPoolInTransitionState(t *testing.T) {
 	t.Run("WhenCreatingState", func(tt *testing.T) {
-		pool := &googleproxyclient.PoolV1beta{
-			StoragePoolState: googleproxyclient.OptPoolV1betaStoragePoolState{Value: googleproxyclient.PoolV1betaStoragePoolStateCREATING},
+		pool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateCREATING),
 		}
 		resp := isPoolInTransitionState(pool)
 		assert.True(tt, resp, "Should be true")
 	})
 	t.Run("WhenDeletingState", func(tt *testing.T) {
-		pool := &googleproxyclient.PoolV1beta{
-			StoragePoolState: googleproxyclient.OptPoolV1betaStoragePoolState{Value: googleproxyclient.PoolV1betaStoragePoolStateDELETING},
+		pool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateDELETING),
 		}
 		resp := isPoolInTransitionState(pool)
 		assert.True(tt, resp, "Should be true")
 	})
 	t.Run("WhenUpdatingState", func(tt *testing.T) {
-		pool := &googleproxyclient.PoolV1beta{
-			StoragePoolState: googleproxyclient.OptPoolV1betaStoragePoolState{Value: googleproxyclient.PoolV1betaStoragePoolStateUPDATING},
+		pool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateUPDATING),
 		}
 		resp := isPoolInTransitionState(pool)
 		assert.False(tt, resp, "Should be false")
 	})
 	t.Run("WhenReadyState", func(tt *testing.T) {
-		pool := &googleproxyclient.PoolV1beta{
-			StoragePoolState: googleproxyclient.OptPoolV1betaStoragePoolState{Value: googleproxyclient.PoolV1betaStoragePoolStateREADY},
+		pool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
+			StoragePoolState: googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
 		}
 		resp := isPoolInTransitionState(pool)
 		assert.False(tt, resp, "Should be false")
@@ -7811,29 +7928,33 @@ func TestIsPoolHealthy(t *testing.T) {
 
 func TestIsPoolInONTAPMode(t *testing.T) {
 	t.Run("WhenModeIsONTAPAndSet", func(tt *testing.T) {
-		pool := &googleproxyclient.PoolV1beta{
-			Mode: googleproxyclient.OptPoolV1betaMode{Value: googleproxyclient.PoolV1betaMode(common.ONTAPMode), Set: true},
+		pool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
+			Mode: googleproxyclient.OptPoolInternalV1betaMode{Value: googleproxyclient.PoolInternalV1betaMode(common.ONTAPMode), Set: true},
 		}
 		resp := isPoolInONTAPMode(pool)
 		assert.True(tt, resp, "Should be true when mode is ONTAP and Set is true")
 	})
 	t.Run("WhenModeIsONTAPButNotSet", func(tt *testing.T) {
-		pool := &googleproxyclient.PoolV1beta{
-			Mode: googleproxyclient.OptPoolV1betaMode{Value: googleproxyclient.PoolV1betaMode(common.ONTAPMode), Set: false},
+		pool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
+			Mode: googleproxyclient.OptPoolInternalV1betaMode{Value: googleproxyclient.PoolInternalV1betaMode(common.ONTAPMode), Set: false},
 		}
 		resp := isPoolInONTAPMode(pool)
 		assert.False(tt, resp, "Should be false when Set is false")
 	})
 	t.Run("WhenModeIsDEFAULT", func(tt *testing.T) {
-		pool := &googleproxyclient.PoolV1beta{
-			Mode: googleproxyclient.OptPoolV1betaMode{Value: googleproxyclient.PoolV1betaMode(common.DEFAULTMode), Set: true},
+		pool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
+			Mode: googleproxyclient.OptPoolInternalV1betaMode{Value: googleproxyclient.PoolInternalV1betaMode(common.DEFAULTMode), Set: true},
 		}
 		resp := isPoolInONTAPMode(pool)
 		assert.False(tt, resp, "Should be false when mode is DEFAULT")
 	})
 	t.Run("WhenModeIsEmpty", func(tt *testing.T) {
-		pool := &googleproxyclient.PoolV1beta{
-			Mode: googleproxyclient.OptPoolV1betaMode{Value: "", Set: false},
+		pool := &googleproxyclient.PoolInternalV1beta{
+			Network: "network",
+			Mode: googleproxyclient.OptPoolInternalV1betaMode{Value: "", Set: false},
 		}
 		resp := isPoolInONTAPMode(pool)
 		assert.False(tt, resp, "Should be false when mode is empty")

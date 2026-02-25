@@ -272,14 +272,19 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 	if !isPoolHealthy(string(destPool.StoragePoolState.Value)) {
 		typeErr := errors.NewVCPError(
 			errors.ErrValidateDestinationStoragePoolState, errors.New("destination pool is in unhealthy state, please try after some time"))
-		if destPool.StoragePoolState.Value == googleproxyclient.PoolV1betaStoragePoolStateDEGRADED {
+		if destPool.StoragePoolState.Value == googleproxyclient.PoolInternalV1betaStoragePoolStateDEGRADED {
 			typeErr = errors.NewVCPError(
 				errors.ErrValidateDestinationStoragePoolStateDegraded, errors.New("destination pool is in degraded state, please try after some time"))
 		}
 		logger.Error("Destination pool is in unhealthy state, Please try after some time", "error", typeErr)
 		return nil, typeErr
 	}
-	bytesNeeded := float64(event.SourceVolume.SizeInBytes) + destPool.AllocatedBytes.Value
+
+	allocatedBytes := float64(0)
+	if destPool.AllocatedBytes.Set {
+		allocatedBytes = destPool.AllocatedBytes.Value
+	}
+	bytesNeeded := float64(event.SourceVolume.SizeInBytes) + allocatedBytes
 	if bytesNeeded > destPool.SizeInBytes {
 		typeErr := errors.NewVCPError(errors.ErrDestPoolSize, errors.New("Volume exceeds destination pool size"))
 		logger.Error("Volume exceeds destination pool size", "error", typeErr)
@@ -404,15 +409,15 @@ func isPoolHealthy(poolState string) bool {
 	return true
 }
 
-func isPoolInTransitionState(dstPool *googleproxyclient.PoolV1beta) bool {
-	if dstPool.StoragePoolState.Value == googleproxyclient.PoolV1betaStoragePoolStateDELETING || dstPool.StoragePoolState.Value == googleproxyclient.PoolV1betaStoragePoolStateCREATING {
+func isPoolInTransitionState(dstPool *googleproxyclient.PoolInternalV1beta) bool {
+	if dstPool.StoragePoolState.Value == googleproxyclient.PoolInternalV1betaStoragePoolStateDELETING || dstPool.StoragePoolState.Value == googleproxyclient.PoolInternalV1betaStoragePoolStateCREATING {
 		return true
 	}
 	return false
 }
 
 // isPoolInONTAPMode checks if the pool is configured in ONTAP mode
-func isPoolInONTAPMode(pool *googleproxyclient.PoolV1beta) bool {
+func isPoolInONTAPMode(pool *googleproxyclient.PoolInternalV1beta) bool {
 	return pool.Mode.Set && pool.Mode.Value == common.ONTAPMode
 }
 
@@ -469,7 +474,7 @@ func _internalGetVolumeCount(ctx context.Context, basePath string, projectNumber
 	return response.(*googleproxyclient.V1betaGetVolumeCountOK).VolumeCount, nil
 }
 
-func _getDestinationPool(ctx context.Context, destBasePath string, token string, remoteLocationID string, projectNumber string, xCorrelationID *string, name string) (*googleproxyclient.PoolV1beta, error) {
+func _getDestinationPool(ctx context.Context, destBasePath string, token string, remoteLocationID string, projectNumber string, xCorrelationID *string, name string) (*googleproxyclient.PoolInternalV1beta, error) {
 	logger := util.GetLogger(ctx)
 
 	logger.Debug(
@@ -481,31 +486,34 @@ func _getDestinationPool(ctx context.Context, destBasePath string, token string,
 	)
 
 	googleProxyClient := googleproxyclient.GetGProxyClient(destBasePath, token, logger)
-	params := googleproxyclient.V1betaListPoolsParams{}
-	params.ProjectNumber = projectNumber
-	params.LocationId = remoteLocationID
-	params.XCorrelationID = googleproxyclient.OptString{Value: *xCorrelationID, Set: true}
-	params.IncludeDeleted = googleproxyclient.OptBool{Value: false, Set: true}
+	params := googleproxyclient.V1betaInternalDescribePoolParams{
+		ProjectNumber:  projectNumber,
+		LocationId:     remoteLocationID,
+		PoolName:       name,
+		XCorrelationID: googleproxyclient.OptString{Value: *xCorrelationID, Set: true},
+	}
 
-	payloadError := &models.Error{Code: float64(404), Message: fmt.Sprintf("Error fetching pool - Pool %s not found", name)}
-
-	poolsOk, err := googleProxyClient.Invoker.V1betaListPools(ctx, params)
+	response, err := googleProxyClient.Invoker.V1betaInternalDescribePool(ctx, params)
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrListPools, err)
 	}
 
-	poolsResponse := poolsOk.(*googleproxyclient.V1betaListPoolsOK)
-
-	if poolsResponse != nil && len(poolsResponse.Pools) < 1 {
-		return nil, errors.NewVCPError(errors.ErrGetPoolNotFound, &pools.V1betaListPoolsNotFound{Payload: payloadError})
+	if serverErr, ok := response.(*googleproxyclient.V1betaInternalDescribePoolInternalServerError); ok {
+		logger.Error("Internal server error from destination pool describe", "message", serverErr.Message)
+		return nil, errors.NewVCPError(errors.ErrInternalServerError, fmt.Errorf("internal server error while fetching destination pool %s: %s", name, serverErr.Message))
 	}
 
-	for _, pool := range poolsResponse.Pools {
-		if name == pool.ResourceId {
-			return &pool, nil
+	if pool, ok := response.(*googleproxyclient.PoolInternalV1beta); ok {
+		if pool.GetHasActiveClusterUpgrade().IsSet() && pool.GetHasActiveClusterUpgrade().Value {
+			typeErr := errors.NewVCPError(
+				errors.ErrStoragePoolTemporarilyUnavailable, errors.New("destination storage pool is temporarily unavailable, please try again later"))
+			logger.Error("Destination pool is temporarily unavailable (cluster upgrade in progress)", "error", typeErr)
+			return nil, typeErr
 		}
+		return pool, nil
 	}
 
+	payloadError := &models.Error{Code: float64(404), Message: fmt.Sprintf("Error fetching pool - Pool %s not found", name)}
 	return nil, errors.NewVCPError(errors.ErrGetPoolNotFound, &pools.V1betaListPoolsNotFound{Payload: payloadError})
 }
 
